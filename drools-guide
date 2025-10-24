@@ -1,0 +1,98 @@
+docker run -p 8080:8080 -p 8001:8001 -d --name drools-workbench quay.io/kiegroup/business-central-workbench-showcase:latest
+docker run -p 8180:8080 -d --name kie-server --link drools-workbench:kie-wb quay.io/kiegroup/kie-server-showcase:latest
+
+命名项目名称需要全小写，否则会有未知调用错误 发布需要预先配置kiebase和kiesession
+
+
+docker run -p 8080:8080 -p 8001:8001 -d --name jbpm-workbench quay.io/kiegroup/business-central-workbench-showcase:latest
+
+
+docker network create drools-network
+
+# 启动 drools-workbench 容器
+docker run -p 8080:8080 -p 8001:8001 -d --name drools-workbench --network drools-network jboss/drools-workbench-showcase:latest
+
+# 启动 kie-server 容器
+docker run -p 8180:8080 -d --name kie-server --network drools-network jboss/kie-server-showcase:latest
+
+
+
+package com.project.test;
+
+import com.project.test.TestModel;
+
+rule "test_rule"
+   when
+      testModel : TestModel( testInput1 == "yellow" , testInput2 == "red" )
+   then
+      testModel.testOutput( "blue" );
+end
+
+
+package com.myspace.test;
+
+rule "Apply Tall Order Discount"
+dialect "mvel"
+no-loop true
+when
+    $sc : ShoppingCart( $tp : totalPrice >= 10000.0 )
+then
+    modify( $sc ) {
+        setTotalPrice( $tp * 0.5 )
+    }
+end
+
+
+
+oller.websocket.notification.WebSocketNotificationService] (default task-11) WebSocket notification about change requested on server ServerTemplateKey{id='kie-server-4f7a0df9a74f', name='kie-server-4f7a0df9a74f'} with container spec ContainerSpec{releasedId=com.myspace:Test:1.0.0-SNAPSHOT, configs={RULE=org.kie.server.controller.api.model.spec.RuleConfig@6f2347e7, PROCESS=org.kie.server.controller.api.model.spec.ProcessConfig@bd2a4c03}, status=STARTED} ContainerSpecKey{id='Te
+
+
+{
+  "lookup": null,
+  "commands": [
+    {
+      "insert": {
+        "object": {
+          "com.myspace.test.ShoppingCart": {
+            "totalPrice": "10001.00"
+          }
+        },
+        "return-object": true,
+        "out-identifier": "cart"
+      }
+    },
+    {
+      "fire-all-rules": {}
+    }
+  ]
+}
+
+url='http://172.17.0.3:8080/kie-server/services/rest/server/containers/Test_1.0.0-SNAPSHOT'}]
+
+http://localhost:8180/kie-server/services/rest/server/containers/instances/Test_1.0.0-SNAPSHOT
+
+curl -u kieserver:kieserver1! -X GET "http://localhost:8180/kie-server/services/rest/server/containers/Test_1.0.0-SNAPSHOT/assets"
+
+
+
+curl -v -u kieserver:kieserver1! -X GET "http://192.168.15.129:8180/kie-server/services/rest/server/containers/Test_1.0.0-SNAPSHOT"
+
+curl -u kieserver:kieserver1! -X POST "http://localhost:8180/kie-server/services/rest/server/containers/Test_1.0.0-SNAPSHOT/execution" -H "Content-Type: application/json" -d '{
+    "lookup": null,
+    "commands": [
+        {
+            "insert": {
+                "object": {
+                    "com.myspace.test.ShoppingCart": {
+                        "totalPrice": "10001.00"
+                    }
+                },
+                "return-object": true,
+                "out-identifier": "cart"
+            }
+        },
+        {
+            "fire-all-rules": {}
+        }
+    ]
+}'
