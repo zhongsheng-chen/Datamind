@@ -1,0 +1,902 @@
+2025-10-01 15:10:12,306 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-01 15:10:12,336 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-01 15:13:47,616 - WARNING - register_model - register_model.py - 模型文件不存在: models/personal_loan/personal_loan_scorecard_randomforest_20250930.pkl, 跳过注册
+2025-10-01 15:13:47,616 - WARNING - register_model - register_model.py - 模型文件不存在: models/auto_loan/fraud_detection_dtree_20250930.pkl, 跳过注册
+2025-10-01 15:26:13,646 - INFO - cleaup_models - cleaup_models.py - 当前没有任何模型可以删除
+2025-10-01 15:37:24,646 - INFO - cleaup_models - cleaup_models.py - 当前没有任何模型可以删除
+2025-10-01 15:42:34,986 - INFO - cleaup_models - cleaup_models.py - 当前没有任何模型可以删除
+2025-10-01 15:43:44,095 - INFO - list_models - list_models.py - 当前没有任何模型
+2025-10-01 15:44:54,173 - WARNING - register_model - register_model.py - 模型文件不存在: models/personal_loan/personal_loan_scorecard_randomforest_20250930.pkl, 跳过注册
+2025-10-01 15:44:54,173 - WARNING - register_model - register_model.py - 模型文件不存在: models/auto_loan/fraud_detection_dtree_20250930.pkl, 跳过注册
+2025-10-01 15:48:51,146 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 15:48:52,570 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:cjp5jme6togjt6wa")
+2025-10-01 15:48:52,571 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 15:48:53,628 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:cmko7ke6togjt6wa")
+2025-10-01 15:50:34,724 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 15:50:35,904 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:kablp5u6to47n6wa")
+2025-10-01 15:50:35,904 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 15:50:37,145 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:kcw65fu6to47n6wa")
+2025-10-01 15:59:35,561 - WARNING - register_model - register_model.py - 模型文件不存在: models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-01 15:59:35,562 - WARNING - register_model - register_model.py - 模型文件不存在: models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-01 15:59:57,984 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 15:59:59,595 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:t7gtiiu6tssqz6wa")
+2025-10-01 15:59:59,597 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:00:00,786 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:ucvp7ku6tssqz6wa")
+2025-10-01 16:03:04,839 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_796/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:03:06,058 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:b4ohfge6twllb6wa")
+2025-10-01 16:03:06,058 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_796/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:03:07,192 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:b7g7qbu6twllb6wa")
+2025-10-01 16:18:04,665 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_796/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:18:05,748 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:e5zvqru6t66qv6wa")
+2025-10-01 16:18:05,749 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_796/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:18:06,658 - INFO - register_model - register_model.py - ✅ 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:fahj5fu6t66qv6wa")
+2025-10-01 16:19:15,044 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_796/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:19:15,956 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:kfts2me6t6udp6wa")
+2025-10-01 16:19:15,957 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_796/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-01 16:19:17,002 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:khuiesu6t6udp6wa")
+2025-10-01 16:19:42,078 - INFO - list_models - list_models.py - Tag                                                   Module           Size      Creation Time      
+2025-10-01 16:19:42,078 - INFO - list_models - list_models.py - ====================================================================================================
+2025-10-01 16:19:42,078 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:b4ohfge6twllb6wa  bentoml.sklearn  2.65 KiB  2025-10-01 16:03:04
+2025-10-01 16:19:42,078 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:b7g7qbu6twllb6wa  bentoml.sklearn  2.65 KiB  2025-10-01 16:03:06
+2025-10-01 16:19:42,078 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:cjp5jme6togjt6wa  bentoml.sklearn  2.65 KiB  2025-10-01 15:48:51
+2025-10-01 16:19:42,078 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:cmko7ke6togjt6wa  bentoml.sklearn  2.65 KiB  2025-10-01 15:48:52
+2025-10-01 16:19:42,079 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:e5zvqru6t66qv6wa  bentoml.sklearn  2.65 KiB  2025-10-01 16:18:04
+2025-10-01 16:19:42,079 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:fahj5fu6t66qv6wa  bentoml.sklearn  2.65 KiB  2025-10-01 16:18:05
+2025-10-01 16:19:42,079 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:kablp5u6to47n6wa  bentoml.sklearn  2.65 KiB  2025-10-01 15:50:34
+2025-10-01 16:19:42,079 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:kcw65fu6to47n6wa  bentoml.sklearn  2.65 KiB  2025-10-01 15:50:35
+2025-10-01 16:19:42,079 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:kfts2me6t6udp6wa  bentoml.sklearn  2.65 KiB  2025-10-01 16:19:15
+2025-10-01 16:19:42,079 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:khuiesu6t6udp6wa  bentoml.sklearn  2.65 KiB  2025-10-01 16:19:15
+2025-10-01 16:19:42,080 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:t7gtiiu6tssqz6wa  bentoml.sklearn  2.65 KiB  2025-10-01 15:59:58
+2025-10-01 16:19:42,080 - INFO - list_models - list_models.py - personal_loan_scorecard_lr_20250930:ucvp7ku6tssqz6wa  bentoml.sklearn  2.65 KiB  2025-10-01 15:59:59
+2025-10-09 10:29:23,450 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 10:29:23,622 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 10:31:33,917 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 10:31:33,945 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:37:25,057 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:37:25,085 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:37:34,353 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:37:34,380 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:37:37,305 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:37:37,305 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, create_file_hash() missing 1 required positional argument: 'filepath'
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 138, in register_model
+    hash_value = create_file_hash()
+TypeError: create_file_hash() missing 1 required positional argument: 'filepath'
+2025-10-09 11:37:37,307 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:37:37,307 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, create_file_hash() missing 1 required positional argument: 'filepath'
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 138, in register_model
+    hash_value = create_file_hash()
+TypeError: create_file_hash() missing 1 required positional argument: 'filepath'
+2025-10-09 11:40:15,689 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:40:15,719 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:40:19,311 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:40:19,375 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, (psycopg2.errors.UndefinedColumn) column "hash_value" does not exist
+LINE 5:         AND hash_value = '67be1d1aa1c807397ab0345eb35dc01927...
+                    ^
+
+[SQL: 
+        SELECT 1 FROM model_registry
+        WHERE model_name = %(model_name)s
+        AND version = %(version)s
+        AND hash_value = %(hash_value)s
+        AND status = 'active'
+    ]
+[parameters: {'model_name': 'personal_loan_scorecard_lr_20250930', 'version': 'mhzjbtu6c2tzd6wa', 'hash_value': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64'}]
+(Background on this error at: https://sqlalche.me/e/14/f405)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "hash_value" does not exist
+LINE 5:         AND hash_value = '67be1d1aa1c807397ab0345eb35dc01927...
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 140, in register_model
+    if check_model_exists(name, version, hash_value):
+  File "src/register_model.py", line 97, in check_model_exists
+    result = session.execute(query, {"model_name": model_name, "version": version, "hash_value": hash_value}).fetchone()
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/orm/session.py", line 1717, in execute
+    result = conn._execute_20(statement, params or {}, execution_options)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1710, in _execute_20
+    return meth(self, args_10style, kwargs_10style, execution_options)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "hash_value" does not exist
+LINE 5:         AND hash_value = '67be1d1aa1c807397ab0345eb35dc01927...
+                    ^
+
+[SQL: 
+        SELECT 1 FROM model_registry
+        WHERE model_name = %(model_name)s
+        AND version = %(version)s
+        AND hash_value = %(hash_value)s
+        AND status = 'active'
+    ]
+[parameters: {'model_name': 'personal_loan_scorecard_lr_20250930', 'version': 'mhzjbtu6c2tzd6wa', 'hash_value': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64'}]
+(Background on this error at: https://sqlalche.me/e/14/f405)
+2025-10-09 11:40:19,380 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:40:19,409 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, (psycopg2.errors.UndefinedColumn) column "hash_value" does not exist
+LINE 5:         AND hash_value = '67be1d1aa1c807397ab0345eb35dc01927...
+                    ^
+
+[SQL: 
+        SELECT 1 FROM model_registry
+        WHERE model_name = %(model_name)s
+        AND version = %(version)s
+        AND hash_value = %(hash_value)s
+        AND status = 'active'
+    ]
+[parameters: {'model_name': 'personal_loan_scorecard_lr_20250930', 'version': 'sbqbccu526b3ivvh', 'hash_value': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64'}]
+(Background on this error at: https://sqlalche.me/e/14/f405)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "hash_value" does not exist
+LINE 5:         AND hash_value = '67be1d1aa1c807397ab0345eb35dc01927...
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 140, in register_model
+    if check_model_exists(name, version, hash_value):
+  File "src/register_model.py", line 97, in check_model_exists
+    result = session.execute(query, {"model_name": model_name, "version": version, "hash_value": hash_value}).fetchone()
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/orm/session.py", line 1717, in execute
+    result = conn._execute_20(statement, params or {}, execution_options)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1710, in _execute_20
+    return meth(self, args_10style, kwargs_10style, execution_options)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "hash_value" does not exist
+LINE 5:         AND hash_value = '67be1d1aa1c807397ab0345eb35dc01927...
+                    ^
+
+[SQL: 
+        SELECT 1 FROM model_registry
+        WHERE model_name = %(model_name)s
+        AND version = %(version)s
+        AND hash_value = %(hash_value)s
+        AND status = 'active'
+    ]
+[parameters: {'model_name': 'personal_loan_scorecard_lr_20250930', 'version': 'sbqbccu526b3ivvh', 'hash_value': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64'}]
+(Background on this error at: https://sqlalche.me/e/14/f405)
+2025-10-09 11:42:00,137 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:42:00,165 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:42:03,139 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:42:04,488 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:5nt3peveygmgb6v3")
+2025-10-09 11:42:04,495 - INFO - register_model - register_model.py - 模型 personal_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 11:42:04,496 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:42:05,591 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:5qlg7hveygmgb6v3")
+2025-10-09 11:42:05,595 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s)
+        ]
+[parameters: {'business_name': 'personal', 'model_name': 'personal_loan_scorecard_lr_20250930', 'model_type': 'sklearn', 'model_path': '/tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl', 'version': 'sbqbccu526b3ivvh', 'framework': 'sklearn', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:5qlg7hveygmgb6v3")'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 199, in register_model
+    save_model_to_db(name, framework, filepath, version, hash_value, str(tag))
+  File "src/register_model.py", line 120, in save_model_to_db
+    conn.execute(query, {
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1385, in execute
+    return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s)
+        ]
+[parameters: {'business_name': 'personal', 'model_name': 'personal_loan_scorecard_lr_20250930', 'model_type': 'sklearn', 'model_path': '/tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl', 'version': 'sbqbccu526b3ivvh', 'framework': 'sklearn', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:5qlg7hveygmgb6v3")'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+2025-10-09 11:44:25,450 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:44:25,477 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:44:28,387 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:44:29,625 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:ihurncfeykfzh6v3")
+2025-10-09 11:44:29,630 - INFO - register_model - register_model.py - 模型 personal_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 11:44:29,631 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:44:30,423 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:ikmemwfeykfzh6v3")
+2025-10-09 11:44:30,426 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s)
+        ]
+[parameters: {'business_name': 'personal', 'model_name': 'personal_loan_scorecard_lr_20250930', 'model_type': 'sklearn', 'model_path': '/tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl', 'version': 'sbqbccu526b3ivvh', 'framework': 'sklearn', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:ikmemwfeykfzh6v3")'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 199, in register_model
+    save_model_to_db(name, framework, filepath, version, hash_value, str(tag))
+  File "src/register_model.py", line 120, in save_model_to_db
+    conn.execute(query, {
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1385, in execute
+    return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s)
+        ]
+[parameters: {'business_name': 'personal', 'model_name': 'personal_loan_scorecard_lr_20250930', 'model_type': 'sklearn', 'model_path': '/tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl', 'version': 'sbqbccu526b3ivvh', 'framework': 'sklearn', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:ikmemwfeykfzh6v3")'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+2025-10-09 11:51:07,624 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:51:07,653 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:51:10,631 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:51:11,607 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:ggvquufeyoyq36v3")
+2025-10-09 11:51:11,612 - INFO - register_model - register_model.py - 模型 personal_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 11:51:11,612 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn
+2025-10-09 11:51:12,579 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:giy4fgfeyoyq36v3")
+2025-10-09 11:51:12,582 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s)
+        ]
+[parameters: {'business_name': 'personal', 'model_name': 'personal_loan_scorecard_lr_20250930', 'model_type': 'sklearn', 'model_path': '/tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl', 'version': 'sbqbccu526b3ivvh', 'framework': 'sklearn', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:giy4fgfeyoyq36v3")'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 225, in register_all_models
+    register_model(framework, model_name, str(model_path), version)
+  File "src/register_model.py", line 199, in register_model
+    save_model_to_db(name, framework, filepath, version, hash_value, str(tag))
+  File "src/register_model.py", line 120, in save_model_to_db
+    conn.execute(query, {
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1385, in execute
+    return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_hash_key"
+DETAIL:  Key (hash)=(67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64                                                                                                                                                                                                ) already exists.
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s)
+        ]
+[parameters: {'business_name': 'personal', 'model_name': 'personal_loan_scorecard_lr_20250930', 'model_type': 'sklearn', 'model_path': '/tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl', 'version': 'sbqbccu526b3ivvh', 'framework': 'sklearn', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:giy4fgfeyoyq36v3")'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+2025-10-09 11:55:04,587 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 11:55:04,622 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 11:55:08,014 - WARNING - register_model - register_model.py - 模型文件不存在: /tmp/pycharm_project_798/models/personal_loan/personal_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-09 11:55:08,015 - WARNING - register_model - register_model.py - 模型文件不存在: /tmp/pycharm_project_798/models/auto_loan/personal_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-09 14:30:01,823 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:30:01,920 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 14:33:34,479 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:33:34,573 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 14:33:45,983 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:33:46,041 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 14:40:05,750 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:40:05,817 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 14:42:46,111 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:42:46,204 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 14:42:46,206 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 14:43:46,482 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:43:46,510 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 14:48:16,341 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 14:48:16,371 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:09:51,649 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:09:51,709 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:13:34,403 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:13:34,469 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:15:06,206 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:15:06,264 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:17:06,902 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:17:06,959 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:19:09,083 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:19:09,143 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:20:10,755 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:20:10,855 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:20:10,855 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:21:17,916 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:21:18,014 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:21:18,015 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:25:56,163 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:25:56,261 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:25:56,262 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:29:05,718 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:29:05,816 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:29:05,817 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:31:53,553 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:31:53,651 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:31:53,653 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:33:06,791 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:33:06,887 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:33:06,888 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:34:56,944 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:34:57,021 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:34:57,024 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息
+2025-10-09 15:37:24,054 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:37:24,112 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:47:06,847 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:47:06,943 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:47:06,945 - ERROR - utils - utils.py - 获取模型信息时发生错误: 'str' object has no attribute 'is_absolute'
+Traceback (most recent call last):
+  File "/tmp/pycharm_project_798/src/utils.py", line 49, in get_model_info
+    if not model_path.is_absolute():
+AttributeError: 'str' object has no attribute 'is_absolute'
+2025-10-09 15:48:57,159 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:48:57,224 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 15:49:26,804 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 15:55:30,371 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 15:55:30,429 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:01:03,799 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:01:03,856 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:03:49,259 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:03:49,315 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:03:55,952 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:06:18,184 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:06:18,280 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:06:18,281 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:09:41,465 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:09:41,571 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:09:41,572 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:09:55,787 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:09:55,884 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:09:55,885 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:10:54,341 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:10:54,398 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:10:54,401 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:11:20,809 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:11:20,866 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:11:20,868 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:12:51,332 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:12:51,430 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:12:51,431 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 16:15:44,724 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:15:44,820 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:15:44,822 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_rf_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_rf_20250930.pkl
+2025-10-09 16:19:25,996 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_rf_20250930:e674qove5cden6v3, 创建于: 2025-10-09 08:15:45.474430+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:25,998 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:yb2fpjfe466iz6v3, 创建于: 2025-10-09 08:12:52.174583+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,027 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:rmgcdsfe46fap6v3, 创建于: 2025-10-09 08:11:22.577381+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,053 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:pzv2zefe46qyb6v3, 创建于: 2025-10-09 08:11:01.394380+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,076 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:k7lr7yve46ecl6v3, 创建于: 2025-10-09 08:09:56.661175+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,098 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:j5o5skfe46x4x6v3, 创建于: 2025-10-09 08:09:42.444948+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,117 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:2yjvjffe42l7b6v3, 创建于: 2025-10-09 08:06:18.951860+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,134 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:pvpft5fe4sijp6v3, 创建于: 2025-10-09 07:49:31.139432+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,148 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:gmyeckfe4k6h56v3, 创建于: 2025-10-09 07:33:07.685837+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,159 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:a6fnqhfe4kzbr6v3, 创建于: 2025-10-09 07:31:54.471299+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,168 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:uotsnbfe4gxsh6v3, 创建于: 2025-10-09 07:29:06.873504+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,175 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:rsuvwgve4c4jv6v3, 创建于: 2025-10-09 07:21:18.803615+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,179 - INFO - cleaup_models - cleaup_models.py - 删除模型 demo_loan_scorecard_lr_20250930:mstnw7ve4cjjb6v3, 创建于: 2025-10-09 07:20:11.678186+00:00, 大小: 224050 字节 ...
+2025-10-09 16:19:26,181 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:giy4fgfeyoyq36v3, 创建于: 2025-10-09 03:51:11.619367+00:00, 大小: 2717 字节 ...
+2025-10-09 16:19:26,205 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:ggvquufeyoyq36v3, 创建于: 2025-10-09 03:51:10.736601+00:00, 大小: 2709 字节 ...
+2025-10-09 16:19:26,232 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:ikmemwfeykfzh6v3, 创建于: 2025-10-09 03:44:29.638024+00:00, 大小: 2717 字节 ...
+2025-10-09 16:19:26,255 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:ihurncfeykfzh6v3, 创建于: 2025-10-09 03:44:28.490286+00:00, 大小: 2709 字节 ...
+2025-10-09 16:19:26,273 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:5qlg7hveygmgb6v3, 创建于: 2025-10-09 03:42:04.503098+00:00, 大小: 2717 字节 ...
+2025-10-09 16:19:26,290 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:5nt3peveygmgb6v3, 创建于: 2025-10-09 03:42:03.358244+00:00, 大小: 2709 字节 ...
+2025-10-09 16:19:26,304 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:la36wme6uwshr6wa, 创建于: 2025-10-01 09:02:23.535169+00:00, 大小: 2709 字节 ...
+2025-10-09 16:19:26,313 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:gwyjg6e6uwbnn6wa, 创建于: 2025-10-01 09:01:25.605122+00:00, 大小: 2709 字节 ...
+2025-10-09 16:19:26,319 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:fyen47e6ugybr6wa, 创建于: 2025-10-01 08:32:34.774955+00:00, 大小: 2717 字节 ...
+2025-10-09 16:19:26,323 - INFO - cleaup_models - cleaup_models.py - 删除模型 personal_loan_scorecard_lr_20250930:fvp3ode6ugybr6wa, 创建于: 2025-10-01 08:32:33.666524+00:00, 大小: 2709 字节 ...
+2025-10-09 16:19:26,324 - INFO - cleaup_models - cleaup_models.py - 模型删除完成，本次操作共删除 23 个模型
+2025-10-09 16:20:35,018 - INFO - list_model - list_model.py - 当前没有任何模型
+2025-10-09 16:22:59,137 - INFO - delete_model - delete_model.py - 当前没有任何模型可以删除
+2025-10-09 16:23:10,003 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:23:10,096 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:23:10,097 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_rf_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_rf_20250930.pkl
+2025-10-09 16:24:07,426 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 16:24:07,524 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 16:24:07,525 - INFO - utils - utils.py - 成功获取 demo_loan 模型信息 - demo_loan_scorecard_lr_20250930 路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 17:36:32,241 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:36:32,284 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:37:02,390 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:37:02,419 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:37:05,447 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: personal_loan
+2025-10-09 17:37:06,605 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, create_identifier() missing 1 required positional argument: 'tag'
+Traceback (most recent call last):
+  File "src/register_model.py", line 253, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 221, in register_model
+    uuid = create_identifier(model_name, model_type, model_path, version, framework, hash)
+TypeError: create_identifier() missing 1 required positional argument: 'tag'
+2025-10-09 17:37:06,606 - WARNING - register_model - register_model.py - 模型文件不存在: /tmp/pycharm_project_798/models/auto_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-09 17:37:06,606 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: demo_loan
+2025-10-09 17:37:07,503 - ERROR - register_model - register_model.py - 模型注册失败: demo_loan_scorecard_lr_20250930, create_identifier() missing 1 required positional argument: 'tag'
+Traceback (most recent call last):
+  File "src/register_model.py", line 253, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 221, in register_model
+    uuid = create_identifier(model_name, model_type, model_path, version, framework, hash)
+TypeError: create_identifier() missing 1 required positional argument: 'tag'
+2025-10-09 17:38:09,523 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:38:09,551 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:38:12,522 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: personal_loan
+2025-10-09 17:38:13,686 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:vr5gfife6oamt6v3"), 业务: personal_loan
+2025-10-09 17:38:13,686 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, write_model_registry() missing 1 required positional argument: 'uuid'
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 227, in register_model
+    write_model_registry(model_name, model_type, model_path, framework, uuid, version, hash, str(tag))
+TypeError: write_model_registry() missing 1 required positional argument: 'uuid'
+2025-10-09 17:38:13,687 - WARNING - register_model - register_model.py - 模型文件不存在: /tmp/pycharm_project_798/models/auto_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-09 17:38:13,687 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: demo_loan
+2025-10-09 17:38:14,560 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="demo_loan_scorecard_lr_20250930:vuu4jxve6oamt6v3"), 业务: demo_loan
+2025-10-09 17:38:14,561 - ERROR - register_model - register_model.py - 模型注册失败: demo_loan_scorecard_lr_20250930, write_model_registry() missing 1 required positional argument: 'uuid'
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 227, in register_model
+    write_model_registry(model_name, model_type, model_path, framework, uuid, version, hash, str(tag))
+TypeError: write_model_registry() missing 1 required positional argument: 'uuid'
+2025-10-09 17:39:14,346 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:39:14,376 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:39:17,373 - INFO - register_model - register_model.py - 开始注册模型: personal_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/personal_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: personal_loan
+2025-10-09 17:39:18,462 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="personal_loan_scorecard_lr_20250930:2mrjxqfe6ounf6v3"), 业务: personal_loan
+2025-10-09 17:39:18,465 - ERROR - register_model - register_model.py - 模型注册失败: personal_loan_scorecard_lr_20250930, (psycopg2.errors.StringDataRightTruncation) value too long for type character varying(64)
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s, %(uuid)s)
+        ]
+[parameters: {'business_name': 'personal_loan_scorecard_lr_20250930', 'model_name': 'logistic_regression', 'model_type': '/tmp/pycharm_project_798/models/personal_loan_scorecard_lr_20250930.pkl', 'model_path': 'sklearn', 'version': 'd7bae70b-fb43-547c-bb7b-e792e22c03fb', 'framework': 'mhzjbtu6c2tzd6wa', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:2mrjxqfe6ounf6v3")', 'uuid': 'd7bae70b-fb43-547c-bb7b-e792e22c03fb'}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.StringDataRightTruncation: value too long for type character varying(64)
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 227, in register_model
+    write_model_registry(model_name, model_type, model_path, framework, uuid, version, hash, str(tag), uuid)
+  File "src/register_model.py", line 146, in write_model_registry
+    conn.execute(query, {
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1385, in execute
+    return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.DataError: (psycopg2.errors.StringDataRightTruncation) value too long for type character varying(64)
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s, %(uuid)s)
+        ]
+[parameters: {'business_name': 'personal_loan_scorecard_lr_20250930', 'model_name': 'logistic_regression', 'model_type': '/tmp/pycharm_project_798/models/personal_loan_scorecard_lr_20250930.pkl', 'model_path': 'sklearn', 'version': 'd7bae70b-fb43-547c-bb7b-e792e22c03fb', 'framework': 'mhzjbtu6c2tzd6wa', 'hash': '67be1d1aa1c807397ab0345eb35dc01927ba6038090a06aee58520e494bbae64', 'tag': 'Model(tag="personal_loan_scorecard_lr_20250930:2mrjxqfe6ounf6v3")', 'uuid': 'd7bae70b-fb43-547c-bb7b-e792e22c03fb'}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-09 17:39:18,469 - WARNING - register_model - register_model.py - 模型文件不存在: /tmp/pycharm_project_798/models/auto_loan_scorecard_lr_20250930.pkl, 跳过注册
+2025-10-09 17:39:18,469 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: demo_loan
+2025-10-09 17:39:19,394 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="demo_loan_scorecard_lr_20250930:2pdxsqve6ounf6v3"), 业务: demo_loan
+2025-10-09 17:39:19,397 - ERROR - register_model - register_model.py - 模型注册失败: demo_loan_scorecard_lr_20250930, (psycopg2.errors.StringDataRightTruncation) value too long for type character varying(64)
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s, %(uuid)s)
+        ]
+[parameters: {'business_name': 'demo_loan_scorecard_lr_20250930', 'model_name': 'logistic_regression', 'model_type': '/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl', 'model_path': 'sklearn', 'version': '51da15de-fcc4-5894-a808-23a42d504a98', 'framework': '', 'hash': '26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d', 'tag': 'Model(tag="demo_loan_scorecard_lr_20250930:2pdxsqve6ounf6v3")', 'uuid': '51da15de-fcc4-5894-a808-23a42d504a98'}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.StringDataRightTruncation: value too long for type character varying(64)
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 227, in register_model
+    write_model_registry(model_name, model_type, model_path, framework, uuid, version, hash, str(tag), uuid)
+  File "src/register_model.py", line 146, in write_model_registry
+    conn.execute(query, {
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1385, in execute
+    return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.DataError: (psycopg2.errors.StringDataRightTruncation) value too long for type character varying(64)
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s, %(uuid)s)
+        ]
+[parameters: {'business_name': 'demo_loan_scorecard_lr_20250930', 'model_name': 'logistic_regression', 'model_type': '/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl', 'model_path': 'sklearn', 'version': '51da15de-fcc4-5894-a808-23a42d504a98', 'framework': '', 'hash': '26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d', 'tag': 'Model(tag="demo_loan_scorecard_lr_20250930:2pdxsqve6ounf6v3")', 'uuid': '51da15de-fcc4-5894-a808-23a42d504a98'}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-09 17:41:20,007 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:41:20,035 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:41:23,100 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: demo_loan
+2025-10-09 17:41:24,246 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="demo_loan_scorecard_lr_20250930:dyo6u3fe6sfst6v3"), 业务: demo_loan
+2025-10-09 17:41:24,249 - ERROR - register_model - register_model.py - 模型注册失败: demo_loan_scorecard_lr_20250930, (psycopg2.errors.StringDataRightTruncation) value too long for type character varying(64)
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s, %(uuid)s)
+        ]
+[parameters: {'business_name': 'demo_loan_scorecard_lr_20250930', 'model_name': 'logistic_regression', 'model_type': '/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl', 'model_path': 'sklearn', 'version': '3d6da263-b255-5ed4-a7f7-bd6d3607edac', 'framework': '', 'hash': '26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d', 'tag': 'Model(tag="demo_loan_scorecard_lr_20250930:dyo6u3fe6sfst6v3")', 'uuid': '3d6da263-b255-5ed4-a7f7-bd6d3607edac'}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.StringDataRightTruncation: value too long for type character varying(64)
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 227, in register_model
+    write_model_registry(model_name, model_type, model_path, framework, uuid, version, hash, str(tag), uuid)
+  File "src/register_model.py", line 146, in write_model_registry
+    conn.execute(query, {
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1385, in execute
+    return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/sql/elements.py", line 334, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1577, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1953, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 2134, in _handle_dbapi_exception
+    util.raise_(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/util/compat.py", line 211, in raise_
+    raise exception
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/base.py", line 1910, in _execute_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.8/site-packages/sqlalchemy/engine/default.py", line 736, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.DataError: (psycopg2.errors.StringDataRightTruncation) value too long for type character varying(64)
+
+[SQL: 
+            INSERT INTO model_registry (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid)
+            VALUES (%(business_name)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s, %(hash)s, %(tag)s, %(uuid)s)
+        ]
+[parameters: {'business_name': 'demo_loan_scorecard_lr_20250930', 'model_name': 'logistic_regression', 'model_type': '/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl', 'model_path': 'sklearn', 'version': '3d6da263-b255-5ed4-a7f7-bd6d3607edac', 'framework': '', 'hash': '26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d', 'tag': 'Model(tag="demo_loan_scorecard_lr_20250930:dyo6u3fe6sfst6v3")', 'uuid': '3d6da263-b255-5ed4-a7f7-bd6d3607edac'}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-09 17:46:51,159 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:46:51,187 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:46:54,184 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: demo_loan
+2025-10-09 17:46:55,466 - INFO - register_model - register_model.py - 模型已注册成功: Model(tag="demo_loan_scorecard_lr_20250930:4n26mkve6seor6v3"), 业务: demo_loan
+2025-10-09 17:46:55,472 - INFO - register_model - register_model.py - 模型 logistic_regression 的信息已成功写入数据库
+2025-10-09 17:50:37,442 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:50:37,473 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:50:40,574 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 业务: demo_loan
+2025-10-09 17:50:40,613 - INFO - register_model - register_model.py - 模型: demo_loan_scorecard_lr_20250930, 版本: , 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 已经注册，跳过注册
+2025-10-09 17:52:28,278 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:52:28,307 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:52:43,414 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 17:52:43,442 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 17:52:46,411 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 17:52:46,445 - INFO - register_model - register_model.py - 模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 已经注册，跳过注册
+2025-10-09 18:33:49,405 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 18:33:49,556 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 18:34:03,692 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 18:34:05,386 - ERROR - register_model - register_model.py - 模型注册失败: demo_loan_scorecard_lr_20250930, local variable 'bentoml_saver' referenced before assignment
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 222, in register_model
+    uuid = create_identifier(model_name, model_type, model_path, version, framework, hash, bentoml_saver.tag)
+UnboundLocalError: local variable 'bentoml_saver' referenced before assignment
+2025-10-09 18:41:19,782 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 18:41:19,813 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 18:41:23,614 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 18:41:24,700 - INFO - register_model - register_model.py - 模型已注册成功: demo_loan_scorecard_lr_20250930:qayrg6ve7s3k4wsq, 业务: demo_loan
+2025-10-09 18:41:24,700 - ERROR - register_model - register_model.py - 模型注册失败: demo_loan_scorecard_lr_20250930, write_model_registry() takes 9 positional arguments but 10 were given
+Traceback (most recent call last):
+  File "src/register_model.py", line 254, in register_all_models
+    register_model(business_name, model_name, model_type, str(model_path), framework, version)
+  File "src/register_model.py", line 227, in register_model
+    write_model_registry(business_name, model_name, model_type, model_path, framework, uuid, version, hash, artifact.tag, uuid)
+TypeError: write_model_registry() takes 9 positional arguments but 10 were given
+2025-10-09 18:47:04,646 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 18:47:04,760 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 18:47:50,985 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 18:47:51,014 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 18:47:54,050 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 18:47:55,369 - INFO - register_model - register_model.py - 模型已注册成功: demo_loan_scorecard_lr_20250930:ndx2blve7wx6owsq, 注册: sklearn，业务: demo_loan
+2025-10-09 18:47:55,377 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 19:11:11,544 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 19:11:11,584 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 19:11:14,898 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 19:11:16,142 - INFO - register_model - register_model.py - 模型已注册成功: demo_loan_scorecard_lr_20250930:vpug2nffaccn4wsq, 注册: sklearn，业务: demo_loan
+2025-10-09 19:11:16,148 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 19:13:42,873 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 19:13:42,902 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 19:13:45,878 - INFO - register_model - register_model.py - 开始注册模型:demo_loan_scorecard_lr_20250930, 文件:/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架:sklearn, 类型:/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
+2025-10-09 19:13:45,914 - INFO - register_model - register_model.py - 模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 已经注册，跳过注册
+2025-10-09 19:14:25,708 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 19:14:25,736 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 19:14:28,744 - INFO - register_model - register_model.py - 开始注册模型:demo_loan_scorecard_lr_20250930, 文件:/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架:sklearn, 类型:logistic_regression
+2025-10-09 19:14:29,935 - INFO - register_model - register_model.py - 模型已注册成功: demo_loan_scorecard_lr_20250930:d5w5hlffagyogwsq, 注册: sklearn，业务: demo_loan
+2025-10-09 19:14:29,940 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 19:17:50,662 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 19:17:50,690 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 19:17:53,678 - INFO - register_model - register_model.py - 开始注册模型:demo_loan_scorecard_lr_20250930, 文件:/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架:sklearn, 类型:logistic_regression
+2025-10-09 19:17:54,900 - INFO - register_model - register_model.py - 模型已注册成功.demo_loan_scorecard_lr_20250930:tgkureffagdakwsq, 应用业务: demo_loan
+2025-10-09 19:17:54,905 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 19:28:48,703 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 19:28:48,731 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 19:28:51,721 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 类型: logistic_regression
+2025-10-09 19:28:51,773 - ERROR - register_model - register_model.py - 注册模型失败: demo_loan_scorecard_lr_20250930， 错误: Given model (['age' 'income' 'debt_ratio' 'loan_amount' 'existing_loans'
+ 'total_tax_records' 'total_tax_amount' 'avg_tax_amount' 'max_tax_amount'
+ 'min_tax_amount' 'tax_amount_std' 'loan_to_income_ratio'
+ 'existing_loans_ratio']) is not a sklearn.base.BaseEstimator or sklearn.pipeline.Pipeline.
+2025-10-09 19:40:57,727 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 19:40:57,833 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 19:41:04,543 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 类型: logistic_regression
+2025-10-09 21:36:48,458 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 21:36:48,569 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 21:36:55,188 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 类型: logistic_regression
+2025-10-09 21:37:22,981 - INFO - register_model - register_model.py - 模型注册成功: demo_loan_scorecard_lr_20250930:cfuqnzvfcwgr4wsq, 应用业务: demo_loan
+2025-10-09 21:37:24,839 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 21:39:03,784 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 21:39:03,890 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 21:39:10,728 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 类型: logistic_regression
+2025-10-09 21:47:10,282 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 21:47:10,312 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 21:47:13,236 - INFO - register_model - register_model.py - 开始注册模型: demo_loan_scorecard_lr_20250930, 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, 框架: sklearn, 类型: logistic_regression
+2025-10-09 21:47:14,546 - INFO - register_model - register_model.py - 模型注册成功: demo_loan_scorecard_lr_20250930:oxrjwlffc2xvwwsq, 应用业务: demo_loan
+2025-10-09 21:47:14,550 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 22:56:10,253 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 22:56:10,280 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 22:56:13,596 - INFO - register_model - register_model.py - 开始注册模型...###### 描述开始 ######    文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl     框架: sklearn     类型: logistic_regression ###### 描述结束 ######
+2025-10-09 22:56:15,148 - INFO - register_model - register_model.py - 模型注册成功: demo_loan_scorecard_lr_20250930:dhi76cffecspwwsq, 应用业务: demo_loan
+2025-10-09 22:56:15,153 - INFO - register_model - register_model.py - 模型 demo_loan_scorecard_lr_20250930 的信息已成功写入数据库
+2025-10-09 23:02:38,380 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:02:38,419 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:02:42,508 - INFO - register_model - register_model.py - 开始注册模型...###### 描述开始 ######    文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl     框架: sklearn     类型: logistic_regression ###### 描述结束 ######
+2025-10-09 23:02:42,555 - INFO - register_model - register_model.py - 模型已经注册，跳过注册. 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, hash: 26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d
+2025-10-09 23:03:53,769 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:03:53,797 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:03:56,824 - INFO - register_model - register_model.py - 开始注册模型...
+###### 描述开始 ###### 
+    文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+    框架: sklearn 
+    类型: logistic_regression 
+###### 描述结束 ###### 
+
+2025-10-09 23:03:56,856 - INFO - register_model - register_model.py - 模型已经注册，跳过注册. 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, hash: 26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d
+2025-10-09 23:05:00,323 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:05:00,350 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:05:03,832 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+        文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+        框架: sklearn 
+        类型: logistic_regression 
+############ 描述结束 ############ 
+
+2025-10-09 23:05:03,872 - INFO - register_model - register_model.py - 模型已经注册，跳过注册. 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, hash: 26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d
+2025-10-09 23:05:52,039 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:05:52,067 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:05:54,905 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+        文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+        框架: sklearn 
+        类型: logistic_regression 
+############ 描述结束 ############
+2025-10-09 23:05:54,936 - INFO - register_model - register_model.py - 模型已经注册，跳过注册. 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, hash: 26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d
+2025-10-09 23:06:27,105 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:06:27,135 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:06:29,995 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+    文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+    框架: sklearn 
+    类型: logistic_regression 
+############ 描述结束 ############
+2025-10-09 23:06:30,029 - INFO - register_model - register_model.py - 模型已经注册，跳过注册. 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, hash: 26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d
+2025-10-09 23:06:40,455 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:06:40,482 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:06:43,407 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+  文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  框架: sklearn 
+  类型: logistic_regression 
+############ 描述结束 ############
+2025-10-09 23:06:43,437 - INFO - register_model - register_model.py - 模型已经注册，跳过注册. 文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl, hash: 26cb597596be5964bb2392a573c05dd10055c151cd257df6402e03fa2fc7649d
+2025-10-09 23:07:47,574 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:07:47,602 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:07:50,494 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+  文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  框架: sklearn 
+  类型: logistic_regression 
+############ 描述结束 ############
+2025-10-09 23:07:50,527 - INFO - register_model - register_model.py - 模型已经注册，跳过注册.
+2025-10-09 23:08:38,374 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:08:38,402 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:08:41,348 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+  文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  框架: sklearn 
+  类型: logistic_regression 
+############ 描述结束 ############
+2025-10-09 23:08:41,380 - INFO - register_model - register_model.py - 模型已经注册，跳过注册!
+2025-10-09 23:09:59,337 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:09:59,365 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:10:02,268 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+  模型名称: demo_loan_scorecard_lr_20250930 
+  模型文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  模型类型: logistic_regression 
+  框架: sklearn 
+############ 描述结束 ############
+2025-10-09 23:10:02,300 - INFO - register_model - register_model.py - 模型已经注册，跳过注册! 文件：
+2025-10-09 23:10:14,256 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:10:14,282 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:10:17,158 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+  名称: demo_loan_scorecard_lr_20250930 
+  文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  类型: logistic_regression 
+  框架: sklearn 
+############ 描述结束 ############
+2025-10-09 23:10:17,188 - INFO - register_model - register_model.py - 模型已经注册，跳过注册! 文件：
+2025-10-09 23:11:25,497 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:11:25,525 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:11:28,411 - INFO - register_model - register_model.py - 开始注册模型...
+############ 描述开始 ############ 
+  名称: demo_loan_scorecard_lr_20250930 
+  文件: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  类型: logistic_regression 
+  框架: sklearn 
+############ 描述结束 ############
+2025-10-09 23:11:28,444 - INFO - register_model - register_model.py - 模型已经注册，跳过注册! </tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl>
+2025-10-09 23:12:23,399 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-09 23:12:23,427 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-09 23:12:26,343 - INFO - register_model - register_model.py - 开始注册模型...
+############ 开始 ############
+  名称: demo_loan_scorecard_lr_20250930 
+  路径: /tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl 
+  类型: logistic_regression 
+  框架: sklearn 
+############ 结束 ############
+2025-10-09 23:12:26,376 - INFO - register_model - register_model.py - 模型已经注册，跳过注册! 路径:/tmp/pycharm_project_798/models/demo_loan_scorecard_lr_20250930.pkl
