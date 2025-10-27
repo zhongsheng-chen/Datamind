@@ -1,6 +1,6 @@
 databases:
   oracle:
-    host: "localhost"        # 主机
+    host: "localhost"             # 主机
     port: 1521                    # 端口
     service_name: "FREEPDB1"
     user: "bankgy"                # 用户名
@@ -11,7 +11,7 @@ databases:
     pool_recycle: 3600  
 
   postgres:
-    host: "localhost"        # 主机
+    host: "localhost"             # 主机
     port: 5432                    # 端口
     database: "bankgy"            # 数据库名
     user: "bankgy"                # 用户名
@@ -34,7 +34,7 @@ kie_server:
   username: admin
   password: admin
 
-feature_set:
+features:
   demo_loan_features:
     - age
     - income
@@ -50,7 +50,7 @@ feature_set:
     - loan_to_income_ratio
     - existing_loans_ratio
 
-model_catalog:
+models:
   scoring:
     - model_name: demo_loan_scorecard_lr_20250930
       model_type: logistic_regression
@@ -67,7 +67,6 @@ model_catalog:
       uuid: ""
       framework: sklearn
       features: demo_loan_features
-
 
     - model_name: demo_loan_scorecard_rf_20250930
       model_type: random_forest
@@ -110,7 +109,7 @@ model_catalog:
       framework: "catboost"
       features: demo_loan_features
 
-business_workflows:
+workflows:
   demo_loan_approval_workflow:
     business_name: demo_loan
     description: "零售信贷业务授信审批流程"
@@ -130,27 +129,83 @@ business_workflows:
     workflow_steps:
       - step_name: "rule_check"
         contain_name: kie_container_name
-        agenda_group: "credit"
         modules:
-          - name: "precheck"
+          - name: "Basic Eligibility"
+            description: "基本准入要求"
             enabled: true
             rules:
-              - name: "precheck_amount_rule"
+              - name: "Age Not Eligible"
+                description: "年龄需满足18岁以上，65岁以下"
+                hint: "年龄不符合要求"
+                agenda_group: "basic_eligibility"
                 enabled: true
-              - name: "precheck_age_rule"
-                enabled: true
-          - name: "credit_check"
-            enabled: true
-            rules:
-              - name: "credit_score_rule"
-                enabled: true
-              - name: "credit_history_rule"
+              - name: "Age + Credit Term Exceeds Limit"
+                description: "年龄+授信期限不超过65岁数"
+                hint: "年龄+授信期限不符合要求"
+                agenda_group: "basic_eligibility"
                 enabled: false
-          - name: "tax_check"
+              - name: "Suspected Illegal Activity"
+                description: "借款人涉嫌黄赌毒"
+                hint: "借款人涉嫌黄赌毒"
+                agenda_group: "basic_eligibility"
+                enabled: true
+              - name: "Not In Whitelist"
+                description: "申请人不在白名单"
+                hint: "申请人不在白名单"
+                agenda_group: "basic_eligibility"
+                enabled: true
+              - name: "Not a Farmer"
+                description: "借款人不是农户"
+                hint: "借款人不是农户"
+                agenda_group: "basic_eligibility"
+                enabled: true
+          - name: "Policy Check"
+            description: "产品政策检查"
+            enabled: true
+            rules:
+              - name: "Business Duration"
+                description: "经营期限过短"
+                hint: "正常经营期限<6个月"
+                agenda_group: "policy_check"
+                enabled: true
+              - name: "Crop Duration"
+                description: "种植期限过短"
+                hint: "种植烟草期限不足1年"
+                agenda_group: "policy_check"
+                enabled: false
+              - name: "Purpose Consistency"
+                description: "借款人申请用途与实际用途不一致"
+                hint: "借款人申请用途与实际用途不一致"
+                agenda_group: "policy_check"
+                enabled: true
+          - name: "Credit Check"
+            description: "征信要求"
+            enabled: true
+            rules:
+              - name: "last_3m_self_queries"
+                description: "近三个月本人查询次数"
+                hint: "近三个月本人查询次数超出范围"
+                agenda_group: "basic_qualification"
+                enabled: true
+              - name: "last_3m_agency_queries"
+                description: "近三个月机构查询次数"
+                hint: "近三个月机构查询次数超出范围"
+                agenda_group: "basic_qualification"
+                enabled: false
+          - name: "Internal Check"
+            description: "内部信息检查"
             enabled: false
             rules:
-              - name: "tax_income_rule"
-                enabled: false
+              - name: "Current Overdue"
+                description: "当前有逾期"
+                hint: "当前有逾期"
+                agenda_group: "internal_check"
+                enabled: True
+              - name: "Past 24-Month Loan Overdue"
+                description: "近24个月历史贷款有逾期"
+                hint: "近24个月历史贷款有逾期"
+                agenda_group: "internal_check"
+                enabled: True
       - step_name: "fraud_check"
         models: [ "demo_loan_fraud_detection_cat" ]
       - step_name: "model_scoring"
@@ -176,29 +231,42 @@ business_workflows:
       - step_name: "rule_check"
         contain_name: kie_container_name
         modules:
-          - name: "basic_qualification"
+          - name: "Policy Check"
+            description: "政策信息检查"
             enabled: true
             rules:
-              - name: "age_requirement"
-                description: "年龄需满足18岁以上，65岁以下"
-                hint: "年龄不符合要求"
-                agenda_group: "credit"
+              - name: "Whitelist Check"
+                description: "白名单检查"
+                hint: "借款人不属于白名单内客户"
+                agenda_group: "policy_check"
                 enabled: true
-              - name: "precheck_age_rule"
-                enabled: true
-          - name: "credit_check"
+          - name: "Business Check"
+            description: "产品政策检查"
             enabled: true
             rules:
-              - name: "credit_score_rule"
+              - name: "Registration Status"
+                description: "工商登记状态异常"
+                hint: "工商登记状态异常"
+                agenda_group: "business_check"
                 enabled: true
-              - name: "credit_history_rule"
-                enabled: false
-          - name: "tax_check"
+              - name: "License Expiry"
+                description: "营业执照过期"
+                hint: "营业执照过期"
+                agenda_group: "business_check"
+                enabled: true
+          - name: "Internal Check"
+            description: "内部信息检查"
             enabled: false
             rules:
-              - name: "tax_income_rule"
-                enabled: false
+              - name: "Current Overdue"
+                description: "当前有逾期"
+                hint: "当前有逾期"
+                agenda_group: "internal_check"
+                enabled: True
+              - name: "Past 24-Month Loan Overdue"
+                description: "近24个月历史贷款有逾期且申请时点至支用时点新增的逾期"
+                hint: "行内还款记录显示，近12个月内最高逾期＞=3，（还款方式为不规则还款时，最高逾期＞=2）"
+                agenda_group: "internal_check"
+                enabled: True
       - step_name: "fraud_check"
         models: [ "demo_loan_fraud_detection_cat" ]
-      - step_name: "model_scoring"
-        models: [ "demo_loan_scorecard_lr", "demo_loan_scorecard_dt" ]
