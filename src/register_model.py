@@ -32,6 +32,7 @@ import pickle
 import bentoml
 import argparse
 import pytz
+import yaml
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import text
@@ -90,8 +91,27 @@ session = Session()
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
 
+def update_config_yaml(model_name, version, uuid_str):
+    """更新 config.yaml 中指定模型的 version 和 uuid"""
+    updated = False
+    for category, models in config.get("models", {}).items():
+        for m in models:
+            if m["model_name"] == model_name:
+                m["version"] = version
+                m["uuid"] = uuid_str
+                updated = True
+                break
+        if updated:
+            break
+
+    if updated:
+        with open(config.cfg_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, allow_unicode=True)
+        logger.info(f"[CONFIG] config.yaml 已更新：{model_name} 的 version 和 uuid")
+
+
 class ModelRegistry:
-    """模型注册类，支持单模型和批量注册"""
+    """模型注册类"""
 
     def __init__(self, business_name, model_name, model_type, model_path, framework, force=False):
         self.business_name = business_name
@@ -103,19 +123,13 @@ class ModelRegistry:
 
     @staticmethod
     def detect_framework(model_path):
-        """根据文件后缀推断模型框架"""
         ext = os.path.splitext(model_path)[-1].lower()
-        framework = None
         for f, exts in EXTENSION_MAP.items():
             if ext in exts:
-                framework = f
-                break
-        if not framework:
-            raise ValueError(f"无法识别文件扩展名 {ext} 对应的框架，请手动指定 framework")
-        return framework
+                return f
+        raise ValueError(f"无法识别文件扩展名 {ext} 对应的框架，请手动指定 framework")
 
     def create_hash(self):
-        """计算文件 hash"""
         import hashlib
         sha256 = hashlib.sha256()
         with open(self.model_path, "rb") as f:
@@ -123,25 +137,49 @@ class ModelRegistry:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def check_exists(self, hash):
-        """检查 hash 是否已存在"""
+    @staticmethod
+    def check_exists(hash):
         query = text("SELECT 1 FROM model_registry WHERE hash = :hash AND status = 'active'")
         result = session.execute(query, {"hash": hash}).fetchone()
         session.close()
         return result is not None
 
     def create_identifier(self, hash, tag):
-        """根据模型信息生成唯一 UUID"""
         model_str = f"{self.model_name}_{self.model_type}_{self.framework}_{hash}_{tag}"
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, model_str))
 
-    def write_model_registry(self, version, hash, tag, uuid):
-        """写入或更新 model_registry 表"""
+    @staticmethod
+    def write_model_registry_history(conn, model_id, model_name, model_type, model_path,
+                                    version, framework, hash, tag, uuid_str, status, change_type, remarks=None):
+        """写入 model_registry_history"""
+        conn.execute(text("""
+            INSERT INTO model_registry_history
+            (model_id, model_name, model_type, model_path, version, framework, hash, tag, uuid, status, change_type, changed_by, remarks)
+            VALUES
+            (:model_id, :model_name, :model_type, :model_path, :version, :framework, :hash, :tag, :uuid, :status, :change_type, current_user, :remarks)
+        """), {
+            "model_id": model_id,
+            "model_name": model_name,
+            "model_type": model_type,
+            "model_path": model_path,
+            "version": version,
+            "framework": framework,
+            "hash": hash,
+            "tag": tag,
+            "uuid": uuid_str,
+            "status": status,
+            "change_type": change_type,
+            "remarks": remarks
+        })
+
+    def write_model_registry(self, version, hash, tag, uuid_str):
+        now = datetime.now(beijing_tz)
         with postgres_engine.connect() as conn:
             try:
-                existing = conn.execute(text("SELECT 1 FROM model_registry WHERE hash = :hash"),
-                                        {"hash": hash}).fetchone()
-                now = datetime.now(beijing_tz)
+                existing = conn.execute(
+                    text("SELECT * FROM model_registry WHERE hash = :hash"),
+                    {"hash": hash}
+                ).fetchone()
 
                 if existing and not self.force:
                     logger.info(f"[跳过] 模型 {self.model_name} 已存在，使用 --force 可覆盖。")
@@ -150,22 +188,61 @@ class ModelRegistry:
                 if existing and self.force:
                     conn.execute(text("""
                         UPDATE model_registry
-                        SET model_name=:model_name, model_type=:model_type, model_path=:model_path, status=:status,
-                            version=:version, framework=:framework, tag=:tag, uuid=:uuid, registered_at=:registered_at
-                        WHERE hash=:hash
-                    """), {"model_name": self.model_name, "model_type": self.model_type, "model_path": self.model_path,
-                           "status":"active", "version": version, "framework": self.framework, "tag": tag, "uuid": uuid,
-                           "hash": hash, "registered_at": now})
+                        SET model_name=:model_name,
+                            model_type=:model_type,
+                            model_path=:model_path,
+                            status=:status,
+                            version=:version,
+                            framework=:framework,
+                            tag=:tag,
+                            uuid=:uuid,
+                            registered_at=:registered_at
+                        WHERE hash = :hash
+                    """), {
+                        "model_name": self.model_name,
+                        "model_type": self.model_type,
+                        "model_path": self.model_path,
+                        "status": "active",
+                        "version": version,
+                        "framework": self.framework,
+                        "tag": tag,
+                        "uuid": uuid_str,
+                        "hash": hash,
+                        "registered_at": now
+                    })
                     logger.info(f"[更新] 模型 {self.model_name} 的注册信息已更新。")
+                    model_id = existing["id"]
+                    ModelRegistry.write_model_registry_history(
+                        conn, model_id, self.model_name, self.model_type, self.model_path,
+                        version, self.framework, hash, tag, uuid_str, "active", "update", "force update"
+                    )
                 else:
-                    conn.execute(text("""
+                    result = conn.execute(text("""
                         INSERT INTO model_registry
-                        (business_name, model_name, model_type, model_path, version, framework, hash, tag, uuid, registered_at)
-                        VALUES (:business_name, :model_name, :model_type, :model_path, :version, :framework, :hash, :tag, :uuid, :registered_at)
-                    """), {"business_name": self.business_name, "model_name": self.model_name, "model_type": self.model_type,
-                           "model_path": self.model_path, "version": version, "framework": self.framework,
-                           "hash": hash, "tag": tag, "uuid": uuid, "registered_at": now})
+                        (model_name, model_type, model_path, version, framework, hash, tag, uuid, status, registered_at)
+                        VALUES (:model_name, :model_type, :model_path, :version, :framework, :hash, :tag, :uuid, :status, :registered_at)
+                        RETURNING id
+                    """), {
+                        "model_name": self.model_name,
+                        "model_type": self.model_type,
+                        "model_path": self.model_path,
+                        "version": version,
+                        "framework": self.framework,
+                        "hash": hash,
+                        "tag": tag,
+                        "uuid": uuid_str,
+                        "status": "active",
+                        "registered_at": now
+                    })
+                    model_id = result.fetchone()[0]
                     logger.info(f"[新增] 模型 {self.model_name} 已注册成功。")
+                    ModelRegistry.write_model_registry_history(
+                        conn, model_id, self.model_name, self.model_type, self.model_path,
+                        version, self.framework, hash, tag, uuid_str, "active", "new_version"
+                    )
+
+                # 更新 config.yaml
+                update_config_yaml(self.model_name, version, uuid_str)
 
             except IntegrityError as e:
                 logger.error(f"数据库插入失败: {e}")
@@ -173,7 +250,6 @@ class ModelRegistry:
                 logger.error(f"注册写入失败: {e}")
 
     def register_model(self):
-        """注册单个模型"""
         signatures = {"predict": {"batchable": False}, "predict_proba": {"batchable": False}}
         hash = self.create_hash()
 
@@ -182,8 +258,8 @@ class ModelRegistry:
             return
 
         try:
+            ext = os.path.splitext(self.model_path)[1].lower()
             if self.framework == "sklearn":
-                ext = os.path.splitext(self.model_path)[1].lower()
                 if ext == ".joblib":
                     model = joblib.load(self.model_path)
                 elif ext in [".pkl", ".pickle"]:
@@ -241,52 +317,74 @@ class ModelRegistry:
 
     @classmethod
     def register_all_models(cls):
-        """注册 config.yaml 中所有模型"""
         root = Path(__file__).resolve().parent.parent
-        model_conf = config.get("model_registry")
+        model_conf = config.get("models", {})
 
-        for business_name, info in model_conf.items():
-            model_name = info["model_name"]
-            model_type = info["model_type"]
-            model_path = Path(info["model_path"])
-            if not model_path.is_absolute():
-                model_path = root / model_path
-            if not model_path.exists():
-                logger.warning(f"[跳过] 模型文件不存在: {model_path}")
-                continue
-
-            framework = info.get("framework")
-            if not framework:
-                try:
-                    framework = cls.detect_framework(str(model_path))
-                except Exception as e:
-                    logger.error(f"[失败] 无法推断框架: {model_name}, 错误: {e}")
+        for category, models in model_conf.items():
+            for info in models:
+                model_name = info["model_name"]
+                model_type = info["model_type"]
+                model_path = Path(info["model_path"])
+                if not model_path.is_absolute():
+                    model_path = root / model_path
+                if not model_path.exists():
+                    logger.warning(f"[跳过] 模型文件不存在: {model_path}")
                     continue
 
-            registry = cls(business_name, model_name, model_type, str(model_path), framework)
-            registry.register_model()
+                framework = info.get("framework")
+                if not framework:
+                    try:
+                        framework = cls.detect_framework(str(model_path))
+                    except Exception as e:
+                        logger.error(f"[失败] 无法推断框架: {model_name}, 错误: {e}")
+                        continue
+
+                registry = cls(
+                    info.get("business_name", category),
+                    model_name,
+                    model_type,
+                    str(model_path),
+                    framework,
+                    force=info.get("force", False)
+                )
+                registry.register_model()
 
 
 def main():
     parser = argparse.ArgumentParser(description="模型注册工具")
-    parser.add_argument("--all", action="store_true", help="注册所有模型")
+    parser.add_argument("--all", default=True, action="store_true", help="注册所有模型")
     parser.add_argument("--model_name", type=str, help="模型名称")
-    parser.add_argument("--model_type", type=str, help="模型类型")
-    parser.add_argument("--model_path", type=str, help="模型路径")
-    parser.add_argument("--framework", type=str, help="模型框架")
-    parser.add_argument("--business_name", type=str, help="业务名称")
     parser.add_argument("--force", action="store_true", help="强制覆盖已存在模型")
     args = parser.parse_args()
 
     if args.all:
         ModelRegistry.register_all_models()
-    elif all([args.model_name, args.model_type, args.model_path, args.framework, args.business_name]):
-        path = Path(args.model_path)
+    elif args.model_name:
+        model_conf = config.get("models", {})
+        model_info = None
+        for category, models in model_conf.items():
+            for m in models:
+                if m["model_name"] == args.model_name:
+                    model_info = m
+                    break
+            if model_info:
+                break
+
+        if not model_info:
+            raise ValueError(f"未在 config.yaml 中找到模型 {args.model_name}")
+
+        path = Path(model_info["model_path"])
         if not path.is_absolute():
             path = Path(__file__).resolve().parent.parent / path
-        if not path.exists():
-            raise FileNotFoundError(f"模型文件不存在: {path}")
-        registry = ModelRegistry(args.business_name, args.model_name, args.model_type, str(path), args.framework, args.force)
+
+        registry = ModelRegistry(
+            model_info.get("business_name", "default"),
+            model_info["model_name"],
+            model_info["model_type"],
+            str(path),
+            model_info.get("framework"),
+            force=args.force or model_info.get("force", False)
+        )
         registry.register_model()
     else:
         parser.print_help()
