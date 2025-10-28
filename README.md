@@ -215,3 +215,34 @@ model_registry:
                 "loan_to_income_ratio", "existing_loans_ratio" ]     #模型特征，必填
 
 ```
+
+# git 推送最新版本
+
+- 生成 SSH Key：
+```bash
+ssh-keygen -t ed25519 -C "zhongsheng.chen@outlook.com"
+```
+- 查看公钥：
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+- 登录 GitHub → Settings → SSH and GPG keys → New SSH key → 粘贴公钥
+- 修改仓库远程地址为 SSH：
+```bash
+git remote set-url origin git@github.com:zhongsheng-chen/Datamind.git
+```
+- 测试连接：
+```bash
+ssh -T git@github.com
+```
+- 拉取最新代码
+```bash
+git fetch origin
+git reset --hard origin/master
+```
+或
+```bash
+git rebase --abort
+git fetch origin
+git reset --hard origin/master
+```

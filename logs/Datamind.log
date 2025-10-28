@@ -2370,3 +2370,1110 @@ DETAIL:  Key (tag)=(demo_loan_scorecard_lr_20250930:pn4xuafubc7v2b3i) already ex
 
 2025-10-28 22:18:12,134 - INFO - register_model - register_model.py - [更新] 模型 demo_loan_scorecard_lr_20250930 的注册信息已更新。
 2025-10-28 22:18:12,187 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-28 22:34:53,881 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:34:53,892 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:34:54,099 - ERROR - unregister_model - unregister_model.py - [失败] 注销全部模型出错: Could not locate column in row for column 'get'
+2025-10-28 22:35:57,774 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:35:57,784 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:35:57,785 - WARNING - unregister_model - unregister_model.py - 请指定 --uuid、--tag 或 --all 参数执行注销操作。
+2025-10-28 22:36:03,429 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:36:03,439 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:36:03,630 - ERROR - unregister_model - unregister_model.py - [失败] 注销全部模型出错: Could not locate column in row for column 'get'
+2025-10-28 22:36:29,530 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:36:29,540 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:36:29,950 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 22:36:39,075 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_dt_20250930
+模型类型 : decision_tree
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : pykdi3vubo7v2b3i
+标签信息 : demo_loan_scorecard_dt_20250930:pykdi3vubo7v2b3i
+唯一标识 : 11d79f80-84e8-5b03-987b-163978013285
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl
+文件哈希 : 1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b
+========================================================================================================================
+
+2025-10-28 22:36:39,096 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_dt_20250930 已注册成功。
+2025-10-28 22:36:39,138 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_dt_20250930 的 version 和 uuid
+2025-10-28 22:36:48,443 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_rf_20250930
+模型类型 : random_forest
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : qnzvnwfubo7v2b3i
+标签信息 : demo_loan_scorecard_rf_20250930:qnzvnwfubo7v2b3i
+唯一标识 : 6a413645-c2c2-5f9e-87f9-4863689c11f6
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl
+文件哈希 : 46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc
+========================================================================================================================
+
+2025-10-28 22:36:48,458 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_rf_20250930 已注册成功。
+2025-10-28 22:36:48,519 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_rf_20250930 的 version 和 uuid
+2025-10-28 22:36:48,520 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lgbm_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl, hash=2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5)
+2025-10-28 22:36:48,521 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_xgb_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl, hash=8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216)
+2025-10-28 22:36:48,521 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_cat_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 22:36:48,522 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_fraud_detection_cat_20250930 (task=fraud, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 22:38:25,255 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:38:25,265 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:38:34,662 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : ymgd3fvubo7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:ymgd3fvubo7v2b3i
+唯一标识 : 84e7d2c6-8dd6-543d-90df-1c3a1fd4b085
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 22:38:34,679 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功。
+2025-10-28 22:38:34,730 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-28 22:38:43,356 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_dt_20250930
+模型类型 : decision_tree
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : zbmq54fubo7v2b3i
+标签信息 : demo_loan_scorecard_dt_20250930:zbmq54fubo7v2b3i
+唯一标识 : b491f52b-89d7-571e-b19c-0e20d6a5dd9c
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl
+文件哈希 : 1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b
+========================================================================================================================
+
+2025-10-28 22:38:43,372 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_dt_20250930 已注册成功。
+2025-10-28 22:38:43,427 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_dt_20250930 的 version 和 uuid
+2025-10-28 22:38:53,496 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_rf_20250930
+模型类型 : random_forest
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : zwegljvubo7v2b3i
+标签信息 : demo_loan_scorecard_rf_20250930:zwegljvubo7v2b3i
+唯一标识 : 634a8958-396c-5e45-8c55-f4e01b0e820e
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl
+文件哈希 : 46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc
+========================================================================================================================
+
+2025-10-28 22:38:53,503 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_rf_20250930 已注册成功。
+2025-10-28 22:38:53,557 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_rf_20250930 的 version 和 uuid
+2025-10-28 22:39:02,241 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lgbm_20250930
+模型类型 : lightgbm
+框架类型 : lightgbm
+任务类型 : scoring
+版本编号 : 2oi4d2vubo7v2b3i
+标签信息 : demo_loan_scorecard_lgbm_20250930:2oi4d2vubo7v2b3i
+唯一标识 : 27b31273-b095-56ba-ab31-0688759bc18e
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl
+文件哈希 : 2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5
+========================================================================================================================
+
+2025-10-28 22:39:02,256 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lgbm_20250930 已注册成功。
+2025-10-28 22:39:02,307 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lgbm_20250930 的 version 和 uuid
+2025-10-28 22:39:11,089 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_xgb_20250930
+模型类型 : xgboost
+框架类型 : xgboost
+任务类型 : scoring
+版本编号 : 3dnhhofubo7v2b3i
+标签信息 : demo_loan_scorecard_xgb_20250930:3dnhhofubo7v2b3i
+唯一标识 : 6c5ac8a4-733c-5ac8-b9f4-6aee62378a87
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl
+文件哈希 : 8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216
+========================================================================================================================
+
+2025-10-28 22:39:11,104 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_xgb_20250930 已注册成功。
+2025-10-28 22:39:11,155 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_xgb_20250930 的 version 和 uuid
+2025-10-28 22:39:20,469 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : scoring
+版本编号 : 3yhamlvubo7v2b3i
+标签信息 : demo_loan_scorecard_cat_20250930:3yhamlvubo7v2b3i
+唯一标识 : a58356b6-1705-56f0-b812-eef126513fc1
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-28 22:39:20,485 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_cat_20250930 已注册成功。
+2025-10-28 22:39:20,537 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_cat_20250930 的 version 和 uuid
+2025-10-28 22:39:29,200 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_fraud_detection_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : fraud
+版本编号 : 4oswd2vubo7v2b3i
+标签信息 : demo_loan_fraud_detection_cat_20250930:4oswd2vubo7v2b3i
+唯一标识 : 04b70890-4ec8-5d35-81dd-aafb2357fa8c
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-28 22:39:29,207 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_fraud_detection_cat_20250930 已注册成功。
+2025-10-28 22:39:29,255 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_fraud_detection_cat_20250930 的 version 和 uuid
+2025-10-28 22:39:50,776 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:39:50,786 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:39:51,194 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 22:39:53,590 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:39:53,600 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:40:03,739 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 663hafvubo7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:663hafvubo7v2b3i
+唯一标识 : 9446fd28-6b2c-5b2c-9986-fe6972f1c686
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 22:40:03,788 - INFO - register_model - register_model.py - [更新] 模型 demo_loan_scorecard_lr_20250930 的注册信息已更新。
+2025-10-28 22:40:03,852 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-28 22:41:50,179 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:41:50,189 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:41:59,939 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : huy2yafubs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:huy2yafubs7v2b3i
+唯一标识 : 98ce1bdc-f55c-506f-bfbe-2b681d5c2ab9
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 22:41:59,962 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功。
+2025-10-28 22:42:00,010 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-28 22:42:10,301 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_dt_20250930
+模型类型 : decision_tree
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : ik2fvcfubs7v2b3i
+标签信息 : demo_loan_scorecard_dt_20250930:ik2fvcfubs7v2b3i
+唯一标识 : fdaaace8-9ec6-5332-a4a4-ef09344f05f7
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl
+文件哈希 : 1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b
+========================================================================================================================
+
+2025-10-28 22:42:10,316 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_dt_20250930 已注册成功。
+2025-10-28 22:42:10,369 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_dt_20250930 的 version 和 uuid
+2025-10-28 22:42:19,666 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_rf_20250930
+模型类型 : random_forest
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : jdqxc4fubs7v2b3i
+标签信息 : demo_loan_scorecard_rf_20250930:jdqxc4fubs7v2b3i
+唯一标识 : 0eb2bc65-472a-5b91-bad4-7fdc48b7c91c
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl
+文件哈希 : 46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc
+========================================================================================================================
+
+2025-10-28 22:42:19,682 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_rf_20250930 已注册成功。
+2025-10-28 22:42:19,736 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_rf_20250930 的 version 和 uuid
+2025-10-28 22:42:30,053 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lgbm_20250930
+模型类型 : lightgbm
+框架类型 : lightgbm
+任务类型 : scoring
+版本编号 : jz27wyfubs7v2b3i
+标签信息 : demo_loan_scorecard_lgbm_20250930:jz27wyfubs7v2b3i
+唯一标识 : ab08a80b-6f27-568a-9b62-60ba40a030d5
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl
+文件哈希 : 2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5
+========================================================================================================================
+
+2025-10-28 22:42:30,059 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lgbm_20250930 已注册成功。
+2025-10-28 22:42:30,108 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lgbm_20250930 的 version 和 uuid
+2025-10-28 22:42:40,470 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_xgb_20250930
+模型类型 : xgboost
+框架类型 : xgboost
+任务类型 : scoring
+版本编号 : ks4t4bvubs7v2b3i
+标签信息 : demo_loan_scorecard_xgb_20250930:ks4t4bvubs7v2b3i
+唯一标识 : 28eec1a0-3ff6-5c12-9548-c556d8951f4f
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl
+文件哈希 : 8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216
+========================================================================================================================
+
+2025-10-28 22:42:40,483 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_xgb_20250930 已注册成功。
+2025-10-28 22:42:40,547 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_xgb_20250930 的 version 和 uuid
+2025-10-28 22:42:49,741 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : scoring
+版本编号 : llokqnvubs7v2b3i
+标签信息 : demo_loan_scorecard_cat_20250930:llokqnvubs7v2b3i
+唯一标识 : 003e1e79-22e6-500a-b4e6-c414b7c284ab
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-28 22:42:49,757 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_cat_20250930 已注册成功。
+2025-10-28 22:42:49,815 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_cat_20250930 的 version 和 uuid
+2025-10-28 22:42:59,317 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_fraud_detection_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : fraud
+版本编号 : mbrngkvubs7v2b3i
+标签信息 : demo_loan_fraud_detection_cat_20250930:mbrngkvubs7v2b3i
+唯一标识 : 901ff732-b5ed-5428-9e92-5948ae728ffb
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-28 22:42:59,332 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_fraud_detection_cat_20250930 已注册成功。
+2025-10-28 22:42:59,384 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_fraud_detection_cat_20250930 的 version 和 uuid
+2025-10-28 22:43:45,417 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:43:45,444 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:43:56,321 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : qjrtiyfubs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:qjrtiyfubs7v2b3i
+唯一标识 : e293d263-6dce-55dc-8be0-d89891320bff
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 22:46:37,941 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:46:37,961 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:46:49,538 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 5d6kt5fubs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:5d6kt5fubs7v2b3i
+唯一标识 : 857e14a9-e3d6-5b25-ae00-3c51d75be4dc
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 22:46:54,411 - ERROR - register_model - register_model.py - 注册写入失败: (psycopg2.errors.UndefinedFunction) operator does not exist: character == unknown
+LINE 7: ...                                         AND hash == '6a8e8d...
+                                                             ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[SQL: 
+                                                    SELECT *
+                                                    FROM model_registry
+                                                    WHERE model_name = %(model_name)s
+                                                      AND task = %(task)s
+                                                      AND status = 'active'
+                                                      AND hash == %(hash)s
+                                                    ]
+[parameters: {'model_name': 'demo_loan_scorecard_lr_20250930', 'task': 'scoring', 'hash': '6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217'}]
+(Background on this error at: https://sqlalche.me/e/14/f405)
+2025-10-28 22:47:34,360 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 22:47:34,379 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 22:47:44,716 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : bkowcavubw7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:bkowcavubw7v2b3i
+唯一标识 : 59c762ed-069f-5747-bb90-3290b3129b8e
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 22:51:07,471 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功。
+2025-10-28 22:51:09,753 - ERROR - register_model - register_model.py - 数据库插入失败: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_history_tag_key"
+DETAIL:  Key (tag)=(demo_loan_scorecard_lr_20250930:bkowcavubw7v2b3i) already exists.
+
+[SQL: 
+                          INSERT INTO model_registry_history (model_id, model_name, model_type, model_path, version,
+                                                              framework,
+                                                              task, hash, tag, uuid, status, change_type, changed_by,
+                                                              remarks)
+                          VALUES (%(model_id)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s,
+                                  %(task)s, %(hash)s, %(tag)s, %(uuid)s, %(status)s, %(change_type)s, current_user, %(remarks)s)
+                          ]
+[parameters: {'model_id': 38, 'model_name': 'demo_loan_scorecard_lr_20250930', 'model_type': 'logistic_regression', 'model_path': '/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl', 'version': 'bkowcavubw7v2b3i', 'framework': 'sklearn', 'task': 'scoring', 'hash': '6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217', 'tag': 'demo_loan_scorecard_lr_20250930:bkowcavubw7v2b3i', 'uuid': '59c762ed-069f-5747-bb90-3290b3129b8e', 'status': 'active', 'change_type': 'Create', 'remarks': 'Initial Creation'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+2025-10-28 23:12:02,026 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:12:02,045 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:12:11,986 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : ovvh3fvucc7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:ovvh3fvucc7v2b3i
+唯一标识 : 64171a5f-ae17-552c-8eef-4b36bf661f3e
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:12:42,221 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:12:42,240 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:12:51,953 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : rvpqtkfucc7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:rvpqtkfucc7v2b3i
+唯一标识 : f0da994f-61e3-5f5d-9a3e-5550168d4835
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:37:36,703 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:37:36,722 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:37:54,714 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:37:54,724 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:38:05,961 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : ckpcvovucs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:ckpcvovucs7v2b3i
+唯一标识 : 39499e05-77ec-5a3f-8295-541d7901c26e
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:38:05,972 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=39
+2025-10-28 23:38:06,015 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-28 23:38:14,667 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_dt_20250930
+模型类型 : decision_tree
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : dd77wnvucs7v2b3i
+标签信息 : demo_loan_scorecard_dt_20250930:dd77wnvucs7v2b3i
+唯一标识 : f25f18c0-c454-53dd-877e-2d6ba2bc6182
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl
+文件哈希 : 1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b
+========================================================================================================================
+
+2025-10-28 23:38:14,683 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_dt_20250930 已注册成功，id=40
+2025-10-28 23:38:14,722 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_dt_20250930 的 version 和 uuid
+2025-10-28 23:38:23,392 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_rf_20250930
+模型类型 : random_forest
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : dyynfcfucs7v2b3i
+标签信息 : demo_loan_scorecard_rf_20250930:dyynfcfucs7v2b3i
+唯一标识 : 0cd625fa-9065-53f1-982d-c5a296eee9a2
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl
+文件哈希 : 46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc
+========================================================================================================================
+
+2025-10-28 23:38:23,406 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_rf_20250930 已注册成功，id=41
+2025-10-28 23:38:23,452 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_rf_20250930 的 version 和 uuid
+2025-10-28 23:38:32,124 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lgbm_20250930
+模型类型 : lightgbm
+框架类型 : lightgbm
+任务类型 : scoring
+版本编号 : ens6ozvucs7v2b3i
+标签信息 : demo_loan_scorecard_lgbm_20250930:ens6ozvucs7v2b3i
+唯一标识 : 6f73815a-56d5-5800-8a9f-8f3fa36a7083
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl
+文件哈希 : 2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5
+========================================================================================================================
+
+2025-10-28 23:38:32,138 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lgbm_20250930 已注册成功，id=42
+2025-10-28 23:38:32,197 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lgbm_20250930 的 version 和 uuid
+2025-10-28 23:38:41,984 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_xgb_20250930
+模型类型 : xgboost
+框架类型 : xgboost
+任务类型 : scoring
+版本编号 : fcwyqhvucs7v2b3i
+标签信息 : demo_loan_scorecard_xgb_20250930:fcwyqhvucs7v2b3i
+唯一标识 : 49d6b268-4a1c-54cf-a8ae-880be57333b8
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl
+文件哈希 : 8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216
+========================================================================================================================
+
+2025-10-28 23:38:41,995 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_xgb_20250930 已注册成功，id=43
+2025-10-28 23:38:42,042 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_xgb_20250930 的 version 和 uuid
+2025-10-28 23:38:51,548 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : scoring
+版本编号 : fz4cmwvucs7v2b3i
+标签信息 : demo_loan_scorecard_cat_20250930:fz4cmwvucs7v2b3i
+唯一标识 : f8b03acf-89b2-5131-b4e0-27467b2eaea0
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-28 23:38:51,560 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_cat_20250930 已注册成功，id=44
+2025-10-28 23:38:51,606 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_cat_20250930 的 version 和 uuid
+2025-10-28 23:39:00,747 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_fraud_detection_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : fraud
+版本编号 : gqvwjbvucs7v2b3i
+标签信息 : demo_loan_fraud_detection_cat_20250930:gqvwjbvucs7v2b3i
+唯一标识 : 3adb131f-3585-569f-8c9d-0e9b3df0c29c
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-28 23:39:00,760 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_fraud_detection_cat_20250930 已注册成功，id=45
+2025-10-28 23:39:00,822 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_fraud_detection_cat_20250930 的 version 和 uuid
+2025-10-28 23:39:13,221 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:39:13,236 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:39:16,003 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:39:16,013 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:39:22,725 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : ifsxj2fucs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:ifsxj2fucs7v2b3i
+唯一标识 : 5510109b-4286-5036-a5d6-671fb0ccdd77
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:39:22,742 - ERROR - register_model - register_model.py - 注册写入失败: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum model_status: "deactive"
+LINE 3: ...                                       SET status='deactive'
+                                                             ^
+
+[SQL: 
+                                          UPDATE model_registry
+                                          SET status='deactive'
+                                          WHERE id = %(id)s
+                                          ]
+[parameters: {'id': 39}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-28 23:39:25,524 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : imh7ervucs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:imh7ervucs7v2b3i
+唯一标识 : 5761e58c-c73a-505d-8077-57f43179f3fe
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:39:25,573 - ERROR - register_model - register_model.py - 注册写入失败: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum model_status: "deactive"
+LINE 3: ...                                       SET status='deactive'
+                                                             ^
+
+[SQL: 
+                                          UPDATE model_registry
+                                          SET status='deactive'
+                                          WHERE id = %(id)s
+                                          ]
+[parameters: {'id': 39}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-28 23:39:53,973 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:39:53,983 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:40:02,825 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : lgztsgfucs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:lgztsgfucs7v2b3i
+唯一标识 : 53f4ae29-226e-586a-ac4a-83c8ddd81bdf
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:40:02,846 - ERROR - register_model - register_model.py - 注册写入失败: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum model_status: "deactive"
+LINE 3: ...                                       SET status='deactive'
+                                                             ^
+
+[SQL: 
+                                          UPDATE model_registry
+                                          SET status='deactive'
+                                          WHERE id = %(id)s
+                                          ]
+[parameters: {'id': 39}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-28 23:40:04,215 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:40:04,227 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:40:13,727 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : l7hir7fucs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:l7hir7fucs7v2b3i
+唯一标识 : dcd1ab0f-0e06-5bd9-abf7-5cf0abfbd7f9
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:40:13,765 - ERROR - register_model - register_model.py - 注册写入失败: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum model_status: "deactive"
+LINE 3: ...                                       SET status='deactive'
+                                                             ^
+
+[SQL: 
+                                          UPDATE model_registry
+                                          SET status='deactive'
+                                          WHERE id = %(id)s
+                                          ]
+[parameters: {'id': 39}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-28 23:42:58,846 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:42:58,866 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:43:14,172 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:43:14,182 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:43:14,598 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:43:14,598 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_dt_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl, hash=1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b)
+2025-10-28 23:43:14,599 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_rf_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl, hash=46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc)
+2025-10-28 23:43:14,600 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lgbm_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl, hash=2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5)
+2025-10-28 23:43:14,600 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_xgb_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl, hash=8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216)
+2025-10-28 23:43:14,601 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_cat_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 23:43:14,602 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_fraud_detection_cat_20250930 (task=fraud, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 23:43:27,037 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:43:27,047 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:43:27,460 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:43:27,461 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_dt_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl, hash=1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b)
+2025-10-28 23:43:27,463 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_rf_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl, hash=46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc)
+2025-10-28 23:43:27,465 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lgbm_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl, hash=2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5)
+2025-10-28 23:43:27,467 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_xgb_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl, hash=8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216)
+2025-10-28 23:43:27,469 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_cat_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 23:43:27,472 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_fraud_detection_cat_20250930 (task=fraud, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 23:43:29,641 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:43:29,650 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:43:40,515 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 3i7dsuvucs7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:3i7dsuvucs7v2b3i
+唯一标识 : 5c0faf44-e2ce-5817-b7e9-990c8d7d1939
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:43:40,542 - ERROR - register_model - register_model.py - 注册写入失败: (psycopg2.errors.InvalidTextRepresentation) invalid input value for enum model_status: "inactivate"
+LINE 3: ...                                       SET status='inactivat...
+                                                             ^
+
+[SQL: 
+                                          UPDATE model_registry
+                                          SET status='inactivate'
+                                          WHERE id = %(id)s
+                                          ]
+[parameters: {'id': 39}]
+(Background on this error at: https://sqlalche.me/e/14/9h9h)
+2025-10-28 23:45:06,350 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:45:06,359 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:45:06,753 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:45:06,754 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_dt_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl, hash=1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b)
+2025-10-28 23:45:06,754 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_rf_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl, hash=46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc)
+2025-10-28 23:45:06,755 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lgbm_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl, hash=2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5)
+2025-10-28 23:45:06,755 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_xgb_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl, hash=8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216)
+2025-10-28 23:45:06,756 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_cat_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 23:45:06,756 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_fraud_detection_cat_20250930 (task=fraud, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm, hash=c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca)
+2025-10-28 23:45:09,560 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:45:09,574 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:45:19,375 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : cxgrikvucw7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:cxgrikvucw7v2b3i
+唯一标识 : 0daa8304-11cd-5c85-8fb2-c94f2afa90d6
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:45:19,422 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=39 已失效
+2025-10-28 23:45:19,425 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=46
+2025-10-28 23:45:19,427 - ERROR - register_model - register_model.py - 数据库插入失败: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_history_tag_key"
+DETAIL:  Key (tag)=(demo_loan_scorecard_lr_20250930:cxgrikvucw7v2b3i) already exists.
+
+[SQL: 
+                          INSERT INTO model_registry_history (model_id, model_name, model_type, model_path, version,
+                                                              framework,
+                                                              task, hash, tag, uuid, status, change_type, changed_by,
+                                                              remarks)
+                          VALUES (%(model_id)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s,
+                                  %(task)s, %(hash)s, %(tag)s, %(uuid)s, %(status)s, %(change_type)s, current_user, %(remarks)s)
+                          ]
+[parameters: {'model_id': 46, 'model_name': 'demo_loan_scorecard_lr_20250930', 'model_type': 'logistic_regression', 'model_path': '/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl', 'version': 'cxgrikvucw7v2b3i', 'framework': 'sklearn', 'task': 'scoring', 'hash': '6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217', 'tag': 'demo_loan_scorecard_lr_20250930:cxgrikvucw7v2b3i', 'uuid': '0daa8304-11cd-5c85-8fb2-c94f2afa90d6', 'status': 'active', 'change_type': 'Create', 'remarks': 'Force Create New Version'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+2025-10-28 23:48:52,415 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:48:52,435 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:49:18,572 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:49:51,245 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:49:51,256 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:49:51,671 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:49:56,115 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:49:56,126 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:49:56,556 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:49:58,042 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:49:58,053 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:49:58,471 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-28 23:50:02,813 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:50:02,823 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:50:13,199 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : ysl2tqfucw7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:ysl2tqfucw7v2b3i
+唯一标识 : 1980eb4f-9400-51af-9b68-df69755dcb5d
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:50:13,244 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=46 已失效
+2025-10-28 23:50:13,246 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=47
+2025-10-28 23:50:13,246 - ERROR - register_model - register_model.py - 数据库插入失败: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint "model_registry_history_tag_key"
+DETAIL:  Key (tag)=(demo_loan_scorecard_lr_20250930:ysl2tqfucw7v2b3i) already exists.
+
+[SQL: 
+                          INSERT INTO model_registry_history (model_id, model_name, model_type, model_path, version,
+                                                              framework,
+                                                              task, hash, tag, uuid, status, change_type, changed_by,
+                                                              remarks)
+                          VALUES (%(model_id)s, %(model_name)s, %(model_type)s, %(model_path)s, %(version)s, %(framework)s,
+                                  %(task)s, %(hash)s, %(tag)s, %(uuid)s, %(status)s, %(change_type)s, current_user, %(remarks)s)
+                          ]
+[parameters: {'model_id': 47, 'model_name': 'demo_loan_scorecard_lr_20250930', 'model_type': 'logistic_regression', 'model_path': '/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl', 'version': 'ysl2tqfucw7v2b3i', 'framework': 'sklearn', 'task': 'scoring', 'hash': '6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217', 'tag': 'demo_loan_scorecard_lr_20250930:ysl2tqfucw7v2b3i', 'uuid': '1980eb4f-9400-51af-9b68-df69755dcb5d', 'status': 'active', 'change_type': 'Create', 'remarks': 'Force Create New Version'}]
+(Background on this error at: https://sqlalche.me/e/14/gkpj)
+2025-10-28 23:50:41,912 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-28 23:50:41,932 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-28 23:52:14,376 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 7ru4mhfucw7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:7ru4mhfucw7v2b3i
+唯一标识 : 077a9f5c-facc-59c6-849b-c752047552c9
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-28 23:56:25,229 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=47 已失效
+2025-10-28 23:57:34,190 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=48
+2025-10-29 00:01:38,226 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:01:38,237 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:01:38,248 - INFO - unregister_model - unregister_model.py - [提示] 当前没有已注册的活跃模型可注销。
+2025-10-29 00:01:48,161 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:01:48,172 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:01:48,184 - INFO - unregister_model - unregister_model.py - [提示] 当前没有已注册的活跃模型可注销。
+2025-10-29 00:02:30,888 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:02:30,898 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:02:30,913 - INFO - unregister_model - unregister_model.py - [提示] 当前没有已注册的活跃模型可注销。
+2025-10-29 00:02:34,455 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:02:34,466 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:02:34,476 - INFO - unregister_model - unregister_model.py - [提示] 当前没有已注册的活跃模型可注销。
+2025-10-29 00:02:35,438 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:02:35,448 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:02:35,457 - INFO - unregister_model - unregister_model.py - [提示] 当前没有已注册的活跃模型可注销。
+2025-10-29 00:02:37,430 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:02:37,440 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:02:37,450 - INFO - unregister_model - unregister_model.py - [提示] 当前没有已注册的活跃模型可注销。
+2025-10-29 00:02:49,940 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:02:49,950 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:02:59,204 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : rxlb5mfuc67v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:rxlb5mfuc67v2b3i
+唯一标识 : 7b55f6ca-886d-500f-b04e-0d85e9aafff3
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-29 00:02:59,223 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=49
+2025-10-29 00:02:59,283 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-29 00:03:07,937 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_dt_20250930
+模型类型 : decision_tree
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : smhjvrfuc67v2b3i
+标签信息 : demo_loan_scorecard_dt_20250930:smhjvrfuc67v2b3i
+唯一标识 : 72eb0730-9f96-5f90-93c8-73f397ad4078
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl
+文件哈希 : 1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b
+========================================================================================================================
+
+2025-10-29 00:03:07,953 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_dt_20250930 已注册成功，id=50
+2025-10-29 00:03:08,010 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_dt_20250930 的 version 和 uuid
+2025-10-29 00:03:18,692 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_rf_20250930
+模型类型 : random_forest
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : tbbhzjfuc67v2b3i
+标签信息 : demo_loan_scorecard_rf_20250930:tbbhzjfuc67v2b3i
+唯一标识 : 72e4122e-294c-5cda-bc19-760a74015f90
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl
+文件哈希 : 46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc
+========================================================================================================================
+
+2025-10-29 00:03:18,698 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_rf_20250930 已注册成功，id=51
+2025-10-29 00:03:18,757 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_rf_20250930 的 version 和 uuid
+2025-10-29 00:03:27,420 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lgbm_20250930
+模型类型 : lightgbm
+框架类型 : lightgbm
+任务类型 : scoring
+版本编号 : t2vkhdfuc67v2b3i
+标签信息 : demo_loan_scorecard_lgbm_20250930:t2vkhdfuc67v2b3i
+唯一标识 : 63959d2b-04fe-53ba-a1ab-4d5d7ab7cb01
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl
+文件哈希 : 2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5
+========================================================================================================================
+
+2025-10-29 00:03:27,426 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lgbm_20250930 已注册成功，id=52
+2025-10-29 00:03:27,477 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lgbm_20250930 的 version 和 uuid
+2025-10-29 00:03:36,227 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_xgb_20250930
+模型类型 : xgboost
+框架类型 : xgboost
+任务类型 : scoring
+版本编号 : upxcqafuc67v2b3i
+标签信息 : demo_loan_scorecard_xgb_20250930:upxcqafuc67v2b3i
+唯一标识 : c0e39480-be33-5deb-a727-b2a9b534d2cc
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl
+文件哈希 : 8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216
+========================================================================================================================
+
+2025-10-29 00:03:36,238 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_xgb_20250930 已注册成功，id=53
+2025-10-29 00:03:36,277 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_xgb_20250930 的 version 和 uuid
+2025-10-29 00:03:44,932 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : scoring
+版本编号 : vendlufuc67v2b3i
+标签信息 : demo_loan_scorecard_cat_20250930:vendlufuc67v2b3i
+唯一标识 : dd7eefcc-b66a-59fc-b7c4-0e1fccb22428
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-29 00:03:44,944 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_cat_20250930 已注册成功，id=54
+2025-10-29 00:03:44,996 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_cat_20250930 的 version 和 uuid
+2025-10-29 00:03:53,617 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_fraud_detection_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : fraud
+版本编号 : vzgiphfuc67v2b3i
+标签信息 : demo_loan_fraud_detection_cat_20250930:vzgiphfuc67v2b3i
+唯一标识 : 3ec6f65d-4b17-51e3-be0b-cb43b163264d
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-29 00:03:53,629 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_fraud_detection_cat_20250930 已注册成功，id=55
+2025-10-29 00:03:53,682 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_fraud_detection_cat_20250930 的 version 和 uuid
+2025-10-29 00:04:26,512 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:04:26,522 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:04:26,933 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-29 00:04:46,165 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:04:46,184 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:05:19,815 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 4gqljrfuc67v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:4gqljrfuc67v2b3i
+唯一标识 : 432fa247-6b19-5e91-a63e-3eb9995d8971
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-29 00:06:12,468 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=49 已失效
+2025-10-29 00:26:30,882 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:26:30,892 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:26:40,401 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 3te4gifudk7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:3te4gifudk7v2b3i
+唯一标识 : ca11dee0-7cf0-516b-b2bd-1afd3e750da1
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-29 00:26:40,418 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=56
+2025-10-29 00:26:40,461 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-29 00:26:49,973 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_dt_20250930
+模型类型 : decision_tree
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 4is2d2vudk7v2b3i
+标签信息 : demo_loan_scorecard_dt_20250930:4is2d2vudk7v2b3i
+唯一标识 : 1c4d151e-2b04-5489-920d-d9415b8457ea
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_dt_20250930.pkl
+文件哈希 : 1368cea585c04aab43e6a77e146f42f14439650b8dc7c9e270294b13bde74b2b
+========================================================================================================================
+
+2025-10-29 00:26:49,983 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_dt_20250930 已注册成功，id=57
+2025-10-29 00:26:50,022 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_dt_20250930 的 version 和 uuid
+2025-10-29 00:26:59,298 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_rf_20250930
+模型类型 : random_forest
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 47meldvudk7v2b3i
+标签信息 : demo_loan_scorecard_rf_20250930:47meldvudk7v2b3i
+唯一标识 : 4daf7e1a-edce-54db-ac69-818ec7e59900
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_rf_20250930.pkl
+文件哈希 : 46021d488f0ec726ad71f7de103d63b07b9703ea3a1bd6d2c4cf6d51b0cdffdc
+========================================================================================================================
+
+2025-10-29 00:26:59,308 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_rf_20250930 已注册成功，id=58
+2025-10-29 00:26:59,353 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_rf_20250930 的 version 和 uuid
+2025-10-29 00:27:09,077 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lgbm_20250930
+模型类型 : lightgbm
+框架类型 : lightgbm
+任务类型 : scoring
+版本编号 : 5vtzvofudk7v2b3i
+标签信息 : demo_loan_scorecard_lgbm_20250930:5vtzvofudk7v2b3i
+唯一标识 : 57bf900d-437d-5cf5-973a-3e16ebea75e0
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lgbm_20250930.pkl
+文件哈希 : 2c0b7e5d95c83631654d783e6c3bc0f8b315f7f3d4bc9bc0454204678f6420d5
+========================================================================================================================
+
+2025-10-29 00:27:09,083 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lgbm_20250930 已注册成功，id=59
+2025-10-29 00:27:09,127 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lgbm_20250930 的 version 和 uuid
+2025-10-29 00:27:18,531 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_xgb_20250930
+模型类型 : xgboost
+框架类型 : xgboost
+任务类型 : scoring
+版本编号 : 6ngcgvfudk7v2b3i
+标签信息 : demo_loan_scorecard_xgb_20250930:6ngcgvfudk7v2b3i
+唯一标识 : 71e86c55-d96f-5b82-82fe-96b4eb89962c
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_xgb_20250930.pkl
+文件哈希 : 8704508c15035c34277da9ac36f7f3890d976bfb0b312e41c89aa6d4473a3216
+========================================================================================================================
+
+2025-10-29 00:27:18,545 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_xgb_20250930 已注册成功，id=60
+2025-10-29 00:27:18,598 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_xgb_20250930 的 version 和 uuid
+2025-10-29 00:27:28,103 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : scoring
+版本编号 : 7dpueyfudk7v2b3i
+标签信息 : demo_loan_scorecard_cat_20250930:7dpueyfudk7v2b3i
+唯一标识 : 6c10d424-2f68-5e28-98ea-8f56ca1e25b9
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-29 00:27:28,117 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_cat_20250930 已注册成功，id=61
+2025-10-29 00:27:28,170 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_cat_20250930 的 version 和 uuid
+2025-10-29 00:27:37,102 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_fraud_detection_cat_20250930
+模型类型 : catboost
+框架类型 : catboost
+任务类型 : fraud
+版本编号 : 72j3z7vudk7v2b3i
+标签信息 : demo_loan_fraud_detection_cat_20250930:72j3z7vudk7v2b3i
+唯一标识 : d221a9e4-d822-512f-a725-eb31e1857862
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_fraud_detection_cat_20250930.cbm
+文件哈希 : c4376dcad8158bd6de980681768fbfbbad483c5862b0cc2407af79fa8261b0ca
+========================================================================================================================
+
+2025-10-29 00:27:37,115 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_fraud_detection_cat_20250930 已注册成功，id=62
+2025-10-29 00:27:37,169 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_fraud_detection_cat_20250930 的 version 和 uuid
+2025-10-29 00:27:50,825 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:27:50,835 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:27:51,250 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-29 00:28:07,352 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:28:07,371 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:28:27,399 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : dsxo7jvudo7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:dsxo7jvudo7v2b3i
+唯一标识 : 5e3356a4-214b-5129-b8f5-fa7318e6b49a
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-29 00:28:59,112 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=56 已失效
+2025-10-29 00:31:04,955 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=63
+2025-10-29 00:32:34,957 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-29 00:34:03,179 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:34:03,189 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:34:12,416 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 5jplpyvudo7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:5jplpyvudo7v2b3i
+唯一标识 : a0a342df-5699-5281-852a-2920cfed03d6
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-29 00:34:12,464 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=63 已失效
+2025-10-29 00:34:12,466 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=64
+2025-10-29 00:34:12,513 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid
+2025-10-29 00:34:20,473 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:34:20,483 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:34:20,891 - INFO - register_model - register_model.py - [跳过] 模型已注册: demo_loan_scorecard_lr_20250930 (task=scoring, path=/home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl, hash=6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217)
+2025-10-29 00:34:23,405 - INFO - db_engine - db_engine.py - Oracle 数据库引擎创建成功
+2025-10-29 00:34:23,415 - INFO - db_engine - db_engine.py - Postgres 数据库引擎创建成功
+2025-10-29 00:34:32,632 - INFO - register_model - register_model.py - 
+========================================================================================================================
+模型注册成功
+模型名称 : demo_loan_scorecard_lr_20250930
+模型类型 : logistic_regression
+框架类型 : sklearn
+任务类型 : scoring
+版本编号 : 6zwozbfudo7v2b3i
+标签信息 : demo_loan_scorecard_lr_20250930:6zwozbfudo7v2b3i
+唯一标识 : c3b0538d-ee0d-5f26-8947-9c0963b5a863
+文件路径 : /home/zhongsheng/PycharmProjects/Datamind/models/demo_loan_scorecard_lr_20250930.pkl
+文件哈希 : 6a8e8db62c584740c30153c46808387de73170267ac8a1729e939f1d5bb72217
+========================================================================================================================
+
+2025-10-29 00:34:32,663 - INFO - register_model - register_model.py - [失效] 旧版本模型 id=64 已失效
+2025-10-29 00:34:32,664 - INFO - register_model - register_model.py - [新增] 模型 demo_loan_scorecard_lr_20250930 已注册成功，id=65
+2025-10-29 00:34:32,706 - INFO - register_model - register_model.py - [配置] config.yaml 已更新：demo_loan_scorecard_lr_20250930 的 version 和 uuid

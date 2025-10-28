@@ -208,81 +208,86 @@ class ModelRegistry:
 
         with postgres_engine.connect() as conn:
             try:
+                # 1. 如果 --force，先将旧版本模型失效
+                if self.force:
+                    old_models = conn.execute(text("""
+                                                   SELECT id
+                                                   FROM model_registry
+                                                   WHERE model_name = :model_name
+                                                     AND task = :task
+                                                     AND hash = :hash
+                                                     AND status = 'active'
+                                                   """), {"model_name": self.model_name, "task": self.task, "hash": hash}).fetchall()
+
+                    for old in old_models:
+                        conn.execute(text("""
+                                          UPDATE model_registry
+                                          SET status='inactive'
+                                          WHERE id = :id
+                                          """), {"id": old["id"]})
+
+                        conn.execute(text("""
+                                          UPDATE model_registry_history
+                                          SET status='inactive',
+                                              change_type='Force Deactivate',
+                                              remarks='Force Deactivate Old Version'
+                                          WHERE model_id = :model_id
+                                            AND id = (SELECT id
+                                                      FROM model_registry_history
+                                                      WHERE model_id = :model_id
+                                                      ORDER BY id DESC
+                                                      LIMIT 1)
+                                          """), {"model_id": old["id"]})
+
+                        logger.info(f"[失效] 旧版本模型 id={old['id']} 已失效")
+
+                # 2. 检查当前模型是否已存在
                 existing = conn.execute(text("""
-                         SELECT *
-                         FROM model_registry
-                         WHERE model_name = :model_name
-                           AND task = :task
-                           AND hash = :hash
-                           AND status = 'active'
-                         """), {
-                        "model_name": self.model_name,
-                        "task": self.task,
-                        "hash": metadata.get("hash")
-                    }).fetchone()
+                                             SELECT *
+                                             FROM model_registry
+                                             WHERE model_name = :model_name
+                                               AND task = :task
+                                               AND hash = :hash
+                                               AND status = 'active'
+                                             """), {
+                                            "model_name": self.model_name,
+                                            "task": self.task,
+                                            "hash": metadata.get("hash")
+                                        }).fetchone()
 
                 if existing and not self.force:
                     logger.info(f"[跳过] 模型 {self.model_name} 已存在，使用 --force 可覆盖。")
                     return
 
-                if existing and self.force:
-                    conn.execute(text("""
-                        UPDATE model_registry
-                        SET model_name=:model_name,
-                            model_type=:model_type,
-                            model_path=:model_path,
-                            status=:status,
-                            version=:version,
-                            framework=:framework,
-                            task=:task,
-                            tag=:tag,
-                            uuid=:uuid,
-                            registered_at=:registered_at
-                        WHERE hash = :hash
-                    """), {
-                        "model_name": self.model_name,
-                        "model_type": self.model_type,
-                        "model_path": self.model_path,
-                        "status": metadata.get("status"),
-                        "version": metadata.get("version"),
-                        "framework": self.framework,
-                        "task": self.task,
-                        "tag": metadata.get("tag"),
-                        "uuid": metadata.get("uuid"),
-                        "hash": metadata.get("hash"),
-                        "registered_at": now
-                    })
-                    logger.info(f"[更新] 模型 {self.model_name} 的注册信息已更新。")
-                    model_id = existing["id"]
-                    self.write_model_registry_history(
-                        conn, model_id, metadata, "Update", "Force Update"
-                    )
-                else:
-                    result = conn.execute(text("""
-                        INSERT INTO model_registry
-                        (model_name, model_type, model_path, version, framework, task, hash, tag, uuid, status, registered_at)
-                        VALUES (:model_name, :model_type, :model_path, :version, :framework, :task, :hash, :tag, :uuid, :status, :registered_at)
-                        RETURNING id
-                    """), {
-                        "model_name": self.model_name,
-                        "model_type": self.model_type,
-                        "model_path": self.model_path,
-                        "version": metadata.get("version"),
-                        "framework": self.framework,
-                        "task": self.task,
-                        "hash": metadata.get("hash"),
-                        "tag": metadata.get("tag"),
-                        "uuid": metadata.get("uuid"),
-                        "status": metadata.get("status"),
-                        "registered_at": now
-                    })
-                    model_id = result.fetchone()[0]
-                    logger.info(f"[新增] 模型 {self.model_name} 已注册成功。")
-                    self.write_model_registry_history(
-                        conn, model_id, metadata, "Create", "Initial Creation"
-                    )
+                # 3. 插入新模型
+                result = conn.execute(text("""
+                                           INSERT INTO model_registry
+                                           (model_name, model_type, model_path, version, framework, task, hash, tag,
+                                            uuid, status, registered_at)
+                                           VALUES (:model_name, :model_type, :model_path, :version, :framework, :task,
+                                                   :hash, :tag, :uuid, :status, :registered_at)
+                                           RETURNING id
+                                           """), {
+                                          "model_name": self.model_name,
+                                          "model_type": self.model_type,
+                                          "model_path": self.model_path,
+                                          "version": metadata.get("version"),
+                                          "framework": self.framework,
+                                          "task": self.task,
+                                          "hash": metadata.get("hash"),
+                                          "tag": metadata.get("tag"),
+                                          "uuid": metadata.get("uuid"),
+                                          "status": metadata.get("status"),
+                                          "registered_at": now
+                                      })
+                model_id = result.fetchone()[0]
+                logger.info(f"[新增] 模型 {self.model_name} 已注册成功，id={model_id}")
 
-                # 更新 config.yaml
+                self.write_model_registry_history(
+                    conn, model_id, metadata, "Force Recreate" if self.force else "Create", "Force Create New Version" if self.force else "Initial Creation"
+                )
+
+                # 4. 更新 config.yaml
                 update_config_yaml(self.model_name, version, uuid_str)
 
             except IntegrityError as e:

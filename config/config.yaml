@@ -55,48 +55,48 @@ models:
   - model_name: demo_loan_scorecard_lr_20250930
     model_type: logistic_regression
     model_path: "models/demo_loan_scorecard_lr_20250930.pkl"
-    version: "5in4ibfubc7v2b3i"
-    uuid: "0e193e1d-49cc-5636-905f-900ad5c996d1"
+    version: "6zwozbfudo7v2b3i"
+    uuid: "c3b0538d-ee0d-5f26-8947-9c0963b5a863"
     framework: sklearn
     features: demo_loan_features
 
   - model_name: demo_loan_scorecard_dt_20250930
     model_type: decision_tree
     model_path: "models/demo_loan_scorecard_dt_20250930.pkl"
-    version: "ynjwywvubc7v2b3i"
-    uuid: "adb30d4e-d3e3-53cc-8b47-0c962f003bfa"
+    version: "4is2d2vudk7v2b3i"
+    uuid: "1c4d151e-2b04-5489-920d-d9415b8457ea"
     framework: sklearn
     features: demo_loan_features
 
   - model_name: demo_loan_scorecard_rf_20250930
     model_type: random_forest
     model_path: "models/demo_loan_scorecard_rf_20250930.pkl"
-    version: "zeaptovubc7v2b3i"
-    uuid: "adf8aab2-e1a2-572e-bceb-953a1fc4a8b4"
+    version: "47meldvudk7v2b3i"
+    uuid: "4daf7e1a-edce-54db-ac69-818ec7e59900"
     framework: sklearn
     features: demo_loan_features
 
   - model_name: "demo_loan_scorecard_lgbm_20250930"
     model_type: "lightgbm"
     model_path: "models/demo_loan_scorecard_lgbm_20250930.pkl"
-    version: "zy5pzzvubc7v2b3i"
-    uuid: "d618be1b-db43-5d69-b7de-ecdd7f7886c4"
+    version: "5vtzvofudk7v2b3i"
+    uuid: "57bf900d-437d-5cf5-973a-3e16ebea75e0"
     framework: "lightgbm"
     features: demo_loan_features
 
   - model_name: "demo_loan_scorecard_xgb_20250930"
     model_type: "xgboost"
     model_path: "models/demo_loan_scorecard_xgb_20250930.pkl"
-    version: "2n7rhjfubc7v2b3i"
-    uuid: "e809b1b7-ab34-54bd-ab1d-1bd342df5c07"
+    version: "6ngcgvfudk7v2b3i"
+    uuid: "71e86c55-d96f-5b82-82fe-96b4eb89962c"
     framework: "xgboost"
     features: demo_loan_features
 
   - model_name: "demo_loan_scorecard_cat_20250930"
     model_type: "catboost"
     model_path: "models/demo_loan_scorecard_cat_20250930.cbm"
-    version: "3e7sokvubc7v2b3i"
-    uuid: "2ce77508-da63-5fee-9720-ca7ec5d6a61d"
+    version: "7dpueyfudk7v2b3i"
+    uuid: "6c10d424-2f68-5e28-98ea-8f56ca1e25b9"
     framework: "catboost"
     features: demo_loan_features
 
@@ -104,8 +104,8 @@ models:
   - model_name: "demo_loan_fraud_detection_cat_20250930"
     model_type: "catboost"
     model_path: "models/demo_loan_fraud_detection_cat_20250930.cbm"
-    version: "3zybgrfubc7v2b3i"
-    uuid: "893663fd-9957-5f00-b2e2-f9fa40a0714c"
+    version: "72j3z7vudk7v2b3i"
+    uuid: "d221a9e4-d822-512f-a725-eb31e1857862"
     framework: "catboost"
     features: demo_loan_features
 

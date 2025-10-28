@@ -1,4 +1,4 @@
---CREATE TYPE model_status AS ENUM ('pending', 'active', 'inactive', 'archived');
+--CREATE TYPE model_status AS ENUM ('pending', 'active', 'inactivate', 'archived');
 --CREATE TYPE model_task AS ENUM ('scoring', 'fraud');
 
 CREATE TABLE IF NOT EXISTS model_registry (
