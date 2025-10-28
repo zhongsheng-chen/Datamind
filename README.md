@@ -100,7 +100,11 @@
 
 - 测试所有案例
    ```bash
-   PYTHONPATH=. pytest tests/
+   PYTHONPATH=. pytest tests/test_register_model.py
+  ```
+  ```bash
+   PYTHONPATH=. pytest tests/test_register_model.py
+  ```
 
 model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'LightGBM ' 等等这些模型算法
 
@@ -109,12 +113,20 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
   ```bash
   cd train/
   python train.py
-- 模型注册
-  ```bash
-  PYTHONPATH=. python src/register_model.py --all #注册全部模型
-  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --model_type logistic_regression --model_path models/demo_loan_scorecard_lr_20250930.pkl --framework sklearn --business_name demo_loan_lr  #注册指定模型
-  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --model_type logistic_regression --model_path models/demo_loan_scorecard_lr_20250930.pkl --framework sklearn --business_name demo_loan_lr --force #强制注册模型
   ```
+  - 模型注册
+    - 注册全部模型
+    ```bash
+    PYTHONPATH=. python src/register_model.py --all
+    ```
+    - 注册指定模型
+    ```bash
+    PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930
+    ```
+    - 强制注册模型
+    ```bash
+    PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --force
+    ```
 
 - 发布服务（开发模式）
   ```bash

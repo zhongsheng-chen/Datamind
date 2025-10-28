@@ -1,0 +1,31 @@
+Datamind/
+├─ rules/                     
+│  ├─ personal_loan_rule_20250930.yaml
+│  ├─ auto_loan_rule_20250930.yaml
+├─ models/                     
+│  ├─ scorecard_lr_20250930.pkl
+│  ├─ dtree_20250930.pkl
+├─ config/
+│  └─ config.yaml              
+├─ logs/                       
+├─ db/                         
+│  └─ model_registry.sql        
+├─ src/
+│  ├─ __init__.py
+│  ├─ db_engine.py               
+│  ├─ feature_engineering.py   
+│  ├─ rule_engine.py           
+│  ├─ register_model.py
+│  ├─ unregister_model.py
+│  ├─ decision_service.py         
+│  └─ config_parser.py                 
+├─ tests/
+│  ├─ __init__.py
+│  ├─ test_utils.py               
+│  ├─ test_db_conn.py   
+│  ├─ test_model_service.py           
+│  ├─ test_model_service.py         
+│  ├─ test_rule_engine.py                   
+├─ requirements.txt
+├─ Dockerfile
+└─ docker-compose.yml

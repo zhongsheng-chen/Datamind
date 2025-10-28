@@ -4,13 +4,13 @@
 """
 unregister_model.py
 
-用于注销已注册的模型服务。
+用于注销已注册的模型服务，同时写入 model_registry_history。
 
 用法:
   注销指定模型（通过 uuid）：
       python unregister_model.py --uuid 550e8400-e29b-41d4-a716-446655440000
 
-  注销指定模型（通过 uuid）,支持批量逗号分隔：
+  注销指定模型（通过 uuid）, 支持批量逗号分隔：
       python unregister_model.py --uuid 550e8400-e29b-41d4-a716-446655440000,123e4567-e89b-12d3-a456-426614174000
 
   注销指定模型（通过 tag）：
@@ -27,6 +27,32 @@ from src.db_engine import postgres_engine
 from src.setup import setup_logger
 
 logger = setup_logger()
+
+
+def write_model_registry_history(conn, model_id, metadata, change_type, remarks=None):
+    """写入 model_registry_history"""
+    record = {
+        "model_id": model_id,
+        "model_name": metadata.get("model_name"),
+        "model_type": metadata.get("model_type"),
+        "model_path": metadata.get("model_path"),
+        "version": metadata.get("version"),
+        "framework": metadata.get("framework"),
+        "task": metadata.get("task"),
+        "hash": metadata.get("hash"),
+        "tag": metadata.get("tag"),
+        "uuid": metadata.get("uuid"),
+        "status": "inactive",
+        "change_type": change_type,
+        "remarks": remarks,
+    }
+    conn.execute(text("""
+        INSERT INTO model_registry_history
+        (model_id, model_name, model_type, model_path, version,
+         framework, task, hash, tag, uuid, status, change_type, changed_by, remarks)
+        VALUES (:model_id, :model_name, :model_type, :model_path, :version,
+                :framework, :task, :hash, :tag, :uuid, :status, :change_type, current_user, :remarks)
+    """), record)
 
 
 class ModelUnregistry:
@@ -48,64 +74,107 @@ class ModelUnregistry:
         with postgres_engine.connect() as conn:
             for uuid_ in self.uuids:
                 record = conn.execute(
-                    text("SELECT tag FROM model_registry WHERE uuid = :uuid AND status = 'active'"),
+                    text("SELECT * FROM model_registry WHERE uuid = :uuid AND status='active'"),
                     {"uuid": uuid_},
                 ).fetchone()
                 if not record:
-                    logger.warning(f"[未找到] uuid={uuid_} 对应的模型记录不存在或已失效。")
+                    logger.warning(f"[未找到] uuid={uuid_} 对应的活跃模型不存在。")
                     continue
 
-                tag = record[0]
+                tag = record["tag"]
                 try:
                     m = bentoml.models.get(tag)
                     bentoml.models.delete(tag=m.tag)
-                    self.mark_inactive(conn, "uuid=:uuid", {"uuid": uuid_})
-                    logger.info(f"[成功] 模型 {tag} (uuid={uuid_}) 已注销。")
                 except bentoml.exceptions.NotFound:
                     logger.warning(f"[BentoML] 模型 {tag} 不存在或已删除。")
-                    self.mark_inactive(conn, "uuid=:uuid", {"uuid": uuid_})
                 except Exception as e:
                     logger.error(f"[失败] 注销模型 {tag} 出错: {e}")
+                    continue
+
+                # 更新数据库状态
+                self.mark_inactive(conn, "uuid=:uuid", {"uuid": uuid_})
+
+                # 写入历史
+                write_model_registry_history(
+                    conn,
+                    model_id=record["id"],
+                    metadata=record,
+                    change_type="Archive",
+                    remarks="Archived"
+                )
+
+                logger.info(f"[成功] 模型 {tag} (uuid={uuid_}) 已注销。")
 
     def unregister_by_tag(self):
         """根据 tag 注销模型"""
         with postgres_engine.connect() as conn:
             record = conn.execute(
-                text("SELECT uuid FROM model_registry WHERE tag = :tag AND status = 'active'"),
+                text("SELECT * FROM model_registry WHERE tag = :tag AND status='active'"),
                 {"tag": self.tag},
             ).fetchone()
             if not record:
-                logger.warning(f"[未找到] tag={self.tag} 对应的模型记录不存在或已失效。")
+                logger.warning(f"[未找到] tag={self.tag} 对应的活跃模型不存在。")
                 return
 
-            uuid_ = record[0]
             try:
                 m = bentoml.models.get(self.tag)
                 bentoml.models.delete(tag=m.tag)
-                self.mark_inactive(conn, "tag=:tag", {"tag": self.tag})
-                logger.info(f"[成功] 模型 {self.tag} (uuid={uuid_}) 已注销。")
             except bentoml.exceptions.NotFound:
                 logger.warning(f"[BentoML] 模型 {self.tag} 不存在或已删除。")
-                self.mark_inactive(conn, "tag=:tag", {"tag": self.tag})
             except Exception as e:
                 logger.error(f"[失败] 注销模型 {self.tag} 出错: {e}")
+                return
+
+            # 更新数据库状态
+            self.mark_inactive(conn, "tag=:tag", {"tag": self.tag})
+
+            # 写入历史
+            write_model_registry_history(
+                conn,
+                model_id=record["id"],
+                metadata=record,
+                change_type="Archive",
+                remarks="Archived"
+            )
+
+            logger.info(f"[成功] 模型 {self.tag} (uuid={record['uuid']}) 已注销。")
 
     def unregister_all_models(self):
         """注销全部 BentoML 模型"""
         with postgres_engine.connect() as conn:
             try:
-                models = bentoml.models.list()
-                if not models:
-                    logger.info("[提示] 当前没有已注册的 BentoML 模型可注销。")
+                records = conn.execute(
+                    text("SELECT * FROM model_registry WHERE status='active'")
+                ).fetchall()
+
+                if not records:
+                    logger.info("[提示] 当前没有已注册的活跃模型可注销。")
                     return
-                for m in models:
+
+                for record in records:
+                    tag = record["tag"]
                     try:
+                        m = bentoml.models.get(tag)
                         bentoml.models.delete(tag=m.tag)
-                        self.mark_inactive(conn, "tag=:tag", {"tag": str(m.tag)})
-                        logger.info(f"[成功] 已注销模型: {m.tag}")
                     except bentoml.exceptions.NotFound:
-                        logger.warning(f"[BentoML] 模型 {m.tag} 不存在或已删除。")
-                        self.mark_inactive(conn, "tag=:tag", {"tag": str(m.tag)})
+                        logger.warning(f"[BentoML] 模型 {tag} 不存在或已删除。")
+                    except Exception as e:
+                        logger.error(f"[失败] 注销模型 {tag} 出错: {e}")
+                        continue
+
+                    # 更新数据库状态
+                    self.mark_inactive(conn, "uuid=:uuid", {"uuid": record["uuid"]})
+
+                    # 写入历史
+                    write_model_registry_history(
+                        conn,
+                        model_id=record["id"],
+                        metadata=record,
+                        change_type="Archive",
+                        remarks="Archived"
+                    )
+
+                    logger.info(f"[成功] 已注销模型: {tag} (uuid={record['uuid']})")
             except Exception as e:
                 logger.error(f"[失败] 注销全部模型出错: {e}")
 
