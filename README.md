@@ -112,8 +112,8 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
 - 模型注册
   ```bash
   PYTHONPATH=. python src/register_model.py --all #注册全部模型
-  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --model_type logistic_regression --model_path models/demo_loan_scorecard_lr_20250930.pkl --framework sklearn --business_name demo_loan_lr  #注册指定模型
-  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --model_type logistic_regression --model_path models/demo_loan_scorecard_lr_20250930.pkl --framework sklearn --business_name demo_loan_lr --force #强制注册模型
+  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 #注册指定模型
+  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --force #强制注册模型
   ```
 
 - 发布服务（开发模式）

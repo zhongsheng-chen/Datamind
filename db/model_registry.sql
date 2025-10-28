@@ -1,4 +1,5 @@
 CREATE TYPE model_status AS ENUM ('pending', 'active', 'inactive', 'archived');
+CREATE TYPE model_task AS ENUM ('scoring', 'fraud');
 
 CREATE TABLE IF NOT EXISTS model_registry (
   id SERIAL PRIMARY KEY,                                              -- 自增主键
@@ -7,7 +8,8 @@ CREATE TABLE IF NOT EXISTS model_registry (
   model_path VARCHAR(2048) NOT NULL,                                  -- 模型路径
   version VARCHAR(64) NOT NULL,                                       -- 模型版本
   framework VARCHAR(64) NOT NULL,                                     -- 模型框架
-  hash CHAR(64) NOT NULL UNIQUE,                                      -- 哈希值
+  task model_task NOT NULL,                                           -- 任务类型
+  hash CHAR(64) NOT NULL,                                             -- 哈希值
   tag VARCHAR(256) UNIQUE,                                            -- 模型标签
   uuid UUID UNIQUE DEFAULT gen_random_uuid(),                         -- 唯一标识
   status model_status DEFAULT 'pending',                              -- 生效状态
@@ -15,7 +17,7 @@ CREATE TABLE IF NOT EXISTS model_registry (
   registered_by VARCHAR(64) DEFAULT current_user,                     -- 创建人
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,      -- 最近更新时间
   updated_by VARCHAR(64) DEFAULT current_user,                        -- 最近更新人
-  CONSTRAINT uq_model UNIQUE (model_name, version, hash)              -- 唯一约束
+  CONSTRAINT uq_model UNIQUE (model_name, version, hash, task)        -- 唯一约束
 );
 
 -- 添加表备注
@@ -28,6 +30,7 @@ COMMENT ON COLUMN model_registry.model_type IS '模型类型：decision_tree|ran
 COMMENT ON COLUMN model_registry.model_path IS '模型文件的存储路径。';
 COMMENT ON COLUMN model_registry.version IS '模型的版本号。';
 COMMENT ON COLUMN model_registry.framework IS '模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。';
+COMMENT ON COLUMN model_registry.task IS '任务类型：scoring-评分，fraud-欺诈检测。';
 COMMENT ON COLUMN model_registry.hash IS '模型文件的SHA256哈希值，用于确保文件的唯一性。';
 COMMENT ON COLUMN model_registry.tag IS '模型标签，由BentoML生成，格式为：model_name:version。';
 COMMENT ON COLUMN model_registry.uuid IS '模型的唯一标识符。';
@@ -39,9 +42,10 @@ COMMENT ON COLUMN model_registry.updated_by IS '更新模型的人员。';
 
 -- 创建索引,提高查询的效率
 CREATE UNIQUE INDEX IF NOT EXISTS uq_idx_model_registry_uuid ON model_registry (uuid);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_idx_model_registry_hash ON model_registry (hash);
+CREATE INDEX IF NOT EXISTS idx_model_registry_hash ON model_registry (hash);
 CREATE INDEX IF NOT EXISTS idx_model_registry_status ON model_registry (status);
 CREATE INDEX IF NOT EXISTS idx_model_registry_framework ON model_registry (framework);
+CREATE INDEX IF NOT EXISTS idx_model_registry_task ON model_registry (task);
 CREATE INDEX IF NOT EXISTS idx_model_registry_name_version ON model_registry (model_name, version);
 CREATE INDEX IF NOT EXISTS idx_model_registry_name_version_status ON model_registry (model_name, version, status);
 
