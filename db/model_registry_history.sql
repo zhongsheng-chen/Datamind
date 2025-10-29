@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS model_registry_history (
     id SERIAL PRIMARY KEY,                                              -- 自增主键
-    model_id INT NOT NULL,                                              -- 模型编号
+    model_id INT,                                                       -- 模型编号
     model_name VARCHAR(256) NOT NULL,                                   -- 模型名称
     model_type VARCHAR(64) NOT NULL,                                    -- 模型类型
     model_path VARCHAR(2048) NOT NULL,                                  -- 模型路径
@@ -8,14 +8,14 @@ CREATE TABLE IF NOT EXISTS model_registry_history (
     framework VARCHAR(64) NOT NULL,                                     -- 模型框架
     task model_task NOT NULL,                                           -- 任务类型
     hash CHAR(64) NOT NULL,                                             -- 哈希值
-    tag VARCHAR(256) UNIQUE,                                            -- 模型标签
-    uuid UUID NOT NULL UNIQUE ,                                         -- 唯一标识
+    tag VARCHAR(256) NOT NULL,                                          -- 模型标签
+    uuid UUID NOT NULL,                                                 -- 唯一标识
     status model_status DEFAULT 'pending',                              -- 生效状态
     change_type VARCHAR(32) NOT NULL,                                   -- 变更类型
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,      -- 变更日期
     changed_by VARCHAR(256) DEFAULT current_user,                       -- 变更人员
     remarks TEXT,                                                       -- 可选说明，比如更新内容
-    CONSTRAINT fk_model FOREIGN KEY (model_id) REFERENCES model_registry(id) ON DELETE CASCADE
+    CONSTRAINT fk_model FOREIGN KEY (model_id) REFERENCES model_registry(id) ON DELETE SET NULL
 );
 
 -- 添加表备注

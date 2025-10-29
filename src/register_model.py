@@ -211,7 +211,7 @@ class ModelRegistry:
                 # 1. 如果 --force，先将旧版本模型失效
                 if self.force:
                     old_models = conn.execute(text("""
-                                                   SELECT id
+                                                   SELECT *
                                                    FROM model_registry
                                                    WHERE model_name = :model_name
                                                      AND task = :task
@@ -230,7 +230,7 @@ class ModelRegistry:
                                           UPDATE model_registry_history
                                           SET status='inactive',
                                               change_type='Force Deactivate',
-                                              remarks='Force Deactivate Old Version'
+                                              remarks='模型已强制注销, --force 开关自动强制注销旧模型'
                                           WHERE model_id = :model_id
                                             AND id = (SELECT id
                                                       FROM model_registry_history
@@ -239,7 +239,7 @@ class ModelRegistry:
                                                       LIMIT 1)
                                           """), {"model_id": old["id"]})
 
-                        logger.info(f"[失效] 旧版本模型 id={old['id']} 已失效")
+                        logger.info(f"[失效] 旧模型 {old['model_name']} (uuid={old['uuid']}, id={old['id']}) 已失效")
 
                 # 2. 检查当前模型是否已存在
                 existing = conn.execute(text("""
@@ -281,10 +281,10 @@ class ModelRegistry:
                                           "registered_at": now
                                       })
                 model_id = result.fetchone()[0]
-                logger.info(f"[新增] 模型 {self.model_name} 已注册成功，id={model_id}")
+                logger.info(f"[新增] 模型 {self.model_name} (uuid={metadata.get('uuid')}, id={model_id}) 已注册成功")
 
                 self.write_model_registry_history(
-                    conn, model_id, metadata, "Force Recreate" if self.force else "Create", "Force Create New Version" if self.force else "Initial Creation"
+                    conn, model_id, metadata, "Force Recreate" if self.force else "Create", "强制注册成功" if self.force else "注册成功"
                 )
 
                 # 4. 更新 config.yaml
