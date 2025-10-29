@@ -1,6 +1,7 @@
 import os
 import re
 import yaml
+from typing import Union
 from pathlib import Path
 from typing import Any, Optional, List, Dict
 
@@ -139,6 +140,28 @@ class Config:
                 if model_entry.get("model_name") == model_name:
                     return model_entry
         return None
+
+    def list_models(self, flatten: bool = True) -> Union[List[str], Dict[str, List[str]]]:
+        """
+        列出所有模型名称
+
+        参数:
+            flatten (bool): 是否返回扁平化列表（默认 True）
+                            False 时按分类返回 dict {category: [model_name,...]}
+
+        返回:
+            list 或 dict: 模型名称列表或按分类的字典
+        """
+        if flatten:
+            model_names = []
+            for category, model_list in self.models.items():
+                model_names.extend([m.get("model_name") for m in model_list])
+            return model_names
+        else:
+            categorized = {}
+            for category, model_list in self.models.items():
+                categorized[category] = [m.get("model_name") for m in model_list]
+            return categorized
 
     def get_business_workflow(self, workflow_name: str) -> BusinessWorkflow:
         wf_conf = self.workflows.get(workflow_name)

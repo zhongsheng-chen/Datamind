@@ -25,7 +25,6 @@ import pickle
 import bentoml
 import argparse
 import pytz
-# import yaml
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import text
@@ -35,7 +34,6 @@ from src.config_parser import config
 from src.db_engine import postgres_engine
 from src.setup import setup_logger
 from ruamel.yaml import YAML
-import os
 
 try:
     import torch
