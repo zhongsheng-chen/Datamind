@@ -1,20 +1,21 @@
 CREATE TABLE IF NOT EXISTS model_registry_history (
     id SERIAL PRIMARY KEY,                                              -- 自增主键
-    model_id INT NOT NULL,                                              -- 模型编号
+    model_id INT,                                                       -- 模型编号
     model_name VARCHAR(256) NOT NULL,                                   -- 模型名称
     model_type VARCHAR(64) NOT NULL,                                    -- 模型类型
     model_path VARCHAR(2048) NOT NULL,                                  -- 模型路径
     version VARCHAR(64) NOT NULL,                                       -- 模型版本
     framework VARCHAR(64) NOT NULL,                                     -- 模型框架
+    task model_task NOT NULL,                                           -- 任务类型
     hash CHAR(64) NOT NULL,                                             -- 哈希值
-    tag VARCHAR(256),                                                   -- 模型标签
+    tag VARCHAR(256) NOT NULL,                                          -- 模型标签
     uuid UUID NOT NULL,                                                 -- 唯一标识
     status model_status DEFAULT 'pending',                              -- 生效状态
     change_type VARCHAR(32) NOT NULL,                                   -- 变更类型
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,      -- 变更日期
     changed_by VARCHAR(256) DEFAULT current_user,                       -- 变更人员
     remarks TEXT,                                                       -- 可选说明，比如更新内容
-    CONSTRAINT fk_model FOREIGN KEY (model_id) REFERENCES model_registry(id) ON DELETE CASCADE
+    CONSTRAINT fk_model FOREIGN KEY (model_id) REFERENCES model_registry(id) ON DELETE SET NULL
 );
 
 -- 添加表备注
@@ -27,6 +28,7 @@ COMMENT ON COLUMN model_registry_history.model_type IS '模型类型。';
 COMMENT ON COLUMN model_registry_history.model_path IS '模型文件路径。';
 COMMENT ON COLUMN model_registry_history.version IS '模型版本。';
 COMMENT ON COLUMN model_registry_history.framework IS '模型框架。';
+COMMENT ON COLUMN model_registry_history.task IS '任务类型：scoring-评分，fraud-欺诈检测。';
 COMMENT ON COLUMN model_registry_history.hash IS '模型文件的SHA256哈希值，用于确保文件的唯一性。';
 COMMENT ON COLUMN model_registry_history.tag IS '模型标签，由BentoML生成，格式为：model_name:version。';
 COMMENT ON COLUMN model_registry_history.uuid IS '模型唯一标识。';
@@ -39,6 +41,8 @@ COMMENT ON COLUMN model_registry_history.remarks IS '更新内容备注。';
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_model_history_model_id ON model_registry_history(model_id);
 CREATE INDEX IF NOT EXISTS idx_model_history_changed_at ON model_registry_history(changed_at);
+CREATE INDEX IF NOT EXISTS idx_model_history_framework ON model_registry_history(framework);
+CREATE INDEX IF NOT EXISTS idx_model_history_task ON model_registry_history(task);
 CREATE INDEX IF NOT EXISTS idx_model_history_hash ON model_registry_history(hash);
 
 -- 触发器记录更新时间

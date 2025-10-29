@@ -53,7 +53,7 @@ class TestDBEngine(unittest.TestCase):
             db_engine.create_db_engine("sqlite")
 
     @patch("src.db_engine.config")
-    def test_missing_port(self, mock_config):
+    def test_missing_port_oracle(self, mock_config):
         """测试缺少 port 配置"""
         mock_config.get_databases.side_effect = lambda db_name: {
             "oracle": {

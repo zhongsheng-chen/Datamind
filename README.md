@@ -100,7 +100,11 @@
 
 - 测试所有案例
    ```bash
-   PYTHONPATH=. pytest tests/
+   PYTHONPATH=. pytest tests/test_register_model.py
+  ```
+  ```bash
+   PYTHONPATH=. pytest tests/test_register_model.py
+  ```
 
 model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'LightGBM ' 等等这些模型算法
 
@@ -109,12 +113,20 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
   ```bash
   cd train/
   python train.py
-- 模型注册
-  ```bash
-  PYTHONPATH=. python src/register_model.py --all #注册全部模型
-  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --model_type logistic_regression --model_path models/demo_loan_scorecard_lr_20250930.pkl --framework sklearn --business_name demo_loan_lr  #注册指定模型
-  PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --model_type logistic_regression --model_path models/demo_loan_scorecard_lr_20250930.pkl --framework sklearn --business_name demo_loan_lr --force #强制注册模型
   ```
+  - 模型注册
+    - 注册全部模型
+    ```bash
+    PYTHONPATH=. python src/register_model.py --all
+    ```
+    - 注册指定模型
+    ```bash
+    PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930
+    ```
+    - 强制注册模型
+    ```bash
+    PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --force
+    ```
 
 - 发布服务（开发模式）
   ```bash
@@ -131,10 +143,26 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
       ```bash
       PYTHONPATH=. python src/unregister_model.py --tag demo_loan_scorecard_lr_20250930:bnx7y63fsn2uqxgq
       ```
+  - 按tag注销模型，支持批量逗号分隔
+      ```bash
+      PYTHONPATH=. python src/unregister_model.py --tags demo_loan_scorecard_lr_20250930:bnx7y63fsn2uqxgq, demo_loan_scorecard_rf_20250930:rweugznuok7v2b3i
+      ```
   - 按uuid注销模型
       ```bash
-      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529 #按uuid注销模型
+      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529
       ```
+  - 按uuid注销模型，支持批量逗号分隔
+      ```bash
+      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529,123e4567-e89b-12d3-a456-426614174000
+      ```
+  - 彻底删除指定模型
+      ```bash
+      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529 --delete
+      ```
+  - 彻底删除所有模型
+      ```bash
+      PYTHONPATH=. python src/unregister_model.py --all --delete
+      ```    
 - 镜像化
     ```bash
   bentoml containerize loan_service:latest
@@ -202,4 +230,54 @@ model_registry:
                 "total_tax_amount", "avg_tax_amount","max_tax_amount", "min_tax_amount" , "tax_amount_std",
                 "loan_to_income_ratio", "existing_loans_ratio" ]     #模型特征，必填
 
+```
+
+# git 拉取最新版本
+
+- 生成 SSH Key：
+```bash
+ssh-keygen -t ed25519 -C "zhongsheng.chen@outlook.com"
+```
+- 查看公钥：
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+- 登录 GitHub → Settings → SSH and GPG keys → New SSH key → 粘贴公钥
+- 修改仓库远程地址为 SSH：
+```bash
+git remote set-url origin git@github.com:zhongsheng-chen/Datamind.git
+```
+- 测试连接：
+```bash
+ssh -T git@github.com
+```
+- 拉取最新代码
+```bash
+git fetch origin
+git reset --hard origin/master
+```
+或
+```bash
+git rebase --abort
+git fetch origin
+git reset --hard origin/master
+```
+# git 推送最新版本
+
+- 查看远程地址
+```bash
+git remote -v
+```
+- 添加所有修改并提交
+```bash
+git add .
+git commit -m "本地最新修改提交"
+```
+- 推送到远程仓库
+```bash
+git push -u origin master # 第一次
+```
+或
+```bash
+git push origin master
 ```

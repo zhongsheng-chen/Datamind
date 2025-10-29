@@ -2,7 +2,6 @@ import unittest
 import tempfile
 from pathlib import Path
 import yaml
-import os
 from src.config_parser import Config, BusinessWorkflow, WorkflowStep
 
 

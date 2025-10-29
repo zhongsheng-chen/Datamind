@@ -3,24 +3,17 @@
 """
 register_model.py
 
-将模型文件注册为模型服务. 仅会注册 config/config.yaml model_registry 单元列出的所有模型文件
+将模型文件注册为模型服务. 仅会注册 config/config.yaml models 单元列出的所有模型文件
 使用 --force 选项强制注册模型，会将状态为 'deactive' 的模型更新为 'active'
 用法:
   注册所有模型
   python register_model.py --all
 
   注册指定模型
-  python register_model.py --model_name demo_loan_scorecard_lr_20250930 \
-                           --model_type logistic_regression \
-                           --model_path models/demo_loan_scorecard_lr_20250930.pkl \
-                           --framework sklearn \
-                           --business_name demo_loan
+  python register_model.py --model_name demo_loan_scorecard_lr_20250930
+
   强制注册指定模型
   python register_model.py --model_name demo_loan_scorecard_lr_20250930 \
-                           --model_type logistic_regression \
-                           --model_path models/demo_loan_scorecard_lr_20250930.pkl \
-                           --framework sklearn \
-                           --business_name demo_loan \
                            --force
 
 """
@@ -32,7 +25,7 @@ import pickle
 import bentoml
 import argparse
 import pytz
-import yaml
+# import yaml
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import text
@@ -41,6 +34,8 @@ from sqlalchemy.exc import IntegrityError
 from src.config_parser import config
 from src.db_engine import postgres_engine
 from src.setup import setup_logger
+from ruamel.yaml import YAML
+import os
 
 try:
     import torch
@@ -88,15 +83,27 @@ EXTENSION_MAP = {
 
 Session = sessionmaker(bind=postgres_engine)
 session = Session()
+
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
-
 def update_config_yaml(model_name, version, uuid_str):
-    """更新 config.yaml 中指定模型的 version 和 uuid"""
+    """更新 config.yaml 中指定模型的 version 和 uuid，保留注释"""
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    cfg_path = str(config.cfg_path)
     updated = False
-    for category, models in config.get("models", {}).items():
+
+    if not os.path.exists(cfg_path):
+        logger.warning(f"[配置] 文件不存在: {cfg_path}")
+        return
+
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        data = yaml.load(f)
+
+    for task, models in data.get("models", {}).items():
         for m in models:
-            if m["model_name"] == model_name:
+            if m.get("model_name") == model_name:
                 m["version"] = version
                 m["uuid"] = uuid_str
                 updated = True
@@ -105,20 +112,23 @@ def update_config_yaml(model_name, version, uuid_str):
             break
 
     if updated:
-        with open(config.cfg_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(config, f, allow_unicode=True)
-        logger.info(f"[CONFIG] config.yaml 已更新：{model_name} 的 version 和 uuid")
-
+        tmp_path = cfg_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            yaml.dump(data, f)
+        os.replace(tmp_path, cfg_path)
+        logger.info(f"[配置] config.yaml 已更新：{model_name} 的 version 和 uuid")
+    else:
+        logger.warning(f"[配置] 未找到模型 {model_name}，未更新 config.yaml")
 
 class ModelRegistry:
     """模型注册类"""
 
-    def __init__(self, business_name, model_name, model_type, model_path, framework, force=False):
-        self.business_name = business_name
+    def __init__(self, model_name, model_type, model_path, framework, task, force=False):
         self.model_name = model_name
         self.model_type = model_type
         self.model_path = model_path
         self.framework = framework
+        self.task = task
         self.force = force
 
     @staticmethod
@@ -137,111 +147,147 @@ class ModelRegistry:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    @staticmethod
-    def check_exists(hash):
-        query = text("SELECT 1 FROM model_registry WHERE hash = :hash AND status = 'active'")
-        result = session.execute(query, {"hash": hash}).fetchone()
-        session.close()
-        return result is not None
+    def check_exists(self, hash):
+        """检查相同模型名、任务、哈希是否已存在于 model_registry"""
+        SessionLocal = sessionmaker(bind=postgres_engine)
+        with SessionLocal() as session:
+            result = session.execute(
+                text("""
+                     SELECT 1
+                     FROM model_registry
+                     WHERE model_name = :model_name
+                       AND task = :task
+                       AND hash = :hash
+                       AND status = 'active'
+                     """),
+                {"model_name": self.model_name, "task": self.task, "hash": hash}
+            ).fetchone()
+            return result is not None
 
-    def create_identifier(self, hash, tag):
-        model_str = f"{self.model_name}_{self.model_type}_{self.framework}_{hash}_{tag}"
+    def create_identifier(self, hash):
+        timestamp = datetime.now(beijing_tz).strftime("%Y%m%d%H%M%S")
+        model_str = f"{self.model_name}_{self.model_type}_{self.framework}_{hash}_{timestamp}"
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, model_str))
 
-    @staticmethod
-    def write_model_registry_history(conn, model_id, model_name, model_type, model_path,
-                                    version, framework, hash, tag, uuid_str, status, change_type, remarks=None):
+    def write_model_registry_history(self, conn, model_id, metadata, change_type, remarks=None):
         """写入 model_registry_history"""
-        conn.execute(text("""
-            INSERT INTO model_registry_history
-            (model_id, model_name, model_type, model_path, version, framework, hash, tag, uuid, status, change_type, changed_by, remarks)
-            VALUES
-            (:model_id, :model_name, :model_type, :model_path, :version, :framework, :hash, :tag, :uuid, :status, :change_type, current_user, :remarks)
-        """), {
+        record = {
             "model_id": model_id,
-            "model_name": model_name,
-            "model_type": model_type,
-            "model_path": model_path,
-            "version": version,
-            "framework": framework,
-            "hash": hash,
-            "tag": tag,
-            "uuid": uuid_str,
-            "status": status,
+            "model_name": self.model_name,
+            "model_type": self.model_type,
+            "model_path": self.model_path,
+            "version": metadata.get("version"),
+            "framework": self.framework,
+            "task": self.task,
+            "hash": metadata.get("hash"),
+            "tag": metadata.get("tag"),
+            "uuid": metadata.get("uuid"),
+            "status": metadata.get("status", "active"),
             "change_type": change_type,
-            "remarks": remarks
-        })
+            "remarks": remarks,
+        }
+
+        conn.execute(text("""
+                          INSERT INTO model_registry_history (model_id, model_name, model_type, model_path, version,
+                                                              framework,
+                                                              task, hash, tag, uuid, status, change_type, changed_by,
+                                                              remarks)
+                          VALUES (:model_id, :model_name, :model_type, :model_path, :version, :framework,
+                                  :task, :hash, :tag, :uuid, :status, :change_type, current_user, :remarks)
+                          """), record)
 
     def write_model_registry(self, version, hash, tag, uuid_str):
         now = datetime.now(beijing_tz)
+        metadata = {
+            "version": version,
+            "hash": hash,
+            "tag": tag,
+            "uuid": uuid_str,
+            "status": "active"
+        }
+
         with postgres_engine.connect() as conn:
             try:
-                existing = conn.execute(
-                    text("SELECT * FROM model_registry WHERE hash = :hash"),
-                    {"hash": hash}
-                ).fetchone()
+                # 1. 如果 --force，先将旧版本模型失效
+                if self.force:
+                    old_models = conn.execute(text("""
+                                                   SELECT *
+                                                   FROM model_registry
+                                                   WHERE model_name = :model_name
+                                                     AND task = :task
+                                                     AND hash = :hash
+                                                     AND status = 'active'
+                                                   """), {"model_name": self.model_name, "task": self.task, "hash": hash}).fetchall()
+
+                    for old in old_models:
+                        conn.execute(text("""
+                                          UPDATE model_registry
+                                          SET status='inactive'
+                                          WHERE id = :id
+                                          """), {"id": old["id"]})
+
+                        conn.execute(text("""
+                                          UPDATE model_registry_history
+                                          SET status='inactive',
+                                              change_type='Force Deactivate',
+                                              remarks='模型已强制注销, --force 开关自动强制注销旧模型'
+                                          WHERE model_id = :model_id
+                                            AND id = (SELECT id
+                                                      FROM model_registry_history
+                                                      WHERE model_id = :model_id
+                                                      ORDER BY id DESC
+                                                      LIMIT 1)
+                                          """), {"model_id": old["id"]})
+
+                        logger.info(f"[失效] 旧模型 {old['model_name']} (uuid={old['uuid']}, id={old['id']}) 已失效")
+
+                # 2. 检查当前模型是否已存在
+                existing = conn.execute(text("""
+                                             SELECT *
+                                             FROM model_registry
+                                             WHERE model_name = :model_name
+                                               AND task = :task
+                                               AND hash = :hash
+                                               AND status = 'active'
+                                             """), {
+                                            "model_name": self.model_name,
+                                            "task": self.task,
+                                            "hash": metadata.get("hash")
+                                        }).fetchone()
 
                 if existing and not self.force:
                     logger.info(f"[跳过] 模型 {self.model_name} 已存在，使用 --force 可覆盖。")
                     return
 
-                if existing and self.force:
-                    conn.execute(text("""
-                        UPDATE model_registry
-                        SET model_name=:model_name,
-                            model_type=:model_type,
-                            model_path=:model_path,
-                            status=:status,
-                            version=:version,
-                            framework=:framework,
-                            tag=:tag,
-                            uuid=:uuid,
-                            registered_at=:registered_at
-                        WHERE hash = :hash
-                    """), {
-                        "model_name": self.model_name,
-                        "model_type": self.model_type,
-                        "model_path": self.model_path,
-                        "status": "active",
-                        "version": version,
-                        "framework": self.framework,
-                        "tag": tag,
-                        "uuid": uuid_str,
-                        "hash": hash,
-                        "registered_at": now
-                    })
-                    logger.info(f"[更新] 模型 {self.model_name} 的注册信息已更新。")
-                    model_id = existing["id"]
-                    ModelRegistry.write_model_registry_history(
-                        conn, model_id, self.model_name, self.model_type, self.model_path,
-                        version, self.framework, hash, tag, uuid_str, "active", "update", "force update"
-                    )
-                else:
-                    result = conn.execute(text("""
-                        INSERT INTO model_registry
-                        (model_name, model_type, model_path, version, framework, hash, tag, uuid, status, registered_at)
-                        VALUES (:model_name, :model_type, :model_path, :version, :framework, :hash, :tag, :uuid, :status, :registered_at)
-                        RETURNING id
-                    """), {
-                        "model_name": self.model_name,
-                        "model_type": self.model_type,
-                        "model_path": self.model_path,
-                        "version": version,
-                        "framework": self.framework,
-                        "hash": hash,
-                        "tag": tag,
-                        "uuid": uuid_str,
-                        "status": "active",
-                        "registered_at": now
-                    })
-                    model_id = result.fetchone()[0]
-                    logger.info(f"[新增] 模型 {self.model_name} 已注册成功。")
-                    ModelRegistry.write_model_registry_history(
-                        conn, model_id, self.model_name, self.model_type, self.model_path,
-                        version, self.framework, hash, tag, uuid_str, "active", "new_version"
-                    )
+                # 3. 插入新模型
+                result = conn.execute(text("""
+                                           INSERT INTO model_registry
+                                           (model_name, model_type, model_path, version, framework, task, hash, tag,
+                                            uuid, status, registered_at)
+                                           VALUES (:model_name, :model_type, :model_path, :version, :framework, :task,
+                                                   :hash, :tag, :uuid, :status, :registered_at)
+                                           RETURNING id
+                                           """), {
+                                          "model_name": self.model_name,
+                                          "model_type": self.model_type,
+                                          "model_path": self.model_path,
+                                          "version": metadata.get("version"),
+                                          "framework": self.framework,
+                                          "task": self.task,
+                                          "hash": metadata.get("hash"),
+                                          "tag": metadata.get("tag"),
+                                          "uuid": metadata.get("uuid"),
+                                          "status": metadata.get("status"),
+                                          "registered_at": now
+                                      })
+                model_id = result.fetchone()[0]
+                logger.info(f"[新增] 模型 {self.model_name} (uuid={metadata.get('uuid')}, id={model_id}) 已注册成功")
 
-                # 更新 config.yaml
+                self.write_model_registry_history(
+                    conn, model_id, metadata, "Force Recreate" if self.force else "Create", "强制注册成功" if self.force else "注册成功"
+                )
+
+                # 4. 更新 config.yaml
                 update_config_yaml(self.model_name, version, uuid_str)
 
             except IntegrityError as e:
@@ -254,7 +300,7 @@ class ModelRegistry:
         hash = self.create_hash()
 
         if not self.force and self.check_exists(hash):
-            logger.info(f"[跳过] 模型已注册: {self.model_name} ({self.model_path})")
+            logger.info(f"[跳过] 模型已注册: {self.model_name} (task={self.task}, path={self.model_path}, hash={hash})")
             return
 
         try:
@@ -296,15 +342,15 @@ class ModelRegistry:
 
         tag = str(artifact.tag)
         version = artifact.info.version
-        uuid_str = self.create_identifier(hash, tag)
+        uuid_str = self.create_identifier(hash)
 
         logger.info(
             f"\n{'='*120}\n"
             f"模型注册成功\n"
-            f"业务名称 : {self.business_name}\n"
             f"模型名称 : {self.model_name}\n"
             f"模型类型 : {self.model_type}\n"
             f"框架类型 : {self.framework}\n"
+            f"任务类型 : {self.task}\n"
             f"版本编号 : {version}\n"
             f"标签信息 : {tag}\n"
             f"唯一标识 : {uuid_str}\n"
@@ -320,7 +366,7 @@ class ModelRegistry:
         root = Path(__file__).resolve().parent.parent
         model_conf = config.get("models", {})
 
-        for category, models in model_conf.items():
+        for task, models in model_conf.items():
             for info in models:
                 model_name = info["model_name"]
                 model_type = info["model_type"]
@@ -340,11 +386,11 @@ class ModelRegistry:
                         continue
 
                 registry = cls(
-                    info.get("business_name", category),
                     model_name,
                     model_type,
                     str(model_path),
                     framework,
+                    task,
                     force=info.get("force", False)
                 )
                 registry.register_model()
@@ -352,7 +398,7 @@ class ModelRegistry:
 
 def main():
     parser = argparse.ArgumentParser(description="模型注册工具")
-    parser.add_argument("--all", default=True, action="store_true", help="注册所有模型")
+    parser.add_argument("--all", action="store_true", help="注册所有模型")
     parser.add_argument("--model_name", type=str, help="模型名称")
     parser.add_argument("--force", action="store_true", help="强制覆盖已存在模型")
     args = parser.parse_args()
@@ -362,7 +408,8 @@ def main():
     elif args.model_name:
         model_conf = config.get("models", {})
         model_info = None
-        for category, models in model_conf.items():
+        task = None
+        for task, models in model_conf.items():
             for m in models:
                 if m["model_name"] == args.model_name:
                     model_info = m
@@ -378,12 +425,12 @@ def main():
             path = Path(__file__).resolve().parent.parent / path
 
         registry = ModelRegistry(
-            model_info.get("business_name", "default"),
             model_info["model_name"],
             model_info["model_type"],
             str(path),
             model_info.get("framework"),
-            force=args.force or model_info.get("force", False)
+            task,
+            force=args.force
         )
         registry.register_model()
     else:
