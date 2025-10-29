@@ -36,10 +36,13 @@ def main():
         print("Framework:", lr_model.get("framework"))
         print("Features:", lr_model.get("features"))
 
+    models = config.list_models()
+    print(models)
+
     # 5️⃣ 业务工作流
     print("\n--- 业务工作流 ---")
     approval_wf = config.get_business_workflow("demo_loan_approval_workflow")
-    print("Workflow Name:", approval_wf.name)
+    print("Business Name:", approval_wf.name)
     print("Description:", approval_wf.description)
 
     # 遍历步骤

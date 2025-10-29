@@ -111,7 +111,7 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
 步骤：
 - 训练模型
   ```bash
-  cd train/
+  cd demo/
   python train.py
   ```
   - 模型注册
@@ -174,26 +174,29 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
     ```bash
     PYTHONPATH=. python bentoml_helper/list_model.py
     ```
-- 删除指定模型
+- 保留最新版本，删除历史旧模型
     ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --model_tag name:version
-    ```
-- 删除指定业务的所有模型
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --business_name business_name
+    PYTHONPATH=. python bentoml_helper/delete_model.py --keep-latest
     ```
 - 删除早于指定日期的模型
     ```bash
     PYTHONPATH=. python bentoml_helper/delete_model.py --before 2025-09-01
     ```
+- 删除指定tag的模型
+    ```bash
+    PYTHONPATH=. python bentoml_helper/delete_model.py --tag name1:version2, name2:version2 --dry-run
+    ```
+- 删除多个tag指定模型中早于指定日期的模型：
+    ```bash
+    PYTHONPATH=. python bentoml_helper/delete_model.py --tag name1:version2, name2:version2 --before 2025-09-01
+    ```
+  
 - dry-run 模式，只打印将要删除的模型
     ```bash
+    PYTHONPATH=. python bentoml_helper/delete_model.py --dry-run
     PYTHONPATH=. python bentoml_helper/delete_model.py --before 2025-09-01 --dry-run
     ```
-- 保留最新版本，删除历史旧模型：
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --business_name business_name --keep-latest
-    ```
+
 **规则类型**
 
 | 类型            | 描述                  | 适用场景                | 示例                                         |

@@ -4,28 +4,28 @@
 """
 delete_model.py
 
-删除指定业务或所有业务的 BentoML 模型版本。
+删除 BentoML 模型。
 支持 dry-run 模式，只打印将删除的模型而不执行实际删除。
-支持保留最新版本、按日期删除、删除指定模型。
+支持保留最新版本、按日期删除、删除指定模型（单个或批量）。
 
 用法：
-   删除指定业务的所有模型：
-   python delete_model.py --business_name business_name
-
    删除所有模型：
-   python delete_model.py
+       python delete_model.py
 
    dry-run 模式，只打印将要删除的模型：
-   python delete_model.py --business_name business_name --dry-run
+       python delete_model.py --dry-run
 
    保留最新版本，删除历史旧模型：
-   python delete_model.py --business_name business_name --keep-latest
+       python delete_model.py --keep-latest
 
    删除早于指定日期的模型：
-   python delete_model.py --before 2025-09-01
+       python delete_model.py --before 2025-09-01
 
-   删除指定模型：
-   python delete_model.py --model_tag name:version
+   删除单个或多个指定模型：
+       python delete_model.py --tag name1:version1,name2:version2
+
+   删除单个或多个指定模型中早于指定日期的模型：
+       python delete_model.py --tag name1:version1,name2:version2 --before 2025-09-01
 """
 
 import pytz
@@ -35,76 +35,92 @@ from dateutil.parser import parse
 from src.setup import setup_logger
 
 logger = setup_logger()
-
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
-def delete_models(
-    business_name: str = None,
-    dry_run: bool = False,
-    keep_latest: bool = False,
-    before: str = None,
-    model_tag: str = None,
-):
-    """
-    删除指定业务、所有业务、某个模型，或早于指定日期的 BentoML 模型
-    """
-    all_models = bentoml.models.list()
 
-    # 如果指定单个模型
-    if model_tag:
-        try:
-            m = bentoml.models.get(model_tag)
-        except Exception as e:
-            logger.error(f"未找到模型 {model_tag}: {e}")
-            return
-        target_models = [m]
+def human_size(size: int) -> str:
+    """将字节大小转为可读格式"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return f"{size:.2f} PB"
 
-    # 如果指定业务
-    elif business_name:
-        target_models = [m for m in all_models if business_name in m.tag.name]
+
+def to_local_time(dt):
+    """转换 datetime 到北京时间"""
+    return dt.astimezone(beijing_tz) if dt.tzinfo else beijing_tz.localize(dt)
+
+
+def delete_models(dry_run=False, keep_latest=False, before=None, tag=None):
+    """删除指定模型，或早于指定日期的 BentoML 模型"""
+    target_models = []
+
+    # 获取目标模型列表
+    if tag:
+        tags = [t.strip() for t in tag.split(",") if t.strip()]
+        for t in tags:
+            try:
+                m = bentoml.models.get(t)
+                target_models.append(m)
+            except Exception as e:
+                logger.error(f"未找到模型 {t}: {e}")
         if not target_models:
-            logger.info(f"未找到业务 '{business_name}' 的模型")
+            logger.warning("没有找到任何指定的模型，操作结束")
             return
-
-    # 默认删除所有
     else:
-        target_models = all_models
-        if not target_models:
+        all_models = bentoml.models.list()
+        if not all_models:
             logger.info("当前没有任何模型可以删除")
             return
-
-    # 按创建时间排序（新 -> 旧）
-    target_models.sort(key=lambda m: m.creation_time, reverse=True)
-
-    # 保留最新版本
-    if keep_latest and len(target_models) > 0 and not model_tag:
-        latest = target_models[0]
-        logger.info(
-            f"保留最新模型: {latest.tag}, 创建于: {latest.creation_time}, 大小: {latest.file_size} 字节"
-        )
-        target_models = target_models[1:]
-    elif keep_latest and model_tag:
-        logger.info("keep-latest 选项忽略，因为指定了单个 model_tag")
+        target_models = all_models
 
     # 按日期过滤
     if before:
         try:
             cutoff = parse(before)
-            if cutoff.tzinfo is None:
-                cutoff = beijing_tz.localize(cutoff)
+            cutoff = to_local_time(cutoff)
         except Exception:
             logger.error(f"无法解析日期: {before}, 格式应为 YYYY-MM-DD")
             return
-        target_models = [m for m in target_models if m.creation_time < cutoff]
+        target_models = [m for m in target_models if to_local_time(m.creation_time) < cutoff]
+        if not target_models:
+            logger.warning("没有符合日期条件的模型可删除")
+            return
 
     if not target_models:
         logger.warning("没有符合条件的模型可删除")
         return
 
+    # 按创建时间排序（新 -> 旧）
+    target_models.sort(key=lambda m: m.creation_time, reverse=True)
+
+    # 保留最新版本（仅在批量删除或未指定 tag 时）
+    if keep_latest and not tag and target_models:
+        latest = target_models[0]
+        logger.info(
+            f"保留最新模型: {latest.tag}, 创建于: {to_local_time(latest.creation_time)}, 大小: {human_size(latest.file_size)}"
+        )
+        target_models = target_models[1:]
+    elif keep_latest and tag:
+        logger.info("keep-latest 选项忽略，因为指定了具体 tag")
+
+    if not target_models:
+        logger.warning("没有符合条件的模型可删除")
+        return
+
+    # 操作确认
+    if not dry_run:
+        confirm = input(f"确定要删除 {len(target_models)} 个模型吗？(yes/no): ").strip().lower()
+        if confirm != "yes":
+            logger.info("操作已取消")
+            return
+
     # 遍历删除
     deleted_count = 0
     for m in target_models:
-        info = f"{m.tag.name}:{m.tag.version}, 创建于: {m.creation_time}, 大小: {m.file_size} 字节"
+        local_time = to_local_time(m.creation_time)
+        info = f"{m.tag.name}:{m.tag.version}, 创建于: {local_time}, 大小: {human_size(m.file_size)}"
         if dry_run:
             logger.info(f"[dry-run] 将删除模型: {info}")
         else:
@@ -123,20 +139,20 @@ def delete_models(
 
 def main():
     parser = argparse.ArgumentParser(description="删除 BentoML 模型")
-    parser.add_argument("--business_name", type=str, default=None, help="指定业务名称")
     parser.add_argument("--dry-run", action="store_true", help="仅打印，不实际删除")
     parser.add_argument("--keep-latest", action="store_true", help="保留最新版本，不删除最新的模型")
     parser.add_argument("--before", type=str, default=None, help="删除早于该日期的模型，格式：YYYY-MM-DD")
-    parser.add_argument("--model_tag", type=str, default=None, help="删除指定模型，格式：model_name:version")
+    parser.add_argument("--tag", type=str, default=None, help="删除指定模型，格式：model_name:version, 支持批量逗号分隔",
+    )
     args = parser.parse_args()
 
     delete_models(
-        business_name=args.business_name,
         dry_run=args.dry_run,
         keep_latest=args.keep_latest,
         before=args.before,
-        model_tag=args.model_tag,
+        tag=args.tag,
     )
+
 
 if __name__ == "__main__":
     main()
