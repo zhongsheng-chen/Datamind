@@ -130,8 +130,10 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
 
 - 发布服务（开发模式）
   ```bash
-  bentoml serve service.py:svc --reload
-  export PYTHONPATH=/tmp/pycharm_project_796:$PYTHONPATH bentoml serve demo_service:svc --reload
+  bentoml serve demo.service.py:svc --reload
+  export PYTHONPATH=/tmp/pycharm_project_888:$PATH 
+  bentoml serve demo.service:svc --reload --port 3000
+
   ```
   
 - 模型注销
