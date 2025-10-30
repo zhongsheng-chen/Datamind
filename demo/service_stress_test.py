@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+service_stress_test.py
+
+用于对 BentoML 服务进行并发压测。
+支持统计成功率、平均响应时间、P90/P95 延迟、QPS/TPS 等指标。
+"""
+
 import requests
 import random
+import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
 
 URL = "http://127.0.0.1:3000/predict"
 HEADERS = {"Content-Type": "application/json"}
 
-# 生成随机 payload
+# === 随机生成 payload ===
 def random_payload():
     return {
         "age": random.randint(20, 60),
@@ -24,18 +32,21 @@ def random_payload():
         "min_tax_amount": random.randint(0, 5000),
         "tax_amount_std": random.randint(0, 5000),
         "loan_to_income_ratio": round(random.uniform(0, 2), 2),
-        "existing_loans_ratio": round(random.uniform(0, 1), 2)
+        "existing_loans_ratio": round(random.uniform(0, 1), 2),
     }
 
-# 发送单个请求
+# === 发送单个请求 ===
 def send_request(i):
     payload = random_payload()
     start = time()
-    response = requests.post(URL, json=payload, headers=HEADERS)
-    latency = time() - start
-    return response.status_code, latency
+    try:
+        response = requests.post(URL, json=payload, headers=HEADERS, timeout=5)
+        latency = time() - start
+        return response.status_code, latency
+    except Exception:
+        return 0, time() - start  # 0 代表请求失败
 
-# 并发压测
+# === 并发压测 ===
 def run_concurrent_test(num_requests=100, max_workers=20):
     latencies = []
     success = 0
@@ -50,19 +61,28 @@ def run_concurrent_test(num_requests=100, max_workers=20):
                 success += 1
 
     total_time = time() - start_all
-    avg_latency = sum(latencies) / len(latencies)
-    qps = num_requests / total_time  # 每秒请求数
-    tps = success / total_time       # 每秒成功请求数
+    avg_latency = statistics.mean(latencies)
+    p90 = statistics.quantiles(latencies, n=100)[89]
+    p95 = statistics.quantiles(latencies, n=100)[94]
+    qps = num_requests / total_time
+    tps = success / total_time
+    success_rate = success / num_requests * 100
 
-    print(f"总请求数: {num_requests}")
-    print(f"成功请求数: {success}")
-    print(f"失败请求数: {num_requests - success}")
-    print(f"平均响应时间: {avg_latency:.4f}s")
-    print(f"最短响应时间: {min(latencies):.4f}s")
-    print(f"最长响应时间: {max(latencies):.4f}s")
-    print(f"总耗时: {total_time:.4f}s")
-    print(f"QPS (每秒请求数): {qps:.2f}")
-    print(f"TPS (每秒成功请求数): {tps:.2f}")
+    print("\n=== 🚀 压测结果报告 ===")
+    print(f"请求总数         : {num_requests}")
+    print(f"并发线程数       : {max_workers}")
+    print(f"成功请求数       : {success}")
+    print(f"失败请求数       : {num_requests - success}")
+    print(f"成功率           : {success_rate:.2f}%")
+    print(f"平均响应时间     : {avg_latency:.4f}s")
+    print(f"P90 响应时间     : {p90:.4f}s")
+    print(f"P95 响应时间     : {p95:.4f}s")
+    print(f"最短响应时间     : {min(latencies):.4f}s")
+    print(f"最长响应时间     : {max(latencies):.4f}s")
+    print(f"总耗时           : {total_time:.4f}s")
+    print(f"QPS (请求数/秒)  : {qps:.2f}")
+    print(f"TPS (成功数/秒)  : {tps:.2f}")
+    print("============================\n")
 
 if __name__ == "__main__":
     run_concurrent_test(num_requests=1000, max_workers=20)
