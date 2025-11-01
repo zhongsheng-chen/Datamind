@@ -1,10 +1,8 @@
 import os
 import re
 import yaml
-from typing import Union
+from typing import Union, Any, Optional, List, Dict
 from pathlib import Path
-from typing import Any, Optional, List, Dict
-
 
 class WorkflowStep:
     """单个工作流步骤封装"""
@@ -16,13 +14,17 @@ class WorkflowStep:
         return self.step_conf.get("step_name", "")
 
     @property
+    def enabled(self) -> bool:
+        # 步骤是否启用，默认 True
+        return self.step_conf.get("enabled", True)
+
+    @property
     def modules(self) -> list:
         return self.step_conf.get("modules", [])
 
     @property
     def models(self) -> list:
         return self.step_conf.get("models", [])
-
 
 class BusinessWorkflow:
     """业务工作流封装"""
@@ -46,11 +48,11 @@ class BusinessWorkflow:
     def models(self) -> list:
         return self.workflow_conf.get("models", [])
 
-    def get_models(self, model_type: Optional[str] = None) -> List[dict]:
-        """返回 workflow 中的模型信息，可按 model_type 过滤"""
+    def get_models(self, model_type: Optional[str] = None, version: Optional[str] = None) -> List[dict]:
+        """返回 workflow 中的模型信息，可按 model_type 或版本过滤"""
         resolved_models = []
         for model_entry in self.models:
-            model_conf = self.cfg.get_model(model_entry["model_name"])
+            model_conf = self.cfg.get_model(model_entry["model_name"], version)
             if not model_conf:
                 continue
             if not model_type or model_conf.get("model_type") == model_type:
@@ -63,7 +65,6 @@ class BusinessWorkflow:
         for model_entry in self.models:
             ab_map[model_entry["model_name"]] = model_entry.get("ab_test", {})
         return ab_map
-
 
 class Config:
     """配置文件解析与访问封装"""
@@ -134,24 +135,16 @@ class Config:
     def get_features(self, feature_name: str) -> list:
         return self.get("features", {}).get(feature_name, [])
 
-    def get_model(self, model_name: str) -> Optional[dict]:
+    def get_model(self, model_name: str, version: Optional[str] = None) -> Optional[dict]:
+        """按模型名称和可选版本获取模型"""
         for category, model_list in self.models.items():
             for model_entry in model_list:
                 if model_entry.get("model_name") == model_name:
-                    return model_entry
+                    if version is None or model_entry.get("version") == version:
+                        return model_entry
         return None
 
     def list_models(self, flatten: bool = True) -> Union[List[str], Dict[str, List[str]]]:
-        """
-        列出所有模型名称
-
-        参数:
-            flatten (bool): 是否返回扁平化列表（默认 True）
-                            False 时按分类返回 dict {category: [model_name,...]}
-
-        返回:
-            list 或 dict: 模型名称列表或按分类的字典
-        """
         if flatten:
             model_names = []
             for category, model_list in self.models.items():

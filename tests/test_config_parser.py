@@ -21,10 +21,10 @@ class TestConfigParser(unittest.TestCase):
             "features": {"demo_features": ["age", "income", "loan_amount"]},
             "models": {
                 "scoring": [
-                    {"model_name": "demo_lr", "model_type": "logistic_regression", "framework": "sklearn"}
+                    {"model_name": "demo_lr", "model_type": "logistic_regression", "framework": "sklearn", "version": "1.0"}
                 ],
                 "fraud": [
-                    {"model_name": "demo_fraud", "model_type": "catboost", "framework": "catboost"}
+                    {"model_name": "demo_fraud", "model_type": "catboost", "framework": "catboost", "version": "1.0"}
                 ]
             },
             "workflows": {
@@ -76,6 +76,7 @@ class TestConfigParser(unittest.TestCase):
         model = self.config.get_model("demo_lr")
         self.assertIsNotNone(model)
         self.assertEqual(model["model_type"], "logistic_regression")
+        self.assertEqual(model["version"], "1.0")  # 增加版本检查
         # 不存在的模型
         self.assertIsNone(self.config.get_model("non_exist_model"))
 

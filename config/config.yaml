@@ -128,6 +128,8 @@ workflows:
       ab_test: {}
     workflow_steps:
     - step_name: "rule_check"
+      description: "规则检查"
+      enabled: false
       contain_name: kie_container_name
       modules:
       - name: "Basic Eligibility"
@@ -207,8 +209,12 @@ workflows:
           agenda_group: "internal_check"
           enabled: true
     - step_name: "fraud_check"
+      description: "欺诈检查"
+      enabled: false
       models: ["demo_loan_fraud_detection_cat"]
     - step_name: "model_scoring"
+      description: "模型评分"
+      enabled: true
       models: ["demo_loan_scorecard_lr", "demo_loan_scorecard_dt"]
 
   demo_loan_disbursement_workflow:

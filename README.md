@@ -198,6 +198,20 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
     PYTHONPATH=. python bentoml_helper/delete_model.py --dry-run
     PYTHONPATH=. python bentoml_helper/delete_model.py --before 2025-09-01 --dry-run
     ```
+## 构建镜像
+```bash
+docker build -t datamind:latest .
+```
+
+## 启动服务
+```bash
+docker-compose up -d
+```
+## 查看日志
+```bash
+docker logs -f datamind
+```
+
 
 **规则类型**
 
