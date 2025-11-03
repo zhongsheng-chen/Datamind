@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: datamind-db
+    environment:
+      - POSTGRES_USER=datamind
+      - POSTGRES_PASSWORD=datamind
+      - POSTGRES_DB=datamind
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U datamind -d datamind" ]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+    networks:
+      - datamind-network
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d/
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_logs:/var/log/postgresql
+
+  datamind:
+    image: dataminddev/datamind:20251031
+    container_name: datamind-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - TZ=Asia/Shanghai
+      - DATAMIND_CONFIG_PATH=/app/config/config.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - datamind-network
+    volumes:
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./config:/app/config
+volumes:
+  postgres_data:
+  postgres_logs:
+
+networks:
+  datamind-network:
+    driver: bridge
