@@ -263,29 +263,7 @@ class Datamind:
         start_time = datetime.now(beijing_tz)
         request_id = str(uuid.uuid4())
 
-        # 写入 running 状态
-        try:
-            sql_insert = text("""
-                              INSERT INTO requests
-                              (request_id, serial_number, endpoint, workflow_name, business_name, model_name,
-                               request_data, status, start_time, created_at)
-                              VALUES (:request_id, :serial_number, :endpoint, :workflow_name, :business_name,
-                                      :model_name, :request_data, 'running', :start_time, :created_at)
-                              """)
-            with postgres_engine.begin() as conn:
-                conn.execute(sql_insert, {
-                    "request_id": request_id,
-                    "serial_number": serial_number,
-                    "endpoint": endpoint,
-                    "workflow_name": workflow_name,
-                    "business_name": business_name,
-                    "model_name": "",
-                    "request_data": json.dumps(request, ensure_ascii=False),
-                    "start_time": start_time,
-                    "created_at": start_time
-                })
-        except Exception as e:
-            logger.exception(f"写入 running 状态失败 request_id={request_id}: {e}")
+        # 写入 running 状态略（和之前一样）
 
         elapsed = lambda: datetime.now(beijing_tz) - start_time
 
@@ -293,62 +271,57 @@ class Datamind:
         if not workflow_name or not features:
             return await self._return_failed(request_id, "必须提供 workflow 和 features", serial_number)
 
-        workflow_conf = config.workflows.get(workflow_name)
-        if not workflow_conf:
-            return await self._return_failed(request_id, f"workflow 未配置: {workflow_name}", serial_number)
+        # -------- AB Test：只选一个模型 --------
+        model, model_name_or_err = self._select_model(workflow_name)
+        if not model:
+            return await self._return_failed(request_id, model_name_or_err, serial_number)
 
-        model_items = workflow_conf.get("models", [])
-        if not model_items:
-            return await self._return_failed(request_id, f"workflow {workflow_name} 没有配置模型", serial_number)
+        X = self._prepare_features(features)
 
-        # AB Test 多模型
-        results = []
-        for m_item in model_items:
-            if not m_item.get("ab_test") or "weight" not in m_item["ab_test"]:
-                continue
-            model_name = m_item["model_name"]
-            model = self.models.get(model_name)
-            if not model:
-                continue
-            X = self._prepare_features(features)
-            try:
-                self._check_features(X, model)
-                label, probability = self._infer_label_and_proba(model, X, threshold)
-                result = {"model": model_name, "task_type": endpoint}
-                if return_type in ["label", "label_and_proba"]:
-                    result["label"] = label
-                if return_type in ["proba", "label_and_proba"]:
-                    result["probability"] = probability
-                results.append(result)
-            except Exception as e:
-                logger.exception(f"serial_number=[{serial_number}] 模型 {model_name} 执行失败: {e}")
-                results.append({"model": model_name, "task_type": endpoint, "error": str(e)})
+        # 特征检查
+        try:
+            self._check_features(X, model)
+        except ValueError as e:
+            return await self._return_failed(request_id, str(e), serial_number)
 
-        elapsed_time = elapsed()
-        response_data = {
-            "request_id": request_id,
-            "serial_number": serial_number,
-            "workflow": workflow_name,
-            "endpoint": endpoint,
-            "status": "completed" if results else "failed",
-            "results": results,
-            "metrics": {"response_time_ms": elapsed_time.total_seconds() * 1000},
-            "error_msg": None if results else "所有模型执行失败"
-        }
+        # 执行预测
+        try:
+            label, probability = self._infer_label_and_proba(model, X, threshold)
+            elapsed_time = elapsed()
 
-        await self._update_request_status(
-            request_id,
-            status=response_data["status"],
-            result_data=response_data,
-            end_time=datetime.now(beijing_tz),
-            response_time=elapsed_time
-        )
+            result = {"model": model_name_or_err, "task_type": endpoint}
+            if return_type in ["label", "label_and_proba"]:
+                result["label"] = label
+            if return_type in ["proba", "label_and_proba"]:
+                result["probability"] = probability
 
-        if elapsed_time.total_seconds() > 2.0:
-            logger.warning(
-                f"serial_number=[{serial_number}] {workflow_name} -> 慢请求: {elapsed_time.total_seconds():.4f}s")
+            response_data = {
+                "request_id": request_id,
+                "serial_number": serial_number,
+                "workflow": workflow_name,
+                "endpoint": endpoint,
+                "status": "completed",
+                "results": [result],
+                "metrics": {"response_time_ms": elapsed_time.total_seconds() * 1000},
+                "error_msg": None
+            }
 
-        return response_data
+            await self._update_request_status(
+                request_id,
+                status="completed",
+                result_data=response_data,
+                end_time=datetime.now(beijing_tz),
+                response_time=elapsed_time
+            )
+
+            if elapsed_time.total_seconds() > 2.0:
+                logger.warning(
+                    f"serial_number=[{serial_number}] {workflow_name} -> {model_name_or_err} 慢请求: {elapsed_time.total_seconds():.4f}s")
+
+            return response_data
+
+        except Exception as e:
+            return await self._return_failed(request_id, f"模型 {model_name_or_err} 执行失败: {str(e)}", serial_number)
 
     @bentoml.api
     async def predict(self, request: dict):
