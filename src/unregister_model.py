@@ -49,8 +49,8 @@ class ModelUnregistry:
         self.delete = delete
 
     @staticmethod
-    def write_model_registry_history(conn, model_id, metadata, change_type, remarks=None):
-        """写入 model_registry_history"""
+    def write_registry_history(conn, model_id, metadata, change_type, remarks=None):
+        """写入 registry_history"""
         record = {
             "model_id": model_id,
             "model_name": metadata["model_name"],
@@ -67,7 +67,7 @@ class ModelUnregistry:
             "remarks": remarks,
         }
         conn.execute(text("""
-            INSERT INTO model_registry_history
+            INSERT INTO registry_history
             (model_id, model_name, model_type, model_path, version,
              framework, task, hash, tag, uuid, status, change_type, changed_by, remarks)
             VALUES (:model_id, :model_name, :model_type, :model_path, :version,
@@ -77,7 +77,7 @@ class ModelUnregistry:
     @staticmethod
     def mark_inactive(conn, where_clause, params):
         """数据库更新状态为 inactive"""
-        conn.execute(text(f"UPDATE model_registry SET status='inactive' WHERE {where_clause}"), params)
+        conn.execute(text(f"UPDATE registry SET status='inactive' WHERE {where_clause}"), params)
 
     def _delete(self, conn, record):
         """删除或注销 BentoML 模型，同时可选择删除数据库记录"""
@@ -96,18 +96,18 @@ class ModelUnregistry:
                 logger.error(f"[失败] 删除 BentoML 模型 {tag} 出错: {e}")
 
             # 删除数据库记录
-            self.write_model_registry_history(conn,
+            self.write_registry_history(conn,
                                               record["id"],
                                               record,
                                               "Remove",
                                               "模型已清除，从BentoML存储空间彻底移除")
-            conn.execute(text("DELETE FROM model_registry WHERE uuid=:uuid"), {"uuid": uuid_})
+            conn.execute(text("DELETE FROM registry WHERE uuid=:uuid"), {"uuid": uuid_})
             logger.info(f"[删除] 模型 {tag} (uuid={uuid_}) 的数据库记录已删除")
         else:
             # 仅标记为 inactive
             self.mark_inactive(conn, "uuid=:uuid", {"uuid": uuid_})
             logger.info(f"[更新] 模型 {tag} (uuid={uuid_}) 数据库记录标记为 inactive")
-            self.write_model_registry_history(conn,
+            self.write_registry_history(conn,
                                               record["id"],
                                               record,
                                               "Deactivate",
@@ -122,7 +122,7 @@ class ModelUnregistry:
             total = 0
             for uuid_ in self.uuids:
                 record = conn.execute(
-                    text("SELECT * FROM model_registry WHERE uuid = :uuid AND status='active'"),
+                    text("SELECT * FROM registry WHERE uuid = :uuid AND status='active'"),
                     {"uuid": uuid_},
                 ).fetchone()
                 if not record:
@@ -143,7 +143,7 @@ class ModelUnregistry:
             total = 0
             for tag in self.tags:
                 record = conn.execute(
-                    text("SELECT * FROM model_registry WHERE tag = :tag AND status='active'"),
+                    text("SELECT * FROM registry WHERE tag = :tag AND status='active'"),
                     {"tag": tag},
                 ).fetchone()
                 if not record:
@@ -162,12 +162,12 @@ class ModelUnregistry:
             if self.delete:
                 # 删除时包含 active 和 inactive
                 records = conn.execute(
-                    text("SELECT * FROM model_registry WHERE status IN ('active','inactive')")
+                    text("SELECT * FROM registry WHERE status IN ('active','inactive')")
                 ).fetchall()
             else:
                 # 仅标记 active
                 records = conn.execute(
-                    text("SELECT * FROM model_registry WHERE status='active'")
+                    text("SELECT * FROM registry WHERE status='active'")
                 ).fetchall()
 
             if not records:

@@ -27,13 +27,14 @@ import argparse
 import pytz
 from datetime import datetime
 from pathlib import Path
+from ruamel.yaml import YAML
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from src.config_parser import config
 from src.db_engine import postgres_engine
 from src.setup import setup_logger
-from ruamel.yaml import YAML
+
 
 try:
     import torch
@@ -146,13 +147,13 @@ class ModelRegistry:
         return sha256.hexdigest()
 
     def check_exists(self, hash):
-        """检查相同模型名、任务、哈希是否已存在于 model_registry"""
+        """检查相同模型名、任务、哈希是否已存在于 registry"""
         SessionLocal = sessionmaker(bind=postgres_engine)
         with SessionLocal() as session:
             result = session.execute(
                 text("""
                      SELECT 1
-                     FROM model_registry
+                     FROM registry
                      WHERE model_name = :model_name
                        AND task = :task
                        AND hash = :hash
@@ -167,8 +168,8 @@ class ModelRegistry:
         model_str = f"{self.model_name}_{self.model_type}_{self.framework}_{hash}_{timestamp}"
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, model_str))
 
-    def write_model_registry_history(self, conn, model_id, metadata, change_type, remarks=None):
-        """写入 model_registry_history"""
+    def write_registry_history(self, conn, model_id, metadata, change_type, remarks=None):
+        """写入 registry_history"""
         record = {
             "model_id": model_id,
             "model_name": self.model_name,
@@ -186,7 +187,7 @@ class ModelRegistry:
         }
 
         conn.execute(text("""
-                          INSERT INTO model_registry_history (model_id, model_name, model_type, model_path, version,
+                          INSERT INTO registry_history (model_id, model_name, model_type, model_path, version,
                                                               framework,
                                                               task, hash, tag, uuid, status, change_type, changed_by,
                                                               remarks)
@@ -194,7 +195,7 @@ class ModelRegistry:
                                   :task, :hash, :tag, :uuid, :status, :change_type, current_user, :remarks)
                           """), record)
 
-    def write_model_registry(self, version, hash, tag, uuid_str):
+    def write_registry(self, version, hash, tag, uuid_str):
         now = datetime.now(beijing_tz)
         metadata = {
             "version": version,
@@ -210,7 +211,7 @@ class ModelRegistry:
                 if self.force:
                     old_models = conn.execute(text("""
                                                    SELECT *
-                                                   FROM model_registry
+                                                   FROM registry
                                                    WHERE model_name = :model_name
                                                      AND task = :task
                                                      AND hash = :hash
@@ -219,19 +220,19 @@ class ModelRegistry:
 
                     for old in old_models:
                         conn.execute(text("""
-                                          UPDATE model_registry
+                                          UPDATE registry
                                           SET status='inactive'
                                           WHERE id = :id
                                           """), {"id": old["id"]})
 
                         conn.execute(text("""
-                                          UPDATE model_registry_history
+                                          UPDATE registry_history
                                           SET status='inactive',
                                               change_type='Force Deactivate',
                                               remarks='模型已强制注销, --force 开关自动强制注销旧模型'
                                           WHERE model_id = :model_id
                                             AND id = (SELECT id
-                                                      FROM model_registry_history
+                                                      FROM registry_history
                                                       WHERE model_id = :model_id
                                                       ORDER BY id DESC
                                                       LIMIT 1)
@@ -242,7 +243,7 @@ class ModelRegistry:
                 # 2. 检查当前模型是否已存在
                 existing = conn.execute(text("""
                                              SELECT *
-                                             FROM model_registry
+                                             FROM registry
                                              WHERE model_name = :model_name
                                                AND task = :task
                                                AND hash = :hash
@@ -259,7 +260,7 @@ class ModelRegistry:
 
                 # 3. 插入新模型
                 result = conn.execute(text("""
-                                           INSERT INTO model_registry
+                                           INSERT INTO registry
                                            (model_name, model_type, model_path, version, framework, task, hash, tag,
                                             uuid, status, registered_at)
                                            VALUES (:model_name, :model_type, :model_path, :version, :framework, :task,
@@ -281,7 +282,7 @@ class ModelRegistry:
                 model_id = result.fetchone()[0]
                 logger.info(f"[新增] 模型 {self.model_name} (uuid={metadata.get('uuid')}, id={model_id}) 已注册成功")
 
-                self.write_model_registry_history(
+                self.write_registry_history(
                     conn, model_id, metadata, "Force Recreate" if self.force else "Create", "强制注册成功" if self.force else "注册成功"
                 )
 
@@ -294,7 +295,12 @@ class ModelRegistry:
                 logger.error(f"注册写入失败: {e}")
 
     def register_model(self):
-        signatures = {"predict": {"batchable": False}, "predict_proba": {"batchable": False}}
+        # signatures = {"predict": {"batchable": False}, "predict_proba": {"batchable": False}}
+
+        signatures = {"predict": {"batchable": False}}
+        if self.framework in ["sklearn", "catboost", "xgboost", "lightgbm"]:
+            signatures["predict_proba"] = {"batchable": False}
+
         hash = self.create_hash()
 
         if not self.force and self.check_exists(hash):
@@ -357,7 +363,7 @@ class ModelRegistry:
             f"{'='*120}\n"
         )
 
-        self.write_model_registry(version, hash, tag, uuid_str)
+        self.write_registry(version, hash, tag, uuid_str)
 
     @classmethod
     def register_all_models(cls):
