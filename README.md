@@ -92,7 +92,7 @@
 
 - 生成测试数据
   ```bash
-  PYTHONPATH=. python faker/data_mocker.py
+  PYTHONPATH=. python mock/data_mocker.py
 
 - 测试单个案例
   ```bash
@@ -132,7 +132,7 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
   ```bash
   bentoml serve demo.service.py:svc --reload
   export PYTHONPATH=/tmp/pycharm_project_888:$PATH 
-  bentoml serve demo.service:svc --reload --port 3000
+  bentoml serve demo.service:Datamind --reload --port 3000
 
   ```
   

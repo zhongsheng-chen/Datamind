@@ -83,7 +83,7 @@ class TestConfigParser(unittest.TestCase):
     def test_business_workflow_access(self):
         """测试 BusinessWorkflow 封装"""
         wf: BusinessWorkflow = self.config.get_business_workflow("demo_workflow")
-        self.assertEqual(wf.name, "loan")
+        self.assertEqual(wf.business_name, "loan")
         self.assertEqual(wf.description, "测试流程")
         steps = wf.steps
         self.assertEqual(len(steps), 2)

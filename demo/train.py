@@ -11,13 +11,15 @@ train.py
 
 import os
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, List
-
+import joblib
+import pickle
 import pandas as pd
 import numpy as np
 import xgboost as xgb
 import lightgbm as lgb
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+from sklearn2pmml import sklearn2pmml
 from catboost import CatBoostClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -25,9 +27,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
-import joblib
-import pickle
+from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, classification_report
 
 from src.config_parser import config
 from src.db_engine import oracle_engine
@@ -58,7 +58,7 @@ def get_model_info(model_name: str, model_group: Optional[str] = None) -> Dict[s
         for model in group_models:
             if model.get("model_name") == model_name:
                 model_path = Path(model.get("model_path", ""))
-                project_root = Path(__file__).resolve().parent
+                project_root = Path(__file__).resolve().parent.parent
 
                 # 如果不是绝对路径，则拼接项目根目录
                 if not model_path.is_absolute():
@@ -130,11 +130,12 @@ def get_model(model_type: str):
         return lgb.LGBMClassifier(n_estimators=100, max_depth=5, random_state=42)
     elif model_type == "catboost":
         return CatBoostClassifier(
-            iterations=100,
-            depth=5,
-            learning_rate=0.1,
+            iterations=1000,
+            depth=6,
+            learning_rate=0.05,
             loss_function='Logloss',
             verbose=False,
+            allow_writing_files=False,
             random_state=42
         )
     else:
@@ -144,37 +145,76 @@ def get_model(model_type: str):
 # ------------------------------
 # 保存模型
 # ------------------------------
-def save_model(pipeline, model_path, model_type):
-    """
-    保存模型
-    """
+# def save_model(pipeline, model_path, model_type):
+#     """
+#     保存模型
+#     """
+#     model_dir = Path(model_path).parent
+#     model_dir.mkdir(parents=True, exist_ok=True)  # 自动创建目录
+#
+#     ext = Path(model_path).suffix.lower()
+#     model = getattr(pipeline, "named_steps", {}).get("model", pipeline)
+#
+#     if model_type == "xgboost":
+#         model.save_model(model_path)
+#         logger.info(f"[XGBoost] 模型已保存：{model_path}")
+#     elif model_type == "lightgbm":
+#         booster = getattr(model, "booster_", model)
+#         booster.save_model(model_path)
+#         logger.info(f"[LightGBM] 模型已保存：{model_path}")
+#     elif model_type == "catboost":
+#         model.save_model(model_path)
+#         logger.info(f"[CatBoost] 模型已保存：{model_path}")
+#     else:
+#         if ext == ".joblib":
+#             joblib.dump(pipeline, model_path)
+#             logger.info(f"[Joblib] 模型已保存：{model_path}")
+#         elif ext in [".pkl", ".pickle"]:
+#             with open(model_path, "wb") as f:
+#                 pickle.dump(pipeline, f)
+#             logger.info(f"[Pickle] 模型已保存：{model_path}")
+#         else:
+#             raise ValueError(f"不支持的模型文件格式: {ext}")
+
+def save_model(pipeline, model_path: str, model_type: str):
     model_dir = Path(model_path).parent
-    model_dir.mkdir(parents=True, exist_ok=True)  # 自动创建目录
-
+    model_dir.mkdir(parents=True, exist_ok=True)
+    internal_model = getattr(pipeline, "named_steps", {}).get("model", pipeline)
     ext = Path(model_path).suffix.lower()
-    model = getattr(pipeline, "named_steps", {}).get("model", pipeline)
 
-    if model_type == "xgboost":
-        model.save_model(model_path)
-        logger.info(f"[XGBoost] 模型已保存：{model_path}")
-    elif model_type == "lightgbm":
-        booster = getattr(model, "booster_", model)
-        booster.save_model(model_path)
-        logger.info(f"[LightGBM] 模型已保存：{model_path}")
-    elif model_type == "catboost":
-        model.save_model(model_path)
-        logger.info(f"[CatBoost] 模型已保存：{model_path}")
-    else:
-        if ext == ".joblib":
-            joblib.dump(pipeline, model_path)
-            logger.info(f"[Joblib] 模型已保存：{model_path}")
-        elif ext in [".pkl", ".pickle"]:
-            with open(model_path, "wb") as f:
-                pickle.dump(pipeline, f)
-            logger.info(f"[Pickle] 模型已保存：{model_path}")
+    try:
+        if model_type == "xgboost":
+            internal_model.save_model(model_path)
+            logging.info(f"[XGBoost] 模型已保存：{model_path}")
+        elif model_type == "lightgbm":
+            booster = getattr(internal_model, "booster_", internal_model)
+            booster.save_model(model_path)
+            logging.info(f"[LightGBM] 模型已保存：{model_path}")
+        elif model_type == "catboost":
+            internal_model.save_model(model_path)
+            logging.info(f"[CatBoost] 模型已保存：{model_path}")
         else:
-            raise ValueError(f"不支持的模型文件格式: {ext}")
-
+            if ext == ".joblib":
+                joblib.dump(pipeline, model_path)
+                logging.info(f"[Joblib] Pipeline/模型已保存：{model_path}")
+            elif ext == ".pmml":
+                sklearn2pmml(pipeline, model_path)
+                logging.info(f"[PMML] Pipeline/模型已保存：{model_path}")
+            elif ext in [".pkl", ".pickle"]:
+                with open(model_path, "wb") as f:
+                    pickle.dump(pipeline, f)
+                logging.info(f"[Pickle] Pipeline/模型已保存：{model_path}")
+            else:
+                logging.warning(f"[Pipeline] 不支持的扩展名 {ext}，尝试保存原生模型")
+                if hasattr(internal_model, "save_model"):
+                    internal_model.save_model(model_path)
+                    logging.info(f"[原生模型] 已保存：{model_path}")
+                else:
+                    joblib.dump(pipeline, model_path)
+                    logging.info(f"[Joblib] Pipeline/模型已保存：{model_path}")
+    except Exception as e:
+        logging.error(f"[保存失败] {model_path}, 错误: {e}")
+        raise
 
 # ------------------------------
 # 参数: MODEL_NAME，模型名称, 选项如下：
@@ -186,7 +226,7 @@ def save_model(pipeline, model_path, model_type):
 #                  demo_loan_scorecard_cat_20250930
 #                  demo_loan_fraud_detection_cat_20250930
 # ------------------------------
-MODEL_NAME = "demo_loan_fraud_detection_cat_20250930"
+MODEL_NAME = "demo_loan_scorecard_dt_20250930"
 
 def main():
     # 获取模型信息
@@ -243,21 +283,36 @@ def main():
     # --------------------------
     # Pipeline
     # --------------------------
-    pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("model", get_model(model_type)),
-    ])
+    if model_type == "catboost":
+        pipeline = Pipeline([
+            ("model", get_model(model_type)),
+        ])
+    else:
+        pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", get_model(model_type)),
+        ])
+
     pipeline.fit(X_train, y_train)
 
     # --------------------------
     # 模型评估
     # --------------------------
     y_pred = pipeline.predict(X_test)
-    y_prob = pipeline.predict_proba(X_test)[:, 1]
-    logger.info(f"=== {MODEL_NAME} 模型评估 ===")
+
+    if hasattr(pipeline, "predict_proba"):
+        y_prob = pipeline.predict_proba(X_test)[:, 1]
+        logger.info(f"ROC AUC: {roc_auc_score(y_test, y_prob):.4f}")
+    else:
+        y_prob = None
+        logger.warning(f"{model_name} 模型不支持 predict_proba，跳过 ROC AUC 计算")
+
+    logger.info(f"=== {model_name} 模型评估 ===")
     logger.info(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
     logger.info(f"ROC AUC: {roc_auc_score(y_test, y_prob):.4f}")
     logger.info(f"\n{classification_report(y_test, y_pred)}")
+    cm = confusion_matrix(y_test, y_pred)
+    logger.info(f"Confusion Matrix:\n{cm}")
 
     # --------------------------
     # 保存模型

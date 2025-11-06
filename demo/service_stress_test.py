@@ -40,8 +40,15 @@ def send_request(i):
     payload = random_payload()
     start = time()
     try:
-        response = requests.post(URL, json=payload, headers=HEADERS, timeout=5)
+        response = requests.post(
+            URL,
+            json={"request": {"payload": payload, "threshold": 0.5}},
+            headers=HEADERS,
+            timeout=5
+        )
         latency = time() - start
+        if response.status_code != 200:
+            print("请求失败:", response.text)
         return response.status_code, latency
     except Exception:
         return 0, time() - start  # 0 代表请求失败

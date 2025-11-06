@@ -33,7 +33,7 @@ class BusinessWorkflow:
         self.cfg = cfg
 
     @property
-    def name(self) -> str:
+    def business_name(self) -> str:
         return self.workflow_conf.get("business_name", "")
 
     @property
