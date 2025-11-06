@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS registry_history (
     hash CHAR(64) NOT NULL,                                             -- 哈希值
     tag VARCHAR(256) NOT NULL,                                          -- 模型标签
     uuid UUID NOT NULL,                                                 -- 唯一标识
-    status model_status DEFAULT 'pending',                              -- 生效状态
+    status model_status DEFAULT 'inactivate',                           -- 生效状态
     change_type VARCHAR(32) NOT NULL,                                   -- 变更类型
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,      -- 变更日期
     changed_by VARCHAR(256) DEFAULT current_user,                       -- 变更人员
@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_registry_history_framework ON registry_history(fr
 CREATE INDEX IF NOT EXISTS idx_registry_history_task ON registry_history(task);
 CREATE INDEX IF NOT EXISTS idx_registry_history_hash ON registry_history(hash);
 
--- 触发器记录更新时间
+-- 创建触发函数
 CREATE OR REPLACE FUNCTION update_changed_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -56,6 +56,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 创建触发器，每次更新 registry_history 时触发
+DROP TRIGGER IF EXISTS trg_update_registry_history ON registry_history;
 CREATE TRIGGER trg_update_registry_history
 BEFORE UPDATE ON registry_history
 FOR EACH ROW

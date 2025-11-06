@@ -54,14 +54,17 @@ CREATE INDEX IF NOT EXISTS idx_requests_end_time ON requests(end_time);
 -- 创建触发函数
 CREATE OR REPLACE FUNCTION update_response_time() RETURNS TRIGGER AS $$
 BEGIN
-    NEW.response_time := NEW.end_time - NEW.start_time;
+    -- 如果 end_time 不为空，就计算 response_time
+    IF NEW.end_time IS NOT NULL THEN
+        NEW.response_time := NEW.end_time - NEW.start_time;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 -- 创建触发器，requests 每次更新 end_time 时触发
+DROP TRIGGER IF EXISTS trigger_update_response_time ON requests;
 CREATE TRIGGER trigger_update_response_time
-BEFORE UPDATE ON requests
+BEFORE INSERT OR UPDATE ON requests
 FOR EACH ROW
-WHEN (OLD.end_time IS DISTINCT FROM NEW.end_time)
 EXECUTE FUNCTION update_response_time();
