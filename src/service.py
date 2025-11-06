@@ -140,38 +140,28 @@ class Datamind:
         except Exception as e:
             if debug_logger:
                 logger.exception(f"[AB 测试] 日志记录失败: {e}")
-            # 生产环境 debug_logger=False 时完全忽略
 
         return model, model_name
 
     def _infer_label_and_proba(self, model, df: pd.DataFrame, threshold: float = DEFAULT_THRESHOLD):
-        """
-        预测类别及其概率。
-        如果是二分类，返回 0 类或 1 类的概率。根据 threshold 来决定标签。
-        如果是多分类， 返回最大概率的类别及其概率
-        """
-        # 如果模型有 predict_proba（sklearn, CatBoostClassifier）
+        """预测类别及其概率"""
         if hasattr(model, "predict_proba"):
             proba = model.predict_proba(df)
-
             if proba.shape[1] == 2:
-                # 二分类问题：返回 0 类或 1 类的概率
-                probability_0 = float(proba[0, 0])  # 0 类的概率
-                probability_1 = float(proba[0, 1])  # 1 类的概率
+                probability_0 = float(proba[0, 0])
+                probability_1 = float(proba[0, 1])
                 label = 1 if probability_1 >= threshold else 0
                 probability = probability_1 if label == 1 else probability_0
             else:
-                # 多分类问题：返回最大概率的类别及其概率
-                probability = max(proba[0])  # 返回最大概率
-                label = proba[0].tolist().index(probability)  # 找到概率最大的类别
+                probability = max(proba[0])
+                label = proba[0].tolist().index(probability)
         else:
-            # XGBoost Booster
             if isinstance(model, xgb.Booster):
                 dmatrix = xgb.DMatrix(df)
                 proba = model.predict(dmatrix)
                 probability = float(proba[0])
                 label = 1 if probability >= threshold else 0
-            else:  # LightGBM Booster
+            else:
                 proba = model.predict(df)
                 probability = float(proba[0])
                 label = 1 if probability >= threshold else 0
@@ -179,14 +169,12 @@ class Datamind:
         return label, probability
 
     def _check_features(self, input_features, model):
-        """检查输入特征是否与训练时使用的特征匹配"""
         missing_features = set(model.feature_names_in_) - set(input_features.columns)
         if missing_features:
             raise ValueError(f"特征缺失 {', '.join(missing_features)}")
         return True
 
     def _get_business_name(self, workflow_name: str, request: dict) -> str:
-        """优先取 config 中 workflow 的 business_name，如果不存在则取 request 中的 business_name"""
         try:
             business_name = config.get_business_workflow(workflow_name).business_name
             if not business_name:
@@ -196,26 +184,20 @@ class Datamind:
         return business_name
 
     def _prepare_features(self, features: dict) -> pd.DataFrame:
-        """将请求中的 features 转为 DataFrame"""
         return pd.DataFrame([features])
 
     async def _update_request_status(self, request_id, status, result_data=None,
                                      end_time=None, response_time=None, error_msg=None):
-        """
-        更新请求状态，同时安全处理 None 值，避免写入数据库失败。
-        """
         try:
             sql_update = text("""
-                              UPDATE requests
-                              SET status        = :status,
-                                  result_data   = :result_data,
-                                  end_time      = :end_time,
-                                  response_time = :response_time,
-                                  error_msg     = :error_msg
-                              WHERE request_id = :request_id
-                              """)
-
-            # 处理 None 值
+                UPDATE requests
+                SET status        = :status,
+                    result_data   = :result_data,
+                    end_time      = :end_time,
+                    response_time = :response_time,
+                    error_msg     = :error_msg
+                WHERE request_id = :request_id
+            """)
             result_data_json = json.dumps(result_data, ensure_ascii=False) if result_data is not None else None
             end_time_val = end_time if end_time is not None else None
             response_time_val = response_time if isinstance(response_time, timedelta) else None
@@ -234,7 +216,6 @@ class Datamind:
             logger.exception(f"更新请求状态失败 request_id={request_id}: error={e}")
 
     async def _return_failed(self, request_id, error_msg, serial_number=None):
-        """统一失败处理"""
         response_data = {
             "request_id": request_id,
             "status": "failed",
@@ -254,7 +235,7 @@ class Datamind:
             logger.error(f"serial_number=[{serial_number}] {error_msg}")
         return response_data
 
-    async def _handle_request(self, request: dict, endpoint: str, return_type: str = "label_and_proba"):
+    async def _handle_request(self, request: dict, endpoint: str, return_type: str = "label_and_proba", ab_test_all_run: bool = False):
         workflow_name = request.get("workflow", "")
         features = request.get("features", {})
         threshold = request.get("threshold", DEFAULT_THRESHOLD)
@@ -263,77 +244,136 @@ class Datamind:
         start_time = datetime.now(beijing_tz)
         request_id = str(uuid.uuid4())
 
-        # 写入 running 状态略（和之前一样）
+        # 写入 running 状态
+        try:
+            sql_insert = text("""
+                INSERT INTO requests
+                (request_id, serial_number, endpoint, workflow_name, business_name, model_name,
+                 request_data, status, start_time, created_at)
+                VALUES (:request_id, :serial_number, :endpoint, :workflow_name, :business_name,
+                        :model_name, :request_data, 'running', :start_time, :created_at)
+            """)
+            with postgres_engine.begin() as conn:
+                conn.execute(sql_insert, {
+                    "request_id": request_id,
+                    "serial_number": serial_number,
+                    "endpoint": endpoint,
+                    "workflow_name": workflow_name,
+                    "business_name": business_name,
+                    "model_name": "",
+                    "request_data": json.dumps(request, ensure_ascii=False),
+                    "start_time": start_time,
+                    "created_at": start_time
+                })
+        except Exception as e:
+            logger.exception(f"写入 running 状态失败 request_id={request_id}: {e}")
 
         elapsed = lambda: datetime.now(beijing_tz) - start_time
 
-        # 校验 workflow
+        # 校验 workflow 和特征
         if not workflow_name or not features:
             return await self._return_failed(request_id, "必须提供 workflow 和 features", serial_number)
 
-        # -------- AB Test：只选一个模型 --------
-        model, model_name_or_err = self._select_model(workflow_name)
-        if not model:
-            return await self._return_failed(request_id, model_name_or_err, serial_number)
+        workflow_conf = config.workflows.get(workflow_name)
+        if not workflow_conf:
+            return await self._return_failed(request_id, f"workflow 未配置: {workflow_name}", serial_number)
 
-        X = self._prepare_features(features)
+        model_items = workflow_conf.get("models", [])
+        if not model_items:
+            return await self._return_failed(request_id, f"workflow {workflow_name} 没有配置模型", serial_number)
 
-        # 特征检查
-        try:
-            self._check_features(X, model)
-        except ValueError as e:
-            return await self._return_failed(request_id, str(e), serial_number)
+        results = []
 
-        # 执行预测
-        try:
-            label, probability = self._infer_label_and_proba(model, X, threshold)
-            elapsed_time = elapsed()
+        if ab_test_all_run:
+            main_model, main_model_name_or_err = self._select_model(workflow_name)
 
-            result = {"model": model_name_or_err, "task_type": endpoint}
-            if return_type in ["label", "label_and_proba"]:
-                result["label"] = label
-            if return_type in ["proba", "label_and_proba"]:
-                result["probability"] = probability
+            for m_item in model_items:
+                if not m_item.get("ab_test") or "weight" not in m_item["ab_test"]:
+                    continue
+                model_name = m_item["model_name"]
+                model = self.models.get(model_name)
+                if not model:
+                    continue
+                X = self._prepare_features(features)
+                try:
+                    self._check_features(X, model)
+                    label, probability = self._infer_label_and_proba(model, X, threshold)
+                    result = {"model": model_name, "task_type": endpoint}
+                    if return_type in ["label", "label_and_proba"]:
+                        result["label"] = label
+                    if return_type in ["proba", "label_and_proba"]:
+                        result["probability"] = probability
+                    results.append(result)
+                except Exception as e:
+                    logger.exception(f"serial_number=[{serial_number}] 模型 {model_name} 执行失败: {e}")
+                    results.append({"model": model_name, "task_type": endpoint, "error": str(e)})
 
-            response_data = {
-                "request_id": request_id,
-                "serial_number": serial_number,
-                "workflow": workflow_name,
-                "endpoint": endpoint,
-                "status": "completed",
-                "results": [result],
-                "metrics": {"response_time_ms": elapsed_time.total_seconds() * 1000},
-                "error_msg": None
-            }
+            # 主模型排第一
+            if main_model and main_model_name_or_err:
+                for i, r in enumerate(results):
+                    if r["model"] == main_model_name_or_err:
+                        results.insert(0, results.pop(i))
+                        break
+        else:
+            model, model_name_or_err = self._select_model(workflow_name)
+            if not model:
+                return await self._return_failed(request_id, model_name_or_err, serial_number)
+            X = self._prepare_features(features)
+            try:
+                self._check_features(X, model)
+                label, probability = self._infer_label_and_proba(model, X, threshold)
+                result = {"model": model_name_or_err, "task_type": endpoint}
+                if return_type in ["label", "label_and_proba"]:
+                    result["label"] = label
+                if return_type in ["proba", "label_and_proba"]:
+                    result["probability"] = probability
+                results.append(result)
+            except Exception as e:
+                logger.exception(f"serial_number=[{serial_number}] 模型 {model_name_or_err} 执行失败: {e}")
+                results.append({"model": model_name_or_err, "task_type": endpoint,                     "error": str(e)})
 
-            await self._update_request_status(
-                request_id,
-                status="completed",
-                result_data=response_data,
-                end_time=datetime.now(beijing_tz),
-                response_time=elapsed_time
-            )
+        elapsed_time = elapsed()
+        response_data = {
+            "request_id": request_id,
+            "serial_number": serial_number,
+            "workflow": workflow_name,
+            "endpoint": endpoint,
+            "status": "completed" if results else "failed",
+            "results": results,
+            "metrics": {"response_time_ms": elapsed_time.total_seconds() * 1000},
+            "error_msg": None if results else "所有模型执行失败"
+        }
 
-            if elapsed_time.total_seconds() > 2.0:
-                logger.warning(
-                    f"serial_number=[{serial_number}] {workflow_name} -> {model_name_or_err} 慢请求: {elapsed_time.total_seconds():.4f}s")
+        await self._update_request_status(
+            request_id,
+            status=response_data["status"],
+            result_data=response_data,
+            end_time=datetime.now(beijing_tz),
+            response_time=elapsed_time
+        )
 
-            return response_data
+        if elapsed_time.total_seconds() > 2.0:
+            logger.warning(
+                f"serial_number=[{serial_number}] {workflow_name} -> 慢请求: {elapsed_time.total_seconds():.4f}s")
 
-        except Exception as e:
-            return await self._return_failed(request_id, f"模型 {model_name_or_err} 执行失败: {str(e)}", serial_number)
+        return response_data
 
     @bentoml.api
-    async def predict(self, request: dict):
-        return await self._handle_request(request, endpoint="predict", return_type="label_and_proba")
+    async def predict(self, request: dict, ab_test_all_run: bool = False):
+        return await self._handle_request(request, endpoint="predict", return_type="label_and_proba",
+                                          ab_test_all_run=ab_test_all_run)
 
     @bentoml.api
-    async def predict_label(self, request: dict):
-        return await self._handle_request(request, endpoint="predict_label", return_type="label")
+    async def predict_label(self, request: dict, ab_test_all_run: bool = False):
+        return await self._handle_request(request, endpoint="predict_label", return_type="label",
+                                          ab_test_all_run=ab_test_all_run)
 
     @bentoml.api
-    async def predict_proba(self, request: dict):
-        return await self._handle_request(request, endpoint="predict_proba", return_type="proba")
+    async def predict_proba(self, request: dict, ab_test_all_run: bool = False):
+        return await self._handle_request(request, endpoint="predict_proba", return_type="proba",
+                                          ab_test_all_run=ab_test_all_run)
+
+
 
 if __name__ == "__main__":
     import asyncio
@@ -371,20 +411,20 @@ if __name__ == "__main__":
             "features": payload,
             "serial_number": serial_number,
             "threshold": 0.6
-        })
+        }, ab_test_all_run=True)
 
         proba_resp = await service.predict_proba({
             "workflow": workflow_name,
             "features": payload,
             "serial_number": serial_number
-        })
+        }, ab_test_all_run=True)
 
         predict_resp = await service.predict({
             "workflow": workflow_name,
             "features": payload,
             "serial_number": serial_number,
             "threshold": 0.6
-        })
+        }, ab_test_all_run=True)
 
         print("predict_label:", label_resp)
         print("predict_proba:", proba_resp)
