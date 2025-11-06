@@ -9,6 +9,9 @@ Datamind 模型服务
 - 日志记录、慢请求警告
 - 敏感字段掩码
 - 请求结果写入 PostgreSQL
+
+默认模式（ab_test_all_run=False）只跑一个模型， AB Test 选中的模型，返回结果只有一个。
+全跑模式（ab_test_all_run=True）跑所有有效模型， AB Test 按权重选中的模型排第一，其他模型排后面。
 """
 
 import bentoml
@@ -374,11 +377,11 @@ class Datamind:
                                           ab_test_all_run=ab_test_all_run)
 
 
-
 if __name__ == "__main__":
     import asyncio
 
     service = Datamind()
+
 
     def random_payload():
         return {
@@ -397,9 +400,11 @@ if __name__ == "__main__":
             "existing_loans_ratio": round(random.uniform(0, 1), 2),
         }
 
+
     def random_serial_number(length=15):
         import string
         return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
 
     async def run_test():
         workflow_name = "demo_loan_approval_workflow"
@@ -417,17 +422,18 @@ if __name__ == "__main__":
             "workflow": workflow_name,
             "features": payload,
             "serial_number": serial_number
-        }, ab_test_all_run=True)
+        }, ab_test_all_run=False)
 
         predict_resp = await service.predict({
             "workflow": workflow_name,
             "features": payload,
             "serial_number": serial_number,
             "threshold": 0.6
-        }, ab_test_all_run=True)
+        })
 
         print("predict_label:", label_resp)
         print("predict_proba:", proba_resp)
         print("predict:", predict_resp)
+
 
     asyncio.run(run_test())
