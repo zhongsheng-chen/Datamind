@@ -85,7 +85,7 @@ session = Session()
 
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
-def update_config_yaml(model_name, version, uuid_str):
+def update_config_yaml(model_name, version, uuid, hash):
     """更新 config.yaml 中指定模型的 version 和 uuid，保留注释"""
 
     yaml = YAML()
@@ -104,7 +104,8 @@ def update_config_yaml(model_name, version, uuid_str):
         for m in models:
             if m.get("model_name") == model_name:
                 m["version"] = version
-                m["uuid"] = uuid_str
+                m["uuid"] = uuid
+                m["hash"] = hash
                 updated = True
                 break
         if updated:
@@ -195,13 +196,13 @@ class ModelRegistry:
                                   :task, :hash, :tag, :uuid, :status, :change_type, current_user, :remarks)
                           """), record)
 
-    def write_registry(self, version, hash, tag, uuid_str):
+    def write_registry(self, version, hash, tag, uuid):
         now = datetime.now(beijing_tz)
         metadata = {
             "version": version,
             "hash": hash,
             "tag": tag,
-            "uuid": uuid_str,
+            "uuid": uuid,
             "status": "active"
         }
 
@@ -287,7 +288,7 @@ class ModelRegistry:
                 )
 
                 # 4. 更新 config.yaml
-                update_config_yaml(self.model_name, version, uuid_str)
+                update_config_yaml(self.model_name, version, uuid, hash)
 
             except IntegrityError as e:
                 logger.error(f"数据库插入失败: {e}")

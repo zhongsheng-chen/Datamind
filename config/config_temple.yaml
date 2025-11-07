@@ -57,6 +57,7 @@ models:
     model_path: "models/demo_loan_scorecard_lr_20250930.pkl"
     version: ""
     uuid: ""
+    hash: ""
     framework: sklearn
     features: demo_loan_features
 
@@ -65,6 +66,7 @@ models:
     model_path: "models/demo_loan_scorecard_dt_20250930.pkl"
     version: ""
     uuid: ""
+    hash: ""
     framework: sklearn
     features: demo_loan_features
 
@@ -73,6 +75,7 @@ models:
     model_path: "models/demo_loan_scorecard_rf_20250930.pkl"
     version: ""
     uuid: ""
+    hash: ""
     framework: sklearn
     features: demo_loan_features
 
@@ -81,6 +84,7 @@ models:
     model_path: "models/demo_loan_scorecard_lgbm_20250930.pkl"
     version: ""
     uuid: ""
+    hash: ""
     framework: "lightgbm"
     features: demo_loan_features
 
@@ -89,6 +93,7 @@ models:
     model_path: "models/demo_loan_scorecard_xgb_20250930.pkl"
     version: ""
     uuid: ""
+    hash: ""
     framework: "xgboost"
     features: demo_loan_features
 
@@ -97,6 +102,7 @@ models:
     model_path: "models/demo_loan_scorecard_cat_20250930.cbm"
     version: ""
     uuid: ""
+    hash: ""
     framework: "catboost"
     features: demo_loan_features
 
@@ -106,6 +112,7 @@ models:
     model_path: "models/demo_loan_fraud_detection_cat_20250930.cbm"
     version: ""
     uuid: ""
+    hash: ""
     framework: "catboost"
     features: demo_loan_features
 

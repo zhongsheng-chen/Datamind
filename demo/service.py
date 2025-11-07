@@ -13,7 +13,7 @@ import pandas as pd
 import uuid
 from time import time
 
-from src.model_factory import ModelFactory
+from src.model_loader import ModelFactory
 from src.setup import setup_logger
 
 logger = setup_logger()

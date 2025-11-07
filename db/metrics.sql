@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS metrics (
     status health_status NOT NULL,                               -- 服务状态
     request_count INT DEFAULT 0,                                 -- 请求计数
     error_count INT DEFAULT 0,                                   -- 错误请求计数
-    avg_response_time DECIMAL(10, 2) DEFAULT 0,                  -- 平均响应时间
+    avg_response_time DECIMAL(10, 2) DEFAULT 0,                  -- 平均响应时间 (毫秒)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,              -- 创建日期
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,              -- 最近一次更新时间
     CONSTRAINT uq_endpoint UNIQUE (endpoint)                     -- 唯一约束
@@ -34,39 +34,30 @@ CREATE INDEX IF NOT EXISTS idx_metrics_updated_at ON metrics(updated_at);
 CREATE OR REPLACE FUNCTION update_metrics_from_requests() RETURNS TRIGGER AS $$
 DECLARE
     response_ms DECIMAL(10,2);
+    new_error INT;
 BEGIN
-    -- 将 response_time 字符串转换为 interval，再转毫秒
-    IF NEW.response_time IS NOT NULL THEN
-        response_ms := EXTRACT(EPOCH FROM NEW.response_time::interval) * 1000;
-    ELSE
-        response_ms := NULL;
-    END IF;
+    response_ms := COALESCE(NEW.response_time, 0);
+    new_error := CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END;
 
-    -- 插入或更新 metrics 表
     INSERT INTO metrics (endpoint, request_count, error_count, avg_response_time, status, updated_at)
     VALUES (
         NEW.endpoint,
         1,
-        CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
-        COALESCE(response_ms, 0),
+        new_error,
+        response_ms,
         'healthy',
         CURRENT_TIMESTAMP
     )
     ON CONFLICT (endpoint) DO UPDATE
     SET
         request_count = metrics.request_count + 1,
-        error_count = metrics.error_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
-        avg_response_time = CASE
-            WHEN response_ms IS NOT NULL THEN
-                ((COALESCE(metrics.avg_response_time,0) * metrics.request_count) + response_ms) / (metrics.request_count + 1)
-            ELSE
-                metrics.avg_response_time
-        END,
+        error_count = metrics.error_count + new_error,
+        avg_response_time = ((COALESCE(metrics.avg_response_time,0) * metrics.request_count) + response_ms) / (metrics.request_count + 1),
         updated_at = CURRENT_TIMESTAMP,
         status = CASE
-            WHEN ((metrics.error_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END)::float / (metrics.request_count + 1)) >= 0.5 THEN 'unavailable'::health_status
-            WHEN ((metrics.error_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END)::float / (metrics.request_count + 1)) >= 0.2 THEN 'degraded'::health_status
-            WHEN response_ms IS NOT NULL AND ((COALESCE(metrics.avg_response_time,0) * metrics.request_count + response_ms)/(metrics.request_count + 1)) > 2000 THEN 'overloaded'::health_status
+            WHEN ((metrics.error_count + new_error)::float / (metrics.request_count + 1)) >= 0.5 THEN 'unavailable'::health_status
+            WHEN ((metrics.error_count + new_error)::float / (metrics.request_count + 1)) >= 0.2 THEN 'degraded'::health_status
+            WHEN ((COALESCE(metrics.avg_response_time,0) * metrics.request_count + response_ms)/(metrics.request_count + 1)) > 2000 THEN 'overloaded'::health_status
             ELSE 'healthy'::health_status
         END;
 
@@ -85,33 +76,39 @@ EXECUTE FUNCTION update_metrics_from_requests();
 CREATE OR REPLACE FUNCTION update_metrics_on_update() RETURNS TRIGGER AS $$
 DECLARE
     response_ms DECIMAL(10,2);
+    old_error INT;
+    new_error INT;
 BEGIN
-    IF NEW.response_time IS NOT NULL THEN
-        response_ms := EXTRACT(EPOCH FROM NEW.response_time) * 1000;
-    ELSIF NEW.start_time IS NOT NULL AND NEW.end_time IS NOT NULL THEN
-        response_ms := EXTRACT(EPOCH FROM (NEW.end_time - NEW.start_time)) * 1000;
+    IF NEW.response_time IS NULL THEN
+        RETURN NEW;
     ELSE
-        RETURN NEW; -- 无法计算，跳过
+        response_ms := NEW.response_time;
     END IF;
+
+    old_error := CASE WHEN OLD.status = 'failed' THEN 1 ELSE 0 END;
+    new_error := CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END;
 
     UPDATE metrics
     SET
-        avg_response_time = CASE
-            WHEN response_ms IS NOT NULL THEN
-                ((COALESCE(avg_response_time,0) * request_count) + response_ms) / (request_count + 0)
-            ELSE avg_response_time
-        END,
-        updated_at = CURRENT_TIMESTAMP
+        avg_response_time = ((COALESCE(avg_response_time,0) * request_count - COALESCE(OLD.response_time,0) + response_ms) / request_count),
+        error_count = error_count - old_error + new_error,
+        updated_at = CURRENT_TIMESTAMP,
+        status = CASE
+            WHEN ((error_count - old_error + new_error)::float/request_count) >= 0.5 THEN 'unavailable'::health_status
+            WHEN ((error_count - old_error + new_error)::float/request_count) >= 0.2 THEN 'degraded'::health_status
+            WHEN avg_response_time > 2000 THEN 'overloaded'::health_status
+            ELSE 'healthy'::health_status
+        END
     WHERE endpoint = NEW.endpoint;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- 创建触发器，当 requests 更新end_time或response_time时触发
+-- 创建触发器，当 requests UPDATE 时触发
 DROP TRIGGER IF EXISTS trigger_update_metrics_on_update ON requests;
 CREATE TRIGGER trigger_update_metrics_on_update
-AFTER UPDATE OF end_time, response_time ON requests
+AFTER UPDATE OF end_time, response_time, status ON requests
 FOR EACH ROW
-WHEN (OLD.end_time IS DISTINCT FROM NEW.end_time OR OLD.response_time IS DISTINCT FROM NEW.response_time)
+WHEN (OLD.end_time IS DISTINCT FROM NEW.end_time OR OLD.response_time IS DISTINCT FROM NEW.response_time OR OLD.status IS DISTINCT FROM NEW.status)
 EXECUTE FUNCTION update_metrics_on_update();

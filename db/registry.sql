@@ -1,5 +1,5 @@
 DROP TYPE IF EXISTS model_status;
-CREATE TYPE model_status AS ENUM ('active', 'inactivate');
+CREATE TYPE model_status AS ENUM ('active', 'inactive');
 DROP TYPE IF EXISTS model_task;
 CREATE TYPE model_task AS ENUM ('scoring', 'fraud');
 
@@ -12,14 +12,17 @@ CREATE TABLE IF NOT EXISTS registry (
   framework VARCHAR(64) NOT NULL,                                     -- 模型框架
   task model_task NOT NULL,                                           -- 任务类型
   hash CHAR(64) NOT NULL,                                             -- 哈希值
-  tag VARCHAR(256) UNIQUE,                                            -- 模型标签
+  tag VARCHAR(256) NOT NULL,                                          -- 模型标签
   uuid UUID UNIQUE DEFAULT gen_random_uuid(),                         -- 唯一标识
-  status model_status DEFAULT 'inactivate',                           -- 生效状态
+  status model_status DEFAULT 'inactive',                             -- 生效状态
   registered_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,   -- 创建时间
   registered_by VARCHAR(64) DEFAULT current_user,                     -- 创建人
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,      -- 最近更新时间
   updated_by VARCHAR(64) DEFAULT current_user,                        -- 最近更新人
-  CONSTRAINT uq_model UNIQUE (model_name, version, hash, task)        -- 唯一约束
+  CONSTRAINT uq_model UNIQUE (model_name, version, hash, task),       -- 唯一约束
+  CONSTRAINT chk_model_name_non_empty CHECK (model_name <> ''),       -- 非空约束
+  CONSTRAINT chk_version_non_empty CHECK (version <> ''),             -- 非空约束
+  CONSTRAINT chk_tag_non_empty CHECK (tag <> '')                      -- 非空约束
 );
 
 -- 添加表备注
@@ -32,11 +35,11 @@ COMMENT ON COLUMN registry.model_type IS '模型类型：decision_tree|random_fo
 COMMENT ON COLUMN registry.model_path IS '模型文件的存储路径。';
 COMMENT ON COLUMN registry.version IS '模型的版本号。';
 COMMENT ON COLUMN registry.framework IS '模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。';
-COMMENT ON COLUMN registry.task IS '任务类型：scoring-评分，fraud-欺诈检测。';
+COMMENT ON COLUMN registry.task IS '任务类型：scoring|fraud。scoring表示评分，fraud表示欺诈检测。';
 COMMENT ON COLUMN registry.hash IS '模型文件的SHA256哈希值，用于确保文件的唯一性。';
 COMMENT ON COLUMN registry.tag IS '模型标签，由BentoML生成，格式为：model_name:version。';
 COMMENT ON COLUMN registry.uuid IS '模型的唯一标识符。';
-COMMENT ON COLUMN registry.status IS '模型的生效状态：active|inactive|archived|pending。';
+COMMENT ON COLUMN registry.status IS '模型的生效状态：active|inactive。';
 COMMENT ON COLUMN registry.registered_at IS '注册模型的时间。';
 COMMENT ON COLUMN registry.registered_by IS '注册模型的人员。';
 COMMENT ON COLUMN registry.updated_at IS '更新模型的时间。';
