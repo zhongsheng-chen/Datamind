@@ -9,9 +9,6 @@ Datamind 模型服务
 - 日志记录、慢请求警告
 - 敏感字段掩码
 - 请求结果写入 PostgreSQL
-
-默认模式（ab_test_all_run=False）只跑 AB Test 选中的模型，返回结果只有一个。
-全跑模式（ab_test_all_run=True）跑所有有效模型，AB Test 主模型排第一。
 """
 
 import bentoml
@@ -21,7 +18,7 @@ import json
 import pytz
 import pandas as pd
 import xgboost as xgb
-import time
+import psutil
 from datetime import datetime, timedelta
 from sqlalchemy import text
 
@@ -34,7 +31,6 @@ logger = setup_logger()
 DEFAULT_THRESHOLD = 0.5
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
-# 敏感字段掩码
 SENSITIVE_FIELDS = {"income", "total_tax_amount", "avg_tax_amount", "max_tax_amount", "min_tax_amount"}
 
 
@@ -163,81 +159,73 @@ class Datamind:
         except Exception as e:
             logger.exception(f"更新请求状态失败 request_id={request_id}: {e}")
 
-    async def _return_response(
-        self,
-        request_id,
-        serial_number,
-        results=None,
-        failures=None,
-        elapsed_time=None,
-        cpu_percent=0.0,
-        memory_mb=0.0
-    ):
-        """统一报文返回"""
-        results = results or []
-        failures = failures or []
-
-        if results and not failures:
+    def make_response(self, results=None, failures=None, request_id=None, serial_number=None,
+                      workflow_name="", endpoint="", runtime=None, elapsed_time=None,
+                      cpu_percent=0.0, memory_mb=0.0):
+        """
+        根据失败类型统一返回错误码
+        """
+        if results:
             code = 0
-            message = "success"
+            message = "SUCCESS"
             status = "completed"
             error_msg = None
-        elif results and failures:
-            code = 0
-            message = "completed"
-            status = "completed"
-            error_msg = "部分模型执行失败"
-        else:
-            code = 1001
-            message = "failed"
+        elif failures:
+            first_error = failures[0].get("error", "")
+            if "workflow 未配置" in first_error:
+                code = 1002
+                message = "WORKFLOW_NOT_FOUND"
+            elif "未加载" in first_error:
+                code = 1003
+                message = "MODEL_NOT_LOADED"
+            elif "特征缺失" in first_error:
+                code = 1004
+                message = "FEATURE_MISSING"
+            elif "predict" in first_error.lower() or "异常" in first_error:
+                code = 1005
+                message = "MODEL_PREDICT_ERROR"
+            elif "非法" in first_error.lower():
+                code = 1006
+                message = "INVALID_REQUEST"
+            elif "超时" in first_error.lower():
+                code = 1007
+                message = "TIMEOUT"
+            elif "资源" in first_error.lower():
+                code = 1008
+                message = "RESOURCE_LIMIT"
+            else:
+                code = 1001
+                message = "ALL_MODELS_FAILED"
             status = "failed"
-            error_msg = "所有模型执行失败"
+            error_msg = first_error
+        else:
+            code = 1000
+            message = "UNKNOWN_ERROR"
+            status = "failed"
+            error_msg = "未知错误"
 
-        total_time_ms = sum(r.get("time_ms", 0) for r in results) if results else 0.0
-        metrics_runtime = [{"model_name": r["model_name"], "time_ms": r.get("time_ms", 0)} for r in results]
-
-        response_data = {
+        return {
             "code": code,
             "message": message,
             "data": {
                 "request_id": request_id,
                 "serial_number": serial_number,
+                "workflow": workflow_name,
+                "endpoint": endpoint,
                 "status": status,
-                "results": results,
+                "results": results or [],
                 "metrics": {
-                    "response_time_ms": elapsed_time.total_seconds() * 1000 if elapsed_time else 0.0,
-                    "runtime": metrics_runtime
+                    "response_time_ms": elapsed_time.total_seconds() * 1000 if elapsed_time else None,
+                    "runtime": runtime or []
                 },
                 "resource_usage": {
                     "cpu_percent": cpu_percent,
                     "memory_mb": memory_mb
                 },
                 "error_msg": error_msg,
-                "failures": failures
+                "failures": failures or []
             }
         }
-
-        await self._update_request_status(
-            request_id,
-            status=status,
-            result_data=response_data,
-            end_time=datetime.now(beijing_tz),
-            response_time=elapsed_time,
-            error_msg=error_msg
-        )
-
-        return response_data
-
-    async def _return_failed(self, request_id, error_msg, serial_number=None):
-        return await self._return_response(
-            request_id=request_id,
-            serial_number=serial_number or str(uuid.uuid4()),
-            results=[],
-            failures=[{"name": None, "error_code": 5000, "error_msg": error_msg}],
-            elapsed_time=None,
-            cpu_percent=0.0,
-            memory_mb=0.0
-        )
 
     async def _handle_request(self, request: dict, endpoint: str, return_type: str = "label_and_proba",
                               ab_test_all_run: bool = False):
@@ -276,89 +264,169 @@ class Datamind:
         X = self._prepare_features(features)
         results = []
         failures = []
+        runtime = []
 
-        if ab_test_all_run:
-            primary_model, primary_model_name_or_err = self._select_model(workflow_name)
-            workflow_conf = config.workflows.get(workflow_name, {})
-            model_items = workflow_conf.get("models", [])
+        try:
+            if ab_test_all_run:
+                primary_model, primary_model_name_or_err = self._select_model(workflow_name)
+                workflow_conf = config.workflows.get(workflow_name, {})
+                model_items = workflow_conf.get("models", [])
 
-            for m_item in model_items:
-                if not m_item.get("ab_test") or "weight" not in m_item["ab_test"]:
-                    continue
-                model_name = m_item["model_name"]
-                cached_model = self.models.get(model_name)
+                for m_item in model_items:
+                    if not m_item.get("ab_test") or "weight" not in m_item["ab_test"]:
+                        continue
+                    model_name = m_item["model_name"]
+                    cached_model = self.models.get(model_name)
+                    if not cached_model:
+                        failures.append({
+                            "model_name": model_name,
+                            "endpoint": endpoint,
+                            "error": f"模型 {model_name} 未加载",
+                            "status": "failed",
+                            "model_timer_start": None,
+                            "model_timer_end": None,
+                            "model_timer_ms": 0
+                        })
+                        continue
+
+                    model_timer_start = datetime.now(beijing_tz)
+                    try:
+                        self._check_features(X, cached_model.model)
+                        label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
+                        model_timer_end = datetime.now(beijing_tz)
+                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
+
+                        result = {
+                            "model_name": model_name,
+                            "version": cached_model.version,
+                            "uuid": cached_model.uuid,
+                            "hash": cached_model.hash,
+                            "endpoint": endpoint,
+                            "role": "primary" if model_name == primary_model_name_or_err else "challenger",
+                            "status": "success",
+                            "model_timer_start": model_timer_start.isoformat(),
+                            "model_timer_end": model_timer_end.isoformat(),
+                            "model_timer_ms": model_timer_ms
+                        }
+                        if return_type in ["label", "label_and_proba"]:
+                            result["label"] = label
+                        if return_type in ["proba", "label_and_proba"]:
+                            result["probability"] = probability
+                        results.append(result)
+                        runtime.append(result.copy())
+                    except Exception as e:
+                        model_timer_end = datetime.now(beijing_tz)
+                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
+                        failures.append({
+                            "model_name": model_name,
+                            "endpoint": endpoint,
+                            "error": str(e),
+                            "status": "failed",
+                            "model_timer_start": model_timer_start.isoformat(),
+                            "model_timer_end": model_timer_end.isoformat(),
+                            "model_timer_ms": model_timer_ms
+                        })
+                        runtime.append(failures[-1].copy())
+
+                if primary_model and primary_model_name_or_err:
+                    for i, r in enumerate(results):
+                        if r["model_name"] == primary_model_name_or_err:
+                            results.insert(0, results.pop(i))
+                            break
+            else:
+                cached_model, model_name_or_err = self._select_model(workflow_name)
                 if not cached_model:
-                    failures.append({"name": model_name, "error_code": 5001, "error_msg": "模型未加载"})
-                    continue
-                try:
-                    self._check_features(X, cached_model.model)
-                    start_model = time.time()
-                    label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
-                    end_model = time.time()
-                    model_time_ms = round((end_model - start_model) * 1000, 2)
-
-                    result = {
-                        "model_name": model_name,
-                        "version": cached_model.version,
-                        "uuid": cached_model.uuid,
-                        "hash": cached_model.hash,
-                        "role": "primary" if model_name == primary_model_name_or_err else "challenger",
+                    failures.append({
+                        "model_name": model_name_or_err,
                         "endpoint": endpoint,
-                        "time_ms": model_time_ms
-                    }
-                    if return_type in ["label", "label_and_proba"]:
-                        result["label"] = label
-                    if return_type in ["proba", "label_and_proba"]:
-                        result["probability"] = probability
-                    results.append(result)
-                except Exception as e:
-                    failures.append({"name": model_name, "error_code": 5002, "error_msg": str(e)})
+                        "error": model_name_or_err,
+                        "status": "failed",
+                        "model_timer_start": None,
+                        "model_timer_end": None,
+                        "model_timer_ms": 0
+                    })
+                else:
+                    model_timer_start = datetime.now(beijing_tz)
+                    try:
+                        self._check_features(X, cached_model.model)
+                        label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
+                        model_timer_end = datetime.now(beijing_tz)
+                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
 
-            # 主模型排第一
-            if primary_model and primary_model_name_or_err:
-                for i, r in enumerate(results):
-                    if r["model_name"] == primary_model_name_or_err:
-                        results.insert(0, results.pop(i))
-                        break
-        else:
-            cached_model, model_name_or_err = self._select_model(workflow_name)
-            if not cached_model:
-                return await self._return_failed(request_id, model_name_or_err, serial_number)
-            try:
-                self._check_features(X, cached_model.model)
-                start_model = time.time()
-                label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
-                end_model = time.time()
-                model_time_ms = round((end_model - start_model) * 1000, 2)
-
-                result = {
-                    "model_name": model_name_or_err,
-                    "version": cached_model.version,
-                    "uuid": cached_model.uuid,
-                    "hash": cached_model.hash,
-                    "role": "primary",
-                    "endpoint": endpoint,
-                    "time_ms": model_time_ms
-                }
-                if return_type in ["label", "label_and_proba"]:
-                    result["label"] = label
-                if return_type in ["proba", "label_and_proba"]:
-                    result["probability"] = probability
-                results.append(result)
-            except Exception as e:
-                failures.append({"name": model_name_or_err, "error_code": 5002, "error_msg": str(e)})
+                        result = {
+                            "model_name": model_name_or_err,
+                            "version": cached_model.version,
+                            "uuid": cached_model.uuid,
+                            "hash": cached_model.hash,
+                            "endpoint": endpoint,
+                            "role": "primary",
+                            "status": "success",
+                            "model_timer_start": model_timer_start.isoformat(),
+                            "model_timer_end": model_timer_end.isoformat(),
+                            "model_timer_ms": model_timer_ms
+                        }
+                        if return_type in ["label", "label_and_proba"]:
+                            result["label"] = label
+                        if return_type in ["proba", "label_and_proba"]:
+                            result["probability"] = probability
+                        results.append(result)
+                        runtime.append(result.copy())
+                    except Exception as e:
+                        model_timer_end = datetime.now(beijing_tz)
+                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
+                        failures.append({
+                            "model_name": model_name_or_err,
+                            "endpoint": endpoint,
+                            "error": str(e),
+                            "status": "failed",
+                            "model_timer_start": model_timer_start.isoformat(),
+                            "model_timer_end": model_timer_end.isoformat(),
+                            "model_timer_ms": model_timer_ms
+                        })
+                        runtime.append(failures[-1].copy())
+        except Exception as e:
+            failures.append({
+                "model_name": "",
+                "endpoint": endpoint,
+                "error": str(e),
+                "status": "failed",
+                "model_timer_start": None,
+                "model_timer_end": None,
+                "model_timer_ms": 0
+            })
 
         elapsed_time = datetime.now(beijing_tz) - start_time
+        cpu_percent = psutil.cpu_percent(interval=None)
+        memory_mb = psutil.Process().memory_info().rss / 1024 / 1024
 
-        return await self._return_response(
-            request_id=request_id,
-            serial_number=serial_number,
+        response_data = self.make_response(
             results=results,
             failures=failures,
+            request_id=request_id,
+            serial_number=serial_number,
+            workflow_name=workflow_name,
+            endpoint=endpoint,
+            runtime=runtime,
             elapsed_time=elapsed_time,
-            cpu_percent=12.5,
-            memory_mb=150.3
+            cpu_percent=cpu_percent,
+            memory_mb=memory_mb
         )
+
+        await self._update_request_status(
+            request_id,
+            status=response_data["data"]["status"],
+            result_data=response_data,
+            end_time=datetime.now(beijing_tz),
+            response_time=elapsed_time,
+            error_msg=response_data["data"]["error_msg"]
+        )
+
+        if elapsed_time.total_seconds() > 2.0:
+            logger.warning(
+                f"serial_number=[{serial_number}] {workflow_name} -> 慢请求: {elapsed_time.total_seconds():.4f}s"
+            )
+
+        return response_data
 
     # -------------------------
     # BentoML APIs
@@ -379,37 +447,33 @@ class Datamind:
                                           return_type="proba", ab_test_all_run=ab_test_all_run)
 
 
-
 if __name__ == "__main__":
     import asyncio
 
     service = Datamind()
 
-
-    def random_payload():
-        return {
-            "age": random.randint(18, 65),
-            "income": random.randint(3000, 20000),
-            "debt_ratio": round(random.uniform(0, 1), 2),
-            "loan_amount": random.randint(1000, 10000),
-            "existing_loans": random.randint(0, 5),
-            "total_tax_records": random.randint(0, 10),
-            "total_tax_amount": random.randint(0, 10000),
-            "avg_tax_amount": random.randint(0, 3000),
-            "max_tax_amount": random.randint(100, 2000),
-            "min_tax_amount": random.randint(50, 1000),
-            "tax_amount_std": round(random.uniform(0, 500), 2),
-            "loan_to_income_ratio": round(random.uniform(0, 1), 2),
-            "existing_loans_ratio": round(random.uniform(0, 1), 2),
-        }
-
-
-    def random_serial_number(length=15):
-        import string
-        return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
-
-
     async def run_test():
+        def random_payload():
+            return {
+                "age": random.randint(18, 65),
+                "income": random.randint(3000, 20000),
+                "debt_ratio": round(random.uniform(0, 1), 2),
+                "loan_amount": random.randint(1000, 10000),
+                "existing_loans": random.randint(0, 5),
+                "total_tax_records": random.randint(0, 10),
+                "total_tax_amount": random.randint(0, 10000),
+                "avg_tax_amount": random.randint(0, 3000),
+                # "max_tax_amount": random.randint(100, 2000),
+                "min_tax_amount": random.randint(50, 1000),
+                "tax_amount_std": round(random.uniform(0, 500), 2),
+                "loan_to_income_ratio": round(random.uniform(0, 1), 2),
+                "existing_loans_ratio": round(random.uniform(0, 1), 2),
+            }
+
+        def random_serial_number(length=15):
+            import string
+            return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
         workflow_name = "demo_loan_approval_workflow"
         payload = random_payload()
         serial_number = random_serial_number()
@@ -437,6 +501,5 @@ if __name__ == "__main__":
         print("predict_label:", label_resp)
         print("predict_proba:", proba_resp)
         print("predict:", predict_resp)
-
 
     asyncio.run(run_test())
