@@ -22,7 +22,7 @@ services:
       - postgres_logs:/var/log/postgresql
 
   datamind:
-    image: dataminddev/datamind:20251031
+    image: dataminddev/datamind:latest
     container_name: datamind-server
     restart: unless-stopped
     ports:

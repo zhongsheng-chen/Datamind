@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS registry_history (
     hash CHAR(64) NOT NULL,                                             -- 哈希值
     tag VARCHAR(256) NOT NULL,                                          -- 模型标签
     uuid UUID NOT NULL,                                                 -- 唯一标识
-    status model_status DEFAULT 'inactivate',                           -- 生效状态
+    status model_status DEFAULT 'inactive',                             -- 生效状态
     change_type VARCHAR(32) NOT NULL,                                   -- 变更类型
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,      -- 变更日期
     changed_by VARCHAR(256) DEFAULT current_user,                       -- 变更人员
@@ -33,7 +33,7 @@ COMMENT ON COLUMN registry_history.task IS '任务类型：scoring-评分，frau
 COMMENT ON COLUMN registry_history.hash IS '模型文件的SHA256哈希值，用于确保文件的唯一性。';
 COMMENT ON COLUMN registry_history.tag IS '模型标签，由BentoML生成，格式为：model_name:version。';
 COMMENT ON COLUMN registry_history.uuid IS '模型唯一标识。';
-COMMENT ON COLUMN registry_history.status IS '模型的生效状态：active|inactive|archived|pending。';
+COMMENT ON COLUMN registry_history.status IS '模型的生效状态：active|inactive。';
 COMMENT ON COLUMN registry_history.change_type IS '变更类型：create, update, activate, deactivate';
 COMMENT ON COLUMN registry_history.changed_at IS '记录变更时间。';
 COMMENT ON COLUMN registry_history.changed_by IS '记录变更人员。';
