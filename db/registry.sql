@@ -62,6 +62,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 创建触发器，每次更新 registry 时触发
+DROP TRIGGER IF EXISTS trg_update_registry ON registry;
 CREATE TRIGGER trg_update_registry
 BEFORE UPDATE ON registry
 FOR EACH ROW

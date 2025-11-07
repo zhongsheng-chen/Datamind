@@ -75,7 +75,43 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 创建触发器，当 requests 新增记录时触发
+DROP TRIGGER IF EXISTS trigger_update_metrics ON requests;
 CREATE TRIGGER trigger_update_metrics
 AFTER INSERT ON requests
 FOR EACH ROW
 EXECUTE FUNCTION update_metrics_from_requests();
+
+-- 创建触发函数
+CREATE OR REPLACE FUNCTION update_metrics_on_update() RETURNS TRIGGER AS $$
+DECLARE
+    response_ms DECIMAL(10,2);
+BEGIN
+    IF NEW.response_time IS NOT NULL THEN
+        response_ms := EXTRACT(EPOCH FROM NEW.response_time) * 1000;
+    ELSIF NEW.start_time IS NOT NULL AND NEW.end_time IS NOT NULL THEN
+        response_ms := EXTRACT(EPOCH FROM (NEW.end_time - NEW.start_time)) * 1000;
+    ELSE
+        RETURN NEW; -- 无法计算，跳过
+    END IF;
+
+    UPDATE metrics
+    SET
+        avg_response_time = CASE
+            WHEN response_ms IS NOT NULL THEN
+                ((COALESCE(avg_response_time,0) * request_count) + response_ms) / (request_count + 0)
+            ELSE avg_response_time
+        END,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE endpoint = NEW.endpoint;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 创建触发器，当 requests 更新end_time或response_time时触发
+DROP TRIGGER IF EXISTS trigger_update_metrics_on_update ON requests;
+CREATE TRIGGER trigger_update_metrics_on_update
+AFTER UPDATE OF end_time, response_time ON requests
+FOR EACH ROW
+WHEN (OLD.end_time IS DISTINCT FROM NEW.end_time OR OLD.response_time IS DISTINCT FROM NEW.response_time)
+EXECUTE FUNCTION update_metrics_on_update();
