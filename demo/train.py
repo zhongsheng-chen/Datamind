@@ -145,37 +145,6 @@ def get_model(model_type: str):
 # ------------------------------
 # 保存模型
 # ------------------------------
-# def save_model(pipeline, model_path, model_type):
-#     """
-#     保存模型
-#     """
-#     model_dir = Path(model_path).parent
-#     model_dir.mkdir(parents=True, exist_ok=True)  # 自动创建目录
-#
-#     ext = Path(model_path).suffix.lower()
-#     model = getattr(pipeline, "named_steps", {}).get("model", pipeline)
-#
-#     if model_type == "xgboost":
-#         model.save_model(model_path)
-#         logger.info(f"[XGBoost] 模型已保存：{model_path}")
-#     elif model_type == "lightgbm":
-#         booster = getattr(model, "booster_", model)
-#         booster.save_model(model_path)
-#         logger.info(f"[LightGBM] 模型已保存：{model_path}")
-#     elif model_type == "catboost":
-#         model.save_model(model_path)
-#         logger.info(f"[CatBoost] 模型已保存：{model_path}")
-#     else:
-#         if ext == ".joblib":
-#             joblib.dump(pipeline, model_path)
-#             logger.info(f"[Joblib] 模型已保存：{model_path}")
-#         elif ext in [".pkl", ".pickle"]:
-#             with open(model_path, "wb") as f:
-#                 pickle.dump(pipeline, f)
-#             logger.info(f"[Pickle] 模型已保存：{model_path}")
-#         else:
-#             raise ValueError(f"不支持的模型文件格式: {ext}")
-
 def save_model(pipeline, model_path: str, model_type: str):
     model_dir = Path(model_path).parent
     model_dir.mkdir(parents=True, exist_ok=True)
