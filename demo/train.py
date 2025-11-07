@@ -9,7 +9,6 @@ train.py
 通过 config.yaml 的模型定义自动加载模型配置与特征信息。。
 """
 
-import os
 import logging
 import joblib
 import pickle
