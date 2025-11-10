@@ -1,47 +1,93 @@
-version: "3.9"
-
 services:
   postgres:
-    image: postgres:17-alpine
-    container_name: datamind-db
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    container_name: datamind-postgres
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=datamind
-      - POSTGRES_PASSWORD=datamind
-      - POSTGRES_DB=datamind
-      - TZ=Asia/Shanghai
+      - POSTGRES_USER=${POSTGRES_USER:-datamind}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-datamind}
+      - POSTGRES_DB=${POSTGRES_DB:-datamind}
+      - TZ=${TZ}
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U datamind -d datamind" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 30s
       retries: 10
-    networks:
-      - datamind-network
     volumes:
       - ./db:/docker-entrypoint-initdb.d/
       - postgres_data:/var/lib/postgresql/data
       - postgres_logs:/var/log/postgresql
+    networks:
+      - datamind-network
+
+  oracle:
+    image: ${ORACLE_IMAGE:-gvenzl/oracle-xe:21-slim}
+    container_name: datamind-oracle
+    ports:
+      - "${ORACLE_PORT:-51521}:1521"
+      - "${ORACLE_EM_PORT:-55500}:5500"
+    env_file:
+      - .env
+    environment:
+      - ORACLE_DATABASE=${ORACLE_DATABASE:-datamind}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-datamind}
+      - APP_USER=${ORACLE_APP_USER:-datamind}
+      - APP_USER_PASSWORD=${ORACLE_APP_USER_PASSWORD:-datamind}
+      - TZ=${TZ}
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "echo 'SELECT 1 FROM dual;' | sqlplus -s SYSTEM/$ORACLE_PASSWORD@XE" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - datamind-network
 
   datamind:
-    image: dataminddev/datamind:latest
+    image: ${DATAMIND_IMAGE:-dataminddev/datamind:latest}
     container_name: datamind-server
     restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - TZ=Asia/Shanghai
-      - DATAMIND_CONFIG_PATH=/app/config/config.yaml
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - datamind-network
+      oracle:
+        condition: service_healthy
+    ports:
+      - "${DATAMIND_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      - ORACLE_HOST=${ORACLE_HOST:-oracle}
+      - ORACLE_PORT=${ORACLE_PORT:-51521}
+      - ORACLE_SERVICE_NAME=${ORACLE_SERVICE_NAME:-FREEPDB1}
+      - ORACLE_APP_USER=${ORACLE_APP_USER:-datamind}
+      - ORACLE_APP_USER_PASSWORD=${ORACLE_APP_USER_PASSWORD:-datamind}
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-55432}
+      - POSTGRES_DB=${POSTGRES_DB:-datamind}
+      - POSTGRES_USER=${POSTGRES_USER:-datamind}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-datamind}
+      - DATAMIND_CONFIG_PATH=${DATAMIND_CONFIG_PATH:-/app/config/config.yaml}
+      - DATAMIND_LOG_NAME=${DATAMIND_LOG_NAME:-DatamindLogger}
+      - DATAMIND_LOG_FILE=${DATAMIND_LOG_FILE:-/app/logs/datamind.log}
+      - DATAMIND_LOG_LEVEL=${DATAMIND_LOG_LEVEL:-INFO}
+      - TZ=${TZ}
     volumes:
       - ./logs:/app/logs
       - ./models:/app/models
       - ./config:/app/config
+    networks:
+      - datamind-network
+
 volumes:
   postgres_data:
   postgres_logs:
+  oracle_data:
 
 networks:
   datamind-network:

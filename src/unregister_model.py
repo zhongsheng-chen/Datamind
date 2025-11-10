@@ -34,9 +34,9 @@ import bentoml
 import argparse
 from sqlalchemy import text
 from src.db_engine import postgres_engine
-from src.setup import setup_logger
+from src.logger import get_logger
 
-logger = setup_logger()
+logger = get_logger()
 
 
 class ModelUnregistry:

@@ -14,9 +14,9 @@ import uuid
 from time import time
 
 from src.model_loader import ModelFactory
-from src.setup import setup_logger
+from src.logger import create_logger
 
-logger = setup_logger()
+logger = create_logger()
 
 MODEL_NAME = "demo_loan_scorecard_lr_20250930"
 DEFAULT_THRESHOLD = 0.5

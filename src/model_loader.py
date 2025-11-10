@@ -6,7 +6,7 @@ import threading
 from typing import Dict
 from pathlib import Path
 from src.config_parser import config
-from src.setup import setup_logger
+from src.logger import get_logger
 
 try:
     import torch
@@ -25,7 +25,7 @@ except ImportError:
     tf = None
     keras = None
 
-logger = setup_logger()
+logger = get_logger()
 
 class CachedModel:
     """缓存模型及其元信息"""

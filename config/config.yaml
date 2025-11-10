@@ -1,38 +1,38 @@
 databases:
   oracle:
-    host: "localhost"             # 主机
-    port: 1521                    # 端口
-    service_name: "FREEPDB1"
-    user: "bankgy"                # 用户名
-    password: "bankgy"            # 密码
-    pool_size: 5                  # 连接池最小连接数
-    max_overflow: 10              # 连接池最大溢出连接数
-    pool_timeout: 60
-    pool_recycle: 3600
+    host: "${ORACLE_HOST:-localhost}"                    # 主机（默认 localhost）
+    port: ${ORACLE_PORT:-1521}                           # 端口
+    service_name: "${ORACLE_SERVICE_NAME:-FREEPDB1}"
+    user: "${ORACLE_APP_USER:-datamind}"                   # 用户名
+    password: "${ORACLE_APP_USER_PASSWORD:-datamind}"      # 密码
+    pool_size: ${ORACLE_POOL_SIZE:-5}                    # 连接池最小连接数
+    max_overflow: ${ORACLE_MAX_OVERFLOW:-10}             # 连接池最大溢出连接数
+    pool_timeout: ${ORACLE_POOL_TIMEOUT:-60}
+    pool_recycle: ${ORACLE_POOL_RECYCLE:-3600}
 
   postgres:
-    host: "localhost"             # 主机
-    port: 5432                    # 端口
-    database: "bankgy"            # 数据库名
-    user: "bankgy"                # 用户名
-    password: "bankgy"            # 密码
-    pool_size: 5                  # 连接池最小连接数
-    max_overflow: 10              # 连接池最大溢出连接数
-    pool_timeout: 60
-    pool_recycle: 3600
+    host: "${POSTGRES_HOST:-localhost}"                  # 主机
+    port: ${POSTGRES_PORT:-5432}                         # 端口
+    database: "${POSTGRES_DB:-datamind}"                 # 数据库名
+    user: "${POSTGRES_USER:-datamind}"                   # 用户名
+    password: "${POSTGRES_PASSWORD:-datamind}"           # 密码
+    pool_size: ${POSTGRES_POOL_SIZE:-5}
+    max_overflow: ${POSTGRES_MAX_OVERFLOW:-10}
+    pool_timeout: ${POSTGRES_POOL_TIMEOUT:-60}
+    pool_recycle: ${POSTGRES_POOL_RECYCLE:-3600}
 
 logging:
-  name: "DatamindLogger"
-  level: "INFO"
-  file: "logs/Datamind.log"
-  max_bytes: 10485760
-  backup_count: 5
-  use_concurrent: true
+  name: "${DATAMIND_LOG_NAME:-DatamindLogger}"
+  level: "${DATAMIND_LOG_LEVEL:-INFO}"
+  file: "${DATAMIND_LOG_FILE:-logs/Datamind.log}"
+  max_bytes: ${DATAMIND_LOG_MAX_BYTES:-10485760}
+  backup_count: ${DATAMIND_LOG_BACKUP_COUNT:-5}
+  use_concurrent: ${DATAMIND_LOG_USE_CONCURRENT:-true}
 
 kie_server:
-  url: http://localhost:8080/kie-server/services/rest/server
-  username: admin
-  password: admin
+  url: "${KIE_SERVER_URL:-http://localhost:8080/kie-server/services/rest/server}"
+  username: "${KIE_SERVER_USER:-admin}"
+  password: "${KIE_SERVER_PASSWORD:-admin}"
 
 features:
   demo_loan_features:

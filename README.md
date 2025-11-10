@@ -251,6 +251,11 @@ model_registry:
 
 ```
 
+## Dockerfile 构建镜像
+```bash
+docker build -t dataminddev/datamind:latest .
+```
+
 # git 拉取最新版本
 
 - 生成 SSH Key：

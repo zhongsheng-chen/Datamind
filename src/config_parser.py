@@ -4,6 +4,7 @@ import yaml
 from typing import Union, Any, Optional, List, Dict
 from pathlib import Path
 
+
 class WorkflowStep:
     """单个工作流步骤封装"""
     def __init__(self, step_conf: dict):
@@ -83,10 +84,49 @@ class Config:
         self.workflows = self._cfg_data.get("workflows", {})
 
     def _load_config(self) -> dict:
+        """
+        加载配置文件并解析环境变量占位符 (${VAR} 或 ${VAR:-default})
+
+        支持语法：
+          - ${VAR}              → 从环境变量取值，否则为空字符串
+          - ${VAR:-default}     → 若环境变量不存在，使用 default
+        """
+
         if not self.cfg_path.exists():
             raise FileNotFoundError(f"配置文件不存在: {self.cfg_path}")
+
         with open(self.cfg_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            content = f.read()
+
+        # 匹配占位符：${VAR} 或 ${VAR:-default}
+        pattern = re.compile(r"\$\{([^}:]+)(?::-(.+))?\}")
+
+        def replace_env_var(match: re.Match) -> str:
+            from src.logger import get_logger
+            logger = get_logger()
+            var_name = match.group(1)
+            default_value = match.group(2)
+            value = os.getenv(var_name)
+
+            if value:
+                return value
+            if default_value is not None:
+                return default_value
+
+            # 未设置环境变量且无默认值
+            logger.warning(f"[配置] 环境变量 '{var_name}' 未设置，且无默认值。")
+            return ""
+
+        # 替换所有占位符
+        resolved_content = pattern.sub(replace_env_var, content)
+
+        try:
+            config_dict = yaml.safe_load(resolved_content)
+            if not isinstance(config_dict, dict):
+                raise ValueError("配置文件格式应为 YAML 字典结构。")
+            return config_dict
+        except yaml.YAMLError as e:
+            raise ValueError(f"配置文件 YAML 解析失败: {e}")
 
     def __repr__(self) -> str:
         """安全且可读的 Config 展示"""
@@ -115,7 +155,7 @@ class Config:
             return sanitized_dict
 
         safe_cfg = sanitize_dict(self._cfg_data)
-        return f"<Config path={self.cfg_path} sections={safe_cfg}>"
+        return f"<Config path={str(self.cfg_path)} sections={safe_cfg}>"
 
     def get(self, section: str, key: Optional[str] = None, default: Any = None) -> Any:
         section_data = self._cfg_data.get(section, {})
@@ -123,7 +163,7 @@ class Config:
             return section_data.get(key, default)
         return section_data
 
-    def get_databases(self, db_name: str) -> dict:
+    def get_database(self, db_name: str) -> dict:
         return self.get("databases", {}).get(db_name, {})
 
     def get_logging(self) -> dict:
