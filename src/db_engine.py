@@ -1,3 +1,4 @@
+from threading import Lock
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, URL
 from src.config_parser import config
@@ -7,40 +8,51 @@ logger = get_logger()
 
 # 引擎缓存池
 _engines: dict[str, Engine] = {}
+_lock = Lock()
 
+# 数据库类型到 SQLAlchemy driver 映射
+DRIVER_MAP = {
+    "oracle": "oracle+cx_oracle",
+    "postgres": "postgresql+psycopg2",
+    "mysql": "mysql+pymysql",
+    "mssql": "mssql+pyodbc",
+}
 
 def make_connection_url(db_name: str, db_config: dict) -> URL:
     """根据数据库配置构造 SQLAlchemy URL"""
+    db_key = db_name.lower()
+    drivername = DRIVER_MAP.get(db_key)
+    if not drivername:
+        raise ValueError(f"不支持的数据库类型: {db_name}")
+
     host = db_config.get("host", "localhost")
-    port = db_config.get("port")
+    port = int(db_config.get("port"))
     user = db_config.get("user", "")
     password = db_config.get("password", "")
 
-    if port is None:
-        raise ValueError(f"数据库 {db_name} 配置缺少 port")
+    query = {}
+    database = db_config.get("database", None)
 
-    if db_name.lower() == "oracle":
-        service_name = db_config.get("service_name", "")
-        return URL.create(
-            drivername="oracle+cx_oracle",
-            username=user,
-            password=password,
-            host=host,
-            port=port,
-            query={"service_name": service_name},
-        )
-    elif db_name.lower() == "postgres":
-        database = db_config.get("database", "")
-        return URL.create(
-            drivername="postgresql+psycopg2",
-            username=user,
-            password=password,
-            host=host,
-            port=port,
-            database=database,
-        )
-    else:
-        raise ValueError(f"不支持的数据库类型: {db_name}")
+    if db_key == "oracle":
+        # Oracle 需要 service_name
+        query["service_name"] = db_config.get("service_name", "")
+        database = None
+    elif db_key == "mysql":
+        # MySQL 可选字符集
+        query["charset"] = db_config.get("charset", "utf8mb4")
+    elif db_key == "mssql":
+        # SQL Server 可通过 DSN 或 query 配置其他参数
+        query["driver"] = db_config.get("driver", "ODBC Driver 18 for SQL Server")
+
+    return URL.create(
+        drivername=drivername,
+        username=user,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+        query=query
+    )
 
 
 def create_db_engine(db_name: str) -> Engine:
@@ -54,10 +66,10 @@ def create_db_engine(db_name: str) -> Engine:
 
         engine = create_engine(
             db_url,
-            pool_size=db_config.get("pool_size", 5),
-            max_overflow=db_config.get("max_overflow", 10),
-            pool_timeout=db_config.get("pool_timeout", 30),
-            pool_recycle=db_config.get("pool_recycle", 3600),
+            pool_size=int(db_config.get("pool_size", 5)),
+            max_overflow=int(db_config.get("max_overflow", 10)),
+            pool_timeout=int(db_config.get("pool_timeout", 30)),
+            pool_recycle=int(db_config.get("pool_recycle", 3600)),
         )
 
         logger.info(f"{db_name.capitalize()} 数据库引擎创建成功")
@@ -69,10 +81,13 @@ def create_db_engine(db_name: str) -> Engine:
 
 
 def get_engine(db_name: str) -> Engine:
-    """获取数据库引擎（自动复用缓存）"""
-    if db_name not in _engines:
-        _engines[db_name] = create_db_engine(db_name)
-    return _engines[db_name]
+    """获取数据库引擎（线程安全、自动复用缓存）"""
+    with _lock:
+        if db_name not in _engines:
+            logger.info(f"{db_name.capitalize()} 数据库引擎尚未创建，正在初始化...")
+            _engines[db_name] = create_db_engine(db_name)
+        return _engines[db_name]
+
 
 # 示例初始化数据库
 oracle_engine = get_engine("oracle")

@@ -52,7 +52,7 @@ def get_logger():
     if log_format == "entrypoint":
         formatter = logging.Formatter("%(levelname)s - %(module)s - %(message)s")
     else:
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(filename)s - %(message)s")
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s - %(message)s")
 
     # 添加 handler 的封装函数
     def add_handler(handler):

@@ -48,6 +48,7 @@ log "Starting Datamind service initialization..."
 # ==== 抑制 TensorFlow / SQLALCHEMY 警告 ====
 export TF_CPP_MIN_LOG_LEVEL=2
 export SQLALCHEMY_SILENCE_UBER_WARNING=1
+export SQLALCHEMY_WARN_20=1
 
 # ==== 等待数据库启动 ====
 /app/wait-for-it.sh $POSTGRES_HOST:5432 --timeout=60 --strict >/dev/null && log_success "Postgres is up"
