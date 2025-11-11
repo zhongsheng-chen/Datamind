@@ -4,9 +4,14 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /app
+COPY wait-for-it.sh /app/wait-for-it.sh
+COPY entrypoint.sh /app/entrypoint.sh
+
+RUN chmod +x /app/wait-for-it.sh /app/entrypoint.sh
 
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
@@ -20,4 +25,6 @@ HEALTHCHECK --interval=10s --timeout=3s \
   CMD curl -f http://localhost:3000/healthz || exit 1
 
 # 启动 BentoML 服务
-CMD ["bentoml", "serve", "src.service:Datamind", "--host", "0.0.0.0", "--port", "3000"]
+# CMD ["bentoml", "serve", "src.service:Datamind", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["/app/entrypoint.sh"]
+

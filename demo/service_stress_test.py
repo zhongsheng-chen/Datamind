@@ -11,10 +11,12 @@ service_stress_test.py
 import requests
 import random
 import statistics
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
 
-URL = "http://127.0.0.1:3000/predict"
+# URL = "http://127.0.0.1:3000/predict"
+URL = "http://100.92.47.128:3000/predict"
 HEADERS = {"Content-Type": "application/json"}
 
 # === 随机生成 payload ===
@@ -50,7 +52,8 @@ def send_request(i):
         if response.status_code != 200:
             print("请求失败:", response.text)
         return response.status_code, latency
-    except Exception:
+    except Exception as e:
+        print(f"请求异常: {e}")
         return 0, time() - start  # 0 代表请求失败
 
 # === 并发压测 ===
@@ -69,8 +72,8 @@ def run_concurrent_test(num_requests=100, max_workers=20):
 
     total_time = time() - start_all
     avg_latency = statistics.mean(latencies)
-    p90 = statistics.quantiles(latencies, n=100)[89]
-    p95 = statistics.quantiles(latencies, n=100)[94]
+    p90 = np.percentile(latencies, 90)
+    p95 = np.percentile(latencies, 95)
     qps = num_requests / total_time
     tps = success / total_time
     success_rate = success / num_requests * 100

@@ -8,7 +8,9 @@ _logger = None
 
 def get_logger():
     """
-    获取全局 logger，支持多脚本和多进程写同一个日志文件
+    获取全局 logger，支持多脚本和多进程写同一个日志文件。
+    若 DATAMIND_MODE=entrypoint，则认为外层 shell 已有时间戳，
+    Python 日志不再重复打印时间。
     """
     global _logger
     if _logger:
@@ -29,6 +31,9 @@ def get_logger():
     backup_count = int(os.getenv("DATAMIND_LOG_BACKUP_COUNT", log_conf.get("backup_count", 5)))
     use_concurrent = str(os.getenv("DATAMIND_LOG_USE_CONCURRENT", log_conf.get("use_concurrent", False))).lower() in ("1", "true", "yes")
 
+    # 🔍 检测模式（默认 normal，可设置为 entrypoint）
+    log_format = os.getenv("DATAMIND_LOG_FORMAT", "normal").lower()
+
     # 确保日志目录存在
     root = Path(__file__).resolve().parent.parent
     if not log_file.is_absolute():
@@ -44,7 +49,10 @@ def get_logger():
         return _logger
 
     # 日志格式
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(filename)s - %(message)s")
+    if log_format == "entrypoint":
+        formatter = logging.Formatter("%(levelname)s - %(module)s - %(message)s")
+    else:
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(filename)s - %(message)s")
 
     # 添加 handler 的封装函数
     def add_handler(handler):
@@ -66,6 +74,5 @@ def get_logger():
         fh = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8")
     add_handler(fh)
 
-    # 保存全局 logger
     _logger = logger
     return _logger
