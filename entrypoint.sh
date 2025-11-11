@@ -11,6 +11,9 @@ NC='\033[0m' # No Color
 DATAMIND_VERSION=${DATAMIND_VERSION:-1.0.0}
 DATAMIND_ENV=${DATAMIND_ENV:-production}
 
+# 通知 Python logger 采用 entrypoint 模式，不重复打印时间
+export DATAMIND_LOG_FORMAT=entrypoint
+
 # ==== 日志函数 ====
 log() {
     echo -e "[DATAMIND] [$(date '+%Y-%m-%d %H:%M:%S')] $1"
@@ -34,8 +37,10 @@ log "===========================================================================
 echo "[DATAMIND]  ____        _                  _           _ "
 echo "[DATAMIND] |  _ \\  __ _| |_ __ _ _ __ ___ (_)_ __   __| |"
 echo "[DATAMIND] | | | |/ _\` | __/ _\` | '_ \` _ \\| | '_ \\ / _\` |"
-echo "[DATAMIND] | |_| | (_| | || (_| | | | | | | | | | | (_| |"
+echo "[DATAMIND] | |_| | (_| | || (_| | | | | | | | | | (_| |"
 echo "[DATAMIND] |____/ \\__,_|\\__\\__,_|_| |_| |_|_|_| |_|\\__,_|"
+echo "[DATAMIND]"
+
 log "Powered by zhongsheng.chen@bankgy.com.cn"
 log "Version: ${DATAMIND_VERSION} | Environment: ${DATAMIND_ENV}"
 log "Starting Datamind service initialization..."
@@ -64,15 +69,14 @@ elapsed=$((end_time - start_time))
 log_success "==== DONE: Models registered successfully (耗时 ${elapsed}s) ===="
 
 # ==== 启动服务 ====
-log_success "Datamind service is running at http://0.0.0.0:3000"
 bentoml serve src.service:Datamind --host 0.0.0.0 --port 3000 &
-
 BENTO_PID=$!
+log_success "Datamind service is running at http://0.0.0.0:3000"
 
-# ==== 服务心跳日志（每 30 秒打印一次） ====
+# ==== 服务心跳日志（每 10 秒打印一次） ====
 while kill -0 $BENTO_PID 2>/dev/null; do
-    log "Datamind service heartbeat OK"
-    sleep 30
+    log_success "Datamind service is alive"
+    sleep 10
 done
 
 wait $BENTO_PID

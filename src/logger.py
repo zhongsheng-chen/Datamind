@@ -9,7 +9,7 @@ _logger = None
 def get_logger():
     """
     获取全局 logger，支持多脚本和多进程写同一个日志文件。
-    若 DATAMIND_MODE=entrypoint，则认为外层 shell 已有时间戳，
+    若 DATAMIND_LOG_FORMAT=entrypoint，则认为外层 shell 已有时间戳，
     Python 日志不再重复打印时间。
     """
     global _logger
@@ -31,7 +31,7 @@ def get_logger():
     backup_count = int(os.getenv("DATAMIND_LOG_BACKUP_COUNT", log_conf.get("backup_count", 5)))
     use_concurrent = str(os.getenv("DATAMIND_LOG_USE_CONCURRENT", log_conf.get("use_concurrent", False))).lower() in ("1", "true", "yes")
 
-    # 🔍 检测模式（默认 normal，可设置为 entrypoint）
+    # 🔍 检测日志输出模式（默认 normal，可设置为 entrypoint）
     log_format = os.getenv("DATAMIND_LOG_FORMAT", "normal").lower()
 
     # 确保日志目录存在
