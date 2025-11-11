@@ -130,12 +130,14 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
 
 - 发布服务（开发模式）
   ```bash
-  bentoml serve demo.service.py:svc --reload
   export PYTHONPATH=/tmp/pycharm_project_888:$PATH 
-  bentoml serve demo.service:Datamind --reload --port 3000
-
+  bentoml serve src.service:Datamind --reload --port 3000
   ```
-  
+  - 如果端口被占用
+    ```bash
+    lsof -i :3000
+    sudo fuser -k 3000/tcp
+    ```
 - 模型注销
   - 注销全部模型
       ```bash
