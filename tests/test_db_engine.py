@@ -8,7 +8,7 @@ class TestDBEngine(unittest.TestCase):
     @patch("src.db_engine.config")
     def test_create_oracle_engine(self, mock_config):
         """测试 Oracle 引擎创建"""
-        mock_config.get_databases.side_effect = lambda db_name: {
+        mock_config.get_database.side_effect = lambda db_name: {
             "oracle": {
                 "user": "test_user",
                 "password": "test_pass",
@@ -28,7 +28,7 @@ class TestDBEngine(unittest.TestCase):
     @patch("src.db_engine.config")
     def test_create_postgres_engine(self, mock_config):
         """测试 Postgres 引擎创建"""
-        mock_config.get_databases.side_effect = lambda db_name: {
+        mock_config.get_database.side_effect = lambda db_name: {
             "postgres": {
                 "user": "pg_user",
                 "password": "pg_pass",
@@ -48,14 +48,14 @@ class TestDBEngine(unittest.TestCase):
     @patch("src.db_engine.config")
     def test_unsupported_db(self, mock_config):
         """测试不支持的数据库类型"""
-        mock_config.get_databases.side_effect = lambda db_name: None
+        mock_config.get_database.side_effect = lambda db_name: None
         with self.assertRaises(ValueError):
             db_engine.create_db_engine("sqlite")
 
     @patch("src.db_engine.config")
     def test_missing_port_oracle(self, mock_config):
         """测试缺少 port 配置"""
-        mock_config.get_databases.side_effect = lambda db_name: {
+        mock_config.get_database.side_effect = lambda db_name: {
             "oracle": {
                 "user": "user",
                 "password": "pass",
@@ -70,7 +70,7 @@ class TestDBEngine(unittest.TestCase):
     @patch("src.db_engine.config")
     def test_missing_port_postgres(self, mock_config):
         """测试 Postgres 缺少 port"""
-        mock_config.get_databases.side_effect = lambda db_name: {
+        mock_config.get_database.side_effect = lambda db_name: {
             "postgres": {
                 "user": "user",
                 "password": "pass",

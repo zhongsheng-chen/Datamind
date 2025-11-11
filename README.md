@@ -205,7 +205,7 @@ docker build -t datamind:latest .
 
 ## 启动服务
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 ## 查看日志
 ```bash
@@ -249,6 +249,21 @@ model_registry:
                 "total_tax_amount", "avg_tax_amount","max_tax_amount", "min_tax_amount" , "tax_amount_std",
                 "loan_to_income_ratio", "existing_loans_ratio" ]     #模型特征，必填
 
+```
+
+## Dockerfile 构建镜像
+- 构建镜像
+```bash
+docker build -t dataminddev/datamind:latest .
+```
+- 删除悬空镜像
+```bash
+docker image prune -f
+```
+
+## logo
+```bash
+docker run --rm -it -v $(pwd)/print_logo.py:/app/print_logo.py python:3.10-slim bash -c "pip install pyfiglet && python /app/print_logo.py"
 ```
 
 # git 拉取最新版本

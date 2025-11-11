@@ -32,9 +32,9 @@ import pytz
 import argparse
 import bentoml
 from dateutil.parser import parse
-from src.setup import setup_logger
+from src.logger import get_logger
 
-logger = setup_logger()
+logger = get_logger()
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
 

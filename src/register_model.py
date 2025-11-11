@@ -33,7 +33,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from src.config_parser import config
 from src.db_engine import postgres_engine
-from src.setup import setup_logger
+from src.logger import get_logger
 
 
 try:
@@ -69,7 +69,7 @@ except ImportError:
     keras = None
 
 # === 初始化 ===
-logger = setup_logger()
+logger = get_logger()
 EXTENSION_MAP = {
     "sklearn": [".pkl", ".joblib"],
     "xgboost": [".json", ".ubj", ".bin", ".pkl"],

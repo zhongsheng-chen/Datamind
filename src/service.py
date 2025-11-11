@@ -25,9 +25,9 @@ from sqlalchemy import text
 from src.model_loader import ModelLoader
 from src.config_parser import config
 from src.db_engine import postgres_engine
-from src.setup import setup_logger
+from src.logger import get_logger
 
-logger = setup_logger()
+logger = get_logger()
 DEFAULT_THRESHOLD = 0.5
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
@@ -463,7 +463,7 @@ if __name__ == "__main__":
                 "total_tax_records": random.randint(0, 10),
                 "total_tax_amount": random.randint(0, 10000),
                 "avg_tax_amount": random.randint(0, 3000),
-                # "max_tax_amount": random.randint(100, 2000),
+                "max_tax_amount": random.randint(100, 2000),
                 "min_tax_amount": random.randint(50, 1000),
                 "tax_amount_std": round(random.uniform(0, 500), 2),
                 "loan_to_income_ratio": round(random.uniform(0, 1), 2),

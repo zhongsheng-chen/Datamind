@@ -10,9 +10,9 @@ list_model.py
 
 import bentoml
 from datetime import timezone, timedelta
-from src.setup import setup_logger
+from src.logger import get_logger
 
-logger = setup_logger()
+logger = get_logger()
 
 def human_readable_size(size_bytes):
     for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:

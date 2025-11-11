@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, URL
 from src.config_parser import config
-from src.setup import setup_logger
+from src.logger import get_logger
 
-logger = setup_logger()
+logger = get_logger()
 
 # 引擎缓存池
 _engines: dict[str, Engine] = {}
@@ -46,7 +46,7 @@ def make_connection_url(db_name: str, db_config: dict) -> URL:
 def create_db_engine(db_name: str) -> Engine:
     """根据配置创建数据库引擎"""
     try:
-        db_config = config.get_databases(db_name)
+        db_config = config.get_database(db_name)
         if not db_config:
             raise ValueError(f"没有找到数据库配置: {db_name}")
 
