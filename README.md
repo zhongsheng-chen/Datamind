@@ -198,9 +198,14 @@ model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'L
     PYTHONPATH=. python bentoml_helper/delete_model.py --dry-run
     PYTHONPATH=. python bentoml_helper/delete_model.py --before 2025-09-01 --dry-run
     ```
-## 构建镜像
+## 镜像
+- 构建镜像
 ```bash
-docker build -t datamind:latest .
+docker build -t dataminddev/datamind:latest .
+```
+- 删除悬空镜像
+```bash
+docker image prune -f
 ```
 
 ## 启动服务
@@ -249,16 +254,6 @@ model_registry:
                 "total_tax_amount", "avg_tax_amount","max_tax_amount", "min_tax_amount" , "tax_amount_std",
                 "loan_to_income_ratio", "existing_loans_ratio" ]     #模型特征，必填
 
-```
-
-## Dockerfile 构建镜像
-- 构建镜像
-```bash
-docker build -t dataminddev/datamind:latest .
-```
-- 删除悬空镜像
-```bash
-docker image prune -f
 ```
 
 ## logo
