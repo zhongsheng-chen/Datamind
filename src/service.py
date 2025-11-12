@@ -27,12 +27,15 @@ from src.model_loader import ModelLoader
 from src.config_parser import config
 from src.db_engine import postgres_engine
 from src.logger import get_logger
-
+from src.scoring import ScoreTransformer as ST
 
 logger = get_logger()
-DEFAULT_THRESHOLD = 0.5
 beijing_tz = pytz.timezone("Asia/Shanghai")
 
+DEFAULT_THRESHOLD = 0.5
+DEFAULT_BASE_SCORE = 600
+DEFAULT_PDO = 50
+_EPS = 1e-6
 SENSITIVE_FIELDS = {"income", "total_tax_amount", "avg_tax_amount", "max_tax_amount", "min_tax_amount"}
 
 # -------------------------
@@ -40,13 +43,6 @@ SENSITIVE_FIELDS = {"income", "total_tax_amount", "avg_tax_amount", "max_tax_amo
 # -------------------------
 def mask_payload(payload: dict) -> dict:
     return {k: ("******" if k in SENSITIVE_FIELDS else v) for k, v in payload.items()}
-
-def probability_to_score(probability: float, base_score: int = 600, pdo: int = 50) -> int:
-    """概率转信用评分"""
-    import math
-    odds = probability / (1 - probability) if 0 < probability < 1 else 1e-6
-    score = base_score - (pdo / math.log(2)) * math.log(odds)
-    return int(round(score))
 
 def summarize_results(results: list) -> str:
     """
@@ -61,12 +57,6 @@ def summarize_results(results: list) -> str:
         ]
         if "label" in r:
             parts.append(f"label={r['label']}")
-        if "probability" in r:
-            parts.append(f"prob={r['probability']:.4f}")
-        if "score" in r:
-            parts.append(f"score={r['score']}")
-        lines.append(" | ".join(parts))
-    return " ; ".join(lines)
 
 def summarize_features(features: dict, n=3) -> str:
     """
@@ -380,10 +370,23 @@ class Datamind:
                         }
                         if return_type in ["label", "label_and_proba"]:
                             result["label"] = label
+                            result["probability"] = probability
+                            result["threshold"] = threshold
                         if return_type in ["proba", "label_and_proba"]:
                             result["probability"] = probability
                         if return_type == "score":
-                            result["score"] = probability_to_score(probability)
+                            base_score, pdo, min_score, max_score, direction = ST._extract_params(request)
+                            result["score"] = ST.probability_to_score(probability, request)
+                            result["scoring_params"] = {
+                                "base_score": base_score,
+                                "pdo": pdo,
+                                "min_score": min_score,
+                                "max_score": max_score,
+                                "direction": direction,
+                                "label": label,
+                                "probability": probability,
+                                "threshold": threshold,
+                            }
 
                         results.append(result)
                         runtime.append(result.copy())
@@ -434,10 +437,23 @@ class Datamind:
                         }
                         if return_type in ["label", "label_and_proba"]:
                             result["label"] = label
+                            result["probability"] = probability
+                            result["threshold"] = threshold
                         if return_type in ["proba", "label_and_proba"]:
                             result["probability"] = probability
                         if return_type == "score":
-                            result["score"] = probability_to_score(probability)
+                            base_score, pdo, min_score, max_score, direction = ST._extract_params(request)
+                            result["score"] = ST.probability_to_score(probability, request)
+                            result["scoring_params"] = {
+                                "base_score": base_score,
+                                "pdo": pdo,
+                                "min_score": min_score,
+                                "max_score": max_score,
+                                "direction": direction,
+                                "label": label,
+                                "probability": probability,
+                                "threshold": threshold,
+                            }
 
                         results.append(result)
                         runtime.append(result.copy())
