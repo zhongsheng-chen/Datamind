@@ -18,6 +18,15 @@ DRIVER_MAP = {
     "mssql": "mssql+pyodbc",
 }
 
+# 默认 Engine 参数
+DEFAULT_ENGINE_PARAMS = {
+    "pool_size": 5,
+    "max_overflow": 10,
+    "pool_timeout": 30,
+    "pool_recycle": 3600,
+}
+
+
 def make_connection_url(db_name: str, db_config: dict) -> URL:
     """根据数据库配置构造 SQLAlchemy URL"""
     db_key = db_name.lower()
@@ -29,19 +38,23 @@ def make_connection_url(db_name: str, db_config: dict) -> URL:
     port = int(db_config.get("port"))
     user = db_config.get("user", "")
     password = db_config.get("password", "")
-
+    database = db_config.get("database") or None
     query = {}
-    database = db_config.get("database", None)
 
     if db_key == "oracle":
-        # Oracle 需要 service_name
-        query["service_name"] = db_config.get("service_name", "")
+        service_name = db_config.get("service_name")
+        sid = db_config.get("sid")
+        if service_name:
+            dsn = f"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={service_name})))"
+        elif sid:
+            dsn = f"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SID={sid})))"
+        else:
+            raise ValueError("Oracle 连接缺少 service_name 或 sid")
         database = None
+        query["dsn"] = dsn
     elif db_key == "mysql":
-        # MySQL 可选字符集
         query["charset"] = db_config.get("charset", "utf8mb4")
     elif db_key == "mssql":
-        # SQL Server 可通过 DSN 或 query 配置其他参数
         query["driver"] = db_config.get("driver", "ODBC Driver 18 for SQL Server")
 
     return URL.create(
@@ -51,7 +64,7 @@ def make_connection_url(db_name: str, db_config: dict) -> URL:
         host=host,
         port=port,
         database=database,
-        query=query
+        query=query,
     )
 
 
@@ -66,10 +79,7 @@ def create_db_engine(db_name: str) -> Engine:
 
         engine = create_engine(
             db_url,
-            pool_size=int(db_config.get("pool_size", 5)),
-            max_overflow=int(db_config.get("max_overflow", 10)),
-            pool_timeout=int(db_config.get("pool_timeout", 30)),
-            pool_recycle=int(db_config.get("pool_recycle", 3600)),
+            **{k: int(db_config.get(k, v)) for k, v in DEFAULT_ENGINE_PARAMS.items()}
         )
 
         logger.info(f"{db_name.capitalize()} 数据库引擎创建成功")
@@ -89,6 +99,36 @@ def get_engine(db_name: str) -> Engine:
         return _engines[db_name]
 
 
-# 示例初始化数据库
-oracle_engine = get_engine("oracle")
-postgres_engine = get_engine("postgres")
+class LazyEngine:
+    """惰性加载 Engine，仅在首次访问时初始化"""
+    def __init__(self, name: str):
+        self._name = name
+        self._engine: Engine | None = None
+        self._lock = Lock()
+
+    def __getattr__(self, item):
+        if self._engine is None:
+            with self._lock:
+                if self._engine is None:
+                    logger.info(f"正在延迟加载 {self._name} 数据库引擎...")
+                    self._engine = get_engine(self._name)
+        return getattr(self._engine, item)
+
+    def dispose(self):
+        """手动释放连接池资源"""
+        if self._engine:
+            logger.info(f"释放 {self._name} 数据库引擎连接池资源")
+            self._engine.dispose()
+
+
+def close_all_engines():
+    """关闭所有缓存的数据库引擎"""
+    with _lock:
+        for name, engine in _engines.items():
+            logger.info(f"关闭数据库引擎：{name}")
+            engine.dispose()
+        _engines.clear()
+
+
+oracle_engine = LazyEngine("oracle")
+postgres_engine = LazyEngine("postgres")

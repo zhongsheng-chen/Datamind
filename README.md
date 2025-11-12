@@ -214,6 +214,12 @@ docker image prune -f
 ```bash
 docker compose up -d
 ```
+
+## 删除服务
+```bash
+docker compose down -v
+```
+
 ## 查看日志
 ```bash
 docker logs -f datamind
@@ -242,23 +248,21 @@ docker logs -f datamind
 | custom          | 用户自定义逻辑          | 复杂业务逻辑或组合接口     | 可以通过 Python 函数实现                    |
 
 
-**model_registry 参数**
+**models 参数**
 ```yaml
-model_registry:
-  demo_loan_lr:
-    model_name: "demo_loan_scorecard_lr_20250930"                    #模型名称，必填
-    model_type: "logistic_regression"                                #模型类型，必填 可选 logistic_regression|decision_tree|random_forest|xgboost|lightgbm|catboost
-    model_path: "models/demo_loan_scorecard_lr_20250930.pkl"         #模型路径，必填
-    version: "lqmegnvh7kyoagva"                                      #版本编号，选填，模型注册成功后会自动生成版本编号
-    uuid: "c9bfcf1c-2cec-594f-9435-c75e93265044"                     #唯一标识，选填，模型注册成功后会自动生成唯一标识
-    framework: "sklearn"                                             #模型框架，必填，可选 sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost
-    features: [ "age", "income", "debt_ratio", "loan_amount", "existing_loans", "total_tax_records",
-                "total_tax_amount", "avg_tax_amount","max_tax_amount", "min_tax_amount" , "tax_amount_std",
-                "loan_to_income_ratio", "existing_loans_ratio" ]     #模型特征，必填
-
+models:
+  scoring:
+  - model_name: demo_loan_scorecard_lr_20250930                     # 模型名称，必填
+    model_type: logistic_regression                                 # 模型类型，必填 可选 logistic_regression|decision_tree|random_forest|xgboost|lightgbm|catboost
+    model_path: "models/demo_loan_scorecard_lr_20250930.pkl"        # 模型路径，必填
+    version: "2vunfhf33o5tvglm"                                     # 版本编号，选填，模型注册成功后会自动生成版本编号
+    uuid: "9b95a32d-a6ef-525e-afd4-027ba96e6f31"                    # 唯一标识，选填，模型注册成功后会自动生成唯一标识
+    hash: "10e80124a0bd9d1a873cf1f47b1761ee368b1d0d34a89a580d3fb6708138bbf7"
+    framework: sklearn                                              # 模型框架，必填，可选 sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost
+    features: demo_loan_features                                    # 模型采用的特征集索引
 ```
 
-## logo
+# 生成 logo
 ```bash
 docker run --rm -it -v $(pwd)/print_logo.py:/app/print_logo.py python:3.10-slim bash -c "pip install pyfiglet && python /app/print_logo.py"
 ```
@@ -311,4 +315,28 @@ git push -u origin master # 第一次
 或
 ```bash
 git push origin master
+```
+或
+```bash
+git push origin master --force
+```
+- 创建Tag
+```bash
+git tag -a v20251112 -m "版本 v20251112 发布"
+```
+- 查看Tag
+```bash
+git show v20251112
+```
+- 推送 tag 到远程
+```bash
+git push origin v20251112
+```
+- 删除本地 Tag
+```bash
+git tag -d v20251112
+```
+- 删除远程 Tag
+```bash
+git push origin --delete v20251112
 ```

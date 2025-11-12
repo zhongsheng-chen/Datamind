@@ -47,6 +47,9 @@ def mask_payload(payload: dict) -> dict:
 def summarize_results(results: list) -> str:
     """
     将模型结果提炼为简洁字符串
+    支持 label/probability/score 信息
+    输出示例:
+      "modelA role=primary status=success label=1 probability=0.87; modelB role=challenger status=failed"
     """
     lines = []
     for r in results:
@@ -57,6 +60,12 @@ def summarize_results(results: list) -> str:
         ]
         if "label" in r:
             parts.append(f"label={r['label']}")
+        if "probability" in r:
+            parts.append(f"probability={r['probability']:.4f}")
+        if "score" in r:
+            parts.append(f"score={r['score']}")
+        lines.append(" ".join(parts))
+    return "; ".join(lines)
 
 def summarize_features(features: dict, n=3) -> str:
     """

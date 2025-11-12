@@ -1,7 +1,7 @@
 services:
   postgres:
     image: ${POSTGRES_IMAGE}
-    container_name: datamind-postgres
+    container_name: datamind-db
     ports:
       - "${POSTGRES_PORT}:5432"
     env_file:
@@ -23,31 +23,6 @@ services:
     networks:
       - datamind-network
 
-  oracle:
-    image: ${ORACLE_IMAGE}
-    container_name: datamind-oracle
-    ports:
-      - "${ORACLE_PORT}:1521"
-      - "${ORACLE_EM_PORT}:5500"
-    env_file:
-      - .env
-    environment:
-      - ORACLE_DATABASE=${ORACLE_DATABASE}
-      - ORACLE_PASSWORD=${ORACLE_PASSWORD}
-      - APP_USER=${ORACLE_APP_USER}
-      - APP_USER_PASSWORD=${ORACLE_APP_USER_PASSWORD}
-      - TZ=${TZ}
-    volumes:
-      - oracle_data:/opt/oracle/oradata
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo 'SELECT 1 FROM dual;' | sqlplus -s SYSTEM/${ORACLE_PASSWORD}@XE"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks:
-      - datamind-network
-
   datamind:
     image: ${DATAMIND_IMAGE}
     container_name: datamind-server
@@ -57,18 +32,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      oracle:
-        condition: service_healthy
     ports:
       - "${DATAMIND_PORT}:3000"
     env_file:
       - .env
     environment:
-      - ORACLE_HOST=oracle
-      - ORACLE_PORT=1521
-      - ORACLE_SERVICE_NAME=${ORACLE_SERVICE_NAME}
-      - ORACLE_APP_USER=${ORACLE_APP_USER}
-      - ORACLE_APP_USER_PASSWORD=${ORACLE_APP_USER_PASSWORD}
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB}
@@ -89,7 +57,6 @@ services:
 volumes:
   postgres_data:
   postgres_logs:
-  oracle_data:
 
 networks:
   datamind-network:
