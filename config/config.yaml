@@ -55,8 +55,8 @@ models:
   - model_name: demo_loan_scorecard_lr_20250930
     model_type: logistic_regression
     model_path: "models/demo_loan_scorecard_lr_20250930.pkl"
-    version: "2vunfhf33o5tvglm"
-    uuid: "9b95a32d-a6ef-525e-afd4-027ba96e6f31"
+    version: "xo7ge3wff6vrsd6p"
+    uuid: "61225d67-c512-5a13-841d-4dbda5ce1ba5"
     hash: "10e80124a0bd9d1a873cf1f47b1761ee368b1d0d34a89a580d3fb6708138bbf7"
     framework: sklearn
     features: demo_loan_features
@@ -64,8 +64,8 @@ models:
   - model_name: demo_loan_scorecard_dt_20250930
     model_type: decision_tree
     model_path: "models/demo_loan_scorecard_dt_20250930.joblib"
-    version: "2vunfhv33o5tvglm"
-    uuid: "6bfc355c-2677-5f02-9f03-3919d1f3f19d"
+    version: "xo7ge4gff6vrsd6p"
+    uuid: "ea88f57b-e6ab-544b-b459-479fd966bafc"
     hash: "f10f11844d377d22d85b9eaddf06842cf72bcbdbf6bb239b8bf5650645f869a9"
     framework: sklearn
     features: demo_loan_features
@@ -73,8 +73,8 @@ models:
   - model_name: demo_loan_scorecard_rf_20250930
     model_type: random_forest
     model_path: "models/demo_loan_scorecard_rf_20250930.joblib"
-    version: "22r7lcf33o5tvglm"
-    uuid: "76e1e4c5-33a6-5de5-aa70-fa3cfea5a354"
+    version: "xt3ygiwff6vrsd6p"
+    uuid: "803743f8-3b2d-5411-a8df-11dbe206ee72"
     hash: "b92254a69f225dbad55f7fe2ab3f0260860c8d9fd4867b44ba49af4fbf49e95a"
     framework: sklearn
     features: demo_loan_features
@@ -82,8 +82,8 @@ models:
   - model_name: "demo_loan_scorecard_lgbm_20250930"
     model_type: "lightgbm"
     model_path: "models/demo_loan_scorecard_lgbm_20250930.lgb"
-    version: "22r7lcn33o5tvglm"
-    uuid: "0da70fcd-39cd-50c1-bc39-445dd178ae1e"
+    version: "xt3ygi6ff6vrsd6p"
+    uuid: "0c2a847f-6784-59be-90c4-16dbdf120e5a"
     hash: "13732de57383c92b6c0b7d1e9cca77db9dfb5b43c9e48b41b6d7b31fbd094bcf"
     framework: "lightgbm"
     features: demo_loan_features
@@ -91,8 +91,8 @@ models:
   - model_name: "demo_loan_scorecard_xgb_20250930"
     model_type: "xgboost"
     model_path: "models/demo_loan_scorecard_xgb_20250930.json"
-    version: "27j6krf33o5tvglm"
-    uuid: "e9d70321-2c13-5efe-93c5-076ec13050b9"
+    version: "xzundnwff6vrsd6p"
+    uuid: "a1d21b45-9e67-5896-be6a-3a0ae1607b58"
     hash: "59630d5e530e2b8432279f8b3621bb0cdb405fb91cfd4f0454c03b4603c436ab"
     framework: "xgboost"
     features: demo_loan_features
@@ -100,8 +100,8 @@ models:
   - model_name: "demo_loan_scorecard_cat_20250930"
     model_type: "catboost"
     model_path: "models/demo_loan_scorecard_cat_20250930.cbm"
-    version: "27j6krn33o5tvglm"
-    uuid: "dc6953b0-0907-525c-b2a4-94373ae4d1e1"
+    version: "xzundn6ff6vrsd6p"
+    uuid: "7bb4e0f0-522b-58f0-9925-e27add34632f"
     hash: "2eab00a9bd5c6578025e7e457ecff4278e5f99b968e298833971173b9d08f422"
     framework: "catboost"
     features: demo_loan_features
@@ -110,8 +110,8 @@ models:
   - model_name: "demo_loan_fraud_detection_cat_20250930"
     model_type: "catboost"
     model_path: "models/demo_loan_fraud_detection_cat_20250930.cbm"
-    version: "27j6krv33o5tvglm"
-    uuid: "75fb017f-81a1-512e-a3fc-3a589983a579"
+    version: "x6vnspwff6vrsd6p"
+    uuid: "e1248822-ab62-5b25-a718-b96859f6d5db"
     hash: "3216c6b870e683724e4ba05cc503d53f1251c78fc32f1c7f72bdb2e0931da4bb"
     framework: "catboost"
     features: demo_loan_features

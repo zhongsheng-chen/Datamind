@@ -181,8 +181,21 @@ class Datamind:
             raise ValueError(f"特征缺失: {', '.join(missing)}")
         return True
 
-    def _prepare_features(self, features: dict) -> pd.DataFrame:
-        return pd.DataFrame([features])
+    def _prepare_features(self, features: dict, model_obj=None) -> pd.DataFrame:
+        """
+        将请求特征转成 DataFrame，并根据 model_obj 调整列顺序
+        """
+        df = pd.DataFrame([features])
+
+        if model_obj is not None and hasattr(model_obj, "feature_names_in_"):
+            expected_cols = model_obj.feature_names_in_
+            missing = set(expected_cols) - set(df.columns)
+            if missing:
+                raise ValueError(f"特征缺失: {', '.join(missing)}")
+            # 按训练顺序重新排列
+            df = df[expected_cols]
+
+        return df
 
     def _get_business_name(self, workflow_name: str, request: dict) -> str:
         try:
@@ -287,6 +300,66 @@ class Datamind:
             ]))
         ])
 
+    def _run_model(self, model_name, cached_model, features, threshold, return_type,
+                   primary_model_name=None, endpoint=""):
+        X = self._prepare_features(features, cached_model.model)
+        model_timer_start = datetime.now(beijing_tz)
+        try:
+            self._check_features(X, cached_model.model)
+            label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
+            model_timer_end = datetime.now(beijing_tz)
+            model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
+
+            result = {
+                "model_name": model_name,
+                "version": cached_model.version,
+                "uuid": cached_model.uuid,
+                "hash": cached_model.hash,
+                "endpoint": endpoint,
+                "role": "primary" if model_name == primary_model_name else "challenger",
+                "status": "success",
+                "model_timer_start": model_timer_start.isoformat(),
+                "model_timer_end": model_timer_end.isoformat(),
+                "model_timer_ms": model_timer_ms
+            }
+
+            if return_type in ["label", "label_and_proba"]:
+                result["label"] = label
+                result["probability"] = probability
+                result["threshold"] = threshold
+            if return_type in ["proba", "label_and_proba"]:
+                result["probability"] = probability
+            if return_type == "score":
+                base_score, pdo, min_score, max_score, direction = ST._extract_params(features)
+                result["score"] = ST.probability_to_score(probability, features)
+                result["scoring_params"] = {
+                    "base_score": base_score,
+                    "pdo": pdo,
+                    "min_score": min_score,
+                    "max_score": max_score,
+                    "direction": direction,
+                    "label": label,
+                    "probability": probability,
+                    "threshold": threshold,
+                }
+                result["feature_scores"] = ST.get_feature_score(cached_model.model, X)
+
+            return result, None
+
+        except Exception as e:
+            model_timer_end = datetime.now(beijing_tz)
+            model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
+            failure = {
+                "model_name": model_name,
+                "endpoint": endpoint,
+                "error": str(e),
+                "status": "failed",
+                "model_timer_start": model_timer_start.isoformat(),
+                "model_timer_end": model_timer_end.isoformat(),
+                "model_timer_ms": model_timer_ms
+            }
+            return None, failure
+
     async def _handle_request(self, request: dict, endpoint: str, return_type: str = "label_and_proba",
                               ab_test_all_run: bool = False):
         workflow_name = request.get("workflow", "")
@@ -309,12 +382,12 @@ class Datamind:
         # 写入 running 状态
         try:
             sql_insert = text("""
-                INSERT INTO requests
-                (request_id, serial_number, endpoint, workflow_name, business_name, model_name,
-                 request_data, status, start_time, created_at)
-                VALUES (:request_id, :serial_number, :endpoint, :workflow_name, :business_name,
-                        :model_name, :request_data, 'running', :start_time, :created_at)
-            """)
+                              INSERT INTO requests
+                              (request_id, serial_number, endpoint, workflow_name, business_name, model_name,
+                               request_data, status, start_time, created_at)
+                              VALUES (:request_id, :serial_number, :endpoint, :workflow_name, :business_name,
+                                      :model_name, :request_data, 'running', :start_time, :created_at)
+                              """)
             with postgres_engine.begin() as conn:
                 conn.execute(sql_insert, {
                     "request_id": request_id,
@@ -330,17 +403,17 @@ class Datamind:
         except Exception as e:
             log_error(request_id, "写入 running 状态失败", error=str(e))
 
-        X = self._prepare_features(features)
         results = []
         failures = []
         runtime = []
 
         try:
-            if ab_test_all_run:
-                primary_model, primary_model_name_or_err = self._select_model(workflow_name, request_id=request_id)
-                workflow_conf = config.workflows.get(workflow_name, {})
-                model_items = workflow_conf.get("models", [])
+            workflow_conf = config.workflows.get(workflow_name, {})
+            model_items = workflow_conf.get("models", [])
 
+            if ab_test_all_run:
+                # AB Test: 遍历所有模型
+                primary_model, primary_model_name_or_err = self._select_model(workflow_name, request_id=request_id)
                 for m_item in model_items:
                     if not m_item.get("ab_test") or "weight" not in m_item["ab_test"]:
                         continue
@@ -358,61 +431,17 @@ class Datamind:
                         })
                         continue
 
-                    model_timer_start = datetime.now(beijing_tz)
-                    try:
-                        self._check_features(X, cached_model.model)
-                        label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
-                        model_timer_end = datetime.now(beijing_tz)
-                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
-
-                        result = {
-                            "model_name": model_name,
-                            "version": cached_model.version,
-                            "uuid": cached_model.uuid,
-                            "hash": cached_model.hash,
-                            "endpoint": endpoint,
-                            "role": "primary" if model_name == primary_model_name_or_err else "challenger",
-                            "status": "success",
-                            "model_timer_start": model_timer_start.isoformat(),
-                            "model_timer_end": model_timer_end.isoformat(),
-                            "model_timer_ms": model_timer_ms
-                        }
-                        if return_type in ["label", "label_and_proba"]:
-                            result["label"] = label
-                            result["probability"] = probability
-                            result["threshold"] = threshold
-                        if return_type in ["proba", "label_and_proba"]:
-                            result["probability"] = probability
-                        if return_type == "score":
-                            base_score, pdo, min_score, max_score, direction = ST._extract_params(request)
-                            result["score"] = ST.probability_to_score(probability, request)
-                            result["scoring_params"] = {
-                                "base_score": base_score,
-                                "pdo": pdo,
-                                "min_score": min_score,
-                                "max_score": max_score,
-                                "direction": direction,
-                                "label": label,
-                                "probability": probability,
-                                "threshold": threshold,
-                            }
-
+                    result, failure = self._run_model(model_name, cached_model, features, threshold,
+                                                      return_type, primary_model_name_or_err, endpoint)
+                    if result:
                         results.append(result)
                         runtime.append(result.copy())
-                    except Exception as e:
-                        model_timer_end = datetime.now(beijing_tz)
-                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
-                        failures.append({
-                            "model_name": model_name,
-                            "endpoint": endpoint,
-                            "error": str(e),
-                            "status": "failed",
-                            "model_timer_start": model_timer_start.isoformat(),
-                            "model_timer_end": model_timer_end.isoformat(),
-                            "model_timer_ms": model_timer_ms
-                        })
-                        runtime.append(failures[-1].copy())
+                    if failure:
+                        failures.append(failure)
+                        runtime.append(failure.copy())
+
             else:
+                # 单模型选择
                 cached_model, model_name_or_err = self._select_model(workflow_name, request_id=request_id)
                 if not cached_model:
                     failures.append({
@@ -425,60 +454,15 @@ class Datamind:
                         "model_timer_ms": 0
                     })
                 else:
-                    model_timer_start = datetime.now(beijing_tz)
-                    try:
-                        self._check_features(X, cached_model.model)
-                        label, probability = self._infer_label_and_proba(cached_model.model, X, threshold)
-                        model_timer_end = datetime.now(beijing_tz)
-                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
-
-                        result = {
-                            "model_name": model_name_or_err,
-                            "version": cached_model.version,
-                            "uuid": cached_model.uuid,
-                            "hash": cached_model.hash,
-                            "endpoint": endpoint,
-                            "role": "primary",
-                            "status": "success",
-                            "model_timer_start": model_timer_start.isoformat(),
-                            "model_timer_end": model_timer_end.isoformat(),
-                            "model_timer_ms": model_timer_ms
-                        }
-                        if return_type in ["label", "label_and_proba"]:
-                            result["label"] = label
-                            result["probability"] = probability
-                            result["threshold"] = threshold
-                        if return_type in ["proba", "label_and_proba"]:
-                            result["probability"] = probability
-                        if return_type == "score":
-                            base_score, pdo, min_score, max_score, direction = ST._extract_params(request)
-                            result["score"] = ST.probability_to_score(probability, request)
-                            result["scoring_params"] = {
-                                "base_score": base_score,
-                                "pdo": pdo,
-                                "min_score": min_score,
-                                "max_score": max_score,
-                                "direction": direction,
-                                "label": label,
-                                "probability": probability,
-                                "threshold": threshold,
-                            }
-
+                    result, failure = self._run_model(model_name_or_err, cached_model, features, threshold,
+                                                      return_type, primary_model_name=model_name_or_err,
+                                                      endpoint=endpoint)
+                    if result:
                         results.append(result)
                         runtime.append(result.copy())
-                    except Exception as e:
-                        model_timer_end = datetime.now(beijing_tz)
-                        model_timer_ms = (model_timer_end - model_timer_start).total_seconds() * 1000
-                        failures.append({
-                            "model_name": model_name_or_err,
-                            "endpoint": endpoint,
-                            "error": str(e),
-                            "status": "failed",
-                            "model_timer_start": model_timer_start.isoformat(),
-                            "model_timer_end": model_timer_end.isoformat(),
-                            "model_timer_ms": model_timer_ms
-                        })
-                        runtime.append(failures[-1].copy())
+                    if failure:
+                        failures.append(failure)
+                        runtime.append(failure.copy())
         except Exception as e:
             failures.append({
                 "model_name": "",
