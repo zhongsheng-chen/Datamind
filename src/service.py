@@ -342,6 +342,7 @@ class Datamind:
                     "probability": probability,
                     "threshold": threshold,
                 }
+                result["feature_scores"] = ST.get_feature_score(cached_model.model, X)
 
             return result, None
 

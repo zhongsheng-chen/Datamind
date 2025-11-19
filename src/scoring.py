@@ -92,3 +92,62 @@ class ScoreTransformer:
             score = min(score, max_score)
 
         return int(round(score))
+
+    @staticmethod
+    def get_feature_score(model, X):
+        """
+        获取模型的特征重要性或特征评分
+
+        参数:
+            model: sklearn-like 模型或 Pipeline
+            X: pd.DataFrame, 输入特征（未经过 Pipeline 预处理）
+
+        返回:
+            dict: {feature_name: score}
+        """
+        import numpy as np
+
+        # 如果是 Pipeline，取最后一步模型
+        if hasattr(model, 'steps'):
+            final_model = model.steps[-1][1]
+            # 尝试获取经过预处理后的特征名
+            try:
+                X_transformed = model[:-1].transform(X)
+                if hasattr(model[:-1], 'get_feature_names_out'):
+                    feature_names = model[:-1].get_feature_names_out(X.columns)
+                else:
+                    feature_names = X.columns
+            except Exception:
+                # 如果 transform 出错，直接用原始特征
+                X_transformed = X.values
+                feature_names = X.columns
+        else:
+            final_model = model
+            X_transformed = X.values
+            feature_names = X.columns
+
+        # 逻辑回归
+        if hasattr(final_model, 'coef_'):
+            coefs = final_model.coef_
+            if coefs.ndim == 2 and coefs.shape[0] == 1:
+                coefs = coefs[0]
+            scores = {f: float(coef) for f, coef in zip(feature_names, coefs)}
+
+        # 树模型
+        elif hasattr(final_model, 'feature_importances_'):
+            importances = final_model.feature_importances_
+            scores = {f: float(imp) for f, imp in zip(feature_names, importances)}
+
+        # 回退到 SHAP
+        else:
+            try:
+                import shap
+                explainer = shap.Explainer(final_model, X_transformed)
+                shap_values = explainer(X_transformed)
+                mean_abs_shap = np.abs(shap_values.values).mean(axis=0)
+                scores = {f: float(v) for f, v in zip(feature_names, mean_abs_shap)}
+            except Exception:
+                # 如果 SHAP 也失败
+                scores = {f: None for f in feature_names}
+
+        return scores

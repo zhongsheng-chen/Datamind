@@ -29,11 +29,12 @@ logger = get_logger()
 
 class CachedModel:
     """缓存模型及其元信息"""
-    def __init__(self, model, version: str, uuid: str, hash: str):
+    def __init__(self, model, version: str, uuid: str, hash: str, model_type: str):
         self.model = model
         self.version = version
         self.uuid = uuid
         self.hash = hash
+        self.model_type = model_type
 
 
 class ModelLoader:
@@ -74,6 +75,7 @@ class ModelLoader:
         version = model_info.get("version", "latest")
         uuid = model_info.get("uuid", "")
         hash = model_info.get("hash", "")
+        model_type = model_info.get("model_type", "")
         tag = f"{model_info['model_name']}:{version}"
 
         logger.info(f"[加载中] 模型 {model_name}(framework={framework}, tag={tag}, uuid={uuid})")
@@ -101,7 +103,7 @@ class ModelLoader:
             model = loader(tag)
             elapsed = time.time() - start_time
             logger.info(f"[成功] 模型 {model_name} 加载完成，耗时 {elapsed:.2f} 秒")
-            return CachedModel(model, version, uuid, hash)
+            return CachedModel(model, version, uuid, hash, model_type)
 
         except Exception as e:
             elapsed = time.time() - start_time
