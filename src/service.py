@@ -181,8 +181,21 @@ class Datamind:
             raise ValueError(f"特征缺失: {', '.join(missing)}")
         return True
 
-    def _prepare_features(self, features: dict) -> pd.DataFrame:
-        return pd.DataFrame([features])
+    def _prepare_features(self, features: dict, model_obj=None) -> pd.DataFrame:
+        """
+        将请求特征转成 DataFrame，并根据 model_obj 调整列顺序
+        """
+        df = pd.DataFrame([features])
+
+        if model_obj is not None and hasattr(model_obj, "feature_names_in_"):
+            expected_cols = model_obj.feature_names_in_
+            missing = set(expected_cols) - set(df.columns)
+            if missing:
+                raise ValueError(f"特征缺失: {', '.join(missing)}")
+            # 按训练顺序重新排列
+            df = df[expected_cols]
+
+        return df
 
     def _get_business_name(self, workflow_name: str, request: dict) -> str:
         try:
@@ -330,7 +343,6 @@ class Datamind:
         except Exception as e:
             log_error(request_id, "写入 running 状态失败", error=str(e))
 
-        X = self._prepare_features(features)
         results = []
         failures = []
         runtime = []
@@ -358,6 +370,7 @@ class Datamind:
                         })
                         continue
 
+                    X = self._prepare_features(features, cached_model.model)
                     model_timer_start = datetime.now(beijing_tz)
                     try:
                         self._check_features(X, cached_model.model)
@@ -425,6 +438,7 @@ class Datamind:
                         "model_timer_ms": 0
                     })
                 else:
+                    X = self._prepare_features(features, cached_model.model)
                     model_timer_start = datetime.now(beijing_tz)
                     try:
                         self._check_features(X, cached_model.model)
@@ -569,8 +583,9 @@ if __name__ == "__main__":
                 "max_tax_amount": random.randint(100, 2000),
                 "min_tax_amount": random.randint(50, 1000),
                 "tax_amount_std": round(random.uniform(0, 500), 2),
-                "loan_to_income_ratio": round(random.uniform(0, 1), 2),
+
                 "existing_loans_ratio": round(random.uniform(0, 1), 2),
+                "loan_to_income_ratio": round(random.uniform(0, 1), 2),
             }
 
         def random_serial_number(length=15):
