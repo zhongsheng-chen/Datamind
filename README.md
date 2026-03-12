@@ -1,342 +1,205 @@
-## 功能目标
-
-建立一个规则 + 模型的一体化零售贷款决策服务，以 BentoML + PostgreSQL 为核心，规则用 YAML 配置，模型支持 多算法、多版本、多格式。
-
-- 服务逻辑：
-
-    - 规则引擎（初筛规则） → 如果触发，直接拒绝并返回 拒绝码（写入数据库）
-
-    - 模型预测 → 支持多种模型（违约概率模型、反欺诈模型…），给出结果
-
-    - 结果存储 → 模型输入、输出、规则触发原因写入数据库，便于审计和效果评估
-
-## 特性
-
-- 多格式支持：pickle、joblib、ONNX、JSON 等常用格式。
-
-- 自动依赖管理：BentoML 会记录模型依赖（如 sklearn 版本）。
-
-- 多版本管理：同一个模型名称可保存多个版本，方便热更新。
-
-- 统一接口：不同框架模型都可以通过 Runner 或 API 暴露服务。
-- 特征对齐（Feature Mapping & Validation）
-
-## 模型与规则
-
-- 规则引擎：
-
-  采用 YAML + Python 实现，规则可配置。规则触发要有码值（拒绝原因码），同时写库
-
-- 模型支持：
-
-    - 算法类型：LR、NNs、Decision Tree、XGBoost
-
-    - 文件格式：支持 ONNX、PKL 
-    - 多个模型版本：不同业务场景或版本号
-
-- 特征管理：
-
-    - 不同模型输入特征个数不一样
-
-    - 需要一个 特征映射/适配层，保证调用时能选择正确的特征
-
-## 技术选型
-
-- 服务框架：
-
-    - 使用 BentoML 部署模型（API 形式对外提供服务）
-
-    - BentoML 自动处理模型版本管理、依赖封装、容器化
-
-- 数据库：
-
-  本地用 PostgreSQL 存储：
-
-    - 规则触发日志
-
-    - 模型调用输入/输出
-
-    - 决策结果（通过/拒绝/分数）
-
-- 日志：
-
-  统一用 Python logging（RotatingFileHandler），支持控制台 + 文件输出
-
-- 配置管理：
-
-  用 config/config.yaml 统一管理数据库、日志、服务等参数
-
-
-
-## 服务调用方式
-
-- 同步 API 调用：
-
-    - 内评系统每笔进件调用一次，得到即时结果
-
-    - 无需 Kafka
-
-- 异步扩展（可选）：
-
-    - 如果未来需要：
-
-        - 大规模实时数据分析
-
-        - 指标监控（实时进件量、逾期率）
-
-        - 模型效果追踪
-
-- 可以把服务调用结果异步写入 Kafka，再做实时计算
-
-## 测试
-
-- 生成测试数据
-  ```bash
-  PYTHONPATH=. python mock/data_mocker.py
-
-- 测试单个案例
-  ```bash
-  PYTHONPATH=. pytest tests/test_utils.py
-
-- 测试所有案例
-   ```bash
-   PYTHONPATH=. pytest tests/test_register_model.py
-  ```
-  ```bash
-   PYTHONPATH=. pytest tests/test_register_model.py
-  ```
-
-model_type ,‘LinerRegression’, 'DecisionTree', 'RandomForest', 'XGBoost', 'LightGBM ' 等等这些模型算法
-
-步骤：
-- 训练模型
-  ```bash
-  cd demo/
-  python train.py
-  ```
-  - 模型注册
-    - 注册全部模型
-    ```bash
-    PYTHONPATH=. python src/register_model.py --all
-    ```
-    - 注册指定模型
-    ```bash
-    PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930
-    ```
-    - 强制注册模型
-    ```bash
-    PYTHONPATH=. python src/register_model.py --model_name demo_loan_scorecard_lr_20250930 --force
-    ```
-
-- 发布服务（开发模式）
-  ```bash
-  export PYTHONPATH=/tmp/pycharm_project_888:$PATH 
-  bentoml serve src.service:Datamind --reload --port 3000
-  ```
-  - 如果端口被占用
-    ```bash
-    lsof -i :3000
-    sudo fuser -k 3000/tcp
-    ```
-- 模型注销
-  - 注销全部模型
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --all
-     ```
-  - 按tag注销模型
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --tag demo_loan_scorecard_lr_20250930:bnx7y63fsn2uqxgq
-      ```
-  - 按tag注销模型，支持批量逗号分隔
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --tags demo_loan_scorecard_lr_20250930:bnx7y63fsn2uqxgq, demo_loan_scorecard_rf_20250930:rweugznuok7v2b3i
-      ```
-  - 按uuid注销模型
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529
-      ```
-  - 按uuid注销模型，支持批量逗号分隔
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529,123e4567-e89b-12d3-a456-426614174000
-      ```
-  - 彻底删除指定模型
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --uuid b4005024-444c-51a0-b312-3d43ded9e529 --delete
-      ```
-  - 彻底删除所有模型
-      ```bash
-      PYTHONPATH=. python src/unregister_model.py --all --delete
-      ```    
-- 镜像化
-    ```bash
-  bentoml containerize loan_service:latest
-  docker run -p 3000:3000 loan_service:latest
-    ```
-
-## 模型服务
-- 查看所有模型服务
-    ```bash
-    PYTHONPATH=. python bentoml_helper/list_model.py
-    ```
-- 保留最新版本，删除历史旧模型
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --keep-latest
-    ```
-- 删除早于指定日期的模型
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --before 2025-09-01
-    ```
-- 删除指定tag的模型
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --tag name1:version2, name2:version2 --dry-run
-    ```
-- 删除多个tag指定模型中早于指定日期的模型：
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --tag name1:version2, name2:version2 --before 2025-09-01
-    ```
-  
-- dry-run 模式，只打印将要删除的模型
-    ```bash
-    PYTHONPATH=. python bentoml_helper/delete_model.py --dry-run
-    PYTHONPATH=. python bentoml_helper/delete_model.py --before 2025-09-01 --dry-run
-    ```
-## 镜像
-- 构建镜像
-```bash
-docker build -t dataminddev/datamind:latest .
-```
-- 删除悬空镜像
-```bash
-docker image prune -f
-```
-
-## 启动服务
-```bash
-docker compose up -d
-```
-
-## 删除服务
-```bash
-docker compose down -v
-```
-
-## 查看日志
-```bash
-docker logs -f datamind
+```text
+datamind/
+├── api/                            # API接口层
+│   ├── __init__.py
+│   ├── register_api.py             # 模型注册API
+│   ├── model_api.py                 # 模型查询API
+│   ├── audit_api.py                 # 审计日志API
+│   ├── inference_api.py             # 推理日志API
+│   └── version_api.py               # 版本管理API
+│
+├── bento_services/                  # BentoML服务（独立部署）
+│   ├── __init__.py
+│   ├── scoring_service.py           # 评分卡服务
+│   │   ├── service.py               # BentoML服务定义
+│   │   ├── bentofile.yaml           # BentoML配置文件
+│   │   └── requirements.txt         # 服务依赖
+│   │
+│   └── fraud_service.py             # 反欺诈服务
+│       ├── service.py
+│       ├── bentofile.yaml
+│       └── requirements.txt
+│
+├── cli/                             # 命令行工具（新增）
+│   ├── __init__.py
+│   ├── main.py                      # CLI入口
+│   ├── commands/                    # 命令模块
+│   │   ├── __init__.py
+│   │   ├── model.py                  # 模型管理命令
+│   │   ├── audit.py                   # 审计日志命令
+│   │   ├── log.py                     # 日志管理命令
+│   │   ├── config.py                  # 配置管理命令
+│   │   ├── health.py                  # 健康检查命令
+│   │   └── version.py                 # 版本管理命令
+│   ├── utils/                        # CLI工具函数
+│   │   ├── __init__.py
+│   │   ├── printer.py                 # 格式化输出
+│   │   ├── progress.py                # 进度条显示
+│   │   └── config.py                  # CLI配置管理
+│   ├── completions/                  # 命令行补全
+│   │   ├── bash.sh                    # Bash补全
+│   │   ├── zsh.sh                     # Zsh补全
+│   │   └── fish.sh                    # Fish补全
+│   ├── templates/                    # 命令模板
+│   │   ├── model_registration.json    # 模型注册模板
+│   │   └── audit_query.json           # 审计查询模板
+│   └── README.md                      # CLI使用说明
+│
+├── core/                            # 核心业务逻辑
+│   ├── __init__.py
+│   ├── models.py                    # SQLAlchemy数据库模型
+│   ├── database.py                   # 数据库连接管理
+│   ├── audit_logger.py               # 审计日志系统
+│   ├── log_manager.py                # 日志管理器
+│   ├── model_registry.py             # 模型注册核心逻辑
+│   ├── model_loader.py               # 模型热加载器
+│   ├── inference.py                  # 统一推理引擎
+│   ├── ab_test.py                    # AB测试管理器
+│   └── exceptions.py                 # 自定义异常
+│
+├── config/                           # 配置文件
+│   ├── __init__.py
+│   ├── settings.py                   # 应用配置
+│   ├── logging_config.py              # 日志配置模型
+│   ├── development.yaml               # 开发环境配置
+│   ├── testing.yaml                   # 测试环境配置
+│   ├── staging.yaml                   # 预发布环境配置
+│   └── production.yaml                # 生产环境配置
+│
+├── migrations/                       # 数据库迁移
+│   ├── __init__.py
+│   ├── env.py                         # Alembic环境配置
+│   ├── alembic.ini                    # Alembic配置文件
+│   └── versions/                      # 迁移版本
+│       ├── 20240115_initial.py        # 初始迁移
+│       └── 20240120_add_indexes.py    # 添加索引
+│
+├── scripts/                          # 脚本工具（保留，用于自动化任务）
+│   ├── __init__.py
+│   ├── backup_db.py                   # 数据库备份
+│   ├── migrate_data.py                # 数据迁移
+│   ├── init_db.py                     # 数据库初始化
+│   └── cron_jobs/                     # 定时任务脚本
+│       ├── cleanup_logs.py
+│       ├── archive_models.py
+│       └── send_daily_report.py
+│
+├── storage/                          # 文件存储
+│   ├── __init__.py
+│   └── file_store.py                  # 模型文件存储管理
+│
+├── utils/                            # 工具函数
+│   ├── __init__.py
+│   ├── time_converter.py              # 时间格式转换
+│   ├── log_converter.py               # 日志格式转换
+│   ├── validators.py                  # 数据验证器
+│   └── helpers.py                     # 通用辅助函数
+│
+├── tests/                            # 测试目录
+│   ├── __init__.py
+│   ├── conftest.py                    # pytest配置
+│   ├── unit/                          # 单元测试
+│   │   ├── test_models.py
+│   │   ├── test_audit_logger.py
+│   │   └── test_model_loader.py
+│   ├── integration/                   # 集成测试
+│   │   ├── test_api.py
+│   │   └── test_database.py
+│   └── fixtures/                      # 测试数据
+│       ├── sample_model.pkl
+│       └── test_config.yaml
+│
+├── logs/                             # 日志目录（运行时创建）
+│   ├── Datamind.log
+│   ├── Datamind.error.log
+│   ├── access.log
+│   ├── audit.log
+│   └── performance.log
+│
+├── data/                             # 数据目录
+│   └── models/                       # 模型文件存储
+│       ├── scoring/                   # 评分卡模型
+│       │   └── mod_202401151030_abc12345/
+│       │       ├── metadata.json
+│       │       ├── model_1.0.0.pkl
+│       │       ├── latest -> model_1.0.0.pkl
+│       │       └── versions/
+│       │           └── 1.0.0.json
+│       └── fraud_detection/           # 反欺诈模型
+│           └── mod_202401151231_def45678/
+│               ├── metadata.json
+│               ├── model_1.0.0.pkl
+│               ├── latest -> model_1.0.0.pkl
+│               └── versions/
+│                   └── 1.0.0.json
+│
+├── docker/                           # Docker相关
+│   ├── Dockerfile                     # 主服务Dockerfile
+│   ├── Dockerfile.bento               # BentoML服务Dockerfile
+│   ├── docker-compose.yml             # 本地开发用
+│   ├── docker-compose.prod.yml        # 生产环境用
+│   └── entrypoint.sh                  # 容器入口脚本
+│
+├── kubernetes/                       # Kubernetes部署
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── secret.yaml
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingress.yaml
+│   └── hpa.yaml                       # 自动扩缩容
+│
+├── docs/                             # 文档
+│   ├── api.md                         # API文档
+│   ├── deployment.md                  # 部署文档
+│   ├── configuration.md               # 配置说明
+│   ├── logging.md                     # 日志系统说明
+│   ├── ab_testing.md                  # AB测试说明
+│   └── cli.md                         # CLI使用说明
+│
+├── .env.example                       # 环境变量示例
+├── .gitignore                         # Git忽略文件
+├── requirements.txt                   # Python依赖
+├── requirements-dev.txt               # 开发依赖
+├── Makefile                           # 常用命令
+├── pyproject.toml                     # 项目配置
+├── setup.py                           # 安装脚本（安装后可使用datamind命令）
+└── README.md                          # 项目说明
 ```
 
 
-**规则类型**
+# 安装CLI
+pip install -e .
 
-| 类型            | 描述                  | 适用场景                | 示例                                         |
-|-----------------|---------------------|-----------------------|--------------------------------------------|
-| boolean         | 条件为真/假           | 是否满足某个逻辑判断       | 18 <= age <= 65                            |
-| enum            | 枚举值匹配            | 职业类型、贷款用途         | employment_status in ['full_time','part_time'] |
-| threshold       | 数值阈值比较          | 收入、信用分、贷款金额       | income >= 3000                              |
-| cross_rule      | 跨规则依赖            | 基于前置规则结果触发       | prev_rule_R001_result == True               |
-| external        | 调用外部函数/接口       | 黑名单、三方数据接口        | not_in_internal_blacklist(id_number)        |
-| regex           | 正则匹配              | 身份证号、手机号、邮箱格式   | ^\d{18}$                                    |
-| date            | 日期比较              | 入职时间、注册时间、有效期   | employment_date <= today - timedelta(days=180) |
-| aggregate       | 聚合计算              | 逾期次数、贷款总额统计      | sum(overdue_last12m) <= 2                   |
-| probabilistic   | 概率或评分卡           | 模型预测概率、风控评分       | score_probability >= 0.7                    |
-| combination     | 多条件组合             | 多指标组合风控           | income >= 5000 and credit_score >= 650     |
-| range           | 数值区间              | 贷款期限、利率区间        | 12 <= loan_term_months <= 60               |
-| list_inclusion  | 值列表包含             | 银行或城市限制           | branch_code in allowed_branches            |
-| conditional     | 条件触发              | 特殊业务策略             | if loan_type == 'farm' then crop_area >= 100 |
-| pattern         | 字符串模式             | 邮箱、手机号、地址        | "@gmail.com" in email                       |
-| risk_score      | 风险评分阈值           | 风控评分等级判断          | risk_score < 50                             |
-| custom          | 用户自定义逻辑          | 复杂业务逻辑或组合接口     | 可以通过 Python 函数实现                    |
+# 注册模型
+datamind model register \
+    --file models/credit_model.pkl \
+    --name "信用评分卡v1" \
+    --type logistic_regression \
+    --framework sklearn \
+    --task scoring \
+    --version 1.0.0 \
+    --features age,income,education \
+    --user admin
 
+# 列出模型
+datamind model list --task scoring --format table
 
-**models 参数**
-```yaml
-models:
-  scoring:
-  - model_name: demo_loan_scorecard_lr_20250930                     # 模型名称，必填
-    model_type: logistic_regression                                 # 模型类型，必填 可选 logistic_regression|decision_tree|random_forest|xgboost|lightgbm|catboost
-    model_path: "models/demo_loan_scorecard_lr_20250930.pkl"        # 模型路径，必填
-    version: "2vunfhf33o5tvglm"                                     # 版本编号，选填，模型注册成功后会自动生成版本编号
-    uuid: "9b95a32d-a6ef-525e-afd4-027ba96e6f31"                    # 唯一标识，选填，模型注册成功后会自动生成唯一标识
-    hash: "10e80124a0bd9d1a873cf1f47b1761ee368b1d0d34a89a580d3fb6708138bbf7"
-    framework: sklearn                                              # 模型框架，必填，可选 sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost
-    features: demo_loan_features                                    # 模型采用的特征集索引
-```
+# 查看模型详情
+datamind model info mod_202401151030_abc12345
 
-# 生成 logo
-```bash
-docker run --rm -it -v $(pwd)/print_logo.py:/app/print_logo.py python:3.10-slim bash -c "pip install pyfiglet && python /app/print_logo.py"
-```
+# 查询审计日志
+datamind audit list --days 7 --user admin
 
-# git 拉取最新版本
+# 实时查看日志
+datamind log tail --file app --follow
 
-- 生成 SSH Key：
-```bash
-ssh-keygen -t ed25519 -C "zhongsheng.chen@outlook.com"
-```
-- 查看公钥：
-```bash
-cat ~/.ssh/id_ed25519.pub
-```
-- 登录 GitHub → Settings → SSH and GPG keys → New SSH key → 粘贴公钥
-- 修改仓库远程地址为 SSH：
-```bash
-git remote set-url origin git@github.com:zhongsheng-chen/Datamind.git
-```
-- 测试连接：
-```bash
-ssh -T git@github.com
-```
-- 拉取最新代码
-```bash
-git fetch origin
-git reset --hard origin/master
-```
-或
-```bash
-git rebase --abort
-git fetch origin
-git reset --hard origin/master
-```
-# git 推送最新版本
+# 搜索日志
+datamind log search "ERROR" --file error --days 1
 
-- 查看远程地址
-```bash
-git remote -v
-```
-- 添加所有修改并提交
-```bash
-git add .
-git commit -m "本地最新修改提交"
-```
-- 推送到远程仓库
-```bash
-git push -u origin master # 第一次
-```
-或
-```bash
-git push origin master
-```
-或
-```bash
-git push origin master --force
-```
-- 创建Tag
-```bash
-git tag -a v20251112 -m "版本 v20251112 发布"
-```
-- 查看Tag
-```bash
-git show v20251112
-```
-- 推送 tag 到远程
-```bash
-git push origin v20251112
-```
-- 删除本地 Tag
-```bash
-git tag -d v20251112
-```
-- 删除远程 Tag
-```bash
-git push origin --delete v20251112
-```
+# 导出审计日志
+datamind audit export --days 30 --output audit.json
+
+# 查看帮助
+datamind --help
+datamind model --help
