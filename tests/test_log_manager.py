@@ -98,13 +98,13 @@ class TestLogManager(unittest.TestCase):
 
     def _initialize_with_config(self, **kwargs):
         """使用指定配置初始化日志管理器"""
-        # 确保调试被禁用
-        # kwargs.setdefault('manager_debug', False)
-        # kwargs.setdefault('handler_debug', False)
-        # kwargs.setdefault('formatter_debug', False)
-        # kwargs.setdefault('filter_debug', False)
-        # kwargs.setdefault('context_debug', False)
-        # kwargs.setdefault('cleanup_debug', False)
+        # 在测试中默认关闭所有调试输出，避免干扰
+        kwargs.setdefault('manager_debug', False)
+        kwargs.setdefault('handler_debug', False)
+        kwargs.setdefault('formatter_debug', False)
+        kwargs.setdefault('filter_debug', False)
+        kwargs.setdefault('context_debug', False)
+        kwargs.setdefault('cleanup_debug', False)
 
         # 创建新配置
         self.config = self._create_base_config(**kwargs)
@@ -164,17 +164,47 @@ class TestLogManager(unittest.TestCase):
     def _wait_for_logs(self, file_path: Path, min_lines: int = 1, timeout: float = 2.0) -> bool:
         """等待日志文件写入指定行数"""
         start_time = time.time()
+        last_size = -1
+        stable_count = 0
+
         while time.time() - start_time < timeout:
             if file_path.exists():
                 try:
                     with open(file_path, 'r') as f:
                         lines = sum(1 for _ in f)
                     if lines >= min_lines:
-                        return True
+                        # 检查文件是否稳定（不再增长）
+                        current_size = file_path.stat().st_size
+                        if current_size == last_size:
+                            stable_count += 1
+                            if stable_count >= 3:  # 连续3次大小不变
+                                return True
+                        else:
+                            last_size = current_size
+                            stable_count = 0
                 except:
                     pass
             time.sleep(0.1)
         return False
+
+    def _get_test_logs(self, file_path: Path, message: str) -> List[Dict]:
+        """获取指定消息的测试日志"""
+        logs = self._read_json_logs(file_path, filter_system_logs=False)
+        return [log for log in logs if log.get("message") == message]
+
+    def _assert_log_contains(self, log_entry: Dict, expected_fields: Dict[str, Any]):
+        """断言日志包含指定字段"""
+        for field, expected_value in expected_fields.items():
+            self.assertEqual(
+                log_entry.get(field),
+                expected_value,
+                f"字段 '{field}' 期望值 '{expected_value}'，实际值 '{log_entry.get(field)}'"
+            )
+
+    def _get_both_filename(self, base_filename: str, suffix: str) -> str:
+        """获取BOTH格式的文件名"""
+        base, ext = os.path.splitext(base_filename)
+        return f"{base}.{suffix}{ext}"
 
     # ========== 基础功能测试 ==========
 
@@ -319,10 +349,6 @@ class TestLogManager(unittest.TestCase):
         self.assertGreater(len(logs), 0)
         self.assertEqual(logs[0].get("message"), test_message)
 
-    def _get_both_filename(self, base_filename: str, suffix: str) -> str:
-        base, ext = os.path.splitext(base_filename)
-        return f"{base}.{suffix}{ext}"
-
     # ========== 特殊日志测试 ==========
 
     def test_access_log(self):
@@ -344,23 +370,20 @@ class TestLogManager(unittest.TestCase):
         log_file = Path(self.config.access_log_file)
         self.assertTrue(log_file.exists())
 
-        # 读取所有日志，不过滤
-        logs = self._read_json_logs(log_file, filter_system_logs=False)
-
-        # 过滤出我们想要测试的日志（message为"访问日志"的）
-        test_logs = [log for log in logs if log.get("message") == "访问日志"]
-
+        # 使用辅助方法获取测试日志
+        test_logs = self._get_test_logs(log_file, "访问日志")
         self.assertGreater(len(test_logs), 0, "没有找到测试日志")
 
-        log_entry = test_logs[0]
-        # 检查访问日志的特定字段
-        self.assertEqual(log_entry.get("method"), "POST")
-        self.assertEqual(log_entry.get("path"), "/api/users")
-        self.assertEqual(log_entry.get("status"), 201)
-        self.assertEqual(log_entry.get("duration_ms"), 150.5)
-        self.assertEqual(log_entry.get("ip"), "192.168.1.100")
-        self.assertEqual(log_entry.get("user_agent"), "Mozilla/5.0")
-        self.assertEqual(log_entry.get("message"), "访问日志")
+        # 使用辅助方法验证字段
+        self._assert_log_contains(test_logs[0], {
+            "method": "POST",
+            "path": "/api/users",
+            "status": 201,
+            "duration_ms": 150.5,
+            "ip": "192.168.1.100",
+            "user_agent": "Mozilla/5.0",
+            "message": "访问日志"
+        })
 
     def test_audit_log(self):
         """测试审计日志"""
@@ -379,21 +402,19 @@ class TestLogManager(unittest.TestCase):
         log_file = Path(self.config.audit_log_file)
         self.assertTrue(log_file.exists())
 
-        # 读取所有日志，不过滤
-        logs = self._read_json_logs(log_file, filter_system_logs=False)
-
-        # 过滤出测试日志
-        test_logs = [log for log in logs if log.get("message") == "审计日志"]
-
+        # 使用辅助方法获取测试日志
+        test_logs = self._get_test_logs(log_file, "审计日志")
         self.assertGreater(len(test_logs), 0, "没有找到测试日志")
 
-        log_entry = test_logs[0]
-        self.assertEqual(log_entry.get("action"), "USER_CREATE")
-        self.assertEqual(log_entry.get("user_id"), "alice")
-        self.assertEqual(log_entry.get("target_user"), "bob")
-        self.assertEqual(log_entry.get("role"), "admin")
-        self.assertEqual(log_entry.get("ip_address"), "10.0.0.1")
-        self.assertEqual(log_entry.get("message"), "审计日志")
+        # 使用辅助方法验证字段
+        self._assert_log_contains(test_logs[0], {
+            "action": "USER_CREATE",
+            "user_id": "alice",
+            "target_user": "bob",
+            "role": "admin",
+            "ip_address": "10.0.0.1",
+            "message": "审计日志"
+        })
 
     def test_performance_log(self):
         """测试性能日志"""
@@ -412,21 +433,19 @@ class TestLogManager(unittest.TestCase):
         log_file = Path(self.config.performance_log_file)
         self.assertTrue(log_file.exists())
 
-        # 读取所有日志，不过滤
-        logs = self._read_json_logs(log_file, filter_system_logs=False)
-
-        # 过滤出测试日志
-        test_logs = [log for log in logs if log.get("message") == "性能日志"]
-
+        # 使用辅助方法获取测试日志
+        test_logs = self._get_test_logs(log_file, "性能日志")
         self.assertGreater(len(test_logs), 0, "没有找到测试日志")
 
-        log_entry = test_logs[0]
-        self.assertEqual(log_entry.get("operation"), "database.query")
-        self.assertEqual(log_entry.get("duration_ms"), 45.67)
-        self.assertEqual(log_entry.get("query"), "SELECT * FROM users")
-        self.assertEqual(log_entry.get("rows"), 100)
-        self.assertEqual(log_entry.get("database"), "primary")
-        self.assertEqual(log_entry.get("message"), "性能日志")
+        # 使用辅助方法验证字段
+        self._assert_log_contains(test_logs[0], {
+            "operation": "database.query",
+            "duration_ms": 45.67,
+            "query": "SELECT * FROM users",
+            "rows": 100,
+            "database": "primary",
+            "message": "性能日志"
+        })
 
     # ========== 功能测试 ==========
 
@@ -755,6 +774,25 @@ class TestLogManager(unittest.TestCase):
 
         self.assertEqual(len(info_messages), 0)
         self.assertEqual(len(error_messages), 1)
+
+    # ========== 性能测试 ==========
+
+    def test_logging_performance(self):
+        """测试日志性能"""
+        self._initialize_with_config()
+
+        logger = logging.getLogger()
+        start_time = time.time()
+        count = 1000
+
+        for i in range(count):
+            logger.info(f"性能测试消息 {i}")
+
+        duration = time.time() - start_time
+        ops_per_second = count / duration
+
+        # 可以根据需要调整阈值
+        self.assertGreater(ops_per_second, 100, f"性能太低: {ops_per_second:.0f} 条/秒")
 
 
 if __name__ == "__main__":
