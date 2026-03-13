@@ -1,9 +1,11 @@
+# config/logging_config.py
 import os
 import logging
-from pydantic import Field, field_validator
+from datetime import datetime
+from pydantic import Field, field_validator, model_validator
 from pydantic import PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from enum import Enum
 from pathlib import Path
 from dotenv import load_dotenv
@@ -254,6 +256,18 @@ class LoggingConfig(BaseSettings):
         description="JSON日志格式"
     )
 
+    # 日志文件后缀
+    text_suffix: str = Field(
+        default="text",
+        validation_alias="DATAMIND_TEXT_SUFFIX",
+        description="文本日志文件后缀"
+    )
+    json_suffix: str = Field(
+        default="json",
+        validation_alias="DATAMIND_JSON_SUFFIX",
+        description="JSON日志文件后缀"
+    )
+
     # 文件轮转配置（按大小）
     max_bytes: int = Field(
         default=104857600,
@@ -449,12 +463,27 @@ class LoggingConfig(BaseSettings):
             raise ValueError("max_bytes 不能小于1KB")
         return v
 
-    def get_python_date_format(self) -> str:
-        """获取Python日期格式"""
-        if self.format == LogFormat.JSON:
-            return self._convert_to_python_format(self.json_datetime_format)
-        else:
-            return self.text_datetime_format
+    @field_validator('json_epoch_unit')
+    def validate_json_epoch_unit(cls, v):
+        valid_units = ['seconds', 'milliseconds', 'microseconds', 'nanoseconds']
+        if v not in valid_units:
+            raise ValueError(f"json_epoch_unit 必须是 {valid_units} 之一")
+        return v
+
+    @field_validator('rotation_at_time')
+    def validate_rotation_at_time(cls, v):
+        if v is not None:
+            import re
+            if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
+                raise ValueError("rotation_at_time 必须是 HH:MM 格式，如 '23:59'")
+        return v
+
+    @model_validator(mode='after')
+    def validate_remote_config(self):
+        """验证远程日志配置"""
+        if self.enable_remote and not self.remote_url:
+            raise ValueError("启用远程日志时必须提供 remote_url")
+        return self
 
     def _convert_to_python_format(self, java_format: str) -> str:
         """
@@ -586,11 +615,64 @@ class LoggingConfig(BaseSettings):
             base_dir=self._base_dir
         )
 
-    def ensure_log_dirs(self, base_dir: Optional[Path] = None):
+    def get_log_manager(self):
+        from core.log_manager import log_manager
+        return log_manager
 
+    def get_python_date_format(self) -> str:
+        """获取Python日期格式"""
+        if self.format == LogFormat.JSON:
+            return self._convert_to_python_format(self.json_datetime_format)
+        else:
+            return self.text_datetime_format
+
+    def get_formatted_timestamp(self, dt: Optional[datetime] = None) -> Union[str, float]:
+        """统一的 timestamp 格式化方法"""
+        from core.log_manager import TimezoneFormatter
+        formatter = TimezoneFormatter(self)
+        return formatter.format_timestamp(dt)
+
+    def get_env_files(self) -> List[str]:
+        """获取当前配置使用的环境文件列表"""
+        env_files = []
+
+        if self._env_file:
+            env_files.append(self._env_file)
+
+        base_dir = self._base_dir or BASE_DIR
+        for env_name in ['.env', f'.env.{self._env}', '.env.local']:
+            env_path = base_dir / env_name
+            if env_path.exists():
+                env_files.append(str(env_path))
+
+        return env_files
+
+    def get_config_digest(self) -> str:
+        """获取配置摘要，用于判断配置是否变化"""
+        import hashlib
+        import json
+
+        # 排除私有属性和运行时状态
+        config_dict = self.model_dump(exclude={
+            '_env', '_env_file', '_base_dir', '_converting_format', '_format_cache'
+        })
+
+        # 排序以确保一致性
+        config_str = json.dumps(config_dict, sort_keys=True)
+        return hashlib.md5(config_str.encode()).hexdigest()
+
+    def ensure_log_dirs(self, base_dir: Optional[Path] = None) -> Dict[str, bool]:
+        """
+        确保所有日志目录存在
+
+        Returns:
+            目录创建状态字典 {path: created}
+        """
         base_dir = (base_dir or BASE_DIR).resolve()
+        results = {}
 
-        paths = [
+        # 收集所有需要检查的路径
+        paths_to_check = [
             self.file,
             self.error_file,
             self.access_log_file,
@@ -598,17 +680,132 @@ class LoggingConfig(BaseSettings):
             self.performance_log_file,
         ]
 
-        for path in paths:
+        # 添加归档路径
+        if self.archive_enabled:
+            paths_to_check.append(self.archive_path)
+
+        # 添加并发锁目录
+        if self.use_concurrent:
+            paths_to_check.append(self.concurrent_lock_dir)
+
+        for path in paths_to_check:
             if not path:
                 continue
 
             log_path = Path(path)
-
             if not log_path.is_absolute():
                 log_path = base_dir / log_path
 
-            log_dir = log_path.parent
+            # 如果是文件，取父目录；如果是目录，直接使用
+            if log_path.suffix:  # 有后缀，说明是文件
+                target_dir = log_path.parent
+            else:
+                target_dir = log_path
 
-            if not log_dir.exists():
-                log_dir.mkdir(parents=True, exist_ok=True)
-                _bootstrap_logger.info("创建日志目录: %s", log_dir)
+            if not target_dir.exists():
+                target_dir.mkdir(parents=True, exist_ok=True)
+                results[str(target_dir)] = True
+                _bootstrap_logger.info("创建日志目录: %s", target_dir)
+            else:
+                results[str(target_dir)] = False
+
+        return results
+
+    def to_logging_level(self, level: Union['LogLevel', int, str, None] = None) -> int:
+        """转换为 logging 模块的级别"""
+        if level is None:
+            level = self.level
+
+        if isinstance(level, LogLevel):
+            return getattr(logging, level.value)
+        elif isinstance(level, int):
+            return level
+        elif isinstance(level, str):
+            return getattr(logging, level.upper())
+        return logging.INFO
+
+    def to_dict(self, exclude_sensitive: bool = True) -> Dict[str, Any]:
+        """导出配置为字典"""
+        data = self.model_dump()
+
+        if exclude_sensitive:
+            # 排除敏感字段
+            sensitive_keys = ['remote_token']
+            for key in sensitive_keys:
+                data.pop(key, None)
+
+        return data
+
+    def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = True) -> Optional[str]:
+        """导出为YAML格式"""
+        import yaml
+        data = self.to_dict(exclude_sensitive=exclude_sensitive)
+        yaml_str = yaml.dump(data, default_flow_style=False, allow_unicode=True)
+
+        if path:
+            path.write_text(yaml_str, encoding='utf-8')
+            return None
+        return yaml_str
+
+    def is_equivalent_to(self, other: 'LoggingConfig') -> bool:
+        """判断两个配置是否等效（忽略运行时状态）"""
+        return self.get_config_digest() == other.get_config_digest()
+
+
+    def diff(self, other: 'LoggingConfig') -> Dict[str, tuple]:
+        """比较两个配置的差异"""
+        current = self.model_dump()
+        other_dict = other.model_dump()
+
+        differences = {}
+        for key in set(current.keys()) | set(other_dict.keys()):
+            if key.startswith('_'):  # 忽略私有属性
+                continue
+            if current.get(key) != other_dict.get(key):
+                differences[key] = (current.get(key), other_dict.get(key))
+
+        return differences
+
+    def validate_all(self) -> Dict[str, Any]:
+        """全面验证配置，返回验证报告"""
+        report = {
+            'valid': True,
+            'warnings': [],
+            'errors': [],
+            'info': {}
+        }
+
+        # 检查日志目录权限
+        try:
+            self.ensure_log_dirs()
+        except Exception as e:
+            report['errors'].append(f"日志目录创建失败: {e}")
+            report['valid'] = False
+
+        # 检查采样配置
+        if self.sampling_rate < 1.0 and self.sampling_interval > 0:
+            report['warnings'].append("同时设置了 sampling_rate 和 sampling_interval，可能导致日志采样不符合预期")
+
+        # 检查文件大小
+        if self.max_bytes < 1024 * 1024:  # 小于1MB
+            report['warnings'].append(f"max_bytes 设置过小 ({self.max_bytes})，可能导致频繁的文件轮转")
+
+        # 检查备份数量
+        if self.backup_count > 100:
+            report['warnings'].append(f"backup_count 设置过大 ({self.backup_count})，可能占用过多磁盘空间")
+
+        # 检查保留天数
+        if self.retention_days < 7:
+            report['warnings'].append(f"retention_days 设置过小 ({self.retention_days})，日志可能过早被清理")
+
+        # 检查归档配置
+        if self.archive_enabled:
+            archive_path = Path(self.archive_path)
+            if not archive_path.is_absolute():
+                archive_path = (self._base_dir or BASE_DIR) / archive_path
+
+            if archive_path.exists() and not os.access(archive_path, os.W_OK):
+                report['errors'].append(f"归档目录不可写: {archive_path}")
+                report['valid'] = False
+
+        return report
