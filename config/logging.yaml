@@ -6,6 +6,14 @@ logging:
   encoding: "utf-8"
   console_output: true
 
+  # 调试配置
+  formatter_debug: true
+  manager_debug: true
+  handler_debug: true
+  filter_debug: true
+  context_debug: true
+  cleanup_debug: true
+
   # 时间格式配置
   timezone: "CST"  # 使用中国标准时间
   timestamp_precision: "milliseconds"

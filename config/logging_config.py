@@ -129,6 +129,26 @@ class LoggingConfig(BaseSettings):
         validation_alias="DATAMIND_LOG_MANAGER_DEBUG",
         description="是否启用管理器调试输出"
     )
+    handler_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_HANDLER_DEBUG",
+        description="是否启用句柄调试输出"
+    )
+    filter_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_FILTER_DEBUG",
+        description="是否启用过滤器调试输出"
+    )
+    context_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_CONTEXT_DEBUG",
+        description="是否启用上下文调试输出"
+    )
+    cleanup_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_CLEANUP_DEBUG",
+        description="是否启用清理管理器调试输出"
+    )
 
     # 时间格式配置
     timezone: TimeZone = Field(

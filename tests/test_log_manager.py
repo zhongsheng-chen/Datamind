@@ -98,6 +98,14 @@ class TestLogManager(unittest.TestCase):
 
     def _initialize_with_config(self, **kwargs):
         """使用指定配置初始化日志管理器"""
+        # 确保调试被禁用
+        # kwargs.setdefault('manager_debug', False)
+        # kwargs.setdefault('handler_debug', False)
+        # kwargs.setdefault('formatter_debug', False)
+        # kwargs.setdefault('filter_debug', False)
+        # kwargs.setdefault('context_debug', False)
+        # kwargs.setdefault('cleanup_debug', False)
+
         # 创建新配置
         self.config = self._create_base_config(**kwargs)
 

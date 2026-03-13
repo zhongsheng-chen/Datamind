@@ -11,6 +11,7 @@ from core.logging.filters import RequestIdFilter, SensitiveDataFilter, SamplingF
 from core.logging.handlers import TimeRotatingFileHandlerWithTimezone, AsyncLogHandler
 from core.logging.cleanup import CleanupManager
 from core.logging.context import get_request_id, set_request_id
+from core.logging.debug import in_debug, set_debug, debug_print
 
 __all__ = [
     'LogManager',
@@ -26,4 +27,7 @@ __all__ = [
     'CleanupManager',
     'get_request_id',
     'set_request_id',
+    'in_debug',
+    'set_debug',
+    'debug_print',
 ]
