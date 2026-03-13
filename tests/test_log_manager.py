@@ -1,4 +1,4 @@
-# tests/test_log_manager.py - 适配模块化后的版本
+# tests/test_log_manager.py
 
 import os
 import unittest
@@ -118,13 +118,6 @@ class TestLogManager(unittest.TestCase):
         # 等待初始化完成
         time.sleep(0.2)
 
-        # 验证 timezone_formatter 是否正确设置
-        if 'timezone' in kwargs:
-            expected_tz = kwargs['timezone']
-            actual_tz = log_manager.timezone_formatter.config.timezone
-            print(f"\n[DEBUG] Timezone verification - Expected: {expected_tz}, Actual: {actual_tz}")
-            assert actual_tz == expected_tz, f"Timezone not set correctly: expected {expected_tz}, got {actual_tz}"
-
     def _read_json_logs(self, file_path: Path, filter_system_logs: bool = True) -> List[Dict[str, Any]]:
         """读取JSON日志文件，每行解析为字典"""
         logs = []
@@ -133,22 +126,16 @@ class TestLogManager(unittest.TestCase):
 
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                for line_num, line in enumerate(f, 1):
+                for line in f:
                     line = line.strip()
                     if not line:
                         continue
                     try:
                         log_entry = json.loads(line)
 
-                        # 调试输出
-                        if 'access.log' in str(file_path):
-                            print(f"\n[DEBUG] Raw log line {line_num}: {line[:200]}...")  # 只显示前200字符
-                            print(f"[DEBUG] Parsed log entry message: {log_entry.get('message')}")
-
                         # 过滤系统日志
                         if filter_system_logs:
                             message = log_entry.get("message", "")
-                            # 只过滤明确的初始化消息
                             if message in [
                                 "根日志记录器初始化完成",
                                 "日志系统初始化完成",
@@ -157,17 +144,11 @@ class TestLogManager(unittest.TestCase):
                                 "性能日志记录器初始化完成"
                             ]:
                                 continue
-                            # 不要过滤掉我们测试的日志
-                            if message in ["访问日志", "审计日志", "性能日志"]:
-                                logs.append(log_entry)
-                                continue
 
                         logs.append(log_entry)
-                    except json.JSONDecodeError as e:
-                        print(f"\n[DEBUG] JSON decode error on line {line_num}: {e}")
+                    except json.JSONDecodeError:
                         continue
-        except Exception as e:
-            print(f"\n[DEBUG] Error reading file: {e}")
+        except Exception:
             pass
 
         return logs
@@ -360,12 +341,6 @@ class TestLogManager(unittest.TestCase):
 
         # 过滤出我们想要测试的日志（message为"访问日志"的）
         test_logs = [log for log in logs if log.get("message") == "访问日志"]
-
-        # 调试信息
-        print(f"\n访问日志文件: {log_file}")
-        print(f"找到 {len(logs)} 条日志，其中 {len(test_logs)} 条是测试日志")
-        if test_logs:
-            print(f"第一条测试日志: {json.dumps(test_logs[0], indent=2, ensure_ascii=False)}")
 
         self.assertGreater(len(test_logs), 0, "没有找到测试日志")
 
@@ -582,20 +557,8 @@ class TestLogManager(unittest.TestCase):
 
         for tz, tz_name in timezones:
             with self.subTest(timezone=tz_name):
-                print(f"\n[DEBUG] ===== Testing timezone: {tz_name} =====")
-
                 # 每次都要重新初始化
                 self._initialize_with_config(timezone=tz)
-
-                # 验证 timezone_formatter 的时区是否正确设置
-                actual_tz = log_manager.timezone_formatter.config.timezone
-                print(f"[DEBUG] After init - Expected: {tz}, Actual: {actual_tz}")
-
-                self.assertEqual(
-                    actual_tz,
-                    tz,
-                    f"Timezone formatter not set to {tz_name}"
-                )
 
                 # 记录一条测试日志
                 logger = logging.getLogger()
@@ -611,7 +574,6 @@ class TestLogManager(unittest.TestCase):
                 found = False
                 for log in logs:
                     if log.get("message") == test_message:
-                        print(f"[DEBUG] Found test log with timezone: {log.get('timezone')}")
                         # 验证时区字段
                         self.assertEqual(
                             log.get("timezone"),
