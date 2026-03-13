@@ -1,15 +1,15 @@
 # core/models.py
 from sqlalchemy import (
-    Column, String, Integer, DateTime, Boolean, JSON, Text,
+    Column, String, Integer, DateTime, Boolean, Text,
     Float, Index, BigInteger, ForeignKey, Numeric, UniqueConstraint,
     Enum as SQLEnum
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB, INET
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import relationship
 
-from .enums import (
+from core.db.enums import (
     TaskType, ModelType, Framework, ModelStatus,
     AuditAction, DeploymentEnvironment, ABTestStatus
 )

@@ -1,12 +1,21 @@
+#
+我想设计一个银行贷款模型部署平台Datamind, 用于部署模型开发人员用Python跑出来的评分卡模型，反欺诈等模型。
+不用考虑批量预测，零售信贷贷款都是单笔处理的。
+模型部署工具考虑用bentoml实现，支持模型注册、注销，支持模型文件热更换，支持模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。
+支持模型类型：模型类型：decision_tree|random_forest|xgboost|lightgbm|logistic_regression。
+能支持AB test.能跑评分卡模型任务也能跑反欺诈模型任务，并提供API服务。对于评分卡模型，应该返回模型总评分和模型的特征分.不要直接输出决策结果。决策交给下游的内评系统
+只跑模型，不管模型规则。
+模型ID应该是Datamind后台维护的识别模型的唯一主键。不应该作为模型注册参数。
+模型元数据不保存在数据库吗？金融场景要能审计，要有完善的日志系统。
 ```text
 datamind/
 ├── api/                            # API接口层
 │   ├── __init__.py
 │   ├── register_api.py             # 模型注册API
-│   ├── model_api.py                 # 模型查询API
-│   ├── audit_api.py                 # 审计日志API
-│   ├── inference_api.py             # 推理日志API
-│   └── version_api.py               # 版本管理API
+│   ├── model_api.py                # 模型查询API
+│   ├── management_api.py             
+│   ├── scoring_api.py             
+│   └── fraud_detection_api.py  
 │
 ├── bento_services/                  # BentoML服务（独立部署）
 │   ├── __init__.py
@@ -49,7 +58,6 @@ datamind/
 │   ├── __init__.py
 │   ├── models.py                    # SQLAlchemy数据库模型
 │   ├── database.py                   # 数据库连接管理
-│   ├── audit_logger.py               # 审计日志系统
 │   ├── log_manager.py                # 日志管理器
 │   ├── model_registry.py             # 模型注册核心逻辑
 │   ├── model_loader.py               # 模型热加载器
@@ -74,7 +82,7 @@ datamind/
 │       ├── 20240115_initial.py        # 初始迁移
 │       └── 20240120_add_indexes.py    # 添加索引
 │
-├── scripts/                          # 脚本工具（保留，用于自动化任务）
+├── scripts/                          # 脚本工具
 │   ├── __init__.py
 │   ├── backup_db.py                   # 数据库备份
 │   ├── migrate_data.py                # 数据迁移
@@ -97,17 +105,6 @@ datamind/
 │
 ├── tests/                            # 测试目录
 │   ├── __init__.py
-│   ├── conftest.py                    # pytest配置
-│   ├── unit/                          # 单元测试
-│   │   ├── test_models.py
-│   │   ├── test_audit_logger.py
-│   │   └── test_model_loader.py
-│   ├── integration/                   # 集成测试
-│   │   ├── test_api.py
-│   │   └── test_database.py
-│   └── fixtures/                      # 测试数据
-│       ├── sample_model.pkl
-│       └── test_config.yaml
 │
 ├── logs/                             # 日志目录（运行时创建）
 │   ├── Datamind.log
@@ -116,8 +113,7 @@ datamind/
 │   ├── audit.log
 │   └── performance.log
 │
-├── data/                             # 数据目录
-│   └── models/                       # 模型文件存储
+── models/                       # 模型文件存储
 │       ├── scoring/                   # 评分卡模型
 │       │   └── mod_202401151030_abc12345/
 │       │       ├── metadata.json
@@ -140,14 +136,6 @@ datamind/
 │   ├── docker-compose.prod.yml        # 生产环境用
 │   └── entrypoint.sh                  # 容器入口脚本
 │
-├── kubernetes/                       # Kubernetes部署
-│   ├── namespace.yaml
-│   ├── configmap.yaml
-│   ├── secret.yaml
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── ingress.yaml
-│   └── hpa.yaml                       # 自动扩缩容
 │
 ├── docs/                             # 文档
 │   ├── api.md                         # API文档
@@ -167,6 +155,129 @@ datamind/
 └── README.md                          # 项目说明
 ```
 
+
+datamind/
+├── README.md
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── Makefile
+│
+├── api/
+│   ├── __init__.py
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── model_api.py
+│   │   ├── scoring_api.py
+│   │   ├── fraud_api.py
+│   │   └── management_api.py
+│   └── middlewares/
+│       ├── __init__.py
+│       ├── auth.py
+│       └── logging.py
+│
+├── core/
+│   ├── __init__.py
+│   ├── enums.py
+│   ├── models.py
+│   ├── database.py
+│   ├── exceptions.py
+│   ├── model_registry.py
+│   ├── model_loader.py
+│   ├── inference.py
+│   ├── ab_test.py
+│   └── log_manager.py
+│
+├── config/
+│   ├── __init__.py
+│   ├── settings.py
+│   └── logging_config.py
+│
+├── utils/
+│   ├── __init__.py
+│   └── validators.py
+│
+├── bento_services/
+│   ├── __init__.py
+│   ├── scoring_service.py
+│   └── fraud_service.py
+│
+├── migrations/
+│   ├── env.py
+│   ├── alembic.ini
+│   └── versions/
+│
+├── tests/
+│   ├── __init__.py
+│   ├── test_models.py
+│   └── test_api.py
+│
+├── logs/
+│   └── .gitkeep
+│
+└── models_storage/
+    └── .gitkeep
+
+datamind/
+│
+├── api/
+│   ├── routers/
+│   │   ├── model.py
+│   │   ├── scoring.py
+│   │   ├── fraud.py
+│   │   └── management.py
+│   │
+│   └── middlewares/
+│       ├── auth_middleware.py
+│       └── logging_middleware.py
+│
+├── core/
+│   ├── db/
+│   │   ├── database.py
+│   │   └── models.py
+│   │
+│   ├── ml/
+│   │   ├── model_registry.py
+│   │   ├── model_loader.py
+│   │   └── inference.py
+│   │
+│   ├── experiment/
+│   │   └── ab_test.py
+│   │
+│   └── logging/
+│       ├── manager.py
+│       ├── formatters.py
+│       ├── filters.py
+│       ├── handlers.py
+│       └── cleanup.py
+│
+├── config/
+│   ├── settings.py
+│   └── logging_config.py
+│
+├── services/
+│   ├── scoring_service.py
+│   └── fraud_service.py
+│
+├── utils/
+│   └── validators.py
+│
+├── migrations/
+│
+├── tests/
+│   ├── api/
+│   ├── core/
+│   └── integration/
+│
+├── logs/
+│
+├── models_storage/
+│
+├── docker-compose.yml
+├── Makefile
+├── requirements.txt
+└── README.md
 
 # 安装CLI
 pip install -e .
@@ -203,3 +314,14 @@ datamind audit export --days 30 --output audit.json
 # 查看帮助
 datamind --help
 datamind model --help
+
+# 测试
+python -m unittest tests/test_logging_config.py
+python -m unittest tests/test_logging_config.py -v
+
+# 测试确保project.toml:
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+
+from core.logging import LogManager

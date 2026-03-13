@@ -118,6 +118,18 @@ class LoggingConfig(BaseSettings):
         description="日志文件编码"
     )
 
+    # 调试配置
+    formatter_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_FORMATTER_DEBUG",
+        description="是否启用格式化器调试输出"
+    )
+    manager_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_MANAGER_DEBUG",
+        description="是否启用管理器调试输出"
+    )
+
     # 时间格式配置
     timezone: TimeZone = Field(
         default=TimeZone.UTC,
@@ -536,6 +548,7 @@ class LoggingConfig(BaseSettings):
             # 可以加个条件避免首次转换时也触发日志（如果缓存后不再需要日志）
             if original != python_format:
                 _bootstrap_logger.debug("日期格式转换: %s -> %s", original, python_format)
+                # pass
 
             return python_format
         finally:

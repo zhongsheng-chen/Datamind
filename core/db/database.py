@@ -1,6 +1,6 @@
 # core/database.py
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Generator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -9,8 +9,7 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from .models import Base
-from .log_manager import log_manager
+from core.db.models import Base
 from config.settings import settings
 
 logger = logging.getLogger(__name__)

@@ -1,18 +1,15 @@
 # core/model_registry.py
 import hashlib
-import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple
 import uuid
 import joblib
-import yaml
 
-from sqlalchemy.orm import Session
-from .models import ModelMetadata, ModelVersionHistory, AuditLog
-from .database import get_db_session
-from .log_manager import log_manager
+from core.db.models import ModelMetadata, ModelVersionHistory, AuditLog
+from core.db.database import get_db_session
+from core.log_manager import log_manager
 from .exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
