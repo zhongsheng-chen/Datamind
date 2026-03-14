@@ -1,0 +1,162 @@
+<!-- datamind/templates/models.html -->
+{% extends "base.html" %}
+
+{% block title %}模型管理 - Datamind{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-cubes me-2"></i>模型管理</h2>
+    </div>
+    <div class="col text-end">
+        <a href="/ui/register" class="btn btn-primary">
+            <i class="fas fa-plus-circle me-2"></i>注册新模型
+        </a>
+    </div>
+</div>
+
+<!-- 过滤条件 -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">任务类型</label>
+                        <select class="form-select" name="task_type" id="taskType">
+                            <option value="">全部</option>
+                            <option value="scoring">评分卡</option>
+                            <option value="fraud_detection">反欺诈</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">模型状态</label>
+                        <select class="form-select" name="status" id="status">
+                            <option value="">全部</option>
+                            <option value="active">已激活</option>
+                            <option value="inactive">未激活</option>
+                            <option value="deprecated">已废弃</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">框架</label>
+                        <select class="form-select" name="framework" id="framework">
+                            <option value="">全部</option>
+                            <option value="sklearn">Scikit-learn</option>
+                            <option value="xgboost">XGBoost</option>
+                            <option value="lightgbm">LightGBM</option>
+                            <option value="torch">PyTorch</option>
+                            <option value="tensorflow">TensorFlow</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">生产状态</label>
+                        <select class="form-select" name="is_production" id="isProduction">
+                            <option value="">全部</option>
+                            <option value="true">生产模型</option>
+                            <option value="false">非生产</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模型列表 -->
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>状态</th>
+                                <th>模型名称</th>
+                                <th>版本</th>
+                                <th>任务类型</th>
+                                <th>模型类型</th>
+                                <th>框架</th>
+                                <th>创建时间</th>
+                                <th>创建人</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelTableBody">
+                            {% for model in models %}
+                            <tr>
+                                <td>
+                                    {% if model.status == 'active' %}
+                                        <span class="badge bg-success" title="已激活">✅</span>
+                                    {% elif model.status == 'inactive' %}
+                                        <span class="badge bg-secondary" title="未激活">⏸️</span>
+                                    {% elif model.status == 'deprecated' %}
+                                        <span class="badge bg-danger" title="已废弃">⚠️</span>
+                                    {% endif %}
+                                    {% if model.is_production %}
+                                        <span class="badge bg-warning text-dark ms-1" title="生产模型">⭐</span>
+                                    {% endif %}
+                                    {% if model.is_loaded %}
+                                        <span class="badge bg-info ms-1" title="已加载内存">📦</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="/ui/models/{{ model.model_id }}" class="fw-bold">
+                                        {{ model.model_name }}
+                                    </a>
+                                </td>
+                                <td><span class="badge bg-secondary">v{{ model.model_version }}</span></td>
+                                <td>
+                                    {% if model.task_type == 'scoring' %}
+                                        <span class="badge bg-primary">评分卡</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">反欺诈</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ model.model_type }}</td>
+                                <td>{{ model.framework }}</td>
+                                <td>{{ model.created_at|truncatechars:16 }}</td>
+                                <td>{{ model.created_by }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/ui/models/{{ model.model_id }}" class="btn btn-outline-info" title="详情">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if model.status == 'inactive' %}
+                                        <button class="btn btn-outline-success activate-btn" data-id="{{ model.model_id }}" title="激活">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-warning deactivate-btn" data-id="{{ model.model_id }}" title="停用">
+                                            <i class="fas fa-pause"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if not model.is_production and model.status == 'active' %}
+                                        <button class="btn btn-outline-primary promote-btn" data-id="{{ model.model_id }}" title="设为生产">
+                                            <i class="fas fa-star"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if not model.is_loaded %}
+                                        <button class="btn btn-outline-secondary load-btn" data-id="{{ model.model_id }}" title="加载内存">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-danger unload-btn" data-id="{{ model.model_id }}" title="卸载内存">
+                                            <i class="fas fa-upload"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/models.js"></script>
+{% endblock %}

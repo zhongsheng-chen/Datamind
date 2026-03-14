@@ -1,0 +1,409 @@
+<!-- datamind/templates/audit.html -->
+{% extends "base.html" %}
+
+{% block title %}审计日志 - Datamind{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-history me-2"></i>审计日志</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">操作类型</label>
+                        <select class="form-select" name="action" id="actionFilter">
+                            <option value="">全部</option>
+                            <option value="CREATE">创建</option>
+                            <option value="ACTIVATE">激活</option>
+                            <option value="DEACTIVATE">停用</option>
+                            <option value="PROMOTE">生产提升</option>
+                            <option value="INFERENCE">推理调用</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">操作人</label>
+                        <input type="text" class="form-control" name="operator" id="operatorFilter" placeholder="输入用户ID">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">资源类型</label>
+                        <select class="form-select" name="resource_type" id="resourceFilter">
+                            <option value="">全部</option>
+                            <option value="model">模型</option>
+                            <option value="database">数据库</option>
+                            <option value="ab_test">A/B测试</option>
+                            <option value="config">配置</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">结果</label>
+                        <select class="form-select" name="result" id="resultFilter">
+                            <option value="">全部</option>
+                            <option value="SUCCESS">成功</option>
+                            <option value="FAILURE">失败</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">开始日期</label>
+                        <input type="date" class="form-control" name="start_date" id="startDate">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">结束日期</label>
+                        <input type="date" class="form-control" name="end_date" id="endDate">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>筛选
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                            <i class="fas fa-redo me-2"></i>重置
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-success w-100" onclick="exportLogs()">
+                            <i class="fas fa-download me-2"></i>导出
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list me-2"></i>日志列表</span>
+                <span class="text-muted" id="logCount">加载中...</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="auditTable">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>操作类型</th>
+                                <th>操作人</th>
+                                <th>资源类型</th>
+                                <th>资源ID</th>
+                                <th>结果</th>
+                                <th>详情</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogs">
+                            {% for log in logs %}
+                            <tr>
+                                <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    <span class="badge {% if log.action in ['CREATE', 'ACTIVATE', 'PROMOTE'] %}bg-success
+                                                      {% elif log.action in ['DEACTIVATE', 'DEPRECATE', 'ARCHIVE'] %}bg-warning
+                                                      {% elif log.action == 'INFERENCE' %}bg-info
+                                                      {% else %}bg-secondary{% endif %}">
+                                        {{ log.action }}
+                                    </span>
+                                </td>
+                                <td>{{ log.operator }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ log.resource_type }}</span>
+                                </td>
+                                <td>
+                                    <code>{{ log.resource_id or '-' }}</code>
+                                </td>
+                                <td>
+                                    {% if log.result == 'SUCCESS' %}
+                                        <span class="badge bg-success">成功</span>
+                                    {% elif log.result == 'FAILURE' %}
+                                        <span class="badge bg-danger">失败</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ log.result }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info"
+                                            onclick="showAuditDetails('{{ log.audit_id }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                <nav aria-label="日志分页" class="mt-3">
+                    <ul class="pagination justify-content-center" id="pagination">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1">上一页</a>
+                        </li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="#">下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 详情模态框 -->
+<div class="modal fade" id="auditDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">审计日志详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="auditDetailContent">加载中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+let pageSize = 20;
+
+// 加载审计日志
+function loadAuditLogs(filters = {}) {
+    let url = '/api/v1/management/audit/logs?';
+    const params = new URLSearchParams({
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        ...filters
+    });
+
+    document.getElementById('auditLogs').innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center py-4">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                加载中...
+            </td>
+        </tr>
+    `;
+
+    fetch(url + params, {
+        headers: {'X-API-Key': 'demo-key'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('logCount').textContent = `共 ${data.total} 条记录`;
+
+        if (data.logs.length === 0) {
+            document.getElementById('auditLogs').innerHTML = `
+                <tr><td colspan="7" class="text-center text-muted py-4">暂无日志记录</td></tr>
+            `;
+            return;
+        }
+
+        document.getElementById('auditLogs').innerHTML = data.logs.map(log => `
+            <tr>
+                <td>${new Date(log.created_at).toLocaleString()}</td>
+                <td>
+                    <span class="badge ${getActionBadgeClass(log.action)}">
+                        ${log.action}
+                    </span>
+                </td>
+                <td>${log.operator}</td>
+                <td><span class="badge bg-secondary">${log.resource_type}</span></td>
+                <td><code>${log.resource_id || '-'}</code></td>
+                <td>
+                    <span class="badge ${log.result === 'SUCCESS' ? 'bg-success' : 'bg-danger'}">
+                        ${log.result}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info"
+                            onclick="showAuditDetails('${log.audit_id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        // 更新分页
+        updatePagination(data.total);
+    })
+    .catch(error => {
+        document.getElementById('auditLogs').innerHTML = `
+            <tr><td colspan="7" class="text-center text-danger py-4">加载失败: ${error.message}</td></tr>
+        `;
+    });
+}
+
+function getActionBadgeClass(action) {
+    const successActions = ['CREATE', 'ACTIVATE', 'PROMOTE'];
+    const warningActions = ['DEACTIVATE', 'DEPRECATE', 'ARCHIVE'];
+    const infoActions = ['INFERENCE'];
+
+    if (successActions.includes(action)) return 'bg-success';
+    if (warningActions.includes(action)) return 'bg-warning';
+    if (infoActions.includes(action)) return 'bg-info';
+    return 'bg-secondary';
+}
+
+function showAuditDetails(auditId) {
+    fetch(`/api/v1/management/audit/logs/${auditId}`, {
+        headers: {'X-API-Key': 'demo-key'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        const content = document.getElementById('auditDetailContent');
+        content.innerHTML = `
+            <div class="mb-3">
+                <h6>基本信息</h6>
+                <table class="table table-sm">
+                    <tr><th>审计ID</th><td><code>${data.audit_id}</code></td></tr>
+                    <tr><th>事件类型</th><td>${data.event_type}</td></tr>
+                    <tr><th>操作</th><td>${data.action}</td></tr>
+                    <tr><th>操作人</th><td>${data.operator}</td></tr>
+                    <tr><th>IP地址</th><td>${data.operator_ip || '-'}</td></tr>
+                    <tr><th>时间</th><td>${new Date(data.created_at).toLocaleString()}</td></tr>
+                </table>
+            </div>
+            <div class="mb-3">
+                <h6>资源信息</h6>
+                <table class="table table-sm">
+                    <tr><th>资源类型</th><td>${data.resource_type}</td></tr>
+                    <tr><th>资源ID</th><td><code>${data.resource_id || '-'}</code></td></tr>
+                    <tr><th>资源名称</th><td>${data.resource_name || '-'}</td></tr>
+                </table>
+            </div>
+            ${data.before_state ? `
+            <div class="mb-3">
+                <h6>变更前状态</h6>
+                <pre class="json-viewer">${JSON.stringify(data.before_state, null, 2)}</pre>
+            </div>
+            ` : ''}
+            ${data.after_state ? `
+            <div class="mb-3">
+                <h6>变更后状态</h6>
+                <pre class="json-viewer">${JSON.stringify(data.after_state, null, 2)}</pre>
+            </div>
+            ` : ''}
+            ${data.details ? `
+            <div class="mb-3">
+                <h6>详细信息</h6>
+                <pre class="json-viewer">${JSON.stringify(data.details, null, 2)}</pre>
+            </div>
+            ` : ''}
+            ${data.reason ? `
+            <div class="mb-3">
+                <h6>原因</h6>
+                <div class="alert alert-info">${data.reason}</div>
+            </div>
+            ` : ''}
+        `;
+        new bootstrap.Modal(document.getElementById('auditDetailModal')).show();
+    })
+    .catch(error => utils.handleError(error));
+}
+
+function updatePagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    let paginationHtml = '';
+
+    // 上一页
+    paginationHtml += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+        </li>
+    `;
+
+    // 页码
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        paginationHtml += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>
+        `;
+    }
+
+    if (totalPages > 5) {
+        paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        paginationHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a>
+            </li>
+        `;
+    }
+
+    // 下一页
+    paginationHtml += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+        </li>
+    `;
+
+    document.getElementById('pagination').innerHTML = paginationHtml;
+}
+
+function changePage(page) {
+    currentPage = page;
+    const filters = {
+        action: document.getElementById('actionFilter').value,
+        operator: document.getElementById('operatorFilter').value,
+        resource_type: document.getElementById('resourceFilter').value,
+        result: document.getElementById('resultFilter').value,
+        start_date: document.getElementById('startDate').value,
+        end_date: document.getElementById('endDate').value
+    };
+    loadAuditLogs(filters);
+}
+
+// 表单提交
+document.getElementById('filterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    currentPage = 1;
+    const filters = {
+        action: document.getElementById('actionFilter').value,
+        operator: document.getElementById('operatorFilter').value,
+        resource_type: document.getElementById('resourceFilter').value,
+        result: document.getElementById('resultFilter').value,
+        start_date: document.getElementById('startDate').value,
+        end_date: document.getElementById('endDate').value
+    };
+    loadAuditLogs(filters);
+});
+
+function resetFilters() {
+    document.getElementById('filterForm').reset();
+    currentPage = 1;
+    loadAuditLogs();
+}
+
+function exportLogs() {
+    const filters = {
+        action: document.getElementById('actionFilter').value,
+        operator: document.getElementById('operatorFilter').value,
+        resource_type: document.getElementById('resourceFilter').value,
+        result: document.getElementById('resultFilter').value,
+        start_date: document.getElementById('startDate').value,
+        end_date: document.getElementById('endDate').value
+    };
+
+    const params = new URLSearchParams(filters);
+    window.location.href = `/api/v1/management/audit/export?${params}`;
+}
+
+// 页面加载时加载数据
+document.addEventListener('DOMContentLoaded', function() {
+    loadAuditLogs();
+});
+</script>
+{% endblock %}

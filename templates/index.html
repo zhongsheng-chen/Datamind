@@ -1,0 +1,238 @@
+<!-- datamind/templates/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Datamind - 仪表盘{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-chart-line me-2"></i>系统概览</h2>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">模型总数</h6>
+                        <h2 class="mb-0">{{ stats.total_models }}</h2>
+                    </div>
+                    <i class="fas fa-cubes fa-3x opacity-50"></i>
+                </div>
+                <small class="text-white-50">
+                    <i class="fas fa-check-circle me-1"></i>激活: {{ stats.active_models }}
+                    <i class="fas fa-star ms-2 me-1"></i>生产: {{ stats.production_models }}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">今日调用</h6>
+                        <h2 class="mb-0">{{ stats.today_calls }}</h2>
+                    </div>
+                    <i class="fas fa-rocket fa-3x opacity-50"></i>
+                </div>
+                <small class="text-white-50">
+                    <i class="fas fa-check me-1"></i>成功: {{ stats.success_calls }}
+                    <i class="fas fa-exclamation-circle ms-2 me-1"></i>失败: {{ stats.failed_calls }}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">平均响应</h6>
+                        <h2 class="mb-0">{{ stats.avg_response }}ms</h2>
+                    </div>
+                    <i class="fas fa-clock fa-3x opacity-50"></i>
+                </div>
+                <small class="text-white-50">
+                    <i class="fas fa-chart-line me-1"></i>P95: {{ stats.p95_response }}ms
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">已加载模型</h6>
+                        <h2 class="mb-0">{{ stats.loaded_models }}</h2>
+                    </div>
+                    <i class="fas fa-memory fa-3x opacity-50"></i>
+                </div>
+                <small class="text-white-50">
+                    <i class="fas fa-cube me-1"></i>内存使用: {{ stats.memory_usage }}MB
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表行 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-2"></i>近7天调用趋势
+            </div>
+            <div class="card-body">
+                <div id="callsChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-pie-chart me-2"></i>模型类型分布
+            </div>
+            <div class="card-body">
+                <div id="modelTypeChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近活动 -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-history me-2"></i>最近注册的模型
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>模型名称</th>
+                                <th>版本</th>
+                                <th>类型</th>
+                                <th>注册时间</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for model in recent_models %}
+                            <tr>
+                                <td>
+                                    <a href="/ui/models/{{ model.model_id }}">{{ model.model_name }}</a>
+                                </td>
+                                <td><span class="badge bg-secondary">v{{ model.model_version }}</span></td>
+                                <td>{{ model.model_type }}</td>
+                                <td>{{ model.created_at|truncatechars:16 }}</td>
+                                <td>
+                                    {% if model.status == 'active' %}
+                                        <span class="badge bg-success">活跃</span>
+                                    {% elif model.status == 'inactive' %}
+                                        <span class="badge bg-secondary">未激活</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{ model.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-bell me-2"></i>最近审计日志
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for log in recent_audit %}
+                    <div class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                <span class="badge {% if log.result == 'SUCCESS' %}bg-success{% else %}bg-danger{% endif %} me-2">
+                                    {{ log.action }}
+                                </span>
+                                {{ log.operator }}
+                            </h6>
+                            <small class="text-muted">{{ log.created_at|truncatechars:16 }}</small>
+                        </div>
+                        <p class="mb-1 text-muted small">
+                            <i class="fas fa-cube me-1"></i>{{ log.resource_type }}: {{ log.resource_id|truncatechars:20 }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // 调用趋势图表
+    var callsChart = echarts.init(document.getElementById('callsChart'));
+    callsChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['评分卡', '反欺诈'] },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: {{ call_dates|safe }},
+            axisLabel: { rotate: 30 }
+        },
+        yAxis: { type: 'value', name: '调用次数' },
+        series: [
+            {
+                name: '评分卡',
+                type: 'bar',
+                data: {{ scoring_calls|safe }},
+                itemStyle: { color: '#5470c6' }
+            },
+            {
+                name: '反欺诈',
+                type: 'bar',
+                data: {{ fraud_calls|safe }},
+                itemStyle: { color: '#91cc75' }
+            }
+        ]
+    });
+
+    // 模型类型分布图表
+    var typeChart = echarts.init(document.getElementById('modelTypeChart'));
+    typeChart.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { orient: 'vertical', left: 'left' },
+        series: [
+            {
+                name: '模型类型',
+                type: 'pie',
+                radius: '50%',
+                data: {{ model_types|safe }},
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,417 @@
+<!-- datamind/templates/model_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}模型详情 - {{ model.model_name }} - Datamind{% endblock %}
+
+{% block extra_css %}
+<style>
+    .feature-badge {
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 0.3rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        margin: 0.2rem;
+        display: inline-block;
+    }
+    .json-viewer {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 1rem;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 0.9rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/ui">首页</a></li>
+                <li class="breadcrumb-item"><a href="/ui/models">模型管理</a></li>
+                <li class="breadcrumb-item active">{{ model.model_name }} v{{ model.model_version }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="col text-end">
+        <div class="btn-group">
+            {% if model.status == 'inactive' %}
+            <button class="btn btn-success" onclick="activateModel('{{ model.model_id }}')">
+                <i class="fas fa-play me-2"></i>激活模型
+            </button>
+            {% else %}
+            <button class="btn btn-warning" onclick="deactivateModel('{{ model.model_id }}')">
+                <i class="fas fa-pause me-2"></i>停用模型
+            </button>
+            {% endif %}
+
+            {% if not model.is_production and model.status == 'active' %}
+            <button class="btn btn-primary" onclick="promoteModel('{{ model.model_id }}')">
+                <i class="fas fa-star me-2"></i>设为生产
+            </button>
+            {% endif %}
+
+            {% if not model.is_loaded %}
+            <button class="btn btn-info" onclick="loadModel('{{ model.model_id }}')">
+                <i class="fas fa-download me-2"></i>加载内存
+            </button>
+            {% else %}
+            <button class="btn btn-secondary" onclick="unloadModel('{{ model.model_id }}')">
+                <i class="fas fa-upload me-2"></i>卸载内存
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 基本信息卡片 -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle me-2"></i>基本信息
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th style="width: 40%">模型ID</th>
+                        <td><code>{{ model.model_id }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>模型名称</th>
+                        <td>{{ model.model_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>版本</th>
+                        <td><span class="badge bg-secondary">v{{ model.model_version }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>任务类型</th>
+                        <td>
+                            {% if model.task_type == 'scoring' %}
+                                <span class="badge bg-primary">评分卡</span>
+                            {% else %}
+                                <span class="badge bg-danger">反欺诈</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>模型类型</th>
+                        <td>{{ model.model_type }}</td>
+                    </tr>
+                    <tr>
+                        <th>框架</th>
+                        <td>{{ model.framework }}</td>
+                    </tr>
+                    <tr>
+                        <th>状态</th>
+                        <td>
+                            {% if model.status == 'active' %}
+                                <span class="badge bg-success">已激活</span>
+                            {% elif model.status == 'inactive' %}
+                                <span class="badge bg-secondary">未激活</span>
+                            {% elif model.status == 'deprecated' %}
+                                <span class="badge bg-danger">已废弃</span>
+                            {% elif model.status == 'archived' %}
+                                <span class="badge bg-dark">已归档</span>
+                            {% endif %}
+
+                            {% if model.is_production %}
+                                <span class="badge bg-warning text-dark ms-1">生产模型</span>
+                            {% endif %}
+
+                            {% if model.is_loaded %}
+                                <span class="badge bg-info ms-1">内存中</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- 文件信息卡片 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-file me-2"></i>文件信息
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th style="width: 40%">文件路径</th>
+                        <td><code>{{ model.file_path }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>文件大小</th>
+                        <td>{{ (model.file_size / 1024 / 1024)|round(2) }} MB</td>
+                    </tr>
+                    <tr>
+                        <th>文件哈希</th>
+                        <td><code>{{ model.file_hash[:16] }}...</code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- 审计信息卡片 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-history me-2"></i>审计信息
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th style="width: 40%">创建人</th>
+                        <td>{{ model.created_by }}</td>
+                    </tr>
+                    <tr>
+                        <th>创建时间</th>
+                        <td>{{ model.created_at }}</td>
+                    </tr>
+                    {% if model.deployed_at %}
+                    <tr>
+                        <th>部署时间</th>
+                        <td>{{ model.deployed_at }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧内容 -->
+    <div class="col-md-8">
+        <!-- 描述卡片 -->
+        {% if model.description %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-align-left me-2"></i>描述
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ model.description }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 特征定义卡片 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-list me-2"></i>输入特征
+                <span class="badge bg-secondary ms-2">{{ model.input_features|length }} 个特征</span>
+            </div>
+            <div class="card-body">
+                {% for feature in model.input_features %}
+                <span class="feature-badge">
+                    <i class="fas fa-cube me-1 text-muted"></i>{{ feature }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 输出格式卡片 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-sign-out-alt me-2"></i>输出格式
+            </div>
+            <div class="card-body">
+                <pre class="json-viewer">{{ model.output_schema|tojson(indent=2) }}</pre>
+            </div>
+        </div>
+
+        <!-- 模型参数卡片 -->
+        {% if model.model_params %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-sliders-h me-2"></i>模型参数
+            </div>
+            <div class="card-body">
+                <pre class="json-viewer">{{ model.model_params|tojson(indent=2) }}</pre>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 标签卡片 -->
+        {% if model.tags %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-tags me-2"></i>标签
+            </div>
+            <div class="card-body">
+                <pre class="json-viewer">{{ model.tags|tojson(indent=2) }}</pre>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 版本历史 -->
+<div class="row mt-2">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-history me-2"></i>版本历史
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>操作</th>
+                                <th>操作人</th>
+                                <th>操作时间</th>
+                                <th>原因</th>
+                                <th>详情</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in history %}
+                            <tr>
+                                <td>
+                                    {% if item.operation == 'CREATE' %}
+                                        <span class="badge bg-success">创建</span>
+                                    {% elif item.operation == 'ACTIVATE' %}
+                                        <span class="badge bg-primary">激活</span>
+                                    {% elif item.operation == 'DEACTIVATE' %}
+                                        <span class="badge bg-warning">停用</span>
+                                    {% elif item.operation == 'PROMOTE' %}
+                                        <span class="badge bg-info">设为生产</span>
+                                    {% elif item.operation == 'DEPRECATE' %}
+                                        <span class="badge bg-danger">废弃</span>
+                                    {% elif item.operation == 'ARCHIVE' %}
+                                        <span class="badge bg-dark">归档</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item.operation }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.operator }}</td>
+                                <td>{{ item.operation_time }}</td>
+                                <td>{{ item.reason or '-' }}</td>
+                                <td>
+                                    {% if item.details %}
+                                    <button class="btn btn-sm btn-outline-info"
+                                            onclick="showDetails('{{ item.details|tojson|escape }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 详情模态框 -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">操作详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="detailsContent" class="json-viewer"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function activateModel(modelId) {
+    if (confirm('确定要激活此模型吗？')) {
+        fetch(`/api/v1/models/${modelId}/activate`, {
+            method: 'POST',
+            headers: {'X-API-Key': 'demo-key'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                utils.showToast('模型激活成功');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => utils.handleError(error));
+    }
+}
+
+function deactivateModel(modelId) {
+    if (confirm('确定要停用此模型吗？')) {
+        fetch(`/api/v1/models/${modelId}/deactivate`, {
+            method: 'POST',
+            headers: {'X-API-Key': 'demo-key'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                utils.showToast('模型已停用');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => utils.handleError(error));
+    }
+}
+
+function promoteModel(modelId) {
+    if (confirm('确定要将此模型设为生产模型吗？\n这将自动停用其他同类型的生产模型。')) {
+        fetch(`/api/v1/models/${modelId}/promote`, {
+            method: 'POST',
+            headers: {'X-API-Key': 'demo-key'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                utils.showToast('已设为生产模型');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => utils.handleError(error));
+    }
+}
+
+function loadModel(modelId) {
+    fetch(`/api/v1/models/${modelId}/load`, {
+        method: 'POST',
+        headers: {'X-API-Key': 'demo-key'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            utils.showToast('模型加载成功');
+            setTimeout(() => location.reload(), 1000);
+        }
+    })
+    .catch(error => utils.handleError(error));
+}
+
+function unloadModel(modelId) {
+    if (confirm('确定要从内存中卸载此模型吗？')) {
+        fetch(`/api/v1/models/${modelId}/unload`, {
+            method: 'POST',
+            headers: {'X-API-Key': 'demo-key'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                utils.showToast('模型已卸载');
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(error => utils.handleError(error));
+    }
+}
+
+function showDetails(details) {
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    document.getElementById('detailsContent').textContent =
+        JSON.stringify(JSON.parse(details), null, 2);
+    modal.show();
+}
+</script>
+{% endblock %}
