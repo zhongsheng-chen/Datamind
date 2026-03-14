@@ -1,0 +1,268 @@
+# datamind/docker-compose.yml
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15
+    container_name: datamind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-datamind}
+      POSTGRES_USER: ${POSTGRES_USER:-datamind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datamind123}
+      TZ: Asia/Shanghai
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datamind"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: datamind-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO 对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: datamind-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"      # API端口
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # 控制台端口
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # 创建 MinIO 存储桶
+  minio-create-buckets:
+    image: minio/mc:latest
+    container_name: datamind-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      /usr/bin/mc mb myminio/${MINIO_BUCKET:-datamind-models} --ignore-existing;
+      /usr/bin/mc policy set public myminio/${MINIO_BUCKET:-datamind-models};
+      exit 0;
+      "
+    networks:
+      - datamind-network
+
+  # 主 API 服务
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: datamind-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+      - "${API_METRICS_PORT:-9090}:9090"
+    environment:
+      - ENV=${ENV:-production}
+      - DEBUG=${DEBUG:-false}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres:5432/${POSTGRES_DB:-datamind}
+      - READONLY_DATABASE_URL=${READONLY_DATABASE_URL:-}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-datamind-models}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - API_KEY_ENABLED=${API_KEY_ENABLED:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+    volumes:
+      - ./logs:/app/logs
+      - ./models_storage:/app/models_storage
+      - ./config:/app/config
+      - ./core:/app/core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-create-buckets:
+        condition: service_completed_successfully
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 评分卡服务
+  scoring-service:
+    build:
+      context: ./serving
+      dockerfile: docker/Dockerfile
+    container_name: datamind-scoring
+    restart: unless-stopped
+    ports:
+      - "${SCORING_PORT:-3001}:3000"
+    environment:
+      - SERVICE_TYPE=scoring
+      - ENVIRONMENT=${ENV:-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres:5432/${POSTGRES_DB:-datamind}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      - MODELS_PATH=/app/models_storage
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+    volumes:
+      - ./models_storage:/app/models_storage
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 反欺诈服务
+  fraud-service:
+    build:
+      context: ./serving
+      dockerfile: docker/Dockerfile
+    container_name: datamind-fraud
+    restart: unless-stopped
+    ports:
+      - "${FRAUD_PORT:-3002}:3000"
+    environment:
+      - SERVICE_TYPE=fraud
+      - ENVIRONMENT=${ENV:-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres:5432/${POSTGRES_DB:-datamind}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      - MODELS_PATH=/app/models_storage
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+    volumes:
+      - ./models_storage:/app/models_storage
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx 反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: datamind-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - api
+      - scoring-service
+      - fraud-service
+    networks:
+      - datamind-network
+
+  # pgAdmin（开发环境可选）
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: datamind-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@datamind.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - datamind-network
+    profiles:
+      - dev
+
+  # Redis Commander（开发环境可选）
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: datamind-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    depends_on:
+      - redis
+    networks:
+      - datamind-network
+    profiles:
+      - dev
+
+networks:
+  datamind-network:
+    driver: bridge
+    name: datamind-network
+
+volumes:
+  postgres-data:
+    name: datamind-postgres-data
+  redis-data:
+    name: datamind-redis-data
+  minio-data:
+    name: datamind-minio-data
+  pgadmin-data:
+    name: datamind-pgadmin-data

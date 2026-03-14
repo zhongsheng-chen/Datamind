@@ -655,3 +655,934 @@ model_registry.update_model_params(
     reason="根据业务需求调整评分卡参数"
 )
 ```
+
+# 启动 Datamind 服务
+
+根据项目的架构，Datamind 有多个服务组件需要启动。以下是完整的启动指南：
+
+---
+
+# 1. 环境准备
+
+## 安装依赖
+
+```bash
+# 创建虚拟环境（推荐）
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 或
+venv\Scripts\activate  # Windows
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 安装开发依赖（可选）
+pip install -r requirements-dev.txt
+```
+
+## 配置环境变量
+
+```bash
+# 复制环境变量示例文件
+cp .env.example .env
+
+# 编辑 .env 文件，修改数据库连接等配置
+vim .env
+```
+
+## 启动依赖服务
+
+```bash
+# 使用 Docker Compose 启动 PostgreSQL 和 Redis
+docker-compose up -d postgres redis
+
+# 或手动启动 PostgreSQL 和 Redis
+```
+
+## 初始化数据库
+
+```bash
+# 创建数据库表
+python scripts/init_db.py
+
+# 执行数据库迁移
+alembic upgrade head
+```
+
+---
+
+# 2. 启动主 API 服务
+
+## 开发模式
+
+```bash
+# 使用 uvicorn 直接启动（支持热重载）
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 或使用 Python 直接运行
+python main.py
+```
+
+## 生产模式
+
+```bash
+# 使用 gunicorn + uvicorn
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+
+# 或使用 uvicorn 生产模式
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+## 验证服务
+
+```bash
+# 访问健康检查接口
+curl http://localhost:8000/health
+```
+
+浏览器访问：
+
+```
+http://localhost:8000/api/docs
+```
+
+---
+
+# 3. 启动 BentoML 模型服务
+
+## 评分卡服务
+
+```bash
+# 进入 serving 目录
+cd serving
+
+# 启动评分卡服务
+bentoml serve scoring_service:service --reload --port 3001
+
+# 或生产模式
+bentoml serve scoring_service:service --production --port 3001
+```
+
+## 反欺诈服务
+
+```bash
+cd serving
+
+bentoml serve fraud_service:service --reload --port 3002
+
+# 或生产模式
+bentoml serve fraud_service:service --production --port 3002
+```
+
+## 验证模型服务
+
+```bash
+# 健康检查
+curl http://localhost:3001/health
+curl http://localhost:3002/health
+```
+
+测试预测：
+
+```bash
+curl -X POST http://localhost:3001/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "MDL_20240315_ABCD1234",
+    "application_id": "TEST001",
+    "features": {"age": 35, "income": 50000}
+  }'
+```
+
+---
+
+# 4. 使用 Docker Compose 一键启动所有服务
+
+## 启动
+
+```bash
+docker-compose up -d
+```
+
+## 查看日志
+
+```bash
+docker-compose logs -f
+```
+
+## 停止
+
+```bash
+docker-compose down
+```
+
+---
+
+# docker-compose.yml 示例
+
+```yaml
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: datamind
+      POSTGRES_USER: datamind
+      POSTGRES_PASSWORD: datamind123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - datamind-network
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - datamind-network
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - datamind-network
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://datamind:datamind123@postgres:5432/datamind
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./models_storage:/app/models_storage
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - datamind-network
+
+  scoring-service:
+    build:
+      context: ./serving
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - SERVICE_TYPE=scoring
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://datamind:datamind123@postgres:5432/datamind
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./models_storage:/app/models_storage
+    depends_on:
+      - postgres
+      - redis
+      - api
+    networks:
+      - datamind-network
+
+  fraud-service:
+    build:
+      context: ./serving
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - SERVICE_TYPE=fraud
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://datamind:datamind123@postgres:5432/datamind
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./models_storage:/app/models_storage
+    depends_on:
+      - postgres
+      - redis
+      - api
+    networks:
+      - datamind-network
+
+networks:
+  datamind-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+```
+
+---
+
+# 5. Makefile 快捷命令
+
+```bash
+make help
+make init-db
+make run
+make docker-up
+make docker-down
+make docker-logs
+make test
+make format
+make lint
+```
+
+---
+
+# 6. CLI 工具
+
+```bash
+datamind --help
+
+datamind health check
+datamind health db
+datamind health redis
+
+datamind model list
+
+datamind log tail access -f
+```
+
+---
+
+# 7. 访问服务
+
+## API 服务
+
+```
+http://localhost:8000/api/docs
+http://localhost:8000/health
+http://localhost:8000/ui
+```
+
+## 评分卡服务
+
+```
+http://localhost:3001/predict
+http://localhost:3001/health
+http://localhost:3001/metrics
+```
+
+## 反欺诈服务
+
+```
+http://localhost:3002/predict
+http://localhost:3002/explain
+http://localhost:3002/health
+```
+
+## 其他服务
+
+```
+MinIO Console
+http://localhost:9001
+用户名: minioadmin
+密码: minioadmin
+
+PostgreSQL
+localhost:5432
+
+Redis
+localhost:6379
+```
+
+---
+
+# 8. 启动顺序建议
+
+```bash
+# 启动依赖
+docker-compose up -d postgres redis minio
+
+# 初始化数据库
+python scripts/init_db.py
+alembic upgrade head
+
+# 启动 API
+uvicorn main:app --host 0.0.0.0 --port 8000 &
+
+# 注册初始模型
+python scripts/seed_data.py
+
+# 启动模型服务
+cd serving && bentoml serve scoring_service:service --port 3001 &
+cd serving && bentoml serve fraud_service:service --port 3002 &
+```
+
+---
+
+# 开发环境一键启动
+
+```bash
+./scripts/start-dev.sh
+```
+
+---
+
+# 9. 健康检查脚本
+
+`scripts/check-health.sh`
+
+```bash
+#!/bin/bash
+
+echo "检查 Datamind 服务状态"
+
+curl -s http://localhost:8000/health
+curl -s http://localhost:3001/health
+curl -s http://localhost:3002/health
+```
+
+---
+
+# 10. 常见问题
+
+## 数据库连接失败
+
+```bash
+docker ps | grep postgres
+echo $DATABASE_URL
+psql $DATABASE_URL
+```
+
+## 端口占用
+
+```bash
+lsof -i :8000
+lsof -i :3001
+lsof -i :3002
+```
+
+## 模型加载失败
+
+```bash
+ls -la models_storage/
+datamind model list
+```
+
+## 查看日志
+
+```bash
+tail -f logs/datamind.log
+tail -f logs/access.log
+tail -f logs/datamind.error.log
+```
+
+---
+
+# 总结
+
+启动 Datamind 的基本流程：
+
+1. 安装依赖
+2. 配置环境变量
+3. 启动 PostgreSQL / Redis / MinIO
+4. 初始化数据库
+5. 启动 API
+6. 启动模型服务
+7. 验证服务健康状态
+
+---
+
+# 最简单启动方式
+
+```bash
+docker-compose up -d
+```
+
+或
+
+```bash
+./scripts/start-dev.sh
+```
+
+# Makefile 使用方法
+
+## 基础命令
+
+```bash
+# 查看所有可用命令
+make help
+
+# 安装依赖
+make install
+make dev
+
+# 运行服务
+make run           # 开发模式
+make run-prod      # 生产模式
+make run-all       # 运行所有服务
+
+# 数据库操作
+make init-db
+make migrate
+make migrate-create
+make backup
+
+# Docker 操作
+make docker-up
+make docker-down
+make docker-logs
+
+# 代码质量
+make lint
+make format
+make test
+
+# 监控调试
+make health
+make logs
+make stats
+make shell
+```
+
+---
+
+## 组合命令示例
+
+```bash
+# 完整开发流程
+make clean        # 清理缓存
+make dev          # 安装依赖
+make init-db      # 初始化数据库
+make migrate      # 执行迁移
+make run          # 启动服务
+
+# Docker 部署
+make docker-build  # 构建镜像
+make docker-up     # 启动容器
+make docker-logs   # 查看日志
+make docker-down   # 停止容器
+```
+
+---
+
+该 `Makefile` 提供了完整的项目管理功能，涵盖：
+
+- 开发环境初始化
+- 服务运行
+- 数据库迁移
+- Docker 部署
+- 代码质量检查
+- 监控与调试
+
+基本覆盖了 **开发、测试、部署、运维** 的全部流程。
+
+# Datamind 组件调试顺序建议
+
+按照依赖关系，从底层到上层逐步调试。以下是推荐的调试顺序：
+
+---
+
+# 第一阶段：基础组件（无外部依赖）
+
+## 1. core/logging/ - 日志系统
+
+```bash
+# 测试日志系统
+python -c "
+from core.logging import log_manager
+from config.logging_config import LoggingConfig
+
+config = LoggingConfig.load()
+log_manager.initialize(config)
+log_manager.log_audit('TEST', 'system', details={'test': 'logging'})
+print('✅ 日志系统测试完成')
+"
+```
+
+## 2. core/db/enums.py - 枚举定义
+
+```bash
+python -c "
+from core.db.enums import TaskType, ModelType, Framework
+print(f'任务类型: {list(TaskType)}')
+print(f'模型类型: {list(ModelType)}')
+print(f'框架: {list(Framework)}')
+"
+```
+
+## 3. config/settings.py - 配置系统
+
+```bash
+python -c "
+from config import settings
+print(f'应用名称: {settings.APP_NAME}')
+print(f'环境: {settings.ENV}')
+print(f'数据库: {settings.DATABASE_URL}')
+"
+```
+
+## 4. core/db/models.py - 数据库模型
+
+```bash
+python -c "
+from core.db.models import Base
+print(f'模型数量: {len(Base.metadata.tables)}')
+for table in Base.metadata.tables:
+    print(f'  - {table}')
+"
+```
+
+---
+
+# 第二阶段：数据层
+
+## 5. core/db/database.py - 数据库连接
+
+```bash
+python -c "
+from core.db import db_manager
+from config import settings
+
+db_manager.initialize(settings.DATABASE_URL)
+with db_manager.session_scope() as session:
+    result = session.execute('SELECT 1').scalar()
+    print(f'数据库连接: {result}')
+"
+```
+
+## 6. migrations/ - 数据库迁移
+
+```bash
+alembic upgrade head
+alembic current
+```
+
+---
+
+# 第三阶段：核心业务层
+
+## 7. core/ml/exceptions.py - 异常定义
+
+```bash
+python -c "
+from core.ml.exceptions import ModelNotFoundException
+try:
+    raise ModelNotFoundException('test')
+except ModelNotFoundException as e:
+    print(f'✅ 异常测试: {e}')
+"
+```
+
+## 8. core/ml/model_registry.py - 模型注册
+
+```bash
+python -c "
+from core.ml import model_registry
+models = model_registry.list_models()
+print(f'当前模型数量: {len(models)}')
+"
+```
+
+## 9. core/ml/model_loader.py - 模型加载器
+
+```bash
+python -c "
+from core.ml import model_loader
+loaded = model_loader.get_loaded_models()
+print(f'已加载模型: {loaded}')
+"
+```
+
+## 10. core/ml/inference.py - 推理引擎
+
+```bash
+python -c "
+from core.ml import inference_engine
+stats = inference_engine.get_stats()
+print(f'推理引擎统计: {stats}')
+"
+```
+
+## 11. core/experiment/ab_test.py - A/B测试
+
+```bash
+python -c "
+from core.experiment import ab_test_manager
+stats = ab_test_manager.get_stats()
+print(f'AB测试统计: {stats}')
+"
+```
+
+---
+
+# 第四阶段：API层
+
+## 12. api/dependencies.py - API依赖
+
+```bash
+python -c "
+from api.dependencies import get_api_key, get_current_user
+print('✅ API依赖测试通过')
+"
+```
+
+## 13. api/middlewares/ - 中间件
+
+```bash
+python -c "
+from api.middlewares import (
+    AuthenticationMiddleware,
+    LoggingMiddleware,
+    RateLimitMiddleware
+)
+print('✅ 中间件导入成功')
+"
+```
+
+## 14. api/routes/ - API路由
+
+```bash
+cd tests
+
+pytest test_model_api.py -v
+pytest test_scoring_api.py -v
+pytest test_fraud_api.py -v
+pytest test_management_api.py -v
+```
+
+## 15. main.py - 主应用
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+测试：
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/api/docs
+```
+
+---
+
+# 第五阶段：服务层
+
+## 16. serving/base.py - 基础服务类
+
+```bash
+cd serving
+
+python -c "
+from base import BaseModelService
+service = BaseModelService('test', 'scoring')
+print('✅ 基础服务测试通过')
+"
+```
+
+## 17. serving/scoring_service.py - 评分卡服务
+
+```bash
+cd serving
+
+bentoml serve scoring_service:service --reload --port 3001
+```
+
+测试：
+
+```bash
+curl http://localhost:3001/health
+```
+
+## 18. serving/fraud_service.py - 反欺诈服务
+
+```bash
+cd serving
+
+bentoml serve fraud_service:service --reload --port 3002
+```
+
+测试：
+
+```bash
+curl http://localhost:3002/health
+```
+
+---
+
+# 第六阶段：存储层
+
+## 19. storage/base.py - 存储基类
+
+```bash
+python -c "
+from storage.base import StorageBackend
+print('✅ 存储基类测试通过')
+"
+```
+
+## 20. storage/local_storage.py - 本地存储
+
+```bash
+python -c "
+from storage.local_storage import LocalStorage
+storage = LocalStorage('./test_storage')
+print('✅ 本地存储测试通过')
+"
+```
+
+## 21. storage/models/ - 模型存储
+
+```bash
+python -c "
+from storage.models import ModelStorage, VersionManager
+print('✅ 模型存储测试通过')
+"
+```
+
+---
+
+# 第七阶段：CLI工具
+
+```bash
+pip install -e .
+
+datamind --help
+datamind health check
+datamind model list
+datamind log config
+```
+
+---
+
+# 第八阶段：UI界面
+
+启动主服务后访问：
+
+```
+http://localhost:8000/ui
+http://localhost:8000/ui/models
+http://localhost:8000/ui/register
+```
+
+---
+
+# 完整调试脚本
+
+`scripts/debug_order.sh`
+
+```bash
+#!/bin/bash
+
+set -e
+
+echo "========================================="
+echo "Datamind 组件调试顺序"
+echo "========================================="
+
+echo -e "\n📦 阶段1: 基础组件"
+python -c "from core.logging import log_manager; print('✅ 日志系统')"
+python -c "from core.db.enums import TaskType; print('✅ 枚举定义')"
+python -c "from config import settings; print('✅ 配置系统')"
+python -c "from core.db.models import Base; print('✅ 数据库模型')"
+
+echo -e "\n🗄️ 阶段2: 数据层"
+python -c "
+from core.db import db_manager
+from config import settings
+db_manager.initialize(settings.DATABASE_URL)
+print('✅ 数据库连接')
+"
+
+echo -e "\n⚙️ 阶段3: 核心业务"
+python -c "from core.ml import model_registry; print('✅ 模型注册')"
+python -c "from core.ml import model_loader; print('✅ 模型加载')"
+python -c "from core.ml import inference_engine; print('✅ 推理引擎')"
+python -c "from core.experiment import ab_test_manager; print('✅ AB测试')"
+
+echo -e "\n🌐 阶段4: API层"
+python -c "from api import api_router; print('✅ API路由')"
+
+echo -e "\n🚀 阶段5: 服务层"
+python -c "from serving.base import BaseModelService; print('✅ 服务基类')"
+
+echo -e "\n💾 阶段6: 存储层"
+python -c "from storage.base import StorageBackend; print('✅ 存储基类')"
+
+echo -e "\n⌨️ 阶段7: CLI工具"
+command -v datamind >/dev/null && echo "✅ CLI工具" || echo "⚠️ CLI未安装"
+
+echo -e "\n========================================="
+echo "所有组件导入测试完成"
+echo "========================================="
+```
+
+---
+
+# 调试建议
+
+## 1. 先单元测试，后集成测试
+
+```bash
+pytest tests/unit/
+pytest tests/integration/
+```
+
+## 2. 使用调试模式
+
+```bash
+export DATAMIND_LOG_LEVEL=DEBUG
+export DATAMIND_DEBUG=true
+
+make run
+```
+
+## 3. 监控日志
+
+```bash
+tail -f logs/datamind.log
+grep "ModelRegistry" logs/datamind.log
+```
+
+## 4. 使用健康检查
+
+```bash
+make health
+curl http://localhost:8000/health | jq '.'
+```
+
+## 5. 逐步添加数据
+
+```bash
+datamind model register --name test_model ...
+datamind model predict ...
+```
+
+---
+
+# 调试检查清单
+
+- 日志系统正常工作
+- 数据库连接成功
+- 配置加载正确
+- 模型可以注册
+- 模型可以加载
+- API路由可访问
+- 中间件正常工作
+- 评分卡服务可启动
+- 反欺诈服务可启动
+- 存储功能正常
+- CLI命令可用
+- UI界面可访问
+
+---
+
+按照这个顺序调试，可以确保 **每个组件在依赖它的组件之前就被验证为正常工作**。
