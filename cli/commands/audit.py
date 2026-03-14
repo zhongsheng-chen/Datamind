@@ -1,123 +1,151 @@
+# datamind/cli/commands/audit.py
 import click
 from datetime import datetime, timedelta
-import requests
-from cli.utils.printer import print_table, print_json
-from cli.utils.config import get_api_url
+import json
+
+from cli.utils.printer import print_table, print_json, print_error, print_warning
+from core.db.database import get_db
+from core.db.models import AuditLog
 
 
 @click.group(name='audit')
 def audit():
-    """审计日志管理"""
+    """审计日志命令"""
     pass
 
 
 @audit.command(name='list')
-@click.option('--model', '-m', help='模型ID')
-@click.option('--user', '-u', help='操作人ID')
-@click.option('--action', '-a', help='操作类型')
-@click.option('--days', '-d', type=int, default=7, help='查询天数')
-@click.option('--limit', '-l', type=int, default=100, help='返回条数')
+@click.option('--days', '-d', default=7, help='最近几天 (默认: 7)')
+@click.option('--action', '-a', help='操作类型筛选')
+@click.option('--user', '-u', help='操作人筛选')
+@click.option('--resource', '-r', help='资源类型筛选')
 @click.option('--format', '-f', 'output_format', type=click.Choice(['table', 'json']), default='table')
-def list_audit_logs(model, user, action, days, limit, output_format):
-    """查询审计日志"""
+@click.option('--limit', '-l', default=100, help='最大记录数')
+def list_logs(days, action, user, resource, output_format, limit):
+    """查看审计日志"""
     try:
-        end_time = datetime.now()
-        start_time = end_time - timedelta(days=days)
+        start_date = datetime.now() - timedelta(days=days)
 
-        url = f"{get_api_url()}/v1/audit/logs"
-        params = {
-            'start_time': start_time.isoformat(),
-            'end_time': end_time.isoformat(),
-            'limit': limit
-        }
-        if model:
-            params['model_id'] = model
-        if user:
-            params['user_id'] = user
-        if action:
-            params['action'] = action
+        with get_db() as session:
+            query = session.query(AuditLog).filter(
+                AuditLog.created_at >= start_date
+            ).order_by(AuditLog.created_at.desc())
 
-        response = requests.get(url, params=params, headers=get_headers())
+            if action:
+                query = query.filter(AuditLog.action == action)
+            if user:
+                query = query.filter(AuditLog.operator == user)
+            if resource:
+                query = query.filter(AuditLog.resource_type == resource)
 
-        if response.status_code == 200:
-            data = response.json()
+            logs = query.limit(limit).all()
 
-            if output_format == 'json':
-                print_json(data)
-            else:
-                table = Table(title="审计日志")
-                table.add_column("时间", style="cyan")
-                table.add_column("操作", style="green")
-                table.add_column("用户", style="yellow")
-                table.add_column("模型", style="blue")
-                table.add_column("状态", style="magenta")
+        if not logs:
+            print_warning("未找到审计日志")
+            return
 
-                for log in data.get('logs', []):
-                    table.add_row(
-                        log.get('timestamp', ''),
-                        log.get('action', ''),
-                        log.get('user_id', ''),
-                        log.get('model_info', {}).get('model_id', '') if log.get('model_info') else '',
-                        log.get('status', '')
-                    )
-
-                print_table(table)
+        if output_format == 'json':
+            result = []
+            for log in logs:
+                result.append({
+                    'time': log.created_at.isoformat(),
+                    'action': log.action,
+                    'operator': log.operator,
+                    'resource_type': log.resource_type,
+                    'resource_id': log.resource_id,
+                    'result': log.result,
+                    'details': log.details
+                })
+            print_json(result)
         else:
-            click.echo(f"查询失败: {response.text}")
+            headers = ['时间', '操作', '操作人', '资源类型', '资源ID', '结果']
+            rows = []
+            for log in logs:
+                rows.append([
+                    log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    log.action,
+                    log.operator,
+                    log.resource_type,
+                    log.resource_id or '-',
+                    '✅' if log.result == 'SUCCESS' else '❌'
+                ])
+            print_table(headers, rows)
+            click.echo(f"\n总计: {len(logs)} 条记录")
 
     except Exception as e:
-        click.echo(f"错误: {str(e)}")
+        print_error(f"获取审计日志失败: {e}")
 
 
-@audit.command(name='stats')
-@click.option('--days', '-d', type=int, default=30, help='统计天数')
-def audit_stats(days):
-    """审计统计信息"""
+@audit.command(name='show')
+@click.argument('audit-id')
+def show_log(audit_id):
+    """查看审计日志详情"""
     try:
-        url = f"{get_api_url()}/v1/audit/stats"
-        params = {'days': days}
+        with get_db() as session:
+            log = session.query(AuditLog).filter_by(audit_id=audit_id).first()
 
-        response = requests.get(url, params=params, headers=get_headers())
+            if not log:
+                print_error(f"审计日志不存在: {audit_id}")
+                return
 
-        if response.status_code == 200:
-            print_json(response.json())
-        else:
-            click.echo(f"查询失败: {response.text}")
+            click.echo("\n" + "=" * 60)
+            click.echo(f"审计日志详情: {audit_id}")
+            click.echo("=" * 60)
+            click.echo(f"时间:     {log.created_at}")
+            click.echo(f"操作:     {log.action}")
+            click.echo(f"操作人:   {log.operator} ({log.operator_ip or 'unknown'})")
+            click.echo(f"资源类型: {log.resource_type}")
+            click.echo(f"资源ID:   {log.resource_id or '-'}")
+            click.echo(f"结果:     {'成功' if log.result == 'SUCCESS' else '失败'}")
+
+            if log.reason:
+                click.echo(f"原因:     {log.reason}")
+
+            if log.details:
+                click.echo("\n详细信息:")
+                click.echo(json.dumps(log.details, indent=2, ensure_ascii=False))
+
+            if log.changes:
+                click.echo("\n变更内容:")
+                click.echo(json.dumps(log.changes, indent=2, ensure_ascii=False))
 
     except Exception as e:
-        click.echo(f"错误: {str(e)}")
+        print_error(f"获取审计日志失败: {e}")
 
 
 @audit.command(name='export')
-@click.option('--days', '-d', type=int, default=7, help='导出天数')
-@click.option('--output', '-o', default='audit_export.json', help='输出文件')
-def export_audit_logs(days, output):
-    """导出审计日志"""
+@click.option('--days', '-d', default=30, help='导出最近几天的日志')
+@click.option('--output', '-o', required=True, help='输出文件路径')
+def export_logs(days, output):
+    """导出审计日志到文件"""
     try:
-        end_time = datetime.now()
-        start_time = end_time - timedelta(days=days)
+        start_date = datetime.now() - timedelta(days=days)
 
-        url = f"{get_api_url()}/v1/audit/logs"
-        params = {
-            'start_time': start_time.isoformat(),
-            'end_time': end_time.isoformat(),
-            'limit': 10000
-        }
+        with get_db() as session:
+            logs = session.query(AuditLog).filter(
+                AuditLog.created_at >= start_date
+            ).order_by(AuditLog.created_at).all()
 
-        with click.progressbar(length=100, label='导出审计日志') as bar:
-            response = requests.get(url, params=params, headers=get_headers())
-            bar.update(50)
+        result = []
+        for log in logs:
+            result.append({
+                'audit_id': log.audit_id,
+                'time': log.created_at.isoformat(),
+                'action': log.action,
+                'operator': log.operator,
+                'operator_ip': log.operator_ip,
+                'resource_type': log.resource_type,
+                'resource_id': log.resource_id,
+                'result': log.result,
+                'reason': log.reason,
+                'details': log.details,
+                'changes': log.changes
+            })
 
-            if response.status_code == 200:
-                data = response.json()
+        with open(output, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
 
-                with open(output, 'w') as f:
-                    json.dump(data, f, indent=2)
-
-                bar.update(50)
-                click.echo(f"已导出 {len(data.get('logs', []))} 条记录到 {output}")
-            else:
-                click.echo(f"导出失败: {response.text}")
+        click.echo(f"已导出 {len(result)} 条审计日志到 {output}")
 
     except Exception as e:
-        click.echo(f"错误: {str(e)}")
+        print_error(f"导出失败: {e}")

@@ -1,22 +1,33 @@
+# datamind/setup.py
 from setuptools import setup, find_packages
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 setup(
-    name="datamind",
+    name="datamind-cli",
     version="1.0.0",
+    author="Datamind Team",
+    description="Datamind 模型部署平台命令行工具",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/yourusername/datamind",
     packages=find_packages(),
-    include_package_data=True,
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    python_requires=">=3.8",
     install_requires=[
-        # 依赖列表
+        "click>=8.0.0",
+        "requests>=2.25.0",
+        "pyyaml>=5.4.0",
     ],
     entry_points={
-        'console_scripts': [
-            'datamind=cli.main:cli',
+        "console_scripts": [
+            "datamind=cli.main:main",
         ],
     },
-    author="Datamind Team",
-    description="金融级模型部署平台",
-    classifiers=[
-        'Programming Language :: Python :: 3.9',
-        'Operating System :: OS Independent',
-    ],
+    include_package_data=True,
 )

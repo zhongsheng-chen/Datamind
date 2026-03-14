@@ -1,15 +1,16 @@
-# core/enums.py
-import enum
+# core/db/enums.py
+
+from enum import Enum
 from typing import Dict, Set, List
 
 
-class TaskType(str, enum.Enum):
+class TaskType(str, Enum):
     """任务类型"""
     SCORING = "scoring"
     FRAUD_DETECTION = "fraud_detection"
 
 
-class ModelType(str, enum.Enum):
+class ModelType(str, Enum):
     """模型类型"""
     DECISION_TREE = "decision_tree"
     RANDOM_FOREST = "random_forest"
@@ -20,7 +21,7 @@ class ModelType(str, enum.Enum):
     NEURAL_NETWORK = "neural_network"
 
 
-class Framework(str, enum.Enum):
+class Framework(str, Enum):
     """模型框架"""
     SKLEARN = "sklearn"
     XGBOOST = "xgboost"
@@ -31,7 +32,7 @@ class Framework(str, enum.Enum):
     CATBOOST = "catboost"
 
 
-class ModelStatus(str, enum.Enum):
+class ModelStatus(str, Enum):
     """模型状态"""
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -39,7 +40,7 @@ class ModelStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
-class AuditAction(str, enum.Enum):
+class AuditAction(str, Enum):
     """审计操作类型"""
     CREATE = "CREATE"
     UPDATE = "UPDATE"
@@ -58,7 +59,7 @@ class AuditAction(str, enum.Enum):
     CONFIG_CHANGE = "CONFIG_CHANGE"
 
 
-class DeploymentEnvironment(str, enum.Enum):
+class DeploymentEnvironment(str, Enum):
     """部署环境"""
     DEVELOPMENT = "development"
     TESTING = "testing"
@@ -66,7 +67,7 @@ class DeploymentEnvironment(str, enum.Enum):
     PRODUCTION = "production"
 
 
-class ABTestStatus(str, enum.Enum):
+class ABTestStatus(str, Enum):
     """A/B测试状态"""
     DRAFT = "draft"
     RUNNING = "running"

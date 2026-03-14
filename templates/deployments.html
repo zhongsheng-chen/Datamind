@@ -1,0 +1,334 @@
+<!-- datamind/templates/deployments.html -->
+{% extends "base.html" %}
+
+{% block title %}部署管理 - Datamind{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-rocket me-2"></i>部署管理</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- 新建部署表单 -->
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="fas fa-plus-circle me-2"></i>新建部署
+            </div>
+            <div class="card-body">
+                <form id="deployForm">
+                    <div class="mb-3">
+                        <label class="form-label">选择模型</label>
+                        <select class="form-select" name="model_id" required>
+                            <option value="">请选择</option>
+                            {% for model in models %}
+                            <option value="{{ model.model_id }}">
+                                {{ model.model_name }} v{{ model.model_version }}
+                                ({{ model.model_type }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">部署环境</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="environment" id="envDev" value="development" checked>
+                            <label class="btn btn-outline-primary" for="envDev">开发</label>
+
+                            <input type="radio" class="btn-check" name="environment" id="envTest" value="testing">
+                            <label class="btn btn-outline-warning" for="envTest">测试</label>
+
+                            <input type="radio" class="btn-check" name="environment" id="envProd" value="production">
+                            <label class="btn btn-outline-success" for="envProd">生产</label>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">CPU (核)</label>
+                            <input type="number" class="form-control" name="cpu" value="2" min="1" max="32">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">内存 (GB)</label>
+                            <input type="number" class="form-control" name="memory" value="4" min="1" max="64">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">副本数</label>
+                            <input type="number" class="form-control" name="replicas" value="1" min="1" max="10">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">流量权重 (%)</label>
+                            <input type="number" class="form-control" name="weight" value="100" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">部署配置 (JSON)</label>
+                        <textarea class="form-control" name="config" rows="3">{
+    "timeout": 30,
+    "max_batch_size": 100,
+    "enable_monitoring": true
+}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-play me-2"></i>开始部署
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- 当前部署列表 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-list me-2"></i>当前部署
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>环境</th>
+                                <th>模型</th>
+                                <th>版本</th>
+                                <th>状态</th>
+                                <th>端点</th>
+                                <th>流量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deploymentsList">
+                            <!-- 通过JS动态加载 -->
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 部署历史 -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-history me-2"></i>部署历史
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>模型</th>
+                                <th>环境</th>
+                                <th>操作</th>
+                                <th>操作人</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deploymentHistory">
+                            <!-- 通过JS动态加载 -->
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 健康检查详情模态框 -->
+<div class="modal fade" id="healthModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">健康检查详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="healthContent">
+                加载中...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 加载部署列表
+function loadDeployments() {
+    fetch('/api/v1/management/deployments', {
+        headers: {'X-API-Key': 'demo-key'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        const tbody = document.getElementById('deploymentsList');
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">暂无部署</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(d => `
+            <tr>
+                <td>
+                    <span class="badge ${d.environment === 'production' ? 'bg-success' :
+                                          d.environment === 'testing' ? 'bg-warning' : 'bg-info'}">
+                        ${d.environment}
+                    </span>
+                </td>
+                <td>${d.model_name || d.model_id}</td>
+                <td><span class="badge bg-secondary">v${d.model_version}</span></td>
+                <td>
+                    <span class="badge ${d.health_status === 'healthy' ? 'bg-success' :
+                                          d.health_status === 'unhealthy' ? 'bg-danger' : 'bg-secondary'}">
+                        ${d.health_status || 'unknown'}
+                    </span>
+                </td>
+                <td><code>${d.endpoint_url || '-'}</code></td>
+                <td>${d.traffic_weight || 100}%</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-info" onclick="showHealth('${d.deployment_id}')"
+                                title="健康检查">
+                            <i class="fas fa-heartbeat"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="stopDeployment('${d.deployment_id}')"
+                                title="停止部署">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    })
+    .catch(error => {
+        document.getElementById('deploymentsList').innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger">加载失败</td></tr>';
+    });
+}
+
+// 加载部署历史
+function loadDeploymentHistory() {
+    fetch('/api/v1/management/deployments/history', {
+        headers: {'X-API-Key': 'demo-key'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        const tbody = document.getElementById('deploymentHistory');
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无历史记录</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.slice(0, 10).map(h => `
+            <tr>
+                <td>${new Date(h.created_at).toLocaleString()}</td>
+                <td>${h.model_id}</td>
+                <td>
+                    <span class="badge ${h.environment === 'production' ? 'bg-success' :
+                                          h.environment === 'testing' ? 'bg-warning' : 'bg-info'}">
+                        ${h.environment}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge ${h.operation === 'deploy' ? 'bg-primary' : 'bg-secondary'}">
+                        ${h.operation}
+                    </span>
+                </td>
+                <td>${h.operator}</td>
+            </tr>
+        `).join('');
+    })
+    .catch(error => {
+        document.getElementById('deploymentHistory').innerHTML =
+            '<tr><td colspan="5" class="text-center text-danger">加载失败</td></tr>';
+    });
+}
+
+// 提交部署表单
+document.getElementById('deployForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const data = {
+        model_id: formData.get('model_id'),
+        environment: formData.get('environment'),
+        resources: {
+            cpu: parseInt(formData.get('cpu')),
+            memory: parseInt(formData.get('memory')),
+            replicas: parseInt(formData.get('replicas'))
+        },
+        traffic_weight: parseInt(formData.get('weight')),
+        deployment_config: JSON.parse(formData.get('config'))
+    };
+
+    fetch('/api/v1/management/deployments', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'demo-key'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.deployment_id) {
+            utils.showToast('部署成功');
+            this.reset();
+            loadDeployments();
+            loadDeploymentHistory();
+        }
+    })
+    .catch(error => utils.handleError(error));
+});
+
+function showHealth(deploymentId) {
+    fetch(`/api/v1/management/deployments/${deploymentId}/health`, {
+        headers: {'X-API-Key': 'demo-key'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('healthContent').innerHTML =
+            `<pre class="json-viewer">${JSON.stringify(data, null, 2)}</pre>`;
+        new bootstrap.Modal(document.getElementById('healthModal')).show();
+    })
+    .catch(error => utils.handleError(error));
+}
+
+function stopDeployment(deploymentId) {
+    if (confirm('确定要停止此部署吗？')) {
+        fetch(`/api/v1/management/deployments/${deploymentId}`, {
+            method: 'DELETE',
+            headers: {'X-API-Key': 'demo-key'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                utils.showToast('部署已停止');
+                loadDeployments();
+                loadDeploymentHistory();
+            }
+        })
+        .catch(error => utils.handleError(error));
+    }
+}
+
+// 页面加载时加载数据
+document.addEventListener('DOMContentLoaded', function() {
+    loadDeployments();
+    loadDeploymentHistory();
+});
+</script>
+{% endblock %}

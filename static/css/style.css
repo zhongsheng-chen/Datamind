@@ -1,0 +1,175 @@
+/* datamind/static/css/style.css */
+
+/* 全局样式 */
+body {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* 导航栏样式 */
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.navbar-brand .badge {
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+/* 卡片样式 */
+.card {
+    border: none;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-weight: 600;
+}
+
+/* 统计卡片 */
+.card.text-white .opacity-50 {
+    opacity: 0.3 !important;
+}
+
+/* 表格样式 */
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* 按钮组 */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* 徽章样式 */
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.6em;
+}
+
+/* 加载动画 */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* 图表容器 */
+#callsChart, #modelTypeChart {
+    width: 100%;
+    height: 300px;
+}
+
+/* 页脚 */
+.footer {
+    margin-top: auto;
+    background-color: #fff !important;
+    border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+/* 表单样式 */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.3rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.1);
+}
+
+/* 模态框样式 */
+.modal-content {
+    border: none;
+    box-shadow: 0 0 30px rgba(0,0,0,0.2);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .navbar-text {
+        display: none;
+    }
+
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.2rem 0.3rem;
+    }
+}
+
+/* 状态指示灯 */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-active {
+    background-color: #28a745;
+    box-shadow: 0 0 5px #28a745;
+}
+
+.status-inactive {
+    background-color: #6c757d;
+}
+
+.status-deprecated {
+    background-color: #dc3545;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* 工具类 */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
