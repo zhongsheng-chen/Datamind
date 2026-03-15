@@ -52,7 +52,7 @@ class LogManager:
             self.performance_logger: Optional[logging.Logger] = None
             self.cleanup_manager: Optional[CleanupManager] = None
             self._config_digest: Optional[str] = None
-            self._stats = {  # 添加统计信息
+            self._stats = {
                 'logs_processed': 0,
                 'errors': 0,
                 'warnings': 0
@@ -186,19 +186,25 @@ class LogManager:
 
         self._debug("创建文件处理器: 文件=%s, 级别=%s, 格式=%s", filename, level, format_type)
 
+        # 获取基础目录
+        base_dir = self.config._base_dir or Path(__file__).parent.parent.parent
+        # 获取完整路径
+        full_path = self.config.get_full_log_path(filename, base_dir)
+        self._debug("完整路径: %s", full_path)
+
         # 确保日志目录存在
-        log_dir = os.path.dirname(filename)
-        if log_dir:
-            Path(log_dir).mkdir(parents=True, exist_ok=True)
-            self._debug("确保目录存在: %s", log_dir)
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        self._debug("确保目录存在: %s", full_path.parent)
 
         # 如果文件名包含时间戳，添加时间信息
         if self.config.file_name_timestamp:
             current_time = self.timezone_formatter.format_time()
             timestamp = current_time.strftime(self.config.file_name_datetime_format)
-            base, ext = os.path.splitext(filename)
-            filename = f"{base}_{timestamp}{ext}"
-            self._debug("文件名添加时间戳: %s", filename)
+            # 只修改文件名，不修改路径
+            new_filename = f"{full_path.stem}_{timestamp}{full_path.suffix}"
+            full_path = full_path.parent / new_filename
+            self._debug("文件名添加时间戳: %s", full_path)
+        # ============================================================
 
         # 选择处理器类型
         handler = None
@@ -206,7 +212,7 @@ class LogManager:
             if self.config.use_concurrent:
                 self._debug("使用并发处理器")
                 handler = ConcurrentRotatingFileHandler(
-                    filename=filename,
+                    filename=str(full_path),
                     maxBytes=self.config.max_bytes,
                     backupCount=self.config.backup_count,
                     encoding=self.config.encoding,
@@ -217,7 +223,7 @@ class LogManager:
                            self.config.rotation_when.value, self.config.rotation_interval)
                 handler = TimeRotatingFileHandlerWithTimezone(
                     config=self.config,
-                    filename=filename,
+                    filename=str(full_path),
                     when=self.config.rotation_when.value,
                     interval=self.config.rotation_interval,
                     backupCount=self.config.backup_count,
@@ -227,7 +233,7 @@ class LogManager:
                 self._debug("使用大小轮转处理器: max_bytes=%d, backup_count=%d",
                            self.config.max_bytes, self.config.backup_count)
                 handler = logging.handlers.RotatingFileHandler(
-                    filename=filename,
+                    filename=str(full_path),
                     maxBytes=self.config.max_bytes,
                     backupCount=self.config.backup_count,
                     encoding=self.config.encoding
@@ -345,7 +351,7 @@ class LogManager:
                 self._debug("使用双格式（文本和JSON）")
                 # 同时输出两种格式
                 text_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.file, 'text'),
+                    filename=self.config.file,
                     level=self.config.level,
                     format_type=LogFormat.TEXT
                 )
@@ -353,7 +359,7 @@ class LogManager:
                 added_handlers += 1
 
                 json_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.file, 'json'),
+                    filename=self.config.file,
                     level=self.config.level,
                     format_type=LogFormat.JSON
                 )
@@ -363,7 +369,7 @@ class LogManager:
                 # 错误日志
                 if self.config.error_file:
                     error_text_handler = self._create_file_handler(
-                        filename=self.cleanup_manager.get_both_filename(self.config.error_file, 'text'),
+                        filename=self.config.error_file,
                         level=LogLevel.ERROR,
                         format_type=LogFormat.TEXT
                     )
@@ -371,7 +377,7 @@ class LogManager:
                     added_handlers += 1
 
                     error_json_handler = self._create_file_handler(
-                        filename=self.cleanup_manager.get_both_filename(self.config.error_file, 'json'),
+                        filename=self.config.error_file,
                         level=LogLevel.ERROR,
                         format_type=LogFormat.JSON
                     )
@@ -415,14 +421,14 @@ class LogManager:
         try:
             if self.config.format == LogFormat.BOTH:
                 text_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.access_log_file, 'text'),
+                    filename=self.config.access_log_file,
                     level=LogLevel.INFO,
                     format_type=LogFormat.TEXT
                 )
                 self.access_logger.addHandler(text_handler)
 
                 json_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.access_log_file, 'json'),
+                    filename=self.config.access_log_file,
                     level=LogLevel.INFO,
                     format_type=LogFormat.JSON
                 )
@@ -461,14 +467,14 @@ class LogManager:
             # 审计日志优先使用JSON格式
             if self.config.format == LogFormat.BOTH:
                 json_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.audit_log_file, 'json'),
+                    filename=self.config.audit_log_file,
                     level=LogLevel.INFO,
                     format_type=LogFormat.JSON
                 )
                 self.audit_logger.addHandler(json_handler)
 
                 text_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.audit_log_file, 'text'),
+                    filename=self.config.audit_log_file,
                     level=LogLevel.INFO,
                     format_type=LogFormat.TEXT
                 )
@@ -507,14 +513,14 @@ class LogManager:
             # 性能日志也使用JSON格式
             if self.config.format == LogFormat.BOTH:
                 json_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.performance_log_file, 'json'),
+                    filename=self.config.performance_log_file,
                     level=LogLevel.INFO,
                     format_type=LogFormat.JSON
                 )
                 self.performance_logger.addHandler(json_handler)
 
                 text_handler = self._create_file_handler(
-                    filename=self.cleanup_manager.get_both_filename(self.config.performance_log_file, 'text'),
+                    filename=self.config.performance_log_file,
                     level=LogLevel.INFO,
                     format_type=LogFormat.TEXT
                 )
@@ -571,6 +577,9 @@ class LogManager:
             self._debug("访问日志记录器不可用")
             return
 
+        # 获取当前请求ID
+        request_id = self.get_request_id()
+
         # 构建 extra 数据
         extra = {
             'method': method,
@@ -588,7 +597,8 @@ class LogManager:
         extra = {k: v for k, v in extra.items() if v is not None}
 
         # 调试输出
-        self._debug("记录访问日志: %s %s, 状态=%d, 耗时=%.2fms", method, path, status, duration_ms)
+        self._debug("记录访问日志: %s %s, 状态=%d, 耗时=%.2fms, request_id=%s",
+                    method, path, status, duration_ms, request_id)
         if self.config and self.config.manager_debug:
             # 只在前5个字符内显示extra预览
             extra_preview = str(extra)
@@ -606,6 +616,9 @@ class LogManager:
         if not hasattr(self, 'audit_logger') or not self.audit_logger:
             self._debug("审计日志记录器不可用")
             return
+
+        # 获取当前请求ID
+        request_id = self.get_request_id()
 
         # 构建 extra 数据
         extra = {
@@ -628,7 +641,7 @@ class LogManager:
         extra = {k: v for k, v in extra.items() if v is not None}
 
         # 调试输出
-        self._debug("记录审计日志: action=%s, user=%s", action, user_id)
+        self._debug("记录审计日志: action=%s, user=%s, request_id=%s", action, user_id, request_id)
         if self.config and self.config.manager_debug:
             extra_preview = str(extra)
             if len(extra_preview) > 100:
@@ -645,6 +658,9 @@ class LogManager:
         if not hasattr(self, 'performance_logger') or not self.performance_logger:
             self._debug("性能日志记录器不可用")
             return
+
+        # 获取当前请求ID
+        request_id = self.get_request_id()
 
         # 构建 extra 数据
         extra = {
@@ -667,7 +683,8 @@ class LogManager:
         extra = {k: v for k, v in extra.items() if v is not None}
 
         # 调试输出
-        self._debug("记录性能日志: operation=%s, duration=%.2fms", operation, duration_ms)
+        self._debug("记录性能日志: operation=%s, duration=%.2fms, request_id=%s",
+                    operation, duration_ms, request_id)
         if self.config and self.config.manager_debug:
             extra_preview = str(extra)
             if len(extra_preview) > 100:

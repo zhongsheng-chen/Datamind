@@ -37,6 +37,7 @@ ENV_MAP = {
     "production": ".env.prod",
 }
 
+
 class LogLevel(str, Enum):
     """日志级别枚举"""
     DEBUG = "DEBUG"
@@ -84,6 +85,7 @@ class TimestampPrecision(str, Enum):
     MILLISECONDS = "milliseconds"
     MICROSECONDS = "microseconds"
     NANOSECONDS = "nanoseconds"
+
 
 class LoggingConfig(BaseSettings):
     """
@@ -250,14 +252,21 @@ class LoggingConfig(BaseSettings):
         description="日志时间偏移小时数"
     )
 
+    # 日志目录配置
+    log_dir: str = Field(
+        default="logs",
+        validation_alias="DATAMIND_LOG_DIR",
+        description="日志根目录，所有日志文件将基于此目录"
+    )
+
     # 文件配置
     file: str = Field(
-        default="logs/Datamind.log",
+        default="Datamind.log",
         validation_alias="DATAMIND_LOG_FILE",
         description="日志文件路径"
     )
     error_file: Optional[str] = Field(
-        default="logs/Datamind.error.log",
+        default="Datamind.error.log",
         validation_alias="DATAMIND_ERROR_LOG_FILE",
         description="错误日志单独文件"
     )
@@ -385,7 +394,7 @@ class LoggingConfig(BaseSettings):
         description="是否记录访问日志"
     )
     access_log_file: str = Field(
-        default="logs/access.log",
+        default="access.log",
         validation_alias="DATAMIND_ACCESS_LOG_FILE",
         description="访问日志文件"
     )
@@ -396,7 +405,7 @@ class LoggingConfig(BaseSettings):
         description="是否记录审计日志"
     )
     audit_log_file: str = Field(
-        default="logs/audit.log",
+        default="audit.log",
         validation_alias="DATAMIND_AUDIT_LOG_FILE",
         description="审计日志文件"
     )
@@ -407,7 +416,7 @@ class LoggingConfig(BaseSettings):
         description="是否记录性能日志"
     )
     performance_log_file: str = Field(
-        default="logs/performance.log",
+        default="performance.log",
         validation_alias="DATAMIND_PERFORMANCE_LOG_FILE",
         description="性能日志文件"
     )
@@ -469,7 +478,7 @@ class LoggingConfig(BaseSettings):
         description="是否启用日志归档"
     )
     archive_path: str = Field(
-        default="/data/logs/archive",
+        default="archive",
         validation_alias="DATAMIND_LOG_ARCHIVE_PATH",
         description="日志归档路径"
     )
@@ -517,6 +526,13 @@ class LoggingConfig(BaseSettings):
         if self.enable_remote and not self.remote_url:
             raise ValueError("启用远程日志时必须提供 remote_url")
         return self
+
+    @field_validator('log_dir')
+    def validate_log_dir(cls, v):
+        """验证日志目录配置"""
+        if v and ('../' in v or '..\\' in v):
+            raise ValueError("log_dir 不能包含相对路径跳转 '../'")
+        return v
 
     def _convert_to_python_format(self, java_format: str) -> str:
         """
@@ -566,10 +582,8 @@ class LoggingConfig(BaseSettings):
             self._format_cache[java_format] = python_format
 
             # 只在非递归调用时记录日志
-            # 可以加个条件避免首次转换时也触发日志（如果缓存后不再需要日志）
             if original != python_format:
                 _bootstrap_logger.debug("日期格式转换: %s -> %s", original, python_format)
-                # pass
 
             return python_format
         finally:
@@ -596,10 +610,10 @@ class LoggingConfig(BaseSettings):
         base_dir = (base_dir or BASE_DIR).resolve()
 
         env = (
-            env
-            or os.getenv("ENVIRONMENT")
-            or os.getenv("ENV")
-            or "production"
+                env
+                or os.getenv("ENVIRONMENT")
+                or os.getenv("ENV")
+                or "production"
         ).lower()
 
         env_files: List[Path] = []
@@ -695,6 +709,53 @@ class LoggingConfig(BaseSettings):
         config_str = json.dumps(config_dict, sort_keys=True)
         return hashlib.md5(config_str.encode()).hexdigest()
 
+    def get_full_log_path(self, relative_path: str, base_dir: Optional[Path] = None) -> Path:
+        """
+        获取完整的日志文件路径
+
+        Args:
+            relative_path: 相对于log_dir的文件路径
+            base_dir: 基础目录（如果log_dir是相对路径）
+
+        Returns:
+            完整的文件路径
+        """
+        base_dir = (base_dir or self._base_dir or BASE_DIR).resolve()
+
+        # 如果log_dir是绝对路径，直接使用
+        log_dir_path = Path(self.log_dir)
+        if log_dir_path.is_absolute():
+            return log_dir_path / relative_path
+
+        # 否则相对于base_dir
+        return base_dir / self.log_dir / relative_path
+
+    def get_all_log_paths(self, base_dir: Optional[Path] = None) -> Dict[str, Path]:
+        """
+        获取所有日志文件的完整路径
+
+        Returns:
+            日志类型到完整路径的映射
+        """
+        paths = {}
+        log_files = {
+            'main': self.file,
+            'error': self.error_file,
+            'access': self.access_log_file,
+            'audit': self.audit_log_file,
+            'performance': self.performance_log_file,
+        }
+
+        for key, rel_path in log_files.items():
+            if rel_path:
+                paths[key] = self.get_full_log_path(rel_path, base_dir)
+
+        if self.archive_enabled:
+            paths['archive'] = self.get_full_log_path(self.archive_path, base_dir)
+
+        return paths
+
+
     def ensure_log_dirs(self, base_dir: Optional[Path] = None) -> Dict[str, bool]:
         """
         确保所有日志目录存在
@@ -705,43 +766,45 @@ class LoggingConfig(BaseSettings):
         base_dir = (base_dir or BASE_DIR).resolve()
         results = {}
 
-        # 收集所有需要检查的路径
-        paths_to_check = [
-            self.file,
-            self.error_file,
-            self.access_log_file,
-            self.audit_log_file,
-            self.performance_log_file,
-        ]
+        # 确保日志根目录存在
+        log_dir_path = Path(self.log_dir)
+        if not log_dir_path.is_absolute():
+            log_dir_path = base_dir / self.log_dir
 
-        # 添加归档路径
-        if self.archive_enabled:
-            paths_to_check.append(self.archive_path)
+        if not log_dir_path.exists():
+            log_dir_path.mkdir(parents=True, exist_ok=True)
+            results[str(log_dir_path)] = True
+            _bootstrap_logger.info("创建日志根目录: %s", log_dir_path)
+        else:
+            results[str(log_dir_path)] = False
 
-        # 添加并发锁目录
-        if self.use_concurrent:
-            paths_to_check.append(self.concurrent_lock_dir)
+        # 获取所有日志文件的完整路径
+        all_paths = self.get_all_log_paths(base_dir)
 
-        for path in paths_to_check:
-            if not path:
+        # 为每个日志文件创建目录
+        for key, path in all_paths.items():
+            if str(path.parent) == str(log_dir_path):  # 避免重复处理根目录
                 continue
 
-            log_path = Path(path)
-            if not log_path.is_absolute():
-                log_path = base_dir / log_path
-
-            # 如果是文件，取父目录；如果是目录，直接使用
-            if log_path.suffix:  # 有后缀，说明是文件
-                target_dir = log_path.parent
-            else:
-                target_dir = log_path
+            target_dir = path.parent
 
             if not target_dir.exists():
                 target_dir.mkdir(parents=True, exist_ok=True)
                 results[str(target_dir)] = True
-                _bootstrap_logger.info("创建日志目录: %s", target_dir)
+                _bootstrap_logger.info("创建日志子目录 (%s): %s", key, target_dir)
             else:
                 results[str(target_dir)] = False
+
+        # 添加并发锁目录
+        if self.use_concurrent:
+            lock_dir = Path(self.concurrent_lock_dir)
+            if not lock_dir.is_absolute():
+                lock_dir = base_dir / lock_dir
+
+            if not lock_dir.exists():
+                lock_dir.mkdir(parents=True, exist_ok=True)
+                results[str(lock_dir)] = True
+                _bootstrap_logger.info("创建并发锁目录: %s", lock_dir)
 
         return results
 
@@ -784,7 +847,6 @@ class LoggingConfig(BaseSettings):
     def is_equivalent_to(self, other: 'LoggingConfig') -> bool:
         """判断两个配置是否等效（忽略运行时状态）"""
         return self.get_config_digest() == other.get_config_digest()
-
 
     def diff(self, other: 'LoggingConfig') -> Dict[str, tuple]:
         """比较两个配置的差异"""
@@ -834,10 +896,7 @@ class LoggingConfig(BaseSettings):
 
         # 检查归档配置
         if self.archive_enabled:
-            archive_path = Path(self.archive_path)
-            if not archive_path.is_absolute():
-                archive_path = (self._base_dir or BASE_DIR) / archive_path
-
+            archive_path = self.get_full_log_path(self.archive_path, self._base_dir)
             if archive_path.exists() and not os.access(archive_path, os.W_OK):
                 report['errors'].append(f"归档目录不可写: {archive_path}")
                 report['valid'] = False
