@@ -1,6 +1,5 @@
 # core/logging/context.py
 
-import sys
 import contextvars
 from core.logging.debug import debug_print
 

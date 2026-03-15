@@ -1,10 +1,8 @@
 # core/logging/debug.py
 
 import sys
-import pytz
 import threading
 from datetime import datetime
-from typing import Optional
 
 # 延迟导入，避免循环依赖
 _LOG_CONFIG = None

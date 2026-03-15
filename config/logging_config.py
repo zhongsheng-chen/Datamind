@@ -2,6 +2,7 @@
 
 import os
 import logging
+import re
 from datetime import datetime
 from pydantic import Field, field_validator, model_validator
 from pydantic import PrivateAttr
@@ -10,7 +11,6 @@ from typing import Optional, List, Dict, Any, Union
 from enum import Enum
 from pathlib import Path
 from dotenv import load_dotenv
-from core.logging.bootstrap import bootstrap_info, bootstrap_debug, bootstrap_warning, bootstrap_error
 
 BASE_DIR = Path(
     os.getenv(
@@ -97,7 +97,7 @@ class LoggingConfig(BaseSettings):
 
     # 基本配置
     name: str = Field(
-        default="Datamind",
+        default="datamind",
         validation_alias="DATAMIND_LOG_NAME",
         description="日志记录器名称"
     )
@@ -252,12 +252,12 @@ class LoggingConfig(BaseSettings):
 
     # 文件配置
     file: str = Field(
-        default="Datamind.log",
+        default="datamind.log",
         validation_alias="DATAMIND_LOG_FILE",
         description="日志文件路径"
     )
     error_file: Optional[str] = Field(
-        default="Datamind.error.log",
+        default="datamind.error.log",
         validation_alias="DATAMIND_ERROR_LOG_FILE",
         description="错误日志单独文件"
     )
@@ -385,7 +385,7 @@ class LoggingConfig(BaseSettings):
         description="是否记录访问日志"
     )
     access_log_file: str = Field(
-        default="access.log",
+        default="datamind.access.log",
         validation_alias="DATAMIND_ACCESS_LOG_FILE",
         description="访问日志文件"
     )
@@ -396,7 +396,7 @@ class LoggingConfig(BaseSettings):
         description="是否记录审计日志"
     )
     audit_log_file: str = Field(
-        default="audit.log",
+        default="datamind.audit.log",
         validation_alias="DATAMIND_AUDIT_LOG_FILE",
         description="审计日志文件"
     )
@@ -407,7 +407,7 @@ class LoggingConfig(BaseSettings):
         description="是否记录性能日志"
     )
     performance_log_file: str = Field(
-        default="performance.log",
+        default="datamind.performance.log",
         validation_alias="DATAMIND_PERFORMANCE_LOG_FILE",
         description="性能日志文件"
     )
@@ -506,7 +506,6 @@ class LoggingConfig(BaseSettings):
     @field_validator('rotation_at_time')
     def validate_rotation_at_time(cls, v):
         if v is not None:
-            import re
             if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
                 raise ValueError("rotation_at_time 必须是 HH:MM 格式，如 '23:59'")
         return v
@@ -574,6 +573,7 @@ class LoggingConfig(BaseSettings):
 
             # 只在非递归调用时记录日志
             if original != python_format:
+                from core.logging.bootstrap import bootstrap_debug
                 bootstrap_debug("日期格式转换: %s -> %s", original, python_format)
 
             return python_format
@@ -625,6 +625,7 @@ class LoggingConfig(BaseSettings):
         # 加载默认 env 文件
         env_files = list(dict.fromkeys(env_files))
         if env_files:
+            from core.logging.bootstrap import bootstrap_info
             bootstrap_info("加载环境变量文件: %s", [str(p) for p in env_files])
 
             for file in env_files:
@@ -632,6 +633,7 @@ class LoggingConfig(BaseSettings):
 
         # env_file 参数（最高优先级）
         if env_file:
+            from core.logging.bootstrap import bootstrap_info
             bootstrap_info("使用环境变量文件: %s", env_file)
             load_dotenv(env_file, override=True, verbose=False)
 
@@ -640,19 +642,17 @@ class LoggingConfig(BaseSettings):
         config._env_file = env_file
         config._base_dir = base_dir
 
-        # 创建日志目录并记录日志
-        log_dir_path = config._get_log_dir_path(base_dir)
-        if not log_dir_path.exists():
-            log_dir_path.mkdir(parents=True, exist_ok=True)
-            bootstrap_info("创建日志根目录: %s", log_dir_path)
-        else:
-            bootstrap_info("使用现有日志目录: %s", log_dir_path)
+        # 确保所有日志目录存在
+        dirs_created = config.ensure_log_dirs(base_dir)
 
-            # 创建其他必要的目录
-        config._ensure_other_dirs(base_dir)
+        # 记录新创建的目录
+        from core.logging.bootstrap import bootstrap_info
+        new_dirs = [d for d, created in dirs_created.items() if created]
+        if new_dirs:
+            bootstrap_info("创建日志目录: %s", new_dirs)
 
         # 记录配置完成日志
-        bootstrap_info(f"加载日志配置完成，应用名称: {config.name}")
+        bootstrap_info(f"加载日志配置完成")
 
         return config
 
@@ -663,47 +663,6 @@ class LoggingConfig(BaseSettings):
         if not log_dir_path.is_absolute():
             log_dir_path = base_dir / self.log_dir
         return log_dir_path
-
-    def _ensure_other_dirs(self, base_dir: Optional[Path] = None):
-        """确保其他目录存在（不记录日志）"""
-        base_dir = (base_dir or BASE_DIR).resolve()
-        log_dir_path = self._get_log_dir_path(base_dir)
-
-        # 获取所有日志文件的完整路径
-        all_paths = self.get_all_log_paths(base_dir)
-
-        # 为每个日志文件创建目录
-        for key, path in all_paths.items():
-            if str(path.parent) == str(log_dir_path):
-                continue
-
-            target_dir = path.parent
-            if not target_dir.exists():
-                target_dir.mkdir(parents=True, exist_ok=True)
-
-        # 添加并发锁目录
-        if self.use_concurrent:
-            lock_dir = Path(self.concurrent_lock_dir)
-            if not lock_dir.is_absolute():
-                lock_dir = base_dir / lock_dir
-            if not lock_dir.exists():
-                lock_dir.mkdir(parents=True, exist_ok=True)
-
-    @classmethod
-    def load_silent(cls):
-        """
-        静默加载配置，不产生任何日志
-        用于 bootstrap 模块，避免循环依赖和日志污染
-
-        Returns:
-            配置实例
-        """
-        try:
-            config = cls()
-            return config
-        except Exception:
-            # 出错时返回默认配置
-            return cls()
 
     def reload(self):
         """重新加载配置"""
@@ -807,9 +766,62 @@ class LoggingConfig(BaseSettings):
 
     def ensure_log_dirs(self, base_dir: Optional[Path] = None) -> Dict[str, bool]:
         """
-        确保所有日志目录存在（对外接口，可能会被调用但我们已经处理了）
+        确保所有日志目录存在
+
+        Args:
+            base_dir: 基础目录
+
+        Returns:
+            目录创建状态的字典，键为目录路径，值为是否成功创建
         """
-        return {}  # 简化，因为已经在 load 中处理了
+        base_dir = (base_dir or self._base_dir or BASE_DIR).resolve()
+        result = {}
+
+        # 确保主日志目录存在
+        log_dir_path = self._get_log_dir_path(base_dir)
+        if not log_dir_path.exists():
+            log_dir_path.mkdir(parents=True, exist_ok=True)
+            result[str(log_dir_path)] = True
+        else:
+            result[str(log_dir_path)] = False
+
+        # 获取所有日志文件的完整路径
+        all_paths = self.get_all_log_paths(base_dir)
+
+        # 为每个日志文件创建目录
+        for key, path in all_paths.items():
+            target_dir = path.parent
+            if str(target_dir) == str(log_dir_path):
+                # 已经是主日志目录，跳过
+                continue
+
+            if not target_dir.exists():
+                target_dir.mkdir(parents=True, exist_ok=True)
+                result[str(target_dir)] = True
+            else:
+                result[str(target_dir)] = False
+
+        # 添加并发锁目录
+        if self.use_concurrent:
+            lock_dir = Path(self.concurrent_lock_dir)
+            if not lock_dir.is_absolute():
+                lock_dir = base_dir / lock_dir
+            if not lock_dir.exists():
+                lock_dir.mkdir(parents=True, exist_ok=True)
+                result[str(lock_dir)] = True
+            else:
+                result[str(lock_dir)] = False
+
+        # 添加归档目录
+        if self.archive_enabled:
+            archive_dir = self.get_full_log_path(self.archive_path, base_dir).parent
+            if not archive_dir.exists():
+                archive_dir.mkdir(parents=True, exist_ok=True)
+                result[str(archive_dir)] = True
+            else:
+                result[str(archive_dir)] = False
+
+        return result
 
     def to_logging_level(self, level: Union['LogLevel', int, str, None] = None) -> int:
         """转换为 logging 模块的级别"""
@@ -866,45 +878,189 @@ class LoggingConfig(BaseSettings):
         return differences
 
     def validate_all(self) -> Dict[str, Any]:
-        """全面验证配置，返回验证报告"""
+        """
+        全面验证配置，返回验证报告
+
+        Returns:
+            验证报告，包含：
+            - valid: 配置是否有效
+            - errors: 错误列表（致命问题）
+            - warnings: 警告列表（建议性问题）
+            - info: 信息列表（配置摘要）
+        """
         report = {
             'valid': True,
-            'warnings': [],
             'errors': [],
-            'info': {}
+            'warnings': [],
+            'info': {
+                'name': self.name,
+                'level': self.level.value,
+                'format': self.format.value,
+                'timezone': self.timezone.value,
+                'log_dir': self.log_dir,
+                'config_digest': self.get_config_digest()[:8]
+            }
         }
 
-        # 检查日志目录权限（简化）
+        # 检查日志目录权限
         try:
             log_dir_path = self._get_log_dir_path(self._base_dir)
-            if log_dir_path.exists() and not os.access(log_dir_path, os.W_OK):
-                report['errors'].append(f"日志目录不可写: {log_dir_path}")
-                report['valid'] = False
+            if log_dir_path.exists():
+                if not os.access(log_dir_path, os.W_OK):
+                    report['errors'].append(f"日志目录不可写: {log_dir_path}")
+                    report['valid'] = False
+            else:
+                # 尝试创建目录来测试权限
+                try:
+                    log_dir_path.mkdir(parents=True, exist_ok=True)
+                except PermissionError:
+                    report['errors'].append(f"无法创建日志目录: {log_dir_path}")
+                    report['valid'] = False
         except Exception as e:
             report['errors'].append(f"检查日志目录权限失败: {e}")
             report['valid'] = False
 
-        # 检查采样配置
-        if self.sampling_rate < 1.0 and self.sampling_interval > 0:
-            report['warnings'].append("同时设置了 sampling_rate 和 sampling_interval，可能导致日志采样不符合预期")
-
-        # 检查文件大小
-        if self.max_bytes < 1024 * 1024:  # 小于1MB
-            report['warnings'].append(f"max_bytes 设置过小 ({self.max_bytes})，可能导致频繁的文件轮转")
-
-        # 检查备份数量
-        if self.backup_count > 100:
-            report['warnings'].append(f"backup_count 设置过大 ({self.backup_count})，可能占用过多磁盘空间")
-
-        # 检查保留天数
-        if self.retention_days < 7:
-            report['warnings'].append(f"retention_days 设置过小 ({self.retention_days})，日志可能过早被清理")
+        # 检查远程日志配置
+        if self.enable_remote:
+            if not self.remote_url:
+                report['errors'].append("启用远程日志时必须提供 remote_url")
+                report['valid'] = False
+            elif not (self.remote_url.startswith('http://') or self.remote_url.startswith('https://')):
+                report['warnings'].append(f"remote_url 可能不是有效的URL: {self.remote_url}")
 
         # 检查归档配置
         if self.archive_enabled:
-            archive_path = self.get_full_log_path(self.archive_path, self._base_dir)
-            if archive_path.exists() and not os.access(archive_path, os.W_OK):
-                report['errors'].append(f"归档目录不可写: {archive_path}")
+            try:
+                archive_dir = self.get_full_log_path(self.archive_path, self._base_dir).parent
+                if archive_dir.exists():
+                    if not os.access(archive_dir, os.W_OK):
+                        report['errors'].append(f"归档目录不可写: {archive_dir}")
+                        report['valid'] = False
+            except Exception as e:
+                report['errors'].append(f"检查归档目录失败: {e}")
                 report['valid'] = False
+
+        # 检查并发锁目录
+        if self.use_concurrent:
+            lock_dir = Path(self.concurrent_lock_dir)
+            if not lock_dir.is_absolute():
+                lock_dir = (self._base_dir or BASE_DIR) / lock_dir
+            if lock_dir.exists():
+                if not os.access(lock_dir, os.W_OK):
+                    report['errors'].append(f"并发锁目录不可写: {lock_dir}")
+                    report['valid'] = False
+
+        # 检查必要的文件路径
+        if not self.file:
+            report['errors'].append("file 不能为空")
+            report['valid'] = False
+
+        # 检查编码是否有效
+        try:
+            'test'.encode(self.encoding)
+        except LookupError:
+            report['errors'].append(f"不支持的编码格式: {self.encoding}")
+            report['valid'] = False
+
+        # 如果已有致命错误，跳过后续检查
+        if not report['valid']:
+            return report
+
+        # 采样配置警告
+        if self.sampling_rate < 1.0:
+            if self.sampling_interval > 0:
+                report['warnings'].append(
+                    "同时设置了 sampling_rate 和 sampling_interval，"
+                    "可能导致日志采样不符合预期"
+                )
+            elif self.sampling_rate < 0.1:
+                report['warnings'].append(
+                    f"采样率设置过低 ({self.sampling_rate})，"
+                    "可能导致重要日志丢失"
+                )
+
+        # 文件大小警告
+        if self.max_bytes < 1024 * 1024:  # 小于1MB
+            report['warnings'].append(
+                f"max_bytes 设置过小 ({self.max_bytes} < 1MB)，"
+                "可能导致频繁的文件轮转"
+            )
+        elif self.max_bytes > 1024 * 1024 * 1024:  # 大于1GB
+            report['warnings'].append(
+                f"max_bytes 设置过大 ({self.max_bytes} > 1GB)，"
+                "可能导致单个日志文件过大"
+            )
+
+        # 备份数量警告
+        if self.backup_count > 100:
+            report['warnings'].append(
+                f"backup_count 设置过大 ({self.backup_count} > 100)，"
+                "可能占用过多磁盘空间"
+            )
+        elif self.backup_count < 2:
+            report['warnings'].append(
+                f"backup_count 设置过小 ({self.backup_count} < 2)，"
+                "日志轮转可能无法保留足够的历史"
+            )
+
+        # 保留天数警告
+        if self.retention_days < 7:
+            report['warnings'].append(
+                f"retention_days 设置过小 ({self.retention_days} < 7天)，"
+                "日志可能过早被清理"
+            )
+        elif self.retention_days > 365:
+            report['warnings'].append(
+                f"retention_days 设置过大 ({self.retention_days} > 365天)，"
+                "可能占用过多磁盘空间"
+            )
+
+        # 异步队列大小警告
+        if self.use_async and self.async_queue_size < 100:
+            report['warnings'].append(
+                f"异步队列大小设置过小 ({self.async_queue_size} < 100)，"
+                "可能导致日志丢失"
+            )
+
+        # 远程日志配置警告
+        if self.enable_remote:
+            if self.remote_timeout < 1:
+                report['warnings'].append(
+                    f"remote_timeout 设置过小 ({self.remote_timeout} < 1秒)，"
+                    "可能导致远程日志频繁超时"
+                )
+            if self.remote_batch_size < 1:
+                report['warnings'].append(
+                    f"remote_batch_size 设置过小 ({self.remote_batch_size} < 1)，"
+                    "可能导致远程日志发送效率低下"
+                )
+
+        # 检查文件名时间戳格式
+        if self.file_name_timestamp:
+            try:
+                datetime.now().strftime(self.file_name_date_format)
+                datetime.now().strftime(self.file_name_datetime_format)
+            except ValueError as e:
+                report['warnings'].append(f"文件名时间戳格式无效: {e}")
+
+        # 检查清理时间格式
+        try:
+            datetime.strptime(self.cleanup_at_time, "%H:%M")
+        except ValueError:
+            report['warnings'].append(f"清理时间格式无效: {self.cleanup_at_time}，应为 HH:MM")
+
+        # 检查敏感字段配置
+        if self.mask_sensitive and not self.sensitive_fields:
+            report['warnings'].append("启用了敏感信息脱敏，但未配置敏感字段")
+        elif self.mask_sensitive and len(self.sensitive_fields) > 50:
+            report['warnings'].append(f"敏感字段列表过长 ({len(self.sensitive_fields)} 个)")
+
+        # 检查日志文件路径
+        if self.error_file and self.error_file == self.file:
+            report['warnings'].append("error_file 与 file 相同，错误日志不会单独存储")
+
+        # 检查轮转配置
+        if self.rotation_when and self.rotation_interval < 1:
+            report['warnings'].append(f"rotation_interval 设置无效: {self.rotation_interval}")
 
         return report

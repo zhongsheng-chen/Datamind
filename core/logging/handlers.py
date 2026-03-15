@@ -4,7 +4,7 @@ import sys
 import atexit
 import threading
 import logging.handlers
-from queue import Queue, Empty  # 添加 Empty 导入
+from queue import Queue, Empty
 from datetime import datetime
 from config.logging_config import LoggingConfig
 from core.logging.formatters import TimezoneFormatter
@@ -26,7 +26,7 @@ class TimeRotatingFileHandlerWithTimezone(logging.handlers.TimedRotatingFileHand
             config.rotation_at_time
         )
 
-        # 设置轮转时间 - 需要转换为 datetime.time 对象
+        # 设置轮转时间，需要转换为 datetime.time 对象
         if config.rotation_at_time:
             # 解析时间字符串 "HH:MM" 为 datetime.time 对象
             hour, minute = map(int, config.rotation_at_time.split(':'))

@@ -19,12 +19,16 @@ from core.logging.cleanup import CleanupManager
 from core.logging.debug import debug_print, warning_print, error_print
 
 
-
 class LogManager:
     """
     日志管理器
 
     统一管理所有日志（包含完整的时间处理）
+
+    注意：
+        - 应用日志必须通过 `log_manager` 获取 logger 或使用其 `log_*` 方法，如 log_access(), log_audit(), log_performance()
+        - 禁止直接使用 `logging.getLogger()` 记录业务日志
+        - root logger 仅用于捕获第三方库日志，级别设置为 WARNING 避免干扰
     """
 
     _instance = None
@@ -45,6 +49,7 @@ class LogManager:
             self.request_id_filter: Optional[RequestIdFilter] = None
             self.sensitive_filter: Optional[SensitiveDataFilter] = None
             self.sampling_filter: Optional[SamplingFilter] = None
+            self.app_logger: Optional[logging.Logger] = None
             self.access_logger: Optional[logging.Logger] = None
             self.audit_logger: Optional[logging.Logger] = None
             self.performance_logger: Optional[logging.Logger] = None
@@ -55,6 +60,7 @@ class LogManager:
                 'errors': 0,
                 'warnings': 0
             }
+            self._app_name = os.getenv("DATAMIND_APP_NAME", "datamind").lower()
 
     def _debug(self, msg, *args):
         """调试输出"""
@@ -134,9 +140,14 @@ class LogManager:
             context.set_config(config)
             self._debug("上下文调试: %s", "开启" if config.context_debug else "关闭")
 
-            # 初始化日志记录器
-            self._debug("初始化根日志记录器...")
+            # 初始化根日志记录器
             self._init_root_logger()
+
+            # 初始化应用日志记录器
+            self._debug("初始化应用日志记录器...")
+            self._init_app_logger()
+
+            # 初始化分类日志记录器
             self._debug("初始化访问日志记录器...")
             self._init_access_logger()
             self._debug("初始化审计日志记录器...")
@@ -154,23 +165,19 @@ class LogManager:
             atexit.register(self.cleanup)
             self._debug("已注册清理函数")
 
-            self._initialized = True
-            self._debug("日志系统初始化完成")
-            self._debug("=" * 50)
-
             # 记录启动日志
             self._log_startup_info()
 
             # 检查文件处理器
-            root_logger = logging.getLogger()
-            file_handlers = [h for h in root_logger.handlers
+            app_logger = logging.getLogger(self._app_name)
+            file_handlers = [h for h in app_logger.handlers
                              if isinstance(h, (logging.FileHandler,
                                                logging.handlers.RotatingFileHandler,
                                                ConcurrentRotatingFileHandler,
                                                TimeRotatingFileHandlerWithTimezone))]
 
             file_handlers_count = len(file_handlers)
-            self._debug(f"文件处理器数量: {file_handlers_count}")
+            self._debug(f"应用日志文件处理器数量: {file_handlers_count}")
 
             if file_handlers_count > 0:
                 self._debug("文件处理器已就绪，类型: %s",
@@ -187,9 +194,9 @@ class LogManager:
                     replayed_count = flush_bootstrap_logs()
 
                     if replayed_count > 0:
-                        # 使用配置中的名称记录日志
-                        logger = logging.getLogger()
-                        logger.info(f"已刷新 {replayed_count} 条启动日志到文件")
+                        # 使用应用名称记录日志
+                        app_logger = logging.getLogger(self._app_name)
+                        app_logger.info(f"已刷新 {replayed_count} 条启动日志到文件")
                         self._debug(f"成功刷新 {replayed_count} 条启动日志")
                     else:
                         self._debug("没有启动日志需要刷新")
@@ -202,16 +209,50 @@ class LogManager:
                 self._warning("警告: 没有找到文件处理器，启动日志无法写入文件")
 
             self._initialized = True
-            self._debug("日志系统初始化完成")
+            self._debug("日志组件初始化完成")
             self._debug("=" * 50)
 
             # 返回文件处理器是否成功创建
             return file_handlers_count > 0
 
+    def _init_root_logger(self):
+        """初始化 root logger"""
+        self._debug("初始化根日志记录器")
+        root_logger = logging.getLogger()
+
+        # 设置级别
+        root_logger.setLevel(logging.WARNING)
+
+        # 清除现有的处理器
+        for handler in root_logger.handlers[:]:
+            handler.close()
+            root_logger.removeHandler(handler)
+
+        # 添加控制台处理器
+        if self.config and self.config.console_output:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setLevel(logging.WARNING)
+            formatter = CustomTextFormatter(self.config)
+            console_handler.setFormatter(formatter)
+            root_logger.addHandler(console_handler)
+            self._debug("根日志记录器已添加控制台处理器")
+
+        # 添加文件处理器
+        if self.config and self.config.error_file:
+            error_handler = self._create_file_handler(
+                filename=self.config.error_file,
+                level=LogLevel.WARNING,
+                format_type=LogFormat.TEXT
+            )
+            root_logger.addHandler(error_handler)
+            self._debug("根日志记录器已添加错误文件处理器")
+
+        self._debug("根日志记录器初始化完成")
+
     def _log_startup_info(self):
         """记录启动信息"""
-        root_logger = logging.getLogger()
-        root_logger.log(
+        app_logger = logging.getLogger(self._app_name)
+        app_logger.log(
             self.config.to_logging_level(),
             "日志系统初始化完成",
             extra={
@@ -269,7 +310,7 @@ class LogManager:
                 )
             elif self.config.rotation_when:
                 self._debug("使用时间轮转处理器: when=%s, interval=%d",
-                           self.config.rotation_when.value, self.config.rotation_interval)
+                            self.config.rotation_when.value, self.config.rotation_interval)
                 handler = TimeRotatingFileHandlerWithTimezone(
                     config=self.config,
                     filename=str(full_path),
@@ -280,7 +321,7 @@ class LogManager:
                 )
             else:
                 self._debug("使用大小轮转处理器: max_bytes=%d, backup_count=%d",
-                           self.config.max_bytes, self.config.backup_count)
+                            self.config.max_bytes, self.config.backup_count)
                 handler = logging.handlers.RotatingFileHandler(
                     filename=str(full_path),
                     maxBytes=self.config.max_bytes,
@@ -336,18 +377,18 @@ class LogManager:
 
         return handler
 
-    def _init_root_logger(self):
-        """初始化根日志记录器"""
-        self._debug("初始化根日志记录器")
-        root_logger = logging.getLogger()
-        root_logger.setLevel(self.config.to_logging_level(self.config.level))
-        self._debug("设置根日志级别: %s", self.config.level)
+    def _init_app_logger(self):
+        """初始化应用日志记录器（使用应用名称，如 datamind）"""
+        self._debug("初始化应用日志记录器: %s", self._app_name)
+        app_logger = logging.getLogger(self._app_name)
+        app_logger.setLevel(self.config.to_logging_level(self.config.level))
+        self._debug("设置应用日志级别: %s", self.config.level)
 
         # 清除已有的处理器
-        handler_count = len(root_logger.handlers)
-        for handler in root_logger.handlers[:]:
+        handler_count = len(app_logger.handlers)
+        for handler in app_logger.handlers[:]:
             handler.close()
-            root_logger.removeHandler(handler)
+            app_logger.removeHandler(handler)
         self._debug("已清除 %d 个现有处理器", handler_count)
 
         added_handlers = 0
@@ -362,7 +403,7 @@ class LogManager:
                     level=self.config.level,
                     format_type=LogFormat.TEXT
                 )
-                root_logger.addHandler(text_handler)
+                app_logger.addHandler(text_handler)
                 added_handlers += 1
 
                 # 错误日志单独文件
@@ -372,7 +413,7 @@ class LogManager:
                         level=LogLevel.ERROR,
                         format_type=LogFormat.TEXT
                     )
-                    root_logger.addHandler(error_handler)
+                    app_logger.addHandler(error_handler)
                     added_handlers += 1
 
             elif self.config.format == LogFormat.JSON:
@@ -383,7 +424,7 @@ class LogManager:
                     level=self.config.level,
                     format_type=LogFormat.JSON
                 )
-                root_logger.addHandler(json_handler)
+                app_logger.addHandler(json_handler)
                 added_handlers += 1
 
                 # 错误日志单独文件（JSON格式）
@@ -393,7 +434,7 @@ class LogManager:
                         level=LogLevel.ERROR,
                         format_type=LogFormat.JSON
                     )
-                    root_logger.addHandler(error_handler)
+                    app_logger.addHandler(error_handler)
                     added_handlers += 1
 
             elif self.config.format == LogFormat.BOTH:
@@ -413,7 +454,7 @@ class LogManager:
                     level=self.config.level,
                     format_type=LogFormat.TEXT
                 )
-                root_logger.addHandler(text_handler)
+                app_logger.addHandler(text_handler)
                 added_handlers += 1
 
                 # JSON处理器
@@ -422,7 +463,7 @@ class LogManager:
                     level=self.config.level,
                     format_type=LogFormat.JSON
                 )
-                root_logger.addHandler(json_handler)
+                app_logger.addHandler(json_handler)
                 added_handlers += 1
 
                 # 错误日志
@@ -432,7 +473,7 @@ class LogManager:
                         level=LogLevel.ERROR,
                         format_type=LogFormat.TEXT
                     )
-                    root_logger.addHandler(error_text_handler)
+                    app_logger.addHandler(error_text_handler)
                     added_handlers += 1
 
                     error_json_handler = self._create_file_handler(
@@ -440,31 +481,33 @@ class LogManager:
                         level=LogLevel.ERROR,
                         format_type=LogFormat.JSON
                     )
-                    root_logger.addHandler(error_json_handler)
+                    app_logger.addHandler(error_json_handler)
                     added_handlers += 1
 
             # 控制台输出
             if self.config.console_output:
                 console_handler = self._create_console_handler()
                 if console_handler:
-                    root_logger.addHandler(console_handler)
+                    app_logger.addHandler(console_handler)
                     added_handlers += 1
 
         except Exception as e:
-            self._error("初始化根日志记录器失败: %s", e)
+            self._error("初始化应用日志记录器失败: %s", e)
             raise
 
-        self._debug("根日志记录器初始化完成，共 %d 个处理器", added_handlers)
+        self._debug("应用日志记录器初始化完成，共 %d 个处理器", added_handlers)
 
         # 记录初始化完成日志
-        root_logger.log(
+        app_logger.log(
             self.config.to_logging_level(self.config.level),
-            "根日志记录器初始化完成",
+            "应用日志记录器初始化完成",
             extra={
                 "format": self.config.format.value,
-                "handlers": len(root_logger.handlers)
+                "handlers": len(app_logger.handlers)
             }
         )
+
+        self.app_logger = app_logger
 
     def _init_access_logger(self):
         """初始化访问日志记录器"""
@@ -473,9 +516,9 @@ class LogManager:
             return
 
         self._debug("初始化访问日志记录器")
-        self.access_logger = logging.getLogger('datamind.access')
+        self.access_logger = logging.getLogger(f'{self._app_name}.access')
         self.access_logger.setLevel(logging.INFO)
-        self.access_logger.propagate = False
+        self.access_logger.propagate = False  # 避免传播到父 logger，防止重复
 
         try:
             if self.config.format == LogFormat.BOTH:
@@ -518,9 +561,9 @@ class LogManager:
             return
 
         self._debug("初始化审计日志记录器")
-        self.audit_logger = logging.getLogger('datamind.audit')
+        self.audit_logger = logging.getLogger(f'{self._app_name}.audit')
         self.audit_logger.setLevel(logging.INFO)
-        self.audit_logger.propagate = False
+        self.audit_logger.propagate = False  # 避免传播到父 logger，防止重复
 
         try:
             # 审计日志优先使用JSON格式
@@ -564,9 +607,9 @@ class LogManager:
             return
 
         self._debug("初始化性能日志记录器")
-        self.performance_logger = logging.getLogger('datamind.performance')
+        self.performance_logger = logging.getLogger(f'{self._app_name}.performance')
         self.performance_logger.setLevel(logging.INFO)
-        self.performance_logger.propagate = False
+        self.performance_logger.propagate = False  # 避免传播到父 logger，防止重复
 
         try:
             # 性能日志也使用JSON格式
@@ -886,7 +929,7 @@ class LogManager:
 
         # 清除所有日志器的处理器
         self._debug("清除所有日志器的处理器")
-        for logger_name in ['', 'access', 'audit', 'performance']:
+        for logger_name in ['', self._app_name, 'access', 'audit', 'performance']:
             logger = logging.getLogger(logger_name)
             removed = len(logger.handlers)
             for h in logger.handlers[:]:
@@ -896,6 +939,7 @@ class LogManager:
         # 重新初始化所有日志器
         self._debug("重新初始化日志记录器")
         self._init_root_logger()
+        self._init_app_logger()
         self._init_access_logger()
         self._init_audit_logger()
         self._init_performance_logger()

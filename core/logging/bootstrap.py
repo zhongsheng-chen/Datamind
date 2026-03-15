@@ -14,16 +14,17 @@ from typing import Optional, List, Dict, Any
 
 # 缓存容量配置
 BOOTSTRAP_CAPACITY = 10000
-DEFAULT_BOOTSTRAP_LOGGER_NAME = __name__
+
+# 基础应用名称
+APP_NAME = os.getenv("DATAMIND_APP_NAME", "datamind").lower()
+BOOTSTRAP_LOGGER_NAME = f"{APP_NAME}.bootstrap"
 
 # 全局 handler 实例
 _bootstrap_handler: Optional[MemoryHandler] = None
 _bootstrap_logger: Optional[logging.Logger] = None
-_bootstrap_logger_name: Optional[str] = None
-_logger_name_initialized = False
 
 # 调试模式标志
-_DEBUG_MODE = False
+_DEBUG_MODE = os.getenv("DATAMIND_BOOTSTRAP_DEBUG", "false").lower() == "true"
 
 
 def set_debug_mode(enabled: bool = True):
@@ -34,10 +35,11 @@ def set_debug_mode(enabled: bool = True):
 
 def _debug_log(msg: str, *args):
     """内部调试日志函数，只在调试模式开启时输出"""
-    if _DEBUG_MODE and args:
-        print(f"[Bootstrap] {msg % args}")
-    elif _DEBUG_MODE:
-        print(f"[Bootstrap] {msg}")
+    if _DEBUG_MODE:
+        if args:
+            print(f"[Bootstrap] {msg % args}")
+        else:
+            print(f"[Bootstrap] {msg}")
 
 
 def debug_print_cache():
@@ -85,39 +87,12 @@ def debug_peek_cache(last_n: int = 10) -> List[Dict[str, Any]]:
     return result
 
 
-def get_bootstrap_logger_name() -> str:
-    """获取 bootstrap logger 名称，优先从环境变量读取"""
-    global _bootstrap_logger_name, _logger_name_initialized
-
-    if not _logger_name_initialized:
-        # 从环境变量获取应用名称
-        app_name = os.getenv("DATAMIND_LOG_NAME", "datamind")
-        _bootstrap_logger_name = f"{app_name}.bootstrap"
-        _debug_log("bootstrap logger 名称: %s", _bootstrap_logger_name)
-        _logger_name_initialized = True
-
-    return _bootstrap_logger_name
-
-
-def set_bootstrap_logger_name(name: str):
-    """手动设置 bootstrap logger 名称"""
-    global _bootstrap_logger_name, _bootstrap_logger, _logger_name_initialized
-    _bootstrap_logger_name = name
-    _logger_name_initialized = True
-    _bootstrap_logger = None
-
-
-def install_bootstrap_logger(name: Optional[str] = None):
+def install_bootstrap_logger():
     """
     安装启动日志缓存，必须在应用最早执行
+    使用 datamind.bootstrap 作为 logger 名称
     """
     global _bootstrap_handler, _bootstrap_logger
-
-    # 设置 logger 名称
-    if name:
-        set_bootstrap_logger_name(name)
-    else:
-        get_bootstrap_logger_name()
 
     # 创建内存处理器
     _bootstrap_handler = MemoryHandler(
@@ -128,12 +103,12 @@ def install_bootstrap_logger(name: Optional[str] = None):
     _bootstrap_handler.setLevel(logging.INFO)
 
     # 创建或获取 bootstrap logger
-    _bootstrap_logger = logging.getLogger(_bootstrap_logger_name)
+    _bootstrap_logger = logging.getLogger(BOOTSTRAP_LOGGER_NAME)
     _bootstrap_logger.setLevel(logging.INFO)
     _bootstrap_logger.propagate = False
     _bootstrap_logger.addHandler(_bootstrap_handler)
 
-    _debug_log("启动日志缓存已初始化: %s (容量: %d)", _bootstrap_logger_name, BOOTSTRAP_CAPACITY)
+    _debug_log("启动日志缓存已初始化: %s (容量: %d)", BOOTSTRAP_LOGGER_NAME, BOOTSTRAP_CAPACITY)
 
 
 def flush_bootstrap_logs() -> int:
@@ -148,10 +123,9 @@ def flush_bootstrap_logs() -> int:
 
     flushed_count = 0
 
-    # 从 Datamind logger 查找处理器
-    from config.logging_config import LoggingConfig
-    config = LoggingConfig.load_silent()
-    app_logger = logging.getLogger(config.name)
+    # 从环境变量获取应用名称，避免导入 LoggingConfig
+    app_name = os.getenv("DATAMIND_LOG_NAME", "datamind").lower()
+    app_logger = logging.getLogger(app_name)
 
     # 找到真正的文件处理器
     target_handler = None
@@ -198,8 +172,7 @@ def get_bootstrap_logger() -> logging.Logger:
     """获取启动日志器"""
     global _bootstrap_logger
     if not _bootstrap_logger:
-        logger_name = get_bootstrap_logger_name()
-        _bootstrap_logger = logging.getLogger(logger_name)
+        _bootstrap_logger = logging.getLogger(BOOTSTRAP_LOGGER_NAME)
     return _bootstrap_logger
 
 

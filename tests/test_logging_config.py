@@ -336,7 +336,7 @@ DATAMIND_LOG_LEVEL=ERROR
 
             config = LoggingConfig.load(base_dir=tmp_path)
 
-            self.assertEqual(config.name, "Datamind")
+            self.assertEqual(config.name, "datamind")
             self.assertEqual(config.level, LogLevel.INFO)
             self.assertEqual(config.timezone, TimeZone.UTC)
             self.assertEqual(config.format, LogFormat.JSON)
