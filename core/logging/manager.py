@@ -162,7 +162,7 @@ class LogManager:
             self._log_startup_info()
 
             # 检查文件处理器
-            root_logger = logging.getLogger(config.name)
+            root_logger = logging.getLogger()
             file_handlers = [h for h in root_logger.handlers
                              if isinstance(h, (logging.FileHandler,
                                                logging.handlers.RotatingFileHandler,
@@ -188,7 +188,7 @@ class LogManager:
 
                     if replayed_count > 0:
                         # 使用配置中的名称记录日志
-                        logger = logging.getLogger(config.name)
+                        logger = logging.getLogger()
                         logger.info(f"已刷新 {replayed_count} 条启动日志到文件")
                         self._debug(f"成功刷新 {replayed_count} 条启动日志")
                     else:
@@ -210,7 +210,7 @@ class LogManager:
 
     def _log_startup_info(self):
         """记录启动信息"""
-        root_logger = logging.getLogger(self.config.name)
+        root_logger = logging.getLogger()
         root_logger.log(
             self.config.to_logging_level(),
             "日志系统初始化完成",
@@ -339,7 +339,7 @@ class LogManager:
     def _init_root_logger(self):
         """初始化根日志记录器"""
         self._debug("初始化根日志记录器")
-        root_logger = logging.getLogger(self.config.name)
+        root_logger = logging.getLogger()
         root_logger.setLevel(self.config.to_logging_level(self.config.level))
         self._debug("设置根日志级别: %s", self.config.level)
 

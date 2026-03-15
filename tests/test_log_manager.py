@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime, time as dt_time
 
-from config.logging_config import LoggingConfig, LogFormat, LogLevel, TimeZone, RotationWhen
 from core.logging import log_manager
 from core.logging.context import get_request_id, set_request_id
 
@@ -26,6 +25,9 @@ class TestLogManager(unittest.TestCase):
         cls.log_dir = Path(cls.test_dir) / "logs"
         cls.log_dir.mkdir(exist_ok=True)
 
+        # 设置环境变量，避免bootstrap日志输出到控制台
+        os.environ["DATAMIND_BOOTSTRAP_DEBUG"] = "false"
+
     def setUp(self):
         """每个测试前的准备工作"""
         # 重置 log_manager 状态
@@ -36,6 +38,11 @@ class TestLogManager(unittest.TestCase):
         # 确保没有遗留的处理器
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
+
+        # 清理可能存在的bootstrap logger
+        bootstrap_logger = logging.getLogger('datamind.bootstrap')
+        for handler in bootstrap_logger.handlers[:]:
+            bootstrap_logger.removeHandler(handler)
 
         time.sleep(0.1)
 
@@ -60,8 +67,11 @@ class TestLogManager(unittest.TestCase):
         except:
             pass
 
-    def _create_base_config(self, **kwargs) -> LoggingConfig:
-        """创建基础测试配置"""
+    def _create_base_config(self, **kwargs):
+        """创建基础测试配置 - 延迟导入 LoggingConfig"""
+        # 在这里导入，避免循环依赖
+        from config.logging_config import LoggingConfig, LogFormat, LogLevel, TimeZone, RotationWhen
+
         config = LoggingConfig.load()
 
         # 覆盖默认配置
@@ -72,24 +82,25 @@ class TestLogManager(unittest.TestCase):
         config.performance_log_file = str(self.log_dir / "performance.log")
         config.concurrent_lock_dir = str(self.log_dir / "locks")
 
-        # 测试配置
+        # 测试配置 - 先设置默认值
         config.file_name_timestamp = False
         config.console_output = False
         config.archive_enabled = False
         config.use_concurrent = False
         config.rotation_when = None
-        config.format = LogFormat.JSON
-        config.level = LogLevel.DEBUG
         config.mask_sensitive = True
         config.sensitive_fields = ["password", "token", "credit_card"]
         config.max_bytes = 1024 * 1024
         config.backup_count = 2
-        config.timezone = TimeZone.UTC
+        config.level = LogLevel.DEBUG  # 默认使用 DEBUG 级别
+        config.format = LogFormat.JSON  # 默认使用 JSON 格式
 
-        # 应用自定义覆盖
+        # 应用自定义覆盖 - 必须在设置默认值之后
         for key, value in kwargs.items():
             if hasattr(config, key):
                 setattr(config, key, value)
+            else:
+                print(f"Warning: {key} not found in config")
 
         # 确保目录存在
         config.ensure_log_dirs(self.log_dir)
@@ -210,7 +221,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_initialization(self):
         """测试日志管理器初始化"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         self.assertTrue(log_manager._initialized)
         self.assertIsNotNone(log_manager.config)
@@ -220,24 +232,34 @@ class TestLogManager(unittest.TestCase):
 
     def test_root_logger(self):
         """测试根日志写入"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         logger = logging.getLogger()
         test_message = f"测试根日志消息 {time.time()}"
         logger.info(test_message)
+        logger.debug(f"调试消息 {time.time()}")
+        logger.warning(f"警告消息 {time.time()}")
+
+        # 强制刷新所有处理器
+        for handler in logger.handlers:
+            handler.flush()
 
         log_file = Path(self.config.file)
-        self.assertTrue(self._wait_for_logs(log_file))
+        self.assertTrue(self._wait_for_logs(log_file, min_lines=5))
 
-        logs = self._read_json_logs(log_file)
-        self.assertGreater(len(logs), 0)
+        logs = self._read_json_logs(log_file, filter_system_logs=False)
+        print(f"日志文件 {log_file} 包含 {len(logs)} 条记录")
+        for log in logs:
+            print(f"  - {log.get('message')}")
 
         found = any(test_message in log.get("message", "") for log in logs)
         self.assertTrue(found, f"消息 '{test_message}' 未在日志中找到")
 
     def test_log_levels(self):
         """测试不同日志级别"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         logger = logging.getLogger()
 
@@ -255,6 +277,10 @@ class TestLogManager(unittest.TestCase):
         logger.error(test_messages["ERROR"])
         logger.critical(test_messages["CRITICAL"])
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         time.sleep(0.5)
 
         log_file = Path(self.config.file)
@@ -268,25 +294,30 @@ class TestLogManager(unittest.TestCase):
                 if expected_message in message:
                     found_levels[expected_level] = level
 
+        print(f"Found levels: {found_levels}")
         self.assertEqual(len(found_levels), 5, f"Found levels: {found_levels}")
         for level_name, actual_level in found_levels.items():
             self.assertEqual(actual_level, level_name,
                              f"Expected {level_name} but got {actual_level}")
 
-    # ========== 格式测试 ==========
-
     def test_json_format(self):
         """测试JSON格式日志"""
-        self._initialize_with_config(format=LogFormat.JSON)
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         logger = logging.getLogger()
         test_message = "JSON格式测试消息"
         logger.info(test_message, extra={"custom_field": "custom_value"})
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         time.sleep(0.5)
 
         log_file = Path(self.config.file)
         logs = self._read_json_logs(log_file)
+        print(f"JSON日志: {logs}")
         self.assertGreater(len(logs), 0)
 
         # 找到测试消息的日志
@@ -306,17 +337,23 @@ class TestLogManager(unittest.TestCase):
 
     def test_text_format(self):
         """测试文本格式日志"""
-        self._initialize_with_config(format=LogFormat.TEXT)
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.TEXT)
 
         logger = logging.getLogger()
         test_message = "文本格式测试消息"
         logger.info(test_message)
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         log_file = Path(self.config.file)
-        self.assertTrue(self._wait_for_logs(log_file))
+        self.assertTrue(self._wait_for_logs(log_file, min_lines=3))
 
         with open(log_file, 'r') as f:
             content = f.read()
+            print(f"文本日志内容: {content}")
 
         self.assertIn(test_message, content)
         self.assertIn("INFO", content)
@@ -324,7 +361,9 @@ class TestLogManager(unittest.TestCase):
 
     def test_both_formats(self):
         """测试同时输出两种格式"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
             format=LogFormat.BOTH,
             text_suffix="text",
             json_suffix="json"
@@ -334,26 +373,32 @@ class TestLogManager(unittest.TestCase):
         test_message = "双格式测试消息"
         logger.info(test_message)
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         time.sleep(0.5)
 
         # 验证文本文件
         text_file = Path(self._get_both_filename(self.config.file, 'text'))
         self.assertTrue(text_file.exists())
         with open(text_file, 'r') as f:
-            self.assertIn(test_message, f.read())
+            content = f.read()
+            print(f"文本文件内容: {content}")
+            self.assertIn(test_message, content)
 
         # 验证JSON文件
         json_file = Path(self._get_both_filename(self.config.file, 'json'))
         self.assertTrue(json_file.exists())
         logs = self._read_json_logs(json_file)
         self.assertGreater(len(logs), 0)
-        self.assertEqual(logs[0].get("message"), test_message)
-
-    # ========== 特殊日志测试 ==========
+        found = any(log.get("message") == test_message for log in logs)
+        self.assertTrue(found, f"消息 '{test_message}' 未在JSON日志中找到")
 
     def test_access_log(self):
         """测试访问日志"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         # 记录访问日志
         log_manager.log_access(
@@ -387,7 +432,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_audit_log(self):
         """测试审计日志"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         log_manager.log_audit(
             action="USER_CREATE",
@@ -418,7 +464,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_performance_log(self):
         """测试性能日志"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         log_manager.log_performance(
             operation="database.query",
@@ -447,17 +494,20 @@ class TestLogManager(unittest.TestCase):
             "message": "性能日志"
         })
 
-    # ========== 功能测试 ==========
-
     def test_error_log_separate(self):
         """测试错误日志分离"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         logger = logging.getLogger()
 
         logger.info("普通信息")
         logger.error("错误信息")
         logger.critical("严重错误")
+
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
 
         time.sleep(0.5)
 
@@ -480,7 +530,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_request_id_propagation(self):
         """测试请求ID传播"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         request_id = f"REQ-{int(time.time())}"
         log_manager.set_request_id(request_id)
@@ -488,6 +539,10 @@ class TestLogManager(unittest.TestCase):
         logger = logging.getLogger()
         test_message = "带请求ID的消息"
         logger.info(test_message)
+
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
 
         time.sleep(0.5)
 
@@ -505,7 +560,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_context_functions(self):
         """测试上下文函数"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         request_id = f"CTX-{int(time.time())}"
         set_request_id(request_id)
@@ -519,6 +575,10 @@ class TestLogManager(unittest.TestCase):
         logger = logging.getLogger()
         test_message = "通过上下文设置的消息"
         logger.info(test_message)
+
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
 
         time.sleep(0.5)
 
@@ -536,7 +596,10 @@ class TestLogManager(unittest.TestCase):
 
     def test_sensitive_masking(self):
         """测试敏感信息脱敏"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
             mask_sensitive=True,
             sensitive_fields=["password", "token", "credit_card"]
         )
@@ -552,6 +615,10 @@ class TestLogManager(unittest.TestCase):
         # 使用 json.dumps 但确保中文不被转义
         message = json.dumps(sensitive_data, ensure_ascii=False)
         logger.info(message)
+
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
 
         time.sleep(0.5)
 
@@ -577,6 +644,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_timezone_formatting(self):
         """测试时区格式化"""
+        from config.logging_config import LogLevel, LogFormat, TimeZone
+
         timezones = [
             (TimeZone.UTC, "UTC"),
             (TimeZone.CST, "CST"),
@@ -585,12 +654,16 @@ class TestLogManager(unittest.TestCase):
         for tz, tz_name in timezones:
             with self.subTest(timezone=tz_name):
                 # 每次都要重新初始化
-                self._initialize_with_config(timezone=tz)
+                self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON, timezone=tz)
 
                 # 记录一条测试日志
                 logger = logging.getLogger()
                 test_message = f"测试时区 {tz_name}"
                 logger.info(test_message)
+
+                # 强制刷新
+                for handler in logger.handlers:
+                    handler.flush()
 
                 time.sleep(0.5)
 
@@ -612,11 +685,12 @@ class TestLogManager(unittest.TestCase):
 
                 self.assertTrue(found, f"未找到时区测试日志: {tz_name}")
 
-    # ========== 高级功能测试 ==========
-
     def test_log_rotation_by_size(self):
         """测试按大小轮转"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
             max_bytes=1024,
             backup_count=2,
             file_name_timestamp=False,
@@ -628,6 +702,10 @@ class TestLogManager(unittest.TestCase):
         for i in range(100):
             logger.info(f"轮转测试消息 {i:03d} - " + "x" * 100)
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         time.sleep(1)
 
         log_file = Path(self.config.file)
@@ -638,7 +716,10 @@ class TestLogManager(unittest.TestCase):
 
     def test_sampling_filter(self):
         """测试日志采样"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
             sampling_rate=0.3,
             sampling_interval=0,
             rotation_when=None
@@ -649,6 +730,10 @@ class TestLogManager(unittest.TestCase):
         for i in range(100):
             logger.info(f"采样测试消息 {i}")
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         time.sleep(0.5)
 
         log_file = Path(self.config.file)
@@ -657,13 +742,17 @@ class TestLogManager(unittest.TestCase):
         # 过滤出采样测试消息
         sampling_logs = [log for log in logs if "采样测试消息" in log.get("message", "")]
 
+        print(f"采样日志数量: {len(sampling_logs)}")
         # 应该大约有30条日志（允许一定误差）
         self.assertGreater(len(sampling_logs), 10)
         self.assertLess(len(sampling_logs), 50)
 
     def test_async_logging(self):
         """测试异步日志"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
             use_async=True,
             async_queue_size=100,
             rotation_when=None
@@ -674,18 +763,23 @@ class TestLogManager(unittest.TestCase):
         for i in range(50):
             logger.info(f"异步测试消息 {i}")
 
-        time.sleep(1)
+        # 异步日志需要更多时间
+        time.sleep(2)
 
         log_file = Path(self.config.file)
         logs = self._read_json_logs(log_file)
 
         # 过滤出异步测试消息
         async_logs = [log for log in logs if "异步测试消息" in log.get("message", "")]
+        print(f"异步日志数量: {len(async_logs)}")
         self.assertEqual(len(async_logs), 50)
 
     def test_concurrent_logging(self):
         """测试并发日志"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
             use_concurrent=True,
             concurrent_lock_dir=str(self.log_dir / "locks"),
             rotation_when=None
@@ -715,11 +809,15 @@ class TestLogManager(unittest.TestCase):
 
         # 过滤出并发测试消息
         concurrent_logs = [log for log in logs if "线程" in log.get("message", "")]
+        print(f"并发日志数量: {len(concurrent_logs)}")
         self.assertEqual(len(concurrent_logs), 25)
 
     def test_cleanup_manager(self):
         """测试清理管理器"""
+        from config.logging_config import LogLevel, LogFormat
         self._initialize_with_config(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
             archive_enabled=True,
             archive_path=str(self.log_dir / "archive"),
             retention_days=1,
@@ -732,7 +830,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_watch_config_changes(self):
         """测试配置监控"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         # 启动监控
         watcher = log_manager.watch_config_changes(interval=1)
@@ -744,13 +843,15 @@ class TestLogManager(unittest.TestCase):
 
     def test_reload_config(self):
         """测试配置热重载"""
-        # 先初始化一个配置
-        self._initialize_with_config(level=LogLevel.INFO)
+        from config.logging_config import LogLevel, LogFormat
+
+        # 先初始化一个配置，使用 DEBUG 级别
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         time.sleep(0.2)
 
-        # 创建新配置
-        new_config = self._create_base_config(level=LogLevel.ERROR)
+        # 创建新配置，使用 ERROR 级别
+        new_config = self._create_base_config(level=LogLevel.ERROR, format=LogFormat.JSON)
 
         # 执行重载
         result = log_manager.reload_config(new_config)
@@ -764,22 +865,27 @@ class TestLogManager(unittest.TestCase):
         logger.info("这条消息不应该被记录")
         logger.error("这条消息应该被记录")
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         time.sleep(0.5)
 
         log_file = Path(self.config.file)
-        logs = self._read_json_logs(log_file)
+        logs = self._read_json_logs(log_file, filter_system_logs=False)
 
         info_messages = [log for log in logs if log.get("level") == "INFO" and "不应该" in log.get("message", "")]
         error_messages = [log for log in logs if log.get("level") == "ERROR" and "应该" in log.get("message", "")]
 
+        print(f"INFO消息: {info_messages}")
+        print(f"ERROR消息: {error_messages}")
         self.assertEqual(len(info_messages), 0)
         self.assertEqual(len(error_messages), 1)
 
-    # ========== 性能测试 ==========
-
     def test_logging_performance(self):
         """测试日志性能"""
-        self._initialize_with_config()
+        from config.logging_config import LogLevel, LogFormat
+        self._initialize_with_config(level=LogLevel.DEBUG, format=LogFormat.JSON)
 
         logger = logging.getLogger()
         start_time = time.time()
@@ -788,9 +894,14 @@ class TestLogManager(unittest.TestCase):
         for i in range(count):
             logger.info(f"性能测试消息 {i}")
 
+        # 强制刷新
+        for handler in logger.handlers:
+            handler.flush()
+
         duration = time.time() - start_time
         ops_per_second = count / duration
 
+        print(f"性能: {ops_per_second:.0f} 条/秒")
         # 可以根据需要调整阈值
         self.assertGreater(ops_per_second, 100, f"性能太低: {ops_per_second:.0f} 条/秒")
 

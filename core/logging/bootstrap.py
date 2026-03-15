@@ -8,12 +8,13 @@
 
 import logging
 import time
+import os
 from logging.handlers import MemoryHandler
 from typing import Optional, List, Dict, Any
 
 # 缓存容量配置
 BOOTSTRAP_CAPACITY = 10000
-DEFAULT_BOOTSTRAP_LOGGER_NAME = "Datamind.bootstrap"
+DEFAULT_BOOTSTRAP_LOGGER_NAME = __name__
 
 # 全局 handler 实例
 _bootstrap_handler: Optional[MemoryHandler] = None
@@ -85,22 +86,14 @@ def debug_peek_cache(last_n: int = 10) -> List[Dict[str, Any]]:
 
 
 def get_bootstrap_logger_name() -> str:
-    """获取 bootstrap logger 名称，优先从配置读取"""
+    """获取 bootstrap logger 名称，优先从环境变量读取"""
     global _bootstrap_logger_name, _logger_name_initialized
 
     if not _logger_name_initialized:
-        try:
-            # 尝试从配置中获取应用名称
-            from config.logging_config import LoggingConfig
-            config = LoggingConfig.load_silent()  # 静默加载，不产生日志
-            app_name = config.name
-            _bootstrap_logger_name = f"{app_name}.bootstrap"
-            _debug_log("从配置获取 logger 名称: %s", _bootstrap_logger_name)
-        except (ImportError, AttributeError, Exception) as e:
-            # 如果失败，使用默认值
-            _bootstrap_logger_name = DEFAULT_BOOTSTRAP_LOGGER_NAME
-            _debug_log("使用默认 logger 名称: %s", _bootstrap_logger_name)
-
+        # 从环境变量获取应用名称
+        app_name = os.getenv("DATAMIND_LOG_NAME", "datamind")
+        _bootstrap_logger_name = f"{app_name}.bootstrap"
+        _debug_log("bootstrap logger 名称: %s", _bootstrap_logger_name)
         _logger_name_initialized = True
 
     return _bootstrap_logger_name
