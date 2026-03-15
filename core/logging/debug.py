@@ -75,9 +75,9 @@ def debug_print(component: str, msg, *args):
         timestamp = _format_timestamp()
 
         if args:
-            formatted_msg = f"[{timestamp}][{component}] {msg}" % args
+            formatted_msg = f"{timestamp} [CONSOLE] {component} {msg}" % args
         else:
-            formatted_msg = f"[{timestamp}][{component}] {msg}"
+            formatted_msg = f"{timestamp} [CONSOLE] {component} {msg}"
 
         print(formatted_msg, file=sys.stderr)
     finally:
