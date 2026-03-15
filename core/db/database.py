@@ -1,6 +1,7 @@
 # datamind/core/db/database.py
 
 import traceback
+import logging
 from contextlib import contextmanager
 from typing import Generator, Optional
 from datetime import datetime
@@ -10,22 +11,19 @@ from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from core.logging import log_manager, get_request_id, debug_print
+from core.logging import log_manager, get_request_id
 from config.settings import settings
 from .models import Base
 
 
-
 class DatabaseManager:
-    """PostgreSQL数据库管理器 - 带完整审计日志"""
+    """PostgreSQL数据库管理器"""
 
     def __init__(self):
         self._engines = {}
         self._session_factories = {}
         self._scoped_sessions = {}
         self._initialized = False
-
-        # debug_print("DatabaseManager", "初始化数据库管理器")
 
     def initialize(
             self,
@@ -94,7 +92,7 @@ class DatabaseManager:
                 request_id=request_id
             )
 
-            debug_print("DatabaseManager", f"数据库初始化完成: {self.database_url.split('@')[-1]}")
+            self.logger.info(f"数据库初始化完成: {self.database_url.split('@')[-1]}")
 
         except Exception as e:
             log_manager.log_audit(
@@ -104,6 +102,7 @@ class DatabaseManager:
                 details={"error": str(e)},
                 request_id=request_id
             )
+            self.logger.error(f"数据库初始化失败: {str(e)}")
             raise
 
     def _create_engine(self, name: str, url: str, **kwargs):
@@ -129,7 +128,7 @@ class DatabaseManager:
             self._session_factories[name] = sessionmaker(bind=engine)
             self._scoped_sessions[name] = scoped_session(self._session_factories[name])
 
-            debug_print("DatabaseManager", f"创建数据库引擎: {name}")
+            self.logger.debug(f"创建数据库引擎: {name}")
 
         except Exception as e:
             log_manager.log_audit(
@@ -138,6 +137,7 @@ class DatabaseManager:
                 ip_address="localhost",
                 details={"engine_name": name, "error": str(e)}
             )
+            self.logger.error(f"创建数据库引擎失败 {name}: {str(e)}")
             raise
 
     def _add_engine_events(self, engine: Engine):
@@ -145,11 +145,11 @@ class DatabaseManager:
 
         @event.listens_for(engine, "connect")
         def connect(dbapi_connection, connection_record):
-            debug_print("DatabaseEvent", "数据库连接已建立")
+            self.logger.debug("数据库连接已建立")
 
         @event.listens_for(engine, "checkout")
         def checkout(dbapi_connection, connection_record, connection_proxy):
-            debug_print("DatabaseEvent", "从连接池取出连接")
+            self.logger.debug("从连接池取出连接")
 
     @retry(
         stop=stop_after_attempt(3),
@@ -165,7 +165,7 @@ class DatabaseManager:
             session = self._scoped_sessions[engine_name]()
             self._health_check(session)
 
-            debug_print("DatabaseManager", f"获取数据库会话: {engine_name}")
+            self.logger.debug(f"获取数据库会话: {engine_name}")
             return session
 
         except OperationalError as e:
@@ -176,6 +176,7 @@ class DatabaseManager:
                 details={"engine_name": engine_name, "error": str(e)},
                 reason="数据库连接失败"
             )
+            self.logger.error(f"获取数据库会话失败 (将重试): {engine_name}, {str(e)}")
             self.reconnect(engine_name)
             raise
         except Exception as e:
@@ -185,6 +186,7 @@ class DatabaseManager:
                 ip_address="localhost",
                 details={"engine_name": engine_name, "error": str(e)}
             )
+            self.logger.error(f"获取数据库会话失败: {engine_name}, {str(e)}")
             raise
 
     def _health_check(self, session: Session):
@@ -198,6 +200,7 @@ class DatabaseManager:
                 ip_address="localhost",
                 details={"error": str(e)}
             )
+            self.logger.error(f"数据库健康检查失败: {str(e)}")
             raise
 
     @contextmanager
@@ -208,12 +211,12 @@ class DatabaseManager:
         request_id = get_request_id()
 
         try:
-            debug_print("DatabaseTransaction", f"开始事务: {engine_name}")
+            self.logger.debug(f"开始事务: {engine_name}")
             yield session
 
             if commit:
                 session.commit()
-                debug_print("DatabaseTransaction", "事务提交成功")
+                self.logger.debug("事务提交成功")
 
         except SQLAlchemyError as e:
             session.rollback()
@@ -233,11 +236,11 @@ class DatabaseManager:
                 request_id=request_id
             )
 
-            debug_print("DatabaseTransaction", f"事务回滚: {error_msg}")
+            self.logger.error(f"事务回滚: {error_msg}")
             raise
         finally:
             session.close()
-            debug_print("DatabaseTransaction", "会话已关闭")
+            self.logger.debug("会话已关闭")
 
     @contextmanager
     def transaction(self, engine_name: str = 'default') -> Generator[Session, None, None]:
@@ -245,11 +248,11 @@ class DatabaseManager:
         session = self.get_session(engine_name)
 
         try:
-            debug_print("DatabaseTransaction", f"开始手动事务: {engine_name}")
+            self.logger.debug(f"开始手动事务: {engine_name}")
             yield session
         except SQLAlchemyError as e:
             session.rollback()
-            debug_print("DatabaseTransaction", f"手动事务回滚: {str(e)}")
+            self.logger.error(f"手动事务回滚: {str(e)}")
             raise
         finally:
             session.close()
@@ -259,7 +262,7 @@ class DatabaseManager:
         try:
             if engine_name in self._engines:
                 self._engines[engine_name].dispose()
-                debug_print("DatabaseManager", f"数据库引擎已释放: {engine_name}")
+                self.logger.info(f"数据库引擎已释放: {engine_name}")
 
             if engine_name == 'default':
                 self._create_engine(engine_name, self.database_url)
@@ -272,6 +275,7 @@ class DatabaseManager:
                 ip_address="localhost",
                 details={"engine_name": engine_name}
             )
+            self.logger.info(f"数据库重新连接成功: {engine_name}")
 
         except Exception as e:
             log_manager.log_audit(
@@ -280,6 +284,7 @@ class DatabaseManager:
                 ip_address="localhost",
                 details={"engine_name": engine_name, "error": str(e)}
             )
+            self.logger.error(f"数据库重新连接失败: {engine_name}, {str(e)}")
             raise
 
     def check_health(self) -> dict:
@@ -292,7 +297,7 @@ class DatabaseManager:
                     conn.execute("SELECT 1")
                     health_status['engines'][name] = {'status': 'healthy'}
 
-                debug_print("HealthCheck", f"数据库健康检查通过: {name}")
+                self.logger.debug(f"数据库健康检查通过: {name}")
 
             except Exception as e:
                 health_status['status'] = 'unhealthy'
@@ -307,6 +312,7 @@ class DatabaseManager:
                     ip_address="localhost",
                     details={"engine_name": name, "error": str(e)}
                 )
+                self.logger.error(f"数据库健康检查失败: {name}, {str(e)}")
 
         return health_status
 
@@ -326,12 +332,14 @@ def init_db(database_url: str = None):
     """初始化数据库（创建表）"""
     start_time = datetime.now()
     request_id = get_request_id()
+    logger = logging.getLogger(f"{settings.name}.database.init")
 
     try:
         if not database_url:
             database_url = settings.DATABASE_URL
 
         engine = create_engine(database_url)
+        logger.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")
 
         with engine.connect() as conn:
             conn.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
@@ -353,7 +361,7 @@ def init_db(database_url: str = None):
             request_id=request_id
         )
 
-        debug_print("DatabaseInit", "数据库表创建完成")
+        logger.info(f"数据库表创建完成，耗时: {round(duration, 2)}ms")
 
     except Exception as e:
         log_manager.log_audit(
@@ -363,4 +371,5 @@ def init_db(database_url: str = None):
             details={"error": str(e)},
             request_id=request_id
         )
+        logger.error(f"数据库表创建失败: {str(e)}")
         raise

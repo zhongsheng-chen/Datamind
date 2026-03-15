@@ -85,11 +85,22 @@ def debug_peek_cache(last_n: int = 10) -> List[Dict[str, Any]]:
 
 
 def get_bootstrap_logger_name() -> str:
-    """获取 bootstrap logger 名称"""
+    """获取 bootstrap logger 名称，优先从配置读取"""
     global _bootstrap_logger_name, _logger_name_initialized
 
     if not _logger_name_initialized:
-        _bootstrap_logger_name = DEFAULT_BOOTSTRAP_LOGGER_NAME
+        try:
+            # 尝试从配置中获取应用名称
+            from config.logging_config import LoggingConfig
+            config = LoggingConfig.load_silent()  # 静默加载，不产生日志
+            app_name = config.name
+            _bootstrap_logger_name = f"{app_name}.bootstrap"
+            _debug_log("从配置获取 logger 名称: %s", _bootstrap_logger_name)
+        except (ImportError, AttributeError, Exception) as e:
+            # 如果失败，使用默认值
+            _bootstrap_logger_name = DEFAULT_BOOTSTRAP_LOGGER_NAME
+            _debug_log("使用默认 logger 名称: %s", _bootstrap_logger_name)
+
         _logger_name_initialized = True
 
     return _bootstrap_logger_name
@@ -103,15 +114,15 @@ def set_bootstrap_logger_name(name: str):
     _bootstrap_logger = None
 
 
-def install_bootstrap_logger(custom_name: Optional[str] = None):
+def install_bootstrap_logger(name: Optional[str] = None):
     """
     安装启动日志缓存，必须在应用最早执行
     """
     global _bootstrap_handler, _bootstrap_logger
 
     # 设置 logger 名称
-    if custom_name:
-        set_bootstrap_logger_name(custom_name)
+    if name:
+        set_bootstrap_logger_name(name)
     else:
         get_bootstrap_logger_name()
 
