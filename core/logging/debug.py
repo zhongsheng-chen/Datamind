@@ -1,16 +1,16 @@
 # core/logging/debug.py
 
-import threading
 import sys
+import pytz
+import threading
 from datetime import datetime
 from typing import Optional
-import pytz
 
 # 延迟导入，避免循环依赖
 _LOG_CONFIG = None
 _CONFIG_LOCK = threading.Lock()
 
-# 调试递归保护
+# 防止递归的保护标志
 _IN_DEBUG = threading.local()
 
 
@@ -28,57 +28,167 @@ def _get_log_config():
     return _LOG_CONFIG if _LOG_CONFIG is not False else None
 
 
-def _format_timestamp(dt: Optional[datetime] = None) -> str:
-    """
-    根据配置格式化时间戳
-    """
-    config = _get_log_config()
-
+def _format_timestamp(dt: datetime | None = None) -> str:
     if dt is None:
         dt = datetime.now()
 
-    if config:
-        # 使用时区配置
-        if config.timezone.value != 'LOCAL':
-            try:
-                tz = pytz.timezone(config.timezone.value)
-                dt = datetime.now(tz)
-            except:
-                pass
-
-        # 使用配置的时间格式
-        return dt.strftime(config.text_datetime_format)[:-3]  # 默认毫秒
-    else:
-        # 默认格式
-        return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-
+    ms = dt.microsecond // 1000
+    return f"{dt:%Y-%m-%d %H:%M:%S},{ms:03d}"
 
 def in_debug():
-    """检查是否在调试中"""
+    """检查是否正在调试输出中"""
     return getattr(_IN_DEBUG, 'value', False)
 
 
 def set_debug(value: bool):
-    """设置调试状态"""
+    """设置调试输出状态"""
     _IN_DEBUG.value = value
 
 
-def debug_print(component: str, msg, *args):
+def _base_print(component: str, msg, *args, level: str):
     """
-    统一的调试输出函数
+    基础打印函数
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+        level: 日志级别 (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
+    # 防止递归调用
     if in_debug():
         return
 
     set_debug(True)
     try:
+        # 格式化时间戳
         timestamp = _format_timestamp()
 
+        # 格式化消息
         if args:
-            formatted_msg = f"{timestamp} [CONSOLE] {component} {msg}" % args
+            formatted_msg = msg % args
         else:
-            formatted_msg = f"{timestamp} [CONSOLE] {component} {msg}"
+            formatted_msg = msg
 
-        print(formatted_msg, file=sys.stderr)
+        # 根据级别选择前缀和颜色（可选）
+        prefix_map = {
+            "TRACE": "[TRACE]",
+            "DEBUG": "[DEBUG]",
+            "INFO": "[INFO]",
+            "WARNING": "[WARNING]",
+            "ERROR": "[ERROR]",
+            "CRITICAL": "[CRITICAL]",
+            "FATAL": "[FATAL]"
+        }
+        prefix = prefix_map.get(level, "[DEBUG]")
+
+        # 统一打印格式：时间 [级别] 组件名: 消息
+        print(f"{timestamp} {prefix} {component}: {formatted_msg}", file=sys.stderr)
+
+    except Exception:
+        # 调试输出绝不能影响主程序，出错时静默失败
+        pass
     finally:
         set_debug(False)
+
+
+def trace_print(component: str, msg, *args):
+    """
+    追踪打印函数 - TRACE级别（最详细的调试信息）
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="TRACE")
+
+
+def debug_print(component: str, msg, *args):
+    """
+    调试打印函数 - DEBUG级别
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="DEBUG")
+
+
+def info_print(component: str, msg, *args):
+    """
+    信息打印函数 - INFO级别
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="INFO")
+
+
+def warning_print(component: str, msg, *args):
+    """
+    警告打印函数 - WARNING级别
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="WARNING")
+
+
+def error_print(component: str, msg, *args):
+    """
+    错误打印函数 - ERROR级别
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="ERROR")
+
+
+def critical_print(component: str, msg, *args):
+    """
+    严重错误打印函数 - CRITICAL级别
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="CRITICAL")
+
+
+def fatal_print(component: str, msg, *args):
+    """
+    致命错误打印函数 - FATAL级别（CRITICAL的别名）
+
+    Args:
+        component: 组件名称（通常是类名）
+        msg: 消息模板
+        *args: 消息参数
+    """
+    _base_print(component, msg, *args, level="FATAL")
+
+
+# 为了方便，也可以提供一个统一的打印函数，通过参数控制级别
+def log_print(component: str, level: str, msg, *args):
+    """
+    通用日志打印函数
+
+    Args:
+        component: 组件名称（通常是类名）
+        level: 日志级别
+        msg: 消息模板
+        *args: 消息参数
+
+    Example:
+        log_print("DatabaseManager", "INFO", "数据库连接成功")
+        log_print("DatabaseManager", "ERROR", "连接失败: %s", error_msg)
+    """
+    _base_print(component, msg, *args, level=level.upper())

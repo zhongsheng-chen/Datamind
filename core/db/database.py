@@ -1,23 +1,19 @@
 # datamind/core/db/database.py
+
+import traceback
 from contextlib import contextmanager
 from typing import Generator, Optional
 from datetime import datetime
-import traceback
-
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-
-from core.logging import log_manager, get_request_id, debug_print, set_debug
+from core.logging import log_manager, get_request_id, debug_print
 from config.settings import settings
 from .models import Base
 
-
-# 设置调试模式（如果需要）
-# set_debug(True)
 
 
 class DatabaseManager:
@@ -29,7 +25,7 @@ class DatabaseManager:
         self._scoped_sessions = {}
         self._initialized = False
 
-        debug_print("DatabaseManager", "初始化数据库管理器")
+        # debug_print("DatabaseManager", "初始化数据库管理器")
 
     def initialize(
             self,

@@ -2,7 +2,7 @@
 
 import sys
 import contextvars
-from core.logging.debug import in_debug, set_debug
+from core.logging.debug import debug_print
 
 # 请求ID上下文变量
 _request_id_ctx = contextvars.ContextVar("request_id", default="-")
@@ -18,17 +18,9 @@ def set_config(config):
 
 
 def _debug(msg, *args):
-    """调试输出，使用 print 避免递归"""
-    if in_debug():
-        return
-
+    """调试输出"""
     if _config and _config.context_debug:
-        set_debug(True)
-        try:
-            formatted_msg = f"[Context] {msg}" % args if args else f"[Context] {msg}"
-            print(formatted_msg, file=sys.stderr)
-        finally:
-            set_debug(False)
+        debug_print("Context", msg, *args)
 
 
 def get_request_id() -> str:

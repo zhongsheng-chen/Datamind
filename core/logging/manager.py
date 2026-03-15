@@ -16,10 +16,8 @@ from core.logging.formatters import CustomJsonFormatter, CustomTextFormatter, Ti
 from core.logging.filters import RequestIdFilter, SensitiveDataFilter, SamplingFilter
 from core.logging.handlers import TimeRotatingFileHandlerWithTimezone, AsyncLogHandler
 from core.logging.cleanup import CleanupManager
-from core.logging.debug import debug_print, in_debug, set_debug
+from core.logging.debug import debug_print, warning_print, error_print
 
-# 获取 bootstrap logger 用于调试
-_bootstrap_logger = logging.getLogger("datamind.bootstrap")
 
 
 class LogManager:
@@ -66,25 +64,31 @@ class LogManager:
     def _warning(self, msg, *args):
         """警告输出"""
         if self.config and self.config.manager_debug:
-            debug_print(f"{self.__class__.__name__} WARNING", msg, *args)
+            warning_print(f"{self.__class__.__name__}", msg, *args)
         self._stats['warnings'] += 1
 
     def _error(self, msg, *args):
         """错误输出"""
         if self.config and self.config.manager_debug:
-            debug_print(f"{self.__class__.__name__} ERROR", msg, *args)
+            error_print(f"{self.__class__.__name__}", msg, *args)
         self._stats['errors'] += 1
 
-    def initialize(self, config: LoggingConfig):
-        """初始化日志系统"""
+    def initialize(self, config: LoggingConfig) -> bool:
+        """
+        初始化日志系统
+
+        Args:
+            config: 日志配置对象
+
+        Returns:
+            bool: 文件处理器是否成功创建
+        """
         if self._initialized:
-            self._debug("日志系统已初始化，跳过重复初始化")
-            return
+            return True
 
         with self._lock:
             self._debug("=" * 50)
             self._debug("开始初始化日志系统")
-            self._debug("配置摘要: %s", config.get_config_digest()[:8])
 
             # 配置预检
             self._debug("执行配置预检...")
@@ -96,8 +100,7 @@ class LogManager:
 
             if validation['warnings']:
                 for warning in validation['warnings']:
-                    _bootstrap_logger.warning(f"日志配置警告: {warning}")
-                    self._warning("配置警告: %s", warning)
+                    self._warning("日志配置警告: %s", warning)
 
             self.config = config
 
@@ -121,7 +124,7 @@ class LogManager:
             self.sampling_filter = SamplingFilter(config)
             self._debug("过滤器初始化完成")
 
-            # 设置过滤器的配置（如果需要）
+            # 设置过滤器的配置
             if hasattr(self.request_id_filter, 'set_config'):
                 self.request_id_filter.set_config(config)
                 self._debug("已设置请求ID过滤器的配置")
@@ -158,9 +161,54 @@ class LogManager:
             # 记录启动日志
             self._log_startup_info()
 
+            # ===== 关键修改：在所有初始化完成后刷新启动日志 =====
+            # 检查文件处理器
+            root_logger = logging.getLogger(config.name)
+            file_handlers = [h for h in root_logger.handlers
+                             if isinstance(h, (logging.FileHandler,
+                                               logging.handlers.RotatingFileHandler,
+                                               ConcurrentRotatingFileHandler,
+                                               TimeRotatingFileHandlerWithTimezone))]
+
+            file_handlers_count = len(file_handlers)
+            self._debug(f"文件处理器数量: {file_handlers_count}")
+
+            if file_handlers_count > 0:
+                self._debug("文件处理器已就绪，类型: %s",
+                            [type(h).__name__ for h in file_handlers])
+
+                # 增加等待时间，确保文件处理器完全初始化
+                time.sleep(0.5)
+
+                # 刷新启动日志
+                self._debug("刷新启动日志...")
+                try:
+                    from core.logging.bootstrap import flush_bootstrap_logs
+
+                    replayed_count = flush_bootstrap_logs()
+
+                    if replayed_count > 0:
+                        # 使用配置中的名称记录日志
+                        logger = logging.getLogger(config.name)
+                        logger.info(f"已刷新 {replayed_count} 条启动日志到文件")
+                        self._debug(f"成功刷新 {replayed_count} 条启动日志")
+                    else:
+                        self._debug("没有启动日志需要刷新")
+
+                except ImportError:
+                    self._debug("bootstrap模块未找到，跳过启动日志刷新")
+                except Exception as e:
+                    self._error("刷新启动日志时出错: %s", e, exc_info=True)
+            else:
+                self._warning("警告: 没有找到文件处理器，启动日志无法写入文件")
+            # ==================================================
+
+            # 返回文件处理器是否成功创建
+            return file_handlers_count > 0
+
     def _log_startup_info(self):
         """记录启动信息"""
-        root_logger = logging.getLogger()
+        root_logger = logging.getLogger(self.config.name)
         root_logger.log(
             self.config.to_logging_level(),
             "日志系统初始化完成",
@@ -204,7 +252,6 @@ class LogManager:
             new_filename = f"{full_path.stem}_{timestamp}{full_path.suffix}"
             full_path = full_path.parent / new_filename
             self._debug("文件名添加时间戳: %s", full_path)
-        # ============================================================
 
         # 选择处理器类型
         handler = None
@@ -249,7 +296,7 @@ class LogManager:
                 self._debug("使用JSON格式器")
             else:
                 formatter = CustomTextFormatter(self.config)
-                self._debug("使用文本格式器")
+                self._debug("使用文本格式器，格式: %s", self.config.text_format)
 
             handler.setFormatter(formatter)
 
@@ -290,7 +337,7 @@ class LogManager:
     def _init_root_logger(self):
         """初始化根日志记录器"""
         self._debug("初始化根日志记录器")
-        root_logger = logging.getLogger()
+        root_logger = logging.getLogger(self.config.name)
         root_logger.setLevel(self.config.to_logging_level(self.config.level))
         self._debug("设置根日志级别: %s", self.config.level)
 
@@ -349,17 +396,27 @@ class LogManager:
 
             elif self.config.format == LogFormat.BOTH:
                 self._debug("使用双格式（文本和JSON）")
-                # 同时输出两种格式
+
+                # 为文本和JSON使用不同的文件名
+                base_path = Path(self.config.file)
+                text_file = str(base_path.parent / f"{base_path.stem}.text{base_path.suffix}")
+                json_file = str(base_path.parent / f"{base_path.stem}.json{base_path.suffix}")
+
+                self._debug("文本文件: %s", text_file)
+                self._debug("JSON文件: %s", json_file)
+
+                # 文本处理器
                 text_handler = self._create_file_handler(
-                    filename=self.config.file,
+                    filename=text_file,
                     level=self.config.level,
                     format_type=LogFormat.TEXT
                 )
                 root_logger.addHandler(text_handler)
                 added_handlers += 1
 
+                # JSON处理器
                 json_handler = self._create_file_handler(
-                    filename=self.config.file,
+                    filename=json_file,
                     level=self.config.level,
                     format_type=LogFormat.JSON
                 )
@@ -414,7 +471,7 @@ class LogManager:
             return
 
         self._debug("初始化访问日志记录器")
-        self.access_logger = logging.getLogger('access')
+        self.access_logger = logging.getLogger('datamind.access')
         self.access_logger.setLevel(logging.INFO)
         self.access_logger.propagate = False
 
@@ -459,7 +516,7 @@ class LogManager:
             return
 
         self._debug("初始化审计日志记录器")
-        self.audit_logger = logging.getLogger('audit')
+        self.audit_logger = logging.getLogger('datamind.audit')
         self.audit_logger.setLevel(logging.INFO)
         self.audit_logger.propagate = False
 
@@ -505,7 +562,7 @@ class LogManager:
             return
 
         self._debug("初始化性能日志记录器")
-        self.performance_logger = logging.getLogger('performance')
+        self.performance_logger = logging.getLogger('datamind.performance')
         self.performance_logger.setLevel(logging.INFO)
         self.performance_logger.propagate = False
 

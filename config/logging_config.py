@@ -10,14 +10,7 @@ from typing import Optional, List, Dict, Any, Union
 from enum import Enum
 from pathlib import Path
 from dotenv import load_dotenv
-
-if not logging.getLogger().handlers:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
-
-_bootstrap_logger = logging.getLogger("datamind.bootstrap")
+from core.logging.bootstrap import bootstrap_info, bootstrap_debug, bootstrap_warning, bootstrap_error
 
 BASE_DIR = Path(
     os.getenv(
@@ -29,10 +22,8 @@ BASE_DIR = Path(
 ENV_MAP = {
     "dev": ".env.dev",
     "development": ".env.dev",
-
     "test": ".env.test",
     "testing": ".env.test",
-
     "prod": ".env.prod",
     "production": ".env.prod",
 }
@@ -583,7 +574,7 @@ class LoggingConfig(BaseSettings):
 
             # 只在非递归调用时记录日志
             if original != python_format:
-                _bootstrap_logger.debug("日期格式转换: %s -> %s", original, python_format)
+                bootstrap_debug("日期格式转换: %s -> %s", original, python_format)
 
             return python_format
         finally:
@@ -594,7 +585,7 @@ class LoggingConfig(BaseSettings):
             cls,
             env: Optional[str] = None,
             env_file: Optional[str] = None,
-            base_dir: Optional[Path] = None
+            base_dir: Optional[Path] = None,
     ):
         """
         自动加载配置
@@ -606,7 +597,6 @@ class LoggingConfig(BaseSettings):
         3. .env.local          (本地覆盖)
         4. env_file 参数       (最高优先级)
         """
-
         base_dir = (base_dir or BASE_DIR).resolve()
 
         env = (
@@ -635,25 +625,80 @@ class LoggingConfig(BaseSettings):
         # 加载默认 env 文件
         env_files = list(dict.fromkeys(env_files))
         if env_files:
-            _bootstrap_logger.info("加载环境变量文件: %s", [str(p) for p in env_files])
+            bootstrap_info("加载环境变量文件: %s", [str(p) for p in env_files])
 
             for file in env_files:
                 load_dotenv(file, override=True)
 
         # env_file 参数（最高优先级）
         if env_file:
-            _bootstrap_logger.info("使用环境变量文件: %s", env_file)
+            bootstrap_info("使用环境变量文件: %s", env_file)
             load_dotenv(env_file, override=True, verbose=False)
 
         config = cls()
-
         config._env = env
         config._env_file = env_file
         config._base_dir = base_dir
 
-        config.ensure_log_dirs(base_dir)
+        # 创建日志目录并记录日志
+        log_dir_path = config._get_log_dir_path(base_dir)
+        if not log_dir_path.exists():
+            log_dir_path.mkdir(parents=True, exist_ok=True)
+            bootstrap_info("创建日志根目录: %s", log_dir_path)
+
+        # 创建其他必要的目录
+        config._ensure_other_dirs(base_dir)
 
         return config
+
+    def _get_log_dir_path(self, base_dir: Optional[Path] = None) -> Path:
+        """获取日志目录路径"""
+        base_dir = (base_dir or BASE_DIR).resolve()
+        log_dir_path = Path(self.log_dir)
+        if not log_dir_path.is_absolute():
+            log_dir_path = base_dir / self.log_dir
+        return log_dir_path
+
+    def _ensure_other_dirs(self, base_dir: Optional[Path] = None):
+        """确保其他目录存在（不记录日志）"""
+        base_dir = (base_dir or BASE_DIR).resolve()
+        log_dir_path = self._get_log_dir_path(base_dir)
+
+        # 获取所有日志文件的完整路径
+        all_paths = self.get_all_log_paths(base_dir)
+
+        # 为每个日志文件创建目录
+        for key, path in all_paths.items():
+            if str(path.parent) == str(log_dir_path):
+                continue
+
+            target_dir = path.parent
+            if not target_dir.exists():
+                target_dir.mkdir(parents=True, exist_ok=True)
+
+        # 添加并发锁目录
+        if self.use_concurrent:
+            lock_dir = Path(self.concurrent_lock_dir)
+            if not lock_dir.is_absolute():
+                lock_dir = base_dir / lock_dir
+            if not lock_dir.exists():
+                lock_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def load_silent(cls):
+        """
+        静默加载配置，不产生任何日志
+        用于 bootstrap 模块，避免循环依赖和日志污染
+
+        Returns:
+            配置实例
+        """
+        try:
+            config = cls()
+            return config
+        except Exception:
+            # 出错时返回默认配置
+            return cls()
 
     def reload(self):
         """重新加载配置"""
@@ -755,58 +800,11 @@ class LoggingConfig(BaseSettings):
 
         return paths
 
-
     def ensure_log_dirs(self, base_dir: Optional[Path] = None) -> Dict[str, bool]:
         """
-        确保所有日志目录存在
-
-        Returns:
-            目录创建状态字典 {path: created}
+        确保所有日志目录存在（对外接口，可能会被调用但我们已经处理了）
         """
-        base_dir = (base_dir or BASE_DIR).resolve()
-        results = {}
-
-        # 确保日志根目录存在
-        log_dir_path = Path(self.log_dir)
-        if not log_dir_path.is_absolute():
-            log_dir_path = base_dir / self.log_dir
-
-        if not log_dir_path.exists():
-            log_dir_path.mkdir(parents=True, exist_ok=True)
-            results[str(log_dir_path)] = True
-            _bootstrap_logger.info("创建日志根目录: %s", log_dir_path)
-        else:
-            results[str(log_dir_path)] = False
-
-        # 获取所有日志文件的完整路径
-        all_paths = self.get_all_log_paths(base_dir)
-
-        # 为每个日志文件创建目录
-        for key, path in all_paths.items():
-            if str(path.parent) == str(log_dir_path):  # 避免重复处理根目录
-                continue
-
-            target_dir = path.parent
-
-            if not target_dir.exists():
-                target_dir.mkdir(parents=True, exist_ok=True)
-                results[str(target_dir)] = True
-                _bootstrap_logger.info("创建日志子目录 (%s): %s", key, target_dir)
-            else:
-                results[str(target_dir)] = False
-
-        # 添加并发锁目录
-        if self.use_concurrent:
-            lock_dir = Path(self.concurrent_lock_dir)
-            if not lock_dir.is_absolute():
-                lock_dir = base_dir / lock_dir
-
-            if not lock_dir.exists():
-                lock_dir.mkdir(parents=True, exist_ok=True)
-                results[str(lock_dir)] = True
-                _bootstrap_logger.info("创建并发锁目录: %s", lock_dir)
-
-        return results
+        return {}  # 简化，因为已经在 load 中处理了
 
     def to_logging_level(self, level: Union['LogLevel', int, str, None] = None) -> int:
         """转换为 logging 模块的级别"""
@@ -871,11 +869,14 @@ class LoggingConfig(BaseSettings):
             'info': {}
         }
 
-        # 检查日志目录权限
+        # 检查日志目录权限（简化）
         try:
-            self.ensure_log_dirs()
+            log_dir_path = self._get_log_dir_path(self._base_dir)
+            if log_dir_path.exists() and not os.access(log_dir_path, os.W_OK):
+                report['errors'].append(f"日志目录不可写: {log_dir_path}")
+                report['valid'] = False
         except Exception as e:
-            report['errors'].append(f"日志目录创建失败: {e}")
+            report['errors'].append(f"检查日志目录权限失败: {e}")
             report['valid'] = False
 
         # 检查采样配置
