@@ -650,7 +650,7 @@ class LoggingConfig(BaseSettings):
         )
 
     def get_log_manager(self):
-        from core.log_manager import log_manager
+        from core.logging import log_manager
         return log_manager
 
     def get_python_date_format(self) -> str:
@@ -662,7 +662,7 @@ class LoggingConfig(BaseSettings):
 
     def get_formatted_timestamp(self, dt: Optional[datetime] = None) -> Union[str, float]:
         """统一的 timestamp 格式化方法"""
-        from core.log_manager import TimezoneFormatter
+        from core.logging import TimezoneFormatter
         formatter = TimezoneFormatter(self)
         return formatter.format_timestamp(dt)
 
