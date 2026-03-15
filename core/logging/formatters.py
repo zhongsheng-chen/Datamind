@@ -1,6 +1,5 @@
 ## core/logging/formatters.py
 
-import sys
 import os
 import json
 import pytz
@@ -11,10 +10,8 @@ from datetime import datetime, timedelta, timezone, date
 from typing import Optional, Union
 from pythonjsonlogger import jsonlogger
 from config.logging_config import LoggingConfig, LogFormat, TimeZone, TimestampPrecision
-from core.logging.debug import debug_print, in_debug, set_debug
+from core.logging.debug import debug_print
 
-# 获取 bootstrap logger 用于调试
-_bootstrap_logger = logging.getLogger("datamind.bootstrap")
 
 
 class TimezoneFormatter:
@@ -222,13 +219,13 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             self._debug("添加追踪信息: trace_id=%s, span_id=%s", trace_id, span_id)
 
         # 调试输出
-        self._debug("add_fields - log_record keys: %s", list(log_record.keys()))
+        self._debug("日志记录字段列表: %s", list(log_record.keys()))
         if 'method' in log_record:
-            self._debug("add_fields - method found: %s", log_record['method'])
+            self._debug("找到method字段: %s", log_record['method'])
         if 'action' in log_record:
-            self._debug("add_fields - action found: %s", log_record['action'])
+            self._debug("找到action字段: %s", log_record['action'])
         if 'operation' in log_record:
-            self._debug("add_fields - operation found: %s", log_record['operation'])
+            self._debug("找到operation字段: %s", log_record['operation'])
 
     def process_log_record(self, log_record):
         """处理日志记录"""
@@ -327,10 +324,10 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
         keys_preview = all_keys[:10]
         if len(all_keys) > 10:
             keys_preview.append(f"... 共{len(all_keys)}个字段")
-        self._debug("process_log_record - final keys preview: %s", keys_preview)
+        self._debug("最终字段预览: %s", keys_preview)
 
         if 'method' in log_record:
-            self._debug("process_log_record - method preserved: %s", log_record['method'])
+            self._debug("method字段已保留: %s", log_record['method'])
 
         return log_record
 
@@ -381,6 +378,8 @@ class CustomTextFormatter(logging.Formatter):
         if not hasattr(record, 'request_id'):
             record.request_id = '-'
             self._debug("为日志记录添加默认request_id")
+        else:
+            self._debug("日志记录已有request_id: %s", record.request_id)
 
         msg_preview = record.getMessage()
         if len(msg_preview) > 50:

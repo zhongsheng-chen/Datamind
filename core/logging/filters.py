@@ -1,17 +1,13 @@
 # core/logging/filters.py
 
-import sys
 import re
 import time
-import random
 import logging
 import threading
 from config.logging_config import LoggingConfig
 from core.logging.context import get_request_id, set_request_id
-from core.logging.debug import debug_print, in_debug, set_debug
+from core.logging.debug import debug_print
 
-# 获取 bootstrap logger 用于调试
-_bootstrap_logger = logging.getLogger("datamind.bootstrap")
 
 
 class RequestIdFilter(logging.Filter):

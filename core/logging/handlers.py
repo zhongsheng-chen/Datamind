@@ -4,14 +4,12 @@ import sys
 import atexit
 import threading
 import logging.handlers
-from queue import Queue, Empty  # 添加 Empty 导入
+from queue import Queue, Empty
 from datetime import datetime
 from config.logging_config import LoggingConfig
 from core.logging.formatters import TimezoneFormatter
-from core.logging.debug import debug_print, in_debug, set_debug
+from core.logging.debug import debug_print
 
-# 获取 bootstrap logger 用于调试
-_bootstrap_logger = logging.getLogger("datamind.bootstrap")
 
 
 class TimeRotatingFileHandlerWithTimezone(logging.handlers.TimedRotatingFileHandler):
@@ -28,7 +26,7 @@ class TimeRotatingFileHandlerWithTimezone(logging.handlers.TimedRotatingFileHand
             config.rotation_at_time
         )
 
-        # 设置轮转时间 - 需要转换为 datetime.time 对象
+        # 设置轮转时间，需要转换为 datetime.time 对象
         if config.rotation_at_time:
             # 解析时间字符串 "HH:MM" 为 datetime.time 对象
             hour, minute = map(int, config.rotation_at_time.split(':'))
@@ -46,11 +44,6 @@ class TimeRotatingFileHandlerWithTimezone(logging.handlers.TimedRotatingFileHand
         """调试输出"""
         if self.config and self.config.handler_debug:
             debug_print(self.__class__.__name__, msg, *args)
-
-    def _warning(self, msg, *args):
-        """警告输出"""
-        if self.config and self.config.handler_debug:
-            debug_print(f"{self.__class__.__name__} WARNING", msg, *args)
 
     def computeRollover(self, currentTime):
         """计算轮转时间（考虑时区）"""

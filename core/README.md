@@ -22,6 +22,7 @@ core/
 │        └── ab_test.py # A/B测试管理器
 │── logging/ # 日志模块
 │       ├── init.py
+│       ├── bootstrap.py # 缓存启动日志
 │       ├── manager.py # 日志管理器
 │       ├── formatters.py # 日志格式化器
 │       ├── filters.py # 日志过滤器

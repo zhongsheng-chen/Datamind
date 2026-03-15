@@ -11,10 +11,8 @@ from pathlib import Path
 from typing import Optional, List
 from config.logging_config import LoggingConfig, LogFormat
 from core.logging.formatters import TimezoneFormatter
-from core.logging.debug import debug_print, in_debug, set_debug
+from core.logging.debug import debug_print
 
-# 获取 bootstrap logger 用于调试
-_bootstrap_logger = logging.getLogger("datamind.bootstrap")
 
 
 class CleanupManager:
@@ -32,11 +30,6 @@ class CleanupManager:
         """调试输出"""
         if self.config and self.config.cleanup_debug:
             debug_print(self.__class__.__name__, msg, *args)
-
-    def _warning(self, msg, *args):
-        """警告输出"""
-        if self.config and self.config.cleanup_debug:
-            debug_print(f"{self.__class__.__name__} WARNING", msg, *args)
 
     def start(self):
         """启动清理任务"""
