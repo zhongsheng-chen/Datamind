@@ -645,9 +645,14 @@ class LoggingConfig(BaseSettings):
         if not log_dir_path.exists():
             log_dir_path.mkdir(parents=True, exist_ok=True)
             bootstrap_info("创建日志根目录: %s", log_dir_path)
+        else:
+            bootstrap_info("使用现有日志目录: %s", log_dir_path)
 
-        # 创建其他必要的目录
+            # 创建其他必要的目录
         config._ensure_other_dirs(base_dir)
+
+        # 记录配置完成日志
+        bootstrap_info(f"加载日志配置完成，应用名称: {config.name}")
 
         return config
 

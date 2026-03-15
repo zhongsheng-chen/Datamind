@@ -161,7 +161,6 @@ class LogManager:
             # 记录启动日志
             self._log_startup_info()
 
-            # ===== 关键修改：在所有初始化完成后刷新启动日志 =====
             # 检查文件处理器
             root_logger = logging.getLogger(config.name)
             file_handlers = [h for h in root_logger.handlers
@@ -201,7 +200,10 @@ class LogManager:
                     self._error("刷新启动日志时出错: %s", e, exc_info=True)
             else:
                 self._warning("警告: 没有找到文件处理器，启动日志无法写入文件")
-            # ==================================================
+
+            self._initialized = True
+            self._debug("日志系统初始化完成")
+            self._debug("=" * 50)
 
             # 返回文件处理器是否成功创建
             return file_handlers_count > 0

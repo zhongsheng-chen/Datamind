@@ -31,162 +31,57 @@ def set_debug_mode(enabled: bool = True):
     _DEBUG_MODE = enabled
 
 
+def _debug_log(msg: str, *args):
+    """内部调试日志函数，只在调试模式开启时输出"""
+    if _DEBUG_MODE and args:
+        print(f"[Bootstrap] {msg % args}")
+    elif _DEBUG_MODE:
+        print(f"[Bootstrap] {msg}")
+
+
 def debug_print_cache():
-    """调试打印缓存内容"""
-    global _bootstrap_handler, _DEBUG_MODE
-
-    if not _DEBUG_MODE:
+    """调试打印缓存内容（简洁版）"""
+    if not _DEBUG_MODE or not _bootstrap_handler:
         return
 
-    print("\n" + "=" * 80)
-    print("【启动日志缓存调试信息】")
-    print("=" * 80)
+    buffer_size = len(_bootstrap_handler.buffer) if hasattr(_bootstrap_handler, 'buffer') else 0
+    print(f"\n[Bootstrap] 缓存状态: {buffer_size} 条日志")
 
-    if not _bootstrap_handler:
-        print("缓存处理器未初始化")
-        print("=" * 80 + "\n")
-        return
-
-    print(f"缓存处理器状态: 已初始化")
-    print(f"缓存容量: {BOOTSTRAP_CAPACITY}")
-    print(f"处理器级别: {logging.getLevelName(_bootstrap_handler.level)}")
-
-    # 检查缓冲区
-    if hasattr(_bootstrap_handler, 'buffer'):
-        buffer_size = len(_bootstrap_handler.buffer)
-        print(f"当前缓存数量: {buffer_size} 条")
-
-        if buffer_size > 0:
-            print("\n缓存日志内容:")
-            print("-" * 60)
-
-            # 按级别统计
-            level_stats: Dict[int, int] = {}
-
-            for i, record in enumerate(_bootstrap_handler.buffer, 1):
-                # 统计级别
-                level_stats[record.levelno] = level_stats.get(record.levelno, 0) + 1
-
-                # 打印日志详情
-                print(f"\n  [{i}] {logging.getLevelName(record.levelno)} - {record.name}")
-                print(f"      时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created))}")
-                print(f"      模块: {record.module}:{record.lineno}")
-                print(f"      消息: {record.getMessage()}")
-
-                # 如果有异常信息
-                if record.exc_info:
-                    print(f"      异常: {record.exc_info[1]}")
-
-            # 打印统计信息
-            print("-" * 60)
-            print("\n缓存统计:")
-            for levelno, count in sorted(level_stats.items()):
-                print(f"  {logging.getLevelName(levelno)}: {count} 条")
-
-            print(f"\n总计: {buffer_size} 条日志")
-        else:
-            print("\n缓存为空，没有日志记录")
-    else:
-        print("无法访问缓存缓冲区")
-
-    print("=" * 80 + "\n")
+    if buffer_size > 0 and _DEBUG_MODE:
+        # 显示最新的3条作为示例
+        show_count = min(3, buffer_size)
+        print(f"最新 {show_count} 条日志:")
+        for i, record in enumerate(_bootstrap_handler.buffer[-show_count:]):
+            msg = record.getMessage()
+            # 消息过长时截断
+            if len(msg) > 60:
+                msg = msg[:57] + "..."
+            print(f"  └─ {record.levelname}: {msg}")
 
 
 def debug_peek_cache(last_n: int = 10) -> List[Dict[str, Any]]:
     """
-    查看最近的N条缓存日志
-
-    Args:
-        last_n: 要查看的最近日志数量
-
-    Returns:
-        包含日志信息的字典列表
+    查看最近的N条缓存日志（仅供内部使用）
     """
-    global _bootstrap_handler
-
-    result = []
-
     if not _bootstrap_handler or not hasattr(_bootstrap_handler, 'buffer'):
-        return result
+        return []
 
     buffer = _bootstrap_handler.buffer
     if not buffer:
-        return result
+        return []
 
-    # 获取最近的N条
+    result = []
     start_idx = max(0, len(buffer) - last_n)
+
     for record in buffer[start_idx:]:
-        log_info = {
+        result.append({
             'level': logging.getLevelName(record.levelno),
-            'levelno': record.levelno,
-            'name': record.name,
             'message': record.getMessage(),
-            'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record.created)),
+            'time': time.strftime('%H:%M:%S', time.localtime(record.created)),
             'module': record.module,
-            'lineno': record.lineno,
-            'funcName': record.funcName,
-            'created': record.created
-        }
-
-        # 如果有异常信息
-        if record.exc_info:
-            log_info['exception'] = str(record.exc_info[1])
-
-        result.append(log_info)
+        })
 
     return result
-
-
-def debug_get_cache_stats() -> Dict[str, Any]:
-    """
-    获取缓存统计信息
-
-    Returns:
-        统计信息字典
-    """
-    global _bootstrap_handler
-
-    stats = {
-        'initialized': _bootstrap_handler is not None,
-        'capacity': BOOTSTRAP_CAPACITY,
-        'handler_level': None,
-        'buffer_size': 0,
-        'level_stats': {},
-        'oldest_log': None,
-        'newest_log': None
-    }
-
-    if not _bootstrap_handler or not hasattr(_bootstrap_handler, 'buffer'):
-        return stats
-
-    stats['handler_level'] = logging.getLevelName(_bootstrap_handler.level)
-
-    buffer = _bootstrap_handler.buffer
-    stats['buffer_size'] = len(buffer)
-
-    if buffer:
-        # 按级别统计
-        for record in buffer:
-            level = logging.getLevelName(record.levelno)
-            stats['level_stats'][level] = stats['level_stats'].get(level, 0) + 1
-
-        # 最早和最晚的日志
-        oldest = buffer[0]
-        newest = buffer[-1]
-
-        stats['oldest_log'] = {
-            'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(oldest.created)),
-            'level': logging.getLevelName(oldest.levelno),
-            'message': oldest.getMessage()[:50] + '...' if len(oldest.getMessage()) > 50 else oldest.getMessage()
-        }
-
-        stats['newest_log'] = {
-            'time': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(newest.created)),
-            'level': logging.getLevelName(newest.levelno),
-            'message': newest.getMessage()[:50] + '...' if len(oldest.getMessage()) > 50 else newest.getMessage()
-        }
-
-    return stats
 
 
 def get_bootstrap_logger_name() -> str:
@@ -234,10 +129,7 @@ def install_bootstrap_logger(custom_name: Optional[str] = None):
     _bootstrap_logger.propagate = False
     _bootstrap_logger.addHandler(_bootstrap_handler)
 
-    # 如果处于调试模式，打印初始化信息
-    if _DEBUG_MODE:
-        print(f"\n启动日志缓存已初始化: {_bootstrap_logger_name}")
-        print(f"容量: {BOOTSTRAP_CAPACITY}, 级别: INFO")
+    _debug_log("启动日志缓存已初始化: %s (容量: %d)", _bootstrap_logger_name, BOOTSTRAP_CAPACITY)
 
 
 def flush_bootstrap_logs() -> int:
@@ -247,50 +139,41 @@ def flush_bootstrap_logs() -> int:
     global _bootstrap_handler, _bootstrap_logger
 
     if not _bootstrap_handler or not _bootstrap_logger:
-        print("[Bootstrap] 错误: handler或logger未初始化")
+        _debug_log("错误: handler或logger未初始化")
         return 0
 
     flushed_count = 0
 
-    #  从 Datamind logger 查找处理器，而不是 root logger
+    # 从 Datamind logger 查找处理器
     from config.logging_config import LoggingConfig
-    config = LoggingConfig.load_silent()  # 静默加载配置获取名称
-    app_logger = logging.getLogger(config.name)  # 获取 "Datamind" logger
-
-    print(f"\n[Bootstrap] {config.name} logger.handlers: {len(app_logger.handlers)}")
-    for i, handler in enumerate(app_logger.handlers):
-        print(f"  [{i}] {type(handler).__name__} - {handler.__class__}")
+    config = LoggingConfig.load_silent()
+    app_logger = logging.getLogger(config.name)
 
     # 找到真正的文件处理器
     target_handler = None
     for handler in app_logger.handlers:
         if not isinstance(handler, MemoryHandler):
             target_handler = handler
-            print(f"[Bootstrap] 找到目标处理器: {type(handler).__name__}")
+            _debug_log("找到目标处理器: %s", type(handler).__name__)
             break
 
     if not target_handler:
-        print("[Bootstrap] 错误: 没有找到文件处理器")
+        _debug_log("错误: 没有找到文件处理器")
         return 0
 
     # 检查缓冲区
     if hasattr(_bootstrap_handler, 'buffer'):
         buffer_size = len(_bootstrap_handler.buffer)
-        print(f"[Bootstrap] 缓冲区大小: {buffer_size}")
+        _debug_log("缓冲区大小: %d", buffer_size)
 
         if buffer_size > 0:
-            # 打印缓冲区内容
-            print("[Bootstrap] 缓冲区内容:")
-            for i, record in enumerate(_bootstrap_handler.buffer):
-                print(f"  [{i}] {record.levelname} - {record.getMessage()}")
-
             # 设置目标处理器
             _bootstrap_handler.setTarget(target_handler)
 
             # 刷新所有缓存的日志
             _bootstrap_handler.flush()
             flushed_count = buffer_size
-            print(f"[Bootstrap] 已调用 flush()，尝试刷新 {flushed_count} 条日志")
+            _debug_log("已刷新 %d 条启动日志", flushed_count)
 
     # 移除 bootstrap handler
     _bootstrap_logger.removeHandler(_bootstrap_handler)
