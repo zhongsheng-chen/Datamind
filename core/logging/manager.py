@@ -17,7 +17,7 @@ from core.logging.filters import RequestIdFilter, SensitiveDataFilter, SamplingF
 from core.logging.handlers import TimeRotatingFileHandlerWithTimezone, AsyncLogHandler
 from core.logging.cleanup import CleanupManager
 from core.logging.debug import debug_print, warning_print, error_print
-
+from config.logging_config import HandlerType
 
 class LogManager:
     """
@@ -215,6 +215,22 @@ class LogManager:
             # 返回文件处理器是否成功创建
             return file_handlers_count > 0
 
+    def _init_logger(self, name, filename, level, format_type):
+        """初始化 logger"""
+        logger = logging.getLogger(name)
+        logger.setLevel(self.config.to_logging_level(level))
+        logger.propagate = False
+
+        handler = self._create_file_handler(
+            filename=filename,
+            level=level,
+            format_type=format_type
+        )
+
+        logger.addHandler(handler)
+
+        return logger
+
     def _init_root_logger(self):
         """初始化 root logger"""
         self._debug("初始化根日志记录器")
@@ -268,95 +284,51 @@ class LogManager:
     def _create_file_handler(
             self,
             filename: str,
-            level: Union[LogLevel, int, str],
-            format_type: Optional[LogFormat] = None
+            level: LogLevel,
+            format_type: LogFormat
     ) -> logging.Handler:
         """创建文件处理器"""
-        if format_type is None:
-            format_type = self.config.format
 
-        self._debug("创建文件处理器: 文件=%s, 级别=%s, 格式=%s", filename, level, format_type)
+        handler_cfg = self.config.get_handler_config(
+            filename
+        )
 
-        # 获取基础目录
-        base_dir = self.config._base_dir or Path(__file__).parent.parent.parent
-        # 获取完整路径
-        full_path = self.config.get_full_log_path(filename, base_dir)
-        self._debug("完整路径: %s", full_path)
+        handler_class = handler_cfg["class"]
+        kwargs = handler_cfg["kwargs"]
 
-        # 确保日志目录存在
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        self._debug("确保目录存在: %s", full_path.parent)
+        # 并发日志
+        if self.config.use_concurrent and handler_class.__name__ == "RotatingFileHandler":
+            handler = ConcurrentRotatingFileHandler(**kwargs)
 
-        # 如果文件名包含时间戳，添加时间信息
-        if self.config.file_name_timestamp:
-            current_time = self.timezone_formatter.format_time()
-            timestamp = current_time.strftime(self.config.file_name_datetime_format)
-            # 只修改文件名，不修改路径
-            new_filename = f"{full_path.stem}_{timestamp}{full_path.suffix}"
-            full_path = full_path.parent / new_filename
-            self._debug("文件名添加时间戳: %s", full_path)
+        else:
+            handler = handler_class(**kwargs)
 
-        # 选择处理器类型
-        handler = None
-        try:
-            if self.config.use_concurrent:
-                self._debug("使用并发处理器")
-                handler = ConcurrentRotatingFileHandler(
-                    filename=str(full_path),
-                    maxBytes=self.config.max_bytes,
-                    backupCount=self.config.backup_count,
-                    encoding=self.config.encoding,
-                    lock_file_directory=self.config.concurrent_lock_dir
-                )
-            elif self.config.rotation_when:
-                self._debug("使用时间轮转处理器: when=%s, interval=%d",
-                            self.config.rotation_when.value, self.config.rotation_interval)
-                handler = TimeRotatingFileHandlerWithTimezone(
-                    config=self.config,
-                    filename=str(full_path),
-                    when=self.config.rotation_when.value,
-                    interval=self.config.rotation_interval,
-                    backupCount=self.config.backup_count,
-                    encoding=self.config.encoding
-                )
-            else:
-                self._debug("使用大小轮转处理器: max_bytes=%d, backup_count=%d",
-                            self.config.max_bytes, self.config.backup_count)
-                handler = logging.handlers.RotatingFileHandler(
-                    filename=str(full_path),
-                    maxBytes=self.config.max_bytes,
-                    backupCount=self.config.backup_count,
-                    encoding=self.config.encoding
-                )
+        handler.setLevel(self.config.to_logging_level(level))
 
-            # 使用配置类的方法设置日志级别
-            handler.setLevel(self.config.to_logging_level(level))
-            self._debug("设置日志级别: %s", level)
+        # formatter
+        if format_type == LogFormat.JSON:
+            formatter = CustomJsonFormatter(self.config)
+        else:
+            formatter = CustomTextFormatter(self.config)
 
-            # 设置格式器
-            if format_type == LogFormat.JSON:
-                formatter = CustomJsonFormatter(self.config)
-                self._debug("使用JSON格式器")
-            else:
-                formatter = CustomTextFormatter(self.config)
-                self._debug("使用文本格式器，格式: %s", self.config.text_format)
+        handler.setFormatter(formatter)
 
-            handler.setFormatter(formatter)
-
-            # 添加过滤器
+        # filters
+        if self.request_id_filter:
             handler.addFilter(self.request_id_filter)
+
+        if self.sensitive_filter:
             handler.addFilter(self.sensitive_filter)
+
+        if self.sampling_filter:
             handler.addFilter(self.sampling_filter)
-            self._debug("已添加过滤器到处理器")
 
-            # 如果是异步模式，包装为异步处理器
-            if self.config.use_async:
-                self._debug("包装为异步处理器，队列大小: %d", self.config.async_queue_size)
-                handler = AsyncLogHandler(self.config, handler)
-
-        except Exception as e:
-            self._error("创建文件处理器失败: %s", e)
-            raise
+        # async
+        if self.config.use_async:
+            handler = AsyncLogHandler(
+                handler,
+                queue_size=self.config.async_queue_size
+            )
 
         return handler
 

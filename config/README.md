@@ -590,14 +590,632 @@ print(f"配置摘要: {config.get_config_digest()}")
 
 
 
+##########################
+# Datamind 配置组件
+
+提供应用配置和日志配置管理，支持多环境配置、环境变量覆盖、配置验证等功能。
+
+## 特性
+
+- **多环境支持** - 开发、测试、预发布、生产环境独立配置
+- **环境变量覆盖** - 支持通过环境变量覆盖配置
+- **配置验证** - 自动验证配置的合法性
+- **类型安全** - 使用 Pydantic 模型定义配置
+- **热重载** - 支持配置动态重载
+- **敏感信息保护** - 自动隐藏密码、密钥等敏感信息
+- **配置导出/导入** - 支持导出为 JSON/YAML 格式
+- **配置监听** - 支持配置变更事件监听
+- **配置缓存** - 缓存配置实例避免重复加载
+
+## 目录结构
+
+```text
+config/
+├── __init__.py # 模块初始化
+├── settings.py # 应用配置
+├── logging_config.py # 日志配置
+├── storage_config.py # 存储配置
+└── README.md
+```
+
+## 快速开始
+
+### 1. 加载配置
+
+```python
+from config import settings, LoggingConfig, StorageConfig
+
+# 获取应用配置
+print(settings.APP_NAME)
+print(settings.VERSION)
+print(settings.ENV)
+
+# 加载日志配置
+log_config = LoggingConfig.load()
+print(log_config.level)
+print(log_config.format)
+
+# 加载存储配置
+storage_config = StorageConfig.load()
+print(storage_config.type)
+print(storage_config.models_path)
+```
+
+### 2. 环境变量文件
+
+创建 .env 文件：
+
+```bash
+# 应用配置
+DATAMIND_APP_NAME=Datamind
+DATAMIND_VERSION=1.0.0
+DATAMIND_ENV=development
+DATAMIND_DEBUG=true
+
+# API配置
+DATAMIND_API_HOST=0.0.0.0
+DATAMIND_API_PORT=8000
+DATAMIND_API_PREFIX=/api/v1
+
+# 数据库配置
+DATAMIND_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/datamind
+DATAMIND_DB_POOL_SIZE=20
+DATAMIND_DB_MAX_OVERFLOW=40
+
+# 日志配置
+DATAMIND_LOG_LEVEL=INFO
+DATAMIND_LOG_FORMAT=json
+DATAMIND_LOG_PATH=./logs
+
+# 存储配置
+DATAMIND_STORAGE_TYPE=local
+DATAMIND_LOCAL_STORAGE_PATH=./models
+```
+
+### 3. 多环境配置
+
+```bash
+# 开发环境
+cp .env.dev.example .env.dev
+export DATAMIND_ENV=development
+
+# 测试环境
+cp .env.test.example .env.test
+export DATAMIND_ENV=test
+
+# 生产环境
+cp .env.prod.example .env.prod
+export DATAMIND_ENV=production
+```
+
+## 配置详解
+
+### 应用配置 (settings.py)
+
+#### 基础配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| APP_NAME | DATAMIND_APP_NAME | Datamind | 应用名称 |
+| VERSION | DATAMIND_VERSION | 1.0.0 | 应用版本 |
+| ENV | DATAMIND_ENV | development | 运行环境 |
+| DEBUG | DATAMIND_DEBUG | false | 调试模式 |
+
+#### API配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| API_HOST | DATAMIND_API_HOST | 0.0.0.0 | API监听地址 |
+| API_PORT | DATAMIND_API_PORT | 8000 | API监听端口 |
+| API_PREFIX | DATAMIND_API_PREFIX | /api/v1 | API路由前缀 |
+
+#### 数据库配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| DATABASE_URL | DATAMIND_DATABASE_URL | postgresql://... | 数据库连接 |
+| READONLY_DATABASE_URL | DATAMIND_READONLY_DATABASE_URL | None | 只读数据库 |
+| DB_POOL_SIZE | DATAMIND_DB_POOL_SIZE | 20 | 连接池大小 |
+| DB_MAX_OVERFLOW | DATAMIND_DB_MAX_OVERFLOW | 40 | 最大溢出连接 |
+| DB_ECHO | DATAMIND_DB_ECHO | false | 打印SQL |
+
+#### Redis配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| REDIS_URL | DATAMIND_REDIS_URL | redis://localhost:6379/0 | Redis连接 |
+| REDIS_PASSWORD | DATAMIND_REDIS_PASSWORD | None | Redis密码 |
+| REDIS_MAX_CONNECTIONS | DATAMIND_REDIS_MAX_CONNECTIONS | 50 | 最大连接数 |
+
+#### 日志配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| LOG_LEVEL | DATAMIND_LOG_LEVEL | INFO | 日志级别 |
+| LOG_FORMAT | DATAMIND_LOG_FORMAT | json | 日志格式 |
+| LOG_PATH | DATAMIND_LOG_PATH | ./logs | 日志路径 |
+| LOG_RETENTION_DAYS | DATAMIND_LOG_RETENTION_DAYS | 90 | 日志保留天数 |
+
+### 日志配置 (logging_config.py)
+
+#### 基本配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| name | DATAMIND_LOG_NAME | datamind | 日志记录器名称 |
+| level | DATAMIND_LOG_LEVEL | INFO | 日志级别 |
+| encoding | DATAMIND_LOG_ENCODING | utf-8 | 日志文件编码 |
+
+#### 文件配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| file | DATAMIND_LOG_FILE | logs/Datamind.log | 主日志文件 |
+| error_file | DATAMIND_ERROR_LOG_FILE | logs/Datamind.error.log | 错误日志文件 |
+| access_log_file | DATAMIND_ACCESS_LOG_FILE | logs/access.log | 访问日志文件 |
+| audit_log_file | DATAMIND_AUDIT_LOG_FILE | logs/audit.log | 审计日志文件 |
+| performance_log_file | DATAMIND_PERFORMANCE_LOG_FILE | logs/performance.log | 性能日志文件 |
+
+#### 轮转配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| max_bytes | DATAMIND_LOG_MAX_BYTES | 100MB | 单个文件最大大小 |
+| backup_count | DATAMIND_LOG_BACKUP_COUNT | 30 | 备份文件数量 |
+| rotation_when | DATAMIND_LOG_ROTATION_WHEN | MIDNIGHT | 轮转时间单位 |
+| retention_days | DATAMIND_LOG_RETENTION_DAYS | 90 | 日志保留天数 |
+
+#### 敏感信息脱敏
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| mask_sensitive | DATAMIND_LOG_MASK_SENSITIVE | true | 启用脱敏 |
+| sensitive_fields | DATAMIND_SENSITIVE_FIELDS | ["id_number", "phone", ...] | 敏感字段列表 |
+| mask_char | DATAMIND_LOG_MASK_CHAR | * | 脱敏字符 |
+
+### 存储配置 (storage_config.py)
+
+#### 存储类型
+
+| 类型 | 说明 |
+| --- | --- |
+| local | 本地文件存储 |
+| minio | MinIO 对象存储 |
+| s3 | AWS S3 兼容存储 |
+
+#### 通用配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| STORAGE_TYPE | DATAMIND_STORAGE_TYPE | local | 存储类型 |
+| STORAGE_DEFAULT_TTL | DATAMIND_STORAGE_DEFAULT_TTL | 86400 | 默认过期时间(秒) |
+| STORAGE_ENABLE_CACHE | DATAMIND_STORAGE_ENABLE_CACHE | true | 启用缓存 |
+| STORAGE_CACHE_SIZE | DATAMIND_STORAGE_CACHE_SIZE | 100 | 缓存大小 |
+| STORAGE_ENABLE_COMPRESSION | DATAMIND_STORAGE_ENABLE_COMPRESSION | false | 启用压缩 |
+| STORAGE_MAX_FILE_SIZE | DATAMIND_STORAGE_MAX_FILE_SIZE | 1GB | 最大文件大小 |
+
+#### 本地存储配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| LOCAL_STORAGE_PATH | DATAMIND_LOCAL_STORAGE_PATH | ./models | 本地存储路径 |
+
+#### MinIO 存储配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| MINIO_ENDPOINT | DATAMIND_MINIO_ENDPOINT | localhost:9000 | MinIO服务地址 |
+| MINIO_ACCESS_KEY | DATAMIND_MINIO_ACCESS_KEY | minioadmin | 访问密钥 |
+| MINIO_SECRET_KEY | DATAMIND_MINIO_SECRET_KEY | minioadmin | 秘密密钥 |
+| MINIO_BUCKET | DATAMIND_MINIO_BUCKET | datamind | 存储桶名称 |
+| MINIO_SECURE | DATAMIND_MINIO_SECURE | false | 使用HTTPS |
+
+#### S3 存储配置
+
+| 配置项 | 环境变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| S3_ACCESS_KEY_ID | DATAMIND_S3_ACCESS_KEY_ID | - | AWS访问密钥ID |
+| S3_SECRET_ACCESS_KEY | DATAMIND_S3_SECRET_ACCESS_KEY | - | AWS秘密密钥 |
+| S3_BUCKET | DATAMIND_S3_BUCKET | datamind | S3存储桶 |
+| S3_REGION | DATAMIND_S3_REGION | us-east-1 | AWS区域 |
+
+## 使用方法
+
+### 1. 基本使用
+
+```python
+from config import settings
+
+# 获取配置值
+print(settings.APP_NAME)
+print(settings.API_HOST)
+
+# 检查环境
+if settings.is_development():
+print("开发环境")
+elif settings.is_production():
+print("生产环境")
+```
+
+### 2. 日志配置
+
+```python
+from config import LoggingConfig
+from core.logging import log_manager
+
+# 加载日志配置
+log_config = LoggingConfig.load()
+log_manager.initialize(log_config)
+
+# 验证配置
+validation = log_config.validate_all()
+if validation['valid']:
+print("✅ 配置验证通过")
+```
+
+### 3. 存储配置
+
+```python
+from config import get_storage_config, get_storage_client_config
+
+# 获取存储配置
+storage_config = get_storage_config()
+print(f"存储类型: {storage_config.type}")
+print(f"模型路径: {storage_config.models_path}")
+
+# 获取客户端配置
+client_config = storage_config.get_client_config()
+
+# 人类可读格式
+readable = storage_config.to_readable(as_string=True)
+print(readable)
+
+# 验证连接（异步）
+import asyncio
+result = asyncio.run(storage_config.validate_connection())
+if result['success']:
+print("✅ 存储连接正常")
+else:
+print(f"❌ 连接失败: {result['error']}")
+```
+
+### 4. 多环境配置
+
+```python
+# 指定环境加载
+dev_config = LoggingConfig.load(env="development")
+prod_config = LoggingConfig.load(env="production")
+
+# 比较配置差异
+if not dev_config.is_equivalent_to(prod_config):
+print("配置有差异")
+```
+
+### 5. 配置热重载
+
+```python
+from config import settings
+
+# 添加配置变更监听器
+def on_config_change(event):
+print(f"配置已变更: {event.changes}")
+
+settings.add_change_listener(on_config_change)
+
+# 重载配置
+new_settings = settings.reload() # 会自动触发监听器
+```
+
+### 6. 配置缓存
+
+```python
+from config import get_storage_config
+
+# 使用缓存（默认）
+config1 = get_storage_config(use_cache=True)
+config2 = get_storage_config(use_cache=True)
+print(config1 is config2) # True - 同一个实例
+
+# 不使用缓存
+config3 = get_storage_config(use_cache=False)
+print(config1 is config3) # False - 新实例
+
+# 使缓存失效
+config1.invalidate_cache()
+```
+
+### 7. 导出/导入配置
+
+```python
+from config import StorageConfig
+
+# 导出配置
+storage_config = get_storage_config()
+storage_config.export_to_file("storage_config.json", format="json")
+storage_config.export_to_file("storage_config.yaml", format="yaml")
+
+# 导入配置
+imported = StorageConfig.import_from_file("storage_config.json")
+print(imported.type)
+```
+
+## 环境变量文件
+
+### .env.example
+
+```bash
+# 应用配置
+DATAMIND_APP_NAME=Datamind
+DATAMIND_VERSION=1.0.0
+DATAMIND_ENV=development
+DATAMIND_DEBUG=true
+
+# API配置
+DATAMIND_API_HOST=0.0.0.0
+DATAMIND_API_PORT=8000
+DATAMIND_API_PREFIX=/api/v1
+
+# 数据库配置
+DATAMIND_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/datamind
+DATAMIND_DB_POOL_SIZE=20
+DATAMIND_DB_MAX_OVERFLOW=40
+
+# 日志配置
+DATAMIND_LOG_LEVEL=INFO
+DATAMIND_LOG_FORMAT=json
+DATAMIND_LOG_PATH=./logs
+DATAMIND_LOG_MAX_BYTES=104857600
+DATAMIND_LOG_BACKUP_COUNT=30
+DATAMIND_LOG_RETENTION_DAYS=90
+DATAMIND_LOG_MASK_SENSITIVE=true
+
+# 存储配置
+DATAMIND_STORAGE_TYPE=local
+DATAMIND_LOCAL_STORAGE_PATH=./models
+DATAMIND_STORAGE_ENABLE_CACHE=true
+DATAMIND_STORAGE_CACHE_SIZE=100
+DATAMIND_STORAGE_ENABLE_COMPRESSION=false
+
+# MinIO配置（当STORAGE_TYPE=minio时）
+DATAMIND_MINIO_ENDPOINT=localhost:9000
+DATAMIND_MINIO_ACCESS_KEY=minioadmin
+DATAMIND_MINIO_SECRET_KEY=minioadmin
+DATAMIND_MINIO_BUCKET=datamind
+DATAMIND_MINIO_SECURE=false
+
+# S3配置（当STORAGE_TYPE=s3时）
+DATAMIND_S3_ACCESS_KEY_ID=
+DATAMIND_S3_SECRET_ACCESS_KEY=
+DATAMIND_S3_BUCKET=datamind
+DATAMIND_S3_REGION=us-east-1
+```
+
+## 环境特定配置
+
+### .env.dev - 开发环境
+
+```bash
+DATAMIND_ENV=development
+DATAMIND_DEBUG=true
+DATAMIND_LOG_LEVEL=DEBUG
+DATAMIND_LOG_FORMAT=text
+DATAMIND_STORAGE_TYPE=local
+```
+
+### .env.test - 测试环境
+
+```bash
+DATAMIND_ENV=test
+DATAMIND_DEBUG=false
+DATAMIND_LOG_LEVEL=INFO
+DATAMIND_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/datamind_test
+```
+
+### .env.prod - 生产环境
+
+```bash
+DATAMIND_ENV=production
+DATAMIND_DEBUG=false
+DATAMIND_LOG_LEVEL=INFO
+DATAMIND_LOG_FORMAT=json
+DATAMIND_DATABASE_URL=postgresql://user:password@prod-db:5432/datamind
+DATAMIND_STORAGE_TYPE=s3
+DATAMIND_S3_BUCKET=datamind-prod
+```
+
+## 配置优先级
+
+配置加载顺序（从低到高）：
+
+默认值 - 代码中的默认值
+
+.env 文件 - 项目根目录
+
+.env.{env} 文件 - 环境特定配置
+
+.env.local 文件 - 本地覆盖
+
+系统环境变量 - 最高优先级
+
+```python
+# 手动指定配置文件（最高优先级）
+config = LoggingConfig.load(env_file="/path/to/custom.env")
+```
+
+## 最佳实践
+
+### 1. 不要提交敏感信息
+
+```bash
+# .gitignore
+.env
+.env.local
+*.env
+!*.env.example
+!*.env.dev.example
+!*.env.test.example
+!*.env.prod.example
+```
+
+### 2. 使用配置分组
+
+```python
+# 数据库配置组
+db_config = {
+'url': settings.DATABASE_URL,
+'pool_size': settings.DB_POOL_SIZE,
+'max_overflow': settings.DB_MAX_OVERFLOW
+}
+
+# 存储配置组
+storage_config = {
+'type': settings.STORAGE_TYPE,
+'cache': {
+'enabled': settings.STORAGE_ENABLE_CACHE,
+'size': settings.STORAGE_CACHE_SIZE
+}
+}
+```
+
+### 3. 环境判断
+
+```python
+if settings.is_development():
+# 开发环境特定逻辑
+enable_debug_toolbar()
+elif settings.is_testing():
+# 测试环境特定逻辑
+use_test_database()
+elif settings.is_production():
+# 生产环境特定逻辑
+enable_performance_monitoring()
+```
+
+### 4. 配置验证
+
+```python
+# 启动时验证
+def validate_config_on_startup():
+config = LoggingConfig.load()
+validation = config.validate_all()
+
+if not validation['valid']:
+    for error in validation['errors']:
+        logger.error(f"配置错误: {error}")
+    raise SystemExit(1)
+
+if validation['warnings']:
+    for warning in validation['warnings']:
+        logger.warning(f"配置警告: {warning}")
+
+```
+
+## 故障排查
+
+### 1. 配置加载失败
+
+```python
+try:
+config = LoggingConfig.load()
+storage_config = get_storage_config()
+except Exception as e:
+logger.error(f"配置加载失败: {e}", exc_info=True)
+raise
+```
+
+### 2. 验证存储连接
+
+```python
+import asyncio
+
+async def check_storage():
+config = get_storage_config()
+result = await config.validate_connection()
+
+if not result['success']:
+    logger.error(f"存储连接失败: {result['error']}")
+    return False
+
+logger.info(f"存储连接成功: {result['details']}")
+return True
+
+```
+
+### 3. 查看配置信息
+
+```python
+config = get_storage_config()
+
+# 配置摘要
+print(f"配置摘要: {config.get_config_digest()}")
+
+# 元数据
+print(f"环境: {config._env}")
+print(f"最后修改: {config._last_modified}")
+print(f"配置来源: {config._config_source}")
+
+# 人类可读格式
+print(config.to_readable(as_string=True))
+```
+
+## 性能考虑
+
+- 配置加载：轻量级操作，通常 < 10ms
+
+- 缓存建议：在应用启动时加载一次，使用缓存
+
+- 热重载：避免频繁重载，可能影响性能
+
+- 配置验证：在启动时执行，不要在每个请求中执行
+
+- 连接验证：异步执行，避免阻塞主线程
+
+```python
+# 推荐：启动时加载并缓存
+config = get_storage_config(use_cache=True)
+
+# 不推荐：每次请求都加载
+def bad_handler():
+config = get_storage_config(use_cache=False) # 避免这样做
+```
+
+
+# 从settings获取配置对象
+from config.settings import settings
+
+# 直接使用配置对象（无需改变）
+log_manager.initialize(settings.logging_config)
+
+# 重载配置
+new_config = settings.logging_config.reload()
+
+# 验证配置
+report = settings.logging_config.validate_all()
+
+# 获取所有日志路径
+paths = settings.logging_config.get_all_log_paths()
 
 
 
+# 确保必要的目录存在
+# 日志目录由 logging_config 管理
+settings.logging_config.ensure_log_dirs()
+
+# 存储目录由 storage_config 管理
+settings.storage_config.ensure_directories()
 
 
+三、LoggerManager 使用方式
 
+LoggerManager 这样写最清晰：
+```python
+import logging_config
+from logging.handlers import TimedRotatingFileHandler
 
+cfg = logging_config.get_handler_config(
+    TimedRotatingFileHandler,
+    logging_config.file
+)
 
-
-
-
+handler = cfg["class"](**cfg["kwargs"])
+```

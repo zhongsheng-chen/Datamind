@@ -17,13 +17,12 @@
 
 from config.settings import settings
 from config.logging_config import LoggingConfig
-from config.storage_config import StorageConfig, StorageConfigFactory, get_storage_config, get_storage_client_config
+from config.storage_config import StorageConfig, get_storage_config, get_storage_client_config
 
 __all__ = [
     'settings',
     'LoggingConfig',
     'StorageConfig',
-    'StorageConfigFactory',
     'get_storage_config',
     'get_storage_client_config',
 ]

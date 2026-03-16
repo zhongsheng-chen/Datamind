@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any, Literal
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator, ConfigDict
 from dotenv import load_dotenv
+from time import time
 
 # 加载环境变量
 load_dotenv()
@@ -175,7 +176,7 @@ class Settings(BaseSettings):
         description="JWT访问令牌过期时间（分钟）"
     )
 
-    # ========== 日志配置 - 通过委托属性访问 ==========
+    # 日志配置
     @property
     def logging_config(self):
         """获取日志配置对象"""
@@ -184,13 +185,18 @@ class Settings(BaseSettings):
             self._logging_config = LoggingConfig.load(env=self.ENV)
         return self._logging_config
 
-    # ========== 存储配置 - 通过委托属性访问 ==========
+    # 存储配置
     @property
     def storage_config(self):
-        """获取存储配置对象（与 logging_config 调用方式一致）"""
+        """获取存储配置对象"""
         from config.storage_config import StorageConfig
         if not hasattr(self, '_storage_config'):
-            self._storage_config = StorageConfig.load(env=self.ENV)
+            self._storage_config = StorageConfig()
+            self._storage_config._env = self.ENV
+            self._storage_config._base_dir = BASE_DIR
+            self._storage_config._last_modified = datetime.now()
+            self._storage_config._config_source = "settings"
+            self._storage_config.ensure_directories()
         return self._storage_config
 
     # A/B测试配置
@@ -330,19 +336,6 @@ class Settings(BaseSettings):
             raise ValueError(f"ENV 必须是 {allowed} 之一")
         return v
 
-    @field_validator("STORAGE_COMPRESSION_LEVEL")
-    def validate_compression_level(cls, v):
-        """验证压缩级别"""
-        if v < 1 or v > 9:
-            raise ValueError("STORAGE_COMPRESSION_LEVEL 必须在 1 到 9 之间")
-        return v
-
-    @field_validator("STORAGE_MAX_FILE_SIZE", "MODEL_FILE_MAX_SIZE")
-    def validate_max_file_size(cls, v):
-        """验证最大文件大小"""
-        if v < 1024 * 1024:
-            raise ValueError("文件大小不能小于1MB")
-        return v
 
     def get_database_config(self) -> Dict[str, Any]:
         """获取数据库配置字典"""
@@ -402,7 +395,7 @@ settings = Settings()
 
 # 确保必要的目录存在
 # 日志目录由 logging_config 管理
-settings.logging_config.ensure_log_dirs()
+settings.logging_config.ensure_directories()
 
 # 存储目录由 storage_config 管理
 settings.storage_config.ensure_directories()
