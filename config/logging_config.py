@@ -485,18 +485,21 @@ class LoggingConfig(BaseSettings):
     )
 
     @field_validator('sampling_rate')
+    @classmethod
     def validate_sampling_rate(cls, v):
         if v < 0 or v > 1:
             raise ValueError("采样率必须在0到1之间")
         return v
 
     @field_validator('max_bytes')
+    @classmethod
     def validate_max_bytes(cls, v):
         if v < 1024:
             raise ValueError("max_bytes 不能小于1KB")
         return v
 
     @field_validator('json_epoch_unit')
+    @classmethod
     def validate_json_epoch_unit(cls, v):
         valid_units = ['seconds', 'milliseconds', 'microseconds', 'nanoseconds']
         if v not in valid_units:
@@ -504,6 +507,7 @@ class LoggingConfig(BaseSettings):
         return v
 
     @field_validator('rotation_at_time')
+    @classmethod
     def validate_rotation_at_time(cls, v):
         if v is not None:
             if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
@@ -518,6 +522,7 @@ class LoggingConfig(BaseSettings):
         return self
 
     @field_validator('log_dir')
+    @classmethod
     def validate_log_dir(cls, v):
         """验证日志目录配置"""
         if v and ('../' in v or '..\\' in v):

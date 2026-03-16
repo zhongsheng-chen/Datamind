@@ -1,15 +1,34 @@
 # datamind/config/storage_config.py
 """
 存储配置模块
+
 用于管理不同存储类型的配置和客户端初始化
 """
-from pathlib import Path
-from typing import Dict, Any, Optional, Union, Literal
-from enum import Enum
+import os
+import time
 import json
 import logging
-
+import threading
+import hashlib
+from pathlib import Path
+from typing import Dict, Any, Optional, Union, Literal, ClassVar, List, Callable
+from enum import Enum
+from datetime import datetime
+from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+
+# 基础应用名称
+APP_NAME = os.getenv("DATAMIND_APP_NAME", "datamind").lower()
+
+# 设置日志层级
+logger = logging.getLogger(f"{APP_NAME}.storage")
+
+BASE_DIR = Path(
+    os.getenv(
+        "DATAMIND_HOME",
+        Path(__file__).resolve().parent.parent
+    )
+).resolve()
 
 
 class StorageType(str, Enum):
@@ -119,6 +138,15 @@ class S3StorageConfig(BaseModel):
         }
 
 
+@dataclass
+class ConfigChangeEvent:
+    """配置变更事件"""
+    old_config: 'StorageConfig'
+    new_config: 'StorageConfig'
+    changes: Dict[str, Any]
+    timestamp: datetime = field(default_factory=datetime.now)
+
+
 class StorageConfig(BaseModel):
     """统一存储配置"""
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -126,7 +154,7 @@ class StorageConfig(BaseModel):
     # 存储类型
     type: StorageType = Field(default=StorageType.LOCAL, description="存储类型")
 
-    # 具体存储配置（根据type选择）
+    # 存储配置
     local: Optional[LocalStorageConfig] = Field(default=None, description="本地存储配置")
     minio: Optional[MinIOStorageConfig] = Field(default=None, description="MinIO存储配置")
     s3: Optional[S3StorageConfig] = Field(default=None, description="S3存储配置")
@@ -148,7 +176,17 @@ class StorageConfig(BaseModel):
     chunk_size: int = Field(default=1024 * 1024 * 8, description="分块大小（字节）")
     multipart_threshold: int = Field(default=1024 * 1024 * 100, description="分片上传阈值（字节）")
 
+    # 私有属性
+    _env: Optional[str] = None
+    _base_dir: Optional[Path] = None
+    _last_modified: Optional[datetime] = None
+    _config_source: Optional[str] = None
+    _change_listeners: ClassVar[List[Callable[[ConfigChangeEvent], None]]] = []
+    _cache_lock: ClassVar[threading.Lock] = threading.Lock()
+    _instance_cache: ClassVar[Dict[str, 'StorageConfig']] = {}
+
     @field_validator("compression_level")
+    @classmethod
     def validate_compression_level(cls, v):
         """验证压缩级别"""
         if v < 1 or v > 9:
@@ -156,9 +194,10 @@ class StorageConfig(BaseModel):
         return v
 
     @field_validator("max_file_size")
+    @classmethod
     def validate_max_file_size(cls, v):
         """验证最大文件大小"""
-        if v < 1024 * 1024:  # 小于1MB
+        if v < 1024 * 1024:
             raise ValueError("文件大小不能小于1MB")
         return v
 
@@ -191,10 +230,276 @@ class StorageConfig(BaseModel):
         if self.type == StorageType.LOCAL:
             return self.active_config.models_path
         else:
-            # 为远程存储创建本地缓存目录
             cache_dir = Path("/tmp/datamind/models_cache")
             cache_dir.mkdir(parents=True, exist_ok=True)
             return cache_dir
+
+    @classmethod
+    def get_cached(cls, env: Optional[str] = None, base_dir: Optional[Path] = None) -> 'StorageConfig':
+        """获取缓存的配置实例"""
+        cache_key = f"{env or 'default'}_{str(base_dir or '')}"
+
+        with cls._cache_lock:
+            if cache_key not in cls._instance_cache:
+                cls._instance_cache[cache_key] = cls.load(env=env, base_dir=base_dir)
+            return cls._instance_cache[cache_key]
+
+    def invalidate_cache(self):
+        """使配置缓存失效"""
+        with self.__class__._cache_lock:
+            cache_key = f"{self._env or 'default'}_{str(self._base_dir or '')}"
+            if cache_key in self.__class__._instance_cache:
+                del self.__class__._instance_cache[cache_key]
+
+    @classmethod
+    def add_change_listener(cls, listener: Callable[[ConfigChangeEvent], None]):
+        """添加配置变更监听器"""
+        if listener not in cls._change_listeners:
+            cls._change_listeners.append(listener)
+
+    @classmethod
+    def remove_change_listener(cls, listener: Callable[[ConfigChangeEvent], None]):
+        """移除配置变更监听器"""
+        if listener in cls._change_listeners:
+            cls._change_listeners.remove(listener)
+
+    def _notify_change(self, old_config: 'StorageConfig'):
+        """通知配置变更"""
+        changes = self._get_changes(old_config)
+        if not changes:
+            return
+
+        event = ConfigChangeEvent(
+            old_config=old_config,
+            new_config=self,
+            changes=changes
+        )
+
+        for listener in self.__class__._change_listeners:
+            try:
+                listener(event)
+            except Exception as e:
+                logger.error(f"配置变更监听器执行失败: {e}")
+
+    def _get_changes(self, old_config: 'StorageConfig') -> Dict[str, Any]:
+        """获取配置变更详情"""
+        changes = {}
+        # 使用 model_dump 替代 dict() (Pydantic v2 推荐)
+        old_dict = old_config.model_dump()
+        new_dict = self.model_dump()
+
+        for key in set(old_dict.keys()) | set(new_dict.keys()):
+            old_value = old_dict.get(key)
+            new_value = new_dict.get(key)
+            if old_value != new_value:
+                changes[key] = {
+                    'old': old_value,
+                    'new': new_value
+                }
+
+        return changes
+
+    @classmethod
+    def load(cls, env: Optional[str] = None, base_dir: Optional[Path] = None) -> 'StorageConfig':
+        """
+        加载存储配置
+
+        Args:
+            env: 环境名称，如 development/production
+            base_dir: 基础目录（项目根目录）
+
+        Returns:
+            StorageConfig: 存储配置对象
+        """
+        # 导入settings（延迟导入，避免循环依赖）
+        from config.settings import settings as app_settings
+
+        # 确定环境
+        if env is None:
+            env = app_settings.ENV
+
+        # 确定基础目录
+        base_dir = (base_dir or BASE_DIR).resolve()
+
+        # 创建配置实例
+        config = StorageConfigFactory.create_from_settings(app_settings, base_dir=base_dir)
+
+        # 保存环境信息
+        config._env = env
+        config._base_dir = base_dir
+        config._last_modified = datetime.now()
+        config._config_source = "settings"
+
+        # 确保目录存在
+        config.ensure_directories()
+
+        return config
+
+    def reload(self) -> 'StorageConfig':
+        """
+        重新加载配置
+
+        Returns:
+            StorageConfig: 新的存储配置对象
+        """
+        old_config = self.model_copy()  # 使用 model_copy 替代 copy() (Pydantic v2)
+        new_config = self.__class__.load(env=self._env, base_dir=self._base_dir)
+        self._notify_change(old_config)
+        return new_config
+
+    def get_config_digest(self) -> str:
+        """
+        获取配置摘要，用于判断配置是否变化
+        """
+        # 使用 model_dump_json 替代手动 JSON 序列化
+        config_str = self.model_dump_json(sort_keys=True)
+        return hashlib.md5(config_str.encode()).hexdigest()
+
+    def get_config_metadata(self) -> Dict[str, Any]:
+        """获取配置元数据"""
+        return {
+            'env': self._env,
+            'base_dir': str(self._base_dir) if self._base_dir else None,
+            'last_modified': self._last_modified.isoformat() if self._last_modified else None,
+            'source': self._config_source,
+            'digest': self.get_config_digest()[:8]
+        }
+
+    async def validate_connection(self) -> Dict[str, Any]:
+        """验证存储连接是否可用"""
+        result = {'success': False, 'details': {}, 'error': None}
+
+        try:
+            if self.type == StorageType.LOCAL:
+                # 测试本地写入
+                test_file = self.models_path_local / '.connection_test'
+                test_file.write_text('test')
+                test_file.unlink()
+                result['success'] = True
+                result['details']['path'] = str(self.models_path_local)
+
+            elif self.type == StorageType.MINIO:
+                # 测试 MinIO 连接
+                from minio import Minio
+                client = Minio(**self.active_config.connection_params)
+                result['success'] = client.bucket_exists(self.active_config.bucket)
+                result['details']['bucket'] = self.active_config.bucket
+                result['details']['endpoint'] = self.active_config.endpoint
+
+            elif self.type == StorageType.S3:
+                # 测试 S3 连接
+                import boto3
+                from botocore.config import Config
+
+                config = Config(**self.active_config.connection_params['config'])
+                session = boto3.Session(
+                    aws_access_key_id=self.active_config.access_key_id,
+                    aws_secret_access_key=self.active_config.secret_access_key,
+                    region_name=self.active_config.region
+                )
+                s3 = session.client('s3', config=config,
+                                    endpoint_url=self.active_config.endpoint)
+                # 尝试列出桶中的对象来验证连接
+                s3.list_objects_v2(Bucket=self.active_config.bucket, MaxKeys=1)
+                result['success'] = True
+                result['details']['bucket'] = self.active_config.bucket
+                result['details']['region'] = self.active_config.region
+
+        except ImportError as e:
+            result['error'] = f"缺少必要的库: {e}"
+        except Exception as e:
+            result['error'] = str(e)
+
+        return result
+
+    def validate_all(self) -> Dict[str, Any]:
+        """
+        全面验证配置，返回验证报告
+        """
+        report = {
+            'valid': True,
+            'errors': [],
+            'warnings': [],
+            'info': {
+                'type': self.type.value,
+                'models_path': self.models_path,
+                'config_digest': self.get_config_digest()[:8],
+                'metadata': self.get_config_metadata()
+            }
+        }
+
+        # 检查目录权限
+        try:
+            if self.type == StorageType.LOCAL:
+                if not os.access(self.models_path_local, os.W_OK):
+                    report['errors'].append(f"存储目录不可写: {self.models_path_local}")
+                    report['valid'] = False
+        except Exception as e:
+            report['errors'].append(f"检查存储目录失败: {e}")
+            report['valid'] = False
+
+        # 检查加密配置
+        if self.enable_encryption and not self.encryption_key:
+            report['errors'].append("启用加密时必须提供 encryption_key")
+            report['valid'] = False
+
+        # 检查压缩级别
+        if self.compression_level < 1 or self.compression_level > 9:
+            report['errors'].append("compression_level 必须在 1-9 之间")
+            report['valid'] = False
+
+        # 检查文件大小
+        if self.max_file_size < 1024 * 1024:
+            report['warnings'].append(f"max_file_size 设置过小 ({self.max_file_size} < 1MB)")
+
+        # 检查存储类型特定配置
+        if self.type == StorageType.MINIO and self.minio:
+            if not self.minio.endpoint:
+                report['errors'].append("MinIO endpoint 不能为空")
+                report['valid'] = False
+            if not self.minio.bucket:
+                report['errors'].append("MinIO bucket 不能为空")
+                report['valid'] = False
+
+        elif self.type == StorageType.S3 and self.s3:
+            if not self.s3.access_key_id:
+                report['warnings'].append("S3 access_key_id 未设置")
+            if not self.s3.bucket:
+                report['errors'].append("S3 bucket 不能为空")
+                report['valid'] = False
+
+        return report
+
+    def to_dict(self, exclude_sensitive: bool = True) -> Dict[str, Any]:
+        """
+        导出配置为字典
+        """
+        data = self.model_dump()
+
+        if exclude_sensitive:
+            sensitive_keys = ['access_key', 'secret_key', 'access_key_id', 'secret_access_key', 'encryption_key']
+
+            def mask_sensitive_values(d):
+                if isinstance(d, dict):
+                    for key, value in list(d.items()):
+                        if key in sensitive_keys and value:
+                            d[key] = '***'
+                        elif isinstance(value, (dict, list)):
+                            mask_sensitive_values(value)
+                elif isinstance(d, list):
+                    for item in d:
+                        mask_sensitive_values(item)
+                return d
+
+            data = mask_sensitive_values(data)
+
+        return data
+
+    def is_equivalent_to(self, other: 'StorageConfig') -> bool:
+        """
+        判断两个配置是否等效
+        """
+        return self.get_config_digest() == other.get_config_digest()
 
     def get_client_config(self) -> Dict[str, Any]:
         """获取客户端配置"""
@@ -214,7 +519,6 @@ class StorageConfig(BaseModel):
             "multipart_threshold": self.multipart_threshold,
         }
 
-        # 添加存储特定的连接参数
         if hasattr(self.active_config, 'connection_params'):
             config.update(self.active_config.connection_params)
 
@@ -225,44 +529,103 @@ class StorageConfig(BaseModel):
         if self.type == StorageType.LOCAL:
             self.active_config.ensure_directories()
         else:
-            # 确保缓存目录存在
             self.models_path_local.mkdir(parents=True, exist_ok=True)
         return self
 
-    def dict(self) -> Dict[str, Any]:
-        """转换为字典"""
-        return {
+    def to_readable(self, as_string: bool = False) -> Union[Dict[str, Any], str]:
+        """返回人类可读的配置信息
+
+        Args:
+            as_string: 是否返回JSON字符串格式
+
+        Returns:
+            Union[Dict[str, Any], str]: 字典或JSON字符串
+        """
+        data = {
             "type": self.type.value,
             "models_path": self.models_path,
             "models_path_local": str(self.models_path_local),
             "config": self.get_client_config(),
+            "metadata": self.get_config_metadata()
         }
+
+        if as_string:
+            return json.dumps(data, indent=2, default=str, ensure_ascii=False)
+        return data
 
     def to_json(self) -> str:
         """转换为JSON字符串"""
-        return json.dumps(self.dict(), indent=2, default=str)
+        return self.model_dump_json(indent=2)
+
+    def export_to_file(self, filepath: Union[str, Path], format: Literal['json', 'yaml'] = 'json'):
+        """导出配置到文件"""
+        filepath = Path(filepath)
+        data = self.to_dict(exclude_sensitive=True)
+
+        if format == 'json':
+            filepath.write_text(json.dumps(data, indent=2, default=str))
+        elif format == 'yaml':
+            try:
+                import yaml
+                filepath.write_text(yaml.dump(data, default_flow_style=False))
+            except ImportError:
+                raise ImportError("导出YAML格式需要安装PyYAML: pip install pyyaml")
+        else:
+            raise ValueError(f"不支持的格式: {format}")
+
+        logger.info(f"配置已导出到: {filepath}")
+
+    @classmethod
+    def import_from_file(cls, filepath: Union[str, Path]) -> 'StorageConfig':
+        """从文件导入配置"""
+        filepath = Path(filepath)
+
+        if not filepath.exists():
+            raise FileNotFoundError(f"配置文件不存在: {filepath}")
+
+        if filepath.suffix == '.json':
+            data = json.loads(filepath.read_text())
+        elif filepath.suffix in ['.yaml', '.yml']:
+            try:
+                import yaml
+                data = yaml.safe_load(filepath.read_text())
+            except ImportError:
+                raise ImportError("导入YAML格式需要安装PyYAML: pip install pyyaml")
+        else:
+            raise ValueError(f"不支持的文件格式: {filepath.suffix}")
+
+        config = StorageConfigFactory.create_from_dict(data)
+        config._config_source = str(filepath)
+        config._last_modified = datetime.fromtimestamp(filepath.stat().st_mtime)
+
+        return config
 
 
 class StorageConfigFactory:
     """存储配置工厂类"""
 
-    @staticmethod
-    def create_from_settings(settings) -> StorageConfig:
+    @classmethod
+    def create_from_settings(cls, settings, base_dir: Optional[Path] = None) -> StorageConfig:
         """
         从settings创建存储配置
 
         Args:
             settings: settings模块的实例
+            base_dir: 基础目录（项目根目录）
 
         Returns:
             StorageConfig: 存储配置对象
         """
         storage_type = StorageType(settings.STORAGE_TYPE)
 
-        # 创建具体的存储配置
         if storage_type == StorageType.LOCAL:
+            # 本地存储路径处理
+            local_path = Path(settings.LOCAL_STORAGE_PATH)
+            if not local_path.is_absolute() and base_dir:
+                local_path = base_dir / local_path
+
             local_config = LocalStorageConfig(
-                base_path=Path(settings.LOCAL_STORAGE_PATH),
+                base_path=local_path,
                 models_subpath="models"
             )
             minio_config = None
@@ -279,8 +642,8 @@ class StorageConfigFactory:
                 region=settings.MINIO_REGION,
                 location=settings.MINIO_LOCATION,
                 models_prefix="models/",
-                timeout=settings.STORAGE_TIMEOUT if hasattr(settings, 'STORAGE_TIMEOUT') else 30,
-                max_connections=settings.S3_MAX_POOL_CONNECTIONS if hasattr(settings, 'S3_MAX_POOL_CONNECTIONS') else 10
+                timeout=getattr(settings, 'STORAGE_TIMEOUT', 30),
+                max_connections=getattr(settings, 'S3_MAX_POOL_CONNECTIONS', 10)
             )
             s3_config = None
 
@@ -306,8 +669,7 @@ class StorageConfigFactory:
         else:
             raise ValueError(f"不支持的存储类型: {storage_type}")
 
-        # 创建统一配置
-        storage_config = StorageConfig(
+        return StorageConfig(
             type=storage_type,
             local=local_config,
             minio=minio_config,
@@ -326,13 +688,8 @@ class StorageConfigFactory:
             multipart_threshold=settings.STORAGE_MULTIPART_THRESHOLD
         )
 
-        # 确保目录存在
-        storage_config.ensure_directories()
-
-        return storage_config
-
-    @staticmethod
-    def create_from_dict(config_dict: Dict[str, Any]) -> StorageConfig:
+    @classmethod
+    def create_from_dict(cls, config_dict: Dict[str, Any]) -> StorageConfig:
         """
         从字典创建存储配置
 
@@ -344,7 +701,6 @@ class StorageConfigFactory:
         """
         storage_type = StorageType(config_dict.get("type", "local"))
 
-        # 创建具体的存储配置
         local_config = None
         minio_config = None
         s3_config = None
@@ -386,8 +742,7 @@ class StorageConfigFactory:
                 retries=s3_config_dict.get("retries", 3)
             )
 
-        # 创建统一配置
-        storage_config = StorageConfig(
+        return StorageConfig(
             type=storage_type,
             local=local_config,
             minio=minio_config,
@@ -408,19 +763,58 @@ class StorageConfigFactory:
             multipart_threshold=config_dict.get("multipart_threshold", 1024 * 1024 * 100)
         )
 
-        # 确保目录存在
-        storage_config.ensure_directories()
+    @classmethod
+    def create_from_env(cls) -> StorageConfig:
+        """从环境变量创建配置"""
+        config_dict = {
+            'type': os.getenv('STORAGE_TYPE', 'local'),
+            'default_ttl': int(os.getenv('STORAGE_DEFAULT_TTL', '86400')),
+            'enable_cache': os.getenv('STORAGE_ENABLE_CACHE', 'true').lower() == 'true',
+            'cache_size': int(os.getenv('STORAGE_CACHE_SIZE', '100')),
+            'cache_ttl': int(os.getenv('STORAGE_CACHE_TTL', '300')),
+            'enable_compression': os.getenv('STORAGE_ENABLE_COMPRESSION', 'false').lower() == 'true',
+            'compression_level': int(os.getenv('STORAGE_COMPRESSION_LEVEL', '6')),
+            'enable_encryption': os.getenv('STORAGE_ENABLE_ENCRYPTION', 'false').lower() == 'true',
+            'encryption_key': os.getenv('STORAGE_ENCRYPTION_KEY'),
+            'max_file_size': int(os.getenv('STORAGE_MAX_FILE_SIZE', str(1024 * 1024 * 1024))),
+        }
 
-        return storage_config
+        # 根据类型添加特定配置
+        if config_dict['type'] == 'minio':
+            config_dict['minio'] = {
+                'endpoint': os.getenv('MINIO_ENDPOINT', 'localhost:9000'),
+                'access_key': os.getenv('MINIO_ACCESS_KEY', ''),
+                'secret_key': os.getenv('MINIO_SECRET_KEY', ''),
+                'bucket': os.getenv('MINIO_BUCKET', 'datamind'),
+                'secure': os.getenv('MINIO_SECURE', 'false').lower() == 'true',
+                'region': os.getenv('MINIO_REGION'),
+                'models_prefix': os.getenv('MINIO_MODELS_PREFIX', 'models/'),
+            }
+        elif config_dict['type'] == 's3':
+            config_dict['s3'] = {
+                'access_key_id': os.getenv('AWS_ACCESS_KEY_ID', ''),
+                'secret_access_key': os.getenv('AWS_SECRET_ACCESS_KEY', ''),
+                'bucket': os.getenv('S3_BUCKET', 'datamind'),
+                'region': os.getenv('AWS_REGION', 'us-east-1'),
+                'endpoint': os.getenv('S3_ENDPOINT'),
+                'prefix': os.getenv('S3_PREFIX', 'models/'),
+            }
+        elif config_dict['type'] == 'local':
+            config_dict['local'] = {
+                'base_path': os.getenv('LOCAL_STORAGE_PATH', './models'),
+            }
+
+        return cls.create_from_dict(config_dict)
 
 
 # 便捷函数
-def get_storage_config(settings=None) -> StorageConfig:
+def get_storage_config(settings=None, use_cache: bool = True) -> StorageConfig:
     """
     获取存储配置的便捷函数
 
     Args:
         settings: settings模块的实例（可选）
+        use_cache: 是否使用缓存
 
     Returns:
         StorageConfig: 存储配置对象
@@ -429,21 +823,22 @@ def get_storage_config(settings=None) -> StorageConfig:
         from config.settings import settings as app_settings
         settings = app_settings
 
-    return StorageConfigFactory.create_from_settings(settings)
+    if use_cache:
+        return StorageConfig.get_cached(env=getattr(settings, 'ENV', None))
+    else:
+        return StorageConfigFactory.create_from_settings(settings)
 
 
-def get_storage_client_config(settings=None) -> Dict[str, Any]:
+def get_storage_client_config(settings=None, use_cache: bool = True) -> Dict[str, Any]:
     """
     获取存储客户端配置的便捷函数
 
     Args:
         settings: settings模块的实例（可选）
+        use_cache: 是否使用缓存
 
     Returns:
         Dict[str, Any]: 客户端配置字典
     """
-    storage_config = get_storage_config(settings)
+    storage_config = get_storage_config(settings, use_cache)
     return storage_config.get_client_config()
-
-
-logger = logging.getLogger(__name__)

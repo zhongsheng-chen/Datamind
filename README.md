@@ -1184,6 +1184,13 @@ make docker-down   # 停止容器
 - 监控与调试
 
 基本覆盖了 **开发、测试、部署、运维** 的全部流程。
+例如，如果要覆盖 master 分支：
+
+## 拉取最新代码
+```bash
+git fetch origin
+git reset --hard origin/master
+```
 
 # Datamind 组件调试顺序建议
 

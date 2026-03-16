@@ -17,6 +17,8 @@ BOOTSTRAP_CAPACITY = 10000
 
 # 基础应用名称
 APP_NAME = os.getenv("DATAMIND_APP_NAME", "datamind").lower()
+
+# 设置日志层级
 BOOTSTRAP_LOGGER_NAME = f"{APP_NAME}.bootstrap"
 
 # 全局 handler 实例
