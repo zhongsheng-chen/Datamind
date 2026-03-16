@@ -10,14 +10,17 @@
 - **类型安全** - 使用 Pydantic 模型定义配置
 - **热重载** - 支持配置动态重载
 - **敏感信息保护** - 自动隐藏密码、密钥等敏感信息
-- **配置导出** - 支持导出为 JSON/YAML 格式
+- **配置导出/导入** - 支持导出为 JSON/YAML 格式
+- **配置监听** - 支持配置变更事件监听
+- **配置缓存** - 缓存配置实例避免重复加载
 
 ## 目录结构
 ```text
 config/
 ├── init.py # 模块初始化
 ├── settings.py # 应用配置
-├── logging_config.py # 应用配置
+├── logging_config.py # 日志配置
+├── storage_config.py # 存储配置
 └── README.md
 ```
 
@@ -26,7 +29,7 @@ config/
 ### 1. 加载配置
 
 ```python
-from config import settings, LoggingConfig
+from config import settings, LoggingConfig, StorageConfig
 
 # 获取应用配置
 print(settings.APP_NAME)
@@ -37,6 +40,11 @@ print(settings.ENV)
 log_config = LoggingConfig.load()
 print(log_config.level)
 print(log_config.format)
+
+# 加载存储配置
+storage_config = StorageConfig.load()
+print(storage_config.type)
+print(storage_config.models_path)
 ```
 
 ### 2. 环境变量文件
@@ -64,6 +72,10 @@ DATAMIND_DB_MAX_OVERFLOW=40
 DATAMIND_LOG_LEVEL=INFO
 DATAMIND_LOG_FORMAT=json
 DATAMIND_LOG_PATH=./logs
+
+# 存储配置
+DATAMIND_STORAGE_TYPE=local
+DATAMIND_LOCAL_STORAGE_PATH=./models
 ```
 
 ### 3. 多环境配置
@@ -71,15 +83,15 @@ DATAMIND_LOG_PATH=./logs
 ```bash
 # 开发环境
 cp .env.dev.example .env.dev
-export ENV=development
+export DATAMIND_ENV=development
 
 # 测试环境
 cp .env.test.example .env.test
-export ENV=test
+export DATAMIND_ENV=test
 
 # 生产环境
 cp .env.prod.example .env.prod
-export ENV=production
+export DATAMIND_ENV=production
 ```
 ## 配置详解
 
@@ -136,15 +148,6 @@ export ENV=production
 | API_KEY_HEADER | DATAMIND_API_KEY_HEADER | X-API-Key | API密钥头 |
 | JWT_SECRET_KEY | DATAMIND_JWT_SECRET_KEY | your-secret-key | JWT密钥 |
 | JWT_ACCESS_TOKEN_EXPIRE_MINUTES | DATAMIND_JWT_ACCESS_TOKEN_EXPIRE_MINUTES | 30 | Token过期时间 |
-
-#### 日志配置
-
-| 配置项 | 环境变量 | 默认值 | 说明 |
-| :--- | :--- | :--- | :--- |
-| LOG_LEVEL | DATAMIND_LOG_LEVEL | INFO | 日志级别 |
-| LOG_FORMAT | DATAMIND_LOG_FORMAT | json | 日志格式 |
-| LOG_PATH | DATAMIND_LOG_PATH | ./logs | 日志路径 |
-| LOG_RETENTION_DAYS | DATAMIND_LOG_RETENTION_DAYS | 90 | 日志保留天数 |
 
 #### 限流配置
 
