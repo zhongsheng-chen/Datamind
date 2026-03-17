@@ -13,7 +13,6 @@ from config.logging_config import LoggingConfig, LogFormat, TimeZone, TimestampP
 from core.logging.debug import debug_print
 
 
-
 class TimezoneFormatter:
     """时区格式化器"""
 
@@ -40,6 +39,49 @@ class TimezoneFormatter:
         self._debug("获取时区对象: %s -> %s", self.config.timezone.value, tz)
         return tz
 
+    def _convert_java_to_python_format(self, java_format: str) -> str:
+        """将 Java 日期格式转换为 Python 格式"""
+        mapping = {
+            "yyyy": "%Y",
+            "yy": "%y",
+            "MM": "%m",
+            "dd": "%d",
+            "HH": "%H",
+            "hh": "%I",   # 12小时制
+            "mm": "%M",
+            "ss": "%S",
+            "SSS": "%f",  # 毫秒，Python 使用微秒
+            "ZZZ": "%z",
+            "Z": "%z",
+            "XXX": "%z",
+            "a": "%p",    # AM/PM
+            "EEEE": "%A", # 星期全称
+            "EEE": "%a",  # 星期缩写
+            "MMMM": "%B", # 月份全称
+            "MMM": "%b",  # 月份缩写
+        }
+
+        python_format = java_format
+        for java_pattern, python_pattern in mapping.items():
+            python_format = python_format.replace(java_pattern, python_pattern)
+
+        # 处理毫秒（Python 的 %f 是微秒，需要截断）
+        if "%f" in python_format:
+            # 保留前3位作为毫秒
+            python_format = python_format.replace("%f", "%f")  # 保持原样，使用时截断
+
+        self._debug("转换日期格式: %s -> %s", java_format, python_format)
+        return python_format
+
+    def _get_python_date_format(self) -> str:
+        """获取 Python 日期格式"""
+        if self.config.format == LogFormat.JSON:
+            # JSON 格式使用配置的 json_datetime_format
+            return self._convert_java_to_python_format(self.config.json_datetime_format)
+        else:
+            # 文本格式直接使用 text_datetime_format
+            return self.config.text_datetime_format
+
     def format_time(self, dt: Optional[datetime] = None) -> datetime:
         """格式化时间（应用时区和精度）"""
         if dt is None:
@@ -57,7 +99,7 @@ class TimezoneFormatter:
             self._debug("应用时区转换: %s -> %s", original_dt, dt)
 
         # 应用时间偏移
-        if self.config.time_offset_hours != 0:
+        if hasattr(self.config, 'time_offset_hours') and self.config.time_offset_hours != 0:
             dt = dt + timedelta(hours=self.config.time_offset_hours)
             self._debug("应用时间偏移 %d 小时: %s", self.config.time_offset_hours, dt)
 
@@ -88,10 +130,18 @@ class TimezoneFormatter:
             return result
         else:
             # 返回格式化的时间字符串
-            fmt = self.config.get_python_date_format()
-            result = dt.strftime(fmt)[:23] + dt.strftime(fmt)[26:]  # 处理微秒精度
-            self._debug("格式化时间字符串: %s, 格式: %s", result, fmt)
-            return result
+            fmt = self._get_python_date_format()
+            formatted = dt.strftime(fmt)
+
+            # 处理微秒精度（如果需要截断到毫秒）
+            if self.config.timestamp_precision == TimestampPrecision.MILLISECONDS and '.' in formatted:
+                # 截断到毫秒（3位）
+                parts = formatted.split('.')
+                if len(parts) == 2:
+                    formatted = f"{parts[0]}.{parts[1][:3]}"
+
+            self._debug("格式化时间字符串: %s, 格式: %s", formatted, fmt)
+            return formatted
 
     def format_date(self, dt: Optional[datetime] = None) -> str:
         """格式化日期"""
@@ -99,11 +149,14 @@ class TimezoneFormatter:
         self._debug("格式化日期，输入时间: %s", dt)
 
         if self.config.format == LogFormat.JSON:
-            fmt = self.config.json_date_format
-            if 'yyyy' in fmt:
-                fmt = fmt.replace('yyyy', '%Y').replace('yy', '%y')
-                fmt = fmt.replace('MM', '%m').replace('dd', '%d')
+            # 检查是否有 json_date_format 属性
+            if hasattr(self.config, 'json_date_format'):
+                fmt = self._convert_java_to_python_format(self.config.json_date_format)
                 self._debug("转换JSON日期格式: %s -> %s", self.config.json_date_format, fmt)
+            else:
+                # 如果没有，使用默认格式
+                fmt = "%Y-%m-%d"
+                self._debug("使用默认JSON日期格式: %s", fmt)
         else:
             fmt = self.config.text_date_format
             self._debug("使用文本日期格式: %s", fmt)
@@ -201,7 +254,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             'created': record.created,
             'msecs': record.msecs,
             'relativeCreated': record.relativeCreated,
-            'thread': record.threadName,
+            'thread': record.thread,
             'threadName': record.threadName,
             'processName': record.processName,
             'process': record.process,
@@ -257,7 +310,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
         # 添加其他标准字段
         if 'environment' not in log_record:
-            env = getattr(self.config.__class__, 'environment', 'production')
+            env = getattr(self.config, 'environment', 'production')
             log_record['environment'] = env
             self._debug("添加环境字段: %s", env)
 
@@ -354,6 +407,7 @@ class CustomTextFormatter(logging.Formatter):
         created_time = datetime.fromtimestamp(record.created)
         self._debug("格式化时间，原始时间: %s", created_time)
 
+        # 使用时区格式化器获取格式化的时间戳
         formatted_time = self.timezone_formatter.format_timestamp(created_time)
         self._debug("格式化后的时间: %s", formatted_time)
 

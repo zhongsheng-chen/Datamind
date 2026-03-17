@@ -1,4 +1,4 @@
-# core/models.py
+# core/db/models.py
 from sqlalchemy import (
     Column, String, Integer, DateTime, Boolean, Text,
     Float, Index, BigInteger, ForeignKey, Numeric, UniqueConstraint,

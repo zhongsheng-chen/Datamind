@@ -1184,6 +1184,13 @@ make docker-down   # 停止容器
 - 监控与调试
 
 基本覆盖了 **开发、测试、部署、运维** 的全部流程。
+例如，如果要覆盖 master 分支：
+
+## 拉取最新代码
+```bash
+git fetch origin
+git reset --hard origin/master
+```
 
 # Datamind 组件调试顺序建议
 
@@ -1586,3 +1593,6 @@ datamind model predict ...
 ---
 
 按照这个顺序调试，可以确保 **每个组件在依赖它的组件之前就被验证为正常工作**。
+
+
+您要的是这样的纯文本（所有 markdown 符号都原样显示，不进行任何渲染）：
