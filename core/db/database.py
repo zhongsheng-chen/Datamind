@@ -12,7 +12,7 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from core.logging import log_manager, get_request_id
-from config.settings import settings
+from config.settings import get_settings
 from .models import Base
 
 
@@ -24,6 +24,13 @@ class DatabaseManager:
         self._session_factories = {}
         self._scoped_sessions = {}
         self._initialized = False
+        self._settings = None
+
+    def _get_settings(self):
+        """获取配置（带缓存）"""
+        if self._settings is None:
+            self._settings = get_settings()
+        return self._settings
 
     def initialize(
             self,
@@ -40,14 +47,15 @@ class DatabaseManager:
 
         start_time = datetime.now()
         request_id = get_request_id()
+        settings = self._get_settings()
 
         try:
-            self.database_url = database_url or settings.DATABASE_URL
-            self.pool_size = pool_size or settings.DB_POOL_SIZE
-            self.max_overflow = max_overflow or settings.DB_MAX_OVERFLOW
-            self.pool_timeout = pool_timeout
-            self.pool_recycle = pool_recycle
-            self.echo = echo or settings.DB_ECHO
+            self.database_url = database_url or settings.database.url
+            self.pool_size = pool_size or settings.database.pool_size
+            self.max_overflow = max_overflow or settings.database.max_overflow
+            self.pool_timeout = pool_timeout or settings.database.pool_timeout
+            self.pool_recycle = pool_recycle or settings.database.pool_recycle
+            self.echo = echo or settings.database.echo
 
             if not self.database_url.startswith('postgresql'):
                 raise ValueError("只支持PostgreSQL数据库")
@@ -64,10 +72,10 @@ class DatabaseManager:
             )
 
             # 如果有只读副本，创建只读引擎
-            if settings.READONLY_DATABASE_URL:
+            if settings.database.readonly_url:
                 self._create_engine(
                     'readonly',
-                    settings.READONLY_DATABASE_URL,
+                    settings.database.readonly_url,
                     pool_size=self.pool_size,
                     max_overflow=self.max_overflow,
                     pool_timeout=self.pool_timeout,
@@ -259,6 +267,7 @@ class DatabaseManager:
 
     def reconnect(self, engine_name: str = 'default'):
         """重新连接数据库"""
+        settings = self._get_settings()  # 获取配置
         try:
             if engine_name in self._engines:
                 self._engines[engine_name].dispose()
@@ -266,8 +275,8 @@ class DatabaseManager:
 
             if engine_name == 'default':
                 self._create_engine(engine_name, self.database_url)
-            elif engine_name == 'readonly' and settings.READONLY_DATABASE_URL:
-                self._create_engine(engine_name, settings.READONLY_DATABASE_URL)
+            elif engine_name == 'readonly' and settings.database.readonly_url:  # 修改这里
+                self._create_engine(engine_name, settings.database.readonly_url)
 
             log_manager.log_audit(
                 action="DB_RECONNECT",
@@ -316,6 +325,11 @@ class DatabaseManager:
 
         return health_status
 
+    @property
+    def logger(self):
+        """获取日志记录器"""
+        return logging.getLogger(f"{self._get_settings().app.app_name}.database")
+
 
 # 全局数据库管理器实例
 db_manager = DatabaseManager()
@@ -332,11 +346,12 @@ def init_db(database_url: str = None):
     """初始化数据库（创建表）"""
     start_time = datetime.now()
     request_id = get_request_id()
-    logger = logging.getLogger(f"{settings.name}.database.init")
+    settings = get_settings()  # 获取配置
+    logger = logging.getLogger(f"{settings.app.app_name}.database.init")
 
     try:
         if not database_url:
-            database_url = settings.DATABASE_URL
+            database_url = settings.database.url  # 修改这里
 
         engine = create_engine(database_url)
         logger.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")

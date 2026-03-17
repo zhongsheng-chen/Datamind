@@ -1,39 +1,21 @@
-# config/logging_config.py
+# datamind/config/logging_config.py
 
-import os
 import re
 import json
 import logging
 from enum import Enum
-from pathlib import Path
-from datetime import datetime
+from typing import Optional, List, Dict, Any, Set
 from pydantic import Field, field_validator, model_validator
-from pydantic import PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List, Dict, Any, Union, Set
-
-BASE_DIR = Path(
-    os.getenv(
-        "DATAMIND_HOME",
-        Path(__file__).resolve().parent.parent
-    )
-).resolve()
-
-VALID_LOGRECORD_FIELDS = set(vars(logging.makeLogRecord({})).keys()) | {
-    "message",
-    "asctime",
-}
-
-FIELD_PATTERN = re.compile(r"^[a-zA-Z0-9_.@\-\[\]]+$")
 
 
-class LogLevel(str, Enum):
+class LogLevel(int, Enum):
     """日志级别枚举"""
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    CRITICAL = "CRITICAL"
+    DEBUG = logging.DEBUG  # 10
+    INFO = logging.INFO  # 20
+    WARNING = logging.WARNING  # 30
+    ERROR = logging.ERROR  # 40
+    CRITICAL = logging.CRITICAL  # 50
 
 
 class LogFormat(str, Enum):
@@ -77,6 +59,7 @@ class TimestampPrecision(str, Enum):
 
 
 class EpochUnit(str, Enum):
+    """纪元时间单位"""
     SECONDS = "seconds"
     MILLISECONDS = "milliseconds"
     MICROSECONDS = "microseconds"
@@ -84,23 +67,30 @@ class EpochUnit(str, Enum):
 
 
 class RotationStrategy(str, Enum):
+    """轮转策略"""
     SIZE = "size"
     TIME = "time"
+
+
+# 验证用的常量
+VALID_LOGRECORD_FIELDS = {
+    'args', 'asctime', 'created', 'exc_info', 'exc_text', 'filename',
+    'funcName', 'levelname', 'levelno', 'lineno', 'message', 'module',
+    'msecs', 'msg', 'name', 'pathname', 'process', 'processName',
+    'relativeCreated', 'stack_info', 'thread', 'threadName'
+}
+
+FIELD_PATTERN = re.compile(r"^[a-zA-Z0-9_.@\-\[\]]+$")
 
 
 class LoggingConfig(BaseSettings):
     """日志配置"""
 
-    _env: Optional[str] = PrivateAttr(default=None)
-    _base_dir: Optional[Path] = PrivateAttr(default=None)
-    _last_modified: Optional[datetime] = PrivateAttr(default=None)
-    _converting_format: bool = PrivateAttr(default=False)
-    _format_cache: Dict[str, str] = PrivateAttr(default_factory=dict)
-    _config_digest: Optional[str] = PrivateAttr(default=None)
-
     model_config = SettingsConfigDict(
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     # 基本配置
@@ -121,137 +111,129 @@ class LoggingConfig(BaseSettings):
     )
 
     # 调试配置
-    formatter_debug: bool = Field(
-        default=False,
-        validation_alias="DATAMIND_LOG_FORMATTER_DEBUG"
-    )
     manager_debug: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_MANAGER_DEBUG"
+        validation_alias="DATAMIND_LOG_MANAGER_DEBUG",
+        description="管理器调试模式"
+    )
+    formatter_debug: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_FORMATTER_DEBUG",
+        description="格式化器调试模式"
     )
     handler_debug: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_HANDLER_DEBUG"
+        validation_alias="DATAMIND_LOG_HANDLER_DEBUG",
+        description="处理器调试模式"
     )
     filter_debug: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_FILTER_DEBUG"
+        validation_alias="DATAMIND_LOG_FILTER_DEBUG",
+        description="过滤器调试模式"
     )
     context_debug: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_CONTEXT_DEBUG"
+        validation_alias="DATAMIND_LOG_CONTEXT_DEBUG",
+        description="上下文调试模式"
     )
     cleanup_debug: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_CLEANUP_DEBUG"
+        validation_alias="DATAMIND_LOG_CLEANUP_DEBUG",
+        description="清理调试模式"
     )
 
     # 时间格式配置
     timezone: TimeZone = Field(
         default=TimeZone.UTC,
-        validation_alias="DATAMIND_LOG_TIMEZONE"
+        validation_alias="DATAMIND_LOG_TIMEZONE",
+        description="时区"
+    )
+    time_offset_hours: int = Field(
+        default=0,
+        validation_alias="DATAMIND_LOG_TIME_OFFSET_HOURS",
+        description="日志时间偏移小时数"
     )
     timestamp_precision: TimestampPrecision = Field(
         default=TimestampPrecision.MILLISECONDS,
-        validation_alias="DATAMIND_LOG_TIMESTAMP_PRECISION"
+        validation_alias="DATAMIND_LOG_TIMESTAMP_PRECISION",
+        description="时间戳精度"
     )
 
     # 文本日志时间格式
     text_date_format: str = Field(
         default="%Y-%m-%d %H:%M:%S",
-        validation_alias="DATAMIND_TEXT_DATE_FORMAT"
+        validation_alias="DATAMIND_TEXT_DATE_FORMAT",
+        description="文本日志日期格式"
     )
     text_datetime_format: str = Field(
         default="%Y-%m-%d %H:%M:%S.%f",
-        validation_alias="DATAMIND_TEXT_DATETIME_FORMAT"
+        validation_alias="DATAMIND_TEXT_DATETIME_FORMAT",
+        description="文本日志日期时间格式"
     )
 
     # JSON日志时间格式
     json_timestamp_field: str = Field(
         default="@timestamp",
-        validation_alias="DATAMIND_JSON_TIMESTAMP_FIELD"
-    )
-    json_date_format: str = Field(
-        default="yyyy-MM-dd",
-        validation_alias="DATAMIND_JSON_DATE_FORMAT"
+        validation_alias="DATAMIND_JSON_TIMESTAMP_FIELD",
+        description="JSON日志时间戳字段名"
     )
     json_datetime_format: str = Field(
         default="yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-        validation_alias="DATAMIND_JSON_DATETIME_FORMAT"
+        validation_alias="DATAMIND_JSON_DATETIME_FORMAT",
+        description="JSON日志日期时间格式（Java风格）"
     )
     json_use_epoch: bool = Field(
         default=False,
-        validation_alias="DATAMIND_JSON_USE_EPOCH"
+        validation_alias="DATAMIND_JSON_USE_EPOCH",
+        description="是否使用纪元时间戳"
     )
     json_epoch_unit: EpochUnit = Field(
         default="milliseconds",
-        validation_alias="DATAMIND_JSON_EPOCH_UNIT"
+        validation_alias="DATAMIND_JSON_EPOCH_UNIT",
+        description="纪元时间戳单位"
     )
 
     # 日志文件名时间格式
     file_name_timestamp: bool = Field(
         default=True,
-        validation_alias="DATAMIND_FILE_NAME_TIMESTAMP"
+        validation_alias="DATAMIND_FILE_NAME_TIMESTAMP",
+        description="文件名是否包含时间戳"
     )
     file_name_date_format: str = Field(
         default="%Y%m%d",
-        validation_alias="DATAMIND_FILE_NAME_DATE_FORMAT"
-    )
-    file_name_datetime_format: str = Field(
-        default="%Y%m%d_%H%M%S",
-        validation_alias="DATAMIND_FILE_NAME_DATETIME_FORMAT"
-    )
-
-    # 文件轮转时间相关
-    rotation_at_time: Optional[str] = Field(
-        default=None,
-        validation_alias="DATAMIND_LOG_ROTATION_AT_TIME"
-    )
-    rotation_utc: bool = Field(
-        default=False,
-        validation_alias="DATAMIND_LOG_ROTATION_UTC"
-    )
-
-    # 旧日志清理时间
-    retention_days: int = Field(
-        default=90,
-        validation_alias="DATAMIND_LOG_RETENTION_DAYS"
-    )
-    cleanup_at_time: str = Field(
-        default="03:00",
-        validation_alias="DATAMIND_LOG_CLEANUP_AT_TIME"
-    )
-
-    # 时间偏移
-    time_offset_hours: int = Field(
-        default=0,
-        validation_alias="DATAMIND_LOG_TIME_OFFSET_HOURS"
+        validation_alias="DATAMIND_FILE_NAME_DATE_FORMAT",
+        description="文件名日期格式"
     )
 
     # 日志目录配置
     log_dir: str = Field(
         default="logs",
-        validation_alias="DATAMIND_LOG_DIR"
+        validation_alias="DATAMIND_LOG_DIR",
+        description="日志目录"
     )
 
     # 文件配置
     file: str = Field(
         default="datamind.log",
-        validation_alias="DATAMIND_LOG_FILE"
+        validation_alias="DATAMIND_LOG_FILE",
+        description="主日志文件名"
     )
     error_file: Optional[str] = Field(
         default="datamind.error.log",
-        validation_alias="DATAMIND_ERROR_LOG_FILE"
+        validation_alias="DATAMIND_ERROR_LOG_FILE",
+        description="错误日志文件名"
     )
 
     # 日志格式
     format: LogFormat = Field(
         default=LogFormat.JSON,
-        validation_alias="DATAMIND_LOG_FORMAT"
+        validation_alias="DATAMIND_LOG_FORMAT",
+        description="日志格式"
     )
     text_format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] - %(filename)s:%(lineno)d - %(message)s",
-        validation_alias="DATAMIND_TEXT_FORMAT"
+        validation_alias="DATAMIND_TEXT_FORMAT",
+        description="文本日志格式"
     )
     json_format: Dict[str, str] = Field(
         default_factory=lambda: {
@@ -262,124 +244,150 @@ class LoggingConfig(BaseSettings):
             "trace.id": "extra.request_id",
             "source.file": "filename",
             "source.line": "lineno",
-            "source.function": "funcName",
             "process.pid": "process",
-            "process.thread": "threadName",
-            "error.stack": "exc_info"
         },
-        validation_alias="DATAMIND_JSON_FORMAT"
-    )
-
-    # 日志文件后缀
-    text_suffix: str = Field(
-        default="text",
-        validation_alias="DATAMIND_TEXT_SUFFIX"
-    )
-    json_suffix: str = Field(
-        default="json",
-        validation_alias="DATAMIND_JSON_SUFFIX"
+        validation_alias="DATAMIND_JSON_FORMAT",
+        description="JSON日志字段映射"
     )
 
     # 文件轮转配置（按大小）
     max_bytes: int = Field(
-        default=104857600,
-        validation_alias="DATAMIND_LOG_MAX_BYTES"
+        default=104857600,  # 100MB
+        validation_alias="DATAMIND_LOG_MAX_BYTES",
+        description="单个日志文件最大字节数"
     )
     backup_count: int = Field(
         default=30,
-        validation_alias="DATAMIND_LOG_BACKUP_COUNT"
+        validation_alias="DATAMIND_LOG_BACKUP_COUNT",
+        description="备份文件数量"
     )
 
     # 时间轮转配置
     rotation_strategy: RotationStrategy = Field(
         default=RotationStrategy.TIME,
-        validation_alias="DATAMIND_LOG_ROTATION_STRATEGY"
+        validation_alias="DATAMIND_LOG_ROTATION_STRATEGY",
+        description="轮转策略"
     )
     rotation_when: Optional[RotationWhen] = Field(
         default=RotationWhen.MIDNIGHT,
-        validation_alias="DATAMIND_LOG_ROTATION_WHEN"
+        validation_alias="DATAMIND_LOG_ROTATION_WHEN",
+        description="时间轮转单位"
     )
     rotation_interval: int = Field(
         default=1,
-        validation_alias="DATAMIND_LOG_ROTATION_INTERVAL"
+        validation_alias="DATAMIND_LOG_ROTATION_INTERVAL",
+        description="时间轮转间隔"
+    )
+    rotation_at_time: Optional[str] = Field(
+        default=None,
+        validation_alias="DATAMIND_LOG_ROTATION_AT_TIME",
+        description="指定轮转时间（HH:MM格式）"
+    )
+    rotation_utc: bool = Field(
+        default=False,
+        validation_alias="DATAMIND_LOG_ROTATION_UTC",
+        description="是否使用UTC时间轮转"
+    )
+
+    # 旧日志清理
+    retention_days: int = Field(
+        default=90,
+        validation_alias="DATAMIND_LOG_RETENTION_DAYS",
+        description="日志保留天数"
+    )
+    cleanup_at_time: str = Field(
+        default="03:00",
+        validation_alias="DATAMIND_LOG_CLEANUP_AT_TIME",
+        description="清理时间（HH:MM格式）"
     )
 
     # 并发处理
     use_concurrent: bool = Field(
         default=True,
-        validation_alias="DATAMIND_LOG_USE_CONCURRENT"
+        validation_alias="DATAMIND_LOG_USE_CONCURRENT",
+        description="是否启用并发日志"
     )
     concurrent_lock_dir: str = Field(
         default="/tmp/datamind-logs",
-        validation_alias="DATAMIND_LOG_LOCK_DIR"
+        validation_alias="DATAMIND_LOG_LOCK_DIR",
+        description="并发锁目录"
     )
 
     # 异步日志
     use_async: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_ASYNC"
+        validation_alias="DATAMIND_LOG_ASYNC",
+        description="是否启用异步日志"
     )
     async_queue_size: int = Field(
         default=10000,
-        validation_alias="DATAMIND_LOG_QUEUE_SIZE"
+        validation_alias="DATAMIND_LOG_QUEUE_SIZE",
+        description="异步队列大小"
     )
 
     # 日志采样
     sampling_rate: float = Field(
         default=1.0,
-        validation_alias="DATAMIND_LOG_SAMPLING_RATE"
+        validation_alias="DATAMIND_LOG_SAMPLING_RATE",
+        description="日志采样率 (0-1)"
     )
     sampling_interval: int = Field(
         default=0,
-        validation_alias="DATAMIND_LOG_SAMPLING_INTERVAL"
+        validation_alias="DATAMIND_LOG_SAMPLING_INTERVAL",
+        description="日志采样间隔（秒），0表示不使用间隔采样"
     )
 
     # 敏感信息脱敏
     mask_sensitive: bool = Field(
         default=True,
-        validation_alias="DATAMIND_LOG_MASK_SENSITIVE"
+        validation_alias="DATAMIND_LOG_MASK_SENSITIVE",
+        description="是否启用敏感信息脱敏"
     )
     sensitive_fields: Set[str] = Field(
         default_factory=lambda: {
-            "id_number",
-            "phone",
-            "card_number",
-            "password",
-            "token"
+            "id_number", "phone", "card_number", "password", "token"
         },
-        validation_alias="DATAMIND_SENSITIVE_FIELDS"
+        validation_alias="DATAMIND_SENSITIVE_FIELDS",
+        description="敏感字段列表"
     )
     mask_char: str = Field(
         default="*",
-        validation_alias="DATAMIND_LOG_MASK_CHAR"
+        validation_alias="DATAMIND_LOG_MASK_CHAR",
+        description="脱敏字符"
     )
 
     # 日志分类
     enable_access_log: bool = Field(
         default=True,
-        validation_alias="DATAMIND_LOG_ACCESS"
+        validation_alias="DATAMIND_LOG_ACCESS",
+        description="是否启用访问日志"
     )
     access_log_file: str = Field(
         default="datamind.access.log",
-        validation_alias="DATAMIND_ACCESS_LOG_FILE"
+        validation_alias="DATAMIND_ACCESS_LOG_FILE",
+        description="访问日志文件名"
     )
 
     enable_audit_log: bool = Field(
         default=True,
-        validation_alias="DATAMIND_LOG_AUDIT"
+        validation_alias="DATAMIND_LOG_AUDIT",
+        description="是否启用审计日志"
     )
     audit_log_file: str = Field(
         default="datamind.audit.log",
-        validation_alias="DATAMIND_AUDIT_LOG_FILE"
+        validation_alias="DATAMIND_AUDIT_LOG_FILE",
+        description="审计日志文件名"
     )
 
     enable_performance_log: bool = Field(
         default=True,
-        validation_alias="DATAMIND_LOG_PERFORMANCE"
+        validation_alias="DATAMIND_LOG_PERFORMANCE",
+        description="是否启用性能日志"
     )
     performance_log_file: str = Field(
         default="datamind.performance.log",
-        validation_alias="DATAMIND_PERFORMANCE_LOG_FILE"
+        validation_alias="DATAMIND_PERFORMANCE_LOG_FILE",
+        description="性能日志文件名"
     )
 
     # 日志过滤
@@ -389,62 +397,101 @@ class LoggingConfig(BaseSettings):
             "exclude_status_codes": [404],
             "min_duration_ms": 0
         },
-        validation_alias="DATAMIND_LOG_FILTERS"
+        validation_alias="DATAMIND_LOG_FILTERS",
+        description="日志过滤配置"
     )
 
     # 远程日志
     enable_remote: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_REMOTE"
+        validation_alias="DATAMIND_LOG_REMOTE",
+        description="是否启用远程日志"
     )
     remote_url: Optional[str] = Field(
         default=None,
-        validation_alias="DATAMIND_LOG_REMOTE_URL"
+        validation_alias="DATAMIND_LOG_REMOTE_URL",
+        description="远程日志URL"
     )
     remote_token: Optional[str] = Field(
         default=None,
-        validation_alias="DATAMIND_LOG_REMOTE_TOKEN"
+        validation_alias="DATAMIND_LOG_REMOTE_TOKEN",
+        description="远程日志认证令牌"
     )
     remote_timeout: int = Field(
         default=5,
-        validation_alias="DATAMIND_LOG_REMOTE_TIMEOUT"
+        validation_alias="DATAMIND_LOG_REMOTE_TIMEOUT",
+        description="远程日志超时时间（秒）"
     )
     remote_batch_size: int = Field(
         default=100,
-        validation_alias="DATAMIND_LOG_REMOTE_BATCH_SIZE"
+        validation_alias="DATAMIND_LOG_REMOTE_BATCH_SIZE",
+        description="远程日志批处理大小"
     )
 
     # 控制台输出
     console_output: bool = Field(
         default=True,
-        validation_alias="DATAMIND_LOG_CONSOLE"
+        validation_alias="DATAMIND_LOG_CONSOLE",
+        description="是否输出到控制台"
     )
     console_level: LogLevel = Field(
         default=LogLevel.INFO,
-        validation_alias="DATAMIND_LOG_CONSOLE_LEVEL"
+        validation_alias="DATAMIND_LOG_CONSOLE_LEVEL",
+        description="控制台日志级别"
     )
 
     # 归档配置
     archive_enabled: bool = Field(
         default=False,
-        validation_alias="DATAMIND_LOG_ARCHIVE"
+        validation_alias="DATAMIND_LOG_ARCHIVE",
+        description="是否启用日志归档"
     )
     archive_path: str = Field(
         default="archive",
-        validation_alias="DATAMIND_LOG_ARCHIVE_PATH"
+        validation_alias="DATAMIND_LOG_ARCHIVE_PATH",
+        description="归档路径"
     )
     archive_compression: str = Field(
         default="gz",
-        validation_alias="DATAMIND_LOG_COMPRESSION"
+        validation_alias="DATAMIND_LOG_COMPRESSION",
+        description="归档压缩格式"
     )
-    archive_name_format: str = Field(
-        default="%Y%m%d_%H%M%S",
-        validation_alias="DATAMIND_ARCHIVE_NAME_FORMAT"
-    )
+
+    @field_validator('level', 'console_level', mode='before')
+    @classmethod
+    def coerce_log_level(cls, v):
+        """将字符串或整数转换为 LogLevel 枚举"""
+        # 如果已经是 LogLevel 枚举，直接返回
+        if isinstance(v, LogLevel):
+            return v
+
+        # 如果是整数，尝试转换为对应的枚举
+        if isinstance(v, int):
+            try:
+                return LogLevel(v)
+            except ValueError:
+                # 如果整数不在枚举范围内，返回默认值
+                return LogLevel.INFO
+
+        # 如果是字符串，转换为对应的枚举
+        if isinstance(v, str):
+            level_map = {
+                "DEBUG": LogLevel.DEBUG,
+                "INFO": LogLevel.INFO,
+                "WARNING": LogLevel.WARNING,
+                "ERROR": LogLevel.ERROR,
+                "CRITICAL": LogLevel.CRITICAL,
+            }
+            # 忽略大小写
+            return level_map.get(v.upper(), LogLevel.INFO)
+
+        # 其他情况返回默认值
+        return LogLevel.INFO
 
     @field_validator('sampling_rate')
     @classmethod
     def validate_sampling_rate(cls, v):
+        """验证采样率"""
         if v < 0 or v > 1:
             raise ValueError("采样率必须在0到1之间")
         return v
@@ -452,6 +499,7 @@ class LoggingConfig(BaseSettings):
     @field_validator('max_bytes')
     @classmethod
     def validate_max_bytes(cls, v):
+        """验证最大字节数"""
         if v < 0:
             raise ValueError("max_bytes 不能为负数")
         return v
@@ -459,7 +507,7 @@ class LoggingConfig(BaseSettings):
     @field_validator("json_format", mode="before")
     @classmethod
     def validate_json_format(cls, v):
-
+        """验证JSON格式配置"""
         if v is None:
             return v
 
@@ -472,10 +520,8 @@ class LoggingConfig(BaseSettings):
         if not isinstance(v, dict):
             raise ValueError("json_format 必须是 dict")
 
-        result: Dict[str, str] = {}
-
+        result = {}
         for k, val in v.items():
-
             key = str(k)
             value = str(val)
 
@@ -486,9 +532,7 @@ class LoggingConfig(BaseSettings):
                 raise ValueError(f"json_format value 不合法: {value}")
 
             if value.startswith("extra.") and len(value.split(".")) != 2:
-                raise ValueError(
-                    f"extra 字段格式错误: {value}"
-                )
+                raise ValueError(f"extra 字段格式错误: {value}")
 
             result[key] = value
 
@@ -500,545 +544,66 @@ class LoggingConfig(BaseSettings):
     @field_validator('rotation_at_time')
     @classmethod
     def validate_rotation_at_time(cls, v):
+        """验证轮转时间格式"""
         if v is not None:
             if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
                 raise ValueError("rotation_at_time 必须是 HH:MM 格式")
         return v
 
-    @model_validator(mode='after')
-    def validate_remote_config(self):
-        if self.enable_remote and not self.remote_url:
-            raise ValueError("启用远程日志时必须提供 remote_url")
-        return self
+    @field_validator('cleanup_at_time')
+    @classmethod
+    def validate_cleanup_at_time(cls, v):
+        """验证清理时间格式"""
+        if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
+            raise ValueError("cleanup_at_time 必须是 HH:MM 格式")
+        return v
 
     @field_validator('log_dir')
     @classmethod
     def validate_log_dir(cls, v):
+        """验证日志目录"""
         if v and ('../' in v or '..\\' in v):
             raise ValueError("log_dir 不能包含相对路径跳转")
         return v
 
-    @model_validator(mode="after")
-    def run_full_validation(self):
-
-        report = self.validate_all()
-
-        if not report["valid"]:
-            raise ValueError(report["errors"])
-
+    @model_validator(mode='after')
+    def validate_remote_config(self):
+        """验证远程日志配置"""
+        if self.enable_remote and not self.remote_url:
+            raise ValueError("启用远程日志时必须提供 remote_url")
         return self
 
-    @model_validator(mode="after")
-    def validate_json_timestamp(self):
-
-        if self.format in (LogFormat.JSON, LogFormat.BOTH):
-
-            if self.json_timestamp_field not in self.json_format:
-                raise ValueError(
-                    f"json_format 必须包含 {self.json_timestamp_field}"
-                )
-
-        return self
-
-    def _convert_to_python_format(self, java_format: str) -> str:
-        """将Java日期格式转换为Python格式"""
-
-        if java_format in self._format_cache:
-            return self._format_cache[java_format]
-
-        if getattr(self, "_converting_format", False):
-            return java_format
-
-        self._converting_format = True
-
-        try:
-            mapping = {
-                "yyyy": "%Y",
-                "yy": "%y",
-                "MM": "%m",
-                "dd": "%d",
-                "HH": "%H",
-                "mm": "%M",
-                "ss": "%S",
-                "SSS": "{millis}",
-                "XXX": "%z",
-                "Z": "%z",
-                "T": "T",
-            }
-
-            sorted_patterns = sorted(mapping.keys(), key=len, reverse=True)
-
-            python_format = java_format
-
-            for pattern in sorted_patterns:
-                python_format = python_format.replace(pattern, mapping[pattern])
-
-            self._format_cache[java_format] = python_format
-            return python_format
-
-        finally:
-            self._converting_format = False
-
-    def _get_log_dir_path(self) -> Path:
-        """获取日志目录路径"""
-        base_dir = self._base_dir or BASE_DIR
-        log_dir_path = Path(self.log_dir)
-        if not log_dir_path.is_absolute():
-            log_dir_path = base_dir / self.log_dir
-        return log_dir_path
-
-    def get_python_date_format(self) -> str:
-        """获取Python日期格式"""
-        if self.format == LogFormat.JSON:
-            return self._convert_to_python_format(self.json_datetime_format)
-        return self.text_datetime_format
-
-    def get_formatted_timestamp(self, dt: Optional[datetime] = None) -> Union[str, float]:
-        """统一的 timestamp 格式化方法"""
-        from core.logging import TimezoneFormatter
-        return TimezoneFormatter(self).format_timestamp(dt)
-
-    def get_config_digest(self) -> str:
-        """获取配置摘要"""
-        import hashlib
-        import json
-
-        if self._config_digest:
-            return self._config_digest
-
-        config_str = self.model_dump_json(
-            exclude={
-                '_env', '_base_dir', '_last_modified',
-                '_converting_format', '_format_cache'
-            },
-            sort_keys=True
-        )
-        self._config_digest = hashlib.md5(config_str.encode()).hexdigest()
-        return self._config_digest
-
-    def get_handler_config(
-            self,
-            handler_class,
-            filename: str
-    ) -> Dict[str, Any]:
-        """
-        获取 handler 配置
-
-        Args:
-            handler_class: handler 类型
-            filename: 日志文件名
-
-        Returns:
-            {
-                "class": HandlerClass,
-                "kwargs": {...}
-            }
-        """
-
-        log_path = str(self.get_full_log_path(filename))
-
-        kwargs = {
-            "filename": log_path,
-            "encoding": self.encoding,
-        }
-
-        handler_name = handler_class.__name__
-
-        if handler_name == "TimedRotatingFileHandler":
-
-            kwargs.update(
-                when=self.rotation_when.value,
-                interval=self.rotation_interval,
-                backupCount=self.backup_count,
-                utc=self.rotation_utc
-            )
-
-        elif handler_name == "RotatingFileHandler":
-
-            kwargs.update(
-                maxBytes=self.max_bytes,
-                backupCount=self.backup_count
-            )
-
-        return {
-            "class": handler_class,
-            "kwargs": kwargs
-        }
-
-    def get_full_log_path(self, relative_path: str) -> Path:
-        """获取完整的日志文件路径"""
-        base_dir = self._base_dir or BASE_DIR
-        log_dir_path = Path(self.log_dir)
-        if log_dir_path.is_absolute():
-            return log_dir_path / relative_path
-        return base_dir / self.log_dir / relative_path
-
-    def get_all_log_paths(self) -> Dict[str, Path]:
-        """获取所有日志文件的完整路径"""
-        paths = {}
-        log_files = {
-            'main': self.file,
-            'error': self.error_file,
-            'access': self.access_log_file,
-            'audit': self.audit_log_file,
-            'performance': self.performance_log_file,
-        }
-        for key, rel_path in log_files.items():
-            if rel_path:
-                paths[key] = self.get_full_log_path(rel_path)
-        if self.archive_enabled:
-            paths['archive'] = self.get_full_log_path(self.archive_path)
-        return paths
-
-    def get_default_suffix(self) -> str:
-        """根据日志格式返回默认后缀"""
-
-        if self.format == LogFormat.JSON:
-            return self.json_suffix
-
-        if self.format == LogFormat.TEXT:
-            return self.text_suffix
-
-        return "log"
-
-    def get_log_file_name(
-            self,
-            name: str,
-            suffix: Optional[str] = None,
-            with_timestamp: bool = False
-    ) -> str:
-        """
-        生成日志文件名
-
-        Args:
-            name: 日志名称 (datamind.log / datamind.error.log)
-            suffix: 文件后缀 (json / text / log)
-            with_timestamp: 是否添加时间戳
-
-        Returns:
-            str
-        """
-
-        path = Path(name)
-
-        stem = path.stem
-
-        # suffix 优先级
-        if suffix:
-            ext = f".{suffix.lstrip('.')}"
-        elif path.suffix:
-            ext = path.suffix
-        else:
-            ext = f".{self.get_default_suffix()}"
-
-        # 时间戳
-        if with_timestamp and self.file_name_timestamp:
-            ts = datetime.now().strftime(
-                self.file_name_date_format
-            )
-
-            stem = f"{stem}.{ts}"
-
-        return f"{stem}{ext}"
-
-    def get_all_log_file_names(self) -> Dict[str, str]:
-        """
-        获取所有日志文件名
-
-        Returns:
-            {
-                "main": "...",
-                "error": "...",
-                "access": "...",
-                "audit": "...",
-                "performance": "..."
-            }
-        """
-
-        result = {}
-
-        if self.file:
-            result["main"] = self.get_log_file_name(self.file)
-
-        if self.error_file:
-            result["error"] = self.get_log_file_name(self.error_file)
-
-        if self.enable_access_log:
-            result["access"] = self.get_log_file_name(self.access_log_file)
-
-        if self.enable_audit_log:
-            result["audit"] = self.get_log_file_name(self.audit_log_file)
-
-        if self.enable_performance_log:
-            result["performance"] = self.get_log_file_name(self.performance_log_file)
-
-        return result
-
-    def ensure_directories(self) -> Dict[str, bool]:
-        """确保所有日志目录存在"""
-        result: Dict[str, bool] = {}
-
-        def ensure_dir(path: Path):
-            try:
-                before = path.exists()
-                path.mkdir(parents=True, exist_ok=True)
-
-                if not before:
-                    result[str(path)] = True
-
-                if not os.access(path, os.W_OK):
-                    raise PermissionError(f"目录不可写: {path}")
-
-            except PermissionError:
-                raise PermissionError(f"没有权限创建或写入目录: {path}")
-            except Exception as e:
-                raise RuntimeError(f"创建目录失败: {path} ({e})")
-
-        # 主日志目录
-        log_dir_path = self._get_log_dir_path()
-        ensure_dir(log_dir_path)
-
-        # 其他日志文件目录
-        for path in self.get_all_log_paths().values():
-            target_dir = path.parent
-            if target_dir != log_dir_path:
-                ensure_dir(target_dir)
-
-        # 并发锁目录
-        if self.use_concurrent:
-            lock_dir = Path(self.concurrent_lock_dir)
-            if not lock_dir.is_absolute():
-                lock_dir = (self._base_dir or BASE_DIR) / lock_dir
-            ensure_dir(lock_dir)
-
-        return result
-
-    def to_logging_level(self, level: Union['LogLevel', int, str, None] = None) -> int:
-        """转换为 logging 模块的级别"""
-        if level is None:
-            level = self.level
-        if isinstance(level, LogLevel):
-            return getattr(logging, level.value)
-        if isinstance(level, int):
-            return level
-        if isinstance(level, str):
-            return getattr(logging, level.upper())
-        return logging.INFO
-
-    def to_dict(self, exclude_sensitive: bool = True) -> Dict[str, Any]:
-        """导出配置为字典"""
-        data = self.model_dump()
-        if exclude_sensitive and 'remote_token' in data:
-            data.pop('remote_token')
-        return data
-
-    def validate_all(self) -> Dict[str, Any]:
-        """
-        全面验证配置，返回验证报告
-
-        Returns:
-            验证报告，包含：
-            - valid: 配置是否有效
-            - errors: 错误列表（致命问题）
-            - warnings: 警告列表（建议性问题）
-            - info: 信息列表（配置摘要）
-        """
-        report = {
-            'valid': True,
-            'errors': [],
-            'warnings': [],
-            'info': {
-                'name': self.name,
-                'level': self.level.value,
-                'format': self.format.value,
-                'timezone': self.timezone.value,
-                'log_dir': self.log_dir,
-                'config_digest': self.get_config_digest()[:8]
-            }
-        }
-
-        # 检查日志目录权限
-        try:
-            log_dir_path = self._get_log_dir_path()
-            if log_dir_path.exists():
-                if not os.access(log_dir_path, os.W_OK):
-                    report['errors'].append(f"日志目录不可写: {log_dir_path}")
-                    report['valid'] = False
-            else:
-                # 尝试创建目录来测试权限
-                try:
-                    log_dir_path.mkdir(parents=True, exist_ok=True)
-                except PermissionError:
-                    report['errors'].append(f"无法创建日志目录: {log_dir_path}")
-                    report['valid'] = False
-        except Exception as e:
-            report['errors'].append(f"检查日志目录权限失败: {e}")
-            report['valid'] = False
-
-        # 检查远程日志配置
-        if self.enable_remote:
-            if not self.remote_url:
-                report['errors'].append("启用远程日志时必须提供 remote_url")
-                report['valid'] = False
-            elif not (self.remote_url.startswith('http://') or self.remote_url.startswith('https://')):
-                report['warnings'].append(f"remote_url 可能不是有效的URL: {self.remote_url}")
-
-        # 检查归档配置
-        if self.archive_enabled:
-            try:
-                archive_dir = self.get_full_log_path(self.archive_path).parent
-                if archive_dir.exists():
-                    if not os.access(archive_dir, os.W_OK):
-                        report['errors'].append(f"归档目录不可写: {archive_dir}")
-                        report['valid'] = False
-            except Exception as e:
-                report['errors'].append(f"检查归档目录失败: {e}")
-                report['valid'] = False
-
-        # 检查并发锁目录
-        if self.use_concurrent:
-            lock_dir = Path(self.concurrent_lock_dir)
-            if not lock_dir.is_absolute():
-                lock_dir = (self._base_dir or BASE_DIR) / lock_dir
-            if lock_dir.exists():
-                if not os.access(lock_dir, os.W_OK):
-                    report['errors'].append(f"并发锁目录不可写: {lock_dir}")
-                    report['valid'] = False
-
-        # 检查必要的文件路径
-        if not self.file:
-            report['errors'].append("file 不能为空")
-            report['valid'] = False
-
-        # 检查编码是否有效
-        try:
-            'test'.encode(self.encoding)
-        except LookupError:
-            report['errors'].append(f"不支持的编码格式: {self.encoding}")
-            report['valid'] = False
-
-        # 如果已有致命错误，跳过后续检查
-        if not report['valid']:
-            return report
-
-        # 采样配置警告
-        if self.sampling_rate < 1.0:
-            if self.sampling_interval > 0:
-                report['warnings'].append(
-                    "同时设置了 sampling_rate 和 sampling_interval，"
-                    "可能导致日志采样不符合预期"
-                )
-            elif self.sampling_rate < 0.1:
-                report['warnings'].append(
-                    f"采样率设置过低 ({self.sampling_rate})，"
-                    "可能导致重要日志丢失"
-                )
-
-        # 文件大小警告
-        if self.max_bytes < 1024 * 1024:  # 小于1MB
-            report['warnings'].append(
-                f"max_bytes 设置过小 ({self.max_bytes} < 1MB)，"
-                "可能导致频繁的文件轮转"
-            )
-        elif self.max_bytes > 1024 * 1024 * 1024:  # 大于1GB
-            report['warnings'].append(
-                f"max_bytes 设置过大 ({self.max_bytes} > 1GB)，"
-                "可能导致单个日志文件过大"
-            )
-
-        # 备份数量警告
-        if self.backup_count > 100:
-            report['warnings'].append(
-                f"backup_count 设置过大 ({self.backup_count} > 100)，"
-                "可能占用过多磁盘空间"
-            )
-        elif self.backup_count < 2:
-            report['warnings'].append(
-                f"backup_count 设置过小 ({self.backup_count} < 2)，"
-                "日志轮转可能无法保留足够的历史"
-            )
-
-        # 保留天数警告
-        if self.retention_days < 7:
-            report['warnings'].append(
-                f"retention_days 设置过小 ({self.retention_days} < 7天)，"
-                "日志可能过早被清理"
-            )
-        elif self.retention_days > 365:
-            report['warnings'].append(
-                f"retention_days 设置过大 ({self.retention_days} > 365天)，"
-                "可能占用过多磁盘空间"
-            )
-
-        # 异步队列大小警告
-        if self.use_async and self.async_queue_size < 100:
-            report['warnings'].append(
-                f"异步队列大小设置过小 ({self.async_queue_size} < 100)，"
-                "可能导致日志丢失"
-            )
-
-        # 远程日志配置警告
-        if self.enable_remote:
-            if self.remote_timeout < 1:
-                report['warnings'].append(
-                    f"remote_timeout 设置过小 ({self.remote_timeout} < 1秒)，"
-                    "可能导致远程日志频繁超时"
-                )
-            if self.remote_batch_size < 1:
-                report['warnings'].append(
-                    f"remote_batch_size 设置过小 ({self.remote_batch_size} < 1)，"
-                    "可能导致远程日志发送效率低下"
-                )
-
-        # 检查文件名时间戳格式
-        if self.file_name_timestamp:
-            try:
-                datetime.now().strftime(self.file_name_date_format)
-                datetime.now().strftime(self.file_name_datetime_format)
-            except ValueError as e:
-                report['warnings'].append(f"文件名时间戳格式无效: {e}")
-
-        # 检查清理时间格式
-        try:
-            datetime.strptime(self.cleanup_at_time, "%H:%M")
-        except ValueError:
-            report['warnings'].append(f"清理时间格式无效: {self.cleanup_at_time}，应为 HH:MM")
-
-        # 检查敏感字段配置
-        if self.mask_sensitive and not self.sensitive_fields:
-            report['warnings'].append("启用了敏感信息脱敏，但未配置敏感字段")
-        elif self.mask_sensitive and len(self.sensitive_fields) > 50:
-            report['warnings'].append(f"敏感字段列表过长 ({len(self.sensitive_fields)} 个)")
-
-        # 检查日志文件路径
-        if self.error_file and self.error_file == self.file:
-            report['warnings'].append("error_file 与 file 相同，错误日志不会单独存储")
-
-        # 检查轮转策略
+    @model_validator(mode='after')
+    def validate_rotation_strategy(self):
+        """验证轮转策略配置"""
         if self.rotation_strategy == RotationStrategy.TIME:
-
             if not self.rotation_when:
-                report['errors'].append(
-                    "rotation_strategy=TIME 必须配置 rotation_when"
-                )
-                report['valid'] = False
-
+                raise ValueError("rotation_strategy=TIME 必须配置 rotation_when")
             if self.rotation_interval < 1:
-                report['errors'].append(
-                    "rotation_interval 必须 >= 1"
-                )
-                report['valid'] = False
+                raise ValueError("rotation_interval 必须 >= 1")
 
         elif self.rotation_strategy == RotationStrategy.SIZE:
-
             if self.max_bytes <= 0:
-                report['errors'].append(
-                    "rotation_strategy=SIZE 必须配置 max_bytes"
-                )
-                report['valid'] = False
+                raise ValueError("rotation_strategy=SIZE 必须配置 max_bytes > 0")
 
-        # 检查轮转配置
-        if self.rotation_when and self.rotation_interval < 1:
-            report['warnings'].append(f"rotation_interval 设置无效: {self.rotation_interval}")
+        return self
 
-        return report
+    @model_validator(mode='after')
+    def validate_json_timestamp(self):
+        """验证JSON日志时间戳配置"""
+        if self.format in (LogFormat.JSON, LogFormat.BOTH):
+            if self.json_timestamp_field not in self.json_format:
+                raise ValueError(f"json_format 必须包含 {self.json_timestamp_field}")
+        return self
+
+
+__all__ = [
+    "LoggingConfig",
+    "LogLevel",
+    "LogFormat",
+    "RotationWhen",
+    "TimeZone",
+    "TimestampPrecision",
+    "EpochUnit",
+    "RotationStrategy"
+]

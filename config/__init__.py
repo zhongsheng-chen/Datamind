@@ -9,20 +9,47 @@
     - 存储配置管理
 
 导出内容:
-    settings: 应用配置实例
+    get_settings: 获取应用配置实例的函数
     LoggingConfig: 日志配置类
     StorageConfig: 存储配置类
-    StorageConfigFactory: 存储配置工厂类
+    StorageType: 存储类型枚举
+    LocalStorageConfig: 本地存储配置类
+    MinIOStorageConfig: MinIO存储配置类
+    S3StorageConfig: S3存储配置类
 """
 
-from config.settings import settings
-from config.logging_config import LoggingConfig
-from config.storage_config import StorageConfig, get_storage_config, get_storage_client_config
+from config.settings import get_settings
+from config.logging_config import (
+    LoggingConfig,
+    LogLevel,
+    LogFormat,
+    RotationWhen,
+    TimeZone,
+    TimestampPrecision,
+    EpochUnit,
+    RotationStrategy
+)
+from config.storage_config import (
+    StorageConfig,
+    StorageType,
+    LocalStorageConfig,
+    MinIOStorageConfig,
+    S3StorageConfig
+)
 
 __all__ = [
-    'settings',
+    'get_settings',
     'LoggingConfig',
+    'LogLevel',
+    'LogFormat',
+    'RotationWhen',
+    'TimeZone',
+    'TimestampPrecision',
+    'EpochUnit',
+    'RotationStrategy',
     'StorageConfig',
-    'get_storage_config',
-    'get_storage_client_config',
+    'StorageType',
+    'LocalStorageConfig',
+    'MinIOStorageConfig',
+    'S3StorageConfig',
 ]
