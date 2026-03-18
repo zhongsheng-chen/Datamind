@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="datamind-cli",
-    version="1.0.0",
-    author="Datamind Team",
-    description="Datamind 模型部署平台命令行工具",
+    name="datamind",
+    version="0.1.0",
+    author="Zhongsheng Chen",
+    description="Datamind 模型部署平台",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/datamind",

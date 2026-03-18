@@ -130,7 +130,7 @@ services:
   # 评分卡服务
   scoring-service:
     build:
-      context: ./serving
+      context: datamind/serving
       dockerfile: docker/Dockerfile
     container_name: datamind-scoring
     restart: unless-stopped
@@ -165,7 +165,7 @@ services:
   # 反欺诈服务
   fraud-service:
     build:
-      context: ./serving
+      context: datamind/serving
       dockerfile: docker/Dockerfile
     container_name: datamind-fraud
     restart: unless-stopped

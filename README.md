@@ -880,7 +880,7 @@ services:
 
   scoring-service:
     build:
-      context: ./serving
+      context: datamind/serving
       dockerfile: docker/Dockerfile
     ports:
       - "3001:3000"
@@ -900,7 +900,7 @@ services:
 
   fraud-service:
     build:
-      context: ./serving
+      context: datamind/serving
       dockerfile: docker/Dockerfile
     ports:
       - "3002:3000"
@@ -1596,3 +1596,13 @@ datamind model predict ...
 
 
 您要的是这样的纯文本（所有 markdown 符号都原样显示，不进行任何渲染）：
+
+
+## 安装成包
+```bash
+ pip install -e .
+```
+## 删除目录下所有文件
+```bash
+ rm -rf ./* ./.[!.]* ./..?* 2>/dev/null
+```

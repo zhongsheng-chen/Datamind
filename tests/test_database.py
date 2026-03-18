@@ -2,31 +2,26 @@
 
 import os
 import unittest
-import time
-import json
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Generator
-from contextlib import contextmanager
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import NullPool
 
-from core.db import (
-    db_manager, get_db, init_db, Base,
+from datamind.core import (
+    db_manager, Base,
     TaskType, ModelType, Framework, ModelStatus,
     AuditAction, DeploymentEnvironment, ABTestStatus
 )
-from core.db.models import (
+from datamind.core import (
     ModelMetadata, ModelVersionHistory, ModelDeployment,
     ApiCallLog, ModelPerformanceMetrics, AuditLog,
     ABTestConfig, ABTestAssignment, SystemConfig
 )
-from core.logging import log_manager
-from config import get_settings
+from datamind.core import log_manager
+from datamind.config import get_settings
 
 
 class TestDatabaseBase(unittest.TestCase):
@@ -80,7 +75,7 @@ class TestDatabaseBase(unittest.TestCase):
 
         # 初始化日志管理器
         if not hasattr(log_manager, '_initialized') or not log_manager._initialized:
-            from config.logging_config import LoggingConfig, LogLevel
+            from datamind.config import LoggingConfig, LogLevel
             config = LoggingConfig(level=LogLevel.ERROR)
             log_manager.initialize(config)
 
@@ -707,7 +702,7 @@ class TestEnums(TestDatabaseBase):
 
     def test_framework_compatibility(self):
         """测试框架兼容性"""
-        from core.db.enums import validate_framework_model_compatibility
+        from datamind.core import validate_framework_model_compatibility
 
         # XGBoost框架应该兼容XGBoost模型
         self.assertTrue(

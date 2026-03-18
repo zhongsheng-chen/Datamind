@@ -1,98 +1,120 @@
 # datamind/migrations/env.py
-import asyncio
-from logging.config import fileConfig
-import os
-import sys
-from pathlib import Path
+"""Alembic 环境配置文件
 
-# 添加项目根目录到Python路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+负责：
+ - 设置数据库连接
+ - 加载数据库模型
+ - 配置迁移运行环境
+"""
 
 from alembic import context
+from sqlalchemy import pool
+from sqlalchemy import engine_from_config
+from logging.config import fileConfig
 
-# 导入数据库模型
-from core.db.models import Base
-from core.db.enums import (
-    TaskType, ModelType, Framework, ModelStatus,
-    AuditAction, DeploymentEnvironment, ABTestStatus
-)
-from config.settings import settings
+from datamind.config.settings import get_settings
+from datamind.core.db import models
+from datamind.core.db import Base
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# 获取配置实例
+settings = get_settings()
+
+# 获取 Alembic 配置对象（来自 alembic.ini）
 config = context.config
 
-# 从settings获取数据库URL
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# 从项目配置中获取数据库 URL，覆盖 alembic.ini 中的配置
+db_url = settings.database.url
+if db_url.startswith("postgresql+asyncpg"):
+    db_url = db_url.replace("postgresql+asyncpg", "postgresql")
+config.set_main_option("sqlalchemy.url", db_url)
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+
+# 设置日志配置
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
+# 设置目标元数据
+# Alembic 通过比较 target_metadata 和数据库当前状态来生成迁移脚本
+# Base.metadata 包含了所有通过 SQLAlchemy 定义的模型
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# 可以添加调试信息（可选）
+if settings.app.debug:
+    print(f"数据库连接: {settings.database.url}")
+    print(f"环境: {settings.app.env}")
+    print(f"调试模式: {settings.app.debug}")
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """
+    离线模式运行迁移
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
+    在这种模式下，Alembic 不会连接数据库，而是生成 SQL 脚本。
+    适用于：
+    - 生成迁移脚本供审查
+    - 在无法直接连接数据库的环境中使用
+    - 生产环境手动执行迁移前预览 SQL
     """
     url = config.get_main_option("sqlalchemy.url")
+
+    # 配置离线迁移上下文
     context.configure(
         url=url,
         target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        compare_type=True,
-        compare_server_default=True,
+        literal_binds=True,                    # 使用字面值绑定参数，生成可读的 SQL
+        dialect_opts={"paramstyle": "named"},  # 使用命名参数风格
+        compare_type=True,                     # 比较列类型变化
+        compare_server_default=True,           # 比较默认值变化
+        include_schemas=True,                  # 包含 schema（如 public）
+        version_table_schema='public'          # 版本表存储在 public schema 中
     )
 
+    # 开始事务并运行迁移
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
     """
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    在线模式运行迁移
 
+    这种模式下，Alembic 直接连接数据库执行迁移。
+    适用于：
+    - 开发环境自动迁移
+    - 测试环境自动迁移
+    - 需要实际执行迁移的场景
+    """
+
+    # 获取数据库连接
+    # 优先使用已经存在的连接（如从外部传入）
+    connectable = context.config.attributes.get("connection", None)
+
+    if connectable is None:
+        # 如果没有现有连接，则创建新的数据库引擎
+        connectable = engine_from_config(
+            config.get_section(config.config_ini_section, {}),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,  # 迁移时不使用连接池
+        )
+
+    # 建立连接并运行迁移
     with connectable.connect() as connection:
+        # 配置在线迁移上下文
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            compare_type=True,
-            compare_server_default=True,
+            compare_type=True,                # 比较列类型变化
+            compare_server_default=True,      # 比较默认值变化
+            include_schemas=True,             # 包含 schema
+            version_table_schema='public'     # 版本表存储在 public schema 中
         )
 
+        # 开始事务并运行迁移
         with context.begin_transaction():
             context.run_migrations()
 
 
+# 根据 Alembic 的运行模式选择相应的函数
 if context.is_offline_mode():
     run_migrations_offline()
 else:

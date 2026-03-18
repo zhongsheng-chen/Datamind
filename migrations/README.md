@@ -61,29 +61,33 @@ alembic revision -m "手动迁移"
 
 ```bash
 # 升级到最新版本
-alembic upgrade head
+python -m alembic upgrade head
 
 # 升级到指定版本
-alembic upgrade 20240315_initial
+python -m alembic upgrade 20240315_initial
 
 # 查看当前版本
-alembic current
+python -m alembic current
 
 # 查看历史版本
-alembic history
+python -m alembic history
 ```
 
 ### 4. 回滚迁移
 
 ```bash
 # 回滚一个版本
-alembic downgrade -1
+python -m alembic downgrade -1
 
 # 回滚到指定版本
-alembic downgrade 20240315_initial
+python -m alembic downgrade 20240315_initial
 
 # 回滚到基础版本
-alembic downgrade base
+python -m alembic downgrade base
+
+# 
+python -m alembic revision --autogenerate -m "test"
+python -m alembic upgrade head
 ```
 
 ## 配置文件详解
@@ -141,86 +145,94 @@ format = %(levelname)-5.5s [%(name)s] %(message)s
 datefmt = %H:%M:%S
 ```
 
-### env.py - 环境配置
+### 环境配置
 
 ```python
-# migrations/env.py
+# datamind/migrations/env.py
 import asyncio
-from logging.config import fileConfig
 import os
 import sys
 from pathlib import Path
-
-# 添加项目根目录到 Python 路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from logging.config import fileConfig
 
-from alembic import context
-
-# 导入数据库模型
-from core.db.models import Base
-from core.db.enums import (
+from datamind.config import get_settings
+from datamind.core import Base
+from datamind.core import (
     TaskType, ModelType, Framework, ModelStatus,
     AuditAction, DeploymentEnvironment, ABTestStatus
 )
-from config.settings import settings
 
-# Alembic 配置对象
+# 获取配置实例
+settings = get_settings()
+
+# 获取 Alembic 配置对象（来自 alembic.ini）
 config = context.config
 
-# 从 settings 获取数据库 URL
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# 从项目配置中获取数据库 URL，覆盖 alembic.ini 中的配置
+config.set_main_option("sqlalchemy.url", settings.database.url)
 
-# 日志配置
+# 设置日志配置
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 目标元数据
+# 设置目标元数据
 target_metadata = Base.metadata
+
+# 可以添加调试信息（可选）
+if settings.app.debug:
+    print(f"数据库连接: {settings.database.url}")
+    print(f"环境: {settings.app.env}")
+    print(f"调试模式: {settings.app.debug}")
 
 
 def run_migrations_offline() -> None:
-    """离线模式运行迁移"""
     url = config.get_main_option("sqlalchemy.url")
+
+    # 配置离线迁移上下文
     context.configure(
         url=url,
         target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        compare_type=True,
-        compare_server_default=True,
-        include_schemas=True,
-        version_table_schema='public'
+        literal_binds=True,  # 使用字面值绑定参数，生成可读的 SQL
+        dialect_opts={"paramstyle": "named"},  # 使用命名参数风格
+        compare_type=True,  # 比较列类型变化
+        compare_server_default=True,  # 比较默认值变化
+        include_schemas=True,  # 包含 schema（如 public）
+        version_table_schema='public'  # 版本表存储在 public schema 中
     )
 
+    # 开始事务并运行迁移
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """在线模式运行迁移"""
     connectable = context.config.attributes.get("connection", None)
 
     if connectable is None:
+        # 如果没有现有连接，则创建新的数据库引擎
         connectable = async_engine_from_config(
             config.get_section(config.config_ini_section, {}),
             prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
+            poolclass=pool.NullPool,  # 迁移时不使用连接池
         )
 
+    # 建立连接并运行迁移
     with connectable.connect() as connection:
+        # 配置在线迁移上下文
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            compare_type=True,
-            compare_server_default=True,
-            include_schemas=True,
-            version_table_schema='public'
+            compare_type=True,  # 比较列类型变化
+            compare_server_default=True,  # 比较默认值变化
+            include_schemas=True,  # 包含 schema
+            version_table_schema='public'  # 版本表存储在 public schema 中
         )
 
+        # 开始事务并运行迁移
         with context.begin_transaction():
             context.run_migrations()
 
