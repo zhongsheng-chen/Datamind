@@ -1,4 +1,4 @@
-# core/logging/bootstrap.py
+# Datamind/datamind/core/logging/bootstrap.py
 
 """
 启动日志模块

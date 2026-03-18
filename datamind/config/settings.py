@@ -1,4 +1,4 @@
-# datamind/config/settings.py
+# Datamind/datamind/config/settings.py
 
 from functools import lru_cache
 from typing import Optional, List

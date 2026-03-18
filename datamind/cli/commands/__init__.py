@@ -1,4 +1,4 @@
-# datamind/cli/commands/__init__.py
+# Datamind/datamind/cli/commands/__init__.py
 """
 CLI命令模块
 """

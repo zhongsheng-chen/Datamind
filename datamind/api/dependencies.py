@@ -1,4 +1,4 @@
-# datamind/api/dependencies.py
+# Datamind/datamind/api/dependencies.py
 from fastapi import Header, HTTPException, Depends, Request
 from typing import Optional
 

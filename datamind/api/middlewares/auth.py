@@ -1,4 +1,4 @@
-# datamind/api/middlewares/auth.py
+# Datamind/datamind/api/middlewares/auth.py
 from fastapi import Request, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware

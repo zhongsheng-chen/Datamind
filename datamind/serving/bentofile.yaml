@@ -1,4 +1,4 @@
-# datamind/serving/bentofile.yaml
+# Datamind/datamind/serving/bentofile.yaml
 name: datamind-model-serving
 version: 1.0.0
 service: "scoring_service:service"

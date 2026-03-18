@@ -1,4 +1,4 @@
-# datamind/docker-compose.yml
+# Datamind/docker-compose.yml
 version: '3.8'
 
 services:

@@ -1,5 +1,5 @@
-# datamind/migrations/versions/20240316_add_status.py
-"""为模型表添加状态字段
+# Datamind/migrations/versions/20240316_add_status.py
+"""添加状态字段
 
 修订版本ID: 20240316_add_status
 父修订版本: 20240315_initial
@@ -19,27 +19,26 @@ depends_on = None
 def upgrade() -> None:
     """升级：为模型表添加状态相关字段"""
 
-    # 1. 为 model_metadata 表添加状态字段
-    op.add_column('model_metadata',
-                  sa.Column('status', sa.String(length=20),
-                            nullable=True, server_default='inactive',
-                            comment='模型状态: active-活跃, inactive-未激活, deprecated-废弃, archived-归档'),
-                  schema='public'
-                  )
-
-    # 2. 添加状态索引（先创建索引，再添加注释）
-    op.create_index('idx_model_status', 'model_metadata', ['status'],
-                    schema='public')
+    # 1. 添加状态索引（如果尚未创建）
+    # 使用 IF NOT EXISTS 语法确保索引只创建一次
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_model_status') THEN
+            CREATE INDEX idx_model_status ON public.model_metadata (status);
+        END IF;
+    END$$;
+    """)
     op.execute("COMMENT ON INDEX public.idx_model_status IS '模型状态索引';")
 
-    # 3. 为 model_version_history 表添加状态快照字段
+    # 2. 为 model_version_history 表添加状态快照字段
     op.add_column('model_version_history',
                   sa.Column('status_snapshot', sa.String(length=20), nullable=True,
                             comment='操作时的状态快照'),
                   schema='public'
                   )
 
-    # 4. 为 model_deployments 表添加部署状态字段
+    # 3. 为 model_deployments 表添加部署状态字段
     op.add_column('model_deployments',
                   sa.Column('deployment_status', sa.String(length=20),
                             nullable=True, server_default='pending',
@@ -47,32 +46,23 @@ def upgrade() -> None:
                   schema='public'
                   )
 
-    # 5. 添加部署状态索引（先创建索引，再添加注释）
-    op.create_index('idx_deployment_status', 'model_deployments', ['deployment_status'],
-                    schema='public')
-    op.execute("COMMENT ON INDEX public.idx_deployment_status IS '部署状态索引';")
-
-    # 6. 更新现有数据 - 将所有模型状态设为 'active'
+    # 4. 添加部署状态索引
     op.execute("""
-               UPDATE model_metadata
-               SET status = 'active'
-               WHERE status IS NULL
-               """)
-
-    # 7. 将 status 字段改为不可为空
-    op.alter_column('model_metadata', 'status',
-                    existing_type=sa.String(length=20),
-                    nullable=False,
-                    schema='public')
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_deployment_status') THEN
+            CREATE INDEX idx_deployment_status ON public.model_deployments (deployment_status);
+        END IF;
+    END$$;
+    """)
+    op.execute("COMMENT ON INDEX public.idx_deployment_status IS '部署状态索引';")
 
 
 def downgrade() -> None:
     """降级：移除状态相关字段"""
 
     # 1. 删除部署状态索引
-    op.drop_index('idx_deployment_status',
-                  table_name='model_deployments',
-                  schema='public')
+    op.execute("DROP INDEX IF EXISTS public.idx_deployment_status")
 
     # 2. 删除 model_deployments 的 deployment_status 字段
     op.drop_column('model_deployments', 'deployment_status', schema='public')
@@ -81,9 +71,4 @@ def downgrade() -> None:
     op.drop_column('model_version_history', 'status_snapshot', schema='public')
 
     # 4. 删除模型状态索引
-    op.drop_index('idx_model_status',
-                  table_name='model_metadata',
-                  schema='public')
-
-    # 5. 删除 model_metadata 的 status 字段
-    op.drop_column('model_metadata', 'status', schema='public')
+    op.execute("DROP INDEX IF EXISTS public.idx_model_status")

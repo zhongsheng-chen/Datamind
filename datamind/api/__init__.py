@@ -1,4 +1,4 @@
-# datamind/api/__init__.py
+# Datamind/datamind/api/__init__.py
 """
 API模块
 

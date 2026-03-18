@@ -1,4 +1,4 @@
-# core/logging/handlers.py
+# Datamind/datamind/core/logging/handlers.py
 
 import atexit
 import threading

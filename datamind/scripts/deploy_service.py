@@ -1,4 +1,4 @@
-# datamind/scripts/deploy_service.py
+# Datamind/datamind/scripts/deploy_service.py
 
 import subprocess
 import sys

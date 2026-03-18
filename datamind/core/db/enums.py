@@ -1,4 +1,4 @@
-# core/db/enums.py
+# Datamind/datamind/core/db/enums.py
 
 from enum import Enum
 from typing import Dict, Set, List

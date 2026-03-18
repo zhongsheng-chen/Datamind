@@ -1,4 +1,4 @@
-# datamind/cli/commands/audit.py
+# Datamind/datamind/cli/commands/audit.py
 import click
 from datetime import datetime, timedelta
 import json

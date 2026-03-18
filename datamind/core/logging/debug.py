@@ -1,4 +1,4 @@
-# core/logging/debug.py
+# Datamind/datamind/core/logging/debug.py
 
 import sys
 import threading

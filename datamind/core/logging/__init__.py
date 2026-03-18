@@ -1,4 +1,4 @@
-# core/logging/__init__.py
+# Datamind/core/logging/__init__.py
 """
 日志模块
 

@@ -1,4 +1,4 @@
-# datamind/core/experiment/ab_test.py
+# Datamind/datamind/core/experiment/ab_test.py
 import hashlib
 import json
 import random

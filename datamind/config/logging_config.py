@@ -1,4 +1,4 @@
-# datamind/config/logging_config.py
+# Datamind/datamind/config/logging_config.py
 
 import re
 import json

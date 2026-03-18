@@ -1,4 +1,4 @@
-# datamind/api/middlewares/logging_middleware.py
+# Datamind/datamind/api/middlewares/logging_middleware.py
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp

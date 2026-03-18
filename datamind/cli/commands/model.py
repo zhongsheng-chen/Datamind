@@ -1,4 +1,4 @@
-# datamind/cli/commands/model.py
+# Datamind/datamind/cli/commands/model.py
 import click
 import sys
 import json

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# datamind/scripts/benchmark.py
+# Datamind/datamind/scripts/benchmark.py
 """
 性能测试脚本
 用于测试模型推理性能

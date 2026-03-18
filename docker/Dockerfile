@@ -1,4 +1,4 @@
-# datamind/docker/Dockerfile.api
+# Datamind/docker/Dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app

@@ -1,4 +1,4 @@
-# core/db/__init__.py
+# Datamind/datamind/core/db/__init__.py
 """
 数据库模块
 

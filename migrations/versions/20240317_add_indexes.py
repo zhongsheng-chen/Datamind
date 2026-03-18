@@ -1,4 +1,4 @@
-# datamind/migrations/versions/20240317_add_indexes.py
+# Datamind/migrations/versions/20240317_add_indexes.py
 """添加性能优化索引
 
 修订版本ID: 20240317_add_indexes
@@ -19,14 +19,20 @@ depends_on = None
 def upgrade() -> None:
     """升级：添加各种性能优化索引"""
 
+    # ==================== 安装必要的扩展 ====================
+    # pg_trgm 扩展用于支持 GIN 索引的 trigram 操作符
+    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    op.execute("COMMENT ON EXTENSION pg_trgm IS 'Trigram 文本搜索扩展，用于支持模糊搜索索引'")
+
     # ==================== 模型表索引 ====================
 
-    # 1. 模型名称模糊搜索索引（GIN）- 使用原生SQL
-    op.execute("""
-               CREATE INDEX idx_model_name_gin
-                   ON model_metadata USING gin (model_name gin_trgm_ops)
-               """)
-    op.execute("COMMENT ON INDEX idx_model_name_gin IS '模型名称模糊搜索索引';")
+    # 1. 模型名称模糊搜索索引（GIN）
+    with op.get_context().autocommit_block():
+        op.execute("""
+                   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_model_name_gin
+                       ON model_metadata USING gin (model_name gin_trgm_ops)
+                   """)
+        op.execute("COMMENT ON INDEX idx_model_name_gin IS '模型名称模糊搜索索引（基于 trigram）';")
 
     # 2. 创建时间和状态复合索引
     op.create_index('idx_model_created_status', 'model_metadata',
@@ -61,18 +67,20 @@ def upgrade() -> None:
     op.execute("COMMENT ON INDEX public.idx_api_processing_time IS '处理时间索引';")
 
     # 7. 请求数据的 GIN 索引（用于JSON查询）
-    op.execute("""
-               CREATE INDEX idx_api_request_data_gin
-                   ON api_call_logs USING gin (request_data)
-               """)
-    op.execute("COMMENT ON INDEX idx_api_request_data_gin IS '请求数据JSON字段GIN索引';")
+    with op.get_context().autocommit_block():
+        op.execute("""
+                   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_api_request_data_gin
+                       ON api_call_logs USING gin (request_data)
+                   """)
+        op.execute("COMMENT ON INDEX idx_api_request_data_gin IS '请求数据JSON字段GIN索引';")
 
     # 8. 响应数据的 GIN 索引
-    op.execute("""
-               CREATE INDEX idx_api_response_data_gin
-                   ON api_call_logs USING gin (response_data)
-               """)
-    op.execute("COMMENT ON INDEX idx_api_response_data_gin IS '响应数据JSON字段GIN索引';")
+    with op.get_context().autocommit_block():
+        op.execute("""
+                   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_api_response_data_gin
+                       ON api_call_logs USING gin (response_data)
+                   """)
+        op.execute("COMMENT ON INDEX idx_api_response_data_gin IS '响应数据JSON字段GIN索引';")
 
     # ==================== 审计日志表索引 ====================
 
@@ -89,11 +97,12 @@ def upgrade() -> None:
     op.execute("COMMENT ON INDEX public.idx_audit_resource_time IS '资源类型和创建时间复合索引';")
 
     # 11. 详情字段的 GIN 索引
-    op.execute("""
-               CREATE INDEX idx_audit_details_gin
-                   ON audit_logs USING gin (details)
-               """)
-    op.execute("COMMENT ON INDEX idx_audit_details_gin IS '审计详情JSON字段GIN索引';")
+    with op.get_context().autocommit_block():
+        op.execute("""
+                   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_details_gin
+                       ON audit_logs USING gin (details)
+                   """)
+        op.execute("COMMENT ON INDEX idx_audit_details_gin IS '审计详情JSON字段GIN索引';")
 
     # ==================== 性能监控表索引 ====================
 
@@ -131,25 +140,27 @@ def upgrade() -> None:
                     schema='public')
     op.execute("COMMENT ON INDEX public.idx_config_category_version IS '分类和版本复合索引';")
 
-    # 17. 配置值的 GIN 索引
-    op.execute("""
-               CREATE INDEX idx_config_value_gin
-                   ON system_configs USING gin (config_value)
-               """)
-    op.execute("COMMENT ON INDEX idx_config_value_gin IS '配置值JSON字段GIN索引';")
+    # 17. 配置值的 GIN 索引 - 需要 CONCURRENTLY
+    with op.get_context().autocommit_block():
+        op.execute("""
+                   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_config_value_gin
+                       ON system_configs USING gin (config_value)
+                   """)
+        op.execute("COMMENT ON INDEX idx_config_value_gin IS '配置值JSON字段GIN索引';")
 
 
 def downgrade() -> None:
     """降级：删除所有添加的索引"""
 
     # 删除 GIN 索引
-    op.execute('DROP INDEX IF EXISTS idx_config_value_gin')
-    op.execute('DROP INDEX IF EXISTS idx_audit_details_gin')
-    op.execute('DROP INDEX IF EXISTS idx_api_response_data_gin')
-    op.execute('DROP INDEX IF EXISTS idx_api_request_data_gin')
-    op.execute('DROP INDEX IF EXISTS idx_model_name_gin')
+    with op.get_context().autocommit_block():
+        op.execute('DROP INDEX CONCURRENTLY IF EXISTS idx_config_value_gin')
+        op.execute('DROP INDEX CONCURRENTLY IF EXISTS idx_audit_details_gin')
+        op.execute('DROP INDEX CONCURRENTLY IF EXISTS idx_api_response_data_gin')
+        op.execute('DROP INDEX CONCURRENTLY IF EXISTS idx_api_request_data_gin')
+        op.execute('DROP INDEX CONCURRENTLY IF EXISTS idx_model_name_gin')
 
-    # 删除普通索引（按创建顺序的反向）
+    # 删除普通索引
     op.drop_index('idx_config_category_version',
                   table_name='system_configs',
                   schema='public')
@@ -186,3 +197,5 @@ def downgrade() -> None:
     op.drop_index('idx_model_created_status',
                   table_name='model_metadata',
                   schema='public')
+
+    op.execute("DROP EXTENSION IF EXISTS pg_trgm")

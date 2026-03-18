@@ -1,4 +1,4 @@
-# datamind/api/middlewares/cors.py
+# Datamind/datamind/api/middlewares/cors.py
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp
 from typing import List, Optional

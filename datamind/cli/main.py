@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# datamind/cli/main.py
+# Datamind/datamind/cli/main.py
 """
 Datamind 命令行工具主入口
 """

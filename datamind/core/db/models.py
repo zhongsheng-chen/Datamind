@@ -1,4 +1,4 @@
-# core/db/models.py
+# Datamind/datamind/core/db/models.py
 
 from sqlalchemy import (
     Column, String, Integer, DateTime, Boolean, Text,

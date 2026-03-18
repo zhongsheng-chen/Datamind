@@ -1,4 +1,4 @@
-# datamind/core/experiment/__init__.py
+# Datamind/datamind/core/experiment/__init__.py
 """
 实验模块
 

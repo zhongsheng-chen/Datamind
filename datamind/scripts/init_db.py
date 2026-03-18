@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# datamind/scripts/init_db.py
+# Datamind/datamind/scripts/init_db.py
 """
 数据库初始化脚本
 用于创建数据库表、初始化枚举类型和基础数据

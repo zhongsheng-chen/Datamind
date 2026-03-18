@@ -1,4 +1,4 @@
-# datamind/serving/docker/Dockerfile
+# Datamind/datamind/serving/docker/Dockerfile
 # 多阶段构建
 FROM python:3.11-slim as builder
 

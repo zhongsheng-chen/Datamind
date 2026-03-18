@@ -1,4 +1,4 @@
-# datamind/api/routes/management_api.py
+# Datamind/datamind/api/routes/management_api.py
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from typing import Optional
 from datetime import datetime, timedelta

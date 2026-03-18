@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# datamind/scripts/migrate_data.py
+# Datamind/datamind/scripts/migrate_data.py
 """
 数据迁移脚本
 用于在不同环境之间迁移数据

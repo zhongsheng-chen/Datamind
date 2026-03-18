@@ -1,4 +1,4 @@
-# datamind/core/db/database.py
+# Datamind/datamind/core/db/database.py
 
 import traceback
 import logging

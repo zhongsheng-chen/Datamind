@@ -1,4 +1,4 @@
-# datamind/cli/commands/version.py
+# Datamind/datamind/cli/commands/version.py
 import click
 import sys
 

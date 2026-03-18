@@ -1,4 +1,4 @@
-# datamind/cli/commands/health.py
+# Datamind/datamind/cli/commands/health.py
 import click
 import requests
 from datetime import datetime

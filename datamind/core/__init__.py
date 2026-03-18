@@ -1,4 +1,4 @@
-# core/__init__.py
+# Datamind/datamind/core/__init__.py
 """
 核心模块
 

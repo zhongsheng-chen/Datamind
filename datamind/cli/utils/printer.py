@@ -1,4 +1,4 @@
-# datamind/cli/utils/printer.py
+# Datamind/datamind/cli/utils/printer.py
 import click
 import json
 from typing import List, Any

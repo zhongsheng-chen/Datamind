@@ -1,4 +1,4 @@
-# datamind/migrations/env.py
+# Datamind/migrations/env.py
 """Alembic 环境配置文件
 
 负责：

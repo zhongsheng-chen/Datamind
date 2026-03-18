@@ -1,5 +1,5 @@
 #!/bin/bash
-# datamind/cli/completions/bash.sh
+# Datamind/datamind/cli/completions/bash.sh
 
 _datamind_completion() {
     local cur prev words cword

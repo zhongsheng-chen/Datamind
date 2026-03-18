@@ -1,4 +1,4 @@
-# core/logging/manager.py
+# Datamind/datamind/core/logging/manager.py
 
 import os
 import sys

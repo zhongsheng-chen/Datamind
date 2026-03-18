@@ -1,4 +1,4 @@
-# datamind/cli/utils/progress.py
+# Datamind/datamind/cli/utils/progress.py
 import click
 import time
 from contextlib import contextmanager

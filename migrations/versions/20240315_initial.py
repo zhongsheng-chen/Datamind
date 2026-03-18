@@ -1,4 +1,4 @@
-# datamind/migrations/versions/20240315_initial.py
+# Datamind/migrations/versions/20240315_initial.py
 """初始迁移
 
 修订版本ID: 20240315_initial
@@ -9,6 +9,7 @@
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 
 revision = '20240315_initial'  # 修订版本标识符
 down_revision = None           # 初始版本，没有父版本
@@ -20,75 +21,87 @@ def upgrade() -> None:
     """升级数据库到当前版本"""
 
     # ===================== 创建枚举类型 =====================
-    bind = op.get_bind()
 
     # 任务类型枚举
-    task_type_enum = sa.Enum(
-        'scoring', 'fraud_detection',
-        name='task_type_enum',
-        schema='public',
-        create_type=False
-    )
-    # task_type_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_type_enum') THEN
+            CREATE TYPE task_type_enum AS ENUM ('scoring', 'fraud_detection');
+        END IF;
+    END$$;
+    """)
 
     # 模型类型枚举
-    model_type_enum = sa.Enum(
-        'decision_tree', 'random_forest', 'xgboost',
-        'lightgbm', 'logistic_regression', 'catboost', 'neural_network',
-        name='model_type_enum',
-        schema='public',
-        create_type=False
-    )
-    # model_type_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'model_type_enum') THEN
+            CREATE TYPE model_type_enum AS ENUM (
+                'decision_tree', 'random_forest', 'xgboost',
+                'lightgbm', 'logistic_regression', 'catboost', 'neural_network'
+            );
+        END IF;
+    END$$;
+    """)
 
     # 框架枚举
-    framework_enum = sa.Enum(
-        'sklearn', 'xgboost', 'lightgbm', 'torch',
-        'tensorflow', 'onnx', 'catboost',
-        name='framework_enum',
-        schema='public',
-        create_type=False
-    )
-    # framework_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'framework_enum') THEN
+            CREATE TYPE framework_enum AS ENUM (
+                'sklearn', 'xgboost', 'lightgbm', 'torch',
+                'tensorflow', 'onnx', 'catboost'
+            );
+        END IF;
+    END$$;
+    """)
 
     # 模型状态枚举
-    model_status_enum = sa.Enum(
-        'active', 'inactive', 'deprecated', 'archived',
-        name='model_status_enum',
-        schema='public',
-        create_type=False
-    )
-    # model_status_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'model_status_enum') THEN
+            CREATE TYPE model_status_enum AS ENUM ('active', 'inactive', 'deprecated', 'archived');
+        END IF;
+    END$$;
+    """)
 
     # 审计操作枚举
-    audit_action_enum = sa.Enum(
-        'CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
-        'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
-        'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
-        'ROLLBACK', 'CONFIG_CHANGE',
-        name='audit_action_enum',
-        schema='public',
-        create_type=False
-    )
-    # audit_action_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'audit_action_enum') THEN
+            CREATE TYPE audit_action_enum AS ENUM (
+                'CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
+                'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
+                'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
+                'ROLLBACK', 'CONFIG_CHANGE'
+            );
+        END IF;
+    END$$;
+    """)
 
     # 部署环境枚举
-    deployment_env_enum = sa.Enum(
-        'development', 'testing', 'staging', 'production',
-        name='deployment_env_enum',
-        schema='public',
-        create_type=False
-    )
-    # deployment_env_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'deployment_env_enum') THEN
+            CREATE TYPE deployment_env_enum AS ENUM ('development', 'testing', 'staging', 'production');
+        END IF;
+    END$$;
+    """)
 
     # A/B测试状态枚举
-    abtest_status_enum = sa.Enum(
-        'draft', 'running', 'paused', 'completed', 'terminated',
-        name='abtest_status_enum',
-        schema='public',
-        create_type=False
-    )
-    # abtest_status_enum.create(bind, checkfirst=True)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'abtest_status_enum') THEN
+            CREATE TYPE abtest_status_enum AS ENUM ('draft', 'running', 'paused', 'completed', 'terminated');
+        END IF;
+    END$$;
+    """)
 
     # ===================== 创建核心表 =====================
 
@@ -99,10 +112,16 @@ def upgrade() -> None:
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型唯一标识'),
         sa.Column('model_name', sa.String(length=100), nullable=False, comment='模型名称'),
         sa.Column('model_version', sa.String(length=20), nullable=False, comment='模型版本'),
-        sa.Column('task_type', task_type_enum, nullable=False,
-                  comment='任务类型: scoring-评分卡, fraud_detection-反欺诈'),
-        sa.Column('model_type', model_type_enum, nullable=False, comment='模型算法类型'),
-        sa.Column('framework', framework_enum, nullable=False, comment='模型框架'),
+        sa.Column('task_type', PgEnum('scoring', 'fraud_detection', name='task_type_enum', create_type=False),
+                  nullable=False, comment='任务类型: scoring-评分卡, fraud_detection-反欺诈'),
+        sa.Column('model_type', PgEnum('decision_tree', 'random_forest', 'xgboost', 'lightgbm',
+                                        'logistic_regression', 'catboost', 'neural_network',
+                                        name='model_type_enum', create_type=False),
+                  nullable=False, comment='模型算法类型'),
+        sa.Column('framework', PgEnum('sklearn', 'xgboost', 'lightgbm', 'torch',
+                                       'tensorflow', 'onnx', 'catboost',
+                                       name='framework_enum', create_type=False),
+                  nullable=False, comment='模型框架'),
         sa.Column('file_path', sa.String(length=500), nullable=False, comment='模型文件路径'),
         sa.Column('file_hash', sa.String(length=64), nullable=False, comment='文件SHA256哈希值'),
         sa.Column('file_size', sa.BigInteger(), nullable=False, comment='文件大小(字节)'),
@@ -113,7 +132,9 @@ def upgrade() -> None:
         sa.Column('model_params', postgresql.JSONB(), nullable=True, comment='模型参数'),
         sa.Column('feature_importance', postgresql.JSONB(), nullable=True, comment='特征重要性'),
         sa.Column('performance_metrics', postgresql.JSONB(), nullable=True, comment='性能指标'),
-        sa.Column('status', model_status_enum, nullable=False, server_default='inactive', comment='模型状态'),
+        sa.Column('status', PgEnum('active', 'inactive', 'deprecated', 'archived',
+                                    name='model_status_enum', create_type=False),
+                  nullable=False, server_default='inactive', comment='模型状态'),
         sa.Column('is_production', sa.Boolean(), nullable=False, server_default=sa.text('false'),
                   comment='是否为生产模型'),
         sa.Column('ab_test_group', sa.String(length=50), nullable=True, comment='A/B测试组标识'),
@@ -161,7 +182,12 @@ def upgrade() -> None:
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型ID'),
         sa.Column('model_version', sa.String(length=20), nullable=False, comment='模型版本'),
-        sa.Column('operation', audit_action_enum, nullable=False, comment='操作类型'),
+        sa.Column('operation', PgEnum('CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
+                                       'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
+                                       'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
+                                       'ROLLBACK', 'CONFIG_CHANGE',
+                                       name='audit_action_enum', create_type=False),
+                  nullable=False, comment='操作类型'),
         sa.Column('operator', sa.String(length=50), nullable=False, comment='操作人'),
         sa.Column('operator_ip', postgresql.INET(), nullable=True, comment='操作人IP'),
         sa.Column('operation_time', sa.DateTime(timezone=True), server_default=sa.text('now()'),
@@ -194,7 +220,9 @@ def upgrade() -> None:
         sa.Column('deployment_id', sa.String(length=50), nullable=False, comment='部署ID'),
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型ID'),
         sa.Column('model_version', sa.String(length=20), nullable=False, comment='模型版本'),
-        sa.Column('environment', deployment_env_enum, nullable=False, comment='部署环境'),
+        sa.Column('environment', PgEnum('development', 'testing', 'staging', 'production',
+                                         name='deployment_env_enum', create_type=False),
+                  nullable=False, comment='部署环境'),
         sa.Column('endpoint_url', sa.String(length=200), nullable=True, comment='服务端点URL'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true'), comment='是否活跃'),
         sa.Column('deployment_config', postgresql.JSONB(), nullable=True, comment='部署配置'),
@@ -234,7 +262,8 @@ def upgrade() -> None:
         sa.Column('application_id', sa.String(length=50), nullable=False, comment='应用/申请ID'),
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型ID'),
         sa.Column('model_version', sa.String(length=20), nullable=False, comment='模型版本'),
-        sa.Column('task_type', task_type_enum, nullable=False, comment='任务类型'),
+        sa.Column('task_type', PgEnum('scoring', 'fraud_detection', name='task_type_enum', create_type=False),
+                  nullable=False, comment='任务类型'),
         sa.Column('endpoint', sa.String(length=100), nullable=False, comment='API端点'),
         sa.Column('request_data', postgresql.JSONB(), nullable=True, comment='请求数据'),
         sa.Column('response_data', postgresql.JSONB(), nullable=True, comment='响应数据'),
@@ -289,7 +318,8 @@ def upgrade() -> None:
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型ID'),
         sa.Column('model_version', sa.String(length=20), nullable=False, comment='模型版本'),
-        sa.Column('task_type', task_type_enum, nullable=False, comment='任务类型'),
+        sa.Column('task_type', PgEnum('scoring', 'fraud_detection', name='task_type_enum', create_type=False),
+                  nullable=False, comment='任务类型'),
         sa.Column('date', sa.DateTime(), nullable=False, comment='统计日期'),
         sa.Column('total_requests', sa.Integer(), nullable=False, server_default='0', comment='总请求数'),
         sa.Column('success_count', sa.Integer(), nullable=False, server_default='0', comment='成功数'),
@@ -338,7 +368,12 @@ def upgrade() -> None:
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
         sa.Column('audit_id', sa.String(length=50), nullable=False, comment='审计ID'),
         sa.Column('event_type', sa.String(length=50), nullable=False, comment='事件类型'),
-        sa.Column('action', audit_action_enum, nullable=False, comment='操作类型'),
+        sa.Column('action', PgEnum('CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
+                                    'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
+                                    'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
+                                    'ROLLBACK', 'CONFIG_CHANGE',
+                                    name='audit_action_enum', create_type=False),
+                  nullable=False, comment='操作类型'),
         sa.Column('operator', sa.String(length=50), nullable=False, comment='操作人'),
         sa.Column('operator_ip', postgresql.INET(), nullable=True, comment='操作人IP'),
         sa.Column('operator_role', sa.String(length=50), nullable=True, comment='操作人角色'),
@@ -390,7 +425,8 @@ def upgrade() -> None:
         sa.Column('test_id', sa.String(length=50), nullable=False, comment='测试ID'),
         sa.Column('test_name', sa.String(length=100), nullable=False, comment='测试名称'),
         sa.Column('description', sa.Text(), nullable=True, comment='测试描述'),
-        sa.Column('task_type', task_type_enum, nullable=False, comment='任务类型'),
+        sa.Column('task_type', PgEnum('scoring', 'fraud_detection', name='task_type_enum', create_type=False),
+                  nullable=False, comment='任务类型'),
         sa.Column('groups', postgresql.JSONB(), nullable=False, comment='测试组配置'),
         sa.Column('traffic_allocation', sa.Float(), nullable=False, server_default='100.0',
                   comment='流量分配百分比'),
@@ -398,8 +434,9 @@ def upgrade() -> None:
                   comment='分配策略'),
         sa.Column('start_date', sa.DateTime(timezone=True), nullable=False, comment='开始时间'),
         sa.Column('end_date', sa.DateTime(timezone=True), nullable=True, comment='结束时间'),
-        sa.Column('status', abtest_status_enum, nullable=False, server_default='draft',
-                  comment='测试状态'),
+        sa.Column('status', PgEnum('draft', 'running', 'paused', 'completed', 'terminated',
+                                    name='abtest_status_enum', create_type=False),
+                  nullable=False, server_default='draft', comment='测试状态'),
         sa.Column('created_by', sa.String(length=50), nullable=False, comment='创建人'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'),
                   nullable=False, comment='创建时间'),

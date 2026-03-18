@@ -1,4 +1,4 @@
-# datamind/api/routes/__init__.py
+# Datamind/datamind/api/routes/__init__.py
 """
 API路由模块
 """

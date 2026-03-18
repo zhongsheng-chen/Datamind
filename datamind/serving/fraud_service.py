@@ -1,4 +1,4 @@
-# datamind/serving/fraud_service.py
+# Datamind/datamind/serving/fraud_service.py
 import bentoml
 from bentoml.io import JSON
 from typing import Dict, Any, List

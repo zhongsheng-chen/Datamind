@@ -1,4 +1,4 @@
-# datamind/cli/utils/__init__.py
+# Datamind/datamind/cli/utils/__init__.py
 """
 CLI工具函数
 """

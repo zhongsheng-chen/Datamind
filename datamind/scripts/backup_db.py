@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# datamind/scripts/backup_db.py
+# Datamind/datamind/scripts/backup_db.py
 """
 数据库备份脚本
 支持全量备份和增量备份

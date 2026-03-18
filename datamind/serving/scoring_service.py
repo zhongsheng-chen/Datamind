@@ -1,4 +1,4 @@
-# datamind/serving/scoring_service.py
+# Datamind/datamind/serving/scoring_service.py
 import bentoml
 from bentoml.io import JSON
 from typing import Dict, Any, List

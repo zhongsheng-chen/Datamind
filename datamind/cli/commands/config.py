@@ -1,4 +1,4 @@
-# datamind/cli/commands/config.py
+# Datamind/datamind/cli/commands/config.py
 import click
 import os
 import json

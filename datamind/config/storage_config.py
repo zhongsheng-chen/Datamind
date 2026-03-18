@@ -1,4 +1,4 @@
-# datamind/config/storage_config.py
+# Datamind/datamind/config/storage_config.py
 """
 存储配置模块
 

@@ -1,4 +1,4 @@
-# datamind/serving/base.py
+# Datamind/datamind/serving/base.py
 import bentoml
 from bentoml.io import JSON
 import numpy as np

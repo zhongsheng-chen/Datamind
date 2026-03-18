@@ -1,5 +1,5 @@
 #!/bin/bash
-# datamind/serving/docker/entrypoint.sh
+# Datamind/datamind/serving/docker/entrypoint.sh
 
 set -e
 

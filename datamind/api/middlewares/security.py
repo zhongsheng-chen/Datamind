@@ -1,4 +1,4 @@
-# datamind/api/middlewares/security.py
+# Datamind/datamind/api/middlewares/security.py
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp

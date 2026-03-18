@@ -1,4 +1,4 @@
-# datamind/cli/commands/log.py
+# Datamind/datamind/cli/commands/log.py
 import click
 from datetime import datetime, timedelta
 from pathlib import Path
