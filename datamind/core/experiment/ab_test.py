@@ -1,25 +1,295 @@
 # Datamind/datamind/core/experiment/ab_test.py
-import hashlib
+
 import json
 import random
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-
 import redis
-
+import hashlib
 from time import time
-from datamind.core.logging import log_manager, get_request_id, debug_print
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional, Union
+from enum import Enum
+
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ABTestConfig, ABTestAssignment, ModelMetadata
-from datamind.core.db.enums import ABTestStatus, AuditAction
+from datamind.core.domain.enums import ABTestStatus, AuditAction
+from datamind.core.logging import log_manager, get_request_id, debug_print
 from datamind.core.ml.exceptions import ABTestException
-from datamind.config import settings
+from datamind.config import get_settings
+
+
+class AssignmentStrategy(str, Enum):
+    """分配策略枚举
+
+    定义A/B测试的用户分配策略类型
+
+    属性:
+        RANDOM: 随机分配 - 每次请求随机分配
+        CONSISTENT: 一致性分配 - 同一用户始终分配到同一组
+        BUCKET: 分桶分配 - 基于用户ID的哈希值分桶
+        ROUND_ROBIN: 轮询分配 - 按顺序循环分配
+        WEIGHTED: 加权分配 - 基于权重的随机分配
+    """
+    RANDOM = "random"
+    CONSISTENT = "consistent"
+    BUCKET = "bucket"
+    ROUND_ROBIN = "round_robin"
+    WEIGHTED = "weighted"
+
+    @classmethod
+    def get_all(cls) -> List[str]:
+        """获取所有策略名称"""
+        return [item.value for item in cls]
+
+    @classmethod
+    def is_valid(cls, strategy: str) -> bool:
+        """检查策略是否有效"""
+        return strategy in cls.get_all()
+
+    @classmethod
+    def get_default(cls) -> str:
+        """获取默认策略"""
+        return cls.RANDOM.value
+
+    @classmethod
+    def get_description(cls, strategy: str) -> str:
+        """获取策略描述"""
+        descriptions = {
+            cls.RANDOM.value: "每次请求随机分配，适用于无状态测试",
+            cls.CONSISTENT.value: "同一用户始终分配到同一组，保证用户体验一致性",
+            cls.BUCKET.value: "基于用户ID的哈希值分桶，适合大规模分流",
+            cls.ROUND_ROBIN.value: "按顺序循环分配，适合均匀流量分配",
+            cls.WEIGHTED.value: "基于权重的随机分配，可精细控制各组流量比例",
+        }
+        return descriptions.get(strategy, "未知策略")
+
+
+class TrafficSplitter:
+    """流量分割器
+
+    负责根据不同的策略将用户流量分配到不同的测试组
+
+    此类提供静态方法，也可实例化使用
+    """
+
+    def __init__(self, strategy: str = None):
+        """
+        初始化流量分割器
+
+        参数:
+            strategy: 分配策略，如果为None则使用默认策略
+        """
+        self.strategy = strategy or AssignmentStrategy.get_default()
+        self._stats = {
+            'total_splits': 0,
+            'strategy_usage': {}
+        }
+
+    @staticmethod
+    def split_random(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        随机分配 - 每次随机选择一个组
+
+        参数:
+            groups: 测试组列表，每个组包含 name, weight, model_id 等字段
+
+        返回:
+            选中的组
+        """
+        weights = [g.get('weight', 0) for g in groups]
+        # 确保权重总和为100
+        total = sum(weights)
+        if abs(total - 100) > 0.01:
+            # 归一化处理
+            weights = [w / total * 100 for w in weights]
+
+        return random.choices(groups, weights=weights)[0]
+
+    @staticmethod
+    def split_consistent(groups: List[Dict[str, Any]], user_id: str) -> Dict[str, Any]:
+        """
+        一致性分配 - 同一用户始终分配到同一组
+
+        参数:
+            groups: 测试组列表
+            user_id: 用户ID
+
+        返回:
+            选中的组
+        """
+        # 使用用户ID的MD5哈希值进行一致性分配
+        hash_val = int(hashlib.md5(user_id.encode()).hexdigest()[:8], 16) % 100
+
+        cumulative = 0
+        for group in groups:
+            cumulative += group.get('weight', 0)
+            if hash_val < cumulative:
+                return group
+        return groups[-1]
+
+    @staticmethod
+    def split_bucket(groups: List[Dict[str, Any]], user_id: str, bucket_count: int = 1000) -> Dict[str, Any]:
+        """
+        分桶分配 - 基于用户ID的哈希值分桶
+
+        参数:
+            groups: 测试组列表
+            user_id: 用户ID
+            bucket_count: 总桶数
+
+        返回:
+            选中的组
+        """
+        # 计算用户所属的桶
+        bucket = int(hashlib.md5(user_id.encode()).hexdigest()[:8], 16) % bucket_count
+
+        # 将桶映射到组
+        buckets_per_group = []
+        for group in groups:
+            group_buckets = int(group.get('weight', 0) / 100 * bucket_count)
+            buckets_per_group.append(group_buckets)
+
+        cumulative = 0
+        for i, group in enumerate(groups):
+            cumulative += buckets_per_group[i]
+            if bucket < cumulative:
+                return group
+        return groups[-1]
+
+    @staticmethod
+    def split_round_robin(groups: List[Dict[str, Any]], counter: int = None) -> Dict[str, Any]:
+        """
+        轮询分配 - 按顺序循环分配
+
+        参数:
+            groups: 测试组列表
+            counter: 计数器，如果不提供则随机选择起始点
+
+        返回:
+            选中的组
+        """
+        if counter is None:
+            counter = random.randint(0, len(groups) - 1)
+
+        # 根据权重调整轮询
+        weighted_groups = []
+        for group in groups:
+            weight = group.get('weight', 0)
+            # 按权重复制组
+            weighted_groups.extend([group] * int(weight))
+
+        if weighted_groups:
+            return weighted_groups[counter % len(weighted_groups)]
+        return groups[0]
+
+    @staticmethod
+    def split_weighted(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        加权分配 - 基于权重的随机分配（与random类似但更强调权重）
+
+        参数:
+            groups: 测试组列表
+
+        返回:
+            选中的组
+        """
+        weights = [g.get('weight', 0) for g in groups]
+        return random.choices(groups, weights=weights)[0]
+
+    @classmethod
+    def split(cls, groups: List[Dict[str, Any]], strategy: str, user_id: str = None, **kwargs) -> Dict[str, Any]:
+        """
+        通用分配方法 - 根据策略自动选择分配方式
+
+        参数:
+            groups: 测试组列表
+            strategy: 分配策略
+            user_id: 用户ID（用于需要用户ID的策略）
+            **kwargs: 其他参数
+
+        返回:
+            选中的组
+
+        抛出:
+            ValueError: 不支持的策略
+        """
+        if not groups:
+            raise ValueError("测试组列表不能为空")
+
+        strategy = strategy or AssignmentStrategy.get_default()
+
+        if strategy == AssignmentStrategy.RANDOM:
+            return cls.split_random(groups)
+        elif strategy == AssignmentStrategy.CONSISTENT:
+            if not user_id:
+                raise ValueError("一致性分配需要提供 user_id")
+            return cls.split_consistent(groups, user_id)
+        elif strategy == AssignmentStrategy.BUCKET:
+            if not user_id:
+                raise ValueError("分桶分配需要提供 user_id")
+            bucket_count = kwargs.get('bucket_count', 1000)
+            return cls.split_bucket(groups, user_id, bucket_count)
+        elif strategy == AssignmentStrategy.ROUND_ROBIN:
+            counter = kwargs.get('counter')
+            return cls.split_round_robin(groups, counter)
+        elif strategy == AssignmentStrategy.WEIGHTED:
+            return cls.split_weighted(groups)
+        else:
+            raise ValueError(f"不支持的分配策略: {strategy}")
+
+    def split_with_stats(self, groups: List[Dict[str, Any]], user_id: str = None, **kwargs) -> Dict[str, Any]:
+        """
+        带统计的分配方法
+
+        参数:
+            groups: 测试组列表
+            user_id: 用户ID
+            **kwargs: 其他参数
+
+        返回:
+            选中的组
+        """
+        result = self.split(groups, self.strategy, user_id, **kwargs)
+
+        # 更新统计
+        self._stats['total_splits'] += 1
+        strategy_key = self.strategy
+        if strategy_key not in self._stats['strategy_usage']:
+            self._stats['strategy_usage'][strategy_key] = 0
+        self._stats['strategy_usage'][strategy_key] += 1
+
+        return result
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取统计信息"""
+        return self._stats.copy()
+
+    def reset_stats(self):
+        """重置统计信息"""
+        self._stats = {
+            'total_splits': 0,
+            'strategy_usage': {}
+        }
 
 
 class ABTestManager:
     """A/B测试管理器"""
 
     def __init__(self):
+        settings = get_settings()
+
+        ab_test_config = settings.ab_test
+        redis_config = settings.redis
+
+        self.enabled = ab_test_config.enabled
+        self.redis_key_prefix = ab_test_config.redis_key_prefix
+        self.assignment_expiry = ab_test_config.assignment_expiry
+
+        # Redis配置
+        self.redis_url = redis_config.url
+        self.redis_password = redis_config.password
+        self.redis_max_connections = redis_config.max_connections
+        self.redis_socket_timeout = redis_config.socket_timeout
+
         self.redis_client = None
         self._init_redis()
         self._stats = {
@@ -27,17 +297,21 @@ class ABTestManager:
             'cache_hits': 0,
             'cache_misses': 0
         }
+
+        # 使用 TrafficSplitter
+        self.splitter = TrafficSplitter()
+
         debug_print("ABTestManager", "初始化A/B测试管理器")
 
     def _init_redis(self):
         """初始化Redis连接"""
         try:
-            if settings.REDIS_URL:
+            if self.redis_url:
                 self.redis_client = redis.from_url(
-                    settings.REDIS_URL,
-                    password=settings.REDIS_PASSWORD,
-                    max_connections=settings.REDIS_MAX_CONNECTIONS,
-                    socket_timeout=settings.REDIS_SOCKET_TIMEOUT,
+                    self.redis_url,
+                    password=self.redis_password,
+                    max_connections=self.redis_max_connections,
+                    socket_timeout=self.redis_socket_timeout,
                     decode_responses=True
                 )
                 debug_print("ABTestManager", "Redis连接成功")
@@ -46,24 +320,24 @@ class ABTestManager:
             self.redis_client = None
 
     def create_test(
-        self,
-        test_name: str,
-        task_type: str,
-        groups: List[Dict[str, Any]],
-        created_by: str,
-        description: Optional[str] = None,
-        traffic_allocation: float = 100.0,
-        assignment_strategy: str = 'random',
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        metrics: Optional[List[str]] = None,
-        winning_criteria: Optional[Dict] = None,
-        ip_address: Optional[str] = None
+            self,
+            test_name: str,
+            task_type: str,
+            groups: List[Dict[str, Any]],
+            created_by: str,
+            description: Optional[str] = None,
+            traffic_allocation: float = 100.0,
+            assignment_strategy: str = 'random',
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+            metrics: Optional[List[str]] = None,
+            winning_criteria: Optional[Dict] = None,
+            ip_address: Optional[str] = None
     ) -> str:
         """
         创建A/B测试
 
-        Args:
+        参数:
             test_name: 测试名称
             task_type: 任务类型
             groups: 测试组配置 [{"name": "A", "weight": 50, "model_id": "xxx"}, ...]
@@ -77,13 +351,17 @@ class ABTestManager:
             winning_criteria: 获胜标准
             ip_address: IP地址
 
-        Returns:
+        返回:
             test_id: 测试ID
         """
         request_id = get_request_id()
         start_time = datetime.now()
 
         try:
+            # 验证策略是否有效
+            if not AssignmentStrategy.is_valid(assignment_strategy):
+                raise ABTestException(f"无效的分配策略: {assignment_strategy}")
+
             # 验证组配置
             self._validate_groups(groups)
 
@@ -128,6 +406,7 @@ class ABTestManager:
                     "task_type": task_type,
                     "groups": groups,
                     "traffic_allocation": traffic_allocation,
+                    "assignment_strategy": assignment_strategy,
                     "duration_ms": round(duration, 2)
                 },
                 request_id=request_id
@@ -223,20 +502,20 @@ class ABTestManager:
             raise
 
     def get_assignment(
-        self,
-        test_id: str,
-        user_id: str,
-        ip_address: Optional[str] = None
+            self,
+            test_id: str,
+            user_id: str,
+            ip_address: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         获取用户的分组分配
 
-        Args:
+        参数:
             test_id: 测试ID
             user_id: 用户ID
             ip_address: IP地址
 
-        Returns:
+        返回:
             Dict: {
                 'test_id': str,
                 'user_id': str,
@@ -250,7 +529,7 @@ class ABTestManager:
 
         try:
             # 检查缓存
-            cache_key = f"{settings.AB_TEST_REDIS_KEY_PREFIX}{test_id}:{user_id}"
+            cache_key = f"{self.redis_key_prefix}{test_id}:{user_id}"
             if self.redis_client:
                 cached = self.redis_client.get(cache_key)
                 if cached:
@@ -310,8 +589,12 @@ class ABTestManager:
                         self._cache_assignment(cache_key, result)
                         return result
 
-                # 分配新组
-                group = self._assign_group(test.groups, user_id, test.assignment_strategy)
+                # 使用 TrafficSplitter 分配新组
+                group = TrafficSplitter.split(
+                    groups=test.groups,
+                    strategy=test.assignment_strategy,
+                    user_id=user_id
+                )
 
                 # 保存分配
                 assignment = ABTestAssignment(
@@ -319,7 +602,7 @@ class ABTestManager:
                     user_id=user_id,
                     group_name=group['name'],
                     model_id=group['model_id'],
-                    expires_at=now + timedelta(seconds=settings.AB_TEST_ASSIGNMENT_EXPIRY)
+                    expires_at=now + timedelta(seconds=self.assignment_expiry)
                 )
                 session.add(assignment)
                 session.commit()
@@ -346,6 +629,7 @@ class ABTestManager:
                     details={
                         "group_name": group['name'],
                         "model_id": group['model_id'],
+                        "strategy": test.assignment_strategy,
                         "duration_ms": round(duration, 2)
                     },
                     request_id=request_id
@@ -369,29 +653,8 @@ class ABTestManager:
             raise
 
     def _assign_group(self, groups: List[Dict], user_id: str, strategy: str) -> Dict:
-        """分配测试组"""
-        if strategy == 'random':
-            # 随机分配
-            rand = random.random() * 100
-            cumulative = 0
-            for group in groups:
-                cumulative += group.get('weight', 0)
-                if rand < cumulative:
-                    return group
-            return groups[-1]
-
-        elif strategy == 'consistent':
-            # 一致性哈希
-            hash_val = int(hashlib.md5(user_id.encode()).hexdigest()[:8], 16) % 100
-            cumulative = 0
-            for group in groups:
-                cumulative += group.get('weight', 0)
-                if hash_val < cumulative:
-                    return group
-            return groups[-1]
-
-        else:
-            raise ABTestException(f"不支持的分配策略: {strategy}")
+        """分配测试组（保留原方法以保持兼容性）"""
+        return TrafficSplitter.split(groups, strategy, user_id)
 
     def _cache_assignment(self, key: str, value: Dict, ttl: int = 3600):
         """缓存分配结果"""
@@ -406,11 +669,11 @@ class ABTestManager:
                 debug_print("ABTestManager", f"缓存失败: {e}")
 
     def record_result(
-        self,
-        test_id: str,
-        user_id: str,
-        metrics: Dict[str, Any],
-        ip_address: Optional[str] = None
+            self,
+            test_id: str,
+            user_id: str,
+            metrics: Dict[str, Any],
+            ip_address: Optional[str] = None
     ):
         """记录测试结果"""
         request_id = get_request_id()
@@ -513,6 +776,7 @@ class ABTestManager:
                     'test_id': test_id,
                     'test_name': test.test_name,
                     'status': test.status,
+                    'strategy': test.assignment_strategy,
                     'groups': group_results,
                     'winning_group': winning_group,
                     'total_users': len(test.results)

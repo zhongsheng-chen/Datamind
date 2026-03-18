@@ -122,7 +122,7 @@ class DatabaseBackup:
         """
         恢复备份
 
-        Args:
+        参数:
             backup_file: 备份文件路径
         """
         if not backup_file.exists():

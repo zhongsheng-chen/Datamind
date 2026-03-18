@@ -12,8 +12,7 @@ import hashlib
 from pathlib import Path
 from typing import List, Dict, Any
 
-from datamind.core import log_manager
-from datamind.core.logging.context import get_request_id, set_request_id
+from datamind.core.logging import log_manager,get_request_id,set_request_id
 
 
 class TestLogManager(unittest.TestCase):

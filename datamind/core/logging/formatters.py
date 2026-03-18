@@ -8,7 +8,8 @@ import traceback
 import logging
 from datetime import datetime, timedelta, timezone, date
 from typing import Optional, Union
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json as jsonlogger
+
 from datamind.config import LoggingConfig, LogFormat, TimeZone, TimestampPrecision
 from datamind.core.logging.debug import debug_print
 

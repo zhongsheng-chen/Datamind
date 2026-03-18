@@ -11,9 +11,10 @@ from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 from datamind.core.logging import log_manager, get_request_id
 from datamind.config import get_settings
-from .models import Base
+from datamind.core.db.base import Base
 
 
 class DatabaseManager:
@@ -351,7 +352,7 @@ def init_db(database_url: str = None):
 
     try:
         if not database_url:
-            database_url = settings.database.url  # 修改这里
+            database_url = settings.database.url
 
         engine = create_engine(database_url)
         logger.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")

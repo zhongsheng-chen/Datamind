@@ -34,7 +34,7 @@ class ProgressBar:
         """
         更新进度
 
-        Args:
+        参数:
             progress: 进度值 (0-100)
             status: 状态信息
         """
@@ -67,7 +67,7 @@ def spinner(description: str = "处理中"):
     """
     旋转指示器上下文管理器
 
-    Args:
+    参数:
         description: 描述信息
     """
     import itertools

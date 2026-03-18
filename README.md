@@ -155,7 +155,7 @@ datamind/
 └── README.md                          # 项目说明
 ```
 
-
+```text
 datamind/
 ├── README.md
 ├── requirements.txt
@@ -278,6 +278,7 @@ datamind/
 ├── Makefile
 ├── requirements.txt
 └── README.md
+```
 
 
 最新的项目结构
@@ -1605,4 +1606,9 @@ datamind model predict ...
 ## 删除目录下所有文件
 ```bash
  rm -rf ./* ./.[!.]* ./..?* 2>/dev/null
+```
+
+测试
+```bash
+pytest tests/test_logging.py -v -W default
 ```

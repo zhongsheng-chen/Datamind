@@ -1,6 +1,5 @@
 # Datamind/core/logging/__init__.py
-"""
-日志模块
+"""日志模块
 
 提供完整的日志管理功能
 """

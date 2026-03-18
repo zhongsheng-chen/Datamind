@@ -1,17 +1,17 @@
-# datamind/core/ml/inference.py
+# Datamind/datamind/core/ml/inference.py
 import time
+import traceback
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
-import traceback
+from typing import Dict, Any, List, Optional, Union
 
 from datamind.core.logging import log_manager, get_request_id, debug_print
 from datamind.core.ml.model_loader import model_loader
 from datamind.core.ml.exceptions import ModelInferenceException, ModelNotFoundException
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ApiCallLog
-from datamind.core.db.enums import TaskType, AuditAction
+from datamind.core.domain.enums import TaskType, AuditAction
 
 
 class InferenceEngine:
@@ -38,7 +38,7 @@ class InferenceEngine:
         """
         评分卡模型预测
 
-        Args:
+        参数:
             model_id: 模型ID
             features: 特征字典
             application_id: 申请ID
@@ -46,7 +46,7 @@ class InferenceEngine:
             ip_address: IP地址
             api_key: API密钥
 
-        Returns:
+        返回:
             Dict: {
                 'total_score': float,  # 总评分
                 'feature_scores': Dict[str, float],  # 特征分详情
@@ -206,7 +206,7 @@ class InferenceEngine:
         """
         反欺诈模型预测
 
-        Args:
+        参数:
             model_id: 模型ID
             features: 特征字典
             application_id: 申请ID
@@ -214,7 +214,7 @@ class InferenceEngine:
             ip_address: IP地址
             api_key: API密钥
 
-        Returns:
+        返回:
             Dict: {
                 'fraud_probability': float,  # 欺诈概率
                 'risk_score': float,  # 风险评分

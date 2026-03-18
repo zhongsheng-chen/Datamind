@@ -33,7 +33,7 @@ def print_table(headers: List[str], rows: List[List[Any]], header: List[str] = N
     """
     打印表格
 
-    Args:
+    参数:
         headers: 表头
         rows: 数据行
         header: 可选的额外表头
@@ -74,7 +74,7 @@ def print_progress(current: int, total: int, prefix: str = '', suffix: str = '')
     """
     打印进度条
 
-    Args:
+    参数:
         current: 当前进度
         total: 总进度
         prefix: 前缀

@@ -1,9 +1,9 @@
-# datamind/storage/base.py
+# Datamind/datamind/storage/base.py
 from abc import ABC, abstractmethod
 from typing import BinaryIO, Optional, List, Dict, Any
 import hashlib
 
-from datamind.core import debug_print
+from datamind.core.logging import debug_print
 
 
 class StorageBackend(ABC):
@@ -20,12 +20,12 @@ class StorageBackend(ABC):
         """
         保存文件
 
-        Args:
+        参数:
             path: 文件路径
             content: 文件内容
             metadata: 元数据
 
-        Returns:
+        返回:
             {
                 'path': 完整路径,
                 'size': 文件大小,
@@ -41,11 +41,11 @@ class StorageBackend(ABC):
         """
         加载文件
 
-        Args:
+        参数:
             path: 文件路径
             version: 版本ID
 
-        Returns:
+        返回:
             文件内容
         """
         pass
@@ -55,7 +55,7 @@ class StorageBackend(ABC):
         """
         删除文件
 
-        Args:
+        参数:
             path: 文件路径
             version: 版本ID
         """
@@ -71,10 +71,10 @@ class StorageBackend(ABC):
         """
         列出文件
 
-        Args:
+        参数:
             prefix: 路径前缀
 
-        Returns:
+        返回:
             文件列表
         """
         pass
@@ -99,11 +99,11 @@ class StorageBackend(ABC):
         """
         获取签名URL
 
-        Args:
+        参数:
             path: 文件路径
             expires_in: 过期时间（秒）
 
-        Returns:
+        返回:
             签名URL
         """
         pass

@@ -1,4 +1,4 @@
-# datamind/storage/s3_storage.py
+# Datamind/datamind/storage/s3_storage.py
 import boto3
 import botocore
 from typing import BinaryIO, Optional, List, Dict, Any
@@ -6,7 +6,7 @@ import mimetypes
 import os
 
 from datamind.storage.base import StorageBackend
-from datamind.core import debug_print
+from datamind.core.logging import debug_print
 
 
 class S3Storage(StorageBackend):
@@ -18,7 +18,7 @@ class S3Storage(StorageBackend):
         """
         初始化S3存储
 
-        Args:
+        参数:
             bucket_name: S3桶名称
             aws_access_key_id: AWS访问密钥ID
             aws_secret_access_key: AWS秘密访问密钥

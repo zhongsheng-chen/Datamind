@@ -1,4 +1,4 @@
-# datamind/core/ml/model_registry.py
+# Datamind/datamind/core/ml/model_registry.py
 import hashlib
 from datetime import datetime
 from pathlib import Path
@@ -8,21 +8,26 @@ import uuid
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata, ModelVersionHistory
 from datamind.core.logging import log_manager, get_request_id, debug_print
-from datamind.config import settings
+from datamind.core.domain.enums import ModelStatus, AuditAction
+from datamind.config import get_settings
 from .exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
     ModelValidationException,
     ModelFileException
 )
-from datamind.core.db.enums import ModelStatus, AuditAction
 
 
 class ModelRegistry:
     """模型注册中心 - 管理模型的生命周期，带完整审计"""
 
     def __init__(self):
-        self.storage_path = Path(settings.MODELS_PATH)
+        settings = get_settings()
+        model_config = settings.model
+        self.storage_path = Path(model_config.models_path)
+        self.max_size = model_config.max_size
+        self.allowed_extensions = model_config.allowed_extensions
+
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
         debug_print("ModelRegistry", f"模型存储路径: {self.storage_path}")

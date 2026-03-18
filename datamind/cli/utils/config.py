@@ -100,7 +100,7 @@ class CLIConfig:
         """
         获取配置项
 
-        Args:
+        参数:
             key: 配置键，支持点号分隔，如 'api.host'
             default: 默认值
         """
@@ -122,7 +122,7 @@ class CLIConfig:
         """
         设置配置项
 
-        Args:
+        参数:
             key: 配置键，支持点号分隔
             value: 配置值
         """

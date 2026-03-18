@@ -1,4 +1,4 @@
-# datamind/storage/minio_storage.py
+# Datamind/datamind/storage/minio_storage.py
 from minio import Minio
 from minio.error import S3Error
 import os
@@ -8,7 +8,7 @@ import mimetypes
 import hashlib
 
 from datamind.storage.base import StorageBackend
-from datamind.core import debug_print
+from datamind.core.logging import debug_print
 
 
 class MinIOStorage(StorageBackend):

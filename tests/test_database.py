@@ -10,17 +10,19 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import NullPool
 
-from datamind.core import (
-    db_manager, Base,
-    TaskType, ModelType, Framework, ModelStatus,
-    AuditAction, DeploymentEnvironment, ABTestStatus
-)
-from datamind.core import (
+from datamind.core.db import db_manager, Base
+from datamind.core.db.models import (
     ModelMetadata, ModelVersionHistory, ModelDeployment,
     ApiCallLog, ModelPerformanceMetrics, AuditLog,
     ABTestConfig, ABTestAssignment, SystemConfig
 )
-from datamind.core import log_manager
+
+from datamind.core.domain import (
+    TaskType, ModelType, Framework, ModelStatus,
+    AuditAction, DeploymentEnvironment, ABTestStatus
+)
+
+from datamind.core.logging import log_manager
 from datamind.config import get_settings
 
 
@@ -702,21 +704,60 @@ class TestEnums(TestDatabaseBase):
 
     def test_framework_compatibility(self):
         """测试框架兼容性"""
-        from datamind.core import validate_framework_model_compatibility
+        from datamind.core.domain import is_compatible, get_supported_models, get_supported_frameworks
 
         # XGBoost框架应该兼容XGBoost模型
         self.assertTrue(
-            validate_framework_model_compatibility(
-                Framework.XGBOOST, ModelType.XGBOOST
-            )
+            is_compatible(Framework.XGBOOST, ModelType.XGBOOST)
         )
 
         # XGBoost框架不应该兼容LightGBM模型
         self.assertFalse(
-            validate_framework_model_compatibility(
-                Framework.XGBOOST, ModelType.LIGHTGBM
-            )
+            is_compatible(Framework.XGBOOST, ModelType.LIGHTGBM)
         )
+
+        # 测试获取支持的模型
+        supported_models = get_supported_models(Framework.TORCH)
+        self.assertIn(ModelType.NEURAL_NETWORK, supported_models)
+        self.assertIn(ModelType.LOGISTIC_REGRESSION, supported_models)
+
+        # 测试获取支持的框架
+        supported_frameworks = get_supported_frameworks(ModelType.NEURAL_NETWORK)
+        self.assertIn(Framework.TORCH, supported_frameworks)
+        self.assertIn(Framework.TENSORFLOW, supported_frameworks)
+        self.assertIn(Framework.ONNX, supported_frameworks)
+
+    def test_validate_or_raise(self):
+        """测试验证并抛出异常"""
+        from datamind.core.domain import validate_or_raise
+
+        # 兼容的情况，不应该抛出异常
+        try:
+            validate_or_raise(Framework.XGBOOST, ModelType.XGBOOST)
+        except ValueError:
+            self.fail("validate_or_raise() 对兼容的组合抛出了异常")
+
+        # 不兼容的情况，应该抛出异常
+        with self.assertRaises(ValueError) as context:
+            validate_or_raise(Framework.XGBOOST, ModelType.LIGHTGBM)
+
+        # 验证异常信息
+        self.assertIn("不支持模型类型", str(context.exception))
+        self.assertIn("xgboost", str(context.exception))
+        self.assertIn("lightgbm", str(context.exception))
+
+    def test_compatibility_mapping(self):
+        """测试兼容性映射常量"""
+        from datamind.core.domain import FRAMEWORK_MODEL_COMPATIBILITY
+
+        # 验证映射不为空
+        self.assertGreater(len(FRAMEWORK_MODEL_COMPATIBILITY), 0)
+
+        # 验证 ONNX 支持多种模型
+        onnx_models = FRAMEWORK_MODEL_COMPATIBILITY[Framework.ONNX]
+        self.assertIn(ModelType.XGBOOST, onnx_models)
+        self.assertIn(ModelType.NEURAL_NETWORK, onnx_models)
+        self.assertIn(ModelType.DECISION_TREE, onnx_models)
 
 
 if __name__ == "__main__":

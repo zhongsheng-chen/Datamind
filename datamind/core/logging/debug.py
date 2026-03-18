@@ -47,7 +47,7 @@ def _base_print(component: str, msg, *args, level: str):
     """
     基础打印函数
 
-    Args:
+    参数:
         component: 组件名称（通常是类名）
         msg: 消息模板
         *args: 消息参数

@@ -39,7 +39,7 @@ class FraudBentoService:
         """
         反欺诈预测
 
-        Args:
+        参数:
             input_data: {
                 "model_id": "模型ID",
                 "application_id": "申请ID",

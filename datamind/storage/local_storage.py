@@ -1,4 +1,4 @@
-# datamind/storage/local_storage.py
+# Datamind/datamind/storage/local_storage.py
 import shutil
 from pathlib import Path
 from typing import BinaryIO, Optional, Union, List, Dict, Any
@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 
 from datamind.storage.base import StorageBackend
-from datamind.core import debug_print
+from datamind.core.logging import debug_print
 
 
 class LocalStorage(StorageBackend):
@@ -16,7 +16,7 @@ class LocalStorage(StorageBackend):
         """
         初始化本地存储
 
-        Args:
+        参数:
             root_path: 根目录路径
             base_path: 基础路径
         """

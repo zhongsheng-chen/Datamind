@@ -1,13 +1,16 @@
-# datamind/core/ml/model_loader.py
-from pathlib import Path
-from typing import Dict, Any, Optional
-from datetime import datetime
+# Datamind/datamind/core/ml/model_loader.py
+
 import traceback
+import threading
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+from datetime import datetime
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata
 from datamind.core.logging import log_manager, get_request_id, debug_print
 from datamind.core.ml.exceptions import ModelLoadException, UnsupportedFrameworkException
+from datamind.config import get_settings
 
 
 class ModelLoader:
@@ -22,12 +25,12 @@ class ModelLoader:
         """
         加载模型到内存
 
-        Args:
+        参数:
             model_id: 模型ID
             operator: 操作人
             ip_address: IP地址
 
-        Returns:
+        返回:
             bool: 是否加载成功
         """
         request_id = get_request_id()
@@ -65,7 +68,7 @@ class ModelLoader:
                 elif framework == 'catboost':
                     loaded_model = self._load_catboost_model(file_path)
                 else:
-                    raise UnsupportedFrameworkException(framework)
+                    raise UnsupportedFrameworkException(f"不支持的框架: {framework}")
 
                 # 存储模型
                 self._loaded_models[model_id] = {
@@ -130,7 +133,7 @@ class ModelLoader:
     def _load_torch_model(self, file_path: Path):
         """加载pytorch模型"""
         import torch
-        return torch.load(file_path)
+        return torch.load(file_path, map_location='cpu')  # 添加 map_location 确保在CPU上加载
 
     def _load_tensorflow_model(self, file_path: Path):
         """加载tensorflow模型"""
@@ -152,7 +155,14 @@ class ModelLoader:
     def unload_model(self, model_id: str, operator: str = "system", ip_address: str = None):
         """卸载模型"""
         if model_id in self._loaded_models:
-            del self._loaded_models[model_id]
+            # 获取锁（如果有）
+            if model_id in self._model_locks:
+                with self._model_locks[model_id]:
+                    del self._loaded_models[model_id]
+                    if model_id in self._model_locks:
+                        del self._model_locks[model_id]
+            else:
+                del self._loaded_models[model_id]
 
             log_manager.log_audit(
                 action="MODEL_UNLOAD",
@@ -187,6 +197,12 @@ class ModelLoader:
             }
             for mid, info in self._loaded_models.items()
         ]
+
+    def get_lock(self, model_id: str) -> threading.RLock:
+        """获取模型的线程锁"""
+        if model_id not in self._model_locks:
+            self._model_locks[model_id] = threading.RLock()
+        return self._model_locks[model_id]
 
 
 # 全局模型加载器实例

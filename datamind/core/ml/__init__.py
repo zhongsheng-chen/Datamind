@@ -1,6 +1,5 @@
-# datamind/core/ml/__init__.py
-"""
-机器学习模块
+# Datamind/datamind/core/ml/__init__.py
+"""机器学习模块
 
 提供模型注册、加载、推理等功能
 """
