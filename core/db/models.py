@@ -1,4 +1,5 @@
 # core/db/models.py
+
 from sqlalchemy import (
     Column, String, Integer, DateTime, Boolean, Text,
     Float, Index, BigInteger, ForeignKey, Numeric, UniqueConstraint,
@@ -65,6 +66,7 @@ class ModelMetadata(Base):
     tags = Column(JSONB, nullable=True)
     metadata_json = Column(JSONB, nullable=True)
 
+    # 使用字符串引用避免循环依赖
     versions = relationship("ModelVersionHistory", back_populates="model", cascade="all, delete-orphan")
     deployments = relationship("ModelDeployment", back_populates="model", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="model")
@@ -83,7 +85,7 @@ class ModelVersionHistory(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    model_id = Column(String(50), ForeignKey('model_metadata.model_id', ondelete='CASCADE'), nullable=False, index=True)
+    model_id = Column(String(50), ForeignKey('public.model_metadata.model_id', ondelete='CASCADE'), nullable=False, index=True)
     model_version = Column(String(20), nullable=False)
 
     operation = Column(SQLEnum(AuditAction), nullable=False)
@@ -110,7 +112,7 @@ class ModelDeployment(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     deployment_id = Column(String(50), unique=True, nullable=False)
-    model_id = Column(String(50), ForeignKey('model_metadata.model_id', ondelete='CASCADE'), nullable=False)
+    model_id = Column(String(50), ForeignKey('public.model_metadata.model_id', ondelete='CASCADE'), nullable=False)
     model_version = Column(String(20), nullable=False)
 
     environment = Column(SQLEnum(DeploymentEnvironment), nullable=False)
@@ -193,7 +195,7 @@ class ModelPerformanceMetrics(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    model_id = Column(String(50), ForeignKey('model_metadata.model_id', ondelete='CASCADE'), nullable=False, index=True)
+    model_id = Column(String(50), ForeignKey('public.model_metadata.model_id', ondelete='CASCADE'), nullable=False, index=True)
     model_version = Column(String(20), nullable=False)
 
     task_type = Column(SQLEnum(TaskType), nullable=False)
@@ -270,7 +272,7 @@ class AuditLog(Base):
     reason = Column(Text, nullable=True)
     error_code = Column(String(50), nullable=True)
 
-    model_id = Column(String(50), ForeignKey('model_metadata.model_id', ondelete='SET NULL'), nullable=True)
+    model_id = Column(String(50), ForeignKey('public.model_metadata.model_id', ondelete='SET NULL'), nullable=True)
     model = relationship("ModelMetadata", back_populates="audit_logs")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -327,10 +329,10 @@ class ABTestAssignment(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    test_id = Column(String(50), ForeignKey('ab_test_configs.test_id', ondelete='CASCADE'), nullable=False)
+    test_id = Column(String(50), ForeignKey('public.ab_test_configs.test_id', ondelete='CASCADE'), nullable=False)
     user_id = Column(String(50), nullable=False)
     group_name = Column(String(50), nullable=False)
-    model_id = Column(String(50), ForeignKey('model_metadata.model_id', ondelete='CASCADE'), nullable=False)
+    model_id = Column(String(50), ForeignKey('public.model_metadata.model_id', ondelete='CASCADE'), nullable=False)
 
     assigned_at = Column(DateTime(timezone=True), server_default=func.now())
     assignment_hash = Column(String(64), nullable=True)

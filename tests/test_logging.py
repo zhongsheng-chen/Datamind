@@ -20,9 +20,8 @@ from core.logging.context import get_request_id, set_request_id
 class TestLogManager(unittest.TestCase):
     """测试日志管理器"""
 
-    # 控制调试输出的开关
-    # 设置为 False 关闭所有调试输出，True 开启调试输出
-    PRINT_DEBUG = False
+    # 调试开关：控制是否打印信息，默认为 False（不打印调试）
+    PRINT_DEBUG = os.getenv("LOGGING_TEST_DEBUG", "false").lower() == "true"
 
     @classmethod
     def setUpClass(cls):
