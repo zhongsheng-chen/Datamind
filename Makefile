@@ -1,4 +1,4 @@
-# datamind/Makefile
+# Datamind/Makefile
 .PHONY: help install dev clean test lint format migrate backup restore \
         run docker-build docker-up docker-down docker-logs init-db \
         reset-db seed-data shell bench health logs

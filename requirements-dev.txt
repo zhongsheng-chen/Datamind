@@ -1,5 +1,3 @@
-# datamind/requirements-dev.txt
-
 # 测试
 pytest==7.4.3
 pytest-cov==4.1.0

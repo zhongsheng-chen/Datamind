@@ -10,24 +10,21 @@ import shutil
 import threading
 import hashlib
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from datetime import datetime, time as dt_time
+from typing import List, Dict, Any
 
-from core.logging import log_manager
-from core.logging.context import get_request_id, set_request_id
+from datamind.core.logging import log_manager,get_request_id,set_request_id
 
 
 class TestLogManager(unittest.TestCase):
     """测试日志管理器"""
 
-    # 控制调试输出的开关
-    # 设置为 False 关闭所有调试输出，True 开启调试输出
-    PRINT_DEBUG = False
+    # 调试开关：控制是否打印信息，默认为 False（不打印调试）
+    PRINT_DEBUG = os.getenv("LOGGING_TEST_DEBUG", "false").lower() == "true"
 
     @classmethod
     def setUpClass(cls):
         """测试类初始化并创建临时目录"""
-        from core.logging.bootstrap import install_bootstrap_logger
+        from datamind.core.logging.bootstrap import install_bootstrap_logger
         cls.test_dir = tempfile.mkdtemp(prefix="log_test_")
         cls.log_dir = Path(cls.test_dir) / "logs"
         cls.log_dir.mkdir(exist_ok=True)
@@ -52,10 +49,9 @@ class TestLogManager(unittest.TestCase):
             logging.root.removeHandler(handler)
 
         # 完全重置 bootstrap 状态
-        from core.logging.bootstrap import (
+        from datamind.core.logging.bootstrap import (
             _bootstrap_handler,
             _bootstrap_logger,
-            _bootstrap_flushed,
             install_bootstrap_logger
         )
 
@@ -68,7 +64,7 @@ class TestLogManager(unittest.TestCase):
                 pass
 
         # 重置全局变量
-        import core.logging.bootstrap as bootstrap_module
+        import datamind.core.logging.bootstrap as bootstrap_module
         bootstrap_module._bootstrap_handler = None
         bootstrap_module._bootstrap_logger = None
         bootstrap_module._bootstrap_flushed = False
@@ -121,7 +117,7 @@ class TestLogManager(unittest.TestCase):
 
     def _create_base_config(self, **kwargs):
         """创建基础测试配置，支持 kwargs 覆盖"""
-        from config.logging_config import LoggingConfig, LogLevel, LogFormat, TimeZone, RotationStrategy
+        from datamind.config import LoggingConfig, LogLevel, LogFormat, TimeZone, RotationStrategy
 
         # 创建基础配置
         base_config = LoggingConfig(
@@ -416,8 +412,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_bootstrap_logging(self):
         """测试启动日志功能"""
-        from config.logging_config import LogLevel, LogFormat
-        from core.logging.bootstrap import (
+        from datamind.config import LogLevel, LogFormat
+        from datamind.core.logging.bootstrap import (
             bootstrap_info,
             get_bootstrap_logger,
             set_debug_mode,
@@ -491,7 +487,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_app_logger(self):
         """测试应用日志器"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -520,7 +516,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_app_logger_with_extra(self):
         """测试带额外字段的应用日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -564,7 +560,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_log_levels(self):
         """测试不同日志级别"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -610,7 +606,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_json_format(self):
         """测试JSON格式日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -649,7 +645,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_text_format(self):
         """测试文本格式日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -677,7 +673,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_both_formats(self):
         """测试同时输出两种格式"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -722,7 +718,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_access_log(self):
         """测试访问日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -771,7 +767,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_audit_log(self):
         """测试审计日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -816,7 +812,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_performance_log(self):
         """测试性能日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -861,7 +857,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_error_log_separate(self):
         """测试错误日志分离"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -932,7 +928,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_request_id_propagation(self):
         """测试请求ID传播"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -966,7 +962,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_context_functions(self):
         """测试上下文函数"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1006,7 +1002,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_sensitive_masking(self):
         """测试敏感信息脱敏"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1052,7 +1048,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_timezone_formatting(self):
         """测试时区格式化"""
-        from config.logging_config import LogLevel, LogFormat, TimeZone
+        from datamind.config import LogLevel, LogFormat, TimeZone
 
         timezones = [
             (TimeZone.UTC, "UTC"),
@@ -1097,7 +1093,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_log_rotation_by_size(self):
         """测试按大小轮转"""
-        from config.logging_config import LogLevel, LogFormat, RotationStrategy
+        from datamind.config import LogLevel, LogFormat, RotationStrategy
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1129,7 +1125,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_sampling_filter(self):
         """测试日志采样"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1160,8 +1156,8 @@ class TestLogManager(unittest.TestCase):
 
     def test_async_logging(self):
         """测试异步日志"""
-        from config.logging_config import LogLevel, LogFormat
-        from core.logging.handlers import AsyncLogHandler
+        from datamind.config import LogLevel, LogFormat
+        from datamind.core.logging.handlers import AsyncLogHandler
 
         # 使用异步配置初始化
         self._initialize_with_config(
@@ -1223,7 +1219,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_concurrent_logging(self):
         """测试并发日志"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1262,7 +1258,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_cleanup_manager(self):
         """测试清理管理器"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1283,7 +1279,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_watch_config_changes(self):
         """测试配置监控"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",
@@ -1302,7 +1298,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_reload_config(self):
         """测试配置热重载"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
 
         # 初始化DEBUG级别
         self._initialize_with_config(
@@ -1392,7 +1388,7 @@ class TestLogManager(unittest.TestCase):
 
     def test_logging_performance(self):
         """测试日志性能"""
-        from config.logging_config import LogLevel, LogFormat
+        from datamind.config import LogLevel, LogFormat
         self._initialize_with_config(
             name="testapp",
             file="testapp.log",

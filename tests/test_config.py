@@ -1,11 +1,10 @@
 # tests/test_config.py
 import os
 import unittest
-from pathlib import Path
 from unittest.mock import patch, mock_open
 
-from config import get_settings
-from config.settings import (
+from datamind.config import get_settings
+from datamind.config import (
     AppConfig,
     ApiConfig,
     DatabaseConfig,
@@ -22,13 +21,13 @@ from config.settings import (
     Settings,
     BASE_DIR
 )
-from config.logging_config import (
+from datamind.config import (
     LoggingConfig,
     LogLevel,
     LogFormat,
     TimeZone
 )
-from config.storage_config import (
+from datamind.config import (
     StorageConfig,
     StorageType
 )
