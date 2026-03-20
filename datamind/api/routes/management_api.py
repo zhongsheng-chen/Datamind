@@ -4,8 +4,9 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from datamind.core.db.database import get_db
-from datamind.core import ApiCallLog, AuditLog
-from datamind.core import log_manager, get_request_id
+from datamind.core.db.models import ApiCallLog, AuditLog
+from datamind.core.logging import log_manager, debug_print
+from datamind.core.logging import context
 from datamind.core.ml.inference import inference_engine
 from datamind.core.ml.model_loader import model_loader
 from datamind.core.experiment.ab_test import ab_test_manager
@@ -84,7 +85,7 @@ async def get_engine_stats(
             "models": model_loader.get_loaded_models()
         },
         "ab_test": ab_test_manager.get_stats(),
-        "request_id": get_request_id()
+        "request_id": context.get_request_id()
     }
 
 
@@ -101,7 +102,7 @@ async def get_audit_logs(
         current_user: str = Depends(require_admin)
 ):
     """获取审计日志"""
-    request_id = get_request_id()
+    request_id = context.get_request_id()
 
     try:
         with get_db() as session:
@@ -175,7 +176,7 @@ async def detailed_health_check(
         },
         "version": settings.VERSION,
         "environment": settings.ENV,
-        "request_id": get_request_id()
+        "request_id": context.get_request_id()
     }
 
 
@@ -186,7 +187,7 @@ async def clear_cache(
         current_user: str = Depends(require_admin)
 ):
     """清除缓存"""
-    request_id = get_request_id()
+    request_id = context.get_request_id()
 
     try:
         if cache_type in ['model', 'all']:
@@ -260,5 +261,5 @@ async def get_config(
             "cache_size": settings.MODEL_CACHE_SIZE,
             "max_file_size_mb": settings.MODEL_FILE_MAX_SIZE / 1024 / 1024
         },
-        "request_id": get_request_id()
+        "request_id": context.get_request_id()
     }

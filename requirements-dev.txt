@@ -32,3 +32,9 @@ mkdocs-material==9.4.14
 # 开发工具
 watchdog==3.0.0
 python-dotenv==1.0.0
+
+# 测试工具
+pytest
+pytest-cov
+pytest-asyncio
+pytest-mock

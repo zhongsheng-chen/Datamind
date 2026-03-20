@@ -1,8 +1,27 @@
 # Datamind/datamind/config/storage_config.py
-"""
-存储配置模块
 
-用于管理不同存储类型的配置
+"""存储配置模块
+
+定义 Datamind 系统的存储配置，支持本地存储、MinIO、AWS S3 等多种存储后端。
+
+存储类型：
+  - LOCAL: 本地文件系统存储
+  - MINIO: MinIO 对象存储（兼容 S3 API）
+  - S3: AWS S3 对象存储
+
+配置层次结构：
+  - StorageConfig: 根存储配置，聚合所有存储后端配置
+  - LocalStorageConfig: 本地存储配置（路径、子路径）
+  - MinIOStorageConfig: MinIO 存储配置（端点、凭证、桶、SSL等）
+  - S3StorageConfig: AWS S3 存储配置（凭证、桶、区域、ACL等）
+
+通用配置（StorageConfig）：
+  - 存储类型选择（storage_type）
+  - 缓存配置（enable_cache、cache_size、cache_ttl）
+  - 压缩配置（enable_compression、compression_level）
+  - 加密配置（enable_encryption、encryption_key）
+  - 文件限制（max_file_size、allowed_extensions）
+  - 大文件处理（chunk_size、multipart_threshold）
 """
 
 from typing import Optional, List, Dict, Any, Literal
@@ -12,14 +31,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class StorageType(str, Enum):
-    """存储类型枚举"""
+    """存储类型枚举
+
+    定义支持的存储后端类型：
+      - LOCAL: 本地文件系统
+      - MINIO: MinIO 对象存储
+      - S3: AWS S3 对象存储
+    """
     LOCAL = "local"
     MINIO = "minio"
     S3 = "s3"
 
 
 class LocalStorageConfig(BaseSettings):
-    """本地存储配置"""
+    """本地存储配置
+
+    定义本地文件系统存储的路径配置。
+    """
     model_config = SettingsConfigDict(extra="ignore")
 
     base_path: str = Field(
@@ -35,7 +63,10 @@ class LocalStorageConfig(BaseSettings):
 
 
 class MinIOStorageConfig(BaseSettings):
-    """MinIO存储配置"""
+    """MinIO存储配置
+
+    定义 MinIO 对象存储的连接和认证配置。
+    """
     model_config = SettingsConfigDict(extra="ignore")
 
     endpoint: str = Field(
@@ -91,7 +122,10 @@ class MinIOStorageConfig(BaseSettings):
 
 
 class S3StorageConfig(BaseSettings):
-    """AWS S3存储配置"""
+    """AWS S3存储配置
+
+    定义 AWS S3 对象存储的连接、认证和高级配置。
+    """
     model_config = SettingsConfigDict(extra="ignore")
 
     endpoint: Optional[str] = Field(
@@ -162,7 +196,10 @@ class S3StorageConfig(BaseSettings):
 
 
 class StorageConfig(BaseSettings):
-    """存储配置"""
+    """存储配置
+
+    聚合所有存储后端配置，提供统一的存储配置入口。
+    """
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -257,7 +294,6 @@ class StorageConfig(BaseSettings):
         default_factory=S3StorageConfig,
         description="S3存储配置"
     )
-
 
     @field_validator("compression_level")
     @classmethod

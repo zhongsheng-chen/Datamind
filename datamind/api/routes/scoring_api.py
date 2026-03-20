@@ -1,11 +1,57 @@
 # Datamind/datamind/api/routes/scoring_api.py
+
+"""评分卡 API 路由
+
+提供评分卡模型预测的 RESTful API 接口，支持单次预测和批量预测。
+
+功能特性：
+  - 单次评分预测：实时返回信用评分和特征分
+  - 批量评分预测：批量处理多个评分请求
+  - A/B 测试支持：集成 A/B 测试分流
+  - 生产模型自动选择：未指定模型时使用生产模型
+  - 完整的审计日志：记录所有预测请求
+
+API 端点：
+  - POST /api/v1/scoring/predict - 单次评分预测
+  - POST /api/v1/scoring/batch - 批量评分预测
+
+请求模型（ScorecardRequest）：
+  - application_id: 申请ID（必填），用于标识唯一申请
+  - features: 特征字典（必填），包含模型所需的特征值
+  - model_id: 模型ID（可选），不指定则使用生产模型
+  - ab_test_id: A/B测试ID（可选），用于流量分流
+
+响应模型（ScorecardResponse）：
+  - total_score: 总评分
+  - feature_scores: 特征分详情
+  - model_id: 使用的模型ID
+  - model_version: 模型版本
+  - application_id: 申请ID
+  - processing_time_ms: 处理耗时（毫秒）
+  - timestamp: 响应时间戳
+  - request_id: 请求追踪ID
+  - ab_test_info: A/B测试信息（如果启用）
+
+错误处理：
+  - 404: 模型不存在
+  - 422: 模型推理失败（特征缺失、格式错误等）
+  - 500: 服务器内部错误
+
+A/B 测试集成：
+  - 如果请求中指定了 ab_test_id，调用 A/B 测试管理器获取分组
+  - 根据分组确定使用的模型
+  - 在响应中返回 A/B 测试信息
+  - 异步记录测试结果用于后续分析
+"""
+
 from fastapi import APIRouter, HTTPException, Depends, Request, Body
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 from datamind.core.ml.inference import inference_engine
 from datamind.core.ml.exceptions import ModelNotFoundException, ModelInferenceException
-from datamind.core import log_manager, get_request_id
+from datamind.core.logging import log_manager, debug_print
+from datamind.core.logging import context
 from datamind.api.dependencies import get_api_key, get_current_user
 from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.config import settings
@@ -49,14 +95,14 @@ async def predict_scorecard(
     - **model_id**: 指定模型ID（可选，不指定则使用生产模型）
     - **ab_test_id**: A/B测试ID（可选）
     """
-    request_id = get_request_id()
+    request_id = context.get_request_id()
 
     try:
         model_id = score_request.model_id
         ab_test_info = None
 
         # 如果指定了A/B测试，获取分组
-        if score_request.ab_test_id and settings.AB_TEST_ENABLED:
+        if score_request.ab_test_id and settings.ab_test.enabled:
             try:
                 assignment = ab_test_manager.get_assignment(
                     test_id=score_request.ab_test_id,
@@ -150,8 +196,10 @@ async def batch_predict_scorecard(
     批量评分卡预测
 
     - **requests**: 评分卡请求列表
+
+    返回批量处理结果，包含成功和失败的请求详情。
     """
-    request_id = get_request_id()
+    request_id = context.get_request_id()
 
     results = []
     errors = []

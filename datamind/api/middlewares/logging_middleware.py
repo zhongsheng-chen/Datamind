@@ -1,4 +1,49 @@
 # Datamind/datamind/api/middlewares/logging_middleware.py
+
+"""日志中间件
+
+记录所有 HTTP 请求和响应的详细信息，用于审计和问题排查。
+
+功能特性：
+  - 请求日志记录：方法、路径、请求头、请求体
+  - 响应日志记录：状态码、响应头、处理时间
+  - 请求ID追踪：自动生成或提取 X-Request-ID
+  - 敏感数据脱敏：自动隐藏密码、token 等敏感信息
+  - 错误日志记录：异常信息和堆栈跟踪
+  - 审计日志：记录错误请求和异常事件
+
+中间件行为：
+  - 自动生成请求ID（如果请求头没有 X-Request-ID）
+  - 记录所有请求的详细信息（可配置排除路径）
+  - 计算请求处理时间（毫秒）
+  - 添加响应头 X-Request-ID 和 X-Process-Time-MS
+  - 错误请求（状态码 >= 400）额外记录审计日志
+  - 异常请求记录完整堆栈信息
+
+排除路径（exclude_paths）：
+  - /health: 健康检查端点
+  - /metrics: 监控指标端点
+  - /static: 静态文件
+  - /favicon.ico: 网站图标
+
+敏感字段脱敏：
+  自动识别并脱敏以下字段：
+  - password: 密码
+  - token: 令牌
+  - api_key: API密钥
+  - secret: 密钥
+  - credit_card: 信用卡号
+  - id_number: 身份证号
+  - phone: 手机号
+  - email: 邮箱地址
+
+请求头脱敏：
+  自动隐藏以下请求头的值：
+  - authorization: 授权信息
+  - cookie: Cookie
+  - x-api-key: API密钥
+"""
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -7,15 +52,15 @@ import uuid
 from typing import Optional
 import json
 
-from datamind.core import log_manager, set_request_id
-from datamind.core.logging.context import set_request_id as set_context_request_id
+from datamind.core.logging import log_manager, debug_print
+from datamind.core.logging import context
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """
     日志中间件
 
-    记录所有HTTP请求和响应的详细信息
+    记录所有HTTP请求和响应的详细信息，支持请求体脱敏和响应时间统计。
     """
 
     def __init__(
@@ -26,6 +71,16 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             log_response_body: bool = False,
             mask_sensitive_data: bool = True
     ):
+        """
+        初始化日志中间件
+
+        参数:
+            app: ASGI 应用
+            exclude_paths: 排除日志记录的路径列表
+            log_request_body: 是否记录请求体（默认 True）
+            log_response_body: 是否记录响应体（默认 False）
+            mask_sensitive_data: 是否脱敏敏感数据（默认 True）
+        """
         super().__init__(app)
         self.exclude_paths = exclude_paths or [
             "/health",
@@ -47,8 +102,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         """处理请求"""
         # 生成或获取请求ID
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        set_request_id(request_id)
-        set_context_request_id(request_id)
+        log_manager.set_request_id(request_id)
+        context.set_request_id(request_id)
 
         # 检查是否排除日志
         if self._should_exclude(request.url.path):
@@ -108,7 +163,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     body = body_bytes.decode()
                     if self.mask_sensitive_data:
                         body = self._mask_sensitive_data(body)
-            except:
+            except Exception:
                 body = "<无法读取请求体>"
 
         # 记录访问日志
@@ -135,7 +190,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             try:
                 # 注意：这里需要特殊处理，因为response.body可能不可用
                 body = "<响应体未捕获>"
-            except:
+            except Exception:
                 pass
 
         # 记录访问日志
@@ -153,9 +208,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # 如果响应状态码表示错误，记录审计日志
         if response.status_code >= 400:
+            user_id = "anonymous"
+            if hasattr(request.state, 'user') and request.state.user:
+                user_id = request.state.user.get('id', 'unknown')
+
             log_manager.log_audit(
                 action="HTTP_ERROR",
-                user_id=request.state.user.get('id', 'unknown') if hasattr(request.state, 'user') else 'anonymous',
+                user_id=user_id,
                 ip_address=client_ip,
                 details={
                     "method": request.method,
@@ -173,9 +232,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         error_trace = traceback.format_exc()
 
+        user_id = "anonymous"
+        if hasattr(request.state, 'user') and request.state.user:
+            user_id = request.state.user.get('id', 'unknown')
+
         log_manager.log_audit(
             action="HTTP_EXCEPTION",
-            user_id=request.state.user.get('id', 'unknown') if hasattr(request.state, 'user') else 'anonymous',
+            user_id=user_id,
             ip_address=client_ip,
             details={
                 "method": request.method,
@@ -212,13 +275,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             return json.dumps(masked_obj)
 
-        except:
+        except Exception:
             # 非JSON数据，简单替换
+            result = data
             for field in self.sensitive_fields:
                 if field in data.lower():
                     # 简单替换，实际应该用正则
-                    data = data.replace(field, "***")
-            return data
+                    result = result.replace(field, "***")
+            return result
 
     def _mask_dict(self, obj):
         """递归脱敏字典"""

@@ -1,5 +1,7 @@
 # Datamind/datamind/core/db/models/experiment/assignment.py
-"""A/B测试分配记录表定义"""
+
+"""A/B测试分配记录表定义
+"""
 
 from sqlalchemy import (
     Column, String, DateTime, BigInteger,

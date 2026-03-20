@@ -1,10 +1,39 @@
-# Datamind/datamind/core/experiment/ab_test.py
+# datamind/core/experiment/ab_test.py
 
+"""A/B测试管理模块
+
+提供A/B测试的完整管理功能，支持多种分流策略和结果分析。
+
+核心功能：
+  - 测试创建与管理：创建、启动、停止A/B测试
+  - 流量分配：支持多种分配策略（随机、一致性、分桶、轮询、加权）
+  - 用户分组：根据策略将用户分配到不同的测试组
+  - 结果记录：记录测试指标和用户行为
+  - 结果分析：统计分析测试结果，判断获胜组
+  - 缓存机制：使用Redis缓存用户分配结果，提升性能
+
+分配策略：
+  - RANDOM: 随机分配，每次请求独立随机
+  - CONSISTENT: 一致性分配，同一用户始终分配到同一组
+  - BUCKET: 分桶分配，基于用户ID哈希值分桶（1000个桶）
+  - ROUND_ROBIN: 轮询分配，按顺序循环分配
+  - WEIGHTED: 加权分配，基于权重的随机分配
+
+特性：
+  - 流量控制：支持按百分比控制进入测试的流量
+  - 时间控制：支持设置测试的开始和结束时间
+  - 多指标监控：支持自定义监控指标
+  - 获胜判断：支持基于指标自动判断获胜组
+  - Redis缓存：提升高并发场景下的分配性能
+  - 完整审计：记录所有测试操作和用户分配
+  - 链路追踪：完整的 span 追踪
+"""
+
+import time
 import json
 import random
 import redis
 import hashlib
-from time import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
@@ -12,7 +41,8 @@ from enum import Enum
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ABTestConfig, ABTestAssignment, ModelMetadata
 from datamind.core.domain.enums import ABTestStatus, AuditAction
-from datamind.core.logging import log_manager, get_request_id, debug_print
+from datamind.core.logging import log_audit, context
+from datamind.core.logging.debug import debug_print
 from datamind.core.ml.exceptions import ABTestException
 from datamind.config import get_settings
 
@@ -354,7 +384,9 @@ class ABTestManager:
         返回:
             test_id: 测试ID
         """
-        request_id = get_request_id()
+        request_id = context.get_request_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
 
         try:
@@ -395,7 +427,7 @@ class ABTestManager:
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
-            log_manager.log_audit(
+            log_audit(
                 action=AuditAction.CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
@@ -407,7 +439,9 @@ class ABTestManager:
                     "groups": groups,
                     "traffic_allocation": traffic_allocation,
                     "assignment_strategy": assignment_strategy,
-                    "duration_ms": round(duration, 2)
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
                 },
                 request_id=request_id
             )
@@ -417,7 +451,7 @@ class ABTestManager:
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
-            log_manager.log_audit(
+            log_audit(
                 action=AuditAction.CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
@@ -425,7 +459,9 @@ class ABTestManager:
                 details={
                     "test_name": test_name,
                     "error": str(e),
-                    "duration_ms": round(duration, 2)
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
                 },
                 reason=str(e),
                 request_id=request_id
@@ -457,7 +493,9 @@ class ABTestManager:
 
     def start_test(self, test_id: str, operator: str, ip_address: Optional[str] = None):
         """启动A/B测试"""
-        request_id = get_request_id()
+        request_id = context.get_request_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
 
         try:
@@ -474,14 +512,18 @@ class ABTestManager:
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
-            log_manager.log_audit(
+            log_audit(
                 action=AuditAction.ACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 resource_type="ab_test",
                 resource_id=test_id,
                 resource_name=test.test_name,
-                details={"duration_ms": round(duration, 2)},
+                details={
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
                 request_id=request_id
             )
 
@@ -489,13 +531,18 @@ class ABTestManager:
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
-            log_manager.log_audit(
+            log_audit(
                 action=AuditAction.ACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 resource_type="ab_test",
                 resource_id=test_id,
-                details={"error": str(e), "duration_ms": round(duration, 2)},
+                details={
+                    "error": str(e),
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
                 reason=str(e),
                 request_id=request_id
             )
@@ -524,7 +571,9 @@ class ABTestManager:
                 'assigned_at': str
             }
         """
-        request_id = get_request_id()
+        request_id = context.get_request_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
         start_time = time.time()
 
         try:
@@ -620,7 +669,7 @@ class ABTestManager:
                 self._stats['total_assignments'] += 1
 
                 duration = (time.time() - start_time) * 1000
-                log_manager.log_audit(
+                log_audit(
                     action="AB_TEST_ASSIGN",
                     user_id=user_id,
                     ip_address=ip_address,
@@ -630,7 +679,9 @@ class ABTestManager:
                         "group_name": group['name'],
                         "model_id": group['model_id'],
                         "strategy": test.assignment_strategy,
-                        "duration_ms": round(duration, 2)
+                        "duration_ms": round(duration, 2),
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
                     },
                     request_id=request_id
                 )
@@ -640,13 +691,18 @@ class ABTestManager:
 
         except Exception as e:
             duration = (time.time() - start_time) * 1000
-            log_manager.log_audit(
+            log_audit(
                 action="AB_TEST_ASSIGN",
                 user_id=user_id,
                 ip_address=ip_address,
                 resource_type="ab_test",
                 resource_id=test_id,
-                details={"error": str(e), "duration_ms": round(duration, 2)},
+                details={
+                    "error": str(e),
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
                 reason=str(e),
                 request_id=request_id
             )
@@ -676,7 +732,9 @@ class ABTestManager:
             ip_address: Optional[str] = None
     ):
         """记录测试结果"""
-        request_id = get_request_id()
+        request_id = context.get_request_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
 
         try:
             with get_db() as session:
@@ -698,24 +756,32 @@ class ABTestManager:
 
                 session.commit()
 
-                log_manager.log_audit(
+                log_audit(
                     action="AB_TEST_RECORD",
                     user_id=user_id,
                     ip_address=ip_address,
                     resource_type="ab_test",
                     resource_id=test_id,
-                    details={"metrics": metrics},
+                    details={
+                        "metrics": metrics,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    },
                     request_id=request_id
                 )
 
         except Exception as e:
-            log_manager.log_audit(
+            log_audit(
                 action="AB_TEST_RECORD",
                 user_id=user_id,
                 ip_address=ip_address,
                 resource_type="ab_test",
                 resource_id=test_id,
-                details={"error": str(e)},
+                details={
+                    "error": str(e),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
                 reason=str(e),
                 request_id=request_id
             )
@@ -723,6 +789,9 @@ class ABTestManager:
 
     def analyze_results(self, test_id: str) -> Dict[str, Any]:
         """分析测试结果"""
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         try:
             with get_db() as session:
                 test = session.query(ABTestConfig).filter_by(test_id=test_id).first()
@@ -772,7 +841,7 @@ class ABTestManager:
                 # 判断获胜组
                 winning_group = self._determine_winner(group_results, test.winning_criteria)
 
-                return {
+                result = {
                     'test_id': test_id,
                     'test_name': test.test_name,
                     'status': test.status,
@@ -782,13 +851,32 @@ class ABTestManager:
                     'total_users': len(test.results)
                 }
 
+                log_audit(
+                    action="AB_TEST_ANALYZE",
+                    user_id="system",
+                    resource_type="ab_test",
+                    resource_id=test_id,
+                    details={
+                        "winning_group": winning_group,
+                        "total_users": len(test.results),
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    }
+                )
+
+                return result
+
         except Exception as e:
-            log_manager.log_audit(
+            log_audit(
                 action="AB_TEST_ANALYZE",
                 user_id="system",
                 resource_type="ab_test",
                 resource_id=test_id,
-                details={"error": str(e)}
+                details={
+                    "error": str(e),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
             )
             raise
 

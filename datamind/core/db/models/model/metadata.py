@@ -1,5 +1,7 @@
 # Datamind/datamind/core/db/models/model/metadata.py
-"""模型元数据表定义"""
+
+"""模型元数据表定义
+"""
 
 from sqlalchemy import (
     Column, String, Integer, DateTime, Boolean, Text,

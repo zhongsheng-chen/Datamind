@@ -1,4 +1,51 @@
 # Datamind/datamind/cli/commands/health.py
+
+"""健康检查命令行命令
+
+提供系统健康状态的检查功能，包括 API 服务、数据库、Redis 等组件的健康状态。
+
+功能特性：
+  - 检查 API 服务健康状态（响应时间、版本、环境）
+  - 检查数据库连接（PostgreSQL）
+  - 检查 Redis 连接（版本、内存使用、连接数）
+  - 检查已加载模型数量
+  - 支持检查所有组件
+
+命令列表：
+  - health check: 检查 API 服务健康状态
+  - health db: 检查数据库连接
+  - health redis: 检查 Redis 连接
+  - health all: 检查所有服务
+
+检查项说明（health check）：
+  - 服务状态：API 服务是否正常
+  - 响应时间：API 响应耗时（毫秒）
+  - 版本信息：当前服务版本
+  - 运行环境：development/testing/staging/production
+  - 数据库状态：数据库连接是否正常
+  - 已加载模型：当前内存中已加载的模型数量
+
+使用示例：
+  # 检查 API 服务
+  datamind health check
+
+  # 检查 API 服务（自定义主机和端口）
+  datamind health check --host 192.168.1.100 --port 8080
+
+  # 检查数据库
+  datamind health db
+
+  # 检查 Redis
+  datamind health redis
+
+  # 检查所有服务
+  datamind health all
+
+返回值说明：
+  - 成功：返回 0，打印 ✅ 或绿色文字
+  - 失败：返回非 0，打印 ❌ 或红色文字
+"""
+
 import click
 import requests
 from datetime import datetime
@@ -76,12 +123,32 @@ def check_db(host, port):
         click.echo(f"检查数据库连接: {host}:{port}")
 
         # 从settings获取连接信息
-        conn = psycopg2.connect(
-            host=host,
-            port=port,
-            user=settings.DATABASE_URL.split('/')[-1],
-            dbname=settings.DATABASE_URL.split('/')[-1]
-        )
+        # 注意：需要根据实际配置解析数据库URL
+        from datamind.config import get_settings
+        settings = get_settings()
+        db_url = settings.database.url
+
+        # 解析数据库URL
+        import re
+        match = re.search(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', db_url)
+        if match:
+            user, password, db_host, db_port, db_name = match.groups()
+            conn = psycopg2.connect(
+                host=db_host,
+                port=db_port,
+                user=user,
+                password=password,
+                dbname=db_name,
+                connect_timeout=5
+            )
+        else:
+            conn = psycopg2.connect(
+                host=host,
+                port=port,
+                user=settings.database.url.split('/')[-1],
+                dbname=settings.database.url.split('/')[-1],
+                connect_timeout=5
+            )
 
         cursor = conn.cursor()
         cursor.execute("SELECT 1")

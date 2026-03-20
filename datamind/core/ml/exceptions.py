@@ -1,5 +1,34 @@
 # Datamind/datamind/core/ml/exceptions.py
 
+"""机器学习异常定义
+
+提供机器学习模块专用的异常类，继承自 DatamindError。
+
+异常层次结构：
+- DatamindError: 基础异常类
+  - ModelException: 模型基础异常
+    - ModelNotFoundException: 模型未找到
+    - ModelAlreadyExistsException: 模型已存在
+    - ModelValidationException: 模型验证失败
+    - ModelFileException: 模型文件异常
+    - ModelLoadException: 模型加载失败
+    - ModelInferenceException: 模型推理失败
+    - UnsupportedModelTypeException: 不支持的模型类型
+    - UnsupportedFrameworkException: 不支持的模型框架
+  - DatabaseException: 数据库异常
+  - ValidationException: 请求验证失败
+  - UnauthorizedException: 未授权
+  - ForbiddenException: 禁止访问
+  - ABTestException: A/B测试异常
+
+所有异常都支持：
+ - 自定义错误消息
+ - 错误码（code）
+ - HTTP状态码（status_code）
+ - 详细信息（details）
+ - 转换为字典格式（to_dict）
+"""
+
 from typing import Optional, Dict, Any
 
 
@@ -38,14 +67,27 @@ class ModelException(DatamindError):
 class ModelNotFoundException(ModelException):
     """模型未找到"""
     def __init__(self, model_id: str = None, message: str = None):
-        msg = message or f"Model not found: {model_id}" if model_id else "Model not found"
+        if message is not None:
+            # 如果提供了自定义消息，直接使用
+            msg = message
+        elif model_id is not None:
+            msg = f"Model not found: {model_id}"
+        else:
+            msg = "Model not found"
         super().__init__(msg, code="MODEL_NOT_FOUND", status_code=404)
 
 
 class ModelAlreadyExistsException(ModelException):
     """模型已存在"""
-    def __init__(self, model_name: str = None, version: str = None):
-        msg = f"Model {model_name} version {version} already exists"
+    def __init__(self, model_name: str = None, version: str = None, message: str = None):
+        if message is not None:
+            msg = message
+        elif model_name and version:
+            msg = f"Model {model_name} version {version} already exists"
+        elif model_name:
+            msg = f"Model {model_name} already exists"
+        else:
+            msg = "Model already exists"
         super().__init__(msg, code="MODEL_ALREADY_EXISTS", status_code=409)
 
 
@@ -63,8 +105,17 @@ class ModelFileException(ModelException):
 
 class ModelLoadException(ModelException):
     """模型加载失败"""
-    def __init__(self, model_id: str = None, reason: str = None):
-        msg = f"Failed to load model {model_id}: {reason}" if model_id else f"Failed to load model: {reason}"
+    def __init__(self, model_id: str = None, reason: str = None, message: str = None):
+        if message is not None:
+            msg = message
+        elif model_id and reason:
+            msg = f"Failed to load model {model_id}: {reason}"
+        elif model_id:
+            msg = f"Failed to load model {model_id}"
+        elif reason:
+            msg = f"Failed to load model: {reason}"
+        else:
+            msg = "Failed to load model"
         super().__init__(msg, code="MODEL_LOAD_ERROR", status_code=500)
 
 
@@ -76,9 +127,15 @@ class ModelInferenceException(ModelException):
 
 class UnsupportedModelTypeException(ModelException):
     """不支持的模型类型"""
-    def __init__(self, model_type: str):
+    def __init__(self, model_type: str = None, message: str = None):
+        if message is not None:
+            msg = message
+        elif model_type:
+            msg = f"Unsupported model type: {model_type}"
+        else:
+            msg = "Unsupported model type"
         super().__init__(
-            f"Unsupported model type: {model_type}",
+            msg,
             code="UNSUPPORTED_MODEL_TYPE",
             status_code=400
         )
@@ -86,9 +143,15 @@ class UnsupportedModelTypeException(ModelException):
 
 class UnsupportedFrameworkException(ModelException):
     """不支持的模型框架"""
-    def __init__(self, framework: str):
+    def __init__(self, framework: str = None, message: str = None):
+        if message is not None:
+            msg = message
+        elif framework:
+            msg = f"Unsupported framework: {framework}"
+        else:
+            msg = "Unsupported framework"
         super().__init__(
-            f"Unsupported framework: {framework}",
+            msg,
             code="UNSUPPORTED_FRAMEWORK",
             status_code=400
         )

@@ -1,6 +1,7 @@
 # Datamind/datamind/core/db/models/monitoring/api_log.py
 
-"""API调用日志表定义"""
+"""API调用日志表定义
+"""
 
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, BigInteger,

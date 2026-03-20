@@ -1,5 +1,7 @@
 # Datamind/datamind/core/db/models/model/version.py
-"""模型版本历史表定义"""
+
+"""模型版本历史表定义
+"""
 
 from sqlalchemy import (
     Column, String, DateTime, Text, BigInteger,
