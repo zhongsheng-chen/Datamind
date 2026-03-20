@@ -1,5 +1,41 @@
 # Datamind/datamind/config/logging_config.py
 
+"""日志配置模块
+
+定义日志系统的所有配置项，支持环境变量配置和验证。
+
+核心功能：
+  - 日志级别配置（DEBUG/INFO/WARNING/ERROR/CRITICAL）
+  - 日志格式配置（文本/JSON/双格式）
+  - 日志轮转配置（按大小/按时间）
+  - 日志采样配置（采样率、采样间隔）
+  - 敏感信息脱敏配置
+  - 日志分类配置（访问日志/审计日志/性能日志）
+  - 远程日志配置
+  - 异步日志配置
+  - 日志归档配置
+
+配置来源：
+  支持从环境变量读取配置
+
+
+配置验证：
+  提供完善的配置验证，包括：
+    - 类型验证（枚举、整数、字符串）
+    - 范围验证（采样率0-1、保留天数>0）
+    - 格式验证（时间格式、正则表达式）
+    - 依赖验证（远程日志需要URL、时间轮转需要when）
+
+枚举类型：
+  - LogLevel: 日志级别（DEBUG/INFO/WARNING/ERROR/CRITICAL）
+  - LogFormat: 日志格式（text/json/both）
+  - RotationWhen: 轮转时间单位（S/M/H/D/MIDNIGHT/W0-W6）
+  - TimeZone: 时区（UTC/LOCAL/CST/EST/PST）
+  - TimestampPrecision: 时间戳精度（seconds/milliseconds/microseconds/nanoseconds）
+  - EpochUnit: 纪元时间单位（seconds/milliseconds/microseconds/nanoseconds）
+  - RotationStrategy: 轮转策略（size/time）
+"""
+
 import re
 import json
 import logging
@@ -203,6 +239,18 @@ class LoggingConfig(BaseSettings):
         default="%Y%m%d",
         validation_alias="DATAMIND_FILE_NAME_DATE_FORMAT",
         description="文件名日期格式"
+    )
+
+    # BOTH 格式文件后缀配置
+    text_suffix: str = Field(
+        default="text",
+        validation_alias="DATAMIND_TEXT_SUFFIX",
+        description="BOTH格式文本文件后缀"
+    )
+    json_suffix: str = Field(
+        default="json",
+        validation_alias="DATAMIND_JSON_SUFFIX",
+        description="BOTH格式JSON文件后缀"
     )
 
     # 日志目录配置
@@ -456,6 +504,11 @@ class LoggingConfig(BaseSettings):
         validation_alias="DATAMIND_LOG_COMPRESSION",
         description="归档压缩格式"
     )
+    archive_name_format: str = Field(
+        default="%Y%m%d_%H%M%S",
+        validation_alias="DATAMIND_ARCHIVE_NAME_FORMAT",
+        description="归档文件名时间格式"
+    )
 
     @field_validator('level', 'console_level', mode='before')
     @classmethod
@@ -562,8 +615,18 @@ class LoggingConfig(BaseSettings):
     @classmethod
     def validate_log_dir(cls, v):
         """验证日志目录"""
-        if v and ('../' in v or '..\\' in v):
+        if not v or v.strip() == "":
+            raise ValueError("log_dir 不能为空")
+        if '../' in v or '..\\' in v:
             raise ValueError("log_dir 不能包含相对路径跳转")
+        return v
+
+    @field_validator('text_suffix', 'json_suffix')
+    @classmethod
+    def validate_suffix(cls, v):
+        """验证文件后缀"""
+        if v and not re.match(r'^[a-zA-Z0-9_\-]+$', v):
+            raise ValueError(f"文件后缀只能包含字母、数字、下划线和连字符: {v}")
         return v
 
     @model_validator(mode='after')

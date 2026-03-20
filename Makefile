@@ -22,7 +22,7 @@ ALEMBIC := alembic
 
 help:
 	@echo "$(BLUE)╔══════════════════════════════════════════════════════════╗$(NC)"
-	@echo "$(BLUE)║         Datamind 项目管理工具                            ║$(NC)"
+	@echo "$(BLUE)║         Datamind 管理工具                                ║$(NC)"
 	@echo "$(BLUE)╚══════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
 	@echo "$(GREEN)环境配置:$(NC)"
@@ -33,8 +33,11 @@ help:
 	@echo "$(GREEN)数据库操作:$(NC)"
 	@echo "  make init-db      - 初始化数据库"
 	@echo "  make migrate      - 执行数据库迁移"
+	@echo "  make migrate-status - 查看迁移状态"
+	@echo "  make migrate-history - 查看详细迁移历史"
 	@echo "  make migrate-create - 创建新的迁移脚本"
 	@echo "  make migrate-down - 回滚一个版本"
+	@echo "  make db-check     - 测试数据库连接"
 	@echo "  make reset-db     - 重置数据库（危险操作）"
 	@echo "  make backup       - 备份数据库"
 	@echo "  make restore      - 恢复数据库"
@@ -105,6 +108,16 @@ migrate:
 	$(ALEMBIC) upgrade head
 	@echo "$(GREEN)✅ 迁移完成$(NC)"
 
+migrate-status:
+	@echo "$(GREEN)查看迁移状态...$(NC)"
+	$(ALEMBIC) current
+	@echo ""
+	$(ALEMBIC) history
+
+migrate-history:
+	@echo "$(GREEN)查看迁移历史...$(NC)"
+	$(ALEMBIC) history -v
+
 migrate-create:
 	@read -p "请输入迁移描述: " desc; \
 	$(ALEMBIC) revision --autogenerate -m "$$desc"
@@ -114,6 +127,10 @@ migrate-down:
 	@echo "$(YELLOW)回滚一个版本...$(NC)"
 	$(ALEMBIC) downgrade -1
 	@echo "$(GREEN)✅ 回滚完成$(NC)"
+
+db-check:
+	@echo "$(GREEN)测试数据库连接...$(NC)"
+	@python -c "from core.db import db_manager; from config import get_settings; settings = get_settings(); db_manager.initialize(settings.database.url); print('✅ 数据库连接成功')"
 
 reset-db:
 	@echo "$(RED)⚠️  警告: 此操作将删除所有数据！$(NC)"
@@ -296,7 +313,7 @@ logs:
 
 shell:
 	@echo "$(GREEN)启动 IPython shell...$(NC)"
-	IPython -i -c "from core.db import *; from core.ml import *; from core.logging import *; from config import *; from api import *"
+	IPython -i -c "from core.db import *; from core.ml import *; from core.logging import *; from config import get_settings; settings = get_settings(); from api import *"
 
 bench:
 	@echo "$(GREEN)运行性能测试...$(NC)"
@@ -327,7 +344,7 @@ requirements:
 
 check-env:
 	@echo "$(GREEN)检查环境变量...$(NC)"
-	@python -c "from config import settings; print(f'环境: {settings.ENV}'); print(f'调试模式: {settings.DEBUG}'); print(f'数据库: {settings.DATABASE_URL.split(\"@\")[-1]}')"
+	@python -c "from config import get_settings; settings = get_settings(); print(f'环境: {settings.app.env}'); print(f'调试模式: {settings.app.debug}'); print(f'数据库: {settings.database.url.split(\"@\")[-1]}')"
 
 git-status:
 	git status
@@ -347,4 +364,5 @@ usage: help
         docker-build-api docker-build-serving docker-restart docker-ps \
         docker-clean docker-clean-all health-detailed migrate-create \
         migrate-down test-cov requirements git-status git-push \
-        docker-logs-api docker-logs-scoring docker-logs-fraud stats
+        docker-logs-api docker-logs-scoring docker-logs-fraud stats \
+        migrate-status migrate-history db-check

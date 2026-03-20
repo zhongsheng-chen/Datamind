@@ -1,4 +1,42 @@
 # Datamind/datamind/api/middlewares/auth.py
+
+"""认证中间件
+
+提供 JWT token 和 API Key 的认证功能，保护 API 端点安全。
+
+功能特性：
+  - 多种认证方式：JWT Bearer Token、API Key、Basic Auth
+  - 路径排除：支持排除公开路径和健康检查路径
+  - 审计日志：记录所有认证成功和失败事件
+  - JWT 工具函数：创建和验证 JWT token
+
+认证方式优先级：
+  - Bearer Token (JWT) - 最优先，适用于用户登录后的请求
+  - API Key - 适用于服务间调用
+  - Basic Auth - 适用于简单场景（可选）
+
+中间件行为：
+  - 排除路径（exclude_paths）：不需要认证的路径（如 /health、/docs）
+  - 公开路径（public_paths）：公开 API 路径（如 /auth/login）
+  - 认证成功：将用户信息存入 request.state.user
+  - 认证失败：返回 401 状态码
+
+JWT Token 结构：
+  {
+    "sub": "user_id",           # 用户ID
+    "username": "username",     # 用户名
+    "roles": ["admin"],         # 角色列表
+    "permissions": ["read"],    # 权限列表
+    "iat": 1234567890,          # 签发时间
+    "exp": 1234567890           # 过期时间
+  }
+
+API Key 验证：
+  - 从请求头 X-API-Key 获取
+  - 支持从数据库或 Redis 验证
+  - 当前实现为示例，需要根据实际需求扩展
+"""
+
 from fastapi import Request, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -8,7 +46,8 @@ import time
 import jwt
 from datetime import datetime, timedelta
 
-from datamind.core import log_manager, get_request_id
+from datamind.core.logging import log_manager, debug_print
+from datamind.core.logging import context
 from datamind.config import settings
 
 
@@ -16,7 +55,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     """
     认证中间件
 
-    处理JWT token验证和API密钥认证
+    处理 JWT token 验证和 API 密钥认证。
+    认证成功后，用户信息存储在 request.state.user 中。
     """
 
     def __init__(
@@ -25,6 +65,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             exclude_paths: List[str] = None,
             public_paths: List[str] = None
     ):
+        """
+        初始化认证中间件
+
+        参数:
+            app: ASGI 应用
+            exclude_paths: 完全排除认证的路径（如健康检查）
+            public_paths: 公开 API 路径（如登录接口）
+        """
         super().__init__(app)
         self.exclude_paths = exclude_paths or [
             "/health",
@@ -42,7 +90,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         """处理请求"""
-        request_id = get_request_id()
+        request_id = context.get_request_id()
         start_time = time.time()
 
         # 检查是否为排除路径
@@ -118,13 +166,16 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         认证请求
 
         支持多种认证方式:
-        1. Bearer Token (JWT)
-        2. API Key
-        3. Basic Auth (可选)
+          - Bearer Token (JWT)
+          - API Key
+          - Basic Auth (可选)
+
+        返回:
+            字典包含 authenticated, reason, user, auth_type
         """
         # 尝试获取Authorization header
         auth_header = request.headers.get("Authorization")
-        api_key = request.headers.get(settings.API_KEY_HEADER)
+        api_key = request.headers.get(settings.auth.api_key_header)
 
         result = {
             'authenticated': False,
@@ -133,7 +184,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             'auth_type': None
         }
 
-        # 1. 尝试Bearer Token认证
+        # 尝试Bearer Token认证
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.replace("Bearer ", "")
             auth_result = await self._verify_jwt_token(token)
@@ -142,15 +193,15 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 result['auth_type'] = 'jwt'
                 return result
 
-        # 2. 尝试API Key认证
-        if api_key and settings.API_KEY_ENABLED:
+        # 尝试API Key认证
+        if api_key and settings.auth.api_key_enabled:
             auth_result = await self._verify_api_key(api_key)
             if auth_result['authenticated']:
                 result.update(auth_result)
                 result['auth_type'] = 'api_key'
                 return result
 
-        # 3. 尝试Basic Auth (可选)
+        # 尝试Basic Auth (可选)
         if auth_header and auth_header.startswith("Basic "):
             auth_result = await self._verify_basic_auth(auth_header)
             if auth_result['authenticated']:
@@ -167,8 +218,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         try:
             payload = jwt.decode(
                 token,
-                settings.JWT_SECRET_KEY,
-                algorithms=[settings.JWT_ALGORITHM]
+                settings.auth.jwt_secret_key,
+                algorithms=[settings.auth.jwt_algorithm]
             )
 
             # 检查token是否过期
@@ -269,12 +320,23 @@ def create_jwt_token(
         permissions: List[str] = None,
         expires_delta: timedelta = None
 ) -> str:
-    """创建JWT token"""
+    """创建JWT token
+
+    参数:
+        user_id: 用户ID
+        username: 用户名
+        roles: 角色列表
+        permissions: 权限列表
+        expires_delta: 过期时间增量
+
+    返回:
+        JWT token 字符串
+    """
     payload = {
         'sub': user_id,
         'username': username,
         'iat': datetime.now(),
-        'exp': datetime.now() + (expires_delta or timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES))
+        'exp': datetime.now() + (expires_delta or timedelta(minutes=settings.auth.jwt_expire_minutes))
     }
 
     if roles:
@@ -284,18 +346,25 @@ def create_jwt_token(
 
     return jwt.encode(
         payload,
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM
+        settings.auth.jwt_secret_key,
+        algorithm=settings.auth.jwt_algorithm
     )
 
 
 def verify_jwt_token(token: str) -> Dict[str, Any]:
-    """验证JWT token"""
+    """验证JWT token
+
+    参数:
+        token: JWT token 字符串
+
+    返回:
+        字典包含 valid, user_id, username, roles, permissions
+    """
     try:
         payload = jwt.decode(
             token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
+            settings.auth.jwt_secret_key,
+            algorithms=[settings.auth.jwt_algorithm]
         )
 
         return {

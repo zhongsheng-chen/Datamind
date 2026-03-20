@@ -1,11 +1,69 @@
 # Datamind/datamind/cli/commands/audit.py
+
+"""审计日志命令行命令
+
+提供审计日志的查询、查看和导出功能，用于安全审计和问题追溯。
+
+功能特性：
+  - 查看最近审计日志（支持多维度筛选）
+  - 查看单个审计日志详情
+  - 导出审计日志到 JSON 文件
+  - 支持多种输出格式（表格/JSON）
+
+命令列表：
+  - audit list: 查看审计日志列表
+  - audit show: 查看审计日志详情
+  - audit export: 导出审计日志到文件
+
+筛选条件（list 命令）：
+  - --days / -d: 最近几天（默认 7 天）
+  - --action / -a: 操作类型筛选（如 CREATE、UPDATE、DELETE）
+  - --user / -u: 操作人筛选
+  - --resource / -r: 资源类型筛选（如 model、ab_test）
+  - --format / -f: 输出格式（table/json）
+  - --limit / -l: 最大记录数（默认 100）
+
+输出格式说明：
+  - table: 表格形式输出，便于人工查看
+  - json: JSON 格式输出，便于脚本处理
+
+使用示例：
+  # 查看最近 7 天的审计日志
+  datamind audit list
+
+  # 查看最近 30 天的日志，按操作类型筛选
+  datamind audit list --days 30 --action MODEL_REGISTER
+
+  # 查看指定用户的日志
+  datamind audit list --user admin --limit 50
+
+  # 查看日志详情
+  datamind audit show AUDIT_20240315_123456
+
+  # 导出最近 30 天的日志
+  datamind audit export --days 30 --output audit_logs.json
+
+审计日志字段：
+  - audit_id: 日志唯一标识
+  - time: 操作时间
+  - action: 操作类型（MODEL_REGISTER、MODEL_LOAD 等）
+  - operator: 操作人
+  - operator_ip: 操作人 IP
+  - resource_type: 资源类型（model、ab_test 等）
+  - resource_id: 资源ID
+  - result: 操作结果（SUCCESS/FAILURE）
+  - reason: 失败原因
+  - details: 操作详情
+  - changes: 变更内容（更新操作时记录）
+"""
+
 import click
 from datetime import datetime, timedelta
 import json
 
 from datamind.cli.utils.printer import print_table, print_json, print_error, print_warning
 from datamind.core.db.database import get_db
-from datamind.core import AuditLog
+from datamind.core.db.models import AuditLog
 
 
 @click.group(name='audit')

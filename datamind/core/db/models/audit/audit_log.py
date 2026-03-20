@@ -1,6 +1,7 @@
 # Datamind/datamind/core/db/models/audit/audit_log.py
 
-"""审计日志表定义"""
+"""审计日志表定义
+"""
 
 from sqlalchemy import (
     Column, String, DateTime, Text, BigInteger,

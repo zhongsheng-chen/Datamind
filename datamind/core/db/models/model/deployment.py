@@ -1,6 +1,7 @@
 # Datamind/datamind/core/db/models/model/deployment.py
 
-"""模型部署表定义"""
+"""模型部署表定义
+"""
 
 from sqlalchemy import (
     Column, String, DateTime, Boolean, Integer, BigInteger,

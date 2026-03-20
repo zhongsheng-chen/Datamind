@@ -1,11 +1,62 @@
-# Datamind/docker-compose.yml
 version: '3.8'
 
 services:
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:15
-    container_name: datamind-postgres
+  # ============================================
+  # PostgreSQL 主备架构
+  # ============================================
+
+  # PostgreSQL 主库
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: datamind-postgres-primary
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-datamind}
+      POSTGRES_USER: ${POSTGRES_USER:-datamind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datamind123}
+      POSTGRES_INITDB_ARGS: "--data-checksums --encoding=UTF8"
+      TZ: Asia/Shanghai
+      # 复制相关环境变量
+      REPLICA_PASSWORD: ${REPLICA_PASSWORD:-replica123}
+      READONLY_PASSWORD: ${READONLY_PASSWORD:-readonly123}
+      MONITOR_PASSWORD: ${MONITOR_PASSWORD:-monitor123}
+    ports:
+      - "${POSTGRES_PRIMARY_PORT:-5432}:5432"
+    volumes:
+      - postgres-primary-data:/var/lib/postgresql/data
+      - ./docker/postgres/primary/wal:/var/lib/postgresql/wal
+      - ./docker/postgres/primary/init:/docker-entrypoint-initdb.d
+      - ./docker/postgres/backup:/backup
+    networks:
+      - datamind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-datamind} -d ${POSTGRES_DB:-datamind}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: >
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c wal_keep_size=1024
+      -c hot_standby=on
+      -c synchronous_commit=off
+      -c logging_collector=on
+      -c log_directory=/var/log/postgresql
+      -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+      -c log_statement=ddl
+      -c log_min_duration_statement=1000
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c work_mem=8MB
+
+  # PostgreSQL 备库
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: datamind-postgres-replica
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-datamind}
@@ -13,17 +64,66 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datamind123}
       TZ: Asia/Shanghai
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_REPLICA_PORT:-5433}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+      - postgres-replica-data:/var/lib/postgresql/data
+      - ./docker/postgres/replica/init:/docker-entrypoint-initdb.d
     networks:
       - datamind-network
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U datamind"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-datamind} -d ${POSTGRES_DB:-datamind} -h localhost"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 60s
+    command: >
+      postgres
+      -c hot_standby=on
+      -c primary_conninfo='host=postgres-primary port=5432 user=replicator password=${REPLICA_PASSWORD:-replica123}'
+      -c primary_slot_name='replica_slot'
+      -c max_connections=100
+      -c hot_standby_feedback=on
+      -c wal_receiver_timeout=60s
+      -c wal_retrieve_retry_interval=5s
+      -c logging_collector=on
+      -c log_directory=/var/log/postgresql
+      -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+
+  # PostgreSQL 连接池和负载均衡（可选）
+  pgpool:
+    image: pgpool/pgpool:4.4-alpine
+    container_name: datamind-pgpool
+    restart: unless-stopped
+    environment:
+      PGPOOL_BACKEND_NODES: '0:postgres-primary:5432,1:postgres-replica:5432'
+      PGPOOL_SR_CHECK_USER: 'monitor'
+      PGPOOL_SR_CHECK_PASSWORD: ${MONITOR_PASSWORD:-monitor123}
+      PGPOOL_ADMIN_USERNAME: 'admin'
+      PGPOOL_ADMIN_PASSWORD: ${PGPOOL_ADMIN_PASSWORD:-admin123}
+    ports:
+      - "${PGPOOL_PORT:-5434}:5432"  # pgpool 代理端口
+      - "${PGPOOL_PCP_PORT:-9898}:9898"  # pgpool 管理端口
+    volumes:
+      - ./docker/pgpool/pgpool.conf:/etc/pgpool2/pgpool.conf:ro
+      - ./docker/pgpool/pool_hba.conf:/etc/pgpool2/pool_hba.conf:ro
+      - ./docker/pgpool/pcp.conf:/etc/pgpool2/pcp.conf:ro
+    networks:
+      - datamind-network
+    depends_on:
+      - postgres-primary
+      - postgres-replica
+    profiles:
+      - production
+      - with-pgpool
+    labels:
+      - "com.datamind.service=pgpool"
+
+  # ============================================
+  # 原有服务（保持不变，但更新数据库连接）
+  # ============================================
 
   # Redis 缓存
   redis:
@@ -52,8 +152,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"      # API端口
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # 控制台端口
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
@@ -96,24 +196,35 @@ services:
     environment:
       - ENV=${ENV:-production}
       - DEBUG=${DEBUG:-false}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres:5432/${POSTGRES_DB:-datamind}
-      - READONLY_DATABASE_URL=${READONLY_DATABASE_URL:-}
+      # 使用 pgpool 进行读写分离（推荐）
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@${PGPOOL_HOST:-pgpool}:${PGPOOL_PORT:-5434}/${POSTGRES_DB:-datamind}
+      # 备选：直接连接主库和备库
+      - PRIMARY_DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres-primary:5432/${POSTGRES_DB:-datamind}
+      - READONLY_DATABASE_URL=postgresql://readonly:${READONLY_PASSWORD:-readonly123}@postgres-replica:5433/${POSTGRES_DB:-datamind}
+      # Redis 配置
       - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      # MinIO 配置
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET=${MINIO_BUCKET:-datamind-models}
+      # 应用配置
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
       - API_KEY_ENABLED=${API_KEY_ENABLED:-true}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FORMAT=${LOG_FORMAT:-json}
+      # 数据库主备配置
+      - DB_USE_REPLICA=${DB_USE_REPLICA:-true}
+      - DB_REPLICA_LAG_THRESHOLD=${DB_REPLICA_LAG_THRESHOLD:-10}
     volumes:
       - ./logs:/app/logs
       - ./models_storage:/app/models_storage
       - ./config:/app/config
       - ./core:/app/core
     depends_on:
-      postgres:
+      postgres-primary:
+        condition: service_healthy
+      postgres-replica:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -126,6 +237,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - "com.datamind.service=api"
 
   # 评分卡服务
   scoring-service:
@@ -139,7 +252,8 @@ services:
     environment:
       - SERVICE_TYPE=scoring
       - ENVIRONMENT=${ENV:-production}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres:5432/${POSTGRES_DB:-datamind}
+      - DATABASE_URL=postgresql://readonly:${READONLY_PASSWORD:-readonly123}@postgres-replica:5433/${POSTGRES_DB:-datamind}
+      - PRIMARY_DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres-primary:5432/${POSTGRES_DB:-datamind}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
       - MODELS_PATH=/app/models_storage
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -148,7 +262,9 @@ services:
       - ./models_storage:/app/models_storage
       - ./logs:/app/logs
     depends_on:
-      postgres:
+      postgres-primary:
+        condition: service_healthy
+      postgres-replica:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -161,6 +277,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - "com.datamind.service=scoring"
 
   # 反欺诈服务
   fraud-service:
@@ -174,7 +292,8 @@ services:
     environment:
       - SERVICE_TYPE=fraud
       - ENVIRONMENT=${ENV:-production}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres:5432/${POSTGRES_DB:-datamind}
+      - DATABASE_URL=postgresql://readonly:${READONLY_PASSWORD:-readonly123}@postgres-replica:5433/${POSTGRES_DB:-datamind}
+      - PRIMARY_DATABASE_URL=postgresql://${POSTGRES_USER:-datamind}:${POSTGRES_PASSWORD:-datamind123}@postgres-primary:5432/${POSTGRES_DB:-datamind}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
       - MODELS_PATH=/app/models_storage
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -183,7 +302,9 @@ services:
       - ./models_storage:/app/models_storage
       - ./logs:/app/logs
     depends_on:
-      postgres:
+      postgres-primary:
+        condition: service_healthy
+      postgres-replica:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -196,6 +317,70 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - "com.datamind.service=fraud"
+
+  # ============================================
+  # 监控和管理服务
+  # ============================================
+
+  # PostgreSQL Exporter（监控）
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: datamind-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://monitor:${MONITOR_PASSWORD:-monitor123}@postgres-primary:5432/datamind?sslmode=disable"
+    ports:
+      - "${PG_EXPORTER_PORT:-9187}:9187"
+    networks:
+      - datamind-network
+    depends_on:
+      - postgres-primary
+    profiles:
+      - monitoring
+    labels:
+      - "com.datamind.service=monitoring"
+
+  # pgAdmin（开发环境）
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: datamind-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@datamind.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      - postgres-primary
+      - postgres-replica
+    networks:
+      - datamind-network
+    profiles:
+      - dev
+      - monitoring
+
+  # Redis Commander（开发环境）
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: datamind-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    depends_on:
+      - redis
+    networks:
+      - datamind-network
+    profiles:
+      - dev
 
   # Nginx 反向代理（可选）
   nginx:
@@ -215,42 +400,8 @@ services:
       - fraud-service
     networks:
       - datamind-network
-
-  # pgAdmin（开发环境可选）
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: datamind-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@datamind.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
-    depends_on:
-      - postgres
-    networks:
-      - datamind-network
     profiles:
-      - dev
-
-  # Redis Commander（开发环境可选）
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: datamind-redis-commander
-    restart: unless-stopped
-    environment:
-      REDIS_HOSTS: local:redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-    ports:
-      - "${REDIS_COMMANDER_PORT:-8081}:8081"
-    depends_on:
-      - redis
-    networks:
-      - datamind-network
-    profiles:
-      - dev
+      - with-nginx
 
 networks:
   datamind-network:
@@ -258,8 +409,12 @@ networks:
     name: datamind-network
 
 volumes:
-  postgres-data:
-    name: datamind-postgres-data
+  # PostgreSQL 数据卷
+  postgres-primary-data:
+    name: datamind-postgres-primary-data
+  postgres-replica-data:
+    name: datamind-postgres-replica-data
+  # 原有数据卷
   redis-data:
     name: datamind-redis-data
   minio-data:

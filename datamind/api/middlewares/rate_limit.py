@@ -1,4 +1,29 @@
 # Datamind/datamind/api/middlewares/rate_limit.py
+
+"""限流中间件
+
+提供 API 限流功能，防止滥用和保护系统资源。
+
+功能特性：
+  - 多维度限流：支持基于 IP、用户ID、API Key 的限流
+  - 分布式限流：支持 Redis 存储，适用于多实例部署
+  - 单机限流：内存存储，适用于单实例部署
+  - 多等级限流：根据用户等级（admin/premium/anonymous）应用不同规则
+  - 限流头信息：返回 X-RateLimit-* 头信息供客户端参考
+  - 审计日志：记录限流触发事件
+
+限流规则：
+  - default: 默认限流（100次/60秒）
+  - admin: 管理员限流（1000次/60秒）
+  - premium: 高级用户限流（500次/60秒）
+  - anonymous: 匿名用户限流（50次/60秒）
+
+限流维度优先级：
+  - 用户ID（已认证用户）
+  - API Key
+  - 客户端 IP
+"""
+
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -7,7 +32,8 @@ from typing import Dict, Optional
 from collections import defaultdict
 import redis.asyncio as redis
 
-from datamind.core import log_manager, get_request_id
+from datamind.core.logging import log_manager, debug_print
+from datamind.core.logging import context
 from datamind.config import settings
 
 
@@ -15,8 +41,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     限流中间件
 
-    支持基于IP、用户ID、API Key的限流
-    支持Redis分布式限流
+    支持基于IP、用户ID、API Key的限流，支持 Redis 分布式限流。
     """
 
     def __init__(
@@ -28,10 +53,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             exclude_paths: Optional[list] = None,
             use_redis: bool = True
     ):
+        """
+        初始化限流中间件
+
+        参数:
+            app: ASGI 应用
+            redis_client: Redis 客户端（用于分布式限流）
+            default_limit: 默认限流次数
+            default_period: 默认限流周期（秒）
+            exclude_paths: 排除限流的路径列表
+            use_redis: 是否使用 Redis（False 则使用内存存储）
+        """
         super().__init__(app)
         self.redis_client = redis_client
-        self.default_limit = default_limit or settings.RATE_LIMIT_REQUESTS
-        self.default_period = default_period or settings.RATE_LIMIT_PERIOD
+        self.default_limit = default_limit or settings.security.rate_limit_requests
+        self.default_period = default_period or settings.security.rate_limit_period
         self.exclude_paths = exclude_paths or [
             "/health",
             "/metrics",
@@ -70,10 +106,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # 检查是否超过限制
         if await self._is_rate_limited(key, rule):
             # 记录限流事件
-            request_id = get_request_id()
+            request_id = context.get_request_id()
+
+            user_id = "anonymous"
+            if hasattr(request.state, 'user') and request.state.user:
+                user_id = request.state.user.get('id', 'anonymous')
+
             log_manager.log_audit(
                 action="RATE_LIMIT_EXCEEDED",
-                user_id=request.state.user.get('id', 'anonymous') if hasattr(request.state, 'user') else 'anonymous',
+                user_id=user_id,
                 ip_address=request.client.host if request.client else None,
                 details={
                     "path": request.url.path,
@@ -117,28 +158,33 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return False
 
     async def _get_rate_limit_key(self, request: Request) -> str:
-        """获取限流key"""
-        # 优先级: 用户ID > API Key > IP
-        if hasattr(request.state, 'user') and request.state.user.get('id'):
+        """获取限流key
+
+        优先级: 用户ID > API Key > IP
+        """
+        # 用户ID
+        if hasattr(request.state, 'user') and request.state.user and request.state.user.get('id'):
             return f"user:{request.state.user['id']}"
 
-        api_key = request.headers.get(settings.API_KEY_HEADER)
+        # API Key
+        api_key = request.headers.get(settings.auth.api_key_header)
         if api_key:
             return f"apikey:{api_key}"
 
+        # IP 地址
         client_ip = request.client.host if request.client else "unknown"
         return f"ip:{client_ip}"
 
     async def _get_user_tier(self, request: Request) -> str:
         """获取用户等级"""
-        if hasattr(request.state, 'user'):
+        if hasattr(request.state, 'user') and request.state.user:
             roles = request.state.user.get('roles', [])
             if 'admin' in roles:
                 return "admin"
             if 'premium' in roles:
                 return "premium"
 
-        api_key = request.headers.get(settings.API_KEY_HEADER)
+        api_key = request.headers.get(settings.auth.api_key_header)
         if api_key:
             # TODO: 根据API Key获取用户等级
             pass
@@ -215,7 +261,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 # IP限流中间件（简化版）
 class IPRateLimitMiddleware(RateLimitMiddleware):
-    """基于IP的限流中间件"""
+    """基于IP的限流中间件
+
+    只根据客户端 IP 进行限流，适用于无需用户认证的场景。
+    """
 
     async def _get_rate_limit_key(self, request: Request) -> str:
         client_ip = request.client.host if request.client else "unknown"
@@ -224,9 +273,12 @@ class IPRateLimitMiddleware(RateLimitMiddleware):
 
 # 用户限流中间件
 class UserRateLimitMiddleware(RateLimitMiddleware):
-    """基于用户的限流中间件"""
+    """基于用户的限流中间件
+
+    优先使用用户ID进行限流，无用户时降级到 IP 限流。
+    """
 
     async def _get_rate_limit_key(self, request: Request) -> str:
-        if hasattr(request.state, 'user') and request.state.user.get('id'):
+        if hasattr(request.state, 'user') and request.state.user and request.state.user.get('id'):
             return f"user:{request.state.user['id']}"
         return await super()._get_rate_limit_key(request)

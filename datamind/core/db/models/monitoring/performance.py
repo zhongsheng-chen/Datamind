@@ -1,5 +1,7 @@
 # Datamind/datamind/core/db/models/monitoring/performance.py
-"""模型性能监控表定义"""
+
+"""模型性能监控表定义
+"""
 
 from sqlalchemy import (
     Column, String, Integer, DateTime, Float, BigInteger,

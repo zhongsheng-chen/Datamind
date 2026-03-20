@@ -1,13 +1,43 @@
 # Datamind/datamind/core/logging/filters.py
 
+"""日志过滤器
+
+提供日志过滤功能：
+  - RequestIdFilter: 请求ID过滤器，向日志记录添加 request_id/trace_id/span_id
+  - SensitiveDataFilter: 敏感数据过滤器，脱敏敏感字段
+  - SamplingFilter: 采样过滤器，控制日志采样率
+"""
+
 import re
 import time
 import logging
 import threading
-from datamind.config import LoggingConfig
-from datamind.core.logging.context import get_request_id, set_request_id
-from datamind.core.logging.debug import debug_print
+from typing import Optional, Dict, Any, Pattern, Set
+from dataclasses import dataclass, field
 
+from datamind.config import LoggingConfig
+from datamind.core.logging.debug import debug_print
+from datamind.core.logging.context import (
+    get_request_id,
+    get_trace_id,
+    get_span_id,
+)
+
+
+@dataclass
+class FilterStats:
+    """过滤器统计信息"""
+    total_processed: int = 0
+    total_filtered: int = 0
+    sensitive_masked: int = 0
+    sampling_dropped: int = 0
+
+    def reset(self) -> None:
+        """重置统计信息"""
+        self.total_processed = 0
+        self.total_filtered = 0
+        self.sensitive_masked = 0
+        self.sampling_dropped = 0
 
 
 class RequestIdFilter(logging.Filter):
@@ -15,33 +45,57 @@ class RequestIdFilter(logging.Filter):
 
     def __init__(self):
         super().__init__()
-        self.config = None  # 将在设置时赋值
+        self.config: Optional[LoggingConfig] = None
+        self._stats: FilterStats = FilterStats()
 
-    def set_config(self, config: LoggingConfig):
-        """设置配置"""
+    def set_config(self, config: LoggingConfig) -> None:
+        """设置配置
+
+        参数:
+            config: 日志配置对象
+        """
         self.config = config
 
-    def _debug(self, msg, *args):
-        """调试输出"""
+    def _debug(self, msg: str, *args: Any) -> None:
+        """调试输出
+
+        参数:
+            msg: 消息模板
+            *args: 消息格式化参数
+        """
         if self.config and self.config.filter_debug:
             debug_print(self.__class__.__name__, msg, *args)
 
-    def set_request_id(self, request_id: str):
-        """设置当前请求ID"""
-        old_id = get_request_id()
-        set_request_id(request_id)
-        self._debug("设置请求ID: %s -> %s", old_id, request_id)
+    def filter(self, record: logging.LogRecord) -> bool:
+        """添加 request_id, trace_id, span_id 到日志记录
 
-    def get_request_id(self) -> str:
-        """获取当前请求ID"""
-        request_id = get_request_id()
-        self._debug("获取请求ID: %s", request_id)
-        return request_id
+        参数:
+            record: 日志记录对象
 
-    def filter(self, record):
-        """添加 request_id 到日志记录"""
-        record.request_id = self.get_request_id()
+        返回:
+            总是返回 True，不丢弃任何日志
+        """
+        record.request_id = get_request_id()
+        record.trace_id = get_trace_id()
+        record.span_id = get_span_id()
+
+        self._stats.total_processed += 1
+
+        if self.config and self.config.filter_debug:
+            self._debug("添加请求上下文: request_id=%s, trace_id=%s, span_id=%s",
+                        record.request_id, record.trace_id, record.span_id)
+
         return True
+
+    def get_stats(self) -> Dict[str, int]:
+        """获取统计信息
+
+        返回:
+            统计信息字典
+        """
+        return {
+            'total_processed': self._stats.total_processed,
+        }
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -50,49 +104,139 @@ class SensitiveDataFilter(logging.Filter):
     def __init__(self, config: LoggingConfig):
         super().__init__()
         self.config = config
-        self.patterns = self._compile_patterns()
+        self._stats: FilterStats = FilterStats()
+        self._patterns: Dict[str, Pattern] = self._compile_patterns()
+        self._combined_pattern: Optional[Pattern] = self._compile_combined_pattern()
+        self._json_pattern: Pattern = self._compile_json_pattern()
+
         self._debug("初始化敏感数据过滤器，敏感字段: %s", config.sensitive_fields)
 
-    def _debug(self, msg, *args):
-        """调试输出"""
+    def _debug(self, msg: str, *args: Any) -> None:
+        """调试输出
+
+        参数:
+            msg: 消息模板
+            *args: 消息格式化参数
+        """
         if self.config and self.config.filter_debug:
             debug_print(self.__class__.__name__, msg, *args)
 
-    def _compile_patterns(self):
-        """编译脱敏模式"""
+    def _compile_patterns(self) -> Dict[str, Pattern]:
+        """编译脱敏模式
+
+        返回:
+            字段名到正则表达式的映射
+        """
         patterns = {}
         for field in self.config.sensitive_fields:
-            # 为每个敏感字段创建匹配模式 - 匹配 JSON 格式的字段
+            # 匹配 JSON 格式的字段：{"field": "value"}
             patterns[field] = re.compile(
                 rf'"{field}":\s*"([^"]+)"',
                 re.IGNORECASE
             )
-        self._debug("编译了 %d 个敏感字段模式", len(patterns))
+            # 也支持单引号格式：{'field': 'value'}
+            patterns[f"{field}_single"] = re.compile(
+                rf"'{field}':\s*'([^']+)'",
+                re.IGNORECASE
+            )
+
+        self._debug("编译了 %d 个敏感字段模式", len(self.config.sensitive_fields))
         return patterns
 
-    def _mask_value(self, value: str) -> str:
-        """脱敏单个值"""
+    def _compile_combined_pattern(self) -> Optional[Pattern]:
+        """编译组合正则表达式，一次匹配所有敏感字段
+
+        返回:
+            组合正则表达式对象，如果没有敏感字段则返回 None
+        """
+        if not self.config.sensitive_fields:
+            return None
+
+        patterns = []
+        for i, field in enumerate(self.config.sensitive_fields):
+            # 使用 f-string 构建整个模式，确保 {i} 被替换
+            escaped_field = re.escape(field)
+
+            # JSON 双引号格式
+            patterns.append(
+                rf'(?P<p{i}j>"{escaped_field}":\s*")(?P<v{i}j>[^"]+)(?P<s{i}j>")'
+            )
+            # JSON 单引号格式
+            patterns.append(
+                rf"(?P<p{i}s>'{escaped_field}':\s*')(?P<v{i}s>[^']+)(?P<s{i}s>')"
+            )
+
+        combined = "|".join(patterns)
+        self._debug("编译组合正则表达式，共 %d 个模式", len(patterns))
+        self._debug("组合正则表达式预览: %s", combined[:200])
+        return re.compile(combined, re.IGNORECASE)
+
+    def _compile_json_pattern(self) -> Pattern:
+        """编译完整的 JSON 对象脱敏模式
+
+        返回:
+            脱敏 JSON 对象中敏感字段的正则表达式
+        """
+        if not self.config.sensitive_fields:
+            return re.compile(r'(?!)')  # 永不匹配的正则
+
+        # 匹配包含敏感字段的 JSON 对象
+        fields_pattern = "|".join(f'"{field}"' for field in self.config.sensitive_fields)
+        return re.compile(
+            rf'\{{[^{{}}]*?(?:{fields_pattern})[^{{}}]*?\}}',
+            re.IGNORECASE
+        )
+
+    def _mask_value(self, value: str, keep_prefix: int = 2, keep_suffix: int = 2) -> str:
+        """脱敏单个值
+
+        参数:
+            value: 原始值
+            keep_prefix: 保留前缀字符数
+            keep_suffix: 保留后缀字符数
+
+        返回:
+            脱敏后的值
+        """
         if not value:
             return value
-        # 保留前2位和后2位，中间用掩码字符替换
-        if len(value) <= 4:
+
+        # 如果值太短，完全脱敏
+        if len(value) <= keep_prefix + keep_suffix:
             return self.config.mask_char * len(value)
-        return value[:2] + self.config.mask_char * (len(value) - 4) + value[-2:]
+
+        # 保留前后部分，中间脱敏
+        return (value[:keep_prefix] +
+                self.config.mask_char * (len(value) - keep_prefix - keep_suffix) +
+                value[-keep_suffix:])
 
     def _mask_json_value(self, value: str) -> str:
-        """脱敏JSON字符串中的值"""
+        """脱敏JSON字符串中的值
+
+        参数:
+            value: JSON 字符串值
+
+        返回:
+            脱敏后的值（固定长度掩码）
+        """
         if not value:
             return value
-        # 对于JSON中的值，使用固定长度的掩码
-        return self.config.mask_char * 8
 
-    def filter(self, record):
-        if not self.config.mask_sensitive:
-            return True
+        # 根据值长度决定掩码长度
+        mask_length = min(8, len(value))
+        return self.config.mask_char * mask_length
 
+    def _mask_record_attributes(self, record: logging.LogRecord) -> int:
+        """脱敏记录对象上的属性
+
+        参数:
+            record: 日志记录对象
+
+        返回:
+            脱敏的属性数量
+        """
         masked_count = 0
 
-        # 处理记录对象上的属性
         for field in self.config.sensitive_fields:
             if hasattr(record, field):
                 value = getattr(record, field)
@@ -102,26 +246,89 @@ class SensitiveDataFilter(logging.Filter):
                     masked_count += 1
                     self._debug("脱敏记录属性: %s, 原值长度: %d", field, len(value))
 
-        # 处理消息中的 JSON 字符串
-        if hasattr(record, 'msg') and isinstance(record.msg, str):
-            original_msg = record.msg
-            for field, pattern in self.patterns.items():
-                # 查找匹配的值
-                match = pattern.search(original_msg)
-                if match:
-                    original_value = match.group(1)
-                    masked_value = self._mask_json_value(original_value)
-                    record.msg = pattern.sub(
-                        f'"{field}": "{masked_value}"',
-                        record.msg
-                    )
-                    masked_count += 1
-                    self._debug("脱敏消息中的字段: %s", field)
+        return masked_count
 
-        if masked_count > 0:
-            self._debug("本次处理共脱敏 %d 处敏感信息", masked_count)
+    def _mask_message(self, msg: str) -> tuple[str, int]:
+        """脱敏消息字符串
+
+        参数:
+            msg: 原始消息
+
+        返回:
+            (脱敏后的消息, 脱敏次数)
+        """
+        masked_count = 0
+        new_msg = msg
+
+        if self._combined_pattern:
+            def replacer(match):
+                nonlocal masked_count
+
+                for i, field in enumerate(self.config.sensitive_fields):
+                    # JSON 双引号格式
+                    prefix = match.group(f"p{i}j")
+                    if prefix is not None:
+                        value = match.group(f"v{i}j")
+                        suffix = match.group(f"s{i}j")
+                        masked_count += 1
+                        self._debug("脱敏JSON字段: %s", field)
+                        return f'{prefix}{self._mask_json_value(value)}{suffix}'
+
+                    # JSON 单引号格式
+                    prefix = match.group(f"p{i}s")
+                    if prefix is not None:
+                        value = match.group(f"v{i}s")
+                        suffix = match.group(f"s{i}s")
+                        masked_count += 1
+                        self._debug("脱敏JSON字段(单引号): %s", field)
+                        return f"{prefix}{self._mask_json_value(value)}{suffix}"
+
+                return match.group(0)
+
+            new_msg = self._combined_pattern.sub(replacer, new_msg)
+
+        return new_msg, masked_count
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """过滤敏感数据
+
+        参数:
+            record: 日志记录对象
+
+        返回:
+            总是返回 True，不丢弃任何日志
+        """
+        if not self.config.mask_sensitive:
+            return True
+
+        self._stats.total_processed += 1
+
+        # 脱敏记录属性
+        attr_masked = self._mask_record_attributes(record)
+
+        # 脱敏消息内容
+        if isinstance(record.msg, str):
+            new_msg, msg_masked = self._mask_message(record.msg)
+            if new_msg != record.msg:
+                record.msg = new_msg
+                attr_masked += msg_masked
+
+        if attr_masked > 0:
+            self._stats.sensitive_masked += attr_masked
+            self._debug("本次处理共脱敏 %d 处敏感信息", attr_masked)
 
         return True
+
+    def get_stats(self) -> Dict[str, int]:
+        """获取统计信息
+
+        返回:
+            统计信息字典
+        """
+        return {
+            'total_processed': self._stats.total_processed,
+            'sensitive_masked': self._stats.sensitive_masked,
+        }
 
 
 class SamplingFilter(logging.Filter):
@@ -130,54 +337,141 @@ class SamplingFilter(logging.Filter):
     def __init__(self, config: LoggingConfig):
         super().__init__()
         self.config = config
-        self._lock = threading.Lock()
-        self._last_log_time = {}
-        self._counter = 0  # 添加计数器用于概率采样
+        self._stats: FilterStats = FilterStats()
+        self._lock: threading.Lock = threading.Lock()
+        self._last_log_time: Dict[str, float] = {}
+        self._counter: int = 0
+        self._threshold: Optional[int] = None
+
+        # 预计算阈值
+        self._update_threshold()
+
         self._debug("初始化采样过滤器，采样率: %.2f, 采样间隔: %d秒",
                     config.sampling_rate, config.sampling_interval)
 
-    def _debug(self, msg, *args):
-        """调试输出"""
+    def _debug(self, msg: str, *args: Any) -> None:
+        """调试输出
+
+        参数:
+            msg: 消息模板
+            *args: 消息格式化参数
+        """
         if self.config and self.config.filter_debug:
             debug_print(self.__class__.__name__, msg, *args)
 
-    def filter(self, record):
-        """判断是否应该记录此日志"""
+    def _update_threshold(self) -> None:
+        """更新采样阈值"""
+        if self.config.sampling_rate > 0:
+            self._threshold = int(1.0 / self.config.sampling_rate)
+        else:
+            self._threshold = None  # 采样率为 0，丢弃所有非错误日志
+
+    def _should_sample_by_rate(self) -> bool:
+        """根据采样率判断是否采样
+
+        返回:
+            True 表示应该采样，False 表示丢弃
+        """
+        if self._threshold is None:
+            return False  # 采样率为 0，丢弃
+
+        if self.config.sampling_rate >= 1.0:
+            return True  # 采样率为 100%，全部保留
+
+        with self._lock:
+            self._counter += 1
+            should_log = (self._counter % self._threshold) == 0
+
+        if not should_log:
+            self._debug("采样率过滤: 计数: %d, 阈值: %d", self._counter, self._threshold)
+
+        return should_log
+
+    def _should_sample_by_interval(self, logger_name: str) -> bool:
+        """根据时间间隔判断是否采样
+
+        参数:
+            logger_name: 日志器名称
+
+        返回:
+            True 表示应该采样，False 表示需要等待
+        """
+        if self.config.sampling_interval <= 0:
+            return True
+
+        current_time = time.time()
+
+        with self._lock:
+            last_time = self._last_log_time.get(logger_name)
+
+            if last_time is not None:
+                time_diff = current_time - last_time
+                if time_diff < self.config.sampling_interval:
+                    self._debug("采样间隔过滤: %s, 距离上次: %.2f秒, 间隔要求: %d秒",
+                                logger_name, time_diff, self.config.sampling_interval)
+                    return False
+
+                self._debug("采样间隔通过: %s, 距离上次: %.2f秒",
+                            logger_name, time_diff)
+
+            self._last_log_time[logger_name] = current_time
+
+        return True
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """判断是否应该记录此日志
+
+        参数:
+            record: 日志记录对象
+
+        返回:
+            True 表示记录，False 表示丢弃
+        """
+        self._stats.total_processed += 1
+
         # 错误级别以上的日志总是记录
         if record.levelno >= logging.ERROR:
             return True
 
         # 采样率检查
-        if self.config.sampling_rate < 1.0:
-            with self._lock:
-                self._counter += 1
-                # 使用确定性算法确保均匀分布
-                threshold = int(1.0 / self.config.sampling_rate)
-                should_log = (self._counter % threshold) == 0
-
-                if not should_log:
-                    self._debug("采样率过滤: %s, 计数: %d, 阈值: %d",
-                               record.name, self._counter, threshold)
-                    return False
-                else:
-                    self._debug("采样率通过: %s, 计数: %d", record.name, self._counter)
+        if not self._should_sample_by_rate():
+            self._stats.sampling_dropped += 1
+            return False
 
         # 采样间隔检查
-        if self.config.sampling_interval > 0:
-            logger_name = record.name
-            current_time = time.time()
-
-            with self._lock:
-                if logger_name in self._last_log_time:
-                    time_diff = current_time - self._last_log_time[logger_name]
-                    if time_diff < self.config.sampling_interval:
-                        self._debug("采样间隔过滤: %s, 距离上次: %.2f秒, 间隔要求: %d秒",
-                                   logger_name, time_diff, self.config.sampling_interval)
-                        return False
-                    else:
-                        self._debug("采样间隔通过: %s, 距离上次: %.2f秒",
-                                   logger_name, time_diff)
-
-                self._last_log_time[logger_name] = current_time
+        if not self._should_sample_by_interval(record.name):
+            self._stats.sampling_dropped += 1
+            return False
 
         return True
+
+    def update_config(self, config: LoggingConfig) -> None:
+        """更新配置（支持动态调整）
+
+        参数:
+            config: 新的日志配置
+        """
+        self.config = config
+        self._update_threshold()
+        self._debug("配置已更新: 采样率=%.2f, 采样间隔=%d秒",
+                    config.sampling_rate, config.sampling_interval)
+
+    def reset_stats(self) -> None:
+        """重置统计信息"""
+        self._stats.reset()
+        with self._lock:
+            self._counter = 0
+            self._last_log_time.clear()
+
+    def get_stats(self) -> Dict[str, int]:
+        """获取统计信息
+
+        返回:
+            统计信息字典
+        """
+        return {
+            'total_processed': self._stats.total_processed,
+            'sampling_dropped': self._stats.sampling_dropped,
+            'retention_rate': 0 if self._stats.total_processed == 0 else
+            (1 - self._stats.sampling_dropped / self._stats.total_processed) * 100,
+        }

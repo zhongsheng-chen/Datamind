@@ -1,5 +1,7 @@
 # Datamind/datamind/core/db/models/experiment/ab_test.py
-"""A/B测试配置表定义"""
+
+"""A/B测试配置表定义
+"""
 
 from sqlalchemy import (
     Column, String, DateTime, Text, Float, BigInteger,

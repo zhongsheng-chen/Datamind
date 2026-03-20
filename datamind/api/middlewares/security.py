@@ -1,4 +1,48 @@
 # Datamind/datamind/api/middlewares/security.py
+
+"""安全中间件
+
+提供多种安全防护功能，包括安全头、IP白名单、请求大小限制、请求验证等。
+
+中间件类型：
+  SecurityHeadersMiddleware: 安全头中间件
+     - 添加 X-Content-Type-Options: nosniff
+     - 添加 X-Frame-Options: DENY
+     - 添加 X-XSS-Protection: 1; mode=block
+     - 添加 Strict-Transport-Security (HSTS)
+     - 添加 Content-Security-Policy
+     - 添加 Referrer-Policy
+     - 添加 Permissions-Policy
+
+  IPWhitelistMiddleware: IP白名单中间件
+     - 限制只有白名单内的IP可以访问
+     - 记录被阻止的IP访问日志
+     - 返回 403 Forbidden
+
+  RequestSizeLimitMiddleware: 请求大小限制中间件
+     - 限制请求体大小（默认 10MB）
+     - 返回 413 Payload Too Large
+
+  RequestValidationMiddleware: 请求验证中间件
+     - 时间戳验证（防止重放攻击）
+     - 请求签名验证（防止请求篡改）
+     - 支持 HMAC-SHA256 签名
+
+安全头说明：
+  - X-Content-Type-Options: nosniff - 防止 MIME 类型嗅探
+  - X-Frame-Options: DENY - 防止点击劫持
+  - X-XSS-Protection: 1; mode=block - 启用 XSS 过滤
+  - Strict-Transport-Security: HSTS 强制 HTTPS
+  - Content-Security-Policy: 限制资源加载来源
+  - Referrer-Policy: 控制 Referer 头信息
+  - Permissions-Policy: 限制浏览器功能权限
+
+请求签名验证流程：
+  - 客户端计算签名：HMAC-SHA256(secret, method + path + timestamp + body)
+  - 在请求头中添加 X-Timestamp 和 X-Signature
+  - 服务端验证签名，防止请求被篡改
+"""
+
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -7,7 +51,8 @@ from typing import Set
 import hashlib
 import hmac
 
-from datamind.core import log_manager, get_request_id
+from datamind.core.logging import log_manager, debug_print
+from datamind.core.logging import context
 from datamind.config import settings
 
 
@@ -15,7 +60,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
     安全头中间件
 
-    添加各种安全相关的HTTP头
+    添加各种安全相关的 HTTP 响应头，增强应用安全性。
     """
 
     def __init__(self, app: ASGIApp):
@@ -43,11 +88,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class IPWhitelistMiddleware(BaseHTTPMiddleware):
     """
     IP白名单中间件
+
+    只允许白名单中的 IP 地址访问，其他 IP 返回 403。
     """
 
     def __init__(self, app: ASGIApp, whitelist: Set[str] = None):
+        """
+        初始化 IP 白名单中间件
+
+        参数:
+            app: ASGI 应用
+            whitelist: 白名单 IP 集合
+        """
         super().__init__(app)
-        self.whitelist = whitelist or set(settings.TRUSTED_PROXIES)
+        self.whitelist = whitelist or set(settings.security.trusted_proxies)
         self.enabled = len(self.whitelist) > 0
 
     async def dispatch(self, request: Request, call_next):
@@ -57,7 +111,7 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
         client_ip = request.client.host if request.client else None
 
         if client_ip not in self.whitelist:
-            request_id = get_request_id()
+            request_id = context.get_request_id()
 
             log_manager.log_audit(
                 action="IP_BLOCKED",
@@ -78,9 +132,18 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     """
     请求大小限制中间件
+
+    限制请求体大小，防止恶意大请求消耗资源。
     """
 
     def __init__(self, app: ASGIApp, max_size: int = 10 * 1024 * 1024):  # 10MB
+        """
+        初始化请求大小限制中间件
+
+        参数:
+            app: ASGI 应用
+            max_size: 最大请求体大小（字节），默认 10MB
+        """
         super().__init__(app)
         self.max_size = max_size
 
@@ -100,10 +163,17 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
     """
     请求验证中间件
 
-    验证请求的合法性，如请求时间戳、签名等
+    验证请求的合法性，包括时间戳验证（防重放）和签名验证（防篡改）。
     """
 
     def __init__(self, app: ASGIApp, max_age: int = 300):  # 5分钟
+        """
+        初始化请求验证中间件
+
+        参数:
+            app: ASGI 应用
+            max_age: 请求时间戳最大有效期（秒），默认 300 秒（5分钟）
+        """
         super().__init__(app)
         self.max_age = max_age
 
@@ -125,13 +195,20 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
 
         # 验证请求签名
         signature = request.headers.get("X-Signature")
-        if signature and settings.API_KEY_ENABLED:
+        if signature and settings.auth.api_key_enabled:
             await self._verify_signature(request, signature)
 
         return await call_next(request)
 
     async def _verify_signature(self, request: Request, signature: str):
-        """验证请求签名"""
+        """验证请求签名
+
+        使用 HMAC-SHA256 验证请求签名，防止请求被篡改。
+
+        签名算法：
+            message = method + path + timestamp + body
+            signature = HMAC-SHA256(secret, message)
+        """
         # 获取请求体
         body = await request.body()
 
@@ -140,17 +217,18 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         timestamp = request.headers.get("X-Timestamp", "")
 
-        message = f"{method}{path}{timestamp}{body.decode()}".encode()
+        message = f"{method}{path}{timestamp}{body.decode()}"
 
         # 计算期望签名
         expected = hmac.new(
-            settings.JWT_SECRET_KEY.encode(),
-            message,
+            settings.auth.jwt_secret_key.encode(),
+            message.encode(),
             hashlib.sha256
         ).hexdigest()
 
+        # 安全比较签名（防止时序攻击）
         if not hmac.compare_digest(signature, expected):
-            request_id = get_request_id()
+            request_id = context.get_request_id()
 
             log_manager.log_audit(
                 action="INVALID_SIGNATURE",
