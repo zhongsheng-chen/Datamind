@@ -1,4 +1,4 @@
-# Datamind/datamind/api/routes/model_api.py
+# datamind/api/routes/model_api.py
 
 """模型管理 API 路由
 
@@ -27,23 +27,13 @@ API 端点：
   - GET /api/v1/models/types/model - 获取模型类型列表
   - GET /api/v1/models/types/framework - 获取框架列表
   - GET /api/v1/models/stats/loaded - 获取已加载模型列表
-
-请求/响应格式：
-  - 大部分接口返回统一的 JSON 格式
-  - 文件上传使用 multipart/form-data
-  - 支持 JSON 字段的字符串形式（input_features、output_schema 等）
-
-安全特性：
-  - API 密钥认证（X-API-Key）
-  - 用户身份认证（从 API 密钥解析）
-  - 操作审计日志记录
-  - IP 地址追踪
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
-from typing import Optional
+import json
 import os
 import tempfile
+from typing import Optional
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 
 from datamind.core.ml.model_registry import model_registry
 from datamind.core.ml.model_loader import model_loader
@@ -51,13 +41,15 @@ from datamind.core.ml.exceptions import (
     ModelNotFoundException, ModelAlreadyExistsException,
     ModelValidationException, ModelFileException
 )
-from datamind.core.logging import log_manager, debug_print
-from datamind.core.logging import context
-from datamind.core.domain import TaskType, ModelType, Framework
+from datamind.core.logging import log_audit, context
+from datamind.core.logging.debug import debug_print
+from datamind.core.domain.enums import TaskType, ModelType, Framework, AuditAction
+from datamind.core.domain.validation import get_supported_models, get_supported_frameworks
 from datamind.api.dependencies import get_current_user, get_api_key
-from datamind.config import settings
+from datamind.config import get_settings
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.post("/register")
@@ -73,6 +65,8 @@ async def register_model(
         description: Optional[str] = Form(None),
         model_params: Optional[str] = Form(None),  # JSON string
         tags: Optional[str] = Form(None),  # JSON string
+        scorecard_params: Optional[str] = Form(None),  # JSON string
+        risk_config: Optional[str] = Form(None),  # JSON string
         model_file: UploadFile = File(...),
         current_user: str = Depends(get_current_user),
         api_key: str = Depends(get_api_key)
@@ -90,27 +84,33 @@ async def register_model(
     - **description**: 模型描述
     - **model_params**: 模型参数 (JSON对象)
     - **tags**: 标签 (JSON对象)
+    - **scorecard_params**: 评分卡配置参数 (JSON对象)
+    - **risk_config**: 风险配置参数 (JSON对象)
     - **model_file**: 模型文件
     """
-    request_id = get_request_id()
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
 
     try:
         # 解析JSON字段
-        import json
         input_features_list = json.loads(input_features)
         output_schema_dict = json.loads(output_schema)
         model_params_dict = json.loads(model_params) if model_params else None
         tags_dict = json.loads(tags) if tags else None
+        scorecard_params_dict = json.loads(scorecard_params) if scorecard_params else None
+        risk_config_dict = json.loads(risk_config) if risk_config else None
 
         # 验证文件大小
-        file_size = 0
         content = await model_file.read()
         file_size = len(content)
 
-        if file_size > settings.MODEL_FILE_MAX_SIZE:
+        if file_size > settings.model.max_size:
             raise HTTPException(
                 status_code=400,
-                detail=f"模型文件过大，最大允许 {settings.MODEL_FILE_MAX_SIZE / 1024 / 1024}MB"
+                detail=f"模型文件过大，最大允许 {settings.model.max_size / 1024 / 1024:.0f}MB"
             )
 
         # 保存临时文件
@@ -133,14 +133,37 @@ async def register_model(
                 description=description,
                 model_params=model_params_dict,
                 tags=tags_dict,
-                ip_address=request.client.host if request.client else None
+                ip_address=client_ip,
+                scorecard_params=scorecard_params_dict,
+                risk_config=risk_config_dict
+            )
+
+            # 记录审计日志
+            log_audit(
+                action=AuditAction.MODEL_CREATE.value,
+                user_id=current_user,
+                ip_address=client_ip,
+                details={
+                    "model_id": model_id,
+                    "model_name": model_name,
+                    "model_version": model_version,
+                    "task_type": task_type,
+                    "model_type": model_type,
+                    "framework": framework,
+                    "file_size": file_size,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
             )
 
             return {
                 "success": True,
                 "model_id": model_id,
                 "message": f"模型 {model_name} v{model_version} 注册成功",
-                "request_id": request_id
+                "request_id": request_id,
+                "trace_id": trace_id
             }
 
         finally:
@@ -156,11 +179,16 @@ async def register_model(
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=400, detail=f"JSON格式错误: {str(e)}")
     except Exception as e:
-        log_manager.log_audit(
-            action="MODEL_REGISTER_API_ERROR",
+        log_audit(
+            action=AuditAction.MODEL_CREATE.value,
             user_id=current_user,
-            ip_address=request.client.host if request.client else None,
-            details={"error": str(e)},
+            ip_address=client_ip,
+            details={
+                "error": str(e),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
             request_id=request_id
         )
         raise HTTPException(status_code=500, detail=f"注册失败: {str(e)}")
@@ -173,6 +201,11 @@ async def get_model(
         current_user: str = Depends(get_current_user)
 ):
     """获取模型信息"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+
     try:
         model_info = model_registry.get_model_info(model_id)
         if not model_info:
@@ -186,6 +219,19 @@ async def get_model(
     except ModelNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id=current_user,
+            ip_address=request.client.host if request.client else None,
+            details={
+                "model_id": model_id,
+                "error": str(e),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
         raise HTTPException(status_code=500, detail=f"获取模型信息失败: {str(e)}")
 
 
@@ -200,6 +246,8 @@ async def list_models(
         current_user: str = Depends(get_current_user)
 ):
     """列出模型"""
+    request_id = context.get_request_id()
+
     try:
         models = model_registry.list_models(
             task_type=task_type,
@@ -216,7 +264,7 @@ async def list_models(
         return {
             "total": len(models),
             "models": models,
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except Exception as e:
@@ -231,18 +279,38 @@ async def activate_model(
         current_user: str = Depends(get_current_user)
 ):
     """激活模型"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
+
     try:
         model_registry.activate_model(
             model_id=model_id,
             operator=current_user,
             reason=reason,
-            ip_address=request.client.host if request.client else None
+            ip_address=client_ip
+        )
+
+        log_audit(
+            action=AuditAction.MODEL_ACTIVATE.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "reason": reason,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
         )
 
         return {
             "success": True,
             "message": f"模型 {model_id} 已激活",
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except ModelNotFoundException as e:
@@ -259,18 +327,38 @@ async def deactivate_model(
         current_user: str = Depends(get_current_user)
 ):
     """停用模型"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
+
     try:
         model_registry.deactivate_model(
             model_id=model_id,
             operator=current_user,
             reason=reason,
-            ip_address=request.client.host if request.client else None
+            ip_address=client_ip
+        )
+
+        log_audit(
+            action=AuditAction.MODEL_DEACTIVATE.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "reason": reason,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
         )
 
         return {
             "success": True,
             "message": f"模型 {model_id} 已停用",
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except ModelNotFoundException as e:
@@ -287,18 +375,38 @@ async def promote_model(
         current_user: str = Depends(get_current_user)
 ):
     """提升为生产模型"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
+
     try:
-        model_registry.set_production_model(
+        model_registry.promote_to_production(
             model_id=model_id,
             operator=current_user,
             reason=reason,
-            ip_address=request.client.host if request.client else None
+            ip_address=client_ip
+        )
+
+        log_audit(
+            action=AuditAction.MODEL_PROMOTE.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "reason": reason,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
         )
 
         return {
             "success": True,
             "message": f"模型 {model_id} 已设置为生产模型",
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except ModelNotFoundException as e:
@@ -314,21 +422,40 @@ async def load_model(
         current_user: str = Depends(get_current_user)
 ):
     """加载模型到内存"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
+
     try:
         success = model_loader.load_model(
             model_id=model_id,
             operator=current_user,
-            ip_address=request.client.host if request.client else None
+            ip_address=client_ip
         )
 
         if success:
+            log_audit(
+                action=AuditAction.MODEL_LOAD.value,
+                user_id=current_user,
+                ip_address=client_ip,
+                details={
+                    "model_id": model_id,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
             return {
                 "success": True,
                 "message": f"模型 {model_id} 加载成功",
-                "request_id": context.get_request_id()
+                "request_id": request_id
             }
         else:
-            raise HTTPException(status_code=500, detail=f"模型加载失败")
+            raise HTTPException(status_code=500, detail="模型加载失败")
 
     except ModelNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -343,17 +470,36 @@ async def unload_model(
         current_user: str = Depends(get_current_user)
 ):
     """从内存卸载模型"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
+
     try:
         model_loader.unload_model(
             model_id=model_id,
             operator=current_user,
-            ip_address=request.client.host if request.client else None
+            ip_address=client_ip
+        )
+
+        log_audit(
+            action=AuditAction.MODEL_UNLOAD.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
         )
 
         return {
             "success": True,
             "message": f"模型 {model_id} 已卸载",
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except Exception as e:
@@ -367,13 +513,15 @@ async def get_model_history(
         current_user: str = Depends(get_current_user)
 ):
     """获取模型历史"""
+    request_id = context.get_request_id()
+
     try:
         history = model_registry.get_model_history(model_id)
 
         return {
             "model_id": model_id,
             "history": history,
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except ModelNotFoundException as e:
@@ -390,23 +538,43 @@ async def delete_model(
         current_user: str = Depends(get_current_user)
 ):
     """删除模型（软删除）"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
+
     try:
         # 先卸载模型
         if model_loader.is_loaded(model_id):
             model_loader.unload_model(model_id, current_user)
 
-        # 归档模型
-        model_registry.delete_model(
+        # 软删除模型（设置为归档状态）
+        model_registry.archive_model(
             model_id=model_id,
             operator=current_user,
             reason=reason,
-            ip_address=request.client.host if request.client else None
+            ip_address=client_ip
+        )
+
+        log_audit(
+            action=AuditAction.MODEL_ARCHIVE.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "reason": reason,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
         )
 
         return {
             "success": True,
             "message": f"模型 {model_id} 已删除",
-            "request_id": context.get_request_id()
+            "request_id": request_id
         }
 
     except ModelNotFoundException as e:
@@ -427,46 +595,46 @@ async def get_task_types():
 @router.get("/types/model")
 async def get_model_types(framework: Optional[str] = None):
     """获取模型类型列表"""
-    from datamind.core.domain import get_compatible_model_types
+    request_id = context.get_request_id()
 
     if framework:
         try:
             framework_enum = Framework(framework)
-            model_types = get_compatible_model_types(framework_enum)
+            model_types = get_supported_models(framework_enum)
             return {
                 "framework": framework,
                 "model_types": [{"value": mt.value, "name": mt.name} for mt in model_types],
-                "request_id": context.get_request_id()
+                "request_id": request_id
             }
         except ValueError:
             raise HTTPException(status_code=400, detail=f"不支持的框架: {framework}")
 
     return {
         "model_types": [{"value": t.value, "name": t.name} for t in ModelType],
-        "request_id": context.get_request_id()
+        "request_id": request_id
     }
 
 
 @router.get("/types/framework")
 async def get_frameworks(model_type: Optional[str] = None):
     """获取框架列表"""
-    from datamind.core import get_compatible_frameworks
+    request_id = context.get_request_id()
 
     if model_type:
         try:
             model_type_enum = ModelType(model_type)
-            frameworks = get_compatible_frameworks(model_type_enum)
+            frameworks = get_supported_frameworks(model_type_enum)
             return {
                 "model_type": model_type,
                 "frameworks": [{"value": f.value, "name": f.name} for f in frameworks],
-                "request_id": context.get_request_id()
+                "request_id": request_id
             }
         except ValueError:
             raise HTTPException(status_code=400, detail=f"不支持的模型类型: {model_type}")
 
     return {
         "frameworks": [{"value": f.value, "name": f.name} for f in Framework],
-        "request_id": context.get_request_id()
+        "request_id": request_id
     }
 
 

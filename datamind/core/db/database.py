@@ -42,8 +42,9 @@ from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from datamind.core.logging import log_audit, log_performance, context
-from datamind.config import get_settings
 from datamind.core.db.base import Base
+from datamind.core.domain.enums import AuditAction
+from datamind.config import get_settings
 
 
 class DatabaseManager:
@@ -126,7 +127,7 @@ class DatabaseManager:
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
             log_audit(
-                action="DB_INITIALIZE",
+                action=AuditAction.DB_INITIALIZE.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -143,7 +144,7 @@ class DatabaseManager:
 
         except Exception as e:
             log_audit(
-                action="DB_INITIALIZE",
+                action=AuditAction.DB_INITIALIZE.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -187,7 +188,7 @@ class DatabaseManager:
 
         except Exception as e:
             log_audit(
-                action="DB_CREATE_ENGINE",
+                action=AuditAction.DB_CREATE_ENGINE.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -203,6 +204,7 @@ class DatabaseManager:
 
     def _add_engine_events(self, engine: Engine):
         """添加数据库引擎事件监听"""
+
         @event.listens_for(engine, "connect")
         def connect(dbapi_connection, connection_record):
             self.logger.debug("数据库连接已建立")
@@ -234,7 +236,7 @@ class DatabaseManager:
 
         except OperationalError as e:
             log_audit(
-                action="DB_GET_SESSION",
+                action=AuditAction.DB_GET_SESSION.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -251,7 +253,7 @@ class DatabaseManager:
             raise
         except Exception as e:
             log_audit(
-                action="DB_GET_SESSION",
+                action=AuditAction.DB_GET_SESSION.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -275,7 +277,7 @@ class DatabaseManager:
             session.execute(text("SELECT 1"))
         except Exception as e:
             log_audit(
-                action="DB_HEALTH_CHECK",
+                action=AuditAction.DB_HEALTH_CHECK.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -308,7 +310,7 @@ class DatabaseManager:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
 
                 log_audit(
-                    action="DB_TRANSACTION",
+                    action=AuditAction.DB_TRANSACTION.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
@@ -323,7 +325,7 @@ class DatabaseManager:
 
                 if duration > 100:
                     log_performance(
-                        operation="DB_SLOW_TRANSACTION",
+                        operation=AuditAction.DB_TRANSACTION.value,
                         duration_ms=duration,
                         extra={
                             "engine_name": engine_name,
@@ -342,7 +344,7 @@ class DatabaseManager:
             error_trace = traceback.format_exc()
 
             log_audit(
-                action="DB_TRANSACTION_ERROR",
+                action=AuditAction.DB_TRANSACTION.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -397,7 +399,7 @@ class DatabaseManager:
                 self._create_engine(engine_name, settings.database.readonly_url)
 
             log_audit(
-                action="DB_RECONNECT",
+                action=AuditAction.DB_RECONNECT.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -411,7 +413,7 @@ class DatabaseManager:
 
         except Exception as e:
             log_audit(
-                action="DB_RECONNECT",
+                action=AuditAction.DB_RECONNECT.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -448,7 +450,7 @@ class DatabaseManager:
                 }
 
                 log_audit(
-                    action="DB_HEALTH_CHECK",
+                    action=AuditAction.DB_HEALTH_CHECK.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
@@ -498,17 +500,17 @@ class DatabaseManager:
                     }
 
                 result = session.execute(text("""
-                    SELECT application_name,
-                           client_addr,
-                           state,
-                           sync_state,
-                           replay_lag,
-                           EXTRACT(EPOCH FROM replay_lag) as replay_lag_seconds,
-                           write_lag,
-                           flush_lag,
-                           pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) as byte_lag
-                    FROM pg_stat_replication;
-                """)).fetchall()
+                                              SELECT application_name,
+                                                     client_addr,
+                                                     state,
+                                                     sync_state,
+                                                     replay_lag,
+                                                     EXTRACT(EPOCH FROM replay_lag)                    as replay_lag_seconds,
+                                                     write_lag,
+                                                     flush_lag,
+                                                     pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) as byte_lag
+                                              FROM pg_stat_replication;
+                                              """)).fetchall()
 
                 replicas = []
                 max_lag = 0
@@ -540,7 +542,7 @@ class DatabaseManager:
                     status = 'healthy'
 
                 log_audit(
-                    action="REPLICATION_STATUS",
+                    action=AuditAction.REPLICATION_STATUS.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
@@ -569,7 +571,7 @@ class DatabaseManager:
         except Exception as e:
             self.logger.error(f"检查复制状态失败: {e}")
             log_audit(
-                action="REPLICATION_STATUS",
+                action=AuditAction.REPLICATION_STATUS.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -603,7 +605,7 @@ class DatabaseManager:
                 """)).fetchone()
 
                 log_audit(
-                    action="SYNC_STATUS",
+                    action=AuditAction.SYNC_STATUS.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
@@ -647,21 +649,21 @@ class DatabaseManager:
                     }
 
                 result = session.execute(text("""
-                    SELECT slot_name,
-                           slot_type,
-                           database,
-                           active,
-                           restart_lsn,
-                           pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) as wal_retained_bytes,
-                           CASE
-                               WHEN active = false THEN 'inactive'
-                               WHEN pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) > 1024 * 1024 * 1024
-                                   THEN 'high_lag'
-                               ELSE 'healthy'
-                           END as status
-                    FROM pg_replication_slots
-                    WHERE slot_type = 'physical';
-                """)).fetchall()
+                                              SELECT slot_name,
+                                                     slot_type,
+                                                     database,
+                                                     active,
+                                                     restart_lsn,
+                                                     pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) as wal_retained_bytes,
+                                                     CASE
+                                                         WHEN active = false THEN 'inactive'
+                                                         WHEN pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) > 1024 * 1024 * 1024
+                                                             THEN 'high_lag'
+                                                         ELSE 'healthy'
+                                                         END                                            as status
+                                              FROM pg_replication_slots
+                                              WHERE slot_type = 'physical';
+                                              """)).fetchall()
 
                 slots = []
                 for row in result:
@@ -681,7 +683,7 @@ class DatabaseManager:
                     self.logger.warning(f"发现不活跃的复制槽: {[s['name'] for s in inactive_slots]}")
 
                 log_audit(
-                    action="REPLICATION_SLOTS",
+                    action=AuditAction.REPLICATION_SLOTS.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
@@ -727,19 +729,19 @@ class DatabaseManager:
                     }
 
                 result = session.execute(text("""
-                    SELECT COUNT(*) as total_replicas,
-                           COUNT(CASE WHEN state = 'streaming' THEN 1 END) as streaming_replicas,
-                           AVG(EXTRACT(EPOCH FROM replay_lag)) as avg_replay_lag,
-                           MAX(EXTRACT(EPOCH FROM replay_lag)) as max_replay_lag,
-                           SUM(pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)) as total_byte_lag,
-                           COUNT(CASE WHEN sync_state = 'sync' THEN 1 END) as sync_replicas,
-                           COUNT(CASE WHEN sync_state = 'quorum' THEN 1 END) as quorum_replicas,
-                           COUNT(CASE WHEN sync_state = 'async' THEN 1 END) as async_replicas
-                    FROM pg_stat_replication;
-                """)).fetchone()
+                                              SELECT COUNT(*)                                               as total_replicas,
+                                                     COUNT(CASE WHEN state = 'streaming' THEN 1 END)        as streaming_replicas,
+                                                     AVG(EXTRACT(EPOCH FROM replay_lag))                    as avg_replay_lag,
+                                                     MAX(EXTRACT(EPOCH FROM replay_lag))                    as max_replay_lag,
+                                                     SUM(pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)) as total_byte_lag,
+                                                     COUNT(CASE WHEN sync_state = 'sync' THEN 1 END)        as sync_replicas,
+                                                     COUNT(CASE WHEN sync_state = 'quorum' THEN 1 END)      as quorum_replicas,
+                                                     COUNT(CASE WHEN sync_state = 'async' THEN 1 END)       as async_replicas
+                                              FROM pg_stat_replication;
+                                              """)).fetchone()
 
                 log_audit(
-                    action="REPLICATION_METRICS",
+                    action=AuditAction.REPLICATION_METRICS.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
@@ -851,7 +853,7 @@ class DatabaseManager:
         self.logger.warning(alert_msg)
 
         log_audit(
-            action="REPLICATION_ALERT",
+            action=AuditAction.REPLICATION_ALERT.value,
             user_id="system",
             ip_address="localhost",
             details={
@@ -874,6 +876,31 @@ class DatabaseManager:
 
 # 全局数据库管理器实例
 db_manager = DatabaseManager()
+
+
+def get_engine(engine_name: str = 'default') -> Engine:
+    """获取数据库引擎
+
+    参数:
+        engine_name: 引擎名称 ('default' 或 'readonly')
+
+    返回:
+        SQLAlchemy Engine 对象
+    """
+    if not db_manager._initialized:
+        db_manager.initialize()
+
+    if engine_name not in db_manager._engines:
+        raise ValueError(f"引擎 '{engine_name}' 不存在，可用的引擎: {list(db_manager._engines.keys())}")
+
+    return db_manager._engines[engine_name]
+
+
+def get_engines() -> Dict[str, Engine]:
+    """获取所有数据库引擎"""
+    if not db_manager._initialized:
+        db_manager.initialize()
+    return db_manager._engines
 
 
 @contextmanager
@@ -909,7 +936,7 @@ def init_db(database_url: str = None):
         duration = (datetime.now() - start_time).total_seconds() * 1000
 
         log_audit(
-            action="DB_INIT_SCHEMA",
+            action=AuditAction.DB_INIT_SCHEMA.value,
             user_id="system",
             ip_address="localhost",
             details={
@@ -925,7 +952,7 @@ def init_db(database_url: str = None):
 
     except Exception as e:
         log_audit(
-            action="DB_INIT_SCHEMA",
+            action=AuditAction.DB_INIT_SCHEMA.value,
             user_id="system",
             ip_address="localhost",
             details={

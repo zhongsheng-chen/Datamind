@@ -97,6 +97,7 @@ python -m alembic upgrade head
 python -m alembic upgrade 20240315_initial
 python -m alembic upgrade 20240316_add_status
 python -m alembic upgrade 20240317_add_indexes
+python -m alembic upgrade 20240318_add_user_tables
 ```
 
 ### 3. 创建新迁移

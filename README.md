@@ -1637,3 +1637,7 @@ pytest tests/ --cov=datamind --cov-report=html
 # 只运行特定模块
 pytest tests/ml/ -v
 ```
+## 安装包
+```bash
+pip install semver -i https://pypi.tuna.tsinghua.edu.cn/simple
+```

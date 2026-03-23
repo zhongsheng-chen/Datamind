@@ -34,6 +34,7 @@ from threading import Semaphore
 
 from datamind.core.db import get_db
 from datamind.core.db.models import ModelMetadata
+from datamind.core.domain.enums import AuditAction
 from datamind.core.ml.exceptions import ModelLoadException, UnsupportedFrameworkException
 from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging.debug import debug_print
@@ -261,7 +262,7 @@ class ModelLoader:
 
                     # 记录性能日志
                     log_performance(
-                        operation="MODEL_LOAD",
+                        operation=AuditAction.MODEL_LOAD.value,
                         duration_ms=duration,
                         extra={
                             "model_id": model_id,
@@ -275,7 +276,7 @@ class ModelLoader:
 
                     # 记录审计日志
                     log_audit(
-                        action="MODEL_LOAD",
+                        action=AuditAction.MODEL_LOAD.value,
                         user_id=operator,
                         ip_address=ip_address,
                         details={
@@ -297,7 +298,7 @@ class ModelLoader:
                 except Exception as e:
                     duration = (datetime.now() - start_time).total_seconds() * 1000
                     log_audit(
-                        action="MODEL_LOAD",
+                        action=AuditAction.MODEL_LOAD.value,
                         user_id=operator,
                         ip_address=ip_address,
                         details={
@@ -328,7 +329,7 @@ class ModelLoader:
                         del self._model_locks[model_id]
 
                     log_audit(
-                        action="MODEL_UNLOAD",
+                        action=AuditAction.MODEL_UNLOAD.value,
                         user_id=operator,
                         ip_address=ip_address,
                         details={
@@ -453,7 +454,7 @@ class ModelLoader:
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
             log_performance(
-                operation="MODEL_WARM_UP",
+                operation=AuditAction.MODEL_WARM_UP.value,
                 duration_ms=duration,
                 extra={
                     "model_id": model_id,

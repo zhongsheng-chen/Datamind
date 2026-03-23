@@ -38,3 +38,8 @@ pytest
 pytest-cov
 pytest-asyncio
 pytest-mock
+testcontainers
+
+boto3
+semver
+moto

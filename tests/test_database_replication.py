@@ -8,6 +8,7 @@
 - 复制性能指标
 - 复制优化建议
 - 告警机制
+- get_engine 和 get_engines 函数
 
 运行方式：
     # 运行所有 mock 测试
@@ -31,7 +32,9 @@ from typing import Dict, Any, List
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from datamind.core.db.database import DatabaseManager, get_db, db_manager
+from datamind.core.db.database import (
+    DatabaseManager, get_db, get_engine, get_engines, db_manager
+)
 from datamind.core.logging import context
 from datamind.config import get_settings
 
@@ -53,13 +56,17 @@ def mock_log_manager():
 def mock_db_manager():
     """创建 mock 的 DatabaseManager 实例"""
     # 重置单例状态
-    DatabaseManager._instance = None
-    if hasattr(DatabaseManager, '_initialized'):
-        DatabaseManager._initialized = False
+    if hasattr(DatabaseManager, '_instance'):
+        DatabaseManager._instance = None
+    if hasattr(db_manager, '_initialized'):
+        db_manager._initialized = False
 
     manager = DatabaseManager()
     manager._initialized = True
-    manager._engines = {'default': MagicMock(), 'readonly': MagicMock()}
+    manager._engines = {
+        'default': MagicMock(),
+        'readonly': MagicMock()
+    }
     manager.database_url = "postgresql://test:test@localhost:5432/testdb"
     return manager
 
@@ -89,7 +96,6 @@ def mock_replication_session():
 @pytest.fixture
 def temp_db_url():
     """临时数据库 URL"""
-    # 使用 SQLite 内存数据库进行快速测试
     return "sqlite:///:memory:"
 
 
@@ -104,6 +110,35 @@ def replication_config():
             'critical_lag_bytes': 1024 * 1024 * 1024,
         }
     }
+
+
+# ==================== 引擎访问测试 ====================
+
+class TestEngineAccess:
+    """测试数据库引擎访问函数"""
+
+    def test_get_engine_default(self, mock_db_manager):
+        """测试获取默认引擎"""
+        with patch('datamind.core.db.database.db_manager', mock_db_manager):
+            # 确保引擎存在
+            mock_db_manager._engines['default'] = MagicMock()
+
+            engine = get_engine('default')
+            assert engine is not None
+
+    def test_get_engine_invalid_name(self, mock_db_manager):
+        """测试获取不存在的引擎"""
+        with patch('datamind.core.db.database.db_manager', mock_db_manager):
+            with pytest.raises(ValueError, match="引擎 'invalid' 不存在"):
+                get_engine('invalid')
+
+    def test_get_engines(self, mock_db_manager):
+        """测试获取所有引擎"""
+        with patch('datamind.core.db.database.db_manager', mock_db_manager):
+            engines = get_engines()
+            assert isinstance(engines, dict)
+            assert 'default' in engines
+            assert 'readonly' in engines
 
 
 # ==================== 复制状态测试 ====================
@@ -770,7 +805,23 @@ class TestReplicationIntegration:
         )
 
         yield manager
-        manager.cleanup()
+        # 清理连接池
+        for engine in manager._engines.values():
+            engine.dispose()
+
+    def test_real_get_engine(self, real_db_manager):
+        """测试获取真实引擎"""
+        with patch('datamind.core.db.database.db_manager', real_db_manager):
+            engine = get_engine('default')
+            assert engine is not None
+            assert hasattr(engine, 'connect')
+
+    def test_real_get_engines(self, real_db_manager):
+        """测试获取所有真实引擎"""
+        with patch('datamind.core.db.database.db_manager', real_db_manager):
+            engines = get_engines()
+            assert isinstance(engines, dict)
+            assert 'default' in engines
 
     def test_real_replication_status(self, real_db_manager):
         """测试真实的复制状态检查"""
