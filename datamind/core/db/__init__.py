@@ -16,15 +16,32 @@
   - 健康检查（定期检查数据库连接状态）
   - 复制监控（主备复制延迟监控、告警）
   - 模型定义（ORM 模型，支持关联关系）
+
+导出内容：
+  - db_manager: 全局数据库管理器实例
+  - get_db: 获取数据库会话的上下文管理器
+  - get_engine: 获取数据库引擎
+  - get_engines: 获取所有数据库引擎
+  - init_db: 初始化数据库（创建表）
+  - Base: SQLAlchemy 声明式基类
+  - enums: 领域枚举模块
 """
 
-from datamind.core.db.database import db_manager, get_db, init_db
+from datamind.core.db.database import (
+    db_manager,
+    get_db,
+    get_engine,
+    get_engines,
+    init_db
+)
 from datamind.core.db.models import Base
 from datamind.core.domain import enums
 
 __all__ = [
     'db_manager',
     'get_db',
+    'get_engine',
+    'get_engines',
     'init_db',
     'Base',
     'enums',

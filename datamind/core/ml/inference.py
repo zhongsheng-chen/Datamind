@@ -38,7 +38,7 @@ from datamind.core.ml.exceptions import ModelInferenceException, ModelNotFoundEx
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ApiCallLog
 from datamind.core.domain.enums import TaskType, AuditAction
-from datamind.core.logging import log_audit, context
+from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging.debug import debug_print
 
 
@@ -156,6 +156,7 @@ class InferenceEngine:
             }
         """
         request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = time.time()
@@ -241,9 +242,9 @@ class InferenceEngine:
                 # 更新统计
                 self._update_stats(True, total_time)
 
-                # 记录审计日志
+                # 记录审计日志（带链路追踪）
                 log_audit(
-                    action=AuditAction.INFERENCE.value,
+                    action=AuditAction.MODEL_INFERENCE.value,
                     user_id=user_id or "system",
                     ip_address=ip_address,
                     details={
@@ -254,10 +255,24 @@ class InferenceEngine:
                         "default_probability": score_result['default_probability'],
                         "total_score": score_result['total_score'],
                         "processing_time_ms": round(total_time, 2),
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
                     request_id=request_id
+                )
+
+                # 记录性能日志
+                log_performance(
+                    operation=AuditAction.MODEL_INFERENCE.value,
+                    duration_ms=total_time,
+                    extra={
+                        "model_id": model_id,
+                        "model_version": metadata.model_version,
+                        "application_id": application_id,
+                        "trace_id": trace_id,
+                        "span_id": span_id
+                    }
                 )
 
                 result = {
@@ -284,8 +299,9 @@ class InferenceEngine:
 
                 error_trace = traceback.format_exc()
 
+                # 记录错误审计日志
                 log_audit(
-                    action=AuditAction.INFERENCE.value,
+                    action=AuditAction.MODEL_INFERENCE.value,
                     user_id=user_id or "system",
                     ip_address=ip_address,
                     details={
@@ -293,8 +309,9 @@ class InferenceEngine:
                         "application_id": application_id,
                         "task_type": "scoring",
                         "error": str(e),
-                        "traceback": error_trace,
+                        "traceback": error_trace[:2000],
                         "processing_time_ms": round(total_time, 2),
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -302,10 +319,12 @@ class InferenceEngine:
                     request_id=request_id
                 )
 
+                # 记录API调用日志
+                metadata_version = metadata.model_version if 'metadata' in locals() else 'unknown'
                 self._log_api_call(
                     application_id=application_id,
                     model_id=model_id,
-                    model_version=metadata.model_version if 'metadata' in locals() else 'unknown',
+                    model_version=metadata_version,
                     task_type=TaskType.SCORING.value,
                     endpoint="/api/v1/scoring/predict",
                     request_data=features,
@@ -360,6 +379,7 @@ class InferenceEngine:
             }
         """
         request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = time.time()
@@ -445,9 +465,9 @@ class InferenceEngine:
                 # 更新统计
                 self._update_stats(True, total_time)
 
-                # 记录审计日志
+                # 记录审计日志（带链路追踪）
                 log_audit(
-                    action=AuditAction.INFERENCE.value,
+                    action=AuditAction.MODEL_INFERENCE.value,
                     user_id=user_id or "system",
                     ip_address=ip_address,
                     details={
@@ -458,10 +478,24 @@ class InferenceEngine:
                         "fraud_probability": fraud_result['fraud_probability'],
                         "risk_score": fraud_result['risk_score'],
                         "processing_time_ms": round(total_time, 2),
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
                     request_id=request_id
+                )
+
+                # 记录性能日志
+                log_performance(
+                    operation=AuditAction.MODEL_INFERENCE.value,
+                    duration_ms=total_time,
+                    extra={
+                        "model_id": model_id,
+                        "model_version": metadata.model_version,
+                        "application_id": application_id,
+                        "trace_id": trace_id,
+                        "span_id": span_id
+                    }
                 )
 
                 result = {
@@ -488,8 +522,9 @@ class InferenceEngine:
 
                 error_trace = traceback.format_exc()
 
+                # 记录错误审计日志
                 log_audit(
-                    action=AuditAction.INFERENCE.value,
+                    action=AuditAction.MODEL_INFERENCE.value,
                     user_id=user_id or "system",
                     ip_address=ip_address,
                     details={
@@ -497,8 +532,9 @@ class InferenceEngine:
                         "application_id": application_id,
                         "task_type": "fraud_detection",
                         "error": str(e),
-                        "traceback": error_trace,
+                        "traceback": error_trace[:2000],
                         "processing_time_ms": round(total_time, 2),
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -506,10 +542,12 @@ class InferenceEngine:
                     request_id=request_id
                 )
 
+                # 记录API调用日志
+                metadata_version = metadata.model_version if 'metadata' in locals() else 'unknown'
                 self._log_api_call(
                     application_id=application_id,
                     model_id=model_id,
-                    model_version=metadata.model_version if 'metadata' in locals() else 'unknown',
+                    model_version=metadata_version,
                     task_type=TaskType.FRAUD_DETECTION.value,
                     endpoint="/api/v1/fraud/predict",
                     request_data=features,
@@ -554,11 +592,16 @@ class InferenceEngine:
         返回:
             预测结果列表
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+        batch_start_time = time.time()
+
         if len(features_list) != len(application_ids):
             raise ValueError("features_list 和 application_ids 长度必须一致")
 
         results = []
-        start_time = time.time()
 
         # 批量获取模型（只加载一次）
         model = model_loader.get_model(model_id)
@@ -574,6 +617,9 @@ class InferenceEngine:
             raise ModelNotFoundException(f"模型元数据不存在: {model_id}")
 
         # 批量预测
+        success_count = 0
+        failed_count = 0
+
         for i, (features, app_id) in enumerate(zip(features_list, application_ids)):
             try:
                 if task_type == TaskType.SCORING.value:
@@ -600,6 +646,7 @@ class InferenceEngine:
                     raise ModelInferenceException(f"不支持的任务类型: {task_type}")
 
                 results.append(result)
+                success_count += 1
 
             except Exception as e:
                 # 单个失败不影响整体
@@ -608,8 +655,45 @@ class InferenceEngine:
                     'application_id': app_id,
                     'success': False
                 })
+                failed_count += 1
 
-        total_time = (time.time() - start_time) * 1000
+        total_time = (time.time() - batch_start_time) * 1000
+
+        # 记录批量预测审计日志
+        log_audit(
+            action=AuditAction.MODEL_BATCH_INFERENCE.value,
+            user_id=user_id or "system",
+            ip_address=ip_address,
+            details={
+                "model_id": model_id,
+                "model_version": metadata.model_version,
+                "task_type": task_type,
+                "total_requests": len(features_list),
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "processing_time_ms": round(total_time, 2),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
+        # 记录性能日志
+        log_performance(
+            operation="batch_inference",
+            duration_ms=total_time,
+            extra={
+                "model_id": model_id,
+                "task_type": task_type,
+                "batch_size": len(features_list),
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "trace_id": trace_id,
+                "span_id": span_id
+            }
+        )
+
         debug_print("InferenceEngine", f"批量预测完成: {len(results)} 条, 耗时: {total_time:.2f}ms")
 
         return results
@@ -843,23 +927,15 @@ class InferenceEngine:
         odds = p / (1.0 - p)
 
         # 计算 log odds (对数几率)
-        import math
         log_odds = math.log(odds)
 
         # 根据方向计算分数
         if direction == "higher_better":
             # 分数越高越好：高概率 -> 高风险 -> 分数低
             # 公式: Score = Base Score - PDO * (log odds) / ln(2)
-            # 当 p=0.5, log_odds=0, score=base_score
-            # 当 p<0.5, log_odds<0, score > base_score (好客户分数高)
-            # 当 p>0.5, log_odds>0, score < base_score (坏客户分数低)
             score = base_score - (pdo / math.log(2)) * log_odds
         else:  # lower_better
             # 分数越低越好：高概率 -> 高风险 -> 分数高
-            # 公式: Score = Base Score + PDO * (log odds) / ln(2)
-            # 当 p=0.5, log_odds=0, score=base_score
-            # 当 p<0.5, log_odds<0, score < base_score (好客户分数低)
-            # 当 p>0.5, log_odds>0, score > base_score (坏客户分数高)
             score = base_score + (pdo / math.log(2)) * log_odds
 
         # 限定上下界
@@ -918,7 +994,6 @@ class InferenceEngine:
                     error_message=kwargs.get('error_message'),
                     error_traceback=kwargs.get('error_traceback'),
                     ip_address=kwargs.get('ip_address'),
-                    user_agent=kwargs.get('user_agent'),
                     api_key=kwargs.get('api_key'),
                     user_id=kwargs.get('user_id')
                 )

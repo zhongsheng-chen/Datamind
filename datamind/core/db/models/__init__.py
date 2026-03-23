@@ -15,6 +15,7 @@ from datamind.core.db.models.monitoring import (
     ModelPerformanceMetrics,
 )
 from datamind.core.db.models.system import SystemConfig
+from datamind.core.db.models.auth.user import User, ApiKey
 from datamind.core.db.base import Base
 
 __all__ = [
@@ -28,4 +29,6 @@ __all__ = [
     'ApiCallLog',
     'ModelPerformanceMetrics',
     'SystemConfig',
+    'User',
+    'ApiKey',
 ]

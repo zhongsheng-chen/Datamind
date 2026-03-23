@@ -7,7 +7,6 @@
 import os
 import pytest
 from unittest.mock import patch, mock_open
-from pathlib import Path
 
 from datamind.config import get_settings
 from datamind.config import (
@@ -23,7 +22,15 @@ from datamind.config import (
     BatchConfig,
     MonitoringConfig,
     AlertConfig,
-    SecurityConfig,
+    CORSConfig,
+    RateLimitConfig,
+    IPAccessConfig,
+    RequestValidationConfig,
+    SecurityHeadersConfig,
+    RequestSizeConfig,
+    PerformanceConfig,
+    LoggingMiddlewareConfig,
+    SensitiveDataConfig,
     Settings,
     BASE_DIR
 )
@@ -265,17 +272,319 @@ class TestAlertConfig:
         assert config.on_model_degradation
 
 
-class TestSecurityConfig:
-    """测试安全配置"""
+class TestCORSConfig:
+    """测试CORS配置"""
 
     def test_default_values(self):
         """测试默认值"""
-        config = SecurityConfig()
+        config = CORSConfig()
         assert config.cors_origins == ["*"]
+        assert config.cors_methods == ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+        assert "Content-Type" in config.cors_headers
+        assert "X-Request-ID" in config.cors_expose_headers
+        assert config.cors_allow_credentials is True
+        assert config.cors_max_age == 600
+        assert config.cors_log_requests is True
+
+    @patch.dict(os.environ, {
+        "DATAMIND_CORS_ORIGINS": '["https://example.com","https://api.example.com"]',
+        "DATAMIND_CORS_ALLOW_CREDENTIALS": "false",
+        "DATAMIND_CORS_MAX_AGE": "300",
+        "DATAMIND_CORS_LOG_REQUESTS": "false"
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = CORSConfig()
+        assert config.cors_origins == ["https://example.com", "https://api.example.com"]
+        assert config.cors_allow_credentials is False
+        assert config.cors_max_age == 300
+        assert config.cors_log_requests is False
+
+
+class TestRateLimitConfig:
+    """测试速率限制配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = RateLimitConfig()
+        assert config.rate_limit_enabled is True
+        assert config.rate_limit_default_limit == 100
+        assert config.rate_limit_default_period == 60
+        assert config.rate_limit_admin_limit == 1000
+        assert config.rate_limit_developer_limit == 500
+        assert config.rate_limit_analyst_limit == 200
+        assert config.rate_limit_api_user_limit == 100
+        assert config.rate_limit_anonymous_limit == 50
+
+    @patch.dict(os.environ, {
+        "DATAMIND_RATE_LIMIT_ENABLED": "false",
+        "DATAMIND_RATE_LIMIT_DEFAULT_LIMIT": "200",
+        "DATAMIND_RATE_LIMIT_ADMIN_LIMIT": "2000",
+        "DATAMIND_RATE_LIMIT_ANONYMOUS_LIMIT": "100"
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = RateLimitConfig()
+        assert config.rate_limit_enabled is False
+        assert config.rate_limit_default_limit == 200
+        assert config.rate_limit_admin_limit == 2000
+        assert config.rate_limit_anonymous_limit == 100
+
+
+class TestIPAccessConfig:
+    """测试IP访问控制配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = IPAccessConfig()
         assert config.trusted_proxies == []
-        assert config.rate_limit_enabled
-        assert config.rate_limit_requests == 100
-        assert config.rate_limit_period == 60
+        assert config.ip_whitelist == []
+        assert config.ip_blacklist == []
+        assert config.ip_whitelist_enabled is False
+        assert config.ip_blacklist_enabled is False
+
+    @patch.dict(os.environ, {
+        "DATAMIND_TRUSTED_PROXIES": '["10.0.0.1","192.168.1.1"]',
+        "DATAMIND_IP_WHITELIST": '["192.168.1.0/24","10.0.0.0/8"]',
+        "DATAMIND_IP_BLACKLIST": '["1.2.3.4","5.6.7.8"]',
+        "DATAMIND_IP_WHITELIST_ENABLED": "true",
+        "DATAMIND_IP_BLACKLIST_ENABLED": "true"
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = IPAccessConfig()
+        assert config.trusted_proxies == ["10.0.0.1", "192.168.1.1"]
+        assert config.ip_whitelist == ["192.168.1.0/24", "10.0.0.0/8"]
+        assert config.ip_blacklist == ["1.2.3.4", "5.6.7.8"]
+        assert config.ip_whitelist_enabled is True
+        assert config.ip_blacklist_enabled is True
+
+
+class TestRequestValidationConfig:
+    """测试请求验证配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = RequestValidationConfig()
+        assert config.enable_timestamp_validation is False
+        assert config.enable_signature_validation is False
+        assert config.timestamp_max_age == 300
+        assert config.validation_exclude_paths == [
+            "/health", "/metrics", "/docs", "/redoc", "/openapi.json"
+        ]
+
+    @patch.dict(os.environ, {
+        "DATAMIND_ENABLE_TIMESTAMP_VALIDATION": "true",
+        "DATAMIND_ENABLE_SIGNATURE_VALIDATION": "true",
+        "DATAMIND_TIMESTAMP_MAX_AGE": "600",
+        "DATAMIND_VALIDATION_EXCLUDE_PATHS": '["/health","/metrics"]'
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = RequestValidationConfig()
+        assert config.enable_timestamp_validation is True
+        assert config.enable_signature_validation is True
+        assert config.timestamp_max_age == 600
+        assert config.validation_exclude_paths == ["/health", "/metrics"]
+
+
+class TestSecurityHeadersConfig:
+    """测试安全响应头配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = SecurityHeadersConfig()
+        assert config.security_headers_enabled is True
+        assert config.remove_server_header is True
+        assert config.csp_policy is None
+
+    @patch.dict(os.environ, {
+        "DATAMIND_SECURITY_HEADERS_ENABLED": "false",
+        "DATAMIND_REMOVE_SERVER_HEADER": "false",
+        "DATAMIND_CSP_POLICY": "default-src 'self'"
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = SecurityHeadersConfig()
+        assert config.security_headers_enabled is False
+        assert config.remove_server_header is False
+        assert config.csp_policy == "default-src 'self'"
+
+
+class TestRequestSizeConfig:
+    """测试请求大小限制配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = RequestSizeConfig()
+        assert config.max_request_size == 10 * 1024 * 1024  # 10MB
+        assert config.size_limit_exclude_paths == ["/upload", "/files"]
+
+    @patch.dict(os.environ, {
+        "DATAMIND_MAX_REQUEST_SIZE": "5242880",  # 5MB
+        "DATAMIND_SIZE_LIMIT_EXCLUDE_PATHS": '["/large-upload","/bulk"]'
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = RequestSizeConfig()
+        assert config.max_request_size == 5242880  # 5MB
+        assert config.size_limit_exclude_paths == ["/large-upload", "/bulk"]
+
+
+class TestPerformanceConfig:
+    """测试性能监控配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = PerformanceConfig()
+        assert config.performance_enabled is True
+        assert config.performance_detailed is True
+        assert config.performance_concurrent_tracking is True
+        assert config.performance_db_tracking is False
+        assert config.performance_sample_rate == 1.0
+        assert config.slow_request_threshold == 1000
+        assert config.slow_query_threshold == 100.0
+        assert config.pg_stat_interval == 60
+
+    @patch.dict(os.environ, {
+        "DATAMIND_PERFORMANCE_ENABLED": "false",
+        "DATAMIND_PERFORMANCE_DETAILED": "false",
+        "DATAMIND_PERFORMANCE_CONCURRENT_TRACKING": "false",
+        "DATAMIND_PERFORMANCE_DB_TRACKING": "true",
+        "DATAMIND_PERFORMANCE_SAMPLE_RATE": "0.5",
+        "DATAMIND_SLOW_REQUEST_THRESHOLD": "2000",
+        "DATAMIND_SLOW_QUERY_THRESHOLD": "200.0",
+        "DATAMIND_PG_STAT_INTERVAL": "120"
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = PerformanceConfig()
+        assert config.performance_enabled is False
+        assert config.performance_detailed is False
+        assert config.performance_concurrent_tracking is False
+        assert config.performance_db_tracking is True
+        assert config.performance_sample_rate == 0.5
+        assert config.slow_request_threshold == 2000
+        assert config.slow_query_threshold == 200.0
+        assert config.pg_stat_interval == 120
+
+    def test_sample_rate_validation(self):
+        """测试采样率验证"""
+        with patch.dict(os.environ, {"DATAMIND_PERFORMANCE_SAMPLE_RATE": "0.5"}):
+            config = PerformanceConfig()
+            assert config.performance_sample_rate == 0.5
+
+        with patch.dict(os.environ, {"DATAMIND_PERFORMANCE_SAMPLE_RATE": "0.8"}):
+            config = PerformanceConfig()
+            assert config.performance_sample_rate == 0.8
+
+        # 无效值应该抛出异常
+        with patch.dict(os.environ, {"DATAMIND_PERFORMANCE_SAMPLE_RATE": "1.5"}):
+            with pytest.raises(ValueError):
+                PerformanceConfig()
+
+
+class TestLoggingMiddlewareConfig:
+    """测试日志中间件配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = LoggingMiddlewareConfig()
+        assert config.log_request_body is True
+        assert config.log_response_body is False
+        assert config.log_max_body_size == 10240
+        assert config.log_headers is True
+        assert "/health" in config.log_exclude_paths
+
+    @patch.dict(os.environ, {
+        "DATAMIND_LOG_REQUEST_BODY": "false",
+        "DATAMIND_LOG_RESPONSE_BODY": "true",
+        "DATAMIND_LOG_MAX_BODY_SIZE": "20480",
+        "DATAMIND_LOG_HEADERS": "false",
+        "DATAMIND_LOG_EXCLUDE_PATHS": '["/health","/metrics"]'
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = LoggingMiddlewareConfig()
+        assert config.log_request_body is False
+        assert config.log_response_body is True
+        assert config.log_max_body_size == 20480
+        assert config.log_headers is False
+        assert config.log_exclude_paths == ["/health", "/metrics"]
+
+
+class TestSensitiveDataConfig:
+    """测试敏感数据脱敏配置"""
+
+    def test_default_values(self):
+        """测试默认值"""
+        config = SensitiveDataConfig()
+
+        # 验证默认敏感字段
+        assert "password" in config.sensitive_fields
+        assert "token" in config.sensitive_fields
+        assert "api_key" in config.sensitive_fields
+        assert "credit_card" in config.sensitive_fields
+        assert "phone" in config.sensitive_fields
+        assert "email" in config.sensitive_fields
+
+        assert "authorization" in config.sensitive_headers
+        assert "cookie" in config.sensitive_headers
+        assert "x-api-key" in config.sensitive_headers
+
+        assert config.mask_char == "*"
+        assert config.show_partial is True
+
+    @patch.dict(os.environ, {
+        "DATAMIND_SENSITIVE_FIELDS": '["custom_field1","custom_field2"]',
+        "DATAMIND_SENSITIVE_HEADERS": '["x-custom-header"]',
+        "DATAMIND_MASK_CHAR": "#",
+        "DATAMIND_SHOW_PARTIAL": "false"
+    })
+    def test_env_override(self):
+        """测试环境变量覆盖"""
+        config = SensitiveDataConfig()
+
+        # 验证自定义字段
+        assert "custom_field1" in config.sensitive_fields
+        assert "custom_field2" in config.sensitive_fields
+        # 默认字段仍然存在
+        assert "password" in config.sensitive_fields
+        assert "token" in config.sensitive_fields
+
+        # 验证自定义请求头
+        assert "x-custom-header" in config.sensitive_headers
+        # 默认请求头仍然存在
+        assert "authorization" in config.sensitive_headers
+
+        # 验证脱敏配置
+        assert config.mask_char == "#"
+        assert config.show_partial is False
+
+    @patch.dict(os.environ, {
+        "DATAMIND_SENSITIVE_FIELDS": '["only_one"]',
+        "DATAMIND_SENSITIVE_HEADERS": '[]'
+    })
+    def test_custom_fields_merge(self):
+        """测试自定义字段与默认字段合并"""
+        config = SensitiveDataConfig()
+
+        # 自定义字段存在
+        assert "only_one" in config.sensitive_fields
+        # 默认字段仍然保留
+        assert "password" in config.sensitive_fields
+        assert "token" in config.sensitive_fields
+
+        # 空数组不会删除默认请求头
+        assert "authorization" in config.sensitive_headers
+
+    @patch.dict(os.environ, {
+        "DATAMIND_SENSITIVE_FIELDS": "invalid json",
+    })
+    def test_invalid_json_field(self):
+        """测试无效的JSON格式"""
+        with pytest.raises(ValueError):
+            SensitiveDataConfig()
 
 
 class TestLoggingConfig:
@@ -449,6 +758,23 @@ class TestSettingsRoot:
             assert settings.storage.compression_level == 6
             assert settings.storage.max_file_size == 1024 * 1024 * 1024
 
+            assert settings.cors is not None
+            assert settings.cors.cors_origins == ["*"]
+            assert settings.rate_limit is not None
+            assert settings.rate_limit.rate_limit_enabled is True
+            assert settings.ip_access is not None
+            assert settings.request_validation is not None
+            assert settings.security_headers is not None
+            assert settings.request_size is not None
+            assert settings.performance is not None
+            assert settings.logging_middleware is not None
+
+            assert settings.sensitive_data is not None
+            assert "password" in settings.sensitive_data.sensitive_fields
+            assert "authorization" in settings.sensitive_data.sensitive_headers
+            assert settings.sensitive_data.mask_char == "*"
+            assert settings.sensitive_data.show_partial is True
+
     @patch.dict(os.environ, {
         "DATAMIND_APP_NAME": "TestApp",
         "DATAMIND_API_PORT": "9000",
@@ -462,7 +788,19 @@ class TestSettingsRoot:
         "AWS_SECRET_ACCESS_KEY": "test-secret-key",
         "S3_BUCKET": "test-bucket",
         "DATAMIND_STORAGE_COMPRESSION_LEVEL": "5",
-        "DATAMIND_STORAGE_MAX_FILE_SIZE": "2097152"
+        "DATAMIND_STORAGE_MAX_FILE_SIZE": "2097152",
+        "DATAMIND_CORS_ORIGINS": '["https://test.com"]',
+        "DATAMIND_RATE_LIMIT_ENABLED": "false",
+        "DATAMIND_IP_WHITELIST_ENABLED": "true",
+        "DATAMIND_ENABLE_TIMESTAMP_VALIDATION": "true",
+        "DATAMIND_SECURITY_HEADERS_ENABLED": "false",
+        "DATAMIND_MAX_REQUEST_SIZE": "5242880",
+        "DATAMIND_PERFORMANCE_SAMPLE_RATE": "0.5",
+        "DATAMIND_LOG_REQUEST_BODY": "false",
+        "DATAMIND_SENSITIVE_FIELDS": '["test_field1","test_field2"]',
+        "DATAMIND_SENSITIVE_HEADERS": '["x-test-header"]',
+        "DATAMIND_MASK_CHAR": "#",
+        "DATAMIND_SHOW_PARTIAL": "false"
     })
     def test_env_override_all(self):
         """测试所有环境变量覆盖"""
@@ -481,11 +819,32 @@ class TestSettingsRoot:
         assert settings.storage.compression_level == 5
         assert settings.storage.max_file_size == 2097152
 
+        assert settings.cors.cors_origins == ["https://test.com"]
+        assert settings.rate_limit.rate_limit_enabled is False
+        assert settings.ip_access.ip_whitelist_enabled is True
+        assert settings.request_validation.enable_timestamp_validation is True
+        assert settings.security_headers.security_headers_enabled is False
+        assert settings.request_size.max_request_size == 5242880
+        assert settings.performance.performance_sample_rate == 0.5
+        assert settings.logging_middleware.log_request_body is False
+
+        assert settings.sensitive_data.sensitive_fields is not None
+        assert "test_field1" in settings.sensitive_data.sensitive_fields
+        assert "test_field2" in settings.sensitive_data.sensitive_fields
+        assert "password" in settings.sensitive_data.sensitive_fields  # 默认字段保留
+        assert "x-test-header" in settings.sensitive_data.sensitive_headers
+        assert settings.sensitive_data.mask_char == "#"
+        assert settings.sensitive_data.show_partial is False
+
     def test_get_settings_cached(self):
         """测试配置缓存"""
         settings1 = get_settings()
         settings2 = get_settings()
+
         assert settings1 is settings2
+        assert settings1.cors is settings2.cors
+        assert settings1.rate_limit is settings2.rate_limit
+        assert settings1.sensitive_data is settings2.sensitive_data
 
     @patch('builtins.open', new_callable=mock_open, read_data="""
 DATAMIND_APP_NAME=EnvFileApp
@@ -511,6 +870,21 @@ class TestConfigIntegration:
             assert settings.redis is not None
             assert settings.logging is not None
             assert settings.storage is not None
+
+            assert settings.cors is not None
+            assert settings.rate_limit is not None
+            assert settings.ip_access is not None
+            assert settings.request_validation is not None
+            assert settings.security_headers is not None
+            assert settings.request_size is not None
+            assert settings.performance is not None
+            assert settings.logging_middleware is not None
+
+            assert settings.sensitive_data is not None
+            assert isinstance(settings.sensitive_data.sensitive_fields, list)
+            assert isinstance(settings.sensitive_data.sensitive_headers, list)
+            assert settings.sensitive_data.mask_char == "*"
+            assert isinstance(settings.sensitive_data.show_partial, bool)
         except Exception as e:
             pytest.fail(f"配置创建失败: {e}")
 

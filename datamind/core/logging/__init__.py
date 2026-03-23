@@ -69,9 +69,11 @@ def __getattr__(name: str):
 
     elif name in {
         "get_request_id", "set_request_id", "clear_request_id", "has_request_id",
-        "get_trace_id", "set_trace_id", "has_trace_id",
-        "get_span_id", "set_span_id", "has_span_id",
-        "ensure_trace", "with_request_id", "with_span",
+        "get_trace_id", "set_trace_id", "clear_trace_id", "has_trace_id",
+        "get_span_id", "set_span_id", "clear_span_id", "has_span_id",
+        "get_parent_span_id", "set_parent_span_id", "clear_parent_span_id", "has_parent_span_id",
+        "ensure_request", "ensure_trace", "ensure_span",
+        "with_request_id", "with_span",
         "RequestIdContext", "SpanContext", "RequestContext"
     }:
         from datamind.core.logging import context

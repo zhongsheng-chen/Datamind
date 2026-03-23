@@ -19,6 +19,7 @@ from datamind.core.domain import (
     TaskType, ModelType, Framework, ModelStatus,
     AuditAction, DeploymentEnvironment, ABTestStatus
 )
+from datamind.core.db.database import get_engine, get_engines, db_manager
 
 
 class TestDatabaseConnection:
@@ -47,6 +48,38 @@ class TestDatabaseConnection:
         ).scalar()
         assert result is True
 
+
+class TestDatabaseManager:
+    """测试数据库管理器"""
+
+    def test_get_engine_default(self):
+        """测试获取默认引擎"""
+        # 确保 db_manager 已初始化
+        if not db_manager._initialized:
+            db_manager.initialize()
+
+        engine = get_engine('default')
+        assert engine is not None
+        assert hasattr(engine, 'connect')
+
+    def test_get_engine_invalid_name(self):
+        """测试获取不存在的引擎"""
+        with pytest.raises(ValueError, match="引擎 'invalid' 不存在"):
+            get_engine('invalid')
+
+    def test_get_engines(self):
+        """测试获取所有引擎"""
+        engines = get_engines()
+        assert isinstance(engines, dict)
+        assert 'default' in engines
+        if db_manager._engines.get('readonly'):
+            assert 'readonly' in engines
+
+    def test_health_check(self):
+        """测试健康检查"""
+        result = db_manager.check_health()
+        assert 'status' in result
+        assert 'engines' in result
 
 
 class TestModelMetadata:

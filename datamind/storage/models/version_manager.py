@@ -1,10 +1,47 @@
-# Datamind/datamind/storage/models/version_manager.py
+# datamind/storage/models/version_manager.py
+
+"""模型版本管理器
+
+管理模型的版本控制、版本比较、版本回滚等功能，遵循语义化版本规范 (Semantic Versioning)。
+
+功能特性：
+  - 版本管理：添加、删除、查询版本
+  - 生产版本管理：设置和获取生产版本
+  - 版本比较：比较两个版本的差异
+  - 版本回滚：回滚到指定版本
+  - 版本标签：给版本打标签，便于分类
+  - 版本统计：获取版本统计信息
+  - 版本清理：清理旧版本，释放存储空间
+  - 完整审计：记录所有版本操作到审计日志
+  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+
+使用示例：
+    version_manager = VersionManager(storage, model_id="model_001")
+
+    # 添加版本
+    await version_manager.add_version("1.0.0", "models/model_001/versions/model_1.0.0.pkl")
+
+    # 设置生产版本
+    await version_manager.set_production_version("1.0.0")
+
+    # 回滚到指定版本
+    await version_manager.rollback_to_version("0.9.0")
+
+    # 清理旧版本
+    await version_manager.cleanup_old_versions(keep_count=5)
+"""
+
+
+import io
 import json
+import semver
 from datetime import datetime
 from typing import Dict, Any, Optional, List, BinaryIO
-import semver
 
-from datamind.core.logging import debug_print
+
+from datamind.core.logging import log_audit, context
+from datamind.core.logging.debug import debug_print
+from datamind.core.domain.enums import AuditAction
 from datamind.storage.base import StorageBackend
 
 
@@ -61,6 +98,11 @@ class VersionManager:
         Returns:
             版本信息
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         # 验证版本号格式
         if not self._validate_version(version):
             raise ValueError(f"无效的版本号格式: {version}，应为 x.y.z 格式")
@@ -111,6 +153,23 @@ class VersionManager:
         # 保存
         await self._save_versions(versions_data)
 
+        # 审计日志
+        log_audit(
+            action=AuditAction.MODEL_VERSION_ADD.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "version": version,
+                "is_production": is_production,
+                "file_size": file_info['size'],
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
         debug_print("VersionManager", f"添加版本成功: {self.model_id} v{version}")
         return version_info
 
@@ -124,6 +183,11 @@ class VersionManager:
         Returns:
             版本信息
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         if version is None:
@@ -131,12 +195,27 @@ class VersionManager:
             latest = versions_data.get('latest_version')
             if not latest:
                 raise ValueError(f"模型 {self.model_id} 没有版本")
-            return self._find_version(versions_data, latest)
+            version_info = self._find_version(versions_data, latest)
+        else:
+            # 返回指定版本
+            version_info = self._find_version(versions_data, version)
+            if not version_info:
+                raise ValueError(f"版本 {version} 不存在")
 
-        # 返回指定版本
-        version_info = self._find_version(versions_data, version)
-        if not version_info:
-            raise ValueError(f"版本 {version} 不存在")
+        # 审计日志（查询操作）
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "version": version or "latest",
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
 
         return version_info
 
@@ -150,19 +229,42 @@ class VersionManager:
         Returns:
             版本列表
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         if include_metadata:
-            return versions_data['versions']
+            result = versions_data['versions']
         else:
             # 返回精简信息
-            return [{
+            result = [{
                 'version': v['version'],
                 'added_at': v['added_at'],
                 'is_production': v['is_production'],
                 'file_size': v['file_size'],
                 'tags': v.get('tags', [])
             } for v in versions_data['versions']]
+
+        # 审计日志（查询操作）
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "total_versions": len(result),
+                "include_metadata": include_metadata,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
+        return result
 
     async def delete_version(self, version: str) -> bool:
         """
@@ -174,6 +276,11 @@ class VersionManager:
         Returns:
             是否删除成功
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         # 查找版本
@@ -213,6 +320,22 @@ class VersionManager:
         # 保存
         await self._save_versions(versions_data)
 
+        # 审计日志
+        log_audit(
+            action=AuditAction.MODEL_VERSION_DELETE.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "version": version,
+                "was_production": version_info.get('is_production', False),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
         debug_print("VersionManager", f"删除版本成功: {self.model_id} v{version}")
         return True
 
@@ -226,6 +349,11 @@ class VersionManager:
         Returns:
             更新后的版本信息
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         # 查找版本
@@ -244,15 +372,49 @@ class VersionManager:
         # 保存
         await self._save_versions(versions_data)
 
+        # 审计日志
+        log_audit(
+            action=AuditAction.MODEL_PROMOTE.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "version": version,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
         debug_print("VersionManager", f"设置生产版本: {self.model_id} v{version}")
         return version_info
 
     async def get_production_version(self) -> Optional[Dict[str, Any]]:
         """获取生产版本"""
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         for v in versions_data['versions']:
             if v.get('is_production'):
+                # 审计日志（查询操作）
+                log_audit(
+                    action=AuditAction.MODEL_QUERY.value,
+                    user_id="system",
+                    ip_address=None,
+                    details={
+                        "model_id": self.model_id,
+                        "production_version": v['version'],
+                        "trace_id": trace_id,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    },
+                    request_id=request_id
+                )
                 return v
 
         return None
@@ -329,6 +491,11 @@ class VersionManager:
         Returns:
             回滚后的版本信息
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         # 获取目标版本信息
         target_version = await self.get_version(version)
 
@@ -354,6 +521,22 @@ class VersionManager:
             metadata=metadata
         )
 
+        # 审计日志
+        log_audit(
+            action=AuditAction.MODEL_ROLLBACK.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "from_version": version,
+                "to_version": rollback_version,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
         debug_print("VersionManager", f"回滚到版本: {self.model_id} v{version} -> v{rollback_version}")
         return version_info
 
@@ -368,6 +551,11 @@ class VersionManager:
         Returns:
             更新后的版本信息
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         version_info = self._find_version(versions_data, version)
@@ -380,6 +568,23 @@ class VersionManager:
         if tag not in version_info['tags']:
             version_info['tags'].append(tag)
             await self._save_versions(versions_data)
+
+            # 审计日志
+            log_audit(
+                action=AuditAction.MODEL_UPDATE.value,
+                user_id="system",
+                ip_address=None,
+                details={
+                    "model_id": self.model_id,
+                    "version": version,
+                    "tag": tag,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
             debug_print("VersionManager", f"添加标签: {self.model_id} v{version} -> {tag}")
 
         return version_info
@@ -394,12 +599,35 @@ class VersionManager:
         Returns:
             版本列表
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
-        return [
+        result = [
             v for v in versions_data['versions']
             if tag in v.get('tags', [])
         ]
+
+        # 审计日志（查询操作）
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "tag": tag,
+                "found_count": len(result),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
+        return result
 
     async def increment_download_count(self, version: str) -> int:
         """
@@ -424,6 +652,11 @@ class VersionManager:
 
     async def get_version_stats(self) -> Dict[str, Any]:
         """获取版本统计信息"""
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         versions = versions_data['versions']
@@ -437,7 +670,7 @@ class VersionManager:
                 major_versions[major] = 0
             major_versions[major] += 1
 
-        return {
+        result = {
             'model_id': self.model_id,
             'total_versions': versions_data['total_versions'],
             'latest_version': versions_data['latest_version'],
@@ -447,6 +680,24 @@ class VersionManager:
             'created_at': versions_data['created_at'],
             'updated_at': versions_data['updated_at']
         }
+
+        # 审计日志（查询操作）
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id="system",
+            ip_address=None,
+            details={
+                "model_id": self.model_id,
+                "total_versions": result['total_versions'],
+                "total_downloads": total_downloads,
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
+        return result
 
     async def cleanup_old_versions(self, keep_count: int = 10) -> List[str]:
         """
@@ -458,6 +709,11 @@ class VersionManager:
         Returns:
             被删除的版本列表
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
         versions_data = await self._get_versions()
 
         if len(versions_data['versions']) <= keep_count:
@@ -493,6 +749,24 @@ class VersionManager:
         versions_data['updated_at'] = datetime.now().isoformat()
         await self._save_versions(versions_data)
 
+        # 审计日志
+        if deleted:
+            log_audit(
+                action=AuditAction.MODEL_VERSION_DELETE.value,
+                user_id="system",
+                ip_address=None,
+                details={
+                    "model_id": self.model_id,
+                    "deleted_versions": deleted,
+                    "deleted_count": len(deleted),
+                    "keep_count": keep_count,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
         return deleted
 
     async def _get_versions(self) -> Dict[str, Any]:
@@ -518,7 +792,6 @@ class VersionManager:
         content = json.dumps(versions_data, indent=2).encode()
 
         # 创建内存文件对象
-        file_obj = BinaryIO()
         file_obj = io.BytesIO(content)
 
         await self.storage.save(

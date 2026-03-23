@@ -12,34 +12,6 @@
     - management_api: 管理 API（系统配置、监控、审计）
   - dependencies: 依赖项模块（认证、授权、请求上下文）
   - middlewares: 中间件模块（日志、CORS、限流、安全）
-
-API 路由前缀：
-  - /api/v1/models - 模型管理
-  - /api/v1/scoring - 评分卡服务
-  - /api/v1/fraud - 反欺诈服务
-  - /api/v1/management - 系统管理
-
-安全特性：
-  - API 密钥认证（X-API-Key）
-  - JWT 令牌认证（可选）
-  - 速率限制（防滥用）
-  - 请求日志（审计追踪）
-
-示例请求：
-  # 注册模型
-  POST /api/v1/models/register
-  {
-    "model_name": "credit_score_model",
-    "model_version": "1.0.0",
-    ...
-  }
-
-  # 评分预测
-  POST /api/v1/scoring/predict
-  {
-    "model_id": "MDL_xxx",
-    "features": {...}
-  }
 """
 
 from fastapi import APIRouter

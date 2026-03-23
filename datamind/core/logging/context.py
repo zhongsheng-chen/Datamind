@@ -95,6 +95,13 @@ def has_trace_id() -> bool:
     return has_id
 
 
+def clear_trace_id() -> None:
+    """清除当前 trace_id"""
+    old_id = _trace_id_ctx.get()
+    _trace_id_ctx.set("-")
+    _debug("清除 trace_id: %s -> -", old_id)
+
+
 # Span ID 相关函数
 def get_span_id() -> str:
     """获取当前 span_id（调用层级ID）"""
@@ -117,6 +124,14 @@ def has_span_id() -> bool:
     return has_id
 
 
+def clear_span_id() -> None:
+    """清除当前 span_id"""
+    old_id = _span_id_ctx.get()
+    _span_id_ctx.set("-")
+    _debug("清除 span_id: %s -> -", old_id)
+
+
+# Parent Span ID 相关函数
 def get_parent_span_id() -> str:
     """获取当前父 span_id"""
     parent_id = _parent_span_id_ctx.get()
@@ -124,7 +139,39 @@ def get_parent_span_id() -> str:
     return parent_id
 
 
+def set_parent_span_id(parent_span_id: str) -> None:
+    """设置当前父 span_id"""
+    old_id = _parent_span_id_ctx.get()
+    _parent_span_id_ctx.set(parent_span_id)
+    _debug("设置 parent_span_id: %s -> %s", old_id, parent_span_id)
+
+
+def has_parent_span_id() -> bool:
+    """检查是否有 parent_span_id"""
+    has_id = _parent_span_id_ctx.get() != "-"
+    _debug("检查 parent_span_id 是否存在: %s", has_id)
+    return has_id
+
+
+def clear_parent_span_id() -> None:
+    """清除当前 parent_span_id"""
+    old_id = _parent_span_id_ctx.get()
+    _parent_span_id_ctx.set("-")
+    _debug("清除 parent_span_id: %s -> -", old_id)
+
+
 # 辅助函数
+def ensure_request(create_request: bool = True) -> None:
+    """确保请求ID存在（入口调用）
+
+    参数:
+        create_request: 是否创建 request_id（如果不存在）
+    """
+    if create_request and _request_id_ctx.get() == "-":
+        request_id = generate_request_id()
+        set_request_id(request_id)
+
+
 def ensure_trace(create_trace: bool = True, create_request: bool = True) -> None:
     """确保 trace 存在（入口调用）
 
@@ -133,12 +180,28 @@ def ensure_trace(create_trace: bool = True, create_request: bool = True) -> None
         create_request: 是否创建 request_id（如果不存在）
     """
     if create_trace and _trace_id_ctx.get() == "-":
-        trace_id = f"trace-{uuid.uuid4().hex[:16]}"
+        trace_id = generate_trace_id()
         set_trace_id(trace_id)
 
     if create_request and _request_id_ctx.get() == "-":
-        request_id = f"req-{uuid.uuid4().hex[:12]}"
+        request_id = generate_request_id()
         set_request_id(request_id)
+
+
+def ensure_span(create_span: bool = True, create_parent_span: bool = False) -> None:
+    """确保 span 存在（入口调用）
+
+    参数:
+        create_span: 是否创建 span_id（如果不存在）
+        create_parent_span: 是否创建 parent_span_id（如果不存在）
+    """
+    if create_span and _span_id_ctx.get() == "-":
+        span_id = generate_span_id()
+        set_span_id(span_id)
+
+    if create_parent_span and _parent_span_id_ctx.get() == "-":
+        parent_span_id = generate_span_id()
+        set_parent_span_id(parent_span_id)
 
 
 def generate_request_id(prefix: str = "req") -> str:
@@ -185,7 +248,7 @@ def set_context(request_id: Optional[str] = None,
     if span_id is not None:
         set_span_id(span_id)
     if parent_span_id is not None:
-        _parent_span_id_ctx.set(parent_span_id)
+        set_parent_span_id(parent_span_id)
 
 
 def reset_context() -> None:
@@ -223,7 +286,7 @@ class SpanContext:
 
         # 设置 parent_span_id 为进入前的 span_id
         if self.old_span != "-":
-            _parent_span_id_ctx.set(self.old_span)
+            set_parent_span_id(self.old_span)
 
         _debug("进入 span: %s (parent: %s, name: %s)",
                new_span, get_parent_span_id(), self.name)
@@ -232,7 +295,7 @@ class SpanContext:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         # 恢复父 span
         if self.old_parent is not None:
-            _parent_span_id_ctx.set(self.old_parent)
+            set_parent_span_id(self.old_parent)
         # 恢复当前 span
         set_span_id(self.old_span if self.old_span is not None else "-")
         _debug("退出 span -> %s", get_span_id())

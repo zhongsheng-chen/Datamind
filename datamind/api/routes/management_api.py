@@ -183,7 +183,7 @@ async def detailed_health_check(
 @router.post("/cache/clear")
 async def clear_cache(
         request: Request,
-        cache_type: str = Query(..., regex="^(model|ab_test|all)$"),
+        cache_type: str = Query(..., pattern="^(model|ab_test|all)$"),
         current_user: str = Depends(require_admin)
 ):
     """清除缓存"""

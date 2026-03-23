@@ -203,7 +203,7 @@ class ModelRegistry:
                 history = ModelVersionHistory(
                     model_id=model_id,
                     model_version=model_version,
-                    operation=AuditAction.CREATE.value,
+                    operation=AuditAction.MODEL_CREATE.value,
                     operator=created_by,
                     operator_ip=ip_address,
                     metadata_snapshot=self._create_snapshot(metadata),
@@ -233,7 +233,7 @@ class ModelRegistry:
                 audit_details["risk_config"] = risk_config
 
             log_audit(
-                action="MODEL_REGISTER",
+                action=AuditAction.MODEL_CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
                 details=audit_details,
@@ -246,7 +246,7 @@ class ModelRegistry:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_REGISTER",
+                action=AuditAction.MODEL_CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
                 details={
@@ -290,7 +290,7 @@ class ModelRegistry:
                 history = ModelVersionHistory(
                     model_id=model_id,
                     model_version=model.model_version,
-                    operation=AuditAction.ACTIVATE.value,
+                    operation=AuditAction.MODEL_ACTIVATE.value,
                     operator=operator,
                     operator_ip=ip_address,
                     reason=reason,
@@ -302,7 +302,7 @@ class ModelRegistry:
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_ACTIVATE",
+                action=AuditAction.MODEL_ACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -322,7 +322,7 @@ class ModelRegistry:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_ACTIVATE",
+                action=AuditAction.MODEL_ACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -365,7 +365,7 @@ class ModelRegistry:
                 history = ModelVersionHistory(
                     model_id=model_id,
                     model_version=model.model_version,
-                    operation=AuditAction.DEACTIVATE.value,
+                    operation=AuditAction.MODEL_DEACTIVATE.value,
                     operator=operator,
                     operator_ip=ip_address,
                     reason=reason,
@@ -377,7 +377,7 @@ class ModelRegistry:
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_DEACTIVATE",
+                action=AuditAction.MODEL_DEACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -397,7 +397,7 @@ class ModelRegistry:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_DEACTIVATE",
+                action=AuditAction.MODEL_DEACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -457,7 +457,7 @@ class ModelRegistry:
 
         except Exception as e:
             log_audit(
-                action="MODEL_GET_INFO",
+                action=AuditAction.MODEL_QUERY.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -526,7 +526,7 @@ class ModelRegistry:
 
         except Exception as e:
             log_audit(
-                action="MODEL_LIST",
+                action=AuditAction.MODEL_QUERY.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -577,7 +577,7 @@ class ModelRegistry:
                 history = ModelVersionHistory(
                     model_id=model_id,
                     model_version=model.model_version,
-                    operation=AuditAction.PROMOTE.value,
+                    operation=AuditAction.MODEL_PROMOTE.value,
                     operator=operator,
                     operator_ip=ip_address,
                     reason=reason,
@@ -589,7 +589,7 @@ class ModelRegistry:
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_PROMOTE",
+                action=AuditAction.MODEL_PROMOTE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -610,7 +610,7 @@ class ModelRegistry:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_PROMOTE",
+                action=AuditAction.MODEL_PROMOTE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -654,7 +654,7 @@ class ModelRegistry:
 
         except Exception as e:
             log_audit(
-                action="MODEL_GET_HISTORY",
+                action=AuditAction.MODEL_QUERY.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -699,7 +699,7 @@ class ModelRegistry:
 
         except Exception as e:
             log_audit(
-                action="MODEL_GET_PARAMS",
+                action=AuditAction.MODEL_UPDATE.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
@@ -761,7 +761,7 @@ class ModelRegistry:
                 history = ModelVersionHistory(
                     model_id=model_id,
                     model_version=model.model_version,
-                    operation=AuditAction.UPDATE.value,
+                    operation=AuditAction.MODEL_UPDATE.value,
                     operator=operator,
                     operator_ip=ip_address,
                     reason=reason,
@@ -778,7 +778,7 @@ class ModelRegistry:
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_UPDATE_PARAMS",
+                action=AuditAction.MODEL_UPDATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={
@@ -800,7 +800,7 @@ class ModelRegistry:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action="MODEL_UPDATE_PARAMS",
+                action=AuditAction.MODEL_UPDATE.value,
                 user_id=operator,
                 ip_address=ip_address,
                 details={

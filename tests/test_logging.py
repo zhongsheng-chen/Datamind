@@ -25,11 +25,15 @@ from datamind.config import (
 )
 from datamind.core.logging.manager import LogManager
 from datamind.core.logging.context import (
-    get_request_id, set_request_id, get_trace_id, set_trace_id,
-    get_span_id, set_span_id, get_parent_span_id, SpanContext,
-    RequestContext, generate_span_id, generate_request_id,
-    generate_trace_id, get_context, set_context, reset_context,
-    with_request_id, with_span
+    get_request_id, set_request_id, has_request_id, clear_request_id,
+    get_trace_id, set_trace_id, has_trace_id, clear_trace_id,
+    get_span_id, set_span_id, clear_span_id, has_span_id,
+    get_parent_span_id, set_parent_span_id, clear_parent_span_id, has_parent_span_id,
+    generate_request_id, generate_trace_id, generate_span_id,
+    ensure_request, ensure_trace, ensure_span,
+    RequestContext, SpanContext,
+    get_context, set_context, reset_context,
+    with_request_id, with_span,
 )
 from datamind.core.logging.debug import (
     debug_print, info_print, warning_print, error_print
@@ -168,14 +172,139 @@ class TestContext:
         # 初始状态
         assert get_parent_span_id() == "-"
 
-        # 手动设置父级 span
-        from datamind.core.logging.context import _parent_span_id_ctx
-        _parent_span_id_ctx.set("parent-span-123")
+        # 设置父级 span
+        set_parent_span_id("parent-span-123")
         assert get_parent_span_id() == "parent-span-123"
 
         # 重置
         reset_context()
         assert get_parent_span_id() == "-"
+
+    def test_has_request_id(self):
+        """测试检查请求ID是否存在"""
+        reset_context()
+        assert has_request_id() is False
+
+        set_request_id("test-123")
+        assert has_request_id() is True
+
+    def test_has_trace_id(self):
+        """测试检查trace ID是否存在"""
+        reset_context()
+        assert has_trace_id() is False
+
+        set_trace_id("trace-123")
+        assert has_trace_id() is True
+
+    def test_has_span_id(self):
+        """测试检查span ID是否存在"""
+        reset_context()
+        assert has_span_id() is False
+
+        set_span_id("span-123")
+        assert has_span_id() is True
+
+    def test_has_parent_span_id(self):
+        """测试检查parent span ID是否存在"""
+        reset_context()
+        assert has_parent_span_id() is False
+
+        set_parent_span_id("parent-123")
+        assert has_parent_span_id() is True
+
+    def test_clear_request_id(self):
+        """测试清除请求ID"""
+        set_request_id("test-123")
+        assert get_request_id() == "test-123"
+
+        clear_request_id()
+        assert get_request_id() == "-"
+
+    def test_clear_trace_id(self):
+        """测试清除trace ID"""
+        set_trace_id("trace-123")
+        assert get_trace_id() == "trace-123"
+
+        clear_trace_id()
+        assert get_trace_id() == "-"
+
+    def test_clear_span_id(self):
+        """测试清除span ID"""
+        set_span_id("span-123")
+        assert get_span_id() == "span-123"
+
+        clear_span_id()
+        assert get_span_id() == "-"
+
+    def test_clear_parent_span_id(self):
+        """测试清除parent span ID"""
+        set_parent_span_id("parent-123")
+        assert get_parent_span_id() == "parent-123"
+
+        clear_parent_span_id()
+        assert get_parent_span_id() == "-"
+
+    def test_ensure_request(self):
+        """测试确保请求ID存在"""
+        reset_context()
+        assert get_request_id() == "-"
+
+        ensure_request()
+        assert get_request_id() != "-"
+        assert get_request_id().startswith("req-")
+
+        # 再次调用不应改变现有ID
+        current_id = get_request_id()
+        ensure_request()
+        assert get_request_id() == current_id
+
+    def test_ensure_trace(self):
+        """测试确保trace存在"""
+        reset_context()
+        assert get_trace_id() == "-"
+
+        ensure_trace()
+        assert get_trace_id() != "-"
+        assert get_trace_id().startswith("trace-")
+
+        # 再次调用不应改变现有ID
+        current_id = get_trace_id()
+        ensure_trace()
+        assert get_trace_id() == current_id
+
+    def test_ensure_trace_with_request(self):
+        """测试确保trace同时创建request"""
+        reset_context()
+        assert get_request_id() == "-"
+        assert get_trace_id() == "-"
+
+        ensure_trace(create_request=True)
+        assert get_request_id() != "-"
+        assert get_trace_id() != "-"
+
+    def test_ensure_span(self):
+        """测试确保span存在"""
+        reset_context()
+        assert get_span_id() == "-"
+
+        ensure_span()
+        assert get_span_id() != "-"
+        assert get_span_id().startswith("span-")
+
+        # 再次调用不应改变现有ID
+        current_id = get_span_id()
+        ensure_span()
+        assert get_span_id() == current_id
+
+    def test_ensure_span_with_parent(self):
+        """测试确保span同时创建parent_span"""
+        reset_context()
+        assert get_span_id() == "-"
+        assert get_parent_span_id() == "-"
+
+        ensure_span(create_parent_span=True)
+        assert get_span_id() != "-"
+        assert get_parent_span_id() != "-"
 
     def test_span_context(self):
         """测试Span上下文管理器"""
