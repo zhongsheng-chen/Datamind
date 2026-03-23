@@ -564,7 +564,7 @@ class TestIntegration:
 
             mock_audit.assert_called_once()
             call_args = mock_audit.call_args[1]
-            assert call_args['action'] == AuditAction.INFERENCE.value
+            assert call_args['action'] == AuditAction.MODEL_INFERENCE.value
             assert call_args['user_id'] == "user_123"
             assert call_args['details']['span_id'] == "span-456"
             assert call_args['details']['parent_span_id'] == "parent-789"

@@ -250,7 +250,7 @@ class TestABTestManager:
 
         mock_audit.assert_called_once()
         call_args = mock_audit.call_args[1]
-        assert call_args['action'] == AuditAction.CREATE.value
+        assert call_args['action'] == AuditAction.AB_TEST_CREATE.value
         assert call_args['user_id'] == "test_user"
         assert call_args['details']['span_id'] == "span-456"
         assert call_args['details']['parent_span_id'] == "parent-789"
@@ -302,7 +302,7 @@ class TestABTestManager:
 
         mock_audit.assert_called_once()
         call_args = mock_audit.call_args[1]
-        assert call_args['action'] == AuditAction.ACTIVATE.value
+        assert call_args['action'] == AuditAction.AB_TEST_START.value
         assert call_args['user_id'] == "test_user"
 
     @patch('datamind.core.experiment.ab_test.get_db')

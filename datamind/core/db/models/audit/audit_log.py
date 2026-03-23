@@ -1,4 +1,4 @@
-# Datamind/datamind/core/db/models/audit/audit_log.py
+# datamind/core/db/models/audit/audit_log.py
 
 """审计日志表定义
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import AuditAction
 
 
@@ -31,7 +31,14 @@ class AuditLog(Base):
     audit_id = Column(String(50), unique=True, nullable=False)
     event_type = Column(String(50), nullable=False)
 
-    action = Column(SQLEnum(AuditAction), nullable=False)
+    action = Column(
+        SQLEnum(
+            AuditAction,
+            name="audit_action_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
 
     operator = Column(String(50), nullable=False)
     operator_ip = Column(INET, nullable=True)

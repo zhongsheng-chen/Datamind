@@ -428,7 +428,7 @@ class ABTestManager:
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
             log_audit(
-                action=AuditAction.CREATE.value,
+                action=AuditAction.AB_TEST_CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -452,7 +452,7 @@ class ABTestManager:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action=AuditAction.CREATE.value,
+                action=AuditAction.AB_TEST_CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -513,7 +513,7 @@ class ABTestManager:
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
             log_audit(
-                action=AuditAction.ACTIVATE.value,
+                action=AuditAction.AB_TEST_START.value,
                 user_id=operator,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -532,7 +532,7 @@ class ABTestManager:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
-                action=AuditAction.ACTIVATE.value,
+                action=AuditAction.AB_TEST_START.value,
                 user_id=operator,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -670,7 +670,7 @@ class ABTestManager:
 
                 duration = (time.time() - start_time) * 1000
                 log_audit(
-                    action="AB_TEST_ASSIGN",
+                    action=AuditAction.AB_TEST_ASSIGNMENT.value,
                     user_id=user_id,
                     ip_address=ip_address,
                     resource_type="ab_test",
@@ -692,7 +692,7 @@ class ABTestManager:
         except Exception as e:
             duration = (time.time() - start_time) * 1000
             log_audit(
-                action="AB_TEST_ASSIGN",
+                action=AuditAction.AB_TEST_ERROR.value,
                 user_id=user_id,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -757,7 +757,7 @@ class ABTestManager:
                 session.commit()
 
                 log_audit(
-                    action="AB_TEST_RECORD",
+                    action=AuditAction.AB_TEST_RECORD.value,
                     user_id=user_id,
                     ip_address=ip_address,
                     resource_type="ab_test",
@@ -772,7 +772,7 @@ class ABTestManager:
 
         except Exception as e:
             log_audit(
-                action="AB_TEST_RECORD",
+                action=AuditAction.AB_TEST_ERROR.value,
                 user_id=user_id,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -852,7 +852,7 @@ class ABTestManager:
                 }
 
                 log_audit(
-                    action="AB_TEST_ANALYZE",
+                    action=AuditAction.AB_TEST_COMPLETE.value,
                     user_id="system",
                     resource_type="ab_test",
                     resource_id=test_id,
@@ -868,7 +868,7 @@ class ABTestManager:
 
         except Exception as e:
             log_audit(
-                action="AB_TEST_ANALYZE",
+                action=AuditAction.AB_TEST_COMPLETE.value,
                 user_id="system",
                 resource_type="ab_test",
                 resource_id=test_id,

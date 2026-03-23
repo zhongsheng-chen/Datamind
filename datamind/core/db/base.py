@@ -5,6 +5,7 @@
 提供 SQLAlchemy 的基础配置，包括：
   - 命名约定（naming_convention）：规范索引、约束等对象的命名
   - 声明式基类（Base）：所有数据库模型的基础类
+  - 枚举值函数：用于 SQLEnum 的 values_callable
 
 命名约定（naming_convention）：
   使用 SQLAlchemy 推荐的命名约定，确保生成的约束名称格式统一：
@@ -36,6 +37,24 @@
 
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import MetaData
+
+
+def enum_values(enum_cls):
+    """
+    获取枚举的所有值，用于 SQLEnum 的 values_callable
+
+    参数:
+        enum_cls: 枚举类
+
+    返回:
+        枚举值的列表
+
+    示例:
+        from datamind.core.domain.enums import TaskType
+        values = enum_values(TaskType)  # ['scoring', 'fraud_detection']
+    """
+    return [e.value for e in enum_cls]
+
 
 metadata = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",

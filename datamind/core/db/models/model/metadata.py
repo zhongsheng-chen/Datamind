@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import (
     TaskType, ModelType, Framework, ModelStatus
 )
@@ -35,9 +35,30 @@ class ModelMetadata(Base):
     model_name = Column(String(100), nullable=False)
     model_version = Column(String(20), nullable=False)
 
-    task_type = Column(SQLEnum(TaskType), nullable=False)
-    model_type = Column(SQLEnum(ModelType), nullable=False)
-    framework = Column(SQLEnum(Framework), nullable=False)
+    task_type = Column(
+        SQLEnum(
+            TaskType,
+            name="task_type_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
+    model_type = Column(
+        SQLEnum(
+            ModelType,
+            name="model_type_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
+    framework = Column(
+        SQLEnum(
+            Framework,
+            name="framework_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
 
     file_path = Column(String(500), nullable=False)
     file_hash = Column(String(64), nullable=False)
@@ -50,7 +71,14 @@ class ModelMetadata(Base):
     feature_importance = Column(JSONB, nullable=True)
     performance_metrics = Column(JSONB, nullable=True)
 
-    status = Column(SQLEnum(ModelStatus), default=ModelStatus.INACTIVE)
+    status = Column(
+        SQLEnum(
+            ModelStatus,
+            name="model_status_enum",
+            values_callable=enum_values
+        ),
+        default=ModelStatus.INACTIVE
+    )
     is_production = Column(Boolean, default=False)
     ab_test_group = Column(String(50), nullable=True)
 

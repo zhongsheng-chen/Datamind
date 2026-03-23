@@ -1,4 +1,4 @@
-# Datamind/datamind/core/db/models/model/deployment.py
+# datamind/core/db/models/model/deployment.py
 
 """模型部署表定义
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import DeploymentEnvironment
 
 
@@ -31,7 +31,14 @@ class ModelDeployment(Base):
                      nullable=False)
     model_version = Column(String(20), nullable=False)
 
-    environment = Column(SQLEnum(DeploymentEnvironment), nullable=False)
+    environment = Column(
+        SQLEnum(
+            DeploymentEnvironment,
+            name="deployment_env_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
     endpoint_url = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True)
 

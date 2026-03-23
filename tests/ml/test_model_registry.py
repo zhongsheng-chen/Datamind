@@ -363,7 +363,7 @@ class TestModelRegistry:
     def test_get_model_history(self, registry, mock_db_session):
         """测试获取模型历史"""
         mock_history = MagicMock()
-        mock_history.operation = AuditAction.CREATE.value
+        mock_history.operation = AuditAction.MODEL_CREATE.value
         mock_history.operator = "user1"
         mock_history.operation_time = datetime.now()
         mock_history.reason = None
@@ -375,7 +375,7 @@ class TestModelRegistry:
         history = registry.get_model_history("MDL_123")
 
         assert len(history) == 1
-        assert history[0]['operation'] == AuditAction.CREATE.value
+        assert history[0]['operation'] == AuditAction.MODEL_CREATE.value
         assert history[0]['operator'] == "user1"
 
     def test_get_model_params(self, registry, mock_db_session):

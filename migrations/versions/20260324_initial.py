@@ -1,18 +1,27 @@
-# Datamind/migrations/versions/20240315_initial.py
+# Datamind/migrations/versions/20260324_initial.py
 """初始迁移
 
-修订版本ID: 20240315_initial
+修订版本ID: 20260324_initial
 父修订版本:
-创建日期: 2024-03-15 10:00:00.000000
+创建日期: 2026-03-24 10:00:00.000000
 
+包含所有表：
+- 枚举类型
+- 模型管理表 (model_metadata, model_version_history, model_deployments)
+- 监控表 (api_call_logs, model_performance_metrics)
+- 审计表 (audit_logs)
+- A/B测试表 (ab_test_configs, ab_test_assignments)
+- 系统配置表 (system_configs)
+- 用户认证表 (users, api_keys)
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 
-revision = '20240315_initial'  # 修订版本标识符
-down_revision = None           # 初始版本，没有父版本
+revision = '20260324_initial'
+down_revision = None
 branch_labels = None
 depends_on = None
 
@@ -21,6 +30,7 @@ def upgrade() -> None:
     """升级数据库到当前版本"""
 
     # ===================== 创建枚举类型 =====================
+    # 注意：所有枚举值必须与 datamind/core/domain/enums.py 保持一致
 
     # 任务类型枚举
     op.execute("""
@@ -74,10 +84,45 @@ def upgrade() -> None:
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'audit_action_enum') THEN
             CREATE TYPE audit_action_enum AS ENUM (
-                'CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
-                'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
-                'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
-                'ROLLBACK', 'CONFIG_CHANGE'
+                -- 模型生命周期
+                'model_create', 'model_update', 'model_delete', 'model_query',
+                'model_activate', 'model_deactivate', 'model_deprecate', 'model_archive',
+                'model_restore', 'model_version_add', 'model_version_delete',
+                'model_version_switch', 'model_promote', 'model_rollback',
+                -- 模型运行时
+                'model_load', 'model_unload', 'model_warm_up', 'model_inference',
+                'model_batch_inference', 'model_download', 'model_save', 'model_migrate',
+                -- A/B测试
+                'ab_test_create', 'ab_test_update', 'ab_test_start', 'ab_test_pause',
+                'ab_test_resume', 'ab_test_complete', 'ab_test_terminate',
+                'ab_test_assignment', 'ab_test_record', 'ab_test_error',
+                -- 认证授权
+                'user_login', 'user_logout', 'user_password_change', 'user_password_reset',
+                'auth_success', 'auth_failed', 'api_key_create', 'api_key_revoke',
+                'api_key_update',
+                -- 安全防护
+                'cors_preflight', 'rate_limit_exceeded', 'ip_blocked',
+                'invalid_signature', 'invalid_timestamp', 'request_too_large',
+                -- 系统配置
+                'config_create', 'config_update', 'config_delete', 'config_reload',
+                -- 数据库管理
+                'db_initialize', 'db_create_engine', 'db_get_session', 'db_health_check',
+                'db_transaction', 'db_transaction_error', 'db_reconnect', 'db_init_schema',
+                -- 复制监控
+                'replication_status', 'sync_status', 'replication_slots',
+                'replication_metrics', 'replication_alert',
+                -- 数据管理
+                'database_backup', 'database_restore', 'database_migrate',
+                'data_export', 'data_import',
+                -- 存储管理
+                'file_upload', 'file_download', 'file_delete', 'file_copy',
+                'file_move', 'file_list', 'file_metadata',
+                -- 监控告警
+                'monitoring_collect', 'alert_trigger', 'slow_request', 'slow_query',
+                -- 审计日志
+                'audit_log_query', 'audit_log_export',
+                -- 性能监控
+                'performance_metric', 'db_query_stats', 'cache_hit', 'cache_miss'
             );
         END IF;
     END$$;
@@ -99,6 +144,26 @@ def upgrade() -> None:
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'abtest_status_enum') THEN
             CREATE TYPE abtest_status_enum AS ENUM ('draft', 'running', 'paused', 'completed', 'terminated');
+        END IF;
+    END$$;
+    """)
+
+    # 用户角色枚举
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+            CREATE TYPE user_role_enum AS ENUM ('admin', 'developer', 'analyst', 'api_user');
+        END IF;
+    END$$;
+    """)
+
+    # 用户状态枚举
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_status_enum') THEN
+            CREATE TYPE user_status_enum AS ENUM ('active', 'inactive', 'suspended');
         END IF;
     END$$;
     """)
@@ -158,23 +223,14 @@ def upgrade() -> None:
     # 模型表索引
     op.create_index('idx_model_status', 'model_metadata', ['status', 'is_production'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_model_status IS '状态和是否生产复合索引';")
-
     op.create_index('idx_model_abtest', 'model_metadata', ['ab_test_group', 'status'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_model_abtest IS 'A/B测试组和状态复合索引';")
-
     op.create_index('idx_model_created_at', 'model_metadata', ['created_at'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_model_created_at IS '创建时间索引';")
-
     op.create_index('idx_model_task_type', 'model_metadata', ['task_type'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_model_task_type IS '任务类型索引';")
-
     op.create_index('idx_model_type_framework', 'model_metadata', ['model_type', 'framework'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_model_type_framework IS '模型类型和框架复合索引';")
 
     # 2. 模型版本历史表
     op.create_table(
@@ -182,10 +238,31 @@ def upgrade() -> None:
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型ID'),
         sa.Column('model_version', sa.String(length=20), nullable=False, comment='模型版本'),
-        sa.Column('operation', PgEnum('CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
-                                       'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
-                                       'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
-                                       'ROLLBACK', 'CONFIG_CHANGE',
+        sa.Column('operation', PgEnum('model_create', 'model_update', 'model_delete', 'model_query',
+                                       'model_activate', 'model_deactivate', 'model_deprecate', 'model_archive',
+                                       'model_restore', 'model_version_add', 'model_version_delete',
+                                       'model_version_switch', 'model_promote', 'model_rollback',
+                                       'model_load', 'model_unload', 'model_warm_up', 'model_inference',
+                                       'model_batch_inference', 'model_download', 'model_save', 'model_migrate',
+                                       'ab_test_create', 'ab_test_update', 'ab_test_start', 'ab_test_pause',
+                                       'ab_test_resume', 'ab_test_complete', 'ab_test_terminate',
+                                       'ab_test_assignment', 'ab_test_record', 'ab_test_error',
+                                       'user_login', 'user_logout', 'user_password_change', 'user_password_reset',
+                                       'auth_success', 'auth_failed', 'api_key_create', 'api_key_revoke',
+                                       'api_key_update', 'cors_preflight', 'rate_limit_exceeded', 'ip_blocked',
+                                       'invalid_signature', 'invalid_timestamp', 'request_too_large',
+                                       'config_create', 'config_update', 'config_delete', 'config_reload',
+                                       'db_initialize', 'db_create_engine', 'db_get_session', 'db_health_check',
+                                       'db_transaction', 'db_transaction_error', 'db_reconnect', 'db_init_schema',
+                                       'replication_status', 'sync_status', 'replication_slots',
+                                       'replication_metrics', 'replication_alert',
+                                       'database_backup', 'database_restore', 'database_migrate',
+                                       'data_export', 'data_import',
+                                       'file_upload', 'file_download', 'file_delete', 'file_copy',
+                                       'file_move', 'file_list', 'file_metadata',
+                                       'monitoring_collect', 'alert_trigger', 'slow_request', 'slow_query',
+                                       'audit_log_query', 'audit_log_export',
+                                       'performance_metric', 'db_query_stats', 'cache_hit', 'cache_miss',
                                        name='audit_action_enum', create_type=False),
                   nullable=False, comment='操作类型'),
         sa.Column('operator', sa.String(length=50), nullable=False, comment='操作人'),
@@ -203,15 +280,10 @@ def upgrade() -> None:
     )
     op.create_index('idx_history_model_time', 'model_version_history', ['model_id', 'operation_time'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_history_model_time IS '模型和操作时间复合索引';")
-
     op.create_index('idx_history_operator', 'model_version_history', ['operator'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_history_operator IS '操作人索引';")
-
     op.create_index('idx_history_operation', 'model_version_history', ['operation'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_history_operation IS '操作类型索引';")
 
     # 3. 模型部署表
     op.create_table(
@@ -244,15 +316,10 @@ def upgrade() -> None:
     )
     op.create_index('idx_deployment_active', 'model_deployments', ['is_active'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_deployment_active IS '活跃状态索引';")
-
     op.create_index('idx_deployment_env', 'model_deployments', ['environment'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_deployment_env IS '环境索引';")
-
     op.create_index('idx_deployment_model_env', 'model_deployments', ['model_id', 'environment'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_deployment_model_env IS '模型和环境复合索引';")
 
     # 4. API调用日志表
     op.create_table(
@@ -294,23 +361,14 @@ def upgrade() -> None:
     )
     op.create_index('idx_api_time', 'api_call_logs', ['created_at'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_api_time IS '创建时间索引';")
-
     op.create_index('idx_api_app_model', 'api_call_logs', ['application_id', 'model_id'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_api_app_model IS '应用和模型复合索引';")
-
     op.create_index('idx_api_request_id', 'api_call_logs', ['request_id'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_api_request_id IS '请求ID索引';")
-
     op.create_index('idx_api_status', 'api_call_logs', ['status_code'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_api_status IS '状态码索引';")
-
     op.create_index('idx_api_task_type', 'api_call_logs', ['task_type'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_api_task_type IS '任务类型索引';")
 
     # 5. 模型性能监控表
     op.create_table(
@@ -331,16 +389,13 @@ def upgrade() -> None:
         sa.Column('p99_response_time_ms', sa.Float(), nullable=True, comment='P99响应时间'),
         sa.Column('max_response_time_ms', sa.Integer(), nullable=True, comment='最大响应时间'),
         sa.Column('min_response_time_ms', sa.Integer(), nullable=True, comment='最小响应时间'),
-        # 评分卡专用指标
         sa.Column('avg_score', sa.Float(), nullable=True, comment='平均评分'),
         sa.Column('score_distribution', postgresql.JSONB(), nullable=True, comment='评分分布'),
         sa.Column('score_bins', postgresql.JSONB(), nullable=True, comment='评分区间统计'),
-        # 反欺诈专用指标
         sa.Column('fraud_rate', sa.Float(), nullable=True, comment='欺诈率'),
         sa.Column('fraud_count', sa.Integer(), nullable=True, comment='欺诈数量'),
         sa.Column('risk_distribution', postgresql.JSONB(), nullable=True, comment='风险分布'),
         sa.Column('risk_levels', postgresql.JSONB(), nullable=True, comment='风险等级统计'),
-        # 通用指标
         sa.Column('feature_importance_drift', postgresql.JSONB(), nullable=True, comment='特征重要性漂移'),
         sa.Column('avg_cpu_usage', sa.Float(), nullable=True, comment='平均CPU使用率'),
         sa.Column('avg_memory_usage', sa.Float(), nullable=True, comment='平均内存使用率'),
@@ -356,11 +411,8 @@ def upgrade() -> None:
     )
     op.create_index('idx_performance_model_date', 'model_performance_metrics', ['model_id', 'date'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_performance_model_date IS '模型和日期复合索引';")
-
     op.create_index('idx_performance_task_type', 'model_performance_metrics', ['task_type'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_performance_task_type IS '任务类型索引';")
 
     # 6. 审计日志表
     op.create_table(
@@ -368,10 +420,31 @@ def upgrade() -> None:
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
         sa.Column('audit_id', sa.String(length=50), nullable=False, comment='审计ID'),
         sa.Column('event_type', sa.String(length=50), nullable=False, comment='事件类型'),
-        sa.Column('action', PgEnum('CREATE', 'UPDATE', 'DELETE', 'ACTIVATE', 'DEACTIVATE',
-                                    'DEPRECATE', 'ARCHIVE', 'RESTORE', 'VERSION_ADD',
-                                    'VERSION_SWITCH', 'DOWNLOAD', 'INFERENCE', 'PROMOTE',
-                                    'ROLLBACK', 'CONFIG_CHANGE',
+        sa.Column('action', PgEnum('model_create', 'model_update', 'model_delete', 'model_query',
+                                    'model_activate', 'model_deactivate', 'model_deprecate', 'model_archive',
+                                    'model_restore', 'model_version_add', 'model_version_delete',
+                                    'model_version_switch', 'model_promote', 'model_rollback',
+                                    'model_load', 'model_unload', 'model_warm_up', 'model_inference',
+                                    'model_batch_inference', 'model_download', 'model_save', 'model_migrate',
+                                    'ab_test_create', 'ab_test_update', 'ab_test_start', 'ab_test_pause',
+                                    'ab_test_resume', 'ab_test_complete', 'ab_test_terminate',
+                                    'ab_test_assignment', 'ab_test_record', 'ab_test_error',
+                                    'user_login', 'user_logout', 'user_password_change', 'user_password_reset',
+                                    'auth_success', 'auth_failed', 'api_key_create', 'api_key_revoke',
+                                    'api_key_update', 'cors_preflight', 'rate_limit_exceeded', 'ip_blocked',
+                                    'invalid_signature', 'invalid_timestamp', 'request_too_large',
+                                    'config_create', 'config_update', 'config_delete', 'config_reload',
+                                    'db_initialize', 'db_create_engine', 'db_get_session', 'db_health_check',
+                                    'db_transaction', 'db_transaction_error', 'db_reconnect', 'db_init_schema',
+                                    'replication_status', 'sync_status', 'replication_slots',
+                                    'replication_metrics', 'replication_alert',
+                                    'database_backup', 'database_restore', 'database_migrate',
+                                    'data_export', 'data_import',
+                                    'file_upload', 'file_download', 'file_delete', 'file_copy',
+                                    'file_move', 'file_list', 'file_metadata',
+                                    'monitoring_collect', 'alert_trigger', 'slow_request', 'slow_query',
+                                    'audit_log_query', 'audit_log_export',
+                                    'performance_metric', 'db_query_stats', 'cache_hit', 'cache_miss',
                                     name='audit_action_enum', create_type=False),
                   nullable=False, comment='操作类型'),
         sa.Column('operator', sa.String(length=50), nullable=False, comment='操作人'),
@@ -400,23 +473,14 @@ def upgrade() -> None:
     )
     op.create_index('idx_audit_time', 'audit_logs', ['created_at'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_audit_time IS '创建时间索引';")
-
     op.create_index('idx_audit_operator', 'audit_logs', ['operator'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_audit_operator IS '操作人索引';")
-
     op.create_index('idx_audit_resource', 'audit_logs', ['resource_type', 'resource_id'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_audit_resource IS '资源类型和ID复合索引';")
-
     op.create_index('idx_audit_event', 'audit_logs', ['event_type'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_audit_event IS '事件类型索引';")
-
     op.create_index('idx_audit_action', 'audit_logs', ['action'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_audit_action IS '操作类型索引';")
 
     # 7. A/B测试配置表
     op.create_table(
@@ -452,15 +516,10 @@ def upgrade() -> None:
     )
     op.create_index('idx_abtest_status', 'ab_test_configs', ['status'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_abtest_status IS '状态索引';")
-
     op.create_index('idx_abtest_dates', 'ab_test_configs', ['start_date', 'end_date'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_abtest_dates IS '开始和结束时间复合索引';")
-
     op.create_index('idx_abtest_task_type', 'ab_test_configs', ['task_type'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_abtest_task_type IS '任务类型索引';")
 
     # 8. A/B测试分配表
     op.create_table(
@@ -484,15 +543,10 @@ def upgrade() -> None:
     )
     op.create_index('idx_ab_assign_test_user', 'ab_test_assignments', ['test_id', 'user_id'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_ab_assign_test_user IS '测试和用户复合索引';")
-
     op.create_index('idx_ab_assign_time', 'ab_test_assignments', ['assigned_at'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_ab_assign_time IS '分配时间索引';")
-
     op.create_index('idx_ab_assign_model', 'ab_test_assignments', ['model_id'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_ab_assign_model IS '模型ID索引';")
 
     # 9. 系统配置表
     op.create_table(
@@ -517,13 +571,98 @@ def upgrade() -> None:
     )
     op.create_index('idx_config_category', 'system_configs', ['category'],
                     schema='public')
-    op.execute("COMMENT ON INDEX public.idx_config_category IS '配置分类索引';")
+
+    # 10. 用户表
+    op.create_table(
+        'users',
+        sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
+        sa.Column('user_id', sa.String(length=50), nullable=False, comment='用户唯一标识'),
+        sa.Column('username', sa.String(length=50), nullable=False, comment='用户名'),
+        sa.Column('email', sa.String(length=100), nullable=False, comment='邮箱'),
+        sa.Column('password_hash', sa.String(length=255), nullable=False, comment='密码哈希'),
+        sa.Column('full_name', sa.String(length=100), nullable=True, comment='全名'),
+        sa.Column('avatar', sa.String(length=500), nullable=True, comment='头像URL'),
+        sa.Column('phone', sa.String(length=20), nullable=True, comment='手机号'),
+        sa.Column('role', PgEnum('admin', 'developer', 'analyst', 'api_user',
+                                   name='user_role_enum', create_type=False),
+                  nullable=False, server_default='api_user', comment='用户角色'),
+        sa.Column('permissions', postgresql.JSONB(), default=list, nullable=True, comment='额外权限列表'),
+        sa.Column('status', PgEnum('active', 'inactive', 'suspended',
+                                    name='user_status_enum', create_type=False),
+                  nullable=False, server_default='active', comment='用户状态'),
+        sa.Column('last_login_at', sa.DateTime(timezone=True), nullable=True, comment='最后登录时间'),
+        sa.Column('last_login_ip', postgresql.INET(), nullable=True, comment='最后登录IP'),
+        sa.Column('last_password_change', sa.DateTime(timezone=True), nullable=True, comment='最后密码修改时间'),
+        sa.Column('password_reset_token', sa.String(length=100), nullable=True, comment='密码重置令牌'),
+        sa.Column('password_reset_expires', sa.DateTime(timezone=True), nullable=True, comment='密码重置过期时间'),
+        sa.Column('email_verification_token', sa.String(length=100), nullable=True, comment='邮箱验证令牌'),
+        sa.Column('email_verification_expires', sa.DateTime(timezone=True), nullable=True, comment='邮箱验证过期时间'),
+        sa.Column('login_attempts', sa.BigInteger(), nullable=False, server_default='0', comment='登录尝试次数'),
+        sa.Column('failed_login_attempts', sa.BigInteger(), nullable=False, server_default='0', comment='失败登录次数'),
+        sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True, comment='锁定截止时间'),
+        sa.Column('extra_metadata', postgresql.JSONB(), nullable=True, comment='扩展元数据'),
+        sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'),
+                  nullable=False, comment='创建时间'),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, comment='更新时间'),
+        sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='删除时间'),
+        sa.PrimaryKeyConstraint('id', name='pk_users'),
+        sa.UniqueConstraint('user_id', name='uq_user_id'),
+        sa.UniqueConstraint('username', name='uq_username'),
+        sa.UniqueConstraint('email', name='uq_email'),
+        schema='public',
+        comment='用户表'
+    )
+    op.create_index('idx_user_email', 'users', ['email'], unique=True, schema='public')
+    op.create_index('idx_user_username', 'users', ['username'], unique=True, schema='public')
+    op.create_index('idx_user_status', 'users', ['status'], schema='public')
+    op.create_index('idx_user_role', 'users', ['role'], schema='public')
+    op.create_index('idx_user_created_at', 'users', ['created_at'], schema='public')
+    op.create_index('idx_user_last_login', 'users', ['last_login_at'], schema='public')
+
+    # 11. API密钥表
+    op.create_table(
+        'api_keys',
+        sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
+        sa.Column('api_key_id', sa.String(length=50), nullable=False, comment='API密钥唯一标识'),
+        sa.Column('user_id', sa.String(length=50), nullable=False, comment='所属用户ID'),
+        sa.Column('name', sa.String(length=100), nullable=False, comment='密钥名称'),
+        sa.Column('key', sa.String(length=255), nullable=False, comment='API密钥'),
+        sa.Column('key_prefix', sa.String(length=10), nullable=True, comment='密钥前缀'),
+        sa.Column('permissions', postgresql.JSONB(), default=list, nullable=True, comment='权限列表'),
+        sa.Column('roles', postgresql.JSONB(), default=list, nullable=True, comment='角色列表'),
+        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true'), comment='是否激活'),
+        sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True, comment='过期时间'),
+        sa.Column('last_used_at', sa.DateTime(timezone=True), nullable=True, comment='最后使用时间'),
+        sa.Column('allowed_ips', postgresql.JSONB(), default=list, nullable=True, comment='IP白名单'),
+        sa.Column('allowed_origins', postgresql.JSONB(), default=list, nullable=True, comment='域名白名单'),
+        sa.Column('rate_limit', postgresql.JSONB(), nullable=True, comment='自定义限流配置'),
+        sa.Column('extra_metadata', postgresql.JSONB(), nullable=True, comment='扩展元数据'),
+        sa.Column('description', sa.Text(), nullable=True, comment='描述'),
+        sa.Column('created_by', sa.String(length=50), nullable=False, comment='创建人'),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'),
+                  nullable=False, comment='创建时间'),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, comment='更新时间'),
+        sa.ForeignKeyConstraint(['user_id'], ['public.users.user_id'],
+                                ondelete='CASCADE', name='fk_api_key_user'),
+        sa.PrimaryKeyConstraint('id', name='pk_api_keys'),
+        sa.UniqueConstraint('api_key_id', name='uq_api_key_id'),
+        sa.UniqueConstraint('key', name='uq_api_key'),
+        schema='public',
+        comment='API密钥表'
+    )
+    op.create_index('idx_api_key_key', 'api_keys', ['key'], unique=True, schema='public')
+    op.create_index('idx_api_key_user', 'api_keys', ['user_id'], schema='public')
+    op.create_index('idx_api_key_active', 'api_keys', ['is_active'], schema='public')
+    op.create_index('idx_api_key_expires', 'api_keys', ['expires_at'], schema='public')
 
 
 def downgrade() -> None:
     """降级数据库到上一个版本"""
 
     # 删除表（按外键依赖的反向顺序）
+    op.drop_table('api_keys', schema='public')
+    op.drop_table('users', schema='public')
     op.drop_table('ab_test_assignments', schema='public')
     op.drop_table('model_version_history', schema='public')
     op.drop_table('model_deployments', schema='public')
@@ -542,3 +681,5 @@ def downgrade() -> None:
     op.execute('DROP TYPE IF EXISTS public.audit_action_enum CASCADE')
     op.execute('DROP TYPE IF EXISTS public.deployment_env_enum CASCADE')
     op.execute('DROP TYPE IF EXISTS public.abtest_status_enum CASCADE')
+    op.execute('DROP TYPE IF EXISTS public.user_role_enum CASCADE')
+    op.execute('DROP TYPE IF EXISTS public.user_status_enum CASCADE')

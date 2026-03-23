@@ -187,7 +187,7 @@ class TestModelVersionHistory:
         history = ModelVersionHistory(
             model_id=sample_model_metadata.model_id,
             model_version="2.0.0",
-            operation=AuditAction.UPDATE.value,
+            operation=AuditAction.MODEL_UPDATE.value,
             operator="test_user",
             details={"changes": ["updated_params"]}
         )
@@ -203,7 +203,7 @@ class TestModelVersionHistory:
         ).first()
 
         assert saved is not None
-        assert saved.operation == AuditAction.UPDATE.value
+        assert saved.operation == AuditAction.MODEL_UPDATE.value
 
 
 class TestModelDeployment:
@@ -313,7 +313,7 @@ class TestAuditLog:
         audit = AuditLog(
             audit_id=audit_id,
             event_type="USER_OPERATION",
-            action=AuditAction.UPDATE.value,
+            action=AuditAction.MODEL_UPDATE.value,
             operator="admin_user",
             operator_role="admin",
             resource_type="config",

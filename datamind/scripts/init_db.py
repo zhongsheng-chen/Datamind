@@ -1,68 +1,51 @@
-#!/usr/bin/env python3
 # Datamind/datamind/scripts/init_db.py
-"""
-数据库初始化脚本
-用于创建数据库表、初始化枚举类型和基础数据
+
+"""数据库初始化脚本
+
+用于创建数据库、扩展和基础数据，表结构和枚举由 Alembic 统一管理
 """
 
 import sys
 import logging
+import subprocess
 from pathlib import Path
 
-# 添加项目根目录到Python路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from sqlalchemy import create_engine, text
-from sqlalchemy_utils import database_exists, create_database, drop_database
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.engine.url import make_url
 
-from datamind.core import Base
-from datamind.core import (
-    TaskType, ModelType, Framework, ModelStatus,
-    AuditAction, DeploymentEnvironment, ABTestStatus
-)
-from datamind.config import settings
-from datamind.config import LoggingConfig
-from datamind.core import log_manager
+from datamind.config import get_settings, BASE_DIR
 
-# 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# 获取配置
+settings = get_settings()
 
-def create_enums(conn):
-    """创建PostgreSQL枚举类型"""
-    logger.info("创建枚举类型...")
 
-    enums = [
-        ("task_type_enum", TaskType),
-        ("model_type_enum", ModelType),
-        ("framework_enum", Framework),
-        ("model_status_enum", ModelStatus),
-        ("audit_action_enum", AuditAction),
-        ("deployment_env_enum", DeploymentEnvironment),
-        ("abtest_status_enum", ABTestStatus),
-    ]
+def database_exists(url):
+    """检查数据库是否存在"""
+    try:
+        engine = create_engine(url)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except OperationalError:
+        return False
 
-    for enum_name, enum_class in enums:
-        try:
-            # 检查枚举是否已存在
-            result = conn.execute(
-                text(f"SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = '{enum_name}')")
-            ).scalar()
 
-            if not result:
-                enum_values = [f"'{e.value}'" for e in enum_class]
-                conn.execute(text(f"CREATE TYPE {enum_name} AS ENUM ({','.join(enum_values)})"))
-                logger.info(f"创建枚举类型: {enum_name}")
-            else:
-                logger.info(f"枚举类型已存在: {enum_name}")
+def create_database(url):
+    """创建数据库（使用 make_url 安全处理）"""
+    db_url = make_url(str(url))
+    default_db = db_url.set(database="postgres")
+    engine = create_engine(default_db, isolation_level="AUTOCOMMIT")
 
-        except Exception as e:
-            logger.error(f"创建枚举类型 {enum_name} 失败: {e}")
-            raise
+    with engine.connect() as conn:
+        conn.execute(text(f'CREATE DATABASE "{db_url.database}"'))
+        logger.info(f"创建数据库: {db_url.database}")
 
 
 def create_extensions(conn):
@@ -79,84 +62,76 @@ def create_extensions(conn):
     for ext in extensions:
         try:
             conn.execute(text(f'CREATE EXTENSION IF NOT EXISTS "{ext}"'))
-            logger.info(f"创建扩展: {ext}")
+            logger.info(f"  创建扩展: {ext}")
         except Exception as e:
-            logger.error(f"创建扩展 {ext} 失败: {e}")
-            # 继续执行，不中断
+            logger.error(f"  创建扩展 {ext} 失败: {e}")
 
 
-def create_tables(engine):
-    """创建数据库表"""
-    logger.info("创建数据库表...")
-    Base.metadata.create_all(engine)
-    logger.info("数据库表创建完成")
+def is_initialized(engine):
+    """判断数据库是否已初始化（是否存在 alembic_version 表）"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1 FROM alembic_version"))
+            return True
+    except Exception:
+        return False
 
 
-def create_indexes(engine):
-    """创建额外索引"""
-    logger.info("创建索引...")
+def run_alembic_upgrade():
+    """运行 Alembic 迁移创建表结构和枚举"""
+    logger.info("运行 Alembic 迁移...")
 
-    with engine.connect() as conn:
-        # 创建GIN索引用于JSONB字段
-        indexes = [
-            """
-            CREATE INDEX IF NOT EXISTS idx_model_metadata_gin
-                ON model_metadata USING gin (metadata_json)
-            """,
-            """
-            CREATE INDEX IF NOT EXISTS idx_api_call_logs_request_data_gin
-                ON api_call_logs USING gin (request_data)
-            """,
-            """
-            CREATE INDEX IF NOT EXISTS idx_audit_logs_details_gin
-                ON audit_logs USING gin (details)
-            """,
-            """
-            CREATE INDEX IF NOT EXISTS idx_model_metadata_search
-                ON model_metadata USING gin (
-                to_tsvector('english',
-                coalesce (model_name,'') || ' ' ||
-                coalesce (description,'')
-                )
-                )
-            """
-        ]
+    project_root = BASE_DIR.parent
 
-        for idx in indexes:
-            try:
-                conn.execute(text(idx))
-                conn.commit()
-            except Exception as e:
-                logger.error(f"创建索引失败: {e}")
+    try:
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
 
-    logger.info("索引创建完成")
+        if result.stdout:
+            for line in result.stdout.strip().split('\n'):
+                if line.strip():
+                    logger.info(f"  {line}")
+
+        logger.info("Alembic 迁移完成")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Alembic 迁移失败 (返回码: {e.returncode})")
+        if e.stderr:
+            logger.error(f"  错误输出: {e.stderr}")
+        return False
+    except Exception as e:
+        logger.error(f"运行 Alembic 失败: {e}")
+        return False
 
 
 def init_base_data(engine):
     """初始化基础数据"""
     logger.info("初始化基础数据...")
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         # 检查是否已有系统配置
         result = conn.execute(
             text("SELECT COUNT(*) FROM system_configs")
         ).scalar()
 
         if result == 0:
-            # 插入默认系统配置
             conn.execute(
                 text("""
                      INSERT INTO system_configs
-                     (config_key, config_value, description, category, updated_by, created_at)
-                     VALUES ('system.version', :version, '系统版本', 'system', 'system', NOW()),
-                            ('system.maintenance_mode', 'false', '维护模式', 'system', 'system', NOW()),
+                     (config_key, config_value, description, category, version, updated_by, created_at)
+                     VALUES ('system.version', '"1.0.0"', '系统版本', 'system', 1, 'system', NOW()),
+                            ('system.maintenance_mode', 'false', '维护模式', 'system', 1, 'system', NOW()),
                             ('api.rate_limit.default', '{"requests": 100, "period": 60}',
-                             '默认速率限制', 'api', 'system', NOW()),
-                            ('model.default_timeout', '30', '默认模型超时时间', 'model', 'system', NOW())
-                     """),
-                {"version": settings.VERSION}
+                             '默认速率限制', 'api', 1, 'system', NOW()),
+                            ('model.default_timeout', '30', '默认模型超时时间', 'model', 1, 'system', NOW())
+                     """)
             )
-            conn.commit()
             logger.info("基础数据初始化完成")
         else:
             logger.info("基础数据已存在，跳过初始化")
@@ -166,9 +141,9 @@ def main():
     """主函数"""
     logger.info("=" * 50)
     logger.info("开始初始化数据库")
-    logger.info(f"数据库URL: {settings.DATABASE_URL.split('@')[-1]}")
+    logger.info(f"数据库URL: {settings.database.url.split('@')[-1]}")
+    logger.info(f"项目根目录: {BASE_DIR.parent}")
 
-    # 确认操作
     if "--force" not in sys.argv:
         response = input("此操作将创建数据库表，确定要继续吗？ (yes/no): ")
         if response.lower() != 'yes':
@@ -178,7 +153,7 @@ def main():
     try:
         # 创建数据库引擎
         engine = create_engine(
-            settings.DATABASE_URL,
+            settings.database.url,
             pool_pre_ping=True,
             connect_args={'connect_timeout': 10}
         )
@@ -188,21 +163,21 @@ def main():
             create_database(engine.url)
             logger.info(f"创建数据库: {engine.url.database}")
 
+        # 重新连接
+        engine = create_engine(
+            settings.database.url,
+            pool_pre_ping=True,
+            connect_args={'connect_timeout': 10}
+        )
+
         # 创建扩展
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             create_extensions(conn)
-            conn.commit()
 
-        # 创建枚举
-        with engine.connect() as conn:
-            create_enums(conn)
-            conn.commit()
-
-        # 创建表
-        create_tables(engine)
-
-        # 创建索引
-        create_indexes(engine)
+        # 运行 Alembic 迁移（幂等，如果已初始化会自动跳过已执行的部分）
+        if not run_alembic_upgrade():
+            logger.error("Alembic 迁移失败，数据库初始化中止")
+            sys.exit(1)
 
         # 初始化基础数据
         init_base_data(engine)
@@ -210,19 +185,10 @@ def main():
         logger.info("=" * 50)
         logger.info("数据库初始化完成！")
 
-        # 记录审计日志
-        log_config = LoggingConfig.load()
-        log_manager.initialize(log_config)
-        log_manager.log_audit(
-            action="DB_INIT",
-            user_id="system",
-            ip_address="localhost",
-            details={"database": str(engine.url)},
-            result="SUCCESS"
-        )
-
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

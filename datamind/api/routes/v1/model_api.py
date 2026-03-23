@@ -1,4 +1,4 @@
-# datamind/api/routes/model_api.py
+# datamind/api/routes/v1/model_api.py
 
 """模型管理 API 路由
 
@@ -247,6 +247,10 @@ async def list_models(
 ):
     """列出模型"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
 
     try:
         models = model_registry.list_models(
@@ -261,13 +265,46 @@ async def list_models(
         for model in models:
             model['is_loaded'] = model_loader.is_loaded(model['model_id'])
 
+        # 记录审计日志
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "task_type": task_type,
+                "status": status,
+                "model_type": model_type,
+                "framework": framework,
+                "is_production": is_production,
+                "result_count": len(models),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
         return {
             "total": len(models),
             "models": models,
-            "request_id": request_id
+            "request_id": request_id,
+            "trace_id": trace_id
         }
 
     except Exception as e:
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "error": str(e),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            reason=str(e),
+            request_id=request_id
+        )
         raise HTTPException(status_code=500, detail=f"获取模型列表失败: {str(e)}")
 
 
@@ -514,19 +551,53 @@ async def get_model_history(
 ):
     """获取模型历史"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
+    span_id = context.get_span_id()
+    parent_span_id = context.get_parent_span_id()
+    client_ip = request.client.host if request.client else None
 
     try:
         history = model_registry.get_model_history(model_id)
 
+        # 记录审计日志
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "history_count": len(history),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            request_id=request_id
+        )
+
         return {
             "model_id": model_id,
             "history": history,
-            "request_id": request_id
+            "request_id": request_id,
+            "trace_id": trace_id
         }
 
     except ModelNotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        log_audit(
+            action=AuditAction.MODEL_QUERY.value,
+            user_id=current_user,
+            ip_address=client_ip,
+            details={
+                "model_id": model_id,
+                "error": str(e),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            },
+            reason=str(e),
+            request_id=request_id
+        )
         raise HTTPException(status_code=500, detail=f"获取模型历史失败: {str(e)}")
 
 

@@ -1,17 +1,15 @@
 # datamind/serving/__init__.py
-"""
-模型服务模块
+"""BentoML Serving 模块
 
-基于BentoML的模型服务部署
-支持评分卡和反欺诈模型的独立部署
+提供基于 BentoML 的模型服务，支持：
+- 评分卡模型服务
+- 反欺诈模型服务
+- 模型热加载
+- 模型注册/注销
+- A/B测试支持
 """
 
 from datamind.serving.scoring_service import ScoringService
 from datamind.serving.fraud_service import FraudService
-from datamind.serving.base import BaseModelService
 
-__all__ = [
-    'ScoringService',
-    'FraudService',
-    'BaseModelService',
-]
+__all__ = ['ScoringService', 'FraudService']
