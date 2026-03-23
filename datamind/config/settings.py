@@ -74,7 +74,7 @@ class AppConfig(BaseSettings):
     )
 
     env: str = Field(
-        default="development",
+        default="DEVELOPMENT",
         validation_alias="DATAMIND_ENV",
         description="运行环境: development/testing/staging/production"
     )
@@ -277,6 +277,22 @@ class ApiConfig(BaseSettings):
         default="",
         validation_alias="DATAMIND_API_ROOT_PATH",
         description="API根路径（用于反向代理）"
+    )
+
+    api_version: str = Field(
+        default="v1",
+        validation_alias="DATAMIND_API_VERSION",
+        description="当前API版本"
+    )
+    supported_versions: List[str] = Field(
+        default=["v1"],
+        validation_alias="DATAMIND_SUPPORTED_API_VERSIONS",
+        description="支持的API版本列表"
+    )
+    deprecated_versions: List[str] = Field(
+        default=[],
+        validation_alias="DATAMIND_DEPRECATED_API_VERSIONS",
+        description="已弃用的API版本列表"
     )
 
 

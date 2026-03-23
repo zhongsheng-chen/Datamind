@@ -176,7 +176,7 @@ class ModelLoader:
             except Exception as e:
                 last_exception = e
                 if attempt < max_retries:
-                    wait_time = 2 ** attempt  # 指数退避
+                    wait_time = 2 ** attempt
                     debug_print("ModelLoader", f"加载失败，{wait_time}秒后重试 ({attempt}/{max_retries}): {e}")
                     time.sleep(wait_time)
         raise last_exception
@@ -215,23 +215,18 @@ class ModelLoader:
         parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
 
-        # 获取模型的锁，防止并发加载
         lock = self.get_lock(model_id)
         with lock:
-            # 检查模型是否已经加载且未过期
             if not force_reload and self.is_loaded(model_id) and not self._is_cache_expired(model_id):
                 debug_print("ModelLoader", f"模型已加载且未过期: {model_id}")
                 return True
 
-            # 如果过期，先卸载
             if self.is_loaded(model_id) and self._is_cache_expired(model_id):
                 debug_print("ModelLoader", f"模型缓存已过期，重新加载: {model_id}")
                 self.unload_model(model_id, operator, ip_address)
 
-            # 使用信号量限制并发加载数
             with self._load_semaphore:
                 try:
-                    # 从数据库获取模型信息
                     with get_db() as session:
                         model = session.query(ModelMetadata).filter_by(
                             model_id=model_id,
@@ -245,14 +240,35 @@ class ModelLoader:
                         if not file_path.exists():
                             raise ModelLoadException(f"模型文件不存在: {file_path}")
 
-                        # 获取加载器并加载
                         loader = self._get_framework_loader(model.framework)
                         loaded_model = self._retry_load(loader, file_path, self._max_retries)
 
-                        # 存储模型
+                        # 将 ORM 对象转换为字典，避免 session 问题
+                        metadata_dict = {
+                            'model_id': model.model_id,
+                            'model_name': model.model_name,
+                            'model_version': model.model_version,
+                            'task_type': model.task_type,
+                            'model_type': model.model_type,
+                            'framework': model.framework,
+                            'file_path': model.file_path,
+                            'file_hash': model.file_hash,
+                            'file_size': model.file_size,
+                            'input_features': model.input_features,
+                            'output_schema': model.output_schema,
+                            'model_params': model.model_params,
+                            'status': model.status,
+                            'is_production': model.is_production,
+                            'ab_test_group': model.ab_test_group,
+                            'created_by': model.created_by,
+                            'created_at': model.created_at.isoformat() if model.created_at else None,
+                            'description': model.description,
+                            'tags': model.tags
+                        }
+
                         self._loaded_models[model_id] = {
                             'model': loaded_model,
-                            'metadata': model,
+                            'metadata': metadata_dict,
                             'loaded_at': datetime.now(),
                             'load_count': self._loaded_models.get(model_id, {}).get('load_count', 0) + 1,
                             'file_size_mb': round(file_path.stat().st_size / 1024 / 1024, 2)
@@ -260,7 +276,6 @@ class ModelLoader:
 
                     duration = (datetime.now() - start_time).total_seconds() * 1000
 
-                    # 记录性能日志
                     log_performance(
                         operation=AuditAction.MODEL_LOAD.value,
                         duration_ms=duration,
@@ -274,7 +289,6 @@ class ModelLoader:
                         }
                     )
 
-                    # 记录审计日志
                     log_audit(
                         action=AuditAction.MODEL_LOAD.value,
                         user_id=operator,
@@ -373,9 +387,9 @@ class ModelLoader:
         return [
             {
                 'model_id': mid,
-                'model_name': info['metadata'].model_name,
-                'model_version': info['metadata'].model_version,
-                'framework': info['metadata'].framework,
+                'model_name': info['metadata']['model_name'],
+                'model_version': info['metadata']['model_version'],
+                'framework': info['metadata']['framework'],
                 'loaded_at': info['loaded_at'].isoformat(),
                 'load_count': info['load_count'],
                 'file_size_mb': info.get('file_size_mb', 0)
@@ -390,30 +404,20 @@ class ModelLoader:
         return self._model_locks[model_id]
 
     def warm_up_model(self, model_id: str, sample_data: Any = None) -> bool:
-        """
-        预热模型（执行一次推理）
-
-        参数:
-            model_id: 模型ID
-            sample_data: 样本数据
-
-        返回:
-            bool: 是否预热成功
-        """
+        """预热模型"""
         model = self.get_model(model_id)
         if not model:
             debug_print("ModelLoader", f"模型未加载，无法预热: {model_id}")
             return False
 
         start_time = datetime.now()
-        framework = self._loaded_models[model_id]['metadata'].framework
+        framework = self._loaded_models[model_id]['metadata']['framework']
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
 
         try:
             import numpy as np
 
-            # 根据框架执行预热
             if framework in ['sklearn', 'xgboost', 'lightgbm']:
                 if sample_data is None:
                     sample_data = np.random.randn(1, 10)
@@ -435,13 +439,11 @@ class ModelLoader:
                     model(sample_data)
 
             elif framework == 'tensorflow':
-                import numpy as np
                 if sample_data is None:
                     sample_data = np.random.randn(1, 10)
                 model.predict(sample_data)
 
             elif framework == 'onnx':
-                import numpy as np
                 if sample_data is None:
                     sample_data = np.random.randn(1, 10).astype(np.float32)
                 model.run(None, {'input': sample_data})
@@ -475,19 +477,18 @@ class ModelLoader:
         """获取模型内存使用情况"""
         import psutil
         import os
+        import pickle
 
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
 
-        # 估算每个模型的内存占用
         model_memory = {}
         for model_id, info in self._loaded_models.items():
             try:
-                import pickle
                 model_size = len(pickle.dumps(info['model']))
                 model_memory[model_id] = {
-                    'model_name': info['metadata'].model_name,
-                    'framework': info['metadata'].framework,
+                    'model_name': info['metadata']['model_name'],
+                    'framework': info['metadata']['framework'],
                     'size_mb': round(model_size / 1024 / 1024, 2),
                     'loaded_at': info['loaded_at'].isoformat(),
                     'load_count': info['load_count']
@@ -521,11 +522,10 @@ class ModelLoader:
                         'status': 'model_is_none'
                     })
                 else:
-                    # 检查缓存是否过期
                     is_expired = self._is_cache_expired(model_id)
                     health_status['models'].append({
                         'model_id': model_id,
-                        'model_name': info['metadata'].model_name,
+                        'model_name': info['metadata']['model_name'],
                         'status': 'expired' if is_expired else 'healthy',
                         'loaded_at': info['loaded_at'].isoformat(),
                         'load_count': info['load_count'],

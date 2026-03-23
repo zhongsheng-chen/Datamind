@@ -1,137 +1,59 @@
-# Datamind/datamind/serving/bentofile.yaml
-name: datamind-model-serving
-version: 1.0.0
-service: "scoring_service:service"
+# datamind/serving/bentofile.yaml
+
+service: "scoring_service:ScoringService"
+
 labels:
-  owner: datamind-team
-  stage: production
-  project: credit-risk
-  version: 1.0.0
+  owner: "datamind"
+  project: "loan_model_platform"
+  version: "1.0.0"
+
 include:
   - "*.py"
   - "../core/**/*.py"
   - "../config/**/*.py"
-  - "../core/db/**/*.py"
-  - "../core/ml/**/*.py"
-  - "../core/logging/**/*.py"
-  - "../.env"
+  - "../../requirements.txt"
+
 exclude:
   - "__pycache__"
   - "*.pyc"
-  - ".git"
-  - "tests"
-  - "scripts"
-  - "models_storage"
-  - "logs"
+  - "*.log"
+  - "*.db"
+  - "tests/**/*"
+  - "migrations/**/*"
 
 python:
-  requirements_txt: "./requirements.txt"
+  requirements_txt: "../../requirements.txt"
   packages:
-    # 核心依赖
-    - fastapi==0.104.1
-    - pydantic==2.4.2
-    - python-dotenv==1.0.0
-
-    # 数据处理
-    - numpy==1.24.4
-    - pandas==2.1.3
-    - scipy==1.11.4
-
-    # 机器学习框架
-    - scikit-learn==1.3.2
-    - xgboost==2.0.2
-    - lightgbm==4.1.0
-    - catboost==1.2.2
-
-    # 深度学习框架（可选）
-    - torch==2.1.0
-    - torchvision==0.16.0
-    - tensorflow==2.14.0
-    - onnxruntime==1.16.3
-
-    # 数据库
-    - sqlalchemy==2.0.23
-    - psycopg2-binary==2.9.9
-    - alembic==1.12.1
-    - redis==5.0.1
-
-    # 工具
-    - python-json-logger==2.0.7
-    - python-jose==3.3.0
-    - passlib==1.7.4
-    - tenacity==8.2.3
-    - pyyaml==6.0.1
-    - python-multipart==0.0.6
-
-    # 监控
-    - prometheus-client==0.19.0
+    - "bentoml>=1.4.0"
+    - "scikit-learn>=1.0.0"
+    - "xgboost>=1.5.0"
+    - "lightgbm>=3.3.0"
+    - "torch>=1.10.0"
+    - "tensorflow>=2.8.0"
+    - "onnxruntime>=1.10.0"
+    - "catboost>=1.0.0"
+    - "numpy>=1.21.0"
+    - "pandas>=1.3.0"
+    - "sqlalchemy>=1.4.0"
+    - "psycopg2-binary>=2.9.0"
+    - "redis>=4.0.0"
+    - "pydantic>=2.0.0"
+    - "pydantic-settings>=2.0.0"
+    - "python-dotenv>=1.0.0"
+    - "alembic>=1.8.0"
+    - "pyyaml>=6.0"
 
 docker:
   distro: debian
-  python_version: "3.11"
-  cuda_version: "11.8"  # GPU支持
+  python_version: "3.10"
   system_packages:
-    - curl
-    - wget
-    - git
-    - postgresql-client
-    - redis-tools
-  env:
-    # 应用配置
-    DATAMIND_ENV: production
-    DATAMIND_LOG_LEVEL: INFO
-    DATAMIND_LOG_FORMAT: json
-    DATAMIND_LOG_PATH: /app/logs
-
-    # 服务配置
-    SERVICE_TYPE: scoring
-    MODEL_CACHE_SIZE: 10
-    MODEL_INFERENCE_TIMEOUT: 30
-
-    # 数据库连接（通过环境变量传入）
-    DATABASE_URL: ${DATABASE_URL:-postgresql://localhost:5432/datamind}
-    REDIS_URL: ${REDIS_URL:-redis://localhost:6379/0}
-
-  setup_script: |
-    #!/bin/bash
-    mkdir -p /app/logs /app/models_storage
-    chmod 755 /app/logs /app/models_storage
-    echo "Datamind Serving Container Started"
-    echo "Service Type: ${SERVICE_TYPE}"
-    echo "Environment: ${DATAMIND_ENV}"
-
-# 模型服务配置
-runners:
-  scoring:
-    resources:
-      cpu: 1000m
-      memory: 2Gi
-    env:
-      SERVICE_TYPE: scoring
-
-  fraud:
-    resources:
-      cpu: 1000m
-      memory: 2Gi
-    env:
-      SERVICE_TYPE: fraud
-
-# 监控配置
-monitoring:
-  metrics:
-    enabled: true
-    port: 3000
-    path: /metrics
-  health:
-    enabled: true
-    path: /health
-    interval: 30s
-    timeout: 3s
-
-# 日志配置
-logging:
-  access_log: true
-  request_log: true
-  response_log: false
-  max_log_size: 100MB
-  backup_count: 10
+    - "libpq-dev"
+    - "gcc"
+    - "g++"
+    - "make"
+    - "curl"
+    - "git"
+  environment:
+    - ENVIRONMENT=production
+    - PYTHONUNBUFFERED=1
+    - TZ=UTC

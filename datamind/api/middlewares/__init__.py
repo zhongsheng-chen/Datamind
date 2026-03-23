@@ -84,6 +84,8 @@ from datamind.api.middlewares.database_performance import (
     setup_database_performance_middleware
 )
 
+from datamind.api.middlewares.version import APIVersionMiddleware, APIVersionCompatibilityMiddleware
+
 __all__ = [
     'AuthenticationMiddleware',
     'create_jwt_token',
@@ -116,4 +118,6 @@ __all__ = [
     'setup_performance_middleware',
     'PostgreSQLPerformanceMiddleware',
     'setup_database_performance_middleware',
+    'APIVersionMiddleware',
+    'APIVersionCompatibilityMiddleware'
 ]

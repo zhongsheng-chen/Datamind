@@ -1641,3 +1641,92 @@ pytest tests/ml/ -v
 ```bash
 pip install semver -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
+
+```bash
+# 安装 BentoML
+pip install bentoml
+
+# 本地启动评分卡服务
+python scripts/start_bentoml_service.py serve --service scoring --port 3000
+
+# 启动反欺诈服务
+python scripts/start_bentoml_service.py serve --service fraud --port 3001
+
+# 构建 Bento 包
+python scripts/start_bentoml_service.py build --service scoring --version 1.0.0
+
+# 容器化服务
+python scripts/start_bentoml_service.py containerize --service scoring --tag datamind-scoring:latest
+
+# 测试服务
+curl -X POST http://localhost:3000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "application_id": "TEST_001",
+    "features": {"age": 35, "income": 50000}
+  }'
+
+# 健康检查
+curl http://localhost:3000/health
+```
+
+
+
+## 训练
+```bash
+# 训练随机森林模型并注册
+python -m datamind.demo.train_sample_model --type random_forest
+
+# 训练逻辑回归模型并注册
+python -m datamind.demo.train_sample_model --type logistic_regression
+
+# 只保存到本地文件，不注册
+python -m datamind.demo.train_sample_model --type random_forest --no-registry --output ./my_model.pkl
+```
+
+步骤
+docker compose down -v
+docker compose up -d
+
+# 1. 删除现有数据库
+docker exec -it postgres psql -U datamind -d postgres -c "DROP DATABASE IF EXISTS datamind;"
+
+# 2. 重新创建数据库
+docker exec -it postgres psql -U datamind -d postgres -c "CREATE DATABASE datamind OWNER datamind;"
+
+# 3. 重新初始化数据库（现在会创建小写枚举）
+python -m alembic upgrade head
+
+# 4.确认枚举类型
+docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL::audit_action_enum);"
+
+python -m datamind.demo.train_sample_model --type logistic_regression
+
+
+docker exec -it postgres psql -U datamind -d postgres -c "DROP DATABASE IF EXISTS datamind;"
+docker exec -it postgres psql -U datamind -d postgres -c "CREATE DATABASE datamind OWNER datamind;"
+python -m alembic upgrade head
+docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL::audit_action_enum);"
+python -m datamind.demo.train_sample_model --type logistic_regression
+
+## 启动服务
+```bash
+python datamind/scripts/start_bentoml_service.py scoring --dev
+```
+
+## 测试服务
+```bash
+curl -X POST http://localhost:3000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "application_id": "TEST_001",
+    "features": {
+      "age": 35,
+      "income": 50000,
+      "debt_ratio": 0.35,
+      "credit_history": 720,
+      "employment_years": 5,
+      "loan_amount": 100000
+    }
+  }'
+```

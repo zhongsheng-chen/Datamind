@@ -1,4 +1,4 @@
-# Datamind/datamind/core/db/models/model/version.py
+# datamind/core/db/models/model/version.py
 
 """模型版本历史表定义
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import AuditAction
 
 
@@ -30,7 +30,14 @@ class ModelVersionHistory(Base):
                      nullable=False, index=True)
     model_version = Column(String(20), nullable=False)
 
-    operation = Column(SQLEnum(AuditAction), nullable=False)
+    operation = Column(
+        SQLEnum(
+            AuditAction,
+            name="audit_action_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
 
     operator = Column(String(50), nullable=False)
     operator_ip = Column(INET, nullable=True)

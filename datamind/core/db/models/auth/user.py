@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import UserStatus, UserRole
 
 
@@ -42,12 +42,28 @@ class User(Base):
     avatar = Column(String(500), nullable=True)
     phone = Column(String(20), nullable=True)
 
-    # 角色权限 (采用方案A)
-    role = Column(SQLEnum(UserRole), default=UserRole.API_USER, nullable=False)
+    # 角色权限
+    role = Column(
+        SQLEnum(
+            UserRole,
+            name="user_role_enum",
+            values_callable=enum_values
+        ),
+        default=UserRole.API_USER,
+        nullable=False
+    )
     permissions = Column(JSONB, default=list, nullable=True)  # 额外权限列表
 
     # 账户状态
-    status = Column(SQLEnum(UserStatus), default=UserStatus.ACTIVE, nullable=False)
+    status = Column(
+        SQLEnum(
+            UserStatus,
+            name="user_status_enum",
+            values_callable=enum_values
+        ),
+        default=UserStatus.ACTIVE,
+        nullable=False
+    )
 
     # 安全信息
     last_login_at = Column(DateTime(timezone=True), nullable=True)
@@ -66,14 +82,14 @@ class User(Base):
     # API Key 关联
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
 
-    # 审计日志关联 (operator 存储的是 username)
+    # 审计日志关联
     audit_logs = relationship(
         "AuditLog",
         foreign_keys="AuditLog.operator",
         primaryjoin="User.username == AuditLog.operator"
     )
 
-    # 扩展元数据 (改名避免与 SQLAlchemy 的 metadata 冲突)
+    # 扩展元数据
     extra_metadata = Column(JSONB, nullable=True)
     created_by = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -187,7 +203,7 @@ class ApiKey(Base):
     allowed_origins = Column(JSONB, default=list, nullable=True)  # 域名白名单
     rate_limit = Column(JSONB, nullable=True)  # 自定义限流配置 {"requests": 100, "period": 60}
 
-    # 元数据 (改名避免冲突)
+    # 元数据
     extra_metadata = Column(JSONB, nullable=True)
     description = Column(Text, nullable=True)
 

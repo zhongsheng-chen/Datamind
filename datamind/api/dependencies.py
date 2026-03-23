@@ -27,8 +27,8 @@ from datamind.core.db.database import get_db
 from datamind.core.ml.model_loader import model_loader
 from datamind.core.ml.model_registry import model_registry
 from datamind.core.experiment.ab_test import ab_test_manager
-from datamind.core.logging import context, log_audit
-from datamind.core.domain.enums import UserRole, UserStatus
+from datamind.core.logging import log_audit, context
+from datamind.core.domain.enums import AuditAction, UserRole, UserStatus
 from datamind.config import get_settings
 from datamind.config.settings import RateLimitConfig
 
@@ -99,6 +99,7 @@ async def verify_api_key(
         Dict: 包含 api_key, user_id, roles, permissions 等信息
     """
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     settings = get_settings()
@@ -108,11 +109,13 @@ async def verify_api_key(
 
     if not api_key:
         log_audit(
-            action="API_AUTH_FAILED",
+            action=AuditAction.AUTH_FAILED.value,
             user_id="unknown",
             ip_address=client_ip,
             details={
                 "reason": "missing_api_key",
+                "auth_type": "api_key",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -132,6 +135,7 @@ async def verify_api_key(
             "roles": ["admin"],
             "permissions": ["*"],
             "authenticated": True,
+            "trace_id": trace_id,
             "span_id": span_id,
             "parent_span_id": parent_span_id
         }
@@ -141,7 +145,6 @@ async def verify_api_key(
         from datamind.core.db.database import get_db
         from datamind.core.db.models import ApiKey
         from datamind.core.db.models import User
-        from datamind.core.domain.enums import UserStatus
 
         with next(get_db()) as session:
             api_key_record = session.query(ApiKey).filter_by(
@@ -151,11 +154,13 @@ async def verify_api_key(
 
             if not api_key_record:
                 log_audit(
-                    action="API_AUTH_FAILED",
+                    action=AuditAction.AUTH_FAILED.value,
                     user_id="unknown",
                     ip_address=client_ip,
                     details={
                         "reason": "invalid_api_key",
+                        "auth_type": "api_key",
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -169,12 +174,14 @@ async def verify_api_key(
             # 检查过期时间
             if api_key_record.expires_at and api_key_record.expires_at < datetime.now():
                 log_audit(
-                    action="API_AUTH_FAILED",
+                    action=AuditAction.AUTH_FAILED.value,
                     user_id=api_key_record.user_id,
                     ip_address=client_ip,
                     details={
                         "reason": "api_key_expired",
                         "expires_at": api_key_record.expires_at.isoformat(),
+                        "auth_type": "api_key",
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -201,7 +208,7 @@ async def verify_api_key(
             elif user:
                 roles = [user.role.value]
             else:
-                roles = ["api_user"]
+                roles = [UserRole.API_USER.value]
 
             # 获取权限
             if api_key_record.permissions:
@@ -212,13 +219,15 @@ async def verify_api_key(
                 permissions = []
 
             log_audit(
-                action="API_AUTH_SUCCESS",
+                action=AuditAction.AUTH_SUCCESS.value,
                 user_id=api_key_record.user_id,
                 ip_address=client_ip,
                 details={
                     "api_key_id": api_key_record.id,
                     "username": user.username if user else None,
                     "roles": roles,
+                    "auth_type": "api_key",
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -233,6 +242,7 @@ async def verify_api_key(
                 "roles": roles,
                 "permissions": permissions,
                 "authenticated": True,
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             }
@@ -243,11 +253,13 @@ async def verify_api_key(
         valid_keys = ["test_api_key_123", "demo-key", "prod_api_key_456"]
         if api_key not in valid_keys:
             log_audit(
-                action="API_AUTH_FAILED",
+                action=AuditAction.AUTH_FAILED.value,
                 user_id="unknown",
                 ip_address=client_ip,
                 details={
                     "reason": "invalid_api_key",
+                    "auth_type": "api_key_fallback",
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -267,11 +279,13 @@ async def verify_api_key(
         role = role_map.get(api_key, UserRole.API_USER.value)
 
         log_audit(
-            action="API_AUTH_SUCCESS",
+            action=AuditAction.AUTH_SUCCESS.value,
             user_id=f"api_user_{api_key[:8]}",
             ip_address=client_ip,
             details={
                 "role": role,
+                "auth_type": "api_key_fallback",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -285,6 +299,7 @@ async def verify_api_key(
             "roles": [role],
             "permissions": ["predict"] if role == UserRole.API_USER.value else ["predict", "view_metrics", "admin"],
             "authenticated": True,
+            "trace_id": trace_id,
             "span_id": span_id,
             "parent_span_id": parent_span_id
         }
@@ -292,12 +307,14 @@ async def verify_api_key(
     except Exception as e:
         logging.error(f"API key validation error: {e}")
         log_audit(
-            action="API_AUTH_ERROR",
+            action=AuditAction.AUTH_FAILED.value,
             user_id="unknown",
             ip_address=client_ip,
             details={
                 "reason": "validation_error",
                 "error": str(e),
+                "auth_type": "api_key",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -316,6 +333,7 @@ async def verify_oauth2_token(
     验证 OAuth2 Token (JWT)
     """
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     settings = get_settings()
@@ -323,10 +341,12 @@ async def verify_oauth2_token(
 
     if not settings.auth.jwt_secret_key:
         log_audit(
-            action="AUTH_ERROR",
+            action=AuditAction.AUTH_FAILED.value,
             user_id="unknown",
             details={
                 "reason": "jwt_secret_not_configured",
+                "auth_type": "jwt",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -339,7 +359,6 @@ async def verify_oauth2_token(
 
     try:
         import jwt
-        from datamind.core.domain.enums import UserRole
 
         payload = jwt.decode(
             token,
@@ -355,11 +374,13 @@ async def verify_oauth2_token(
             valid_roles_list = [UserRole.API_USER.value]  # 默认使用 API_USER
 
         log_audit(
-            action="JWT_AUTH_SUCCESS",
+            action=AuditAction.AUTH_SUCCESS.value,
             user_id=payload.get("sub", "unknown"),
             details={
                 "username": payload.get("username"),
                 "roles": valid_roles_list,
+                "auth_type": "jwt",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -373,15 +394,18 @@ async def verify_oauth2_token(
             "permissions": payload.get("permissions", []),
             "exp": payload.get("exp"),
             "authenticated": True,
+            "trace_id": trace_id,
             "span_id": span_id,
             "parent_span_id": parent_span_id
         }
     except jwt.ExpiredSignatureError:
         log_audit(
-            action="JWT_AUTH_FAILED",
+            action=AuditAction.AUTH_FAILED.value,
             user_id="unknown",
             details={
                 "reason": "token_expired",
+                "auth_type": "jwt",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -393,11 +417,13 @@ async def verify_oauth2_token(
         )
     except jwt.InvalidTokenError as e:
         log_audit(
-            action="JWT_AUTH_FAILED",
+            action=AuditAction.AUTH_FAILED.value,
             user_id="unknown",
             details={
                 "reason": "invalid_token",
                 "error": str(e),
+                "auth_type": "jwt",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -426,18 +452,19 @@ async def require_admin(
 ) -> Dict[str, Any]:
     """要求管理员权限"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
-    from datamind.core.domain.enums import UserRole
 
     roles = current_user.get("roles", [])
     if UserRole.ADMIN.value not in roles and "admin" not in roles:
         log_audit(
-            action="AUTH_DENIED",
+            action=AuditAction.AUTH_FAILED.value,
             user_id=current_user.get("user_id", "unknown"),
             details={
                 "reason": "admin_required",
                 "roles": roles,
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -456,9 +483,9 @@ async def require_permission(
 ) -> Dict[str, Any]:
     """要求特定权限"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
-    from datamind.core.domain.enums import UserRole
 
     permissions = current_user.get("permissions", [])
     roles = current_user.get("roles", [])
@@ -468,12 +495,13 @@ async def require_permission(
 
     if permission not in permissions:
         log_audit(
-            action="AUTH_DENIED",
+            action=AuditAction.AUTH_FAILED.value,
             user_id=current_user.get("user_id", "unknown"),
             details={
                 "reason": "permission_required",
                 "required_permission": permission,
                 "user_permissions": permissions,
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -496,6 +524,7 @@ async def get_model(
 ) -> Any:
     """获取已加载的模型"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     client_ip = _get_client_ip(request)
@@ -511,11 +540,12 @@ async def get_model(
             )
             if not loaded:
                 log_audit(
-                    action="MODEL_LOAD_FAILED",
+                    action=AuditAction.MODEL_LOAD.value,
                     user_id=current_user.get("user_id", "system"),
                     details={
                         "model_id": model_id,
                         "reason": "model_not_found",
+                        "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -530,11 +560,12 @@ async def get_model(
             raise
         except Exception as e:
             log_audit(
-                action="MODEL_LOAD_ERROR",
+                action=AuditAction.MODEL_LOAD.value,
                 user_id=current_user.get("user_id", "system"),
                 details={
                     "model_id": model_id,
                     "error": str(e),
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -554,6 +585,8 @@ async def get_model_metadata(
         current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """获取模型元数据"""
+    request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
 
@@ -561,13 +594,16 @@ async def get_model_metadata(
 
     if not metadata:
         log_audit(
-            action="MODEL_NOT_FOUND",
+            action=AuditAction.MODEL_QUERY.value,
             user_id=current_user.get("user_id", "system"),
             details={
                 "model_id": model_id,
+                "reason": "not_found",
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
-            }
+            },
+            request_id=request_id
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -586,6 +622,7 @@ async def get_ab_test_assignment(
 ) -> Dict[str, Any]:
     """获取 A/B 测试分组"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     settings = get_settings()
@@ -607,7 +644,7 @@ async def get_ab_test_assignment(
         )
 
         log_audit(
-            action="AB_TEST_ASSIGN",
+            action=AuditAction.AB_TEST_ASSIGNMENT.value,
             user_id=user_id,
             ip_address=client_ip,
             resource_type="ab_test",
@@ -615,6 +652,7 @@ async def get_ab_test_assignment(
             details={
                 "group_name": assignment.get("group_name"),
                 "in_test": assignment.get("in_test", False),
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -624,13 +662,14 @@ async def get_ab_test_assignment(
         return assignment
     except Exception as e:
         log_audit(
-            action="AB_TEST_ERROR",
+            action=AuditAction.AB_TEST_ERROR.value,
             user_id=user_id,
             ip_address=client_ip,
             resource_type="ab_test",
             resource_id=test_id,
             details={
                 "error": str(e),
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -865,12 +904,13 @@ async def check_rate_limit(
 ) -> None:
     """检查速率限制"""
     request_id = context.get_request_id()
+    trace_id = context.get_trace_id()
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     settings = get_settings()
     client_ip = _get_client_ip(request)
 
-    if not settings.rate_limit.rate_limit_enabled:
+    if not settings.security.rate_limit_enabled:
         return
 
     user_id = current_user.get("user_id", "anonymous")
@@ -879,20 +919,20 @@ async def check_rate_limit(
     # 根据用户角色获取不同的限制
     roles = current_user.get("roles", [])
     if UserRole.ADMIN.value in roles:
-        limit = settings.rate_limit.rate_limit_admin_limit
-        period = settings.rate_limit.rate_limit_admin_period
+        limit = settings.security.rate_limit_requests
+        period = settings.security.rate_limit_period
     elif UserRole.DEVELOPER.value in roles:
-        limit = settings.rate_limit.rate_limit_developer_limit
-        period = settings.rate_limit.rate_limit_developer_period
+        limit = settings.security.rate_limit_requests
+        period = settings.security.rate_limit_period
     elif UserRole.ANALYST.value in roles:
-        limit = settings.rate_limit.rate_limit_analyst_limit
-        period = settings.rate_limit.rate_limit_analyst_period
+        limit = settings.security.rate_limit_requests
+        period = settings.security.rate_limit_period
     elif UserRole.API_USER.value in roles:
-        limit = settings.rate_limit.rate_limit_api_user_limit
-        period = settings.rate_limit.rate_limit_api_user_period
+        limit = settings.security.rate_limit_requests
+        period = settings.security.rate_limit_period
     else:
-        limit = settings.rate_limit.rate_limit_default_limit
-        period = settings.rate_limit.rate_limit_default_period
+        limit = settings.security.rate_limit_requests
+        period = settings.security.rate_limit_period
 
     allowed, info = await _rate_limiter.check(
         key=key,
@@ -902,7 +942,7 @@ async def check_rate_limit(
 
     if not allowed:
         log_audit(
-            action="RATE_LIMIT_EXCEEDED",
+            action=AuditAction.RATE_LIMIT_EXCEEDED.value,
             user_id=user_id,
             ip_address=client_ip,
             details={
@@ -910,6 +950,7 @@ async def check_rate_limit(
                 "remaining": info["remaining"],
                 "reset": info["reset"],
                 "path": request.url.path,
+                "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
@@ -946,7 +987,7 @@ def log_request(request: Request) -> None:
     client_ip = _get_client_ip(request)
 
     log_audit(
-        action="API_REQUEST",
+        action=AuditAction.MODEL_QUERY.value,  # 使用 MODEL_QUERY 或考虑新增 API_REQUEST
         user_id=getattr(request.state, "user_id", "anonymous"),
         ip_address=client_ip,
         resource_type="api",

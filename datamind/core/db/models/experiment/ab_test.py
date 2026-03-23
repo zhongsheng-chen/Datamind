@@ -1,4 +1,4 @@
-# Datamind/datamind/core/db/models/experiment/ab_test.py
+# datamind/core/db/models/experiment/ab_test.py
 
 """A/B测试配置表定义
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import TaskType, ABTestStatus
 
 
@@ -30,7 +30,14 @@ class ABTestConfig(Base):
     test_name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
 
-    task_type = Column(SQLEnum(TaskType), nullable=False)
+    task_type = Column(
+        SQLEnum(
+            TaskType,
+            name="task_type_enum",
+            values_callable=enum_values
+        ),
+        nullable=False
+    )
 
     groups = Column(JSONB, nullable=False)
 
@@ -40,7 +47,14 @@ class ABTestConfig(Base):
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=True)
 
-    status = Column(SQLEnum(ABTestStatus), default=ABTestStatus.DRAFT)
+    status = Column(
+        SQLEnum(
+            ABTestStatus,
+            name="abtest_status_enum",
+            values_callable=enum_values
+        ),
+        default=ABTestStatus.DRAFT
+    )
 
     created_by = Column(String(50), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

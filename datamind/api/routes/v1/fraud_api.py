@@ -1,31 +1,32 @@
-# datamind/api/routes/scoring_api.py
+# datamind/api/routes/v1/fraud_api.py
 
-"""评分卡 API 路由
+"""反欺诈 API 路由
 
-提供评分卡模型预测的 RESTful API 接口，支持单次预测和批量预测。
+提供反欺诈模型预测的 RESTful API 接口，支持单次预测和批量预测。
 
 功能特性：
-  - 单次评分预测：实时返回信用评分、违约概率和特征分
-  - 批量评分预测：批量处理多个评分请求
+  - 单次反欺诈预测：实时返回欺诈概率、风险评分和风险因素
+  - 批量反欺诈预测：批量处理多个反欺诈请求
   - A/B 测试支持：集成 A/B 测试分流
   - 生产模型自动选择：未指定模型时使用生产模型
   - 完整的审计日志：记录所有预测请求
   - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 风险因素分析：识别主要风险因素
 
 API 端点：
-  - POST /api/v1/scoring/predict - 单次评分预测
-  - POST /api/v1/scoring/batch - 批量评分预测
+  - POST /api/v1/fraud/predict - 单次反欺诈预测
+  - POST /api/v1/fraud/batch - 批量反欺诈预测
 
-请求模型（ScorecardRequest）：
+请求模型（FraudRequest）：
   - application_id: 申请ID（必填），用于标识唯一申请
-  - features: 特征字典（必填），包含模型所需的特征值
+  - features: 特征字典（必填），包含反欺诈模型所需的特征值
   - model_id: 模型ID（可选），不指定则使用生产模型
   - ab_test_id: A/B测试ID（可选），用于流量分流
 
-响应模型（ScorecardResponse）：
-  - total_score: 总评分
-  - default_probability: 违约概率 (0-1)
-  - feature_scores: 特征分详情
+响应模型（FraudResponse）：
+  - fraud_probability: 欺诈概率（0-1）
+  - risk_score: 风险评分（0-100）
+  - risk_factors: 风险因素列表，包含主要风险因子
   - model_id: 使用的模型ID
   - model_version: 模型版本
   - application_id: 申请ID
@@ -40,6 +41,12 @@ API 端点：
   - 404: 模型不存在
   - 422: 模型推理失败（特征缺失、格式错误等）
   - 500: 服务器内部错误
+
+风险因素说明：
+  risk_factors 包含导致高风险的因子列表，每个因子包含：
+  - factor: 风险因子名称（如 'high_fraud_probability'）
+  - value: 因子值
+  - weight: 因子权重（贡献度）
 
 A/B 测试集成：
   - 如果请求中指定了 ab_test_id，调用 A/B 测试管理器获取分组
@@ -66,19 +73,19 @@ router = APIRouter()
 settings = get_settings()
 
 
-class ScorecardRequest(BaseModel):
-    """评分卡请求模型"""
+class FraudRequest(BaseModel):
+    """反欺诈请求模型"""
     application_id: str = Field(..., description="申请ID")
     features: Dict[str, Any] = Field(..., description="特征字典")
     model_id: Optional[str] = Field(None, description="指定模型ID（可选）")
     ab_test_id: Optional[str] = Field(None, description="A/B测试ID（可选）")
 
 
-class ScorecardResponse(BaseModel):
-    """评分卡响应模型"""
-    total_score: float = Field(..., description="信用评分")
-    default_probability: float = Field(..., description="违约概率 (0-1)")
-    feature_scores: Dict[str, float] = Field(..., description="特征分详情")
+class FraudResponse(BaseModel):
+    """反欺诈响应模型"""
+    fraud_probability: float = Field(..., description="欺诈概率 (0-1)")
+    risk_score: float = Field(..., description="风险评分 (0-100)")
+    risk_factors: List[Dict[str, Any]] = Field(..., description="风险因素列表")
     model_id: str = Field(..., description="使用的模型ID")
     model_version: str = Field(..., description="模型版本")
     application_id: str = Field(..., description="申请ID")
@@ -90,15 +97,15 @@ class ScorecardResponse(BaseModel):
     ab_test_info: Optional[Dict[str, Any]] = Field(None, description="A/B测试信息")
 
 
-@router.post("/predict", response_model=ScorecardResponse)
-async def predict_scorecard(
+@router.post("/predict", response_model=FraudResponse)
+async def predict_fraud(
         request: Request,
-        score_request: ScorecardRequest,
+        fraud_request: FraudRequest,
         api_key: str = Depends(get_api_key),
         current_user: str = Depends(get_current_user)
 ):
     """
-    评分卡模型预测
+    反欺诈模型预测
 
     - **application_id**: 申请ID（必填）
     - **features**: 特征字典（必填）
@@ -113,15 +120,15 @@ async def predict_scorecard(
     client_ip = request.client.host if request.client else None
 
     try:
-        model_id = score_request.model_id
+        model_id = fraud_request.model_id
         ab_test_info = None
 
         # 如果指定了A/B测试，获取分组
-        if score_request.ab_test_id and settings.ab_test.enabled:
+        if fraud_request.ab_test_id and settings.ab_test.enabled:
             try:
                 assignment = ab_test_manager.get_assignment(
-                    test_id=score_request.ab_test_id,
-                    user_id=score_request.application_id,
+                    test_id=fraud_request.ab_test_id,
+                    user_id=fraud_request.application_id,
                     ip_address=client_ip
                 )
 
@@ -140,22 +147,22 @@ async def predict_scorecard(
                     ip_address=client_ip,
                     details={
                         "error": str(e),
-                        "ab_test_id": score_request.ab_test_id,
-                        "application_id": score_request.application_id,
+                        "ab_test_id": fraud_request.ab_test_id,
+                        "application_id": fraud_request.application_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
                     request_id=request_id
                 )
-                debug_print("ScoringAPI", f"A/B测试错误: {e}")
+                debug_print("FraudAPI", f"A/B测试错误: {e}")
 
         # 如果没有指定model_id且没有AB测试分配，使用生产模型
         if not model_id:
             # 从模型注册中心获取生产模型ID
             from datamind.core.ml.model_registry import model_registry
             models = model_registry.list_models(
-                task_type=TaskType.SCORING.value,
+                task_type=TaskType.FRAUD_DETECTION.value,
                 is_production=True
             )
             if models:
@@ -166,7 +173,7 @@ async def predict_scorecard(
                     user_id=current_user,
                     ip_address=client_ip,
                     details={
-                        "application_id": score_request.application_id,
+                        "application_id": fraud_request.application_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
@@ -179,10 +186,10 @@ async def predict_scorecard(
                 )
 
         # 执行预测
-        result = inference_engine.predict_scorecard(
+        result = inference_engine.predict_fraud(
             model_id=model_id,
-            features=score_request.features,
-            application_id=score_request.application_id,
+            features=fraud_request.features,
+            application_id=fraud_request.application_id,
             user_id=current_user,
             ip_address=client_ip,
             api_key=api_key
@@ -192,12 +199,12 @@ async def predict_scorecard(
 
         # 构建响应
         response_data = {
-            'total_score': result['total_score'],
-            'default_probability': result['default_probability'],
-            'feature_scores': result['feature_scores'],
+            'fraud_probability': result['fraud_probability'],
+            'risk_score': result['risk_score'],
+            'risk_factors': result['risk_factors'],
             'model_id': result['model_id'],
             'model_version': result['model_version'],
-            'application_id': score_request.application_id,
+            'application_id': fraud_request.application_id,
             'processing_time_ms': round(processing_time_ms, 2),
             'timestamp': result.get('timestamp', ''),
             'request_id': request_id,
@@ -212,13 +219,13 @@ async def predict_scorecard(
             user_id=current_user,
             ip_address=client_ip,
             details={
-                "application_id": score_request.application_id,
+                "application_id": fraud_request.application_id,
                 "model_id": result['model_id'],
                 "model_version": result['model_version'],
-                "total_score": result['total_score'],
-                "default_probability": result['default_probability'],
+                "fraud_probability": result['fraud_probability'],
+                "risk_score": result['risk_score'],
                 "processing_time_ms": round(processing_time_ms, 2),
-                "ab_test_id": score_request.ab_test_id,
+                "ab_test_id": fraud_request.ab_test_id,
                 "ab_test_group": ab_test_info.get('group_name') if ab_test_info else None,
                 "trace_id": trace_id,
                 "span_id": span_id,
@@ -234,7 +241,8 @@ async def predict_scorecard(
             extra={
                 "model_id": result['model_id'],
                 "model_version": result['model_version'],
-                "application_id": score_request.application_id,
+                "application_id": fraud_request.application_id,
+                "task_type": "fraud_detection",
                 "trace_id": trace_id,
                 "span_id": span_id
             }
@@ -245,10 +253,10 @@ async def predict_scorecard(
             try:
                 ab_test_manager.record_result(
                     test_id=ab_test_info['test_id'],
-                    user_id=score_request.application_id,
+                    user_id=fraud_request.application_id,
                     metrics={
-                        'score': result['total_score'],
-                        'default_probability': result['default_probability'],
+                        'fraud_probability': result['fraud_probability'],
+                        'risk_score': result['risk_score'],
                         'processing_time_ms': processing_time_ms
                     }
                 )
@@ -261,7 +269,7 @@ async def predict_scorecard(
                     details={
                         "error": str(e),
                         "test_id": ab_test_info['test_id'],
-                        "application_id": score_request.application_id,
+                        "application_id": fraud_request.application_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
@@ -274,12 +282,12 @@ async def predict_scorecard(
     except ModelNotFoundException as e:
         processing_time_ms = (time.time() - start_time) * 1000
         log_audit(
-            action=AuditAction.MODEL_INFERENCE.value,
+            action=AuditAction.MODEL_QUERY.value,
             user_id=current_user,
             ip_address=client_ip,
             details={
-                "model_id": score_request.model_id,
-                "application_id": score_request.application_id,
+                "model_id": fraud_request.model_id,
+                "application_id": fraud_request.application_id,
                 "error": str(e),
                 "processing_time_ms": round(processing_time_ms, 2),
                 "trace_id": trace_id,
@@ -297,8 +305,8 @@ async def predict_scorecard(
             user_id=current_user,
             ip_address=client_ip,
             details={
-                "model_id": score_request.model_id,
-                "application_id": score_request.application_id,
+                "model_id": fraud_request.model_id,
+                "application_id": fraud_request.application_id,
                 "error": str(e),
                 "processing_time_ms": round(processing_time_ms, 2),
                 "trace_id": trace_id,
@@ -318,7 +326,7 @@ async def predict_scorecard(
             user_id=current_user,
             ip_address=client_ip,
             details={
-                "application_id": score_request.application_id,
+                "application_id": fraud_request.application_id,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "processing_time_ms": round(processing_time_ms, 2),
@@ -332,16 +340,16 @@ async def predict_scorecard(
 
 
 @router.post("/batch")
-async def batch_predict_scorecard(
+async def batch_predict_fraud(
         request: Request,
-        requests: List[ScorecardRequest],
+        requests: List[FraudRequest],
         api_key: str = Depends(get_api_key),
         current_user: str = Depends(get_current_user)
 ):
     """
-    批量评分卡预测
+    批量反欺诈预测
 
-    - **requests**: 评分卡请求列表
+    - **requests**: 反欺诈请求列表
 
     返回批量处理结果，包含成功和失败的请求详情。
     """
@@ -358,7 +366,7 @@ async def batch_predict_scorecard(
     for idx, req in enumerate(requests):
         try:
             # 复用单次预测逻辑
-            result = await predict_scorecard(request, req, api_key, current_user)
+            result = await predict_fraud(request, req, api_key, current_user)
             results.append({
                 "index": idx,
                 "success": True,
@@ -403,6 +411,7 @@ async def batch_predict_scorecard(
             "batch_size": len(requests),
             "success_count": len(results),
             "failed_count": len(errors),
+            "task_type": "fraud_detection",
             "trace_id": trace_id,
             "span_id": span_id
         }
