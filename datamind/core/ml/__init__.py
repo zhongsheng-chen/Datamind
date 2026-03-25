@@ -1,4 +1,4 @@
-# Datamind/datamind/core/ml/__init__.py
+# datamind/core/ml/__init__.py
 
 """机器学习模块
 
@@ -19,8 +19,8 @@
 """
 
 from datamind.core.ml.model_registry import ModelRegistry, get_model_registry
-from datamind.core.ml.model_loader import model_loader
-from datamind.core.ml.inference import inference_engine
+from datamind.core.ml.model_loader import ModelLoader, get_model_loader
+from datamind.core.ml.inference import InferenceEngine, get_inference_engine
 from datamind.core.ml.exceptions import (
     ModelException,
     ModelNotFoundException,
@@ -34,7 +34,9 @@ __all__ = [
     'ModelRegistry',
     'get_model_registry',
     'ModelLoader',
-    'inference_engine',
+    'get_model_loader',
+    'InferenceEngine',
+    'get_inference_engine',
     'ModelException',
     'ModelNotFoundException',
     'ModelAlreadyExistsException',

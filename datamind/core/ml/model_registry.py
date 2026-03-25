@@ -1196,5 +1196,12 @@ class ModelRegistry:
         }
 
 
-# 全局模型注册中心实例
-model_registry = ModelRegistry()
+# ==================== 工厂函数 ====================
+def get_model_registry():
+    """
+    获取模型注册中心实例
+
+    返回:
+        ModelRegistry 实例
+    """
+    return ModelRegistry()

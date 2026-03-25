@@ -98,19 +98,16 @@ class ModelLoader:
 
         lock = self.get_lock(model_id)
         with lock:
-            # 检查是否已加载且未过期
             if not force_reload and self.is_loaded(model_id):
                 if not self._is_cache_expired(model_id):
                     debug_print("ModelLoader", f"模型已加载: {model_id}")
                     return True
 
-            # 如果已加载但过期，先卸载
             if self.is_loaded(model_id) and self._is_cache_expired(model_id):
                 debug_print("ModelLoader", f"模型缓存已过期，重新加载: {model_id}")
                 self.unload_model(model_id, operator, ip_address)
 
             try:
-                # 从数据库获取模型元数据
                 with get_db() as session:
                     model_metadata = session.query(ModelMetadata).filter_by(
                         model_id=model_id,
@@ -120,20 +117,17 @@ class ModelLoader:
                     if not model_metadata:
                         raise ModelNotFoundException(f"模型不存在或未激活: {model_id}")
 
-                    # 检查框架是否支持
                     if not is_framework_supported(model_metadata.framework):
                         raise UnsupportedFrameworkException(
                             f"不支持的框架: {model_metadata.framework}. "
                             f"支持的框架: {get_supported_frameworks()}"
                         )
 
-                # 从 BentoML Model Store 加载模型
                 model = self._load_from_bentoml(model_id, model_metadata)
 
                 if not model:
                     raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}")
 
-                # 将 ORM 对象转换为字典，避免 session 问题
                 metadata_dict = {
                     'model_id': model_metadata.model_id,
                     'model_name': model_metadata.model_name,
@@ -156,7 +150,6 @@ class ModelLoader:
                     'tags': model_metadata.tags
                 }
 
-                # 缓存模型
                 self._loaded_models[model_id] = {
                     'model': model,
                     'metadata': metadata_dict,
@@ -166,7 +159,6 @@ class ModelLoader:
 
                 duration = (datetime.now() - start_time).total_seconds() * 1000
 
-                # 性能日志
                 log_performance(
                     operation=AuditAction.MODEL_LOAD.value,
                     duration_ms=duration,
@@ -181,7 +173,6 @@ class ModelLoader:
                     }
                 )
 
-                # 审计日志
                 log_audit(
                     action=AuditAction.MODEL_LOAD.value,
                     user_id=operator,
@@ -237,17 +228,14 @@ class ModelLoader:
         """
         framework = model_metadata.framework.lower()
 
-        # 带重试的加载
         for attempt in range(1, self._max_retries + 1):
             try:
-                # 获取 BentoML 模型
                 bento_model = bentoml.models.get(model_id)
 
                 if not bento_model:
                     debug_print("ModelLoader", f"BentoML 模型不存在: {model_id}")
                     return None
 
-                # 根据框架加载模型
                 if framework == 'sklearn':
                     model = bentoml.sklearn.load_model(bento_model.tag)
                 elif framework == 'xgboost':
@@ -352,6 +340,62 @@ class ModelLoader:
         """
         model_info = self._loaded_models.get(model_id)
         return model_info.get('metadata') if model_info else None
+
+    def get_model_info(self, model_id: str) -> Optional[Dict]:
+        """
+        获取已加载模型的完整信息
+
+        参数:
+            model_id: 模型ID
+
+        返回:
+            模型完整信息字典，如果未加载返回None
+        """
+        model_info = self._loaded_models.get(model_id)
+        if not model_info:
+            return None
+
+        return {
+            'model': model_info['model'],
+            'metadata': model_info['metadata'],
+            'loaded_at': model_info['loaded_at'],
+            'load_count': model_info['load_count'],
+        }
+
+    def get_model_instance(self, model_id: str) -> Optional[Any]:
+        """
+        获取已加载的模型实例
+
+        参数:
+            model_id: 模型ID
+
+        返回:
+            模型实例，如果未加载返回None
+        """
+        model_info = self._loaded_models.get(model_id)
+        return model_info['model'] if model_info else None
+
+    def get_model_load_count(self, model_id: str) -> int:
+        """
+        获取模型加载次数
+
+        参数:
+            model_id: 模型ID
+
+        返回:
+            加载次数，如果未加载返回0
+        """
+        model_info = self._loaded_models.get(model_id)
+        return model_info.get('load_count', 0) if model_info else 0
+
+    def get_loaded_model_ids(self) -> List[str]:
+        """
+        获取所有已加载的模型ID列表
+
+        返回:
+            模型ID列表
+        """
+        return list(self._loaded_models.keys())
 
     def is_loaded(self, model_id: str) -> bool:
         """
@@ -556,5 +600,13 @@ class ModelLoader:
         return health_status
 
 
-# 全局模型加载器实例
-model_loader = ModelLoader()
+# ==================== 工厂函数 ====================
+
+def get_model_loader():
+    """
+    获取模型加载器实例
+
+    返回:
+        ModelLoader 实例
+    """
+    return ModelLoader()
