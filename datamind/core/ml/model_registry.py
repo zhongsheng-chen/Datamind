@@ -5,7 +5,7 @@
 负责模型的注册、版本管理、状态管理和配置管理。
 
 核心功能：
-  - register_model: 注册新模型，保存模型文件到存储路径
+  - register_model: 注册新模型，保存模型文件到 BentoML Model Store
   - activate_model: 激活模型（设置为 active 状态）
   - deactivate_model: 停用模型（设置为 inactive 状态）
   - promote_to_production: 提升模型为生产模型
@@ -18,28 +18,42 @@
   - 版本管理：支持模型版本控制和历史追溯
   - 生产环境管理：同一任务类型只能有一个生产模型
   - 配置验证：自动验证评分卡参数和风险配置
-  - 文件管理：自动保存模型文件，支持多种格式
+  - BentoML 集成：模型存储在 BentoML Model Store
   - 完整审计：记录所有模型操作到版本历史表
   - 链路追踪：完整的 span 追踪
 """
 
-import hashlib
 import os
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Optional, List, BinaryIO
+import tempfile
+import shutil
+import hashlib
 import uuid
+import pickle
+from pathlib import Path
+from typing import Dict, Optional, List, BinaryIO, Any
+from datetime import datetime
+
+import bentoml
+from bentoml.exceptions import BentoMLException
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata, ModelVersionHistory
+from datamind.core.domain.enums import ModelStatus, AuditAction, TaskType, ModelType, Framework
+from datamind.core.domain.validation import validate_or_raise
 from datamind.core.logging import log_audit, context
 from datamind.core.logging.debug import debug_print
-from datamind.core.domain.enums import ModelStatus, AuditAction
-from .exceptions import (
+from datamind.core.ml.exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
     ModelValidationException,
-    ModelFileException
+    ModelFileException,
+    UnsupportedFrameworkException
+)
+from datamind.core.ml.frameworks import (
+    get_bentoml_backend,
+    get_framework_signatures,
+    is_framework_supported,
+    get_supported_frameworks
 )
 
 
@@ -53,29 +67,22 @@ class ModelRegistry:
         参数:
             settings: 配置对象
         """
-        # 如果没有传入 settings，则从配置中获取
+        from datamind.config import get_settings, BASE_DIR
+
         if settings is None:
-            from datamind.config import get_settings, BASE_DIR
             settings = get_settings()
 
         model_config = settings.model
 
-        # 构建绝对路径
+        # 构建绝对路径（本地缓存路径）
         models_path = model_config.models_path
         if os.path.isabs(models_path):
-            self.storage_path = Path(models_path)
+            self.cache_path = Path(models_path)
         else:
-            # 使用 BASE_DIR 作为基础目录
-            self.storage_path = BASE_DIR / models_path
+            self.cache_path = BASE_DIR / models_path
+        self.cache_path.mkdir(parents=True, exist_ok=True)
 
-        self.max_size = model_config.max_size
-        self.allowed_extensions = model_config.allowed_extensions
-
-        # 创建目录
-        self.storage_path.mkdir(parents=True, exist_ok=True)
-
-        # 输出绝对路径用于调试
-        debug_print("ModelRegistry", f"模型存储路径: {self.storage_path.absolute()}")
+        debug_print("ModelRegistry", f"模型存储路径: {self.cache_path.absolute()}")
 
     def register_model(
             self,
@@ -119,15 +126,28 @@ class ModelRegistry:
             模型ID
         """
         request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
 
-        try:
-            # 生成模型ID
-            model_id = f"MDL_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8].upper()}"
+        # 生成模型ID
+        model_id = f"MDL_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8].upper()}"
 
-            debug_print("ModelRegistry", f"开始注册模型: {model_name} v{model_version} -> {model_id}")
+        try:
+            # 验证框架是否支持
+            if not is_framework_supported(framework):
+                raise UnsupportedFrameworkException(
+                    f"不支持的框架: {framework}. 支持的框架: {get_supported_frameworks()}"
+                )
+
+            # 验证框架和模型类型兼容性
+            try:
+                framework_enum = Framework(framework)
+                model_type_enum = ModelType(model_type)
+                validate_or_raise(framework_enum, model_type_enum)
+            except ValueError as e:
+                raise ModelValidationException(f"无效的框架或模型类型: {e}")
 
             # 验证任务类型特定的配置
             self._validate_task_specific_config(
@@ -144,104 +164,169 @@ class ModelRegistry:
                 task_type=task_type
             )
 
-            # 保存模型文件
-            file_hash, file_size, file_path = self._save_model_file(
-                model_file, model_id, model_version, framework
-            )
-
-            # 验证模型文件
-            self._validate_model_file(file_path, framework, model_type)
-
-            # 创建元数据
+            # 检查模型是否已存在
             with get_db() as session:
-                # 检查是否已存在相同名称和版本的模型
                 existing = session.query(ModelMetadata).filter_by(
                     model_name=model_name,
                     model_version=model_version
                 ).first()
-
                 if existing:
                     raise ModelAlreadyExistsException(
                         f"模型 {model_name} 版本 {model_version} 已存在"
                     )
 
-                metadata = ModelMetadata(
-                    model_id=model_id,
-                    model_name=model_name,
-                    model_version=model_version,
-                    task_type=task_type,
-                    model_type=model_type,
+            # 保存模型文件到临时文件
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                shutil.copyfileobj(model_file, tmp_file)
+                tmp_path = Path(tmp_file.name)
+
+            try:
+                # 获取文件信息
+                file_size = tmp_path.stat().st_size
+                file_hash = self._calculate_file_hash(tmp_path)
+
+                # 准备元数据
+                metadata = {
+                    "model_id": model_id,
+                    "model_name": model_name,
+                    "model_version": model_version,
+                    "task_type": task_type,
+                    "model_type": model_type,
+                    "framework": framework,
+                    "input_features": input_features,
+                    "output_schema": output_schema,
+                    "model_params": merged_model_params,
+                    "scorecard_params": scorecard_params,
+                    "risk_config": risk_config,
+                    "description": description,
+                    "tags": tags or {},
+                    "created_by": created_by,
+                    "created_at": datetime.now().isoformat()
+                }
+
+                # 保存到 BentoML Model Store
+                bento_model = self._save_to_bentoml(
+                    name=model_id,
+                    model_path=tmp_path,
                     framework=framework,
-                    file_path=str(file_path),
-                    file_hash=file_hash,
-                    file_size=file_size,
-                    input_features=input_features,
-                    output_schema=output_schema,
-                    model_params=merged_model_params,
-                    status=ModelStatus.INACTIVE.value,
-                    created_by=created_by,
-                    description=description,
-                    tags=tags
+                    metadata=metadata,
+                    labels={
+                        "model_id": model_id,
+                        "model_name": model_name,
+                        "model_version": model_version,
+                        "task_type": task_type,
+                        "model_type": model_type,
+                        "framework": framework,
+                        "created_by": created_by
+                    }
                 )
 
-                session.add(metadata)
-                session.flush()
+                # 保存到本地缓存（用于调试）
+                cached_path = self.cache_path / model_id / 'versions' / f"model_{model_version}"
+                cached_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(tmp_path, cached_path)
 
-                # 记录版本历史
-                history_details = {
-                    'input_features_count': len(input_features),
-                    'output_schema_keys': list(output_schema.keys()),
-                    'file_size': file_size,
-                    'file_hash': file_hash[:8]
+                # 创建最新版本软链接
+                latest_link = self.cache_path / model_id / 'latest'
+                if latest_link.exists() or latest_link.is_symlink():
+                    latest_link.unlink()
+                latest_link.symlink_to(f"versions/model_{model_version}")
+
+                # 创建元数据
+                with get_db() as session:
+                    metadata_record = ModelMetadata(
+                        model_id=model_id,
+                        model_name=model_name,
+                        model_version=model_version,
+                        task_type=task_type,
+                        model_type=model_type,
+                        framework=framework,
+                        file_path=str(cached_path),
+                        file_hash=file_hash,
+                        file_size=file_size,
+                        input_features=input_features,
+                        output_schema=output_schema,
+                        model_params=merged_model_params,
+                        status=ModelStatus.INACTIVE.value,
+                        created_by=created_by,
+                        description=description,
+                        tags=tags,
+                        metadata_json={
+                            "bentoml_tag": str(bento_model.tag),
+                            "bentoml_version": bento_model.version
+                        }
+                    )
+                    session.add(metadata_record)
+                    session.flush()
+
+                    # 记录版本历史
+                    history_details = {
+                        'input_features_count': len(input_features),
+                        'output_schema_keys': list(output_schema.keys()),
+                        'file_size': file_size,
+                        'file_hash': file_hash[:8],
+                        'bentoml_tag': str(bento_model.tag),
+                        'request_id': request_id,
+                        'trace_id': trace_id,
+                        'span_id': span_id,
+                        'parent_span_id': parent_span_id
+                    }
+
+                    if scorecard_params:
+                        history_details['scorecard_params'] = scorecard_params
+                    if risk_config:
+                        history_details['risk_config'] = risk_config
+
+                    history = ModelVersionHistory(
+                        model_id=model_id,
+                        model_version=model_version,
+                        operation=AuditAction.MODEL_CREATE.value,
+                        operator=created_by,
+                        operator_ip=ip_address,
+                        metadata_snapshot=self._create_snapshot(metadata_record),
+                        details=history_details
+                    )
+                    session.add(history)
+                    session.commit()
+
+                duration = (datetime.now() - start_time).total_seconds() * 1000
+
+                audit_details = {
+                    "model_id": model_id,
+                    "model_name": model_name,
+                    "model_version": model_version,
+                    "task_type": task_type,
+                    "model_type": model_type,
+                    "framework": framework,
+                    "bentoml_tag": str(bento_model.tag),
+                    "file_size": file_size,
+                    "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
                 }
 
                 if scorecard_params:
-                    history_details['scorecard_params'] = scorecard_params
+                    audit_details["scorecard_params"] = scorecard_params
                 if risk_config:
-                    history_details['risk_config'] = risk_config
+                    audit_details["risk_config"] = risk_config
 
-                history = ModelVersionHistory(
-                    model_id=model_id,
-                    model_version=model_version,
-                    operation=AuditAction.MODEL_CREATE.value,
-                    operator=created_by,
-                    operator_ip=ip_address,
-                    metadata_snapshot=self._create_snapshot(metadata),
-                    details=history_details
+                log_audit(
+                    action=AuditAction.MODEL_CREATE.value,
+                    user_id=created_by,
+                    ip_address=ip_address,
+                    details=audit_details,
+                    request_id=request_id
                 )
-                session.add(history)
-                session.commit()
 
-            duration = (datetime.now() - start_time).total_seconds() * 1000
+                debug_print("ModelRegistry", f"模型注册成功: {model_id} -> {bento_model.tag}")
+                return model_id
 
-            audit_details = {
-                "model_id": model_id,
-                "model_name": model_name,
-                "model_version": model_version,
-                "task_type": task_type,
-                "model_type": model_type,
-                "framework": framework,
-                "file_size": file_size,
-                "duration_ms": round(duration, 2),
-                "span_id": span_id,
-                "parent_span_id": parent_span_id
-            }
-
-            if scorecard_params:
-                audit_details["scorecard_params"] = scorecard_params
-            if risk_config:
-                audit_details["risk_config"] = risk_config
-
-            log_audit(
-                action=AuditAction.MODEL_CREATE.value,
-                user_id=created_by,
-                ip_address=ip_address,
-                details=audit_details,
-                request_id=request_id
-            )
-
-            debug_print("ModelRegistry", f"模型注册成功: {model_id}")
-            return model_id
+            finally:
+                # 清理临时文件
+                if tmp_path.exists():
+                    tmp_path.unlink()
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -254,6 +339,8 @@ class ModelRegistry:
                     "model_version": model_version,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -261,6 +348,132 @@ class ModelRegistry:
                 request_id=request_id
             )
             raise
+
+    def _save_to_bentoml(
+            self,
+            name: str,
+            model_path: Path,
+            framework: str,
+            metadata: Dict,
+            labels: Dict
+    ) -> bentoml.Model:
+        """
+        保存模型到 BentoML Model Store
+
+        参数:
+            name: 模型名称（使用 model_id）
+            model_path: 模型文件路径
+            framework: 模型框架
+            metadata: 元数据
+            labels: 标签
+
+        返回:
+            BentoML 模型对象
+        """
+        bentoml_backend = get_bentoml_backend(framework)
+        signatures = get_framework_signatures(framework)
+
+        try:
+            # 根据框架加载模型
+            if framework.lower() == 'sklearn':
+                import joblib
+                model = joblib.load(model_path)
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+            elif framework.lower() == 'xgboost':
+                import xgboost as xgb
+                model = xgb.Booster()
+                model.load_model(str(model_path))
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+            elif framework.lower() == 'lightgbm':
+                import lightgbm as lgb
+                model = lgb.Booster(model_file=str(model_path))
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+            elif framework.lower() == 'catboost':
+                from catboost import CatBoost
+                model = CatBoost()
+                model.load_model(str(model_path))
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+            elif framework.lower() in ['torch', 'pytorch']:
+                import torch
+                model = torch.load(model_path, map_location='cpu')
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+            elif framework.lower() == 'tensorflow':
+                import tensorflow as tf
+                model = tf.keras.models.load_model(model_path)
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+            elif framework.lower() == 'onnx':
+                import onnxruntime as ort
+                model = ort.InferenceSession(str(model_path))
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    signatures=signatures,
+                    labels=labels,
+                    metadata=metadata
+                )
+            else:
+                # 使用 pickle 保存
+                with open(model_path, 'rb') as f:
+                    model = pickle.load(f)
+                return bentoml_backend.save_model(
+                    name=name,
+                    model=model,
+                    labels=labels,
+                    metadata=metadata
+                )
+
+        except Exception as e:
+            raise ModelFileException(f"保存到 BentoML 失败: {str(e)}")
+
+    def _calculate_file_hash(self, file_path: Path) -> str:
+        """计算文件 SHA256 哈希"""
+        sha256 = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256.update(chunk)
+        return sha256.hexdigest()
 
     def activate_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
         """
@@ -273,6 +486,7 @@ class ModelRegistry:
             ip_address: IP地址
         """
         request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
@@ -295,7 +509,13 @@ class ModelRegistry:
                     operator_ip=ip_address,
                     reason=reason,
                     metadata_snapshot=self._create_snapshot(model),
-                    details={'before_status': before_status}
+                    details={
+                        'before_status': before_status,
+                        'request_id': request_id,
+                        'trace_id': trace_id,
+                        'span_id': span_id,
+                        'parent_span_id': parent_span_id
+                    }
                 )
                 session.add(history)
                 session.commit()
@@ -308,9 +528,10 @@ class ModelRegistry:
                 details={
                     "model_id": model_id,
                     "model_name": model.model_name,
-                    "model_version": model.model_version,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -329,6 +550,8 @@ class ModelRegistry:
                     "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -348,6 +571,7 @@ class ModelRegistry:
             ip_address: IP地址
         """
         request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
@@ -370,7 +594,13 @@ class ModelRegistry:
                     operator_ip=ip_address,
                     reason=reason,
                     metadata_snapshot=self._create_snapshot(model),
-                    details={'before_status': before_status}
+                    details={
+                        'before_status': before_status,
+                        'request_id': request_id,
+                        'trace_id': trace_id,
+                        'span_id': span_id,
+                        'parent_span_id': parent_span_id
+                    }
                 )
                 session.add(history)
                 session.commit()
@@ -383,9 +613,10 @@ class ModelRegistry:
                 details={
                     "model_id": model_id,
                     "model_name": model.model_name,
-                    "model_version": model.model_version,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -404,6 +635,103 @@ class ModelRegistry:
                     "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                reason=str(e),
+                request_id=request_id
+            )
+            raise
+
+    def promote_to_production(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
+        """
+        将模型提升为生产模型
+
+        同一任务类型只能有一个生产模型
+
+        参数:
+            model_id: 模型ID
+            operator: 操作人
+            reason: 提升原因
+            ip_address: IP地址
+        """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+        start_time = datetime.now()
+
+        try:
+            with get_db() as session:
+                model = session.query(ModelMetadata).filter_by(model_id=model_id).first()
+                if not model:
+                    raise ModelNotFoundException(f"模型未找到: {model_id}")
+
+                # 将同任务类型的其他模型设为非生产
+                session.query(ModelMetadata).filter_by(
+                    task_type=model.task_type,
+                    is_production=True
+                ).update({'is_production': False})
+
+                # 设置当前模型为生产
+                before_prod = model.is_production
+                model.is_production = True
+                model.deployed_at = datetime.now()
+
+                history = ModelVersionHistory(
+                    model_id=model_id,
+                    model_version=model.model_version,
+                    operation=AuditAction.MODEL_PROMOTE.value,
+                    operator=operator,
+                    operator_ip=ip_address,
+                    reason=reason,
+                    metadata_snapshot=self._create_snapshot(model),
+                    details={
+                        'before_production': before_prod,
+                        'request_id': request_id,
+                        'trace_id': trace_id,
+                        'span_id': span_id,
+                        'parent_span_id': parent_span_id
+                    }
+                )
+                session.add(history)
+                session.commit()
+
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+            log_audit(
+                action=AuditAction.MODEL_PROMOTE.value,
+                user_id=operator,
+                ip_address=ip_address,
+                details={
+                    "model_id": model_id,
+                    "model_name": model.model_name,
+                    "task_type": model.task_type,
+                    "reason": reason,
+                    "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
+            debug_print("ModelRegistry", f"生产模型设置成功: {model_id}")
+
+        except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+            log_audit(
+                action=AuditAction.MODEL_PROMOTE.value,
+                user_id=operator,
+                ip_address=ip_address,
+                details={
+                    "model_id": model_id,
+                    "error": str(e),
+                    "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -422,6 +750,8 @@ class ModelRegistry:
         返回:
             模型信息字典，如果不存在则返回 None
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
 
@@ -452,7 +782,8 @@ class ModelRegistry:
                     'updated_at': model.updated_at.isoformat() if model.updated_at else None,
                     'deployed_at': model.deployed_at.isoformat() if model.deployed_at else None,
                     'description': model.description,
-                    'tags': model.tags
+                    'tags': model.tags,
+                    'metadata_json': model.metadata_json
                 }
 
         except Exception as e:
@@ -463,6 +794,8 @@ class ModelRegistry:
                 details={
                     "model_id": model_id,
                     "error": str(e),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 }
@@ -490,6 +823,8 @@ class ModelRegistry:
         返回:
             模型信息列表
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
 
@@ -531,97 +866,11 @@ class ModelRegistry:
                 ip_address="localhost",
                 details={
                     "error": str(e),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 }
-            )
-            raise
-
-    def promote_to_production(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
-        """
-        将模型提升为生产模型
-
-        同一任务类型只能有一个生产模型，调用此方法会自动：
-          - 将当前模型设为生产模型
-          - 将同任务类型的其他模型设为非生产
-
-        参数:
-            model_id: 模型ID
-            operator: 操作人
-            reason: 提升原因
-            ip_address: IP地址
-        """
-        request_id = context.get_request_id()
-        span_id = context.get_span_id()
-        parent_span_id = context.get_parent_span_id()
-        start_time = datetime.now()
-
-        try:
-            with get_db() as session:
-                # 获取当前模型
-                model = session.query(ModelMetadata).filter_by(model_id=model_id).first()
-                if not model:
-                    raise ModelNotFoundException(f"模型未找到: {model_id}")
-
-                # 将同任务类型的其他模型设为非生产
-                session.query(ModelMetadata).filter_by(
-                    task_type=model.task_type,
-                    is_production=True
-                ).update({'is_production': False})
-
-                # 设置当前模型为生产
-                before_prod = model.is_production
-                model.is_production = True
-                model.deployed_at = datetime.now()
-
-                history = ModelVersionHistory(
-                    model_id=model_id,
-                    model_version=model.model_version,
-                    operation=AuditAction.MODEL_PROMOTE.value,
-                    operator=operator,
-                    operator_ip=ip_address,
-                    reason=reason,
-                    metadata_snapshot=self._create_snapshot(model),
-                    details={'before_production': before_prod}
-                )
-                session.add(history)
-                session.commit()
-
-            duration = (datetime.now() - start_time).total_seconds() * 1000
-            log_audit(
-                action=AuditAction.MODEL_PROMOTE.value,
-                user_id=operator,
-                ip_address=ip_address,
-                details={
-                    "model_id": model_id,
-                    "model_name": model.model_name,
-                    "model_version": model.model_version,
-                    "task_type": model.task_type,
-                    "reason": reason,
-                    "duration_ms": round(duration, 2),
-                    "span_id": span_id,
-                    "parent_span_id": parent_span_id
-                },
-                request_id=request_id
-            )
-
-            debug_print("ModelRegistry", f"生产模型设置成功: {model_id}")
-
-        except Exception as e:
-            duration = (datetime.now() - start_time).total_seconds() * 1000
-            log_audit(
-                action=AuditAction.MODEL_PROMOTE.value,
-                user_id=operator,
-                ip_address=ip_address,
-                details={
-                    "model_id": model_id,
-                    "error": str(e),
-                    "duration_ms": round(duration, 2),
-                    "span_id": span_id,
-                    "parent_span_id": parent_span_id
-                },
-                reason=str(e),
-                request_id=request_id
             )
             raise
 
@@ -635,6 +884,8 @@ class ModelRegistry:
         返回:
             历史记录列表
         """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
 
@@ -660,51 +911,8 @@ class ModelRegistry:
                 details={
                     "model_id": model_id,
                     "error": str(e),
-                    "span_id": span_id,
-                    "parent_span_id": parent_span_id
-                }
-            )
-            raise
-
-    def get_model_params(self, model_id: str) -> Optional[Dict]:
-        """
-        获取模型的完整参数
-
-        参数:
-            model_id: 模型ID
-
-        返回:
-            模型参数字典，如果不存在则返回 None
-        """
-        span_id = context.get_span_id()
-        parent_span_id = context.get_parent_span_id()
-
-        try:
-            with get_db() as session:
-                model = session.query(ModelMetadata).filter_by(model_id=model_id).first()
-                if not model:
-                    return None
-
-                result = {
-                    'model_params': model.model_params
-                }
-
-                if model.model_params and 'scorecard' in model.model_params:
-                    result['scorecard'] = model.model_params['scorecard']
-
-                if model.model_params and 'risk_config' in model.model_params:
-                    result['risk_config'] = model.model_params['risk_config']
-
-                return result
-
-        except Exception as e:
-            log_audit(
-                action=AuditAction.MODEL_UPDATE.value,
-                user_id="system",
-                ip_address="localhost",
-                details={
-                    "model_id": model_id,
-                    "error": str(e),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 }
@@ -732,6 +940,7 @@ class ModelRegistry:
             ip_address: IP地址
         """
         request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = datetime.now()
@@ -742,9 +951,9 @@ class ModelRegistry:
                 if not model:
                     raise ModelNotFoundException(f"模型未找到: {model_id}")
 
-                if scorecard_params and model.task_type == "scoring":
+                if scorecard_params and model.task_type == TaskType.SCORING.value:
                     self._validate_scorecard_params(scorecard_params)
-                if risk_config and model.task_type == "fraud_detection":
+                if risk_config and model.task_type == TaskType.FRAUD_DETECTION.value:
                     self._validate_risk_config(risk_config)
 
                 if not model.model_params:
@@ -770,7 +979,11 @@ class ModelRegistry:
                         'updated_params': {
                             'scorecard': scorecard_params,
                             'risk_config': risk_config
-                        }
+                        },
+                        'request_id': request_id,
+                        'trace_id': trace_id,
+                        'span_id': span_id,
+                        'parent_span_id': parent_span_id
                     }
                 )
                 session.add(history)
@@ -784,11 +997,12 @@ class ModelRegistry:
                 details={
                     "model_id": model_id,
                     "model_name": model.model_name,
-                    "model_version": model.model_version,
                     "scorecard_updated": scorecard_params is not None,
                     "risk_config_updated": risk_config is not None,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -807,6 +1021,8 @@ class ModelRegistry:
                     "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
@@ -815,6 +1031,88 @@ class ModelRegistry:
             )
             raise
 
+    def archive_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
+        """
+        归档模型（软删除）
+
+        参数:
+            model_id: 模型ID
+            operator: 操作人
+            reason: 操作原因
+            ip_address: IP地址
+        """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
+        try:
+            with get_db() as session:
+                model = session.query(ModelMetadata).filter_by(model_id=model_id).first()
+                if not model:
+                    raise ModelNotFoundException(f"模型未找到: {model_id}")
+
+                before_status = model.status
+                model.status = ModelStatus.ARCHIVED.value
+                model.archived_at = datetime.now()
+
+                history = ModelVersionHistory(
+                    model_id=model_id,
+                    model_version=model.model_version,
+                    operation=AuditAction.MODEL_ARCHIVE.value,
+                    operator=operator,
+                    operator_ip=ip_address,
+                    reason=reason,
+                    metadata_snapshot=self._create_snapshot(model),
+                    details={
+                        'before_status': before_status,
+                        'request_id': request_id,
+                        'trace_id': trace_id,
+                        'span_id': span_id,
+                        'parent_span_id': parent_span_id
+                    }
+                )
+                session.add(history)
+                session.commit()
+
+            log_audit(
+                action=AuditAction.MODEL_ARCHIVE.value,
+                user_id=operator,
+                ip_address=ip_address,
+                details={
+                    "model_id": model_id,
+                    "reason": reason,
+                    "request_id": request_id,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
+            debug_print("ModelRegistry", f"模型归档成功: {model_id}")
+
+        except Exception as e:
+            raise
+
+    def delete_from_bentoml(self, model_id: str) -> bool:
+        """
+        从 BentoML Model Store 删除模型
+
+        参数:
+            model_id: 模型ID
+
+        返回:
+            是否删除成功
+        """
+        try:
+            bentoml.models.delete(model_id)
+            debug_print("ModelRegistry", f"从 BentoML 删除模型成功: {model_id}")
+            return True
+        except BentoMLException as e:
+            debug_print("ModelRegistry", f"从 BentoML 删除模型失败: {e}")
+            return False
+
     def _validate_task_specific_config(
             self,
             task_type: str,
@@ -822,9 +1120,9 @@ class ModelRegistry:
             risk_config: Optional[Dict] = None
     ):
         """验证任务特定的配置参数"""
-        if task_type == "scoring" and scorecard_params:
+        if task_type == TaskType.SCORING.value and scorecard_params:
             self._validate_scorecard_params(scorecard_params)
-        if task_type == "fraud_detection" and risk_config:
+        if task_type == TaskType.FRAUD_DETECTION.value and risk_config:
             self._validate_risk_config(risk_config)
 
     def _validate_scorecard_params(self, params: Dict):
@@ -866,42 +1164,6 @@ class ModelRegistry:
         if 'levels' not in config:
             raise ModelValidationException("风险配置必须包含 'levels' 字段")
 
-        levels = config['levels']
-        if not isinstance(levels, dict):
-            raise ModelValidationException("风险等级配置必须是字典类型")
-
-        thresholds = []
-        for level_name, threshold in levels.items():
-            if not isinstance(threshold, dict):
-                raise ModelValidationException(f"风险等级 '{level_name}' 的配置必须是字典")
-
-            min_val = threshold.get('min', 0)
-            max_val = threshold.get('max', 1)
-
-            try:
-                min_val = float(min_val)
-                max_val = float(max_val)
-            except (ValueError, TypeError):
-                raise ModelValidationException(
-                    f"风险等级 '{level_name}' 的阈值必须是有效的数字"
-                )
-
-            if min_val < 0 or max_val > 1 or min_val > max_val:
-                raise ModelValidationException(
-                    f"风险等级 '{level_name}' 的阈值范围无效"
-                )
-
-            thresholds.append((level_name, min_val, max_val))
-
-        thresholds.sort(key=lambda x: x[1])
-        for i in range(len(thresholds) - 1):
-            current_max = thresholds[i][2]
-            next_min = thresholds[i + 1][1]
-            if current_max > next_min:
-                raise ModelValidationException(
-                    f"风险等级 '{thresholds[i][0]}' 和 '{thresholds[i + 1][0]}' 的范围重叠"
-                )
-
     def _merge_model_params(
             self,
             model_params: Optional[Dict],
@@ -912,87 +1174,13 @@ class ModelRegistry:
         """合并模型参数"""
         merged = model_params.copy() if model_params else {}
 
-        if task_type == "scoring" and scorecard_params:
+        if task_type == TaskType.SCORING.value and scorecard_params:
             merged['scorecard'] = scorecard_params
 
-        if task_type == "fraud_detection" and risk_config:
+        if task_type == TaskType.FRAUD_DETECTION.value and risk_config:
             merged['risk_config'] = risk_config
 
         return merged
-
-    def _save_model_file(self, file_obj: BinaryIO, model_id: str, version: str, framework: str) -> tuple:
-        """
-        保存模型文件
-
-        参数:
-            file_obj: 文件对象
-            model_id: 模型ID
-            version: 版本号
-            framework: 框架名称
-
-        返回:
-            (文件哈希, 文件大小, 文件路径)
-        """
-        try:
-            model_dir = self.storage_path / model_id / 'versions'
-            model_dir.mkdir(parents=True, exist_ok=True)
-
-            ext_map = {
-                'sklearn': '.pkl',
-                'xgboost': '.json',
-                'lightgbm': '.txt',
-                'torch': '.pt',
-                'tensorflow': '.h5',
-                'onnx': '.onnx',
-                'catboost': '.cbm'
-            }
-            ext = ext_map.get(framework, '.bin')
-
-            file_path = model_dir / f"model_{version}{ext}"
-
-            sha256 = hashlib.sha256()
-            file_size = 0
-
-            with open(file_path, 'wb') as f:
-                while chunk := file_obj.read(8192):
-                    f.write(chunk)
-                    sha256.update(chunk)
-                    file_size += len(chunk)
-
-            file_hash = sha256.hexdigest()
-
-            latest_link = self.storage_path / model_id / 'latest'
-            if latest_link.exists() or latest_link.is_symlink():
-                latest_link.unlink()
-            latest_link.symlink_to(f"versions/model_{version}{ext}")
-
-            debug_print("ModelRegistry", f"模型文件保存成功: {file_path.absolute()} ({file_size} bytes)")
-
-            return file_hash, file_size, file_path
-
-        except Exception as e:
-            raise ModelFileException(f"保存模型文件失败: {str(e)}")
-
-    def _validate_model_file(self, file_path: Path, framework: str, model_type: str):
-        """
-        验证模型文件
-
-        参数:
-            file_path: 文件路径
-            framework: 框架名称
-            model_type: 模型类型
-        """
-        try:
-            if not file_path.exists():
-                raise ModelValidationException(f"模型文件不存在: {file_path}")
-
-            if file_path.stat().st_size == 0:
-                raise ModelValidationException("模型文件为空")
-
-            debug_print("ModelRegistry", f"模型文件验证通过: {file_path.absolute()}")
-
-        except Exception as e:
-            raise ModelValidationException(f"模型验证失败: {str(e)}")
 
     def _create_snapshot(self, metadata) -> Dict:
         """创建元数据快照"""
@@ -1003,8 +1191,6 @@ class ModelRegistry:
             'task_type': metadata.task_type,
             'model_type': metadata.model_type,
             'framework': metadata.framework,
-            'input_features': metadata.input_features,
-            'output_schema': metadata.output_schema,
             'created_by': metadata.created_by,
             'created_at': metadata.created_at.isoformat() if metadata.created_at else None
         }

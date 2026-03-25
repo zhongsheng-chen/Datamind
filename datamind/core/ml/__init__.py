@@ -18,7 +18,7 @@
   - 完整审计：记录所有模型操作日志
 """
 
-from datamind.core.ml.model_registry import model_registry
+from datamind.core.ml.model_registry import ModelRegistry, get_model_registry
 from datamind.core.ml.model_loader import model_loader
 from datamind.core.ml.inference import inference_engine
 from datamind.core.ml.exceptions import (
@@ -31,8 +31,9 @@ from datamind.core.ml.exceptions import (
 )
 
 __all__ = [
-    'model_registry',
-    'model_loader',
+    'ModelRegistry',
+    'get_model_registry',
+    'ModelLoader',
     'inference_engine',
     'ModelException',
     'ModelNotFoundException',

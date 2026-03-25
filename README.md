@@ -1612,30 +1612,22 @@ datamind model predict ...
 ```bash
 pytest tests/test_logging.py -v -W default
 
+# 运行所有测试
+pytest tests/core/ml/ -v
 
 # 运行特定测试文件
-pytest tests/ml/test_exceptions.py -v
-pytest tests/ml/test_model_loader.py -v
-pytest tests/ml/test_model_registry.py -v
-
-pytest tests/ml/test_inference.py -v
-
+pytest tests/core/ml/test_model_registry.py -v
+pytest tests/core/ml/test_model_loader.py -v
+pytest tests/core/ml/test_inference.py -v
 
 # 运行特定测试类
-pytest tests/ml/test_model_registry.py::TestModelRegistry -v
+pytest tests/core/ml/test_model_registry.py::TestModelRegistry -v
 
 # 运行特定测试方法
-pytest tests/ml/test_model_registry.py::TestModelRegistry::test_register_model_success -v
+pytest tests/core/ml/test_inference.py::TestInferenceEngine::test_predict_scorecard_success -v
 
-
-# 运行所有测试
-pytest tests/ -v
-
-# 查看测试覆盖率
-pytest tests/ --cov=datamind --cov-report=html
-
-# 只运行特定模块
-pytest tests/ml/ -v
+# 带覆盖率报告
+pytest tests/core/ml/ --cov=datamind.core.ml --cov-report=html
 ```
 ## 安装包
 ```bash

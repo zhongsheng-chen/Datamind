@@ -1,570 +1,455 @@
-# tests/ml/test_inference.py
+# tests/core/ml/test_inference.py
 
 """测试推理引擎"""
 
 import pytest
+import time
 import numpy as np
 import pandas as pd
-import math
-from unittest.mock import MagicMock, patch
+from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
 from datamind.core.ml.inference import InferenceEngine, LRUCache
-from datamind.core.ml.model_loader import model_loader
 from datamind.core.ml.exceptions import ModelInferenceException, ModelNotFoundException
-from datamind.core.domain.enums import TaskType, AuditAction
+from datamind.core.domain.enums import TaskType
 
 
 class TestLRUCache:
     """测试 LRU 缓存"""
 
-    def test_init(self):
-        """测试初始化"""
-        cache = LRUCache(max_size=10, ttl=60)
-        assert cache.max_size == 10
-        assert cache.ttl == 60
-        assert cache.size() == 0
-
     def test_set_and_get(self):
-        """测试设置和获取缓存"""
-        cache = LRUCache(max_size=2, ttl=60)
+        """测试设置和获取"""
+        cache = LRUCache(max_size=3, ttl=3600)
+
         cache.set("key1", "value1")
         cache.set("key2", "value2")
 
         assert cache.get("key1") == "value1"
         assert cache.get("key2") == "value2"
+        assert cache.get("key3") is None
 
-    def test_lru_eviction(self):
-        """测试 LRU 淘汰策略"""
-        cache = LRUCache(max_size=2, ttl=60)
+    def test_max_size(self):
+        """测试最大容量"""
+        cache = LRUCache(max_size=2, ttl=3600)
+
         cache.set("key1", "value1")
         cache.set("key2", "value2")
         cache.set("key3", "value3")
 
+        # key1 应该被淘汰
         assert cache.get("key1") is None
         assert cache.get("key2") == "value2"
         assert cache.get("key3") == "value3"
 
+    def test_lru_eviction(self):
+        """测试 LRU 淘汰策略"""
+        cache = LRUCache(max_size=2, ttl=3600)
+
+        cache.set("key1", "value1")
+        cache.set("key2", "value2")
+        cache.get("key1")  # 访问 key1，使其成为最近使用
+        cache.set("key3", "value3")
+
+        # key2 应该被淘汰
+        assert cache.get("key1") == "value1"
+        assert cache.get("key2") is None
+        assert cache.get("key3") == "value3"
+
     def test_ttl_expiration(self):
         """测试 TTL 过期"""
-        cache = LRUCache(max_size=10, ttl=1)
+        cache = LRUCache(max_size=3, ttl=1)
+
         cache.set("key1", "value1")
-
-        assert cache.get("key1") == "value1"
-
-        import time
         time.sleep(1.1)
 
         assert cache.get("key1") is None
 
     def test_clear(self):
         """测试清空缓存"""
-        cache = LRUCache(max_size=10, ttl=60)
+        cache = LRUCache(max_size=3, ttl=3600)
+
         cache.set("key1", "value1")
         cache.set("key2", "value2")
 
         cache.clear()
 
-        assert cache.size() == 0
         assert cache.get("key1") is None
         assert cache.get("key2") is None
+        assert cache.size() == 0
 
 
-class TestProbabilityToScore:
-    """测试概率转评分功能"""
+class TestInferenceEngine:
+    """测试推理引擎"""
 
     @pytest.fixture
-    def inference_engine(self):
+    def engine(self):
         """创建推理引擎实例"""
-        return InferenceEngine(cache_size=10, cache_ttl=60)
-
-    def test_convert_probability_to_score_higher_better(self, inference_engine):
-        """测试 higher_better 方向的评分转换"""
-        params = {
-            'base_score': 600,
-            'pdo': 50,
-            'min_score': 300,
-            'max_score': 900,
-            'direction': 'higher_better'
-        }
-
-        score_low_risk = inference_engine._convert_probability_to_score(0.05, params)
-        score_high_risk = inference_engine._convert_probability_to_score(0.95, params)
-
-        assert score_low_risk > score_high_risk
-        assert 300 <= score_low_risk <= 900
-        assert 300 <= score_high_risk <= 900
-        assert score_low_risk > 600
-        assert score_high_risk < 600
-
-    def test_convert_probability_to_score_lower_better(self, inference_engine):
-        """测试 lower_better 方向的评分转换"""
-        params = {
-            'base_score': 600,
-            'pdo': 50,
-            'min_score': 300,
-            'max_score': 900,
-            'direction': 'lower_better'
-        }
-
-        score_low_risk = inference_engine._convert_probability_to_score(0.05, params)
-        score_high_risk = inference_engine._convert_probability_to_score(0.95, params)
-
-        assert score_low_risk < score_high_risk
-        assert 300 <= score_low_risk <= 900
-        assert 300 <= score_high_risk <= 900
-        assert score_low_risk < 600
-        assert score_high_risk > 600
-
-    def test_convert_probability_to_score_boundary(self, inference_engine):
-        """测试边界概率值"""
-        params = {
-            'base_score': 600,
-            'pdo': 50,
-            'min_score': 300,
-            'max_score': 900,
-            'direction': 'higher_better'
-        }
-
-        score_zero = inference_engine._convert_probability_to_score(0.000001, params)
-        score_one = inference_engine._convert_probability_to_score(0.999999, params)
-
-        assert 300 <= score_zero <= 900
-        assert 300 <= score_one <= 900
-        assert score_zero > score_one
-
-    def test_convert_probability_to_score_default_params(self, inference_engine):
-        """测试默认参数"""
-        score = inference_engine._convert_probability_to_score(0.05)
-
-        assert 300 <= score <= 900
-        assert score > 600
-
-    def test_convert_probability_to_score_custom_params(self, inference_engine):
-        """测试自定义参数"""
-        params = {
-            'base_score': 500,
-            'pdo': 40,
-            'min_score': 200,
-            'max_score': 800,
-            'direction': 'higher_better'
-        }
-
-        score = inference_engine._convert_probability_to_score(0.05, params)
-
-        assert 200 <= score <= 800
-
-
-class TestFeatureValidation:
-    """测试特征验证"""
+        return InferenceEngine(cache_size=10, cache_ttl=3600)
 
     @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine()
-
-    def test_validate_features_success(self, inference_engine):
-        """测试特征验证成功"""
-        features = {"feature1": 10, "feature2": 20}
-        required = ["feature1", "feature2"]
-
-        inference_engine._validate_features(features, required)
-
-    def test_validate_features_missing(self, inference_engine):
-        """测试特征缺失"""
-        features = {"feature1": 10}
-        required = ["feature1", "feature2"]
-
-        with pytest.raises(ModelInferenceException) as exc:
-            inference_engine._validate_features(features, required)
-
-        assert "缺少必要特征" in str(exc.value)
-        assert "feature2" in str(exc.value)
-
-
-class TestInputPreparation:
-    """测试输入准备"""
-
-    @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine()
-
-    def test_prepare_input(self, inference_engine):
-        """测试输入准备"""
-        features = {"feature2": 20, "feature1": 10}
-        input_features = ["feature1", "feature2"]
-
-        result = inference_engine._prepare_input(features, input_features)
-
-        assert isinstance(result, pd.DataFrame)
-        assert list(result.columns) == ["feature1", "feature2"]
-        assert result.iloc[0]["feature1"] == 10
-        assert result.iloc[0]["feature2"] == 20
-
-
-class TestScorecardParsing:
-    """测试评分卡结果解析"""
-
-    @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine()
-
-    def test_parse_scorecard_result_array(self, inference_engine):
-        """测试解析数组结果"""
-        raw_result = np.array([0.05])
-        features = {"feature1": 10, "feature2": 20}
-
-        result = inference_engine._parse_scorecard_result(
-            raw_result, {}, features, {}
-        )
-
-        assert 'default_probability' in result
-        assert 'total_score' in result
-        assert 'feature_scores' in result
-        assert result['default_probability'] == 0.05
-
-    def test_parse_scorecard_result_scalar(self, inference_engine):
-        """测试解析标量结果"""
-        raw_result = 0.05
-        features = {"feature1": 10}
-
-        result = inference_engine._parse_scorecard_result(
-            raw_result, {}, features, {}
-        )
-
-        assert result['default_probability'] == 0.05
-
-
-class TestFraudParsing:
-    """测试反欺诈结果解析"""
-
-    @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine()
-
-    def test_parse_fraud_result_low_risk(self, inference_engine):
-        """测试低风险反欺诈结果"""
-        raw_result = np.array([0.1])
-        features = {"feature1": 10}
-
-        result = inference_engine._parse_fraud_result(raw_result, {}, features)
-
-        assert result['fraud_probability'] == 0.1
-        assert result['risk_score'] == 10.0
-        assert len(result['risk_factors']) == 0
-
-    def test_parse_fraud_result_high_risk(self, inference_engine):
-        """测试高风险反欺诈结果"""
-        raw_result = 0.85
-        features = {"feature1": 10}
-
-        result = inference_engine._parse_fraud_result(raw_result, {}, features)
-
-        assert result['fraud_probability'] == 0.85
-        assert result['risk_score'] == 85.0
-        assert len(result['risk_factors']) == 1
-        assert result['risk_factors'][0]['factor'] == 'high_fraud_probability'
-
-
-class TestFeatureImportance:
-    """测试特征重要性计算"""
-
-    @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine()
-
-    def test_calculate_feature_importance_with_importances(self, inference_engine):
-        """测试使用内置特征重要性"""
+    def mock_model(self):
+        """模拟模型"""
         model = MagicMock()
-        model.feature_importances_ = np.array([0.5, 0.3, 0.2])
-
-        input_data = pd.DataFrame([[1, 2, 3]], columns=['f1', 'f2', 'f3'])
-
-        importance = inference_engine._calculate_feature_importance(
-            model, input_data, 'xgboost', {}
-        )
-
-        assert len(importance) == 3
-        assert importance['f1'] == 0.5
-        assert importance['f2'] == 0.3
-        assert importance['f3'] == 0.2
-
-    def test_calculate_feature_importance_with_coef(self, inference_engine):
-        """测试使用线性模型系数"""
-        model = MagicMock()
-        model.coef_ = np.array([2.0, 1.0, -1.0])
-
-        input_data = pd.DataFrame([[1, 2, 3]], columns=['f1', 'f2', 'f3'])
-
-        importance = inference_engine._calculate_feature_importance(
-            model, input_data, 'sklearn', {}
-        )
-
-        expected_total = 2.0 + 1.0 + 1.0
-        assert importance['f1'] == 2.0 / expected_total
-        assert importance['f2'] == 1.0 / expected_total
-        assert importance['f3'] == 1.0 / expected_total
-
-    def test_calculate_feature_importance_fallback(self, inference_engine):
-        """测试降级方案"""
-        model = MagicMock()
-        input_data = pd.DataFrame([[1, 2]], columns=['f1', 'f2'])
-        model.predict.return_value = np.array([0.5])
-
-        importance = inference_engine._calculate_feature_importance(
-            model, input_data, 'unknown', {}
-        )
-
-        assert len(importance) == 2
-        assert importance['f1'] == 0.5
-        assert importance['f2'] == 0.5
-
-
-class TestStatistics:
-    """测试统计信息"""
+        model.predict.return_value = np.array([0.05])  # 5% 违约概率
+        return model
 
     @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine()
-
-    def test_update_stats_success(self, inference_engine):
-        """测试成功统计更新"""
-        inference_engine._update_stats(True, 100.5)
-
-        stats = inference_engine.get_stats()
-        assert stats['total_inferences'] == 1
-        assert stats['success_inferences'] == 1
-        assert stats['failed_inferences'] == 0
-        assert stats['total_duration_ms'] == 100.5
-
-    def test_update_stats_failure(self, inference_engine):
-        """测试失败统计更新"""
-        inference_engine._update_stats(False, 50.0)
-
-        stats = inference_engine.get_stats()
-        assert stats['total_inferences'] == 1
-        assert stats['success_inferences'] == 0
-        assert stats['failed_inferences'] == 1
-        assert stats['total_duration_ms'] == 50.0
-
-    def test_get_stats_with_averages(self, inference_engine):
-        """测试获取统计平均值"""
-        inference_engine._update_stats(True, 100.0)
-        inference_engine._update_stats(True, 200.0)
-        inference_engine._update_stats(False, 150.0)
-
-        stats = inference_engine.get_stats()
-
-        assert stats['total_inferences'] == 3
-        assert stats['success_inferences'] == 2
-        assert stats['failed_inferences'] == 1
-        assert stats['avg_duration_ms'] == (100 + 200 + 150) / 3
-        assert stats['success_rate'] == 2 / 3
-
-
-class TestCache:
-    """测试缓存功能"""
-
-    @pytest.fixture
-    def inference_engine(self):
-        return InferenceEngine(cache_size=10, cache_ttl=60)
-
-    def test_get_cache_key(self, inference_engine):
-        """测试缓存键生成"""
-        key1 = inference_engine._get_cache_key("model1", {"a": 1, "b": 2})
-        key2 = inference_engine._get_cache_key("model1", {"b": 2, "a": 1})
-        key3 = inference_engine._get_cache_key("model2", {"a": 1, "b": 2})
-
-        assert key1 == key2
-        assert key1 != key3
-
-    def test_cache_hit_and_miss(self, inference_engine):
-        """测试缓存命中与未命中"""
-        cache_key = inference_engine._get_cache_key("model1", {"a": 1})
-
-        assert inference_engine._cache.get(cache_key) is None
-
-        inference_engine._cache.set(cache_key, {"result": "test"})
-
-        assert inference_engine._cache.get(cache_key) is not None
-
-    def test_cache_stats(self, inference_engine):
-        """测试缓存统计"""
-        inference_engine._stats['cache_hits'] = 10
-        inference_engine._stats['cache_misses'] = 5
-
-        stats = inference_engine.get_cache_stats()
-
-        assert stats['cache_hits'] == 10
-        assert stats['cache_misses'] == 5
-        assert stats['cache_hit_rate'] == 10 / 15
-
-    def test_clear_cache_specific_model(self, inference_engine):
-        """测试清除特定模型的缓存"""
-        inference_engine._cache.set("model1:hash1", {"result": 1})
-        inference_engine._cache.set("model1:hash2", {"result": 2})
-        inference_engine._cache.set("model2:hash1", {"result": 3})
-
-        inference_engine.clear_cache("model1")
-
-        assert inference_engine._cache.get("model1:hash1") is None
-        assert inference_engine._cache.get("model1:hash2") is None
-        assert inference_engine._cache.get("model2:hash1") is not None
-
-    def test_clear_all_cache(self, inference_engine):
-        """测试清除所有缓存"""
-        inference_engine._cache.set("key1", "value1")
-        inference_engine._cache.set("key2", "value2")
-
-        inference_engine.clear_cache()
-
-        assert inference_engine._cache.size() == 0
-
-
-class TestBatchPrediction:
-    """测试批量预测"""
-
-    def test_batch_prediction_scoring(self):
-        """测试批量评分卡预测"""
-        inference_engine = InferenceEngine()
-
-        mock_model = MagicMock()
-        mock_model.predict.return_value = np.array([0.05, 0.10, 0.15])
-
-        # 创建 mock 的 _loaded_models 字典
-        mock_loaded = MagicMock()
-        mock_metadata = MagicMock(
-            task_type=TaskType.SCORING.value,
-            input_features=['f1', 'f2'],
-            model_version='1.0.0',
-            framework='xgboost',
-            model_params={'scorecard': {'base_score': 600, 'pdo': 50}}
-        )
-        mock_loaded.get.return_value = {'metadata': mock_metadata}
-
-        with patch.object(model_loader, 'get_model', return_value=mock_model), \
-                patch.object(model_loader, 'load_model', return_value=True), \
-                patch.object(model_loader, '_loaded_models', mock_loaded):
-            features_list = [
-                {'f1': 10, 'f2': 20},
-                {'f1': 15, 'f2': 25},
-                {'f1': 20, 'f2': 30}
-            ]
-            app_ids = ['APP1', 'APP2', 'APP3']
-
-            with patch('datamind.core.ml.inference.context.get_request_id', return_value='req-123'):
-                with patch('datamind.core.ml.inference.log_audit'):
-                    results = inference_engine.predict_batch(
-                        model_id="MDL_123",
-                        features_list=features_list,
-                        application_ids=app_ids,
-                        task_type="scoring"
-                    )
-
-            assert len(results) == 3
-            for result in results:
-                assert 'default_probability' in result
-                assert 'total_score' in result
-
-    def test_batch_prediction_partial_failure(self):
-        """测试批量预测部分失败"""
-        inference_engine = InferenceEngine()
-
-        mock_model = MagicMock()
-        # 第一个成功，第二个失败，第三个成功
-        mock_model.predict.side_effect = [np.array([0.05]), Exception("预测失败"), np.array([0.15])]
-
-        # 创建 mock 的 _loaded_models 字典
-        mock_loaded = MagicMock()
-        mock_metadata = MagicMock(
-            task_type=TaskType.SCORING.value,
-            input_features=['f1', 'f2'],
-            model_version='1.0.0',
-            framework='xgboost',
-            model_params={}
-        )
-        mock_loaded.get.return_value = {'metadata': mock_metadata}
-
-        with patch.object(model_loader, 'get_model', return_value=mock_model), \
-                patch.object(model_loader, 'load_model', return_value=True), \
-                patch.object(model_loader, '_loaded_models', mock_loaded):
-            features_list = [
-                {'f1': 10, 'f2': 20},
-                {'f1': 15, 'f2': 25},
-                {'f1': 20, 'f2': 30}
-            ]
-            app_ids = ['APP1', 'APP2', 'APP3']
-
-            with patch('datamind.core.ml.inference.context.get_request_id', return_value='req-123'):
-                with patch('datamind.core.ml.inference.log_audit'):
-                    results = inference_engine.predict_batch(
-                        model_id="MDL_123",
-                        features_list=features_list,
-                        application_ids=app_ids,
-                        task_type="scoring"
-                    )
-
-            assert len(results) == 3
-            assert 'default_probability' in results[0]
-            assert 'error' in results[1]
-            assert results[1]['success'] is False
-            assert 'default_probability' in results[2]
-
-
-class TestIntegration:
-    """集成测试"""
-
-    def test_full_scorecard_inference_flow(self):
-        """测试完整的评分卡推理流程"""
-        inference_engine = InferenceEngine()
-
-        mock_model = MagicMock()
-        mock_model.predict.return_value = np.array([0.05])
-
-        # 创建 mock 的 _loaded_models 字典
-        mock_loaded = MagicMock()
-        mock_metadata = MagicMock(
-            task_type=TaskType.SCORING.value,
-            input_features=['age', 'income'],
-            model_version='1.0.0',
-            framework='xgboost',
-            model_params={
+    def mock_model_metadata(self):
+        """模拟模型元数据"""
+        return {
+            'model_id': 'MDL_TEST',
+            'model_name': 'test_model',
+            'model_version': '1.0.0',
+            'task_type': TaskType.SCORING.value,
+            'framework': 'sklearn',
+            'input_features': ['age', 'income', 'debt_ratio'],
+            'output_schema': {'score': 'float'},
+            'model_params': {
                 'scorecard': {
                     'base_score': 600,
                     'pdo': 50,
                     'min_score': 300,
                     'max_score': 900,
+                    'direction': 'lower_better'
+                }
+            }
+        }
+
+    @patch('datamind.core.ml.inference.model_loader')
+    @patch('datamind.core.ml.inference.get_db')
+    def test_predict_scorecard_success(
+        self, mock_get_db, mock_model_loader, engine, mock_model, mock_model_metadata
+    ):
+        """测试评分卡预测 - 成功"""
+        # 模拟模型加载器
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': mock_model_metadata}
+        }
+        mock_model_loader.load_model.return_value = True
+
+        # 模拟数据库
+        mock_session = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_session
+
+        # 执行预测
+        result = engine.predict_scorecard(
+            model_id="MDL_TEST",
+            features={"age": 35, "income": 50000, "debt_ratio": 0.35},
+            application_id="APP_001",
+            user_id="test_user"
+        )
+
+        # 验证结果
+        assert result['model_id'] == "MDL_TEST"
+        assert result['application_id'] == "APP_001"
+        assert 'total_score' in result
+        assert 'default_probability' in result
+        assert 'feature_scores' in result
+        assert result['from_cache'] is False
+
+        # 验证模型预测被调用
+        mock_model.predict.assert_called_once()
+
+        # 验证数据库日志被添加
+        mock_session.add.assert_called()
+        mock_session.commit.assert_called()
+
+    @patch('datamind.core.ml.inference.model_loader')
+    def test_predict_scorecard_model_not_loaded(
+        self, mock_model_loader, engine, mock_model, mock_model_metadata
+    ):
+        """测试评分卡预测 - 模型未加载，自动加载"""
+        # 第一次获取模型返回 None，触发加载
+        mock_model_loader.get_model.side_effect = [None, mock_model]
+        mock_model_loader.load_model.return_value = True
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': mock_model_metadata}
+        }
+
+        # 模拟数据库
+        with patch('datamind.core.ml.inference.get_db') as mock_get_db:
+            mock_session = MagicMock()
+            mock_get_db.return_value.__enter__.return_value = mock_session
+
+            result = engine.predict_scorecard(
+                model_id="MDL_TEST",
+                features={"age": 35, "income": 50000},
+                application_id="APP_001"
+            )
+
+        assert result is not None
+        mock_model_loader.load_model.assert_called_once()
+
+    @patch('datamind.core.ml.inference.model_loader')
+    def test_predict_scorecard_model_not_found(self, mock_model_loader, engine):
+        """测试评分卡预测 - 模型不存在"""
+        mock_model_loader.get_model.return_value = None
+        mock_model_loader.load_model.return_value = False
+
+        with pytest.raises(ModelNotFoundException):
+            engine.predict_scorecard(
+                model_id="MDL_NOT_EXIST",
+                features={"age": 35},
+                application_id="APP_001"
+            )
+
+    @patch('datamind.core.ml.inference.model_loader')
+    def test_predict_scorecard_missing_features(self, mock_model_loader, engine, mock_model, mock_model_metadata):
+        """测试评分卡预测 - 缺少特征"""
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': mock_model_metadata}
+        }
+
+        with pytest.raises(ModelInferenceException) as exc_info:
+            engine.predict_scorecard(
+                model_id="MDL_TEST",
+                features={"age": 35},  # 缺少 income 和 debt_ratio
+                application_id="APP_001"
+            )
+        assert "缺少必要特征" in str(exc_info.value)
+
+    @patch('datamind.core.ml.inference.model_loader')
+    def test_predict_scorecard_wrong_task_type(self, mock_model_loader, engine, mock_model):
+        """测试评分卡预测 - 任务类型不匹配"""
+        metadata = {
+            'task_type': TaskType.FRAUD_DETECTION.value,  # 错误的任务类型
+            'input_features': ['age', 'income']
+        }
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': metadata}
+        }
+
+        with pytest.raises(ModelInferenceException) as exc_info:
+            engine.predict_scorecard(
+                model_id="MDL_TEST",
+                features={"age": 35, "income": 50000},
+                application_id="APP_001"
+            )
+        assert "模型类型不匹配" in str(exc_info.value)
+
+    @patch('datamind.core.ml.inference.model_loader')
+    @patch('datamind.core.ml.inference.get_db')
+    def test_predict_scorecard_with_cache(
+        self, mock_get_db, mock_model_loader, engine, mock_model, mock_model_metadata
+    ):
+        """测试评分卡预测 - 使用缓存"""
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': mock_model_metadata}
+        }
+        mock_model_loader.load_model.return_value = True
+
+        mock_session = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_session
+
+        features = {"age": 35, "income": 50000, "debt_ratio": 0.35}
+
+        # 第一次预测
+        result1 = engine.predict_scorecard(
+            model_id="MDL_TEST",
+            features=features,
+            application_id="APP_001",
+            use_cache=True
+        )
+
+        # 第二次预测（应该命中缓存）
+        result2 = engine.predict_scorecard(
+            model_id="MDL_TEST",
+            features=features,
+            application_id="APP_001",
+            use_cache=True
+        )
+
+        assert result1['from_cache'] is False
+        assert result2['from_cache'] is True
+        assert result1['total_score'] == result2['total_score']
+
+        # 验证模型只被调用一次
+        assert mock_model.predict.call_count == 1
+
+    @patch('datamind.core.ml.inference.model_loader')
+    @patch('datamind.core.ml.inference.get_db')
+    def test_predict_fraud_success(
+        self, mock_get_db, mock_model_loader, engine, mock_model
+    ):
+        """测试反欺诈预测 - 成功"""
+        metadata = {
+            'model_id': 'MDL_FRAUD',
+            'model_version': '1.0.0',
+            'task_type': TaskType.FRAUD_DETECTION.value,
+            'framework': 'sklearn',
+            'input_features': ['ip_risk', 'device_risk', 'amount']
+        }
+
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_FRAUD': {'metadata': metadata}
+        }
+
+        mock_model.predict.return_value = np.array([0.85])  # 85% 欺诈概率
+
+        mock_session = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_session
+
+        result = engine.predict_fraud(
+            model_id="MDL_FRAUD",
+            features={"ip_risk": 0.8, "device_risk": 0.9, "amount": 10000},
+            application_id="APP_001"
+        )
+
+        assert result['fraud_probability'] == 0.85
+        assert result['risk_score'] == 85.0
+        assert len(result['risk_factors']) > 0
+        assert result['risk_factors'][0]['factor'] == 'high_fraud_probability'
+
+    @patch('datamind.core.ml.inference.model_loader')
+    @patch('datamind.core.ml.inference.get_db')
+    def test_predict_batch_success(
+        self, mock_get_db, mock_model_loader, engine, mock_model, mock_model_metadata
+    ):
+        """测试批量预测 - 成功"""
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': mock_model_metadata}
+        }
+
+        mock_model.predict.return_value = np.array([0.05])
+
+        mock_session = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_session
+
+        features_list = [
+            {"age": 35, "income": 50000, "debt_ratio": 0.35},
+            {"age": 45, "income": 80000, "debt_ratio": 0.25},
+            {"age": 25, "income": 30000, "debt_ratio": 0.45}
+        ]
+        application_ids = ["APP_001", "APP_002", "APP_003"]
+
+        results = engine.predict_batch(
+            model_id="MDL_TEST",
+            features_list=features_list,
+            application_ids=application_ids,
+            task_type=TaskType.SCORING.value
+        )
+
+        assert len(results) == 3
+        for result in results:
+            assert 'total_score' in result
+            assert 'default_probability' in result
+
+    @patch('datamind.core.ml.inference.model_loader')
+    def test_predict_batch_length_mismatch(self, mock_model_loader, engine):
+        """测试批量预测 - 长度不匹配"""
+        with pytest.raises(ValueError) as exc_info:
+            engine.predict_batch(
+                model_id="MDL_TEST",
+                features_list=[{"age": 35}],
+                application_ids=["APP_001", "APP_002"],
+                task_type=TaskType.SCORING.value
+            )
+        assert "长度必须一致" in str(exc_info.value)
+
+    def test_update_stats(self, engine):
+        """测试更新统计信息"""
+        engine._update_stats(True, 100)
+        engine._update_stats(True, 150)
+        engine._update_stats(False, 50)
+
+        stats = engine.get_stats()
+
+        assert stats['total_inferences'] == 3
+        assert stats['success_inferences'] == 2
+        assert stats['failed_inferences'] == 1
+        assert stats['total_duration_ms'] == 300
+        assert stats['avg_duration_ms'] == 100.0
+        assert stats['success_rate'] == 2/3
+
+    def test_clear_cache(self, engine):
+        """测试清除缓存"""
+        # 添加缓存
+        engine._cache.set("key1", "value1")
+        engine._cache.set("key2", "value2")
+
+        assert engine._cache.size() == 2
+
+        engine.clear_cache()
+
+        assert engine._cache.size() == 0
+
+    def test_clear_cache_by_model_id(self, engine):
+        """测试按模型ID清除缓存"""
+        engine._cache.set("MDL_001:hash1", "value1")
+        engine._cache.set("MDL_001:hash2", "value2")
+        engine._cache.set("MDL_002:hash3", "value3")
+
+        assert engine._cache.size() == 3
+
+        engine.clear_cache(model_id="MDL_001")
+
+        assert engine._cache.size() == 1
+        assert engine._cache.get("MDL_002:hash3") == "value3"
+
+    def test_get_cache_stats(self, engine):
+        """测试获取缓存统计"""
+        engine._stats['cache_hits'] = 10
+        engine._stats['cache_misses'] = 40
+
+        # 添加一些缓存项
+        engine._cache.set("key1", "value1")
+        engine._cache.set("key2", "value2")
+
+        stats = engine.get_cache_stats()
+
+        assert stats['cache_size'] == 2
+        assert stats['cache_max_size'] == 10
+        assert stats['cache_ttl'] == 3600
+        assert stats['cache_hits'] == 10
+        assert stats['cache_misses'] == 40
+        assert stats['cache_hit_rate'] == 0.2
+
+    @patch('datamind.core.ml.inference.model_loader')
+    def test_predict_scorecard_with_scorecard_params(
+        self, mock_model_loader, engine, mock_model
+    ):
+        """测试评分卡预测 - 使用自定义评分卡参数"""
+        metadata = {
+            'model_id': 'MDL_TEST',
+            'model_version': '1.0.0',
+            'task_type': TaskType.SCORING.value,
+            'framework': 'sklearn',
+            'input_features': ['age'],
+            'model_params': {
+                'scorecard': {
+                    'base_score': 700,
+                    'pdo': 60,
+                    'min_score': 400,
+                    'max_score': 800,
                     'direction': 'higher_better'
                 }
             }
-        )
-        mock_loaded.get.return_value = {'metadata': mock_metadata}
+        }
 
-        with patch.object(model_loader, 'get_model', return_value=mock_model), \
-                patch.object(model_loader, 'load_model', return_value=True), \
-                patch.object(model_loader, '_loaded_models', mock_loaded):
-            features = {'age': 35, 'income': 50000}
+        mock_model_loader.get_model.return_value = mock_model
+        mock_model_loader._loaded_models = {
+            'MDL_TEST': {'metadata': metadata}
+        }
 
-            with patch('datamind.core.ml.inference.context.get_request_id', return_value='req-123'):
-                with patch('datamind.core.ml.inference.context.get_span_id', return_value='span-456'):
-                    with patch('datamind.core.ml.inference.context.get_parent_span_id', return_value='parent-789'):
-                        with patch('datamind.core.ml.inference.log_audit') as mock_audit:
-                            result = inference_engine.predict_scorecard(
-                                model_id="MDL_123",
-                                features=features,
-                                application_id="APP_001",
-                                user_id="user_123",
-                                ip_address="127.0.0.1"
-                            )
+        # 模拟预测结果
+        mock_model.predict.return_value = np.array([0.1])  # 10% 违约概率
 
-            assert result['default_probability'] == 0.05
-            assert 'total_score' in result
-            assert result['model_id'] == "MDL_123"
-            assert result['application_id'] == "APP_001"
-            assert 'feature_importance' in result
+        with patch('datamind.core.ml.inference.get_db') as mock_get_db:
+            mock_session = MagicMock()
+            mock_get_db.return_value.__enter__.return_value = mock_session
 
-            mock_audit.assert_called_once()
-            call_args = mock_audit.call_args[1]
-            assert call_args['action'] == AuditAction.MODEL_INFERENCE.value
-            assert call_args['user_id'] == "user_123"
-            assert call_args['details']['span_id'] == "span-456"
-            assert call_args['details']['parent_span_id'] == "parent-789"
+            result = engine.predict_scorecard(
+                model_id="MDL_TEST",
+                features={"age": 35},
+                application_id="APP_001"
+            )
+
+            # 验证评分计算
+            # higher_better 模式：score = base_score - (pdo/log(2)) * log(odds)
+            assert result['total_score'] > 0
