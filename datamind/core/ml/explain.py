@@ -7,7 +7,6 @@
 核心功能：
   - explain: 解释单条预测，返回特征分数贡献
   - explain_batch: 批量解释多个预测
-  - get_feature_importance: 获取全局特征重要性
 
 特性：
   - SHAP 集成：使用 SHAP 值计算特征贡献
@@ -15,31 +14,20 @@
   - 可加性：所有特征贡献之和 + 截距 = 总评分
   - 延迟初始化：解释器按需创建，避免不必要的开销
   - 智能解释器选择：根据模型类型自动选择最优解释器
-  - Pipeline 支持：自动检测 Pipeline 并使用通用解释器
-  - log-odds 统一：强制将 SHAP 值统一到 log-odds 空间
-  - 批量优化：批量预测提升性能（10倍+）
-  - 严格的 feature_names 顺序保证
-
-使用示例：
-    >>> from datamind.core.ml.explain import ShapExplainer
-    >>> from datamind.core.ml.scorecard import Scorecard
-    >>>
-    >>> explainer = ShapExplainer(model, feature_names=["age", "income"])
-    >>> scorecard = Scorecard(base_score=600, pdo=50)
-    >>>
-    >>> # 单条解释
-    >>> result = explainer.explain({"age": 35, "income": 50000}, scorecard)
-    >>> print(result.feature_scores)  # {"age": 85.2, "income": 120.5}
-    >>>
-    >>> # 批量解释
-    >>> results = explainer.explain_batch(
-    ...     [{"age": 35}, {"age": 28}],
-    ...     scorecard
-    ... )
+  - TreeExplainer 强制 raw 输出，确保 log-odds 空间
+  - SHAP 空间检测：基于置信度分级
+  - 自适应熔断：logit_diff > max(1.0, abs(logit) * 0.5) 时熔断
+  - 平滑置信度：使用指数衰减公式
+  - base_value 漂移检测：自适应阈值（与 logit 比较）
+  - 特征顺序校验：宽松校验（只检查集合一致性）
+  - 解释器缓存：LRU 淘汰，防止内存泄漏
+  - 分级评分：强可信评分，中可信带警告，弱可信不评分
+  - SHAP 不可用时降级返回
 """
 
 import numpy as np
-from typing import Dict, Any, List, Optional, Union
+from collections import OrderedDict
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
 from datamind.core.ml.scorecard import Scorecard
@@ -48,54 +36,37 @@ from datamind.core.logging.debug import debug_print
 
 @dataclass
 class ExplanationResult:
-    """解释结果
-
-    包含单条预测的完整解释信息。
-
-    属性:
-        probability: 违约概率 (0-1)
-        score: 信用评分
-        base_value: SHAP 基准值
-        shap_values: 各特征 SHAP 值
-        feature_scores: 各特征分数贡献
-        intercept_score: 截距分
-    """
+    """解释结果"""
 
     probability: float
-    score: float
+    score: Optional[float]
     base_value: float
     shap_values: Dict[str, float]
     feature_scores: Dict[str, float]
-    intercept_score: float
+    intercept_score: Optional[float]
+    space: str
+    confidence: float
+    additive_error: float
+    warning: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """
-        转换为字典格式
-
-        返回:
-            包含所有解释字段的字典
-        """
         return {
             'probability': self.probability,
             'score': self.score,
             'base_value': self.base_value,
             'shap_values': self.shap_values,
             'feature_scores': self.feature_scores,
-            'intercept_score': self.intercept_score
+            'intercept_score': self.intercept_score,
+            'space': self.space,
+            'confidence': self.confidence,
+            'additive_error': self.additive_error,
+            'warning': self.warning
         }
 
     def get_top_contributors(self, n: int = 5) -> List[Dict[str, Any]]:
-        """
-        获取贡献最大的 n 个特征
+        if not self.feature_scores:
+            return []
 
-        按特征分数绝对值排序，返回前 n 个特征。
-
-        参数:
-            n: 返回数量
-
-        返回:
-            特征贡献列表，每个元素包含 feature, score, shap
-        """
         sorted_features = sorted(
             self.feature_scores.items(),
             key=lambda x: abs(x[1]),
@@ -112,124 +83,118 @@ class ExplanationResult:
 
 
 class ShapExplainer:
-    """SHAP 解释器
-
-    负责特征贡献计算。使用 SHAP 值计算每个特征对预测结果的贡献，
-    并将 SHAP 值转换为分数贡献，满足评分卡的可加性要求。
-
-    核心公式：
-        total_score = base_score - factor × (base_value + Σ shap_i)
-        feature_score_i = -factor × shap_i
-
-    其中：
-        - base_score: 评分卡基准分
-        - factor: 评分卡因子（PDO / ln(2)）
-        - base_value: SHAP 基准值
-        - shap_i: 特征 i 的 SHAP 值
-    """
 
     def __init__(self, model, feature_names: Optional[List[str]] = None,
                  background_data: Optional[np.ndarray] = None,
-                 inference=None):
-        """
-        初始化 SHAP 解释器
-
-        参数:
-            model: 训练好的模型
-            feature_names: 特征名称列表
-            background_data: 背景数据，用于计算 SHAP 值
-            inference: 推理引擎实例
-        """
+                 inference=None,
+                 strict_feature_order: bool = False,
+                 max_cache_size: int = 10):
         self.model = model
         self.feature_names = feature_names
         self.background_data = background_data
         self.inference = inference
-        self._explainer = None
+        self.strict_feature_order = strict_feature_order
+        self.max_cache_size = max_cache_size
+        self._explainer_cache = OrderedDict()
+        self._validate_feature_names(model, feature_names)
+
         debug_print("ShapExplainer", "初始化 SHAP 解释器")
 
+    def _validate_feature_names(self, model, feature_names: Optional[List[str]]):
+        """验证特征名称"""
+        if feature_names is None:
+            return
+
+        if hasattr(model, "feature_names_in_"):
+            model_feature_names = list(model.feature_names_in_)
+
+            if self.strict_feature_order:
+                if feature_names != model_feature_names:
+                    raise ValueError(
+                        f"特征名称顺序与模型训练时不一致！\n"
+                        f"模型期望: {model_feature_names}\n"
+                        f"当前传入: {feature_names}"
+                    )
+            else:
+                if set(feature_names) != set(model_feature_names):
+                    raise ValueError(
+                        f"特征名称集合与模型训练时不一致！\n"
+                        f"模型期望: {set(model_feature_names)}\n"
+                        f"当前传入: {set(feature_names)}"
+                    )
+            debug_print("ShapExplainer", "特征集合校验通过")
+
     def _get_explainer(self):
-        """
-        获取 SHAP 解释器（延迟初始化 + 智能选择）
+        """获取 SHAP 解释器"""
+        model_id = id(self.model)
 
-        根据模型类型自动选择最优解释器：
-          - Pipeline: 使用通用 Explainer（避免特征错位）
-          - 树模型（XGBoost、LightGBM、CatBoost）：使用 TreeExplainer
-          - 线性模型（LogisticRegression）：使用 LinearExplainer
-          - 其他模型：使用通用 Explainer
+        if model_id not in self._explainer_cache:
+            if len(self._explainer_cache) >= self.max_cache_size:
+                oldest_key = next(iter(self._explainer_cache))
+                del self._explainer_cache[oldest_key]
+                debug_print("ShapExplainer", f"缓存淘汰，移除模型 {oldest_key}")
 
-        返回:
-            SHAP Explainer 实例
-
-        异常:
-            ImportError: shap 库未安装
-        """
-        if self._explainer is None:
             try:
                 import shap
 
                 model_name = self.model.__class__.__name__.lower()
 
-                # Pipeline 使用通用 Explainer
                 if hasattr(self.model, 'steps') or hasattr(self.model, 'named_steps'):
-                    debug_print("ShapExplainer", "检测到 Pipeline，使用通用 Explainer")
-                    if self.background_data is not None:
-                        self._explainer = shap.Explainer(self.model, self.background_data)
-                    else:
-                        self._explainer = shap.Explainer(self.model)
+                    debug_print("ShapExplainer", "Pipeline 不支持 SHAP 解释")
+                    raise ValueError(
+                        "Pipeline 不支持 SHAP 解释。"
+                        "原因：特征顺序可能错位、one-hot 后特征名丢失、输出空间不可控。"
+                        "建议：先单独保存预处理后的特征，再传入模型。"
+                    )
 
-                # 树模型使用 TreeExplainer
                 elif any(x in model_name for x in ['xgb', 'lgb', 'catboost', 'randomforest', 'decisiontree']):
-                    debug_print("ShapExplainer", "使用 TreeExplainer")
-                    self._explainer = shap.TreeExplainer(self.model)
+                    debug_print("ShapExplainer", "使用 TreeExplainer (model_output=raw)")
+                    if self.background_data is not None:
+                        self._explainer_cache[model_id] = shap.TreeExplainer(
+                            self.model,
+                            self.background_data,
+                            model_output="raw"
+                        )
+                    else:
+                        self._explainer_cache[model_id] = shap.TreeExplainer(
+                            self.model,
+                            model_output="raw"
+                        )
 
-                # 线性模型使用 LinearExplainer
                 elif any(x in model_name for x in ['logistic', 'linear']):
                     if self.background_data is not None:
                         debug_print("ShapExplainer", "使用 LinearExplainer")
-                        self._explainer = shap.LinearExplainer(self.model, self.background_data)
+                        self._explainer_cache[model_id] = shap.LinearExplainer(
+                            self.model,
+                            self.background_data
+                        )
                     else:
                         debug_print("ShapExplainer", "LinearExplainer 需要背景数据，降级使用 Explainer")
-                        self._explainer = shap.Explainer(self.model)
+                        self._explainer_cache[model_id] = shap.Explainer(self.model)
 
-                # 默认使用通用 Explainer
                 else:
                     debug_print("ShapExplainer", "使用通用 Explainer")
                     if self.background_data is not None:
-                        self._explainer = shap.Explainer(self.model, self.background_data)
+                        self._explainer_cache[model_id] = shap.Explainer(
+                            self.model,
+                            self.background_data
+                        )
                     else:
-                        self._explainer = shap.Explainer(self.model)
+                        self._explainer_cache[model_id] = shap.Explainer(self.model)
 
             except ImportError:
-                raise ImportError("请安装 shap: pip install shap")
+                debug_print("ShapExplainer", "SHAP 库未安装，将返回降级结果")
+                self._explainer_cache[model_id] = None
 
-        return self._explainer
+        self._explainer_cache.move_to_end(model_id)
+        return self._explainer_cache[model_id]
 
     @staticmethod
     def _extract_shap_values(shap_result) -> np.ndarray:
-        """
-        从 SHAP 结果中提取特征 SHAP 值
-
-        处理各种 SHAP 输出格式：
-          - shape (n, d): 直接返回
-          - shape (n, d, 2): 二分类取正类
-          - shape (d,): 单样本
-
-        参数:
-            shap_result: SHAP 计算结果
-
-        返回:
-            特征 SHAP 值数组，形状 (d,)
-
-        异常:
-            ValueError: 不支持的 SHAP 输出格式
-        """
         values = shap_result.values
 
-        # 二分类 (n, d, 2)
         if values.ndim == 3:
             return values[0, :, 1]
-
-        # 单样本 (d,) 或 (n, d)
         if values.ndim == 1:
             return values
         if values.ndim == 2:
@@ -239,41 +204,21 @@ class ShapExplainer:
 
     @staticmethod
     def _extract_base_value(shap_result) -> float:
-        """
-        从 SHAP 结果中提取基准值
-
-        处理各种 base_values 格式：
-          - scalar: 直接返回
-          - (1,): 返回第一个元素
-          - (1,2): 二分类取正类
-
-        参数:
-            shap_result: SHAP 计算结果
-
-        返回:
-            SHAP 基准值
-        """
         base = shap_result.base_values
 
-        # 已经是标量
         if isinstance(base, (int, float)):
             return float(base)
 
-        # 转换为 numpy 数组统一处理
         if isinstance(base, (list, tuple, np.ndarray)):
             base_arr = np.array(base)
 
-            # 二分类 (1,2)
             if base_arr.ndim == 2 and base_arr.shape[1] == 2:
                 return float(base_arr[0, 1])
-
-            # 单输出 (1,) 或 (1,1)
             if base_arr.ndim == 1:
                 return float(base_arr[0])
             if base_arr.ndim == 2 and base_arr.shape[1] == 1:
                 return float(base_arr[0, 0])
 
-        # 兜底：转为标量
         try:
             return float(base)
         except (TypeError, ValueError):
@@ -281,211 +226,181 @@ class ShapExplainer:
             return 0.0
 
     @staticmethod
-    def _ensure_log_odds(shap_vals: np.ndarray, base_value: float, prob: float) -> tuple:
+    def _detect_space(shap_vals: np.ndarray, base_value: float, prob: float) -> Tuple[np.ndarray, float, str, float]:
         """
-        确保 SHAP 值在 log-odds 空间
-
-        不同模型的 SHAP 值单位不同：
-          - LogisticRegression: log-odds
-          - XGBoost: log-odds
-          - LightGBM: log-odds
-          - CatBoost: 可能是 probability
-
-        本方法通过校验将 SHAP 值统一转换到 log-odds 空间。
-
-        校验原理：
-            logit(prob) = ln(prob / (1 - prob))
-            shap_sum = base_value + Σ shap_i
-
-        如果 |shap_sum - logit| < 阈值，说明已经是 log-odds
-        否则进行转换（线性缩放）
-
-        参数:
-            shap_vals: SHAP 值数组
-            base_value: SHAP 基准值
-            prob: 违约概率
+        检测 SHAP 值所在空间并计算置信度
 
         返回:
-            (转换后的 shap_vals, 转换后的 base_value)
+            (shap_vals, base_value, space, confidence)
         """
         eps = 1e-10
 
-        # 计算概率的对数几率
-        prob_clipped = max(min(prob, 1 - eps), eps)
-        logit = np.log(prob_clipped / (1 - prob_clipped))
+        prob = np.clip(prob, eps, 1 - eps)
+        logit = np.log(prob / (1 - prob))
 
-        # 计算当前 SHAP 和
-        shap_sum = base_value + np.sum(shap_vals)
+        reconstructed = base_value + np.sum(shap_vals)
+        logit_diff = abs(reconstructed - logit)
 
-        # 防止除零
-        if abs(shap_sum) < eps:
-            debug_print("ShapExplainer", "shap_sum 接近 0，跳过校正")
-            return shap_vals, base_value
+        abs_error = logit_diff
+        rel_error = logit_diff / (abs(logit) + eps)
 
-        # 已接近目标值，无需转换
-        if abs(shap_sum - logit) < 1e-3:
-            debug_print("ShapExplainer", "SHAP 已在 log-odds 空间")
-            return shap_vals, base_value
+        confidence = np.exp(-max(abs_error, rel_error))
+        confidence = max(0.0, min(1.0, confidence))
 
-        # 偏差过大时跳过校正
-        diff = abs(shap_sum - logit)
-        if diff / (abs(logit) + eps) > 0.2:
-            debug_print("ShapExplainer", "SHAP 偏差过大，跳过校正")
-            return shap_vals, base_value
+        threshold = max(1.0, abs(logit) * 0.5)
+        if logit_diff > threshold:
+            return shap_vals, base_value, "unknown", confidence
 
-        debug_print("ShapExplainer",
-                    f"SHAP 可能在概率空间，进行转换 (shap_sum={shap_sum:.4f}, logit={logit:.4f})")
+        if confidence >= 0.95:
+            space = "log_odds"
+        elif confidence >= 0.8:
+            space = "approx_log_odds"
+        elif confidence >= 0.6:
+            space = "weak_log_odds"
+        else:
+            space = "unknown"
 
-        if abs(shap_sum - logit) > 1:
-            debug_print("ShapExplainer", "SHAP 偏差过大，跳过校正")
-            return shap_vals, base_value
+        debug_print("ShapExplainer", f"空间检测: {space}, 置信度: {confidence:.3f}, 误差: {logit_diff:.4f}")
 
-        # 计算缩放因子
-        scale = logit / (shap_sum + eps)
-
-        # 缩放因子异常时跳过
-        if scale <= 0 or abs(scale) > 10:
-            debug_print("ShapExplainer", f"scale 异常({scale:.2f})，跳过校正")
-            return shap_vals, base_value
-
-        shap_vals_scaled = shap_vals * scale
-        base_value_scaled = base_value * scale
-
-        debug_print("ShapExplainer", f"缩放因子: {scale:.4f}")
-
-        return shap_vals_scaled, base_value_scaled
+        return shap_vals, base_value, space, confidence
 
     def _get_probability(self, features: Dict[str, Any]) -> float:
-        """
-        获取单条违约概率
-
-        优先使用推理引擎，降级使用模型直接预测。
-
-        参数:
-            features: 特征字典
-
-        返回:
-            违约概率 (0-1)
-        """
-        # 优先使用推理引擎
         if self.inference is not None and hasattr(self.inference, 'predict_proba'):
             try:
                 return self.inference.predict_proba(features)
             except Exception as e:
                 debug_print("ShapExplainer", f"推理引擎预测失败，降级使用模型: {e}")
 
-        # 降级：使用模型直接预测
         X = self._to_array(features)
         if hasattr(self.model, 'predict_proba'):
             return float(self.model.predict_proba(X)[0][1])
         return float(self.model.predict(X)[0])
 
     def _get_probability_batch(self, features_list: List[Dict[str, Any]]) -> List[float]:
-        """
-        批量获取违约概率
-
-        优先使用推理引擎的批量预测，降级使用循环单条预测。
-
-        参数:
-            features_list: 特征字典列表
-
-        返回:
-            概率列表
-        """
         if not features_list:
             return []
 
-        # 优先使用推理引擎的批量预测
         if self.inference is not None and hasattr(self.inference, 'predict_batch'):
             try:
                 return self.inference.predict_batch(features_list)
             except Exception as e:
                 debug_print("ShapExplainer", f"推理引擎批量预测失败，降级使用循环: {e}")
 
-        # 降级：循环单条预测
         return [self._get_probability(f) for f in features_list]
+
+    def _check_base_value_drift(self, base_value: float, logit: float) -> Optional[str]:
+        """检测 base_value 漂移，返回警告信息"""
+        if abs(logit) > 1e-3:
+            if abs(base_value) > abs(logit) * 2:
+                return f"base_value 漂移 ({base_value:.2f} vs logit={logit:.2f})，可能 background_data 不一致"
+        else:
+            if abs(base_value) > 5:
+                return f"base_value 异常 ({base_value:.2f})，可能 background_data 不一致"
+        return None
 
     def explain(self, features: Dict[str, Any], scorecard: Scorecard,
                 enable: bool = True) -> Optional[ExplanationResult]:
-        """
-        解释单条预测
-
-        计算每个特征对评分的贡献。
-
-        参数:
-            features: 特征字典，如 {"age": 35, "income": 50000}
-            scorecard: 评分卡实例
-
-        返回:
-            ExplanationResult 实例
-
-        异常:
-            ValueError: 未提供 feature_names 或特征不完整
-        """
         if not enable:
             return None
 
         if not self.feature_names:
             raise ValueError("SHAP 解释需要提供特征名称列表 (feature_names)")
 
-        X = self._to_array(features)
         explainer = self._get_explainer()
+
+        if explainer is None:
+            prob = self._get_probability(features)
+            return ExplanationResult(
+                probability=round(prob, 4),
+                score=None,
+                base_value=0.0,
+                shap_values={},
+                feature_scores={},
+                intercept_score=None,
+                space="unknown",
+                confidence=0.0,
+                additive_error=0.0,
+                warning="SHAP 库不可用，无法提供特征解释"
+            )
+
+        X = self._to_array(features)
         shap_result = explainer(X)
 
-        # 统一提取 SHAP 值
         shap_vals = self._extract_shap_values(shap_result)
         base_value = self._extract_base_value(shap_result)
 
-        # 检查长度匹配
         if len(shap_vals) != len(self.feature_names):
             debug_print("ShapExplainer",
                         f"SHAP 值长度 ({len(shap_vals)}) 与特征数 ({len(self.feature_names)}) 不匹配")
 
-        # 获取概率
         prob = self._get_probability(features)
+        shap_vals, base_value, space, confidence = self._detect_space(shap_vals, base_value, prob)
 
-        # 强制统一到 log-odds 空间
-        shap_vals, base_value = self._ensure_log_odds(shap_vals, base_value, prob)
-
-        # 计算评分
-        factor = scorecard.factor
-        intercept_score = scorecard.base_score - factor * base_value
-
-        feature_scores = {}
         shap_dict = {}
-
         for i, name in enumerate(self.feature_names):
             shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
             shap_dict[name] = float(shap_val)
-            feature_scores[name] = round(-factor * shap_val, 2)
 
-        total_score = intercept_score + sum(feature_scores.values())
-        total_score = max(scorecard.min_score, min(scorecard.max_score, total_score))
+        eps = 1e-10
+        prob_clipped = max(min(prob, 1 - eps), eps)
+        logit = np.log(prob_clipped / (1 - prob_clipped))
+        reconstructed = base_value + np.sum(shap_vals)
+        additive_error = abs(reconstructed - logit)
+
+        warning = self._check_base_value_drift(base_value, logit)
+        factor = scorecard.factor
+
+        score_val = None
+        feature_scores = {}
+        intercept_score_val = None
+
+        if confidence >= 0.95:
+            intercept_score_val = scorecard.base_score - factor * base_value
+
+            for i, name in enumerate(self.feature_names):
+                shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
+                feature_scores[name] = round(-factor * shap_val, 2)
+
+            total_score = intercept_score_val + sum(feature_scores.values())
+            score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+
+        elif confidence >= 0.8:
+            intercept_score_val = scorecard.base_score - factor * base_value
+
+            for i, name in enumerate(self.feature_names):
+                shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
+                feature_scores[name] = round(-factor * shap_val, 2)
+
+            total_score = intercept_score_val + sum(feature_scores.values())
+            score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+
+            if warning is None:
+                warning = f"SHAP 解释置信度中等 ({confidence:.2f})，评分仅供参考"
+
+        elif confidence >= 0.6:
+            if warning is None:
+                warning = f"SHAP 解释置信度较低 ({confidence:.2f})，仅返回 SHAP 值，不计算评分"
+
+        else:
+            if warning is None:
+                warning = f"SHAP 值不可信 (confidence={confidence:.2f})，无法解释"
 
         return ExplanationResult(
             probability=round(prob, 4),
-            score=round(total_score, 2),
+            score=score_val,
             base_value=base_value,
             shap_values=shap_dict,
             feature_scores=feature_scores,
-            intercept_score=round(intercept_score, 2)
+            intercept_score=intercept_score_val,
+            space=space,
+            confidence=confidence,
+            additive_error=additive_error,
+            warning=warning
         )
 
     def explain_batch(self, features_list: List[Dict[str, Any]],
                       scorecard: Scorecard,
                       enable: bool = True) -> Optional[List[ExplanationResult]]:
-        """
-        批量解释多条预测
-
-        使用批量预测避免循环调用模型。
-
-        参数:
-            features_list: 特征字典列表
-            scorecard: 评分卡实例
-
-        返回:
-            ExplanationResult 列表
-        """
         if not enable:
             return None
 
@@ -495,101 +410,108 @@ class ShapExplainer:
         if not features_list:
             return []
 
-        X = self._to_array_batch(features_list)
         explainer = self._get_explainer()
+
+        if explainer is None:
+            probs = self._get_probability_batch(features_list)
+            results = []
+            for prob in probs:
+                results.append(ExplanationResult(
+                    probability=round(prob, 4),
+                    score=None,
+                    base_value=0.0,
+                    shap_values={},
+                    feature_scores={},
+                    intercept_score=None,
+                    space="unknown",
+                    confidence=0.0,
+                    additive_error=0.0,
+                    warning="SHAP 库不可用，无法提供特征解释"
+                ))
+            return results
+
+        X = self._to_array_batch(features_list)
         shap_results = explainer(X)
 
         probs = self._get_probability_batch(features_list)
 
+        results = []
         factor = scorecard.factor
+        eps = 1e-10
 
-        # 批量提取 SHAP 值矩阵
-        shap_vals_list = []
-        base_values = []
-
-        for shap_result in shap_results:
+        for i, (shap_result, features, prob) in enumerate(zip(shap_results, features_list, probs)):
             shap_vals = self._extract_shap_values(shap_result)
             base_value = self._extract_base_value(shap_result)
-            shap_vals_list.append(shap_vals)
-            base_values.append(base_value)
 
-        # 转换为矩阵便于向量化
-        shap_matrix = np.array(shap_vals_list)
-        base_array = np.array(base_values)
+            shap_vals, base_value, space, confidence = self._detect_space(shap_vals, base_value, prob)
 
-        # 批量 log-odds 校正
-        probs_array = np.array(probs)
-        eps = 1e-10
-        probs_clipped = np.clip(probs_array, eps, 1 - eps)
-        logits = np.log(probs_clipped / (1 - probs_clipped))
-
-        shap_sums = base_array + np.sum(shap_matrix, axis=1)
-
-        # 防止除零
-        valid_mask = np.abs(shap_sums) > eps
-        scales = np.ones_like(shap_sums)
-
-        for i, (shap_sum, logit) in enumerate(zip(shap_sums, logits)):
-            if valid_mask[i] and abs(shap_sum - logit) >= 1e-3:
-                scales[i] = logit / shap_sum
-
-        shap_matrix = shap_matrix * scales[:, np.newaxis]
-        base_array = base_array * scales
-
-        # 向量化计算特征分
-        intercept_scores = scorecard.base_score - factor * base_array
-        feature_scores_matrix = -factor * shap_matrix
-
-        # 构建结果列表
-        results = []
-        for i, (features, prob, base_val, intercept_score, feature_scores_row) in enumerate(
-                zip(features_list, probs, base_array, intercept_scores, feature_scores_matrix)):
-
-            feature_scores = {}
             shap_dict = {}
-
             for j, name in enumerate(self.feature_names):
-                shap_val = feature_scores_row[j] / -factor if factor != 0 else 0.0
+                shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
                 shap_dict[name] = float(shap_val)
-                feature_scores[name] = round(feature_scores_row[j], 2)
 
-            total_score = intercept_score + sum(feature_scores.values())
-            total_score = max(scorecard.min_score, min(scorecard.max_score, total_score))
+            prob_clipped = max(min(prob, 1 - eps), eps)
+            logit = np.log(prob_clipped / (1 - prob_clipped))
+            reconstructed = base_value + np.sum(shap_vals)
+            additive_error = abs(reconstructed - logit)
+
+            warning = self._check_base_value_drift(base_value, logit)
+
+            score_val = None
+            feature_scores = {}
+            intercept_score_val = None
+
+            if confidence >= 0.95:
+                intercept_score_val = scorecard.base_score - factor * base_value
+
+                for j, name in enumerate(self.feature_names):
+                    shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
+                    feature_scores[name] = round(-factor * shap_val, 2)
+
+                total_score = intercept_score_val + sum(feature_scores.values())
+                score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+
+            elif confidence >= 0.8:
+                intercept_score_val = scorecard.base_score - factor * base_value
+
+                for j, name in enumerate(self.feature_names):
+                    shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
+                    feature_scores[name] = round(-factor * shap_val, 2)
+
+                total_score = intercept_score_val + sum(feature_scores.values())
+                score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+
+                if warning is None:
+                    warning = f"SHAP 解释置信度中等 ({confidence:.2f})，评分仅供参考"
+
+            elif confidence >= 0.6:
+                if warning is None:
+                    warning = f"SHAP 解释置信度较低 ({confidence:.2f})，仅返回 SHAP 值"
+
+            else:
+                if warning is None:
+                    warning = f"SHAP 值不可信 (confidence={confidence:.2f})，无法解释"
 
             results.append(ExplanationResult(
                 probability=round(prob, 4),
-                score=round(total_score, 2),
-                base_value=base_val,
+                score=score_val,
+                base_value=base_value,
                 shap_values=shap_dict,
                 feature_scores=feature_scores,
-                intercept_score=round(intercept_score, 2)
+                intercept_score=intercept_score_val,
+                space=space,
+                confidence=confidence,
+                additive_error=additive_error,
+                warning=warning
             ))
 
         return results
 
     def _to_array(self, features: Dict[str, Any]) -> np.ndarray:
-        """
-        特征字典转 numpy 数组
-
-        参数:
-            features: 特征字典
-
-        返回:
-            numpy 数组，形状为 (1, n_features)
-        """
         values = [features.get(name, 0) for name in self.feature_names]
         return np.array([values])
 
     def _to_array_batch(self, features_list: List[Dict[str, Any]]) -> np.ndarray:
-        """
-        批量特征字典转 numpy 数组
-
-        参数:
-            features_list: 特征字典列表
-
-        返回:
-            numpy 数组，形状为 (n_samples, n_features)
-        """
         if not features_list:
             return np.array([])
 
