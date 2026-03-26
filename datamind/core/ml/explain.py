@@ -10,18 +10,21 @@
 
 特性：
   - SHAP 集成：使用 SHAP 值计算特征贡献
-  - 分数转换：将 SHAP 值转换为分数贡献（-factor × shap）
+  - 分数转换：将 SHAP 值转换为分数贡献
   - 可加性：所有特征贡献之和 + 截距 = 总评分
   - 延迟初始化：解释器按需创建，避免不必要的开销
   - 智能解释器选择：根据模型类型自动选择最优解释器
   - TreeExplainer 强制 raw 输出，确保 log-odds 空间
   - SHAP 空间检测：基于置信度分级
-  - 自适应熔断：logit_diff > max(1.0, abs(logit) * 0.5) 时熔断
+  - 自适应熔断：logit_diff > max(0.5, abs(logit) * 0.3) 时熔断
   - 平滑置信度：使用指数衰减公式
   - base_value 漂移检测：自适应阈值（与 logit 比较）
   - 特征顺序校验：宽松校验（只检查集合一致性）
   - 解释器缓存：LRU 淘汰，防止内存泄漏
   - 分级评分：强可信评分，中可信带警告，弱可信不评分
+  - 方向适配：支持 lower_better 和 higher_better
+  - base_odds 适配：完整对齐评分卡公式
+  - 双误差审计：additive_error + score_error
   - SHAP 不可用时降级返回
 """
 
@@ -30,7 +33,7 @@ from collections import OrderedDict
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
-from datamind.core.ml.scorecard import Scorecard
+from datamind.core.ml.scorecard import Scorecard, DIRECTION_LOWER_BETTER
 from datamind.core.logging.debug import debug_print
 
 
@@ -47,6 +50,7 @@ class ExplanationResult:
     space: str
     confidence: float
     additive_error: float
+    score_error: Optional[float]
     warning: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -60,6 +64,7 @@ class ExplanationResult:
             'space': self.space,
             'confidence': self.confidence,
             'additive_error': self.additive_error,
+            'score_error': self.score_error,
             'warning': self.warning
         }
 
@@ -135,7 +140,7 @@ class ShapExplainer:
                 debug_print("ShapExplainer", f"缓存淘汰，移除模型 {oldest_key}")
 
             try:
-                import shap
+                import shap # noqa
 
                 model_name = self.model.__class__.__name__.lower()
 
@@ -247,7 +252,8 @@ class ShapExplainer:
         confidence = np.exp(-max(abs_error, rel_error))
         confidence = max(0.0, min(1.0, confidence))
 
-        threshold = max(1.0, abs(logit) * 0.5)
+        # 更保守的熔断阈值
+        threshold = max(0.5, abs(logit) * 0.3)
         if logit_diff > threshold:
             return shap_vals, base_value, "unknown", confidence
 
@@ -298,6 +304,30 @@ class ShapExplainer:
                 return f"base_value 异常 ({base_value:.2f})，可能 background_data 不一致"
         return None
 
+    def _get_score_coefficient(self, scorecard: Scorecard) -> Tuple[float, float]:
+        """
+        根据评分卡方向返回特征分和截距的系数
+
+        lower_better (分高好):
+            score = base_score - factor * (log_odds - base_log_odds)
+            = (base_score + factor * base_log_odds) + (-factor) * log_odds
+            因此: feature_score = -factor * shap_val
+                  intercept = base_score + factor * base_log_odds + (-factor) * base_value
+
+        higher_better (分低好):
+            score = base_score + factor * (log_odds - base_log_odds)
+            = (base_score - factor * base_log_odds) + factor * log_odds
+            因此: feature_score = factor * shap_val
+                  intercept = base_score - factor * base_log_odds + factor * base_value
+
+        返回:
+            (feature_coef, intercept_coef)
+        """
+        if scorecard.direction == DIRECTION_LOWER_BETTER:
+            return -scorecard.factor, -scorecard.factor
+        else:
+            return scorecard.factor, scorecard.factor
+
     def explain(self, features: Dict[str, Any], scorecard: Scorecard,
                 enable: bool = True) -> Optional[ExplanationResult]:
         if not enable:
@@ -320,6 +350,7 @@ class ShapExplainer:
                 space="unknown",
                 confidence=0.0,
                 additive_error=0.0,
+                score_error=None,
                 warning="SHAP 库不可用，无法提供特征解释"
             )
 
@@ -348,31 +379,48 @@ class ShapExplainer:
         additive_error = abs(reconstructed - logit)
 
         warning = self._check_base_value_drift(base_value, logit)
-        factor = scorecard.factor
+
+        # 获取方向系数
+        feature_coef, intercept_coef = self._get_score_coefficient(scorecard)
 
         score_val = None
         feature_scores = {}
         intercept_score_val = None
+        score_error = None
 
         if confidence >= 0.95:
-            intercept_score_val = scorecard.base_score - factor * base_value
+            # 包含 base_log_odds 的完整截距
+            intercept_score_val = (
+                scorecard.base_score
+                + intercept_coef * (base_value - scorecard.base_log_odds)
+            )
 
             for i, name in enumerate(self.feature_names):
                 shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
-                feature_scores[name] = round(-factor * shap_val, 2)
+                feature_scores[name] = round(feature_coef * shap_val, 2)
 
             total_score = intercept_score_val + sum(feature_scores.values())
-            score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+            score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
+
+            # 计算 score_error（审计用）
+            true_score = scorecard.score(prob)
+            score_error = abs(total_score - true_score)
 
         elif confidence >= 0.8:
-            intercept_score_val = scorecard.base_score - factor * base_value
+            intercept_score_val = (
+                scorecard.base_score
+                + intercept_coef * (base_value - scorecard.base_log_odds)
+            )
 
             for i, name in enumerate(self.feature_names):
                 shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
-                feature_scores[name] = round(-factor * shap_val, 2)
+                feature_scores[name] = round(feature_coef * shap_val, 2)
 
             total_score = intercept_score_val + sum(feature_scores.values())
-            score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+            score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
+
+            true_score = scorecard.score(prob)
+            score_error = abs(total_score - true_score)
 
             if warning is None:
                 warning = f"SHAP 解释置信度中等 ({confidence:.2f})，评分仅供参考"
@@ -395,6 +443,7 @@ class ShapExplainer:
             space=space,
             confidence=confidence,
             additive_error=additive_error,
+            score_error=score_error,
             warning=warning
         )
 
@@ -426,6 +475,7 @@ class ShapExplainer:
                     space="unknown",
                     confidence=0.0,
                     additive_error=0.0,
+                    score_error=None,
                     warning="SHAP 库不可用，无法提供特征解释"
                 ))
             return results
@@ -436,8 +486,10 @@ class ShapExplainer:
         probs = self._get_probability_batch(features_list)
 
         results = []
-        factor = scorecard.factor
         eps = 1e-10
+
+        # 获取方向系数
+        feature_coef, intercept_coef = self._get_score_coefficient(scorecard)
 
         for i, (shap_result, features, prob) in enumerate(zip(shap_results, features_list, probs)):
             shap_vals = self._extract_shap_values(shap_result)
@@ -460,26 +512,39 @@ class ShapExplainer:
             score_val = None
             feature_scores = {}
             intercept_score_val = None
+            score_error = None
 
             if confidence >= 0.95:
-                intercept_score_val = scorecard.base_score - factor * base_value
+                intercept_score_val = (
+                    scorecard.base_score
+                    + intercept_coef * (base_value - scorecard.base_log_odds)
+                )
 
                 for j, name in enumerate(self.feature_names):
                     shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
-                    feature_scores[name] = round(-factor * shap_val, 2)
+                    feature_scores[name] = round(feature_coef * shap_val, 2)
 
                 total_score = intercept_score_val + sum(feature_scores.values())
-                score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+                score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
+
+                true_score = scorecard.score(prob)
+                score_error = abs(total_score - true_score)
 
             elif confidence >= 0.8:
-                intercept_score_val = scorecard.base_score - factor * base_value
+                intercept_score_val = (
+                    scorecard.base_score
+                    + intercept_coef * (base_value - scorecard.base_log_odds)
+                )
 
                 for j, name in enumerate(self.feature_names):
                     shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
-                    feature_scores[name] = round(-factor * shap_val, 2)
+                    feature_scores[name] = round(feature_coef * shap_val, 2)
 
                 total_score = intercept_score_val + sum(feature_scores.values())
-                score_val = max(scorecard.min_score, min(scorecard.max_score, total_score))
+                score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
+
+                true_score = scorecard.score(prob)
+                score_error = abs(total_score - true_score)
 
                 if warning is None:
                     warning = f"SHAP 解释置信度中等 ({confidence:.2f})，评分仅供参考"
@@ -502,6 +567,7 @@ class ShapExplainer:
                 space=space,
                 confidence=confidence,
                 additive_error=additive_error,
+                score_error=score_error,
                 warning=warning
             ))
 
