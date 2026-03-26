@@ -41,7 +41,6 @@ from datamind.core.ml.exceptions import (
     UnsupportedFrameworkException
 )
 from datamind.core.ml.frameworks import (
-    get_bentoml_backend,
     is_framework_supported,
     get_supported_frameworks
 )
@@ -108,6 +107,7 @@ class ModelLoader:
                 self.unload_model(model_id, operator, ip_address)
 
             try:
+                # 在 session 内提取所有需要的属性，避免 detached 对象问题
                 with get_db() as session:
                     model_metadata = session.query(ModelMetadata).filter_by(
                         model_id=model_id,
@@ -123,31 +123,52 @@ class ModelLoader:
                             f"支持的框架: {get_supported_frameworks()}"
                         )
 
-                model = self._load_from_bentoml(model_id, model_metadata)
+                    # 提取所有需要的属性到本地变量
+                    framework = model_metadata.framework
+                    model_name = model_metadata.model_name
+                    model_version = model_metadata.model_version
+                    task_type = model_metadata.task_type
+                    model_type = model_metadata.model_type
+                    file_path = model_metadata.file_path
+                    file_hash = model_metadata.file_hash
+                    file_size = model_metadata.file_size
+                    input_features = model_metadata.input_features
+                    output_schema = model_metadata.output_schema
+                    model_params = model_metadata.model_params
+                    status = model_metadata.status
+                    is_production = model_metadata.is_production
+                    ab_test_group = model_metadata.ab_test_group
+                    created_by = model_metadata.created_by
+                    created_at = model_metadata.created_at.isoformat() if model_metadata.created_at else None
+                    description = model_metadata.description
+                    tags = model_metadata.tags
+
+                # 从 BentoML 加载模型（使用 framework 和 file_path，不再传递 detached 对象）
+                model = self._load_from_bentoml(model_id, framework, file_path)
 
                 if not model:
                     raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}")
 
                 metadata_dict = {
-                    'model_id': model_metadata.model_id,
-                    'model_name': model_metadata.model_name,
-                    'model_version': model_metadata.model_version,
-                    'task_type': model_metadata.task_type,
-                    'model_type': model_metadata.model_type,
-                    'framework': model_metadata.framework,
-                    'file_path': model_metadata.file_path,
-                    'file_hash': model_metadata.file_hash,
-                    'file_size': model_metadata.file_size,
-                    'input_features': model_metadata.input_features,
-                    'output_schema': model_metadata.output_schema,
-                    'model_params': model_metadata.model_params,
-                    'status': model_metadata.status,
-                    'is_production': model_metadata.is_production,
-                    'ab_test_group': model_metadata.ab_test_group,
-                    'created_by': model_metadata.created_by,
-                    'created_at': model_metadata.created_at.isoformat() if model_metadata.created_at else None,
-                    'description': model_metadata.description,
-                    'tags': model_metadata.tags
+                    'model_id': model_id,
+                    'model_name': model_name,
+                    'model_version': model_version,
+                    'task_type': task_type,
+                    'model_type': model_type,
+                    'framework': framework,
+                    'file_path': file_path,
+                    'file_hash': file_hash,
+                    'file_size': file_size,
+                    'input_features': input_features,
+                    'output_schema': output_schema,
+                    'model_params': model_params,
+                    'status': status,
+                    'is_production': is_production,
+                    'ab_test_group': ab_test_group,
+                    'created_by': created_by,
+                    'created_at': created_at,
+                    'description': description,
+                    'tags': tags
                 }
 
                 self._loaded_models[model_id] = {
@@ -164,8 +185,8 @@ class ModelLoader:
                     duration_ms=duration,
                     extra={
                         "model_id": model_id,
-                        "model_name": model_metadata.model_name,
-                        "framework": model_metadata.framework,
+                        "model_name": model_name,
+                        "framework": framework,
                         "request_id": request_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
@@ -179,9 +200,9 @@ class ModelLoader:
                     ip_address=ip_address,
                     details={
                         "model_id": model_id,
-                        "model_name": model_metadata.model_name,
-                        "model_version": model_metadata.model_version,
-                        "framework": model_metadata.framework,
+                        "model_name": model_name,
+                        "model_version": model_version,
+                        "framework": framework,
                         "duration_ms": round(duration, 2),
                         "request_id": request_id,
                         "trace_id": trace_id,
@@ -191,7 +212,7 @@ class ModelLoader:
                     request_id=request_id
                 )
 
-                debug_print("ModelLoader", f"模型加载成功: {model_id}, 耗时: {duration:.2f}ms")
+                debug_print("ModelLoader", f"模型加载成功: {model_id}, 耗时: {duration:.2f}毫秒")
                 return True
 
             except Exception as e:
@@ -215,18 +236,19 @@ class ModelLoader:
                 )
                 raise ModelLoadException(f"模型加载失败: {model_id}, {str(e)}")
 
-    def _load_from_bentoml(self, model_id: str, model_metadata: ModelMetadata) -> Optional[Any]:
+    def _load_from_bentoml(self, model_id: str, framework: str, file_path: str = None) -> Optional[Any]:
         """
         从 BentoML Model Store 加载模型
 
         参数:
             model_id: 模型ID
-            model_metadata: 模型元数据
+            framework: 模型框架
+            file_path: 模型文件路径（用于调试）
 
         返回:
             加载的模型实例
         """
-        framework = model_metadata.framework.lower()
+        framework_lower = framework.lower()
 
         for attempt in range(1, self._max_retries + 1):
             try:
@@ -236,19 +258,19 @@ class ModelLoader:
                     debug_print("ModelLoader", f"BentoML 模型不存在: {model_id}")
                     return None
 
-                if framework == 'sklearn':
+                if framework_lower == 'sklearn':
                     model = bentoml.sklearn.load_model(bento_model.tag)
-                elif framework == 'xgboost':
+                elif framework_lower == 'xgboost':
                     model = bentoml.xgboost.load_model(bento_model.tag)
-                elif framework == 'lightgbm':
+                elif framework_lower == 'lightgbm':
                     model = bentoml.lightgbm.load_model(bento_model.tag)
-                elif framework == 'catboost':
+                elif framework_lower == 'catboost':
                     model = bentoml.catboost.load_model(bento_model.tag)
-                elif framework in ['torch', 'pytorch']:
+                elif framework_lower in ['torch', 'pytorch']:
                     model = bentoml.pytorch.load_model(bento_model.tag)
-                elif framework == 'tensorflow':
+                elif framework_lower == 'tensorflow':
                     model = bentoml.tensorflow.load_model(bento_model.tag)
-                elif framework == 'onnx':
+                elif framework_lower == 'onnx':
                     model = bentoml.onnx.load_model(bento_model.tag)
                 else:
                     model = bentoml.pickle.load_model(bento_model.tag)
@@ -514,7 +536,7 @@ class ModelLoader:
                 }
             )
 
-            debug_print("ModelLoader", f"模型预热成功: {model_id}, 耗时: {duration:.2f}ms")
+            debug_print("ModelLoader", f"模型预热成功: {model_id}, 耗时: {duration:.2f}毫秒")
             return True
 
         except Exception as e:
@@ -559,11 +581,6 @@ class ModelLoader:
         返回:
             健康检查结果
         """
-        request_id = context.get_request_id()
-        trace_id = context.get_trace_id()
-        span_id = context.get_span_id()
-        parent_span_id = context.get_parent_span_id()
-
         health_status = {
             'status': 'healthy',
             'loaded_models_count': len(self._loaded_models),

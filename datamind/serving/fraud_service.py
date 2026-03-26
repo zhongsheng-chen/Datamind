@@ -6,10 +6,10 @@
 
 import bentoml
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from datamind.serving.base import BaseBentoService
-from datamind.core.ml.inference import inference_engine
+from datamind.core.ml.inference import get_inference_engine
 from datamind.core.ml.exceptions import ModelNotFoundException, ModelInferenceException
 from datamind.core.logging import log_audit, context, log_performance
 from datamind.core.logging.debug import debug_print
@@ -38,6 +38,7 @@ class FraudService:
 
     def __init__(self):
         self.base = BaseBentoService('fraud_detection', 'fraud_service')
+        self._inference_engine = get_inference_engine()
         debug_print("FraudService", "初始化反欺诈服务")
 
     @bentoml.api(route="/predict")
@@ -115,7 +116,7 @@ class FraudService:
 
         try:
             # 执行预测
-            result = inference_engine.predict_fraud(
+            result = self._inference_engine.predict_fraud(
                 model_id=actual_model_id,
                 features=features,
                 application_id=application_id,

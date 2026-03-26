@@ -62,7 +62,7 @@ class AppConfig(BaseSettings):
     )
 
     app_name: str = Field(
-        default="Datamind",
+        default="datamind",
         validation_alias="DATAMIND_APP_NAME",
         description="应用名称"
     )
@@ -74,7 +74,7 @@ class AppConfig(BaseSettings):
     )
 
     env: str = Field(
-        default="DEVELOPMENT",
+        default="development",
         validation_alias="DATAMIND_ENV",
         description="运行环境: development/testing/staging/production"
     )
@@ -1118,4 +1118,29 @@ def get_settings() -> Settings:
     return Settings()
 
 
-__all__ = ["get_settings", "BASE_DIR"]
+__all__ = [
+    "get_settings",
+    "BASE_DIR",
+    "Settings",
+    "AppConfig",
+    "ModelConfig",
+    "InferenceConfig",
+    "FeatureStoreConfig",
+    "ABTestConfig",
+    "BatchConfig",
+    "ApiConfig",
+    "DatabaseConfig",
+    "RedisConfig",
+    "AuthConfig",
+    "MonitoringConfig",
+    "AlertConfig",
+    "CORSConfig",
+    "RateLimitConfig",
+    "IPAccessConfig",
+    "RequestValidationConfig",
+    "SecurityHeadersConfig",
+    "RequestSizeConfig",
+    "PerformanceConfig",
+    "LoggingMiddlewareConfig",
+    "SensitiveDataConfig",
+]

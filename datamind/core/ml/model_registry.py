@@ -30,8 +30,9 @@ import hashlib
 import uuid
 import pickle
 from pathlib import Path
-from typing import Dict, Optional, List, BinaryIO, Any
+from typing import Dict, Optional, List, Any, BinaryIO
 from datetime import datetime
+from dataclasses import dataclass, asdict
 
 import bentoml
 from bentoml.exceptions import BentoMLException
@@ -55,6 +56,30 @@ from datamind.core.ml.frameworks import (
     is_framework_supported,
     get_supported_frameworks
 )
+
+
+@dataclass
+class BentoMLMetadata:
+    """BentoML 模型元数据"""
+    model_id: str
+    model_name: str
+    model_version: str
+    task_type: str
+    model_type: str
+    framework: str
+    input_features: List[str]
+    output_schema: Dict[str, str]
+    model_params: Dict[str, Any]
+    created_by: str
+    created_at: str
+    description: Optional[str] = None
+    tags: Optional[Dict[str, Any]] = None
+    scorecard_params: Optional[Dict[str, Any]] = None
+    risk_config: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典，自动过滤 None 值"""
+        return {k: v for k, v in asdict(self).items() if v is not None}
 
 
 class ModelRegistry:
@@ -83,6 +108,17 @@ class ModelRegistry:
         self.cache_path.mkdir(parents=True, exist_ok=True)
 
         debug_print("ModelRegistry", f"模型存储路径: {self.cache_path.absolute()}")
+
+    @staticmethod
+    def _clean_none_values(obj: Any) -> Any:
+        """递归清理对象中的 None 值"""
+        if obj is None:
+            return None
+        if isinstance(obj, dict):
+            return {k: ModelRegistry._clean_none_values(v) for k, v in obj.items() if v is not None}
+        if isinstance(obj, list):
+            return [ModelRegistry._clean_none_values(v) for v in obj if v is not None]
+        return obj
 
     def register_model(
             self,
@@ -164,6 +200,9 @@ class ModelRegistry:
                 task_type=task_type
             )
 
+            # 清理 merged_model_params 中的 None 值
+            merged_model_params = self._clean_none_values(merged_model_params)
+
             # 检查模型是否已存在
             with get_db() as session:
                 existing = session.query(ModelMetadata).filter_by(
@@ -177,7 +216,8 @@ class ModelRegistry:
 
             # 保存模型文件到临时文件
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                shutil.copyfileobj(model_file, tmp_file)
+                content = model_file.read()
+                tmp_file.write(content)
                 tmp_path = Path(tmp_file.name)
 
             try:
@@ -185,24 +225,25 @@ class ModelRegistry:
                 file_size = tmp_path.stat().st_size
                 file_hash = self._calculate_file_hash(tmp_path)
 
-                # 准备元数据
-                metadata = {
-                    "model_id": model_id,
-                    "model_name": model_name,
-                    "model_version": model_version,
-                    "task_type": task_type,
-                    "model_type": model_type,
-                    "framework": framework,
-                    "input_features": input_features,
-                    "output_schema": output_schema,
-                    "model_params": merged_model_params,
-                    "scorecard_params": scorecard_params,
-                    "risk_config": risk_config,
-                    "description": description,
-                    "tags": tags or {},
-                    "created_by": created_by,
-                    "created_at": datetime.now().isoformat()
-                }
+                # 使用 dataclass 构建元数据，自动过滤 None
+                metadata_obj = BentoMLMetadata(
+                    model_id=model_id,
+                    model_name=model_name,
+                    model_version=model_version,
+                    task_type=task_type,
+                    model_type=model_type,
+                    framework=framework,
+                    input_features=input_features,
+                    output_schema=output_schema,
+                    model_params=merged_model_params,
+                    created_by=created_by,
+                    created_at=datetime.now().isoformat(),
+                    description=description,
+                    tags=tags,
+                    scorecard_params=scorecard_params,
+                    risk_config=risk_config
+                )
+                metadata = metadata_obj.to_dict()
 
                 # 保存到 BentoML Model Store
                 bento_model = self._save_to_bentoml(
@@ -253,14 +294,15 @@ class ModelRegistry:
                         tags=tags,
                         metadata_json={
                             "bentoml_tag": str(bento_model.tag),
-                            "bentoml_version": bento_model.version
+                            "bentoml_name": bento_model.tag.name,
+                            "bentoml_version": bento_model.tag.version
                         }
                     )
                     session.add(metadata_record)
                     session.flush()
 
                     # 记录版本历史
-                    history_details = {
+                    history_details: Dict[str, Any] = {
                         'input_features_count': len(input_features),
                         'output_schema_keys': list(output_schema.keys()),
                         'file_size': file_size,
@@ -349,8 +391,8 @@ class ModelRegistry:
             )
             raise
 
+    @staticmethod
     def _save_to_bentoml(
-            self,
             name: str,
             model_path: Path,
             framework: str,
@@ -467,7 +509,8 @@ class ModelRegistry:
         except Exception as e:
             raise ModelFileException(f"保存到 BentoML 失败: {str(e)}")
 
-    def _calculate_file_hash(self, file_path: Path) -> str:
+    @staticmethod
+    def _calculate_file_hash(file_path: Path) -> str:
         """计算文件 SHA256 哈希"""
         sha256 = hashlib.sha256()
         with open(file_path, 'rb') as f:
@@ -501,9 +544,13 @@ class ModelRegistry:
                 model.status = ModelStatus.ACTIVE.value
                 model.updated_at = datetime.now()
 
+                # 在 session 内获取 model_name
+                model_name = model.model_name
+                model_version = model.model_version
+
                 history = ModelVersionHistory(
                     model_id=model_id,
-                    model_version=model.model_version,
+                    model_version=model_version,
                     operation=AuditAction.MODEL_ACTIVATE.value,
                     operator=operator,
                     operator_ip=ip_address,
@@ -527,7 +574,7 @@ class ModelRegistry:
                 ip_address=ip_address,
                 details={
                     "model_id": model_id,
-                    "model_name": model.model_name,
+                    "model_name": model_name,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
                     "request_id": request_id,
@@ -586,9 +633,12 @@ class ModelRegistry:
                 model.status = ModelStatus.INACTIVE.value
                 model.updated_at = datetime.now()
 
+                model_name = model.model_name
+                model_version = model.model_version
+
                 history = ModelVersionHistory(
                     model_id=model_id,
-                    model_version=model.model_version,
+                    model_version=model_version,
                     operation=AuditAction.MODEL_DEACTIVATE.value,
                     operator=operator,
                     operator_ip=ip_address,
@@ -612,7 +662,7 @@ class ModelRegistry:
                 ip_address=ip_address,
                 details={
                     "model_id": model_id,
-                    "model_name": model.model_name,
+                    "model_name": model_name,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
                     "request_id": request_id,
@@ -669,9 +719,13 @@ class ModelRegistry:
                 if not model:
                     raise ModelNotFoundException(f"模型未找到: {model_id}")
 
+                task_type = model.task_type
+                model_name = model.model_name
+                model_version = model.model_version
+
                 # 将同任务类型的其他模型设为非生产
                 session.query(ModelMetadata).filter_by(
-                    task_type=model.task_type,
+                    task_type=task_type,
                     is_production=True
                 ).update({'is_production': False})
 
@@ -682,7 +736,7 @@ class ModelRegistry:
 
                 history = ModelVersionHistory(
                     model_id=model_id,
-                    model_version=model.model_version,
+                    model_version=model_version,
                     operation=AuditAction.MODEL_PROMOTE.value,
                     operator=operator,
                     operator_ip=ip_address,
@@ -706,8 +760,8 @@ class ModelRegistry:
                 ip_address=ip_address,
                 details={
                     "model_id": model_id,
-                    "model_name": model.model_name,
-                    "task_type": model.task_type,
+                    "model_name": model_name,
+                    "task_type": task_type,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
                     "request_id": request_id,
@@ -740,7 +794,8 @@ class ModelRegistry:
             )
             raise
 
-    def get_model_info(self, model_id: str) -> Optional[Dict]:
+    @staticmethod
+    def get_model_info(model_id: str) -> Optional[Dict]:
         """
         获取模型信息
 
@@ -802,8 +857,8 @@ class ModelRegistry:
             )
             raise
 
+    @staticmethod
     def list_models(
-            self,
             task_type: Optional[str] = None,
             status: Optional[str] = None,
             model_type: Optional[str] = None,
@@ -874,7 +929,8 @@ class ModelRegistry:
             )
             raise
 
-    def get_model_history(self, model_id: str) -> List[Dict]:
+    @staticmethod
+    def get_model_history(model_id: str) -> List[Dict]:
         """
         获取模型历史
 
@@ -967,9 +1023,12 @@ class ModelRegistry:
 
                 model.updated_at = datetime.now()
 
+                model_name = model.model_name
+                model_version = model.model_version
+
                 history = ModelVersionHistory(
                     model_id=model_id,
-                    model_version=model.model_version,
+                    model_version=model_version,
                     operation=AuditAction.MODEL_UPDATE.value,
                     operator=operator,
                     operator_ip=ip_address,
@@ -996,7 +1055,7 @@ class ModelRegistry:
                 ip_address=ip_address,
                 details={
                     "model_id": model_id,
-                    "model_name": model.model_name,
+                    "model_name": model_name,
                     "scorecard_updated": scorecard_params is not None,
                     "risk_config_updated": risk_config is not None,
                     "reason": reason,
@@ -1056,9 +1115,12 @@ class ModelRegistry:
                 model.status = ModelStatus.ARCHIVED.value
                 model.archived_at = datetime.now()
 
+                model_name = model.model_name
+                model_version = model.model_version
+
                 history = ModelVersionHistory(
                     model_id=model_id,
-                    model_version=model.model_version,
+                    model_version=model_version,
                     operation=AuditAction.MODEL_ARCHIVE.value,
                     operator=operator,
                     operator_ip=ip_address,
@@ -1081,6 +1143,7 @@ class ModelRegistry:
                 ip_address=ip_address,
                 details={
                     "model_id": model_id,
+                    "model_name": model_name,
                     "reason": reason,
                     "request_id": request_id,
                     "trace_id": trace_id,
@@ -1093,9 +1156,26 @@ class ModelRegistry:
             debug_print("ModelRegistry", f"模型归档成功: {model_id}")
 
         except Exception as e:
+            log_audit(
+                action=AuditAction.MODEL_ARCHIVE.value,
+                user_id=operator,
+                ip_address=ip_address,
+                details={
+                    "model_id": model_id,
+                    "error": str(e),
+                    "request_id": request_id,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                reason=str(e),
+                request_id=request_id
+            )
+            debug_print("ModelRegistry", f"模型归档失败: {model_id}, 错误: {e}")
             raise
 
-    def delete_from_bentoml(self, model_id: str) -> bool:
+    @staticmethod
+    def delete_from_bentoml(model_id: str) -> bool:
         """
         从 BentoML Model Store 删除模型
 
@@ -1125,7 +1205,8 @@ class ModelRegistry:
         if task_type == TaskType.FRAUD_DETECTION.value and risk_config:
             self._validate_risk_config(risk_config)
 
-    def _validate_scorecard_params(self, params: Dict):
+    @staticmethod
+    def _validate_scorecard_params(params: Dict):
         """验证评分卡参数"""
         if 'base_score' in params:
             try:
@@ -1159,13 +1240,14 @@ class ModelRegistry:
                     "direction 必须是 'lower_better' 或 'higher_better'"
                 )
 
-    def _validate_risk_config(self, config: Dict):
+    @staticmethod
+    def _validate_risk_config(config: Dict):
         """验证风险配置"""
         if 'levels' not in config:
             raise ModelValidationException("风险配置必须包含 'levels' 字段")
 
+    @staticmethod
     def _merge_model_params(
-            self,
             model_params: Optional[Dict],
             scorecard_params: Optional[Dict],
             risk_config: Optional[Dict],
@@ -1182,7 +1264,8 @@ class ModelRegistry:
 
         return merged
 
-    def _create_snapshot(self, metadata) -> Dict:
+    @staticmethod
+    def _create_snapshot(metadata) -> Dict:
         """创建元数据快照"""
         return {
             'model_id': metadata.model_id,

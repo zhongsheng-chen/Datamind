@@ -1692,14 +1692,74 @@ python -m alembic upgrade head
 # 4.确认枚举类型
 docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL::audit_action_enum);"
 
-python -m datamind.demo.train_sample_model --type logistic_regression
+python -m datamind.demo.train --type logistic_regression
 
 
 docker exec -it postgres psql -U datamind -d postgres -c "DROP DATABASE IF EXISTS datamind;"
 docker exec -it postgres psql -U datamind -d postgres -c "CREATE DATABASE datamind OWNER datamind;"
 python -m alembic upgrade head
-docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL::audit_action_enum);"
-python -m datamind.demo.train_sample_model --type logistic_regression
+python -m datamind.demo.train --type logistic_regression
+
+## 检查生产模型
+```bash
+python -c "
+from datamind.core.db.database import db_manager
+from datamind.core.ml.model_registry import get_model_registry
+
+db_manager.initialize()
+registry = get_model_registry()
+
+# 列出所有评分卡模型
+models = registry.list_models(task_type='scoring')
+print('所有评分卡模型:')
+for m in models:
+    print(f'  {m[\"model_id\"]}: {m[\"model_name\"]} v{m[\"model_version\"]} (生产: {m[\"is_production\"]}, 状态: {m[\"status\"]})')
+"
+```
+
+## 创建部署记录
+```bash
+python -c "
+from datamind.core.db.database import db_manager, get_db
+from datamind.core.db.models.model.deployment import ModelDeployment
+from datamind.core.ml.model_registry import get_model_registry
+from datamind.config import get_settings
+
+db_manager.initialize()
+settings = get_settings()
+registry = get_model_registry()
+
+models = registry.list_models(task_type='scoring', is_production=True)
+if models:
+    model = models[0]
+    model_id = model['model_id']
+    model_version = model['model_version']
+    
+    with get_db() as session:
+        existing = session.query(ModelDeployment).filter_by(
+            model_id=model_id,
+            environment=settings.app.env
+        ).first()
+        
+        if not existing:
+            deployment = ModelDeployment(
+                deployment_id=f'DEPLOY_{model_id}',
+                model_id=model_id,
+                model_version=model_version,
+                environment=settings.app.env,
+                is_active=True,
+                deployed_by='system'
+            )
+            session.add(deployment)
+            session.commit()
+            print(f'部署记录创建成功: {model_id} -> {settings.app.env}')
+"
+```
+
+## 测试服务
+```bash
+python datamind/serving/scoring_service.py
+```
 
 ## 启动服务
 ```bash
@@ -1722,3 +1782,89 @@ curl -X POST http://localhost:3000/predict \
     }
   }'
 ```
+
+根据您的项目结构，有以下几种方式启动 BentoML 服务：
+
+方式一：直接使用 BentoML 命令（推荐开发调试）
+bash
+# 进入 serving 目录
+cd /home/zhongsheng/tmp/pycharm_project_888/datamind/serving
+
+# 启动评分卡服务
+ bentoml serve datamind.serving.scoring_service:ScoringService --reload
+
+# 或启动反欺诈服务
+bentoml serve datamind.serving.fraud_service:FraudService --reload
+
+# 指定端口和主机
+bentoml serve datamind.serving.scoring_service:ScoringService --host 0.0.0.0 --port 8000 --reload
+方式二：使用项目启动脚本
+您项目中有 scripts/start_bentoml_service.py，可以使用它：
+
+bash
+cd /home/zhongsheng/tmp/pycharm_project_888
+
+# 启动评分卡服务
+python scripts/start_bentoml_service.py --service scoring
+
+# 启动反欺诈服务
+python scripts/start_bentoml_service.py --service fraud
+
+# 指定端口
+python scripts/start_bentoml_service.py --service scoring --port 8000
+
+# 生产模式（禁用热重载）
+python scripts/start_bentoml_service.py --service scoring --no-reload
+方式三：打包成 Bento 后部署
+bash
+cd /home/zhongsheng/tmp/pycharm_project_888
+
+# 构建 Bento
+bentoml build
+
+# 查看构建的 Bento
+bentoml list
+
+# 本地运行
+bentoml serve bento_name:latest --production
+
+# 或打包成 Docker 镜像
+bentoml containerize bento_name:latest -t datamind-scoring:latest
+
+# 运行 Docker 容器
+docker run -p 8000:8000 datamind-scoring:latest
+方式四：使用项目 Makefile
+bash
+cd /home/zhongsheng/tmp/pycharm_project_888
+
+# 查看可用的 make 命令
+make help
+
+# 启动评分卡服务
+make serve-scoring
+
+# 启动反欺诈服务
+make serve-fraud
+测试服务是否正常运行
+bash
+# 健康检查
+curl http://localhost:8000/health
+
+# 评分卡预测
+curl -X POST http://localhost:3000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "application_id": "TEST_001",
+    "features": {"age": 35, "income": 50000, "debt_ratio": 0.35}
+  }'
+
+# 反欺诈预测
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "application_id": "TEST_001",
+    "features": {"amount": 10000, "ip_risk": 0.8}
+  }'
+
+# 查看已加载模型
+curl http://localhost:8000/models

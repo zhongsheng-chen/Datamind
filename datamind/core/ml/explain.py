@@ -100,6 +100,8 @@ class ShapExplainer:
         self.inference = inference
         self.strict_feature_order = strict_feature_order
         self.max_cache_size = max_cache_size
+        self._scaler = None
+        self._output_space = None
         self._explainer_cache = OrderedDict()
         self._validate_feature_names(model, feature_names)
 
@@ -140,21 +142,34 @@ class ShapExplainer:
                 debug_print("ShapExplainer", f"缓存淘汰，移除模型 {oldest_key}")
 
             try:
-                import shap # noqa
+                import shap
 
                 model_name = self.model.__class__.__name__.lower()
+                has_background = self.background_data is not None
 
-                if hasattr(self.model, 'steps') or hasattr(self.model, 'named_steps'):
-                    debug_print("ShapExplainer", "Pipeline 不支持 SHAP 解释")
-                    raise ValueError(
-                        "Pipeline 不支持 SHAP 解释。"
-                        "原因：特征顺序可能错位、one-hot 后特征名丢失、输出空间不可控。"
-                        "建议：先单独保存预处理后的特征，再传入模型。"
-                    )
+                # Linear / Logistic 模型 - 优先使用系数计算
+                if any(x in model_name for x in ['logistic', 'linear']):
+                    if hasattr(self.model, 'coef_'):
+                        debug_print("ShapExplainer", "使用模型系数计算特征重要性")
+                        self._explainer_cache[model_id] = self.model
+                        self._output_space = "coefficient"
+                        return self._explainer_cache[model_id]
+                    elif has_background:
+                        try:
+                            debug_print("ShapExplainer", "使用 LinearExplainer")
+                            self._explainer_cache[model_id] = shap.LinearExplainer(
+                                self.model,
+                                self.background_data
+                            )
+                            self._output_space = "log_odds"
+                            return self._explainer_cache[model_id]
+                        except Exception as e:
+                            debug_print("ShapExplainer", f"LinearExplainer 失败: {e}")
 
+                # Tree 模型
                 elif any(x in model_name for x in ['xgb', 'lgb', 'catboost', 'randomforest', 'decisiontree']):
-                    debug_print("ShapExplainer", "使用 TreeExplainer (model_output=raw)")
-                    if self.background_data is not None:
+                    debug_print("ShapExplainer", "使用 TreeExplainer")
+                    if has_background:
                         self._explainer_cache[model_id] = shap.TreeExplainer(
                             self.model,
                             self.background_data,
@@ -165,31 +180,32 @@ class ShapExplainer:
                             self.model,
                             model_output="raw"
                         )
+                    self._output_space = "log_odds"
+                    return self._explainer_cache[model_id]
 
-                elif any(x in model_name for x in ['logistic', 'linear']):
-                    if self.background_data is not None:
-                        debug_print("ShapExplainer", "使用 LinearExplainer")
-                        self._explainer_cache[model_id] = shap.LinearExplainer(
-                            self.model,
-                            self.background_data
-                        )
-                    else:
-                        debug_print("ShapExplainer", "LinearExplainer 需要背景数据，降级使用 Explainer")
-                        self._explainer_cache[model_id] = shap.Explainer(self.model)
-
-                else:
+                # 其他情况
+                if has_background:
                     debug_print("ShapExplainer", "使用通用 Explainer")
-                    if self.background_data is not None:
+                    if hasattr(self.model, "predict_proba"):
                         self._explainer_cache[model_id] = shap.Explainer(
-                            self.model,
+                            self.model.predict_proba,
                             self.background_data
                         )
                     else:
-                        self._explainer_cache[model_id] = shap.Explainer(self.model)
+                        self._explainer_cache[model_id] = shap.Explainer(
+                            self.model.predict,
+                            self.background_data
+                        )
+                    self._output_space = "probability"
+                else:
+                    debug_print("ShapExplainer", "无背景数据，使用系数计算")
+                    self._explainer_cache[model_id] = self.model
+                    self._output_space = "coefficient"
 
             except ImportError:
-                debug_print("ShapExplainer", "SHAP 库未安装，将返回降级结果")
-                self._explainer_cache[model_id] = None
+                debug_print("ShapExplainer", "SHAP 库未安装，使用系数计算")
+                self._explainer_cache[model_id] = self.model
+                self._output_space = "coefficient"
 
         self._explainer_cache.move_to_end(model_id)
         return self._explainer_cache[model_id]
@@ -231,37 +247,40 @@ class ShapExplainer:
             return 0.0
 
     @staticmethod
-    def _detect_space(shap_vals: np.ndarray, base_value: float, prob: float) -> Tuple[np.ndarray, float, str, float]:
+    def _detect_space(shap_vals: np.ndarray, base_value: float, prob: float,
+                      output_space: str = None) -> Tuple[np.ndarray, float, str, float]:
         """
         检测 SHAP 值所在空间并计算置信度
 
         返回:
             (shap_vals, base_value, space, confidence)
         """
-        eps = 1e-10
+        if output_space == "probability":
+            return shap_vals, base_value, "probability", 0.7
 
+        if output_space == "coefficient":
+            return shap_vals, base_value, "coefficient", 0.95
+
+        eps = 1e-10
         prob = np.clip(prob, eps, 1 - eps)
         logit = np.log(prob / (1 - prob))
-
         reconstructed = base_value + np.sum(shap_vals)
         logit_diff = abs(reconstructed - logit)
 
         abs_error = logit_diff
         rel_error = logit_diff / (abs(logit) + eps)
-
         confidence = np.exp(-max(abs_error, rel_error))
         confidence = max(0.0, min(1.0, confidence))
 
-        # 更保守的熔断阈值
-        threshold = max(0.5, abs(logit) * 0.3)
+        threshold = max(1.0, abs(logit) * 0.5)
         if logit_diff > threshold:
             return shap_vals, base_value, "unknown", confidence
 
-        if confidence >= 0.95:
+        if confidence >= 0.7:
             space = "log_odds"
-        elif confidence >= 0.8:
+        elif confidence >= 0.5:
             space = "approx_log_odds"
-        elif confidence >= 0.6:
+        elif confidence >= 0.3:
             space = "weak_log_odds"
         else:
             space = "unknown"
@@ -294,7 +313,8 @@ class ShapExplainer:
 
         return [self._get_probability(f) for f in features_list]
 
-    def _check_base_value_drift(self, base_value: float, logit: float) -> Optional[str]:
+    @staticmethod
+    def _check_base_value_drift(base_value: float, logit: float) -> Optional[str]:
         """检测 base_value 漂移，返回警告信息"""
         if abs(logit) > 1e-3:
             if abs(base_value) > abs(logit) * 2:
@@ -304,7 +324,8 @@ class ShapExplainer:
                 return f"base_value 异常 ({base_value:.2f})，可能 background_data 不一致"
         return None
 
-    def _get_score_coefficient(self, scorecard: Scorecard) -> Tuple[float, float]:
+    @staticmethod
+    def _get_score_coefficient(scorecard: Scorecard) -> Tuple[float, float]:
         """
         根据评分卡方向返回特征分和截距的系数
 
@@ -354,6 +375,51 @@ class ShapExplainer:
                 warning="SHAP 库不可用，无法提供特征解释"
             )
 
+        # 处理系数模式
+        if self._output_space == "coefficient":
+            if hasattr(explainer, 'coef_'):
+                coef = explainer.coef_[0] if explainer.coef_.ndim > 1 else explainer.coef_
+                intercept = explainer.intercept_[0] if hasattr(explainer, 'intercept_') else 0
+
+                X = self._to_array(features)
+
+                # 如果有归一化器，应用归一化
+                if self._scaler is not None:
+                    X_scaled = self._scaler.transform(X)
+                else:
+                    X_scaled = X
+
+                logit = intercept + np.dot(X_scaled[0], coef)
+                prob = 1 / (1 + np.exp(-np.clip(logit, -100, 100)))
+
+                shap_vals = coef * X_scaled[0]
+
+                feature_coef, intercept_coef = self._get_score_coefficient(scorecard)
+                feature_scores = {}
+                for i, name in enumerate(self.feature_names):
+                    feature_scores[name] = round(float(feature_coef * shap_vals[i]), 2)
+
+                intercept_score = scorecard.base_score + intercept_coef * (intercept - scorecard.base_log_odds)
+                total_score = intercept_score + sum(feature_scores.values())
+                score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
+
+                shap_dict = {name: float(shap_vals[i]) for i, name in enumerate(self.feature_names)}
+
+                return ExplanationResult(
+                    probability=round(prob, 4),
+                    score=round(score_val, 2),
+                    base_value=intercept,
+                    shap_values=shap_dict,
+                    feature_scores=feature_scores,
+                    intercept_score=intercept_score,
+                    space="coefficient",
+                    confidence=0.95,
+                    additive_error=0.0,
+                    score_error=0.0,
+                    warning=None
+                )
+
+        # 原有 SHAP 逻辑
         X = self._to_array(features)
         shap_result = explainer(X)
 
@@ -365,7 +431,9 @@ class ShapExplainer:
                         f"SHAP 值长度 ({len(shap_vals)}) 与特征数 ({len(self.feature_names)}) 不匹配")
 
         prob = self._get_probability(features)
-        shap_vals, base_value, space, confidence = self._detect_space(shap_vals, base_value, prob)
+        shap_vals, base_value, space, confidence = self._detect_space(
+            shap_vals, base_value, prob, self._output_space
+        )
 
         shap_dict = {}
         for i, name in enumerate(self.feature_names):
@@ -380,7 +448,6 @@ class ShapExplainer:
 
         warning = self._check_base_value_drift(base_value, logit)
 
-        # 获取方向系数
         feature_coef, intercept_coef = self._get_score_coefficient(scorecard)
 
         score_val = None
@@ -388,8 +455,7 @@ class ShapExplainer:
         intercept_score_val = None
         score_error = None
 
-        if confidence >= 0.95:
-            # 包含 base_log_odds 的完整截距
+        if confidence >= 0.7:
             intercept_score_val = (
                 scorecard.base_score
                 + intercept_coef * (base_value - scorecard.base_log_odds)
@@ -397,16 +463,15 @@ class ShapExplainer:
 
             for i, name in enumerate(self.feature_names):
                 shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
-                feature_scores[name] = round(feature_coef * shap_val, 2)
+                feature_scores[name] = round(float(feature_coef * shap_val), 2)
 
             total_score = intercept_score_val + sum(feature_scores.values())
             score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
 
-            # 计算 score_error（审计用）
             true_score = scorecard.score(prob)
             score_error = abs(total_score - true_score)
 
-        elif confidence >= 0.8:
+        elif confidence >= 0.5:
             intercept_score_val = (
                 scorecard.base_score
                 + intercept_coef * (base_value - scorecard.base_log_odds)
@@ -414,7 +479,7 @@ class ShapExplainer:
 
             for i, name in enumerate(self.feature_names):
                 shap_val = shap_vals[i] if i < len(shap_vals) else 0.0
-                feature_scores[name] = round(feature_coef * shap_val, 2)
+                feature_scores[name] = round(float(feature_coef * shap_val), 2)
 
             total_score = intercept_score_val + sum(feature_scores.values())
             score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
@@ -425,7 +490,7 @@ class ShapExplainer:
             if warning is None:
                 warning = f"SHAP 解释置信度中等 ({confidence:.2f})，评分仅供参考"
 
-        elif confidence >= 0.6:
+        elif confidence >= 0.3:
             if warning is None:
                 warning = f"SHAP 解释置信度较低 ({confidence:.2f})，仅返回 SHAP 值，不计算评分"
 
@@ -480,6 +545,51 @@ class ShapExplainer:
                 ))
             return results
 
+        # 处理系数模式
+        if self._output_space == "coefficient" and hasattr(explainer, 'coef_'):
+            coef = explainer.coef_[0] if explainer.coef_.ndim > 1 else explainer.coef_
+            intercept = explainer.intercept_[0] if hasattr(explainer, 'intercept_') else 0
+
+            feature_coef, intercept_coef = self._get_score_coefficient(scorecard)
+
+            results = []
+            for features in features_list:
+                X = self._to_array(features)
+
+                if self._scaler is not None:
+                    X_scaled = self._scaler.transform(X)
+                else:
+                    X_scaled = X
+
+                logit = intercept + np.dot(X_scaled[0], coef)
+                prob = 1 / (1 + np.exp(-np.clip(logit, -100, 100)))
+
+                shap_vals = coef * X_scaled[0]
+                feature_scores = {}
+                for i, name in enumerate(self.feature_names):
+                    feature_scores[name] = round(float(feature_coef * shap_vals[i]), 2)
+
+                intercept_score = scorecard.base_score + intercept_coef * (intercept - scorecard.base_log_odds)
+                total_score = intercept_score + sum(feature_scores.values())
+                score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
+
+                shap_dict = {name: float(shap_vals[i]) for i, name in enumerate(self.feature_names)}
+
+                results.append(ExplanationResult(
+                    probability=round(prob, 4),
+                    score=round(score_val, 2),
+                    base_value=intercept,
+                    shap_values=shap_dict,
+                    feature_scores=feature_scores,
+                    intercept_score=intercept_score,
+                    space="coefficient",
+                    confidence=0.95,
+                    additive_error=0.0,
+                    score_error=0.0,
+                    warning=None
+                ))
+            return results
+
         X = self._to_array_batch(features_list)
         shap_results = explainer(X)
 
@@ -488,14 +598,15 @@ class ShapExplainer:
         results = []
         eps = 1e-10
 
-        # 获取方向系数
         feature_coef, intercept_coef = self._get_score_coefficient(scorecard)
 
         for i, (shap_result, features, prob) in enumerate(zip(shap_results, features_list, probs)):
             shap_vals = self._extract_shap_values(shap_result)
             base_value = self._extract_base_value(shap_result)
 
-            shap_vals, base_value, space, confidence = self._detect_space(shap_vals, base_value, prob)
+            shap_vals, base_value, space, confidence = self._detect_space(
+                shap_vals, base_value, prob, self._output_space
+            )
 
             shap_dict = {}
             for j, name in enumerate(self.feature_names):
@@ -514,7 +625,7 @@ class ShapExplainer:
             intercept_score_val = None
             score_error = None
 
-            if confidence >= 0.95:
+            if confidence >= 0.7:
                 intercept_score_val = (
                     scorecard.base_score
                     + intercept_coef * (base_value - scorecard.base_log_odds)
@@ -522,7 +633,7 @@ class ShapExplainer:
 
                 for j, name in enumerate(self.feature_names):
                     shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
-                    feature_scores[name] = round(feature_coef * shap_val, 2)
+                    feature_scores[name] = round(float(feature_coef * shap_val), 2)
 
                 total_score = intercept_score_val + sum(feature_scores.values())
                 score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
@@ -530,7 +641,7 @@ class ShapExplainer:
                 true_score = scorecard.score(prob)
                 score_error = abs(total_score - true_score)
 
-            elif confidence >= 0.8:
+            elif confidence >= 0.5:
                 intercept_score_val = (
                     scorecard.base_score
                     + intercept_coef * (base_value - scorecard.base_log_odds)
@@ -538,7 +649,7 @@ class ShapExplainer:
 
                 for j, name in enumerate(self.feature_names):
                     shap_val = shap_vals[j] if j < len(shap_vals) else 0.0
-                    feature_scores[name] = round(feature_coef * shap_val, 2)
+                    feature_scores[name] = round(float(feature_coef * shap_val), 2)
 
                 total_score = intercept_score_val + sum(feature_scores.values())
                 score_val = max(float(scorecard.min_score), min(float(scorecard.max_score), total_score))
@@ -549,7 +660,7 @@ class ShapExplainer:
                 if warning is None:
                     warning = f"SHAP 解释置信度中等 ({confidence:.2f})，评分仅供参考"
 
-            elif confidence >= 0.6:
+            elif confidence >= 0.3:
                 if warning is None:
                     warning = f"SHAP 解释置信度较低 ({confidence:.2f})，仅返回 SHAP 值"
 
