@@ -3,11 +3,10 @@
 
 import sys
 import logging
-from pathlib import Path
 
 from datamind.config import get_settings, BASE_DIR
 from datamind.core.db.database import db_manager
-from datamind.core.ml.model_registry import model_registry
+from datamind.core.ml.model.registry import model_registry
 from datamind.core.logging.bootstrap import install_bootstrap_logger, flush_bootstrap_logs
 
 # 安装启动日志

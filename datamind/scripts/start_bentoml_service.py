@@ -14,6 +14,9 @@
     # 启动所有服务（生产模式）
     python scripts/start_bentoml_service.py all --prod --workers 4
 
+    # 查看可用服务
+    python scripts/start_bentoml_service.py list
+
     # 构建 Bento 包
     python scripts/start_bentoml_service.py build scoring
 

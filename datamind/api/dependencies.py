@@ -14,7 +14,6 @@
 """
 
 import time
-import asyncio
 import logging
 from collections import defaultdict
 from typing import Optional, Dict, Any, List, Tuple
@@ -24,8 +23,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from datamind.core.db.database import get_db
-from datamind.core.ml.model_loader import model_loader
-from datamind.core.ml.model_registry import model_registry
+from datamind.core.ml.model.loader import model_loader
+from datamind.core.ml.model.registry import model_registry
 from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.core.logging import log_audit, context
 from datamind.core.domain.enums import AuditAction, UserRole, UserStatus
@@ -283,7 +282,7 @@ async def verify_api_key(
             user_id=f"api_user_{api_key[:8]}",
             ip_address=client_ip,
             details={
-                "role": role,
+                "strategy": role,
                 "auth_type": "api_key_fallback",
                 "trace_id": trace_id,
                 "span_id": span_id,

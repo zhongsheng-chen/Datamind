@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/onnx.py
+# datamind/core/ml/common/adapters/onnx.py
 
 """ONNX 模型适配器
 
@@ -23,7 +23,7 @@
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 
 from datamind.core.ml.adapters.base import BaseModelAdapter
 from datamind.core.logging.debug import debug_print

@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.sql import func
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import TaskType
 
 
@@ -33,7 +33,15 @@ class ApiCallLog(Base):
     model_id = Column(String(50), nullable=False, index=True)
     model_version = Column(String(20), nullable=False)
 
-    task_type = Column(SQLEnum(TaskType), nullable=False)
+    task_type = Column(
+        SQLEnum(
+            TaskType,
+            name="task_type_enum",
+            values_callable=enum_values
+        ),
+        nullable=False,
+        default=TaskType.SCORING.value
+    )
 
     endpoint = Column(String(100), nullable=False)
 

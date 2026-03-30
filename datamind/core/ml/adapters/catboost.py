@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/catboost.py
+# datamind/core/ml/common/adapters/catboost.py
 
 """CatBoost 模型适配器
 

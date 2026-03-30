@@ -6,12 +6,11 @@
 """
 
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 
 from datamind.serving.scoring_service import ScoringService
-from datamind.core.ml.exceptions import ModelNotFoundException, ModelInferenceException
+from datamind.core.ml.common.exceptions import ModelNotFoundException, ModelInferenceException
 
 
 class TestScoringService:

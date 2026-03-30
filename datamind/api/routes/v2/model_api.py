@@ -8,23 +8,15 @@ v2 版本改进：
   - 支持模型统计信息
 """
 
-import json
-import os
-import tempfile
 from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from datamind.core.ml.model_registry import model_registry
-from datamind.core.ml.model_loader import model_loader
-from datamind.core.ml.exceptions import (
-    ModelNotFoundException, ModelAlreadyExistsException,
-    ModelValidationException, ModelFileException
-)
+from datamind.core.ml.model.registry import model_registry
+from datamind.core.ml.model.loader import model_loader
 from datamind.core.logging import log_audit, context
-from datamind.core.domain.enums import TaskType, ModelType, Framework, AuditAction
-from datamind.core.domain.validation import get_supported_models, get_supported_frameworks
-from datamind.api.dependencies import get_current_user, get_api_key
+from datamind.core.domain.enums import AuditAction
+from datamind.api.dependencies import get_current_user
 from datamind.config import get_settings
 
 router = APIRouter()

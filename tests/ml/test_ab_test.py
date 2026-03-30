@@ -4,8 +4,6 @@
 
 import pytest
 import json
-import time
-import hashlib
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +12,7 @@ from datamind.core.experiment.ab_test import (
     TrafficSplitter,
     AssignmentStrategy
 )
-from datamind.core.ml.exceptions import ABTestException
+from datamind.core.ml.common.exceptions import ABTestException
 from datamind.core.domain.enums import ABTestStatus, AuditAction
 
 

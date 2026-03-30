@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/factory.py
+# datamind/core/ml/common/adapters/factory.py
 
 """模型适配器工厂
 
@@ -34,11 +34,11 @@
     >>> prob = adapter.predict({"age": 35, "income": 50000})
 """
 
-from typing import Any, List, Optional
+from typing import List, Optional
 
 from datamind.core.logging.debug import debug_print
 from datamind.core.ml.adapters.base import BaseModelAdapter
-from datamind.core.ml.frameworks import get_supported_frameworks as get_frameworks_list
+from datamind.core.ml.common.frameworks import get_supported_frameworks as get_frameworks_list
 
 
 def get_adapter(model, feature_names: Optional[List[str]] = None) -> BaseModelAdapter:

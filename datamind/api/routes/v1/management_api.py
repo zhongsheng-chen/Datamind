@@ -35,10 +35,9 @@ from sqlalchemy import func
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ApiCallLog, AuditLog
-from datamind.core.logging import log_audit, log_performance, context
-from datamind.core.logging.debug import debug_print
-from datamind.core.ml.inference import inference_engine
-from datamind.core.ml.model_loader import model_loader
+from datamind.core.logging import log_audit, context
+from datamind.core.ml.model.inference import inference_engine
+from datamind.core.ml.model.loader import model_loader
 from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.core.domain.enums import AuditAction
 from datamind.api.dependencies import require_admin

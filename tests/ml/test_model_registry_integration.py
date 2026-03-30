@@ -8,8 +8,8 @@ from datetime import datetime
 from io import BytesIO
 import pickle
 
-from datamind.core.ml.model_registry import ModelRegistry
-from datamind.core.ml.exceptions import (
+from datamind.core.ml.model.registry import ModelRegistry
+from datamind.core.ml.common.exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
 )

@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/torch.py
+# datamind/core/ml/common/adapters/torch.py
 
 """PyTorch 模型适配器
 

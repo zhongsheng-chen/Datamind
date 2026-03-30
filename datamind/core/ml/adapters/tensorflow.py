@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/tensorflow.py
+# datamind/core/ml/common/adapters/tensorflow.py
 
 """TensorFlow 模型适配器
 
@@ -22,7 +22,7 @@
 """
 
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from datamind.core.ml.adapters.base import BaseModelAdapter
 from datamind.core.logging.debug import debug_print

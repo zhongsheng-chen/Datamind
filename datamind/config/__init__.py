@@ -20,6 +20,7 @@
     - 请求验证配置管理
     - 安全响应头配置管理
     - 请求大小限制配置管理
+    - 评分卡配置管理
 
 导出内容:
     get_settings: 获取应用配置实例的函数
@@ -47,6 +48,9 @@
     SensitiveDataConfig: 敏感数据脱敏配置类
     LoggingConfig: 日志配置类
     StorageConfig: 存储配置类
+    ScorecardDefaultConfig: 评分卡默认配置类
+    get_scorecard_default_config: 获取评分卡默认配置实例
+    reload_scorecard_default_config: 重新加载评分卡默认配置
     BASE_DIR: 项目基础目录
     ... 以及其他枚举和配置类
 """
@@ -97,6 +101,18 @@ from datamind.config.storage_config import (
     S3StorageConfig
 )
 
+from datamind.config.scorecard_config import (
+    ScorecardConstants,
+    BinningStrategy,
+    ScoreDirection,
+    ConfigState,
+    FeatureBinConfig,
+    ScorecardConfig,
+    ScorecardDefaultConfig,
+    get_scorecard_default_config,
+    reload_scorecard_default_config
+)
+
 __all__ = [
     'get_settings',
     'Settings',
@@ -135,4 +151,13 @@ __all__ = [
     'LocalStorageConfig',
     'MinIOStorageConfig',
     'S3StorageConfig',
+    'ScorecardConstants',
+    'BinningStrategy',
+    'ScoreDirection',
+    'ConfigState',
+    'FeatureBinConfig',
+    'ScorecardConfig',
+    'ScorecardDefaultConfig',
+    'get_scorecard_default_config',
+    'reload_scorecard_default_config',
 ]

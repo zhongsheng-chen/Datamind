@@ -23,7 +23,7 @@ class User(Base):
         Index('idx_user_email', 'email', unique=True),
         Index('idx_user_username', 'username', unique=True),
         Index('idx_user_status', 'status'),
-        Index('idx_user_role', 'role'),
+        Index('idx_user_role', 'strategy'),
         Index('idx_user_created_at', 'created_at'),
         Index('idx_user_last_login', 'last_login_at'),
         {'schema': 'public'}
@@ -97,7 +97,7 @@ class User(Base):
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
-        return f"<User(user_id='{self.user_id}', username='{self.username}', role='{self.role}')>"
+        return f"<User(user_id='{self.user_id}', username='{self.username}', strategy='{self.role}')>"
 
     def to_dict(self, include_sensitive: bool = False) -> dict:
         """转换为字典
@@ -115,7 +115,7 @@ class User(Base):
             'full_name': self.full_name,
             'avatar': self.avatar,
             'phone': self.phone,
-            'role': self.role.value if self.role else None,
+            'strategy': self.role.value if self.role else None,
             'permissions': self.permissions,
             'status': self.status.value if self.status else None,
             'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None,

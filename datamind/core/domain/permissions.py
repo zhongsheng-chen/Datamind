@@ -34,7 +34,7 @@
     1. API路由权限控制
         @router.post("/models")
         async def create_model(request: Request):
-            user_role = UserRole(request.state.user.get('role'))
+            user_role = UserRole(request.state.user.get('strategy'))
             if not can_manage_models(user_role):
                 raise HTTPException(403, "无权限管理模型")
 
@@ -81,7 +81,7 @@ def can_manage_models(role: UserRole) -> bool:
     管理模型包括：模型注册、更新元数据、删除模型等操作。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许管理模型，False 表示不允许
@@ -101,7 +101,7 @@ def can_deploy_models(role: UserRole) -> bool:
     部署模型包括：模型上线、版本切换、回滚、环境部署等操作。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许部署模型，False 表示不允许
@@ -115,7 +115,7 @@ def can_view_metrics(role: UserRole) -> bool:
     性能指标包括：模型推理延迟、准确率、召回率、CPU/内存使用率等。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许查看指标，False 表示不允许
@@ -129,7 +129,7 @@ def can_infer(role: UserRole) -> bool:
     推理API包括：评分预测、反欺诈检测等模型推理接口。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许调用推理，False 表示不允许
@@ -150,7 +150,7 @@ def can_view_audit_logs(role: UserRole, current_user_id: Optional[str] = None,
         - API用户(API_USER): 不能查看审计日志
 
     参数:
-        role: 当前用户角色
+        strategy: 当前用户角色
         current_user_id: 当前操作用户ID（用于开发者权限判断）
         log_user_id: 审计日志中的用户ID（要查看谁的日志）
 
@@ -196,7 +196,7 @@ def can_manage_users(role: UserRole) -> bool:
     用户管理包括：创建用户、修改用户信息、重置密码、禁用/启用用户、删除用户。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许管理用户，False 表示不允许
@@ -217,7 +217,7 @@ def can_manage_api_keys(role: UserRole, current_user_id: Optional[str] = None,
         - API用户(API_USER): 不能管理API密钥
 
     参数:
-        role: 当前用户角色
+        strategy: 当前用户角色
         current_user_id: 当前用户ID（用于开发者权限判断）
         target_user_id: 目标用户ID（要管理哪个用户的密钥）
 
@@ -257,7 +257,7 @@ def can_access_admin_panel(role: UserRole) -> bool:
     管理后台包括：系统配置、用户管理、全局设置等功能。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许访问管理后台，False 表示不允许
@@ -271,7 +271,7 @@ def can_manage_system_config(role: UserRole) -> bool:
     系统配置包括：全局参数设置、功能开关、限流阈值、告警配置等。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许管理系统配置，False 表示不允许
@@ -285,7 +285,7 @@ def can_create_ab_test(role: UserRole) -> bool:
     A/B测试创建包括：定义测试组、配置流量分配、设置评估指标等。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许创建A/B测试，False 表示不允许
@@ -299,7 +299,7 @@ def can_view_ab_test_results(role: UserRole) -> bool:
     A/B测试结果包括：各组表现对比、置信区间、胜出组判断等。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         True 表示允许查看测试结果，False 表示不允许
@@ -313,7 +313,7 @@ def get_permissions_for_role(role: UserRole) -> List[str]:
     返回该角色拥有的所有权限名称，可用于前端菜单控制或API权限校验。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
 
     返回:
         权限名称列表
@@ -352,7 +352,7 @@ def has_permission(role: UserRole, permission: str) -> bool:
     快速检查某个具体权限是否被授予该角色。
 
     参数:
-        role: 用户角色
+        strategy: 用户角色
         permission: 权限名称（如 "manage_models"）
 
     返回:

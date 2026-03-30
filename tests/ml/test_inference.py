@@ -5,12 +5,10 @@
 import pytest
 import time
 import numpy as np
-import pandas as pd
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch, MagicMock
 
-from datamind.core.ml.inference import InferenceEngine, LRUCache
-from datamind.core.ml.exceptions import ModelInferenceException, ModelNotFoundException
+from datamind.core.ml.model.inference import InferenceEngine, LRUCache
+from datamind.core.ml.common.exceptions import ModelInferenceException, ModelNotFoundException
 from datamind.core.domain.enums import TaskType
 
 
