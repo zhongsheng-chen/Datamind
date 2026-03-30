@@ -15,10 +15,9 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
-from datamind.core.ml.inference import inference_engine
-from datamind.core.ml.exceptions import ModelNotFoundException, ModelInferenceException
-from datamind.core.logging import log_audit, context, log_performance
-from datamind.core.logging.debug import debug_print
+from datamind.core.ml.model.inference import inference_engine
+from datamind.core.ml.common.exceptions import ModelNotFoundException, ModelInferenceException
+from datamind.core.logging import log_audit, context
 from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.core.domain.enums import TaskType, AuditAction
 from datamind.config import get_settings
@@ -123,7 +122,7 @@ async def predict_fraud(
 
         # 如果没有指定 model_id，使用生产模型
         if not model_id:
-            from datamind.core.ml.model_registry import model_registry
+            from datamind.core.ml.model.registry import model_registry
             models = model_registry.list_models(
                 task_type=TaskType.FRAUD_DETECTION.value,
                 is_production=True
@@ -149,7 +148,7 @@ async def predict_fraud(
         processing_time_ms = (time.time() - start_time) * 1000
 
         # 获取模型元数据
-        from datamind.core.ml.model_registry import model_registry as registry
+        from datamind.core.ml.model.registry import model_registry as registry
         model_meta = registry.get_model_info(model_id) or {}
 
         # 构建 v2 响应

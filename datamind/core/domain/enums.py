@@ -18,7 +18,7 @@
   - 在API响应中返回枚举值：{"status": ModelStatus.ACTIVE.value}
 
 枚举分类：
-  - TaskType: 机器学习任务类型（评分/反欺诈）
+  - TaskType: 机器学习任务类型（评分/反欺诈/分类）
   - ModelType: 具体算法类型（决策树/神经网络等）
   - Framework: 机器学习框架（sklearn/xgboost等）
   - ModelStatus: 模型生命周期状态
@@ -33,14 +33,16 @@ from enum import Enum
 class TaskType(str, Enum):
     """任务类型枚举
 
-    定义机器学习任务类型，如评分、反欺诈等。
+    定义机器学习任务类型。
 
     属性:
         SCORING: 评分任务
         FRAUD_DETECTION: 反欺诈检测任务
+        CLASSIFICATION: 通用分类任务
     """
     SCORING = "scoring"
     FRAUD_DETECTION = "fraud_detection"
+    CLASSIFICATION = "classification"
 
 
 class ModelType(str, Enum):

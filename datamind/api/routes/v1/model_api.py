@@ -35,14 +35,13 @@ import tempfile
 from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 
-from datamind.core.ml.model_registry import model_registry
-from datamind.core.ml.model_loader import model_loader
-from datamind.core.ml.exceptions import (
+from datamind.core.ml.model.registry import model_registry
+from datamind.core.ml.model.loader import model_loader
+from datamind.core.ml.common.exceptions import (
     ModelNotFoundException, ModelAlreadyExistsException,
     ModelValidationException, ModelFileException
 )
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
 from datamind.core.domain.enums import TaskType, ModelType, Framework, AuditAction
 from datamind.core.domain.validation import get_supported_models, get_supported_frameworks
 from datamind.api.dependencies import get_current_user, get_api_key

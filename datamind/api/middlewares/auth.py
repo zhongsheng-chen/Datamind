@@ -157,7 +157,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         request.state.auth_type = auth_result.get('auth_type')
         request.state.user_id = user_info.get('id')
         request.state.username = user_info.get('username')
-        request.state.role = user_info.get('role')
+        request.state.role = user_info.get('strategy')
         request.state.roles = user_info.get('roles', [])
         request.state.permissions = user_info.get('permissions', [])
 
@@ -172,7 +172,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 "method": request.method,
                 "auth_type": auth_result['auth_type'],
                 "username": user_info.get('username'),
-                "role": user_info.get('role'),
+                "strategy": user_info.get('strategy'),
                 "duration_ms": round(duration, 2),
                 "trace_id": trace_id,
                 "span_id": span_id,
@@ -302,7 +302,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 'user': {
                     'id': payload.get('sub'),
                     'username': payload.get('username'),
-                    'role': role,
+                    'strategy': role,
                     'roles': valid_roles,
                     'permissions': permissions,
                     'email': payload.get('email'),
@@ -500,7 +500,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 'username': user.username,
                 'email': user.email,
                 'full_name': user.full_name,
-                'role': role,
+                'strategy': role,
                 'roles': roles,
                 'permissions': permissions,
                 'api_key_id': api_key_record.api_key_id,
@@ -527,21 +527,21 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             "test_api_key_123": {
                 "id": "test_user",
                 "username": "test_user",
-                "role": UserRole.DEVELOPER.value,
+                "strategy": UserRole.DEVELOPER.value,
                 "roles": [UserRole.DEVELOPER.value],
                 "permissions": ["predict", "view_metrics", "admin"]
             },
             "demo-key": {
                 "id": "demo_user",
                 "username": "demo_user",
-                "role": UserRole.DEVELOPER.value,
+                "strategy": UserRole.DEVELOPER.value,
                 "roles": [UserRole.DEVELOPER.value],
                 "permissions": ["predict", "view_metrics"]
             },
             "prod_api_key_456": {
                 "id": "api_user",
                 "username": "api_user",
-                "role": UserRole.API_USER.value,
+                "strategy": UserRole.API_USER.value,
                 "roles": [UserRole.API_USER.value],
                 "permissions": ["predict"]
             }
@@ -693,7 +693,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 ip_address=client_ip,
                 details={
                     "username": username,
-                    "role": user.role.value,
+                    "strategy": user.role.value,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -708,7 +708,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     'username': user.username,
                     'email': user.email,
                     'full_name': user.full_name,
-                    'role': user.role.value,
+                    'strategy': user.role.value,
                     'roles': [user.role.value],
                     'permissions': user.permissions or [],
                 }

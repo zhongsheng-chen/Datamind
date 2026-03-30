@@ -2,7 +2,7 @@
 """测试机器学习异常类"""
 
 import pytest
-from datamind.core.ml.exceptions import (
+from datamind.core.ml.common.exceptions import (
     DatamindError,
     ModelException,
     ModelNotFoundException,

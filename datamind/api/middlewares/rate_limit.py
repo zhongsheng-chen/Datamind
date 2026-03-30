@@ -345,7 +345,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # 已认证用户
         if hasattr(request.state, 'user') and request.state.user:
-            role = request.state.user.get('role')
+            role = request.state.user.get('strategy')
             # 验证角色是否有效
             if role and role in self._valid_roles:
                 # 检查角色是否在限流规则中

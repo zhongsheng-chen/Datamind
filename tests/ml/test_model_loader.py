@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 from datetime import datetime, timedelta
 
-from datamind.core.ml.model_loader import ModelLoader
+from datamind.core.ml.model.loader import ModelLoader
 
 
 
@@ -363,7 +363,6 @@ class TestModelLoader:
 
     def test_lock_prevents_concurrent_loading(self, model_loader):
         """测试锁防止并发加载"""
-        import threading
 
         lock = model_loader.get_lock("MDL_TEST")
         lock_acquired = [False]
@@ -401,7 +400,6 @@ class TestModelLoader:
 
     def test_large_number_of_models(self, model_loader):
         """测试大量模型"""
-        import time
 
         # 添加大量模型
         for i in range(100):

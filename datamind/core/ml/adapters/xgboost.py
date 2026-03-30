@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/xgboost.py
+# datamind/core/ml/common/adapters/xgboost.py
 
 """XGBoost 模型适配器
 
@@ -24,7 +24,7 @@
 
 import numpy as np
 import xgboost as xgb
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from datamind.core.ml.adapters.base import BaseModelAdapter
 from datamind.core.logging.debug import debug_print

@@ -1,54 +1,45 @@
 # datamind/core/ml/__init__.py
-
 """机器学习模块
 
-提供模型注册、加载、推理等核心功能。
+提供模型注册、加载、推理、评分卡管理等核心功能。
 
 模块组成：
-  - model_registry: 模型注册中心，负责模型的注册、版本管理、状态管理
-  - model_loader: 模型加载器，负责模型的动态加载、卸载、缓存管理
-  - inference: 推理引擎，提供统一的评分卡和反欺诈模型推理接口
-  - exceptions: 异常定义，提供机器学习相关的异常类
+  - common: 通用基础（异常、框架、缓存、适配器）
+  - model: 模型管理（加载、注册、推理）
+  - scorecard: 评分卡业务（配置、WOE、特征分）
+  - companion: 陪跑业务（预测）
+  - explain: 模型解释（SHAP）
 
-功能特性：
-  - 多框架支持：sklearn、xgboost、lightgbm、torch、tensorflow、onnx、catboost
-  - 模型版本管理：支持模型版本控制和历史追溯
-  - 生产环境管理：支持模型激活/停用、生产模型切换
-  - A/B测试支持：模型分组和流量分配
-  - 完整审计：记录所有模型操作日志
+使用示例：
+  >>> from datamind.core.ml import get_inference_engine
+  >>>
+  >>> engine = get_inference_engine()
+  >>> result = engine.predict("MDL_001", {"age": 35, "income": 50000})
 """
 
-# 延迟导入，避免循环依赖
-def get_model_registry():
-    from datamind.core.ml.model_registry import ModelRegistry
-    return ModelRegistry()
-
-def get_model_loader():
-    from datamind.core.ml.model_loader import ModelLoader
-    return ModelLoader()
-
-def get_inference_engine():
-    from datamind.core.ml.inference import InferenceEngine
-    return InferenceEngine()
-
-# 导出异常类
-from datamind.core.ml.exceptions import (
-    ModelException,
-    ModelNotFoundException,
-    ModelAlreadyExistsException,
-    ModelValidationException,
-    ModelLoadException,
-    ModelInferenceException
-)
+from datamind.core.ml.model.inference import InferenceEngine, get_inference_engine
+from .model.loader import ModelLoader, get_model_loader
+from .model.registry import ModelRegistry, get_model_registry
+from .scorecard.manager import get_scorecard_manager
+from .scorecard.transformer import WOETransformer
+from .scorecard.scorer import ScorecardScorer
+from .scorecard.predictor import ScorecardPredictor
+from .companion.predictor import CompanionPredictor
 
 __all__ = [
-    'get_model_registry',
-    'get_model_loader',
+    # 推理
+    'InferenceEngine',
     'get_inference_engine',
-    'ModelException',
-    'ModelNotFoundException',
-    'ModelAlreadyExistsException',
-    'ModelValidationException',
-    'ModelLoadException',
-    'ModelInferenceException',
+    # 模型管理
+    'ModelLoader',
+    'get_model_loader',
+    'ModelRegistry',
+    'get_model_registry',
+    # 评分卡
+    'get_scorecard_manager',
+    'WOETransformer',
+    'ScorecardScorer',
+    'ScorecardPredictor',
+    # 陪跑
+    'CompanionPredictor',
 ]

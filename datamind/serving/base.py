@@ -6,9 +6,9 @@ import threading
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
-from datamind.core.ml.model_loader import get_model_loader
-from datamind.core.ml.model_registry import get_model_registry
-from datamind.core.ml.inference import get_inference_engine
+from datamind.core.ml.model.loader import get_model_loader
+from datamind.core.ml.model.registry import get_model_registry
+from datamind.core.ml.model.inference import get_inference_engine
 from datamind.core.db.database import get_db, db_manager
 from datamind.core.db.models import ModelDeployment
 from datamind.core.domain.enums import AuditAction, TaskType, ModelStatus, DeploymentEnvironment

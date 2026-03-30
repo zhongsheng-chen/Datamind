@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/sklearn.py
+# datamind/core/ml/common/adapters/sklearn.py
 
 """Sklearn 模型适配器
 

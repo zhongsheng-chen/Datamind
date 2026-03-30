@@ -1,4 +1,4 @@
-# datamind/core/ml/adapters/base.py
+# datamind/core/ml/common/adapters/base.py
 
 """基础模型适配器
 

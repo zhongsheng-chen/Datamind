@@ -4,7 +4,7 @@
 
 import pytest
 import warnings
-from datamind.core.ml.frameworks import (
+from datamind.core.ml.common.frameworks import (
     get_bentoml_backend,
     get_framework_signatures,
     is_framework_supported,

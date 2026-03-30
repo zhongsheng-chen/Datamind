@@ -29,6 +29,7 @@
   - 敏感数据脱敏配置（SensitiveDataConfig）：敏感数据脱敏配置
   - 日志配置（LoggingConfig）：日志级别、格式、轮转、脱敏
   - 存储配置（StorageConfig）：S3/MinIO存储配置
+  - 评分卡配置（ScorecardDefaultConfig）：评分卡默认参数配置
 
 配置来源：
   1. 默认值（代码中定义）
@@ -46,6 +47,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .logging_config import LoggingConfig
 from .storage_config import StorageConfig
+from .scorecard_config import ScorecardDefaultConfig, ScorecardConstants
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -58,7 +60,9 @@ class AppConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     app_name: str = Field(
@@ -102,7 +106,9 @@ class ModelConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     models_path: str = Field(
@@ -138,7 +144,9 @@ class InferenceConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     timeout: int = Field(
@@ -168,7 +176,9 @@ class FeatureStoreConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     enabled: bool = Field(
@@ -198,7 +208,9 @@ class ABTestConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     enabled: bool = Field(
@@ -228,7 +240,9 @@ class BatchConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     batch_size: int = Field(
@@ -252,7 +266,9 @@ class ApiConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     host: str = Field(
@@ -304,7 +320,9 @@ class DatabaseConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     url: str = Field(
@@ -358,7 +376,9 @@ class RedisConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     url: str = Field(
@@ -394,7 +414,9 @@ class AuthConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     api_key_enabled: bool = Field(
@@ -436,7 +458,9 @@ class MonitoringConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     enabled: bool = Field(
@@ -466,7 +490,9 @@ class AlertConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     enabled: bool = Field(
@@ -502,7 +528,9 @@ class CORSConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     cors_origins: List[str] = Field(
@@ -564,7 +592,9 @@ class RateLimitConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     rate_limit_enabled: bool = Field(
@@ -654,7 +684,9 @@ class IPAccessConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     trusted_proxies: List[str] = Field(
@@ -696,7 +728,9 @@ class RequestValidationConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     enable_timestamp_validation: bool = Field(
@@ -732,7 +766,9 @@ class SecurityHeadersConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     security_headers_enabled: bool = Field(
@@ -762,7 +798,9 @@ class RequestSizeConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     max_request_size: int = Field(
@@ -786,7 +824,9 @@ class PerformanceConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     performance_enabled: bool = Field(
@@ -848,7 +888,9 @@ class LoggingMiddlewareConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     log_request_body: bool = Field(
@@ -890,7 +932,9 @@ class SensitiveDataConfig(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
     )
 
     # 默认敏感字段 - 使用 ClassVar
@@ -984,7 +1028,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
+        case_sensitive=False
     )
 
     # 基础配置
@@ -1106,9 +1151,16 @@ class Settings(BaseSettings):
         description="敏感数据脱敏配置"
     )
 
+    # 日志配置
     logging: LoggingConfig = Field(
         default_factory=LoggingConfig,
         description="日志配置"
+    )
+
+    # 评分卡配置
+    scorecard: ScorecardDefaultConfig = Field(
+        default_factory=ScorecardDefaultConfig,
+        description="评分卡默认配置"
     )
 
 

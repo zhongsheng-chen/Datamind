@@ -48,7 +48,12 @@ class LocalStorageConfig(BaseSettings):
 
     定义本地文件系统存储的路径配置。
     """
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
+    )
 
     base_path: str = Field(
         default="./models",
@@ -67,7 +72,12 @@ class MinIOStorageConfig(BaseSettings):
 
     定义 MinIO 对象存储的连接和认证配置。
     """
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
+    )
 
     endpoint: str = Field(
         default="localhost:9000",
@@ -126,7 +136,12 @@ class S3StorageConfig(BaseSettings):
 
     定义 AWS S3 对象存储的连接、认证和高级配置。
     """
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
+    )
 
     endpoint: Optional[str] = Field(
         default=None,

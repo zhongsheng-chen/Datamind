@@ -820,7 +820,7 @@ class LogManager:
             action: 操作类型
             user_id: 操作用户 ID
             target_user: 目标用户 ID
-            role: 角色
+            strategy: 角色
             ip_address: IP 地址
             **kwargs: 额外的日志字段
         """
@@ -831,7 +831,7 @@ class LogManager:
             'action': action,
             'user_id': user_id,
             'target_user': target_user,
-            'role': role,
+            'strategy': role,
             'ip_address': ip_address,
         }
         extra.update(kwargs)

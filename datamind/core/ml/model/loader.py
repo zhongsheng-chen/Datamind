@@ -1,4 +1,4 @@
-# datamind/core/ml/model_loader.py
+# datamind/core/ml/model/loader.py
 
 """模型加载器
 
@@ -35,12 +35,12 @@ from datamind.core.db.models import ModelMetadata
 from datamind.core.domain.enums import AuditAction, ModelStatus
 from datamind.core.logging import log_audit, context, log_performance
 from datamind.core.logging.debug import debug_print
-from datamind.core.ml.exceptions import (
+from datamind.core.ml.common.exceptions import (
     ModelLoadException,
     ModelNotFoundException,
     UnsupportedFrameworkException
 )
-from datamind.core.ml.frameworks import (
+from datamind.core.ml.common.frameworks import (
     is_framework_supported,
     get_supported_frameworks
 )

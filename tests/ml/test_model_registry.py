@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 from datetime import datetime
 from io import BytesIO
 
-from datamind.core.ml.model_registry import ModelRegistry
-from datamind.core.ml.exceptions import (
+from datamind.core.ml.model.registry import ModelRegistry
+from datamind.core.ml.common.exceptions import (
     ModelValidationException,
     UnsupportedFrameworkException,
 )

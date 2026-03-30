@@ -12,8 +12,8 @@ import traceback
 from typing import Dict, Any
 
 from datamind.serving.base import BaseBentoService
-from datamind.core.ml.inference import get_inference_engine
-from datamind.core.ml.exceptions import ModelNotFoundException, ModelInferenceException
+from datamind.core.ml.model.inference import get_inference_engine
+from datamind.core.ml.common.exceptions import ModelNotFoundException, ModelInferenceException
 from datamind.core.logging import log_audit, context, log_performance
 from datamind.core.logging.debug import debug_print
 from datamind.core.domain.enums import AuditAction

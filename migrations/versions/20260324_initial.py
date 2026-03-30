@@ -583,7 +583,7 @@ def upgrade() -> None:
         sa.Column('full_name', sa.String(length=100), nullable=True, comment='全名'),
         sa.Column('avatar', sa.String(length=500), nullable=True, comment='头像URL'),
         sa.Column('phone', sa.String(length=20), nullable=True, comment='手机号'),
-        sa.Column('role', PgEnum('admin', 'developer', 'analyst', 'api_user',
+        sa.Column('strategy', PgEnum('admin', 'developer', 'analyst', 'api_user',
                                    name='user_role_enum', create_type=False),
                   nullable=False, server_default='api_user', comment='用户角色'),
         sa.Column('permissions', postgresql.JSONB(), default=list, nullable=True, comment='额外权限列表'),
@@ -616,7 +616,7 @@ def upgrade() -> None:
     op.create_index('idx_user_email', 'users', ['email'], unique=True, schema='public')
     op.create_index('idx_user_username', 'users', ['username'], unique=True, schema='public')
     op.create_index('idx_user_status', 'users', ['status'], schema='public')
-    op.create_index('idx_user_role', 'users', ['role'], schema='public')
+    op.create_index('idx_user_role', 'users', ['strategy'], schema='public')
     op.create_index('idx_user_created_at', 'users', ['created_at'], schema='public')
     op.create_index('idx_user_last_login', 'users', ['last_login_at'], schema='public')
 

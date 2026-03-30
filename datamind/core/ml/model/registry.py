@@ -1,4 +1,4 @@
-# datamind/core/ml/model_registry.py
+# datamind/core/ml/model/registry.py
 
 """模型注册中心
 
@@ -43,14 +43,14 @@ from datamind.core.domain.enums import ModelStatus, AuditAction, TaskType, Model
 from datamind.core.domain.validation import validate_or_raise
 from datamind.core.logging import log_audit, context
 from datamind.core.logging.debug import debug_print
-from datamind.core.ml.exceptions import (
+from datamind.core.ml.common.exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
     ModelValidationException,
     ModelFileException,
     UnsupportedFrameworkException
 )
-from datamind.core.ml.frameworks import (
+from datamind.core.ml.common.frameworks import (
     get_bentoml_backend,
     get_framework_signatures,
     is_framework_supported,

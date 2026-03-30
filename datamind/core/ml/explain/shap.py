@@ -33,7 +33,7 @@ from collections import OrderedDict
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
-from datamind.core.ml.scorecard import Scorecard, DIRECTION_LOWER_BETTER
+from datamind.core.ml.scorecard import Scorecard
 from datamind.core.logging.debug import debug_print
 
 
@@ -329,25 +329,25 @@ class ShapExplainer:
         """
         根据评分卡方向返回特征分和截距的系数
 
-        lower_better (分高好):
-            score = base_score - factor * (log_odds - base_log_odds)
-            = (base_score + factor * base_log_odds) + (-factor) * log_odds
-            因此: feature_score = -factor * shap_val
-                  intercept = base_score + factor * base_log_odds + (-factor) * base_value
+        lower_better (分数越低越好):
+            feature_score = factor * shap_val
+            intercept = base_score + factor * (base_value - base_log_odds)
 
-        higher_better (分低好):
-            score = base_score + factor * (log_odds - base_log_odds)
-            = (base_score - factor * base_log_odds) + factor * log_odds
-            因此: feature_score = factor * shap_val
-                  intercept = base_score - factor * base_log_odds + factor * base_value
+        higher_better (分数越高越好):
+            feature_score = -factor * shap_val
+            intercept = base_score + factor * (base_log_odds - base_value)
 
         返回:
             (feature_coef, intercept_coef)
         """
-        if scorecard.direction == DIRECTION_LOWER_BETTER:
-            return -scorecard.factor, -scorecard.factor
-        else:
+        # scorecard.direction 是 ScoreDirection 枚举，需要获取其值进行字符串比较
+        direction = scorecard.direction.value if hasattr(scorecard.direction, 'value') else scorecard.direction
+
+        if direction == "lower_better":
             return scorecard.factor, scorecard.factor
+        else:
+            # higher_better
+            return -scorecard.factor, -scorecard.factor
 
     def explain(self, features: Dict[str, Any], scorecard: Scorecard,
                 enable: bool = True) -> Optional[ExplanationResult]:

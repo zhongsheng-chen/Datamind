@@ -1,8 +1,8 @@
-# datamind/core/ml/adapters/xgboost.py
+# datamind/core/ml/common/adapters/lightgbm.py
 
-"""XGBoost 模型适配器
+"""LightGBM 模型适配器
 
-支持 XGBoost 原生模型的适配器实现。
+支持 LightGBM 原生模型的适配器实现。
 
 核心功能：
   - predict_proba: 预测违约概率
@@ -10,27 +10,21 @@
   - get_feature_importance: 获取特征重要性
 
 特性：
-  - DMatrix 支持：自动将 numpy 数组转换为 XGBoost DMatrix 格式
-  - 特征重要性提取：从模型中提取 weight 类型的重要性（特征被使用的次数）
+  - 原生支持：直接使用 LightGBM 的 predict_proba 方法
+  - 特征重要性提取：从模型中提取 split 或 gain 类型的重要性
   - 自动归一化：特征重要性自动归一化到 [0,1] 区间
-  - 批量预测优化：重写 predict_proba_batch 使用 DMatrix 批量处理，提升性能
-
-继承的方法（由基类提供）：
-  - predict: 统一的预测接口，支持多种输入格式
-  - to_array: 特征字典转 numpy 数组
-  - to_array_batch: 批量特征字典转 numpy 数组
+  - 批量预测优化：重写 predict_proba_batch 提升性能
 """
 
 import numpy as np
-import xgboost as xgb
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from datamind.core.ml.adapters.base import BaseModelAdapter
 from datamind.core.logging.debug import debug_print
 
 
-class XGBoostAdapter(BaseModelAdapter):
-    """XGBoost 模型适配器"""
+class LightGBMAdapter(BaseModelAdapter):
+    """LightGBM 模型适配器"""
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -43,16 +37,13 @@ class XGBoostAdapter(BaseModelAdapter):
             违约概率 (0-1)
         """
         try:
-            dmatrix = xgb.DMatrix(X)
-
             if hasattr(self.model, "predict_proba"):
-                proba = self.model.predict_proba(dmatrix)[0][1]
+                proba = self.model.predict_proba(X)[0][1]
             else:
-                proba = self.model.predict(dmatrix)[0]
-
+                proba = self.model.predict(X)[0]
             return float(proba)
         except Exception as e:
-            debug_print("XGBoostAdapter", f"预测失败: {e}")
+            debug_print("LightGBMAdapter", f"预测失败: {e}")
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -65,26 +56,32 @@ class XGBoostAdapter(BaseModelAdapter):
         返回:
             概率列表，长度 n_samples
         """
-        dmatrix = xgb.DMatrix(X)
         if hasattr(self.model, "predict_proba"):
-            return self.model.predict_proba(dmatrix)[:, 1].tolist()
-        return self.model.predict(dmatrix).tolist()
+            return self.model.predict_proba(X)[:, 1].tolist()
+        return self.model.predict(X).tolist()
 
-    def get_feature_importance(self) -> Dict[str, float]:
+    def get_feature_importance(self, importance_type: str = 'split') -> Dict[str, float]:
         """
         获取特征重要性
 
-        使用 weight 类型的重要性（特征在树中被使用的次数）。
+        参数:
+            importance_type: 重要性类型，可选 'split'（分裂次数）或 'gain'（信息增益）
 
         返回:
             特征重要性字典，键为特征名，值为重要性权重（已归一化）
         """
         importance = {}
 
-        if hasattr(self.model, 'get_score'):
-            scores = self.model.get_score(importance_type='weight')
-            for name, val in scores.items():
-                importance[name] = float(val)
+        if hasattr(self.model, 'feature_importance'):
+            values = self.model.feature_importance(importance_type=importance_type)
+
+            if self.feature_names:
+                for i, name in enumerate(self.feature_names):
+                    if i < len(values):
+                        importance[name] = float(values[i])
+            else:
+                for i, val in enumerate(values):
+                    importance[f"feature_{i}"] = float(val)
 
             # 归一化到 [0,1] 区间
             total = sum(importance.values())
