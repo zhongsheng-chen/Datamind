@@ -25,6 +25,9 @@
   - AuditAction: 审计操作类型
   - DeploymentEnvironment: 部署环境
   - ABTestStatus: A/B测试状态
+  - UserRole: 用户角色
+  - UserStatus: 用户状态
+  - DataType: 特征数据类型（数值/分类/布尔）
 """
 
 from enum import Enum
@@ -427,3 +430,34 @@ class UserStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
+
+
+class DataType(str, Enum):
+    """数据类型枚举
+
+    定义特征数据的基本类型，用于数据验证和预处理。
+
+    属性:
+        NUMERIC: 数值类型（整数、浮点数）
+        CATEGORICAL: 分类类型（字符串、有限枚举值）
+        BOOLEAN: 布尔类型（True/False）
+        ANY: 任意类型（不进行类型检查）
+    """
+    NUMERIC = "numeric"
+    CATEGORICAL = "categorical"
+    BOOLEAN = "boolean"
+    ANY = "any"
+
+
+__all__ = [
+    'TaskType',
+    'ModelType',
+    'Framework',
+    'ModelStatus',
+    'AuditAction',
+    'DeploymentEnvironment',
+    'ABTestStatus',
+    'UserRole',
+    'UserStatus',
+    'DataType',
+]

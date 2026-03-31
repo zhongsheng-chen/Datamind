@@ -35,9 +35,9 @@ import tempfile
 from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 
-from datamind.core.ml.model.registry import model_registry
-from datamind.core.ml.model.loader import model_loader
-from datamind.core.ml.common.exceptions import (
+from datamind.core.ml.model import model_registry
+from datamind.core.ml.model import model_loader
+from datamind.core.common.exceptions import (
     ModelNotFoundException, ModelAlreadyExistsException,
     ModelValidationException, ModelFileException
 )

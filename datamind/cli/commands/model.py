@@ -90,8 +90,8 @@ from datamind.cli.utils.printer import (
     print_error, print_warning, print_header
 )
 from datamind.cli.utils.progress import ProgressBar
-from datamind.core.ml.model.registry import model_registry
-from datamind.core.ml.model.loader import model_loader
+from datamind.core.ml.model import model_registry
+from datamind.core.ml.model import model_loader
 
 
 @click.group(name='model')

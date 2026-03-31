@@ -1,4 +1,9 @@
-# datamind/serving/base.py (最终版)
+# datamind/serving/base.py
+
+"""BentoML 服务基类
+
+提供模型加载、热更新、审计日志等基础功能。
+"""
 
 import atexit
 import time
@@ -6,14 +11,16 @@ import threading
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
-from datamind.core.ml.model.loader import get_model_loader
-from datamind.core.ml.model.registry import get_model_registry
-from datamind.core.ml.model.inference import get_inference_engine
+from datamind.core.scoring.adapters import get_adapter
+from datamind.core.scoring.engine import ScoringEngine
+from datamind.core.scoring.transform import WOETransformer
+from datamind.core.scoring.predictor import Predictor
+from datamind.core.scoring.capability import ScorecardCapability, has_capability
 from datamind.core.db.database import get_db, db_manager
-from datamind.core.db.models import ModelDeployment
+from datamind.core.db.models import ModelDeployment, ModelMetadata
 from datamind.core.domain.enums import AuditAction, TaskType, ModelStatus, DeploymentEnvironment
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging.manager import LogManager
 from datamind.config import get_settings
 
 settings = get_settings()
@@ -30,21 +37,26 @@ class BaseBentoService:
     _db_lock = threading.RLock()
     _db_initialized = False
 
-    def __init__(self, service_type: str, service_name: str):
+    def __init__(self, service_type: str, service_name: str, debug: bool = False):
         """
         初始化服务
 
         参数:
             service_type: 服务类型 (scoring/fraud_detection)
             service_name: 服务名称
+            debug: 是否启用调试日志
         """
         self.service_type = service_type
         self.service_name = service_name
+        self._debug_enabled = debug
         self._task_type = TaskType.SCORING if service_type == 'scoring' else TaskType.FRAUD_DETECTION
 
         # 模型缓存
         self._active_models: Dict[str, Dict[str, Any]] = {}
         self._model_versions: Dict[str, str] = {}
+
+        # 引擎缓存
+        self._engines: Dict[str, ScoringEngine] = {}
 
         # 热加载线程控制
         self._hot_reload_thread: Optional[threading.Thread] = None
@@ -54,10 +66,9 @@ class BaseBentoService:
         # 初始化状态
         self._initialized = False
 
-        # 获取组件实例（延迟初始化）
-        self._model_loader = None
-        self._model_registry = None
-        self._inference_engine = None
+        # 获取日志器
+        self._log_manager = LogManager()
+        self.logger = self._log_manager.app_logger
 
         # 初始化数据库连接
         self._init_database()
@@ -71,69 +82,57 @@ class BaseBentoService:
         # 注册退出清理
         atexit.register(self._cleanup)
 
-        debug_print(self.service_name, f"初始化完成, task_type={self._task_type.value}")
+        self._info("初始化完成, task_type=%s", self._task_type.value)
+
+    def _debug(self, msg: str, *args) -> None:
+        """调试输出"""
+        if self._debug_enabled and self.logger:
+            self.logger.debug(msg, *args)
+
+    def _info(self, msg: str, *args) -> None:
+        """信息输出"""
+        if self.logger:
+            self.logger.info(msg, *args)
+
+    def _warning(self, msg: str, *args) -> None:
+        """警告输出"""
+        if self.logger:
+            self.logger.warning(msg, *args)
+
+    def _error(self, msg: str, *args) -> None:
+        """错误输出"""
+        if self.logger:
+            self.logger.error(msg, *args)
 
     def _cleanup(self):
-        """
-        清理资源（由 atexit 调用）
+        """清理资源（由 atexit 调用）"""
+        self._info("开始清理资源...")
 
-        注意：清理过程中记录异常但不抛出，避免影响程序退出。
-        """
-        debug_print(self.service_name, "开始清理资源...")
-
-        # 停止热加载监控
         self._stop_reload.set()
 
-        # 等待热加载线程退出
         if self._hot_reload_thread and self._hot_reload_thread.is_alive():
             try:
                 self._hot_reload_thread.join(timeout=2)
                 if self._hot_reload_thread.is_alive():
-                    debug_print(self.service_name, "热加载线程未能在2秒内退出")
+                    self._warning("热加载线程未能在2秒内退出")
                 else:
-                    debug_print(self.service_name, "热加载线程已退出")
+                    self._debug("热加载线程已退出")
             except Exception as e:
-                debug_print(self.service_name, f"等待热加载线程退出时出错: {e}")
+                self._error("等待热加载线程退出时出错: %s", e)
 
-        # 清理已加载的模型
         for model_id in list(self._active_models.keys()):
             try:
                 self._unload_model(model_id)
             except Exception as e:
-                debug_print(self.service_name, f"清理模型 {model_id} 时出错: {e}")
+                self._error("清理模型 %s 时出错: %s", model_id, e)
 
-        debug_print(self.service_name, "资源清理完成")
-
-    # ==================== 延迟加载组件 ====================
-
-    def _get_model_loader(self):
-        """延迟获取模型加载器"""
-        if self._model_loader is None:
-            self._model_loader = get_model_loader()
-        return self._model_loader
-
-    def _get_model_registry(self):
-        """延迟获取模型注册中心"""
-        if self._model_registry is None:
-            self._model_registry = get_model_registry()
-        return self._model_registry
-
-    def _get_inference_engine(self):
-        """延迟获取推理引擎"""
-        if self._inference_engine is None:
-            self._inference_engine = get_inference_engine()
-        return self._inference_engine
+        self._info("资源清理完成")
 
     # ==================== 环境配置 ====================
 
     @staticmethod
     def _get_environment() -> str:
-        """
-        获取环境值
-
-        返回:
-            环境字符串 (development/testing/staging/production)
-        """
+        """获取环境值"""
         env = settings.app.env
         if env == "production":
             return DeploymentEnvironment.PRODUCTION.value
@@ -150,24 +149,23 @@ class BaseBentoService:
         with self._db_lock:
             if not self._db_initialized:
                 try:
-                    debug_print(self.service_name, "初始化数据库连接...")
+                    self._debug("初始化数据库连接...")
                     db_manager.initialize()
                     self._db_initialized = True
-                    debug_print(self.service_name, "数据库连接初始化成功")
+                    self._info("数据库连接初始化成功")
                 except Exception as e:
-                    debug_print(self.service_name, f"数据库连接初始化失败: {e}")
+                    self._error("数据库连接初始化失败: %s", e)
 
     # ==================== 模型加载/卸载 ====================
 
     def _load_production_model_async(self):
         """异步加载生产模型（不阻塞服务启动）"""
-
         def load():
             time.sleep(2)
             try:
                 self._load_production_model()
             except Exception as e:
-                debug_print(self.service_name, f"加载生产模型失败: {e}")
+                self._error("加载生产模型失败: %s", e)
 
         thread = threading.Thread(target=load, daemon=True, name=f"{self.service_name}_loader")
         thread.start()
@@ -175,12 +173,12 @@ class BaseBentoService:
     def _load_production_model(self):
         """加载生产环境模型"""
         if not self._db_initialized:
-            debug_print(self.service_name, "数据库未就绪，跳过生产模型加载")
+            self._debug("数据库未就绪，跳过生产模型加载")
             return
 
         try:
             env_value = self._get_environment()
-            debug_print(self.service_name, f"环境: {env_value}")
+            self._debug("环境: %s", env_value)
 
             with get_db() as session:
                 deployment = session.query(ModelDeployment).filter(
@@ -190,21 +188,21 @@ class BaseBentoService:
 
                 if deployment:
                     model_id = deployment.model_id
-                    debug_print(self.service_name, f"找到部署配置: {model_id}")
+                    self._debug("找到部署配置: %s", model_id)
 
-                    model_info = self._get_model_registry().get_model_info(model_id)
+                    model_info = session.query(ModelMetadata).filter_by(model_id=model_id).first()
 
-                    if model_info and model_info.get('status') == ModelStatus.ACTIVE.value:
+                    if model_info and model_info.status == ModelStatus.ACTIVE.value:
                         self._load_model(model_id)
                         self._initialized = True
-                        debug_print(self.service_name, f"加载生产模型成功: {model_id}")
+                        self._info("加载生产模型成功: %s", model_id)
                     else:
-                        debug_print(self.service_name, f"生产模型未激活: {model_id}")
+                        self._warning("生产模型未激活: %s", model_id)
                 else:
-                    debug_print(self.service_name, "未找到生产模型部署配置")
+                    self._debug("未找到生产模型部署配置")
 
         except Exception as e:
-            debug_print(self.service_name, f"加载生产模型失败: {e}")
+            self._error("加载生产模型失败: %s", e)
 
     def _load_model(self, model_id: str) -> bool:
         """
@@ -217,81 +215,84 @@ class BaseBentoService:
             是否加载成功
         """
         try:
-            # 检查是否已加载
             if model_id in self._active_models:
-                debug_print(self.service_name, f"模型已加载: {model_id}")
+                self._debug("模型已加载: %s", model_id)
                 return True
 
-            # 获取模型元数据
-            model_info = self._get_model_registry().get_model_info(model_id)
-            if not model_info:
-                debug_print(self.service_name, f"模型不存在: {model_id}")
-                return False
-
-            # 验证任务类型
-            if model_info.get('task_type') != self._task_type.value:
-                debug_print(self.service_name,
-                            f"模型类型不匹配: {model_info.get('task_type')} != {self._task_type.value}")
-                return False
-
-            # 加载模型到内存
-            model_loader = self._get_model_loader()
-            success = model_loader.load_model(
-                model_id=model_id,
-                operator="bentoml",
-                ip_address=None
-            )
-
-            if success:
-                model = model_loader.get_model(model_id)
-                if model:
-                    self._active_models[model_id] = {
-                        'model': model,
-                        'version': model_info.get('model_version'),
-                        'loaded_at': datetime.now(),
-                        'metadata': model_info
-                    }
-                    self._model_versions[model_id] = model_info.get('model_version')
-                    debug_print(self.service_name,
-                                f"模型加载成功: {model_id} (version={model_info.get('model_version')})")
-                    return True
-                else:
-                    debug_print(self.service_name, f"模型加载后获取失败: {model_id}")
+            with get_db() as session:
+                model_info = session.query(ModelMetadata).filter_by(model_id=model_id).first()
+                if not model_info:
+                    self._error("模型不存在: %s", model_id)
                     return False
-            else:
-                debug_print(self.service_name, f"模型加载失败: {model_id}")
-                return False
+
+                if model_info.task_type != self._task_type.value:
+                    self._warning("模型类型不匹配: %s != %s",
+                                  model_info.task_type, self._task_type.value)
+                    return False
+
+                # 加载模型文件
+                import joblib
+                import os
+
+                model_path = model_info.file_path
+                if not os.path.exists(model_path):
+                    self._error("模型文件不存在: %s", model_path)
+                    return False
+
+                self._debug("加载模型文件: %s", model_path)
+                model = joblib.load(model_path)
+
+                # 获取特征名
+                feature_names = model_info.input_features if hasattr(model_info, 'input_features') else None
+
+                # 创建适配器
+                adapter = get_adapter(model, feature_names=feature_names, debug=self._debug_enabled)
+
+                # 创建评分引擎
+                engine = ScoringEngine(
+                    model_adapter=adapter,
+                    transformer=None,
+                    debug=self._debug_enabled
+                )
+
+                self._active_models[model_id] = {
+                    'engine': engine,
+                    'adapter': adapter,
+                    'version': model_info.model_version,
+                    'loaded_at': datetime.now(),
+                    'metadata': {
+                        'model_name': model_info.model_name,
+                        'model_type': model_info.model_type,
+                        'framework': model_info.framework,
+                        'task_type': model_info.task_type
+                    }
+                }
+                self._model_versions[model_id] = model_info.model_version
+                self._engines[model_id] = engine
+
+                self._info("模型加载成功: %s (version=%s)", model_id, model_info.model_version)
+                return True
 
         except Exception as e:
-            debug_print(self.service_name, f"加载模型异常: {model_id}, {e}")
+            self._error("加载模型异常: %s, %s", model_id, e)
             return False
 
     def _unload_model(self, model_id: str):
-        """
-        卸载模型
-
-        参数:
-            model_id: 模型ID
-        """
+        """卸载模型"""
         if model_id in self._active_models:
-            model_loader = self._get_model_loader()
-            model_loader.unload_model(
-                model_id=model_id,
-                operator="bentoml",
-                ip_address=None
-            )
             del self._active_models[model_id]
+            if model_id in self._engines:
+                del self._engines[model_id]
             if model_id in self._model_versions:
                 del self._model_versions[model_id]
-            debug_print(self.service_name, f"模型卸载成功: {model_id}")
+            self._debug("模型卸载成功: %s", model_id)
 
     # ==================== 热加载监控 ====================
 
     def _start_hot_reload_monitor(self):
         """启动热加载监控线程"""
-
         def monitor():
-            debug_print(self.service_name, "热加载监控线程启动")
+            self._debug("热加载监控线程启动")
             env_value = self._get_environment()
 
             while not self._stop_reload.is_set():
@@ -308,18 +309,16 @@ class BaseBentoService:
 
                         for deployment in deployments:
                             model_id = deployment.model_id
-                            model_info = self._get_model_registry().get_model_info(model_id)
+                            model_info = session.query(ModelMetadata).filter_by(model_id=model_id).first()
                             if not model_info:
                                 continue
 
                             current_version = self._model_versions.get(model_id)
-                            latest_version = model_info.get('model_version')
+                            latest_version = model_info.model_version
 
                             if latest_version and latest_version != current_version:
-                                debug_print(
-                                    self.service_name,
-                                    f"检测到模型版本更新: {model_id} {current_version} -> {latest_version}"
-                                )
+                                self._info("检测到模型版本更新: %s %s -> %s",
+                                           model_id, current_version, latest_version)
                                 self._unload_model(model_id)
                                 self._load_model(model_id)
 
@@ -337,7 +336,7 @@ class BaseBentoService:
                                 )
 
                 except Exception as e:
-                    debug_print(self.service_name, f"热加载监控异常: {e}")
+                    self._error("热加载监控异常: %s", e)
 
                 self._stop_reload.wait(self._reload_interval)
 
@@ -350,25 +349,24 @@ class BaseBentoService:
 
     # ==================== 公开接口 - 模型获取 ====================
 
-    def get_production_model(self) -> Tuple[Optional[str], Optional[Any], Optional[str]]:
+    def get_production_model(self) -> Tuple[Optional[str], Optional[ScoringEngine], Optional[str]]:
         """
         获取生产模型
 
         返回:
-            (model_id, model_instance, model_version) 元组，未找到返回 (None, None, None)
+            (model_id, engine, model_version) 元组，未找到返回 (None, None, None)
         """
         if not self._active_models:
             self._load_production_model()
             if not self._active_models:
                 return None, None, None
 
-        # 返回第一个激活的模型（生产环境通常只有一个）
         for mid, info in self._active_models.items():
-            return mid, info['model'], info['version']
+            return mid, info['engine'], info['version']
 
         return None, None, None
 
-    def get_model(self, model_id: str, auto_load: bool = True) -> Tuple[Optional[str], Optional[Any], Optional[str]]:
+    def get_model(self, model_id: str, auto_load: bool = True) -> Tuple[Optional[str], Optional[ScoringEngine], Optional[str]]:
         """
         根据模型ID获取模型
 
@@ -377,38 +375,26 @@ class BaseBentoService:
             auto_load: 如果模型未加载，是否自动加载
 
         返回:
-            (model_id, model_instance, model_version) 元组，未找到返回 (None, None, None)
+            (model_id, engine, model_version) 元组，未找到返回 (None, None, None)
         """
-        # 检查是否已加载
         if model_id in self._active_models:
             info = self._active_models[model_id]
-            return model_id, info['model'], info['version']
+            return model_id, info['engine'], info['version']
 
-        # 自动加载
         if auto_load:
             if self._load_model(model_id):
                 info = self._active_models.get(model_id)
                 if info:
-                    return model_id, info['model'], info['version']
+                    return model_id, info['engine'], info['version']
 
         return None, None, None
 
     def get_loaded_model_ids(self) -> List[str]:
-        """
-        获取所有已加载的模型ID列表
-
-        返回:
-            模型ID列表
-        """
+        """获取所有已加载的模型ID列表"""
         return list(self._active_models.keys())
 
     def get_loaded_models(self) -> List[Dict[str, Any]]:
-        """
-        获取已加载的模型列表
-
-        返回:
-            已加载模型信息列表
-        """
+        """获取已加载的模型列表"""
         return [
             {
                 'model_id': mid,
@@ -425,17 +411,9 @@ class BaseBentoService:
     # ==================== 模型操作 ====================
 
     def reload_model(self, model_id: str) -> Dict[str, Any]:
-        """
-        手动重新加载模型
-
-        参数:
-            model_id: 模型ID
-
-        返回:
-            操作结果字典，包含 success, message, model_id, version 字段
-        """
+        """手动重新加载模型"""
         try:
-            debug_print(self.service_name, f"手动重新加载模型: {model_id}")
+            self._info("手动重新加载模型: %s", model_id)
             self._unload_model(model_id)
             success = self._load_model(model_id)
 
@@ -452,21 +430,14 @@ class BaseBentoService:
                     'message': f'模型 {model_id} 重新加载失败'
                 }
         except Exception as e:
+            self._error("重新加载模型失败: %s", e)
             return {
                 'success': False,
                 'message': str(e)
             }
 
     def unload_model(self, model_id: str) -> Dict[str, Any]:
-        """
-        卸载模型
-
-        参数:
-            model_id: 模型ID
-
-        返回:
-            操作结果字典
-        """
+        """卸载模型"""
         try:
             if model_id not in self._active_models:
                 return {
@@ -479,6 +450,7 @@ class BaseBentoService:
                 'message': f'模型 {model_id} 卸载成功'
             }
         except Exception as e:
+            self._error("卸载模型失败: %s", e)
             return {
                 'success': False,
                 'message': str(e)
@@ -487,12 +459,7 @@ class BaseBentoService:
     # ==================== 健康检查 ====================
 
     def health_check(self) -> Dict[str, Any]:
-        """
-        健康检查
-
-        返回:
-            健康状态信息字典
-        """
+        """健康检查"""
         status = 'healthy'
         issues = []
 
@@ -505,7 +472,7 @@ class BaseBentoService:
             issues.append('no_models_loaded')
 
         for mid, info in self._active_models.items():
-            if not info.get('model'):
+            if not info.get('engine'):
                 status = 'unhealthy'
                 issues.append(f'model_{mid}_invalid')
 
@@ -521,14 +488,9 @@ class BaseBentoService:
 
     def stop(self):
         """停止服务"""
-        debug_print(self.service_name, "停止服务")
+        self._info("停止服务")
         self._stop_reload.set()
 
     def __del__(self):
-        """
-        析构函数
-
-        注意：__del__ 在垃圾回收时调用，应保持简单。
-        """
         if hasattr(self, '_stop_reload'):
             self._stop_reload.set()

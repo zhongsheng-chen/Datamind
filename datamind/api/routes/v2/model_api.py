@@ -12,8 +12,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 from pydantic import BaseModel
 
-from datamind.core.ml.model.registry import model_registry
-from datamind.core.ml.model.loader import model_loader
+from datamind.core.ml.model import model_registry
+from datamind.core.ml.model import model_loader
 from datamind.core.logging import log_audit, context
 from datamind.core.domain.enums import AuditAction
 from datamind.api.dependencies import get_current_user

@@ -7,8 +7,8 @@ import time
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-from datamind.core.ml.model.inference import InferenceEngine, LRUCache
-from datamind.core.ml.common.exceptions import ModelInferenceException, ModelNotFoundException
+from datamind.core.ml.model import InferenceEngine, LRUCache
+from datamind.core.common.exceptions import ModelInferenceException, ModelNotFoundException
 from datamind.core.domain.enums import TaskType
 
 

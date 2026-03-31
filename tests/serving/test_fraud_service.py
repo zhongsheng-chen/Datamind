@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 
 from datamind.serving.fraud_service import FraudService
-from datamind.core.ml.common.exceptions import ModelNotFoundException, ModelInferenceException
+from datamind.core.common.exceptions import ModelNotFoundException, ModelInferenceException
 
 
 class TestFraudService:

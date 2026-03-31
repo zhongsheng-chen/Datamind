@@ -13,7 +13,7 @@ import tempfile
 import os
 from typing import Optional, Tuple, Dict, Any, List
 
-from datamind.core.ml.model.registry import get_model_registry
+from datamind.core.ml.model import get_model_registry
 from datamind.core.domain.enums import TaskType, ModelType, Framework
 from datamind.core.logging.bootstrap import install_bootstrap_logger, flush_bootstrap_logs
 from datamind.core.logging.debug import debug_print

@@ -12,7 +12,7 @@ from datamind.core.experiment.ab_test import (
     TrafficSplitter,
     AssignmentStrategy
 )
-from datamind.core.ml.common.exceptions import ABTestException
+from datamind.core.common.exceptions import ABTestException
 from datamind.core.domain.enums import ABTestStatus, AuditAction
 
 

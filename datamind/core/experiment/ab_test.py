@@ -43,7 +43,7 @@ from datamind.core.db.models import ABTestConfig, ABTestAssignment, ModelMetadat
 from datamind.core.domain.enums import ABTestStatus, AuditAction
 from datamind.core.logging import log_audit, context
 from datamind.core.logging.debug import debug_print
-from datamind.core.ml.common.exceptions import ABTestException
+from datamind.core.common.exceptions import ABTestException
 from datamind.config import get_settings
 
 

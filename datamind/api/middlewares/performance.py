@@ -56,7 +56,7 @@ from starlette.types import ASGIApp
 from datamind.core.logging import log_audit, context
 from datamind.core.logging.debug import debug_print
 from datamind.core.domain.enums import AuditAction
-from datamind.core.ml.model.loader import model_loader
+from datamind.core.ml.model import model_loader
 from datamind.config import get_settings
 from datamind.config import PerformanceConfig
 

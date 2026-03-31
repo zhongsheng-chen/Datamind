@@ -257,7 +257,7 @@ print(f"特征分: {result['feature_scores']}")
 ### 异常处理
 
 ```python
-from datamind.core.ml.common.exceptions import (
+from datamind.core.common.exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
     ModelValidationException,
@@ -719,7 +719,7 @@ except SQLAlchemyError as e:
 ### 模型错误
 
 ```python
-from datamind.core.ml.common.exceptions import ModelException
+from datamind.core.common.exceptions import ModelException
 
 try:
     result = inference_engine.predict_scorecard(model_id, features)
