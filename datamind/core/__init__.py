@@ -17,7 +17,7 @@ from datamind.core import (
     domain,
     experiment,
     logging,
-    ml,
+    scoring,
 )
 
 __version__ = "1.0.0"
@@ -26,5 +26,5 @@ __all__ = [
     'domain',
     'experiment',
     'logging',
-    'ml',
+    'scoring',
 ]

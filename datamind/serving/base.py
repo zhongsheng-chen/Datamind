@@ -3,6 +3,21 @@
 """BentoML 服务基类
 
 提供模型加载、热更新、审计日志等基础功能。
+
+核心功能：
+  - 模型加载：从数据库加载模型元数据，创建评分引擎
+  - WOE转换器创建：为评分卡模型自动创建WOE转换器
+  - 热加载监控：检测模型版本变化，自动重新加载
+  - 生产模型管理：自动加载生产环境配置的模型
+  - 健康检查：检查数据库、模型加载状态
+  - 完整审计：记录模型加载、卸载、版本更新等操作
+
+特性：
+  - 异步加载：不阻塞服务启动
+  - 线程安全：使用锁保护共享资源
+  - 热更新：检测模型版本变化自动重载
+  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 多环境支持：development/testing/staging/production
 """
 
 import atexit
@@ -13,9 +28,6 @@ from datetime import datetime
 
 from datamind.core.scoring.adapters import get_adapter
 from datamind.core.scoring.engine import ScoringEngine
-from datamind.core.scoring.transform import WOETransformer
-from datamind.core.scoring.predictor import Predictor
-from datamind.core.scoring.capability import ScorecardCapability, has_capability
 from datamind.core.db.database import get_db, db_manager
 from datamind.core.db.models import ModelDeployment, ModelMetadata
 from datamind.core.domain.enums import AuditAction, TaskType, ModelStatus, DeploymentEnvironment
@@ -31,6 +43,16 @@ class BaseBentoService:
     BentoML 服务基类
 
     提供模型加载、热更新、审计日志等基础功能。
+
+    属性:
+        service_type: 服务类型 (scoring/fraud_detection)
+        service_name: 服务名称
+        _active_models: 已加载的模型缓存
+        _model_versions: 模型版本映射
+        _engines: 评分引擎缓存
+        _hot_reload_thread: 热加载监控线程
+        _stop_reload: 停止热加载事件
+        _reload_interval: 热加载检查间隔（秒）
     """
 
     # 类级别锁，确保数据库只初始化一次
@@ -160,6 +182,7 @@ class BaseBentoService:
 
     def _load_production_model_async(self):
         """异步加载生产模型（不阻塞服务启动）"""
+
         def load():
             time.sleep(2)
             try:
@@ -208,6 +231,13 @@ class BaseBentoService:
         """
         加载指定模型
 
+        核心功能：
+          - 从数据库获取模型元数据
+          - 加载模型文件（joblib/pickle）
+          - 为评分卡模型创建WOE转换器
+          - 创建模型适配器和评分引擎
+          - 缓存模型实例
+
         参数:
             model_id: 模型ID
 
@@ -245,13 +275,47 @@ class BaseBentoService:
                 # 获取特征名
                 feature_names = model_info.input_features if hasattr(model_info, 'input_features') else None
 
+                # ========== 创建WOE转换器==========
+                transformer = None
+                if self._task_type == TaskType.SCORING:
+                    # 从模型参数中获取评分卡配置
+                    scorecard_params = model_info.model_params.get('scorecard', {}) if model_info.model_params else {}
+
+                    # 检查是否有分箱配置
+                    binning_config = scorecard_params.get('binning', {})
+
+                    if binning_config:
+                        try:
+                            from datamind.core.scoring.binning import Bin
+                            from datamind.core.scoring.transform import WOETransformer
+
+                            binning = {}
+                            for feat_name, bins_data in binning_config.items():
+                                bins = []
+                                for bin_data in bins_data:
+                                    # 确保bin_data是字典格式
+                                    if isinstance(bin_data, dict):
+                                        bins.append(Bin.from_dict(bin_data))
+                                    else:
+                                        # 如果bin_data已经是Bin对象
+                                        bins.append(bin_data)
+                                binning[feat_name] = bins
+
+                            transformer = WOETransformer(binning, debug=self._debug_enabled)
+                            self._info("已为模型 %s 创建WOE转换器", model_id)
+                        except Exception as e:
+                            self._error("创建WOE转换器失败: %s", e)
+                            transformer = None
+                    else:
+                        self._warning("评分卡模型 %s 缺少分箱配置，特征分将使用原始值（可能不准确）", model_id)
+
                 # 创建适配器
-                adapter = get_adapter(model, feature_names=feature_names, debug=self._debug_enabled)
+                adapter = get_adapter(model, feature_names=feature_names)
 
                 # 创建评分引擎
                 engine = ScoringEngine(
                     model_adapter=adapter,
-                    transformer=None,
+                    transformer=transformer,
                     debug=self._debug_enabled
                 )
 
@@ -265,7 +329,8 @@ class BaseBentoService:
                         'model_type': model_info.model_type,
                         'framework': model_info.framework,
                         'task_type': model_info.task_type
-                    }
+                    },
+                    'transformer': transformer
                 }
                 self._model_versions[model_id] = model_info.model_version
                 self._engines[model_id] = engine
@@ -291,6 +356,7 @@ class BaseBentoService:
 
     def _start_hot_reload_monitor(self):
         """启动热加载监控线程"""
+
         def monitor():
             self._debug("热加载监控线程启动")
             env_value = self._get_environment()
@@ -366,7 +432,8 @@ class BaseBentoService:
 
         return None, None, None
 
-    def get_model(self, model_id: str, auto_load: bool = True) -> Tuple[Optional[str], Optional[ScoringEngine], Optional[str]]:
+    def get_model(self, model_id: str, auto_load: bool = True) -> Tuple[
+        Optional[str], Optional[ScoringEngine], Optional[str]]:
         """
         根据模型ID获取模型
 
@@ -407,6 +474,20 @@ class BaseBentoService:
             }
             for mid, info in self._active_models.items()
         ]
+
+    def get_model_metadata(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        获取模型元数据
+
+        参数:
+            model_id: 模型ID
+
+        返回:
+            模型元数据字典，如果模型未加载则返回 None
+        """
+        if model_id in self._active_models:
+            return self._active_models[model_id].get('metadata')
+        return None
 
     # ==================== 模型操作 ====================
 

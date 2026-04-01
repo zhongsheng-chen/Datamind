@@ -2,23 +2,29 @@
 
 """特征贡献解释器
 
-提供统一的接口，用于获取单条或批量预测的特征贡献信息。
+提供统一的特征贡献解释接口，所有输出统一为 logit 空间（bad/good）。
+
+核心原则：
+    - logit 是唯一核心解释空间（与 Score 模块完全一致）
+    - Explainer 只负责“贡献计算”，不负责“评分转换”
+    - score 转换应由 Score 模块完成
 
 核心功能：
-  - explain: 单条样本解释
-  - explain_batch: 批量样本解释
-  - get_feature_importance: 全局特征重要性
-  - get_shap_summary: 获取 SHAP 摘要信息
+    - explain_logit: 单条样本特征贡献（logit 空间）
+    - explain_logit_batch: 批量特征贡献（logit 空间）
+    - get_feature_importance: 全局特征重要性（基于 logit |abs mean|）
+    - get_shap_summary: SHAP 统计摘要（logit 空间）
+    - set_background_data: 设置背景数据（用于 KernelExplainer）
 
 特性：
-  - 支持评分卡模型（WOE 分数贡献）
-  - 支持非评分卡模型（SHAP 贡献）
-  - 累计贡献由基线值和各特征贡献组成
-  - 异常安全处理：模型未提供解释时返回空或默认值
-  - 缓存优化：重复使用 SHAP Explainer 实例
+    - SHAP 统一计算：单条/批量共用 _compute_shap，消除重复代码
+    - 自动降级：批量解释失败时自动降级到单条循环
+    - 能力集中：_supports_shap 统一管理能力判断，易于扩展
+    - 生产容错：单条失败不阻塞批量，返回空字典
+    - 缓存优化：SHAP explainer 按模型 ID 缓存，避免重复创建
 """
 
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 import numpy as np
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
@@ -30,204 +36,186 @@ try:
 except ImportError:
     shap = None
 
+_log_manager = LogManager()
+logger = _log_manager.app_logger
+
 
 class Explainer:
-    """特征贡献解释器
+    """特征贡献解释器（统一 logit 空间）"""
 
-    根据模型类型提供特征贡献解释，支持评分卡和非评分卡模型。
-    """
-
-    def __init__(self, model_adapter: BaseModelAdapter, debug: bool = False):
+    def __init__(self, model_adapter: BaseModelAdapter):
         """
         初始化解释器
 
         参数:
             model_adapter: 模型适配器实例
-            debug: 是否启用调试日志
         """
         self.model_adapter = model_adapter
-        self._debug_enabled = debug
 
-        # 获取日志器
-        self._log_manager = LogManager()
-        self.logger = self._log_manager.app_logger
-
-        # 判断是否为评分卡模型（有 transformer 属性）
+        # 模型类型判断
         self.is_scorecard = hasattr(model_adapter, "transformer")
-
-        # 获取模型能力
         self.capabilities = model_adapter.get_capabilities()
 
-        # SHAP 解释器缓存（按模型 ID）
-        self._explainer_cache: Dict[int, Any] = {}
+        # SHAP explainer 缓存
+        self._explainer_cache: Dict[str, Any] = {}
 
-        # 背景样本缓存（用于 SHAP）
+        # 背景数据（KernelExplainer）
         self._background_data: Optional[np.ndarray] = None
 
-        self._debug(
-            "解释器初始化，评分卡模型: %s, SHAP 可用: %s",
-            self.is_scorecard,
-            shap is not None
+    # ==================== 能力判断 ====================
+
+    def _supports_shap(self) -> bool:
+        """检查是否支持 SHAP 解释"""
+        return shap is not None and has_capability(
+            self.capabilities, ScorecardCapability.SHAP
         )
 
-    def _debug(self, msg: str, *args) -> None:
-        """调试输出"""
-        if self._debug_enabled and self.logger:
-            self.logger.debug(msg, *args)
+    # ==================== SHAP 统一计算 ====================
 
-    def _error(self, msg: str, *args) -> None:
-        """错误输出"""
-        if self.logger:
-            self.logger.error(msg, *args)
+    def _get_model_id(self) -> str:
+        """获取模型唯一标识（用于缓存）"""
+        if hasattr(self.model_adapter, "get_model_id"):
+            return self.model_adapter.get_model_id()
+        return str(id(self.model_adapter.model))
 
-    def _get_shap_explainer(self, background_data: Optional[np.ndarray] = None) -> Any:
+    def _get_shap_explainer(self):
         """
-        获取或创建 SHAP 解释器
+        获取 SHAP explainer
 
-        参数:
-            background_data: 背景样本数据（用于 KernelExplainer）
-
-        返回:
-            SHAP 解释器实例
+        TreeExplainer 优先（树模型），KernelExplainer 需显式设置背景数据。
         """
-        model_id = id(self.model_adapter.model)
+        if shap is None:
+            raise RuntimeError("SHAP 未安装")
+
+        model_id = self._get_model_id()
 
         if model_id in self._explainer_cache:
             return self._explainer_cache[model_id]
 
-        self._debug("创建 SHAP 解释器，模型 ID: %d", model_id)
-
-        # 尝试使用 TreeExplainer（适用于树模型）
+        # TreeExplainer 优先
         try:
             explainer = shap.TreeExplainer(self.model_adapter.model)
-            self._debug("使用 TreeExplainer")
         except Exception:
-            # 降级使用 KernelExplainer
-            if background_data is None:
-                self._error("KernelExplainer 需要背景样本数据")
-                raise ValueError("KernelExplainer 需要提供 background_data")
+            if self._background_data is None:
+                raise RuntimeError(
+                    "当前模型不支持 TreeExplainer，请先调用 set_background_data"
+                )
 
             explainer = shap.KernelExplainer(
                 self.model_adapter.model.predict_proba,
-                background_data
+                self._background_data
             )
-            self._debug("使用 KernelExplainer")
 
         self._explainer_cache[model_id] = explainer
         return explainer
 
+    def _compute_shap(self, X_array: np.ndarray) -> np.ndarray:
+        """
+        统一 SHAP 计算（单条/批量通用）
+
+        参数:
+            X_array: 输入特征数组
+
+        返回:
+            SHAP 值数组（正类）
+        """
+        explainer = self._get_shap_explainer()
+        shap_values = explainer.shap_values(X_array)
+
+        # 二分类处理：统一取正类
+        if isinstance(shap_values, list):
+            return shap_values[1] if len(shap_values) > 1 else shap_values[0]
+
+        return shap_values
+
+    def _format_shap_output(self, row: np.ndarray) -> Dict[str, float]:
+        """格式化 SHAP 输出为特征名-值字典"""
+        # 将 NumPy 数组转换为 Python 列表
+        values = row.tolist()
+        feature_names = self.model_adapter.feature_names
+
+        if feature_names:
+            return dict(zip(feature_names, values))
+
+        return {f"feature_{i}": v for i, v in enumerate(values)}
+
+    # ==================== 评分卡解释 ====================
+
+    def _explain_scorecard(self, X: Dict[str, float]) -> Dict[str, float]:
+        """
+        评分卡特征贡献（logit 空间）
+
+        要求 adapter 实现 get_feature_logit 方法。
+        """
+        if not hasattr(self.model_adapter, "get_feature_logit"):
+            return {}
+
+        try:
+            woe_features = self.model_adapter.transformer.transform(X)
+
+            result = {}
+            for feat, woe in woe_features.items():
+                try:
+                    val = self.model_adapter.get_feature_logit(feat, woe)
+                    if np.isfinite(val):
+                        result[feat] = float(val)
+                except Exception:
+                    continue
+
+            return result
+
+        except Exception:
+            return {}
+
+    # ==================== 背景数据 ====================
+
     def set_background_data(self, X_batch: List[Dict[str, float]]) -> None:
         """
-        设置背景样本数据（用于 KernelExplainer）
+        设置背景数据（用于 KernelExplainer）
+
+        参数:
+            X_batch: 背景样本特征字典列表
+        """
+        if not X_batch:
+            return
+
+        self._background_data = self.model_adapter.to_array_batch(X_batch)
+
+    # ==================== 核心 API ====================
+
+    def explain_logit(self, X: Dict[str, float]) -> Dict[str, float]:
+        """
+        单条样本解释（logit 空间）
+
+        参数:
+            X: 特征字典
+
+        返回:
+            特征对 logit 的贡献字典
+        """
+        try:
+            if self.is_scorecard:
+                return self._explain_scorecard(X)
+
+            if self._supports_shap():
+                arr = self.model_adapter.to_array(X)
+                vals = self._compute_shap(arr)
+                return self._format_shap_output(vals[0])
+
+            return {}
+
+        except Exception:
+            return {}
+
+    def explain_logit_batch(
+        self,
+        X_batch: List[Dict[str, float]]
+    ) -> List[Dict[str, float]]:
+        """
+        批量解释（logit 空间）
 
         参数:
             X_batch: 特征字典列表
-        """
-        if not X_batch:
-            self._debug("背景样本数据为空")
-            return
-
-        # 转换为数组
-        X_array = self.model_adapter.to_array_batch(X_batch)
-        self._background_data = X_array
-        self._debug("设置背景样本数据，样本数: %d", len(X_batch))
-
-    def explain(self, X: Dict[str, float]) -> Dict[str, float]:
-        """
-        获取单条样本的特征贡献
-
-        参数:
-            X: 特征字典，格式 {"feature_name": value, ...}
-
-        返回:
-            特征贡献字典，格式 {"feature_name": 贡献值, ...}
-            对于评分卡模型，贡献值已与基线分数组合可直接累加得到总分
-        """
-        try:
-            # 评分卡模型：使用特征分数
-            if self.is_scorecard:
-                self._debug("使用评分卡模型解释")
-                return self._explain_scorecard(X)
-
-            # SHAP 解释（非评分卡模型）
-            if shap and has_capability(self.capabilities, ScorecardCapability.SHAP):
-                self._debug("使用 SHAP 解释")
-                return self._explain_shap(X)
-
-            # 模型不支持解释
-            self._debug("模型不支持特征贡献解释")
-            return {}
-
-        except Exception as e:
-            self._error("解释失败: %s", e)
-            return {}
-
-    def _explain_scorecard(self, X: Dict[str, float]) -> Dict[str, float]:
-        """评分卡模型解释（特征分数）"""
-        if not hasattr(self.model_adapter, 'transformer') or not self.model_adapter.transformer:
-            return {}
-
-        woe_features = self.model_adapter.transformer.transform(X)
-        scores = {}
-
-        for feat_name, woe in woe_features.items():
-            try:
-                scores[feat_name] = self.model_adapter.get_feature_score(feat_name, woe)
-            except (RuntimeError, ValueError) as e:
-                self._debug("获取特征 %s 分数失败: %s", feat_name, e)
-
-        self._debug("评分卡解释完成，特征数: %d", len(scores))
-        return scores
-
-    def _explain_shap(self, X: Dict[str, float]) -> Dict[str, float]:
-        """SHAP 模型解释"""
-        try:
-            # 获取解释器
-            explainer = self._get_shap_explainer(self._background_data)
-
-            # 将特征字典转换为数组
-            X_array = self.model_adapter.to_array(X)
-
-            # 计算 SHAP 值
-            shap_values = explainer.shap_values(X_array)
-
-            # 处理输出格式
-            if isinstance(shap_values, list):
-                # 二分类模型，取正类的 SHAP 值
-                shap_vals = shap_values[1] if len(shap_values) > 1 else shap_values[0]
-            else:
-                shap_vals = shap_values
-
-            # 构建结果字典
-            if self.model_adapter.feature_names:
-                result = {
-                    feature: float(shap_vals[0][i])
-                    for i, feature in enumerate(self.model_adapter.feature_names)
-                }
-            else:
-                result = {
-                    f"feature_{i}": float(val)
-                    for i, val in enumerate(shap_vals[0])
-                }
-
-            self._debug("SHAP 解释完成，特征数: %d", len(result))
-            return result
-
-        except Exception as e:
-            self._error("SHAP 解释失败: %s", e)
-            return {}
-
-    def explain_batch(
-        self,
-        X_batch: List[Dict[str, float]],
-        use_vectorized: bool = True
-    ) -> List[Dict[str, float]]:
-        """
-        批量获取特征贡献
-
-        参数:
-            X_batch: 特征字典列表，格式 [{"feature_name": value, ...}, ...]
-            use_vectorized: 是否使用向量化计算（仅 SHAP）
 
         返回:
             特征贡献字典列表
@@ -235,113 +223,59 @@ class Explainer:
         if not X_batch:
             return []
 
-        # 评分卡模型：循环计算
-        if self.is_scorecard:
-            return [self.explain(x) for x in X_batch]
+        try:
+            if self.is_scorecard:
+                return [self._explain_scorecard(x) for x in X_batch]
 
-        # SHAP 模型：尝试向量化计算
-        if use_vectorized and shap and has_capability(self.capabilities, ScorecardCapability.SHAP):
-            try:
-                return self._explain_shap_batch(X_batch)
-            except Exception as e:
-                self._error("向量化批量解释失败，降级为循环: %s", e)
+            if self._supports_shap():
+                arr = self.model_adapter.to_array_batch(X_batch)
+                vals = self._compute_shap(arr)
+                return [self._format_shap_output(row) for row in vals]
 
-        # 降级：循环计算
-        return [self.explain(x) for x in X_batch]
+        except Exception:
+            # 批量失败时降级到单条循环
+            return [self.explain_logit(x) for x in X_batch]
 
-    def _explain_shap_batch(self, X_batch: List[Dict[str, float]]) -> List[Dict[str, float]]:
-        """向量化批量 SHAP 解释"""
-        self._debug("使用向量化批量 SHAP 解释，样本数: %d", len(X_batch))
+        return []
 
-        # 获取解释器
-        explainer = self._get_shap_explainer(self._background_data)
-
-        # 批量转换为数组
-        X_array = self.model_adapter.to_array_batch(X_batch)
-
-        # 批量计算 SHAP 值
-        shap_values = explainer.shap_values(X_array)
-
-        # 处理输出格式
-        if isinstance(shap_values, list):
-            # 二分类模型，取正类的 SHAP 值
-            shap_vals = shap_values[1] if len(shap_values) > 1 else shap_values[0]
-        else:
-            shap_vals = shap_values
-
-        # 构建结果列表
-        results = []
-        feature_names = self.model_adapter.feature_names
-
-        for i in range(len(X_batch)):
-            if feature_names:
-                result = {
-                    feature: float(shap_vals[i][j])
-                    for j, feature in enumerate(feature_names)
-                }
-            else:
-                result = {
-                    f"feature_{j}": float(val)
-                    for j, val in enumerate(shap_vals[i])
-                }
-            results.append(result)
-
-        self._debug("向量化批量 SHAP 解释完成")
-        return results
+    # ==================== 全局重要性 ====================
 
     def get_feature_importance(
         self,
         X_batch: Optional[List[Dict[str, float]]] = None
     ) -> Dict[str, float]:
         """
-        计算全局特征重要性
+        全局特征重要性（基于 logit |abs mean|）
 
         参数:
-            X_batch: 可选样本列表，用于非评分卡模型的 SHAP 重要性计算
+            X_batch: 样本列表（非评分卡模型需要）
 
         返回:
-            特征重要性字典，值为绝对贡献平均值或评分卡权重
+            特征重要性字典
         """
-        # 评分卡模型：从 transformer 获取 WOE 最大绝对值
-        if self.is_scorecard and hasattr(self.model_adapter, 'transformer'):
-            transformer = self.model_adapter.transformer
-            if hasattr(transformer, 'binning'):
-                importance = {}
-                for feature, bins in transformer.binning.items():
-                    importance[feature] = max(abs(b.woe) for b in bins)
-                self._debug("从 transformer 获取特征重要性，特征数: %d", len(importance))
-                return importance
-
-        # SHAP 重要性（非评分卡模型）
-        if X_batch and shap and has_capability(self.capabilities, ScorecardCapability.SHAP):
-            self._debug("使用 SHAP 计算全局特征重要性，样本数: %d", len(X_batch))
+        if X_batch:
+            results = self.explain_logit_batch(X_batch)
 
             agg = {}
-            for x in X_batch:
-                vals = self.explain(x)
-                for k, v in vals.items():
-                    agg[k] = agg.get(k, 0) + abs(v)
+            for r in results:
+                for k, v in r.items():
+                    agg[k] = agg.get(k, 0.0) + abs(v)
 
-            n = len(X_batch)
-            result = {k: v / n for k, v in agg.items()}
-            self._debug("SHAP 重要性计算完成，特征数: %d", len(result))
-            return result
+            n = len(results)
+            return {k: v / n for k, v in agg.items()}
 
-        # 从适配器获取特征重要性
-        importance = self.model_adapter.get_feature_importance()
-        if importance:
-            self._debug("从适配器获取特征重要性，特征数: %d", len(importance))
-            return importance
+        return self.model_adapter.get_feature_importance() or {}
 
-        self._debug("无法计算全局特征重要性")
-        return {}
+    # ==================== SHAP 统计 ====================
 
     def get_shap_summary(
         self,
         X_batch: List[Dict[str, float]]
     ) -> Dict[str, Any]:
         """
-        获取 SHAP 摘要信息（平均值、标准差、最大最小值）
+        SHAP 统计摘要（logit 空间）
+
+        计算每个特征的 SHAP 值统计：均值、标准差、最小值、最大值、绝对值均值。
 
         参数:
             X_batch: 特征字典列表
@@ -349,29 +283,22 @@ class Explainer:
         返回:
             摘要信息字典
         """
-        if not X_batch:
+        results = self.explain_logit_batch(X_batch)
+        if not results:
             return {}
 
-        # 计算所有样本的 SHAP 值
-        shap_results = self.explain_batch(X_batch, use_vectorized=True)
-
-        if not shap_results:
-            return {}
-
-        # 按特征聚合统计
         summary = {}
-        feature_names = set()
-        for result in shap_results:
-            feature_names.update(result.keys())
+        features = set().union(*[r.keys() for r in results])
 
-        for feature in feature_names:
-            values = [r.get(feature, 0) for r in shap_results]
-            summary[feature] = {
-                "mean": float(np.mean(values)),
-                "std": float(np.std(values)),
-                "min": float(np.min(values)),
-                "max": float(np.max(values)),
-                "abs_mean": float(np.mean(np.abs(values))),
+        for f in features:
+            vals = np.array([r.get(f, 0.0) for r in results])
+
+            summary[f] = {
+                "mean": float(np.mean(vals)),
+                "std": float(np.std(vals)),
+                "min": float(np.min(vals)),
+                "max": float(np.max(vals)),
+                "abs_mean": float(np.mean(np.abs(vals))),
             }
 
         return summary

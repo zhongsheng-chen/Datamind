@@ -12,7 +12,8 @@
   - to_array_batch: 批量特征字典转 numpy 数组
   - get_feature_importance: 获取特征重要性（子类可重写）
   - get_capabilities: 获取模型能力集（子类可重写）
-  - get_coef: 获取特征系数（仅 LR 模型）
+  - get_coef: 获取特征系数（仅逻辑回归模型）
+  - get_feature_logit: 获取特征对 logit 的贡献（仅逻辑回归模型）
 
 特性：
   - 统一接口：所有框架模型通过相同方式调用
@@ -31,6 +32,9 @@ from datamind.core.logging.manager import LogManager
 from datamind.core.domain.enums import DataType
 from datamind.core.scoring.capability import ScorecardCapability
 
+_log_manager = LogManager()
+logger = _log_manager.app_logger
+
 
 class BaseModelAdapter(ABC):
     """统一模型接口 - 所有框架适配器的基类"""
@@ -40,6 +44,7 @@ class BaseModelAdapter(ABC):
         model,
         feature_names: Optional[List[str]] = None,
         data_types: Optional[Dict[str, DataType]] = None,
+        transformer: Optional[Any] = None,
         debug: bool = False
     ):
         """
@@ -49,16 +54,14 @@ class BaseModelAdapter(ABC):
             model: 训练好的模型
             feature_names: 特征名称列表（用于保证特征顺序）
             data_types: 特征数据类型映射，用于类型验证
+            transformer: WOE转换器（评分卡模型使用）
             debug: 是否启用调试日志
         """
         self.model = model
         self.feature_names = feature_names
         self.data_types = data_types or {}
+        self.transformer = transformer
         self._debug_enabled = debug
-
-        # 获取应用日志器
-        self._log_manager = LogManager()
-        self.logger = self._log_manager.app_logger
 
         if self._debug_enabled:
             self._debug("初始化适配器")
@@ -67,23 +70,20 @@ class BaseModelAdapter(ABC):
 
     def _debug(self, msg: str, *args: Any) -> None:
         """调试输出"""
-        if self._debug_enabled and self.logger:
-            self.logger.debug(msg, *args)
+        if self._debug_enabled:
+            logger.debug(msg, *args)
 
     def _info(self, msg: str, *args: Any) -> None:
         """信息输出"""
-        if self.logger:
-            self.logger.info(msg, *args)
+        logger.info(msg, *args)
 
     def _warning(self, msg: str, *args: Any) -> None:
         """警告输出"""
-        if self.logger:
-            self.logger.warning(msg, *args)
+        logger.warning(msg, *args)
 
     def _error(self, msg: str, *args: Any) -> None:
         """错误输出"""
-        if self.logger:
-            self.logger.error(msg, *args)
+        logger.error(msg, *args)
 
     # ==================== 核心抽象方法 ====================
 
@@ -441,4 +441,24 @@ class BaseModelAdapter(ABC):
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} 不支持系数提取，请检查模型类型是否为逻辑回归"
+        )
+
+    def get_feature_logit(self, feature_name: str, woe: float) -> float:
+        """
+        获取特征对 logit 的贡献（仅评分卡模型实现）
+
+        对于逻辑回归模型，贡献 = coefficient × woe。
+
+        参数:
+            feature_name: 特征名称
+            woe: 特征的 WOE 值
+
+        返回:
+            特征对 logit 的贡献值
+
+        异常:
+            NotImplementedError: 子类未实现此方法
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} 不支持 get_feature_logit，请检查是否为评分卡模型"
         )

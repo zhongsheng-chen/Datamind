@@ -9,7 +9,8 @@
   - predict_proba_batch: 批量预测概率
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
-  - get_coef: 获取特征系数（LR 模型）
+  - get_coef: 获取特征系数（仅逻辑回归模型）
+  - get_feature_logit: 获取特征对 logit 的贡献（仅逻辑回归模型）
 
 特性：
   - Pipeline 支持：自动处理 Pipeline 模型，提取最终估算器
@@ -20,7 +21,7 @@
 """
 
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, infer_capabilities
@@ -34,16 +35,23 @@ class SklearnAdapter(BaseModelAdapter):
         ScorecardCapability.BATCH_PREDICT
     )
 
-    def __init__(self, model, feature_names: Optional[List[str]] = None, debug: bool = False):
+    def __init__(
+        self,
+        model,
+        feature_names: Optional[List[str]] = None,
+        transformer: Optional[Any] = None,
+        debug: bool = False
+    ):
         """
         初始化适配器
 
         参数:
             model: sklearn 模型或 Pipeline
             feature_names: 特征名称列表（可选，不提供时尝试从模型提取）
+            transformer: WOE转换器（评分卡模型使用）
             debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer, debug=debug)
 
         self.capabilities = infer_capabilities(self)
 
@@ -51,7 +59,7 @@ class SklearnAdapter(BaseModelAdapter):
         if hasattr(model, 'named_steps') and feature_names is None:
             self._extract_feature_names_from_pipeline()
 
-        # 预计算系数映射（用于 LR 模型）
+        # 预计算系数映射（用于逻辑回归模型）
         self._coef_map = self._build_coef_map()
 
         # 根据模型实际能力动态扩展实例能力
@@ -96,7 +104,7 @@ class SklearnAdapter(BaseModelAdapter):
         return self.model
 
     def _build_coef_map(self) -> Optional[Dict[str, float]]:
-        """构建特征系数映射（仅 LR 模型）"""
+        """构建特征系数映射（仅逻辑回归模型）"""
         estimator = self._get_estimator()
 
         if not hasattr(estimator, 'coef_'):
@@ -187,7 +195,7 @@ class SklearnAdapter(BaseModelAdapter):
 
     def predict_score(self, X: np.ndarray) -> float:
         """
-        预测信用评分（仅 LR 模型）
+        预测信用评分（仅逻辑回归模型）
 
         参数:
             X: 输入特征数组，形状为 (1, n_features)
@@ -238,7 +246,7 @@ class SklearnAdapter(BaseModelAdapter):
 
     def get_feature_score(self, feature_name: str, value: float) -> float:
         """
-        获取单个特征对评分的贡献（仅 LR 模型）
+        获取单个特征对评分的贡献（仅逻辑回归模型）
 
         参数:
             feature_name: 特征名称
@@ -257,7 +265,7 @@ class SklearnAdapter(BaseModelAdapter):
 
     def get_all_feature_scores(self, features: Dict[str, float]) -> Dict[str, float]:
         """
-        获取所有特征对评分的贡献（仅 LR 模型）
+        获取所有特征对评分的贡献（仅逻辑回归模型）
 
         参数:
             features: 特征字典
@@ -277,7 +285,7 @@ class SklearnAdapter(BaseModelAdapter):
 
     def export_scorecard(self) -> Dict[str, any]:
         """
-        导出评分卡配置（仅 LR 模型）
+        导出评分卡配置（仅逻辑回归模型）
 
         返回:
             评分卡配置字典
@@ -293,7 +301,7 @@ class SklearnAdapter(BaseModelAdapter):
 
     def get_coef(self, feature_name: str) -> float:
         """
-        获取特征系数（仅 LR 模型）
+        获取特征系数（仅逻辑回归模型）
 
         参数:
             feature_name: 特征名称
@@ -308,3 +316,28 @@ class SklearnAdapter(BaseModelAdapter):
             raise ValueError(f"特征 '{feature_name}' 不存在")
 
         return self._coef_map[feature_name]
+
+    def get_feature_logit(self, feature_name: str, woe: float) -> float:
+        """
+        获取特征对 logit 的贡献（仅逻辑回归模型）
+
+        对于逻辑回归模型，贡献 = coefficient × woe。
+
+        参数:
+            feature_name: 特征名称
+            woe: 特征的 WOE 值
+
+        返回:
+            特征对 logit 的贡献值
+
+        异常:
+            RuntimeError: 非逻辑回归模型
+            ValueError: 特征不存在
+        """
+        if self._coef_map is None:
+            raise RuntimeError("当前模型不支持 get_feature_logit，仅逻辑回归模型支持")
+
+        if feature_name not in self._coef_map:
+            raise ValueError(f"特征 '{feature_name}' 不存在")
+
+        return self._coef_map[feature_name] * woe

@@ -23,7 +23,7 @@ class User(Base):
         Index('idx_user_email', 'email', unique=True),
         Index('idx_user_username', 'username', unique=True),
         Index('idx_user_status', 'status'),
-        Index('idx_user_role', 'strategy'),
+        Index('idx_user_role', 'role'),
         Index('idx_user_created_at', 'created_at'),
         Index('idx_user_last_login', 'last_login_at'),
         {'schema': 'public'}

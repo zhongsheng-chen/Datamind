@@ -18,7 +18,7 @@
 """
 
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
@@ -31,19 +31,27 @@ class LightGBMAdapter(BaseModelAdapter):
         ScorecardCapability.PREDICT_CLASS |
         ScorecardCapability.BATCH_PREDICT |
         ScorecardCapability.FEATURE_IMPORTANCE |
-        ScorecardCapability.SHAP
+        ScorecardCapability.SHAP |
+        ScorecardCapability.SHAP_TREE
     )
 
-    def __init__(self, model, feature_names: Optional[List[str]] = None, debug: bool = False):
+    def __init__(
+        self,
+        model,
+        feature_names: Optional[List[str]] = None,
+        transformer: Optional[Any] = None,
+        debug: bool = False
+    ):
         """
         初始化适配器
 
         参数:
             model: LightGBM 模型
             feature_names: 特征名称列表（可选）
+            transformer: WOE转换器（评分卡模型使用）
             debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer, debug=debug)
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 

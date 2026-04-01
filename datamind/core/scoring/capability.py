@@ -23,7 +23,7 @@
   - 基础能力（强约束）：PREDICT_PROBA（系统注入，适配器不可声明）
   - 核心能力：PREDICT_SCORE、PREDICT_CLASS
   - 评分卡能力：FEATURE_SCORE
-  - 解释能力：SHAP、FEATURE_IMPORTANCE
+  - 解释能力：SHAP、SHAP_TREE、SHAP_KERNEL、FEATURE_IMPORTANCE
   - 工程能力：EXPORT_SCORECARD、BATCH_PREDICT
 """
 
@@ -42,7 +42,9 @@ class ScorecardCapability(IntFlag):
         PREDICT_SCORE: 输出信用评分
         PREDICT_CLASS: 输出分类标签（0/1）
         FEATURE_SCORE: 支持特征分计算
-        SHAP: 支持 SHAP 值解释
+        SHAP: 支持 SHAP 值解释（通用）
+        SHAP_TREE: 支持 TreeExplainer（高性能，适用于树模型）
+        SHAP_KERNEL: 支持 KernelExplainer（通用，需背景数据）
         FEATURE_IMPORTANCE: 支持全局特征重要性
         EXPORT_SCORECARD: 支持导出评分卡
         BATCH_PREDICT: 支持批量预测
@@ -56,6 +58,8 @@ class ScorecardCapability(IntFlag):
     FEATURE_IMPORTANCE = auto()
     EXPORT_SCORECARD = auto()
     BATCH_PREDICT = auto()
+    SHAP_TREE = auto()
+    SHAP_KERNEL = auto()
 
 
 # 能力名称映射
@@ -65,6 +69,8 @@ _CAPABILITY_NAMES = {
     ScorecardCapability.PREDICT_CLASS: "PREDICT_CLASS",
     ScorecardCapability.FEATURE_SCORE: "FEATURE_SCORE",
     ScorecardCapability.SHAP: "SHAP",
+    ScorecardCapability.SHAP_TREE: "SHAP_TREE",
+    ScorecardCapability.SHAP_KERNEL: "SHAP_KERNEL",
     ScorecardCapability.FEATURE_IMPORTANCE: "FEATURE_IMPORTANCE",
     ScorecardCapability.EXPORT_SCORECARD: "EXPORT_SCORECARD",
     ScorecardCapability.BATCH_PREDICT: "BATCH_PREDICT",
@@ -77,6 +83,8 @@ _CAPABILITY_DESCRIPTIONS = {
     ScorecardCapability.PREDICT_CLASS: "分类结果",
     ScorecardCapability.FEATURE_SCORE: "特征分",
     ScorecardCapability.SHAP: "SHAP解释",
+    ScorecardCapability.SHAP_TREE: "SHAP TreeExplainer（树模型专用）",
+    ScorecardCapability.SHAP_KERNEL: "SHAP KernelExplainer（通用，需背景数据）",
     ScorecardCapability.FEATURE_IMPORTANCE: "特征重要性",
     ScorecardCapability.EXPORT_SCORECARD: "导出评分卡",
     ScorecardCapability.BATCH_PREDICT: "批量预测",
@@ -89,6 +97,8 @@ _CAPABILITY_WEIGHTS = {
     ScorecardCapability.PREDICT_CLASS: 80,
     ScorecardCapability.FEATURE_SCORE: 70,
     ScorecardCapability.SHAP: 60,
+    ScorecardCapability.SHAP_TREE: 65,   # TreeExplainer 优先级更高
+    ScorecardCapability.SHAP_KERNEL: 50, # KernelExplainer 优先级较低
     ScorecardCapability.FEATURE_IMPORTANCE: 50,
     ScorecardCapability.EXPORT_SCORECARD: 40,
     ScorecardCapability.BATCH_PREDICT: 30,
@@ -100,6 +110,8 @@ ALL_CAPABILITIES: List[ScorecardCapability] = [
     ScorecardCapability.PREDICT_CLASS,
     ScorecardCapability.FEATURE_SCORE,
     ScorecardCapability.SHAP,
+    ScorecardCapability.SHAP_TREE,
+    ScorecardCapability.SHAP_KERNEL,
     ScorecardCapability.FEATURE_IMPORTANCE,
     ScorecardCapability.EXPORT_SCORECARD,
     ScorecardCapability.BATCH_PREDICT,

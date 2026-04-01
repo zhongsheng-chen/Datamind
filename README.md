@@ -1666,14 +1666,14 @@ curl http://localhost:3000/health
 
 ## 训练
 ```bash
-# 训练随机森林模型并注册
-python -m datamind.demo.train_sample_model --type random_forest
+# 训练逻辑回归评分卡模型（使用WOE转换）
+python -m datamind.demo.train --type logistic_regression --mode woe
 
-# 训练逻辑回归模型并注册
-python -m datamind.demo.train_sample_model --type logistic_regression
+# 训练随机森林模型（使用原始特征）
+python -m datamind.demo.train --type random_forest --mode raw
 
-# 只保存到本地文件，不注册
-python -m datamind.demo.train_sample_model --type random_forest --no-registry --output ./my_model.pkl
+# 不注册到数据库，只保存本地文件
+python -m datamind.demo.train --type logistic_regression --mode woe --no-registry --output ./my_model.pkl
 ```
 
 步骤
