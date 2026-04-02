@@ -28,10 +28,10 @@ API 端点：
   - 包含完整的链路追踪信息
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from typing import Optional
-from datetime import datetime, timedelta
 from sqlalchemy import func
+from datetime import datetime, timedelta
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ApiCallLog, AuditLog
@@ -44,7 +44,6 @@ from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.api.dependencies import require_admin
 from datamind.config import get_settings
 
-# 模块级 logger
 logger = get_logger(__name__)
 
 router = APIRouter()
@@ -120,6 +119,9 @@ async def get_inference_stats(
                 request_id=request_id
             )
 
+            logger.info("获取推理统计成功: 用户=%s, 天数=%d, 统计项数=%d",
+                       current_user, days, len(result))
+
             return {
                 "days": days,
                 "stats": result,
@@ -142,6 +144,7 @@ async def get_inference_stats(
             reason=str(e),
             request_id=request_id
         )
+        logger.error("获取推理统计失败: 用户=%s, 天数=%d, 错误=%s", current_user, days, e)
         raise HTTPException(status_code=500, detail=f"获取统计信息失败: {str(e)}")
 
 
@@ -182,10 +185,13 @@ async def get_engine_stats(
         "total_predictions": 0
     }
 
+    loaded_models = len(model_loader.get_loaded_models())
+    logger.info("获取引擎统计成功: 用户=%s, 已加载模型数=%d", current_user, loaded_models)
+
     return {
         "inference_engine": inference_engine_stats,
         "model_loader": {
-            "loaded_models": len(model_loader.get_loaded_models()),
+            "loaded_models": loaded_models,
             "models": model_loader.get_loaded_models()
         },
         "ab_test": ab_test_manager.get_stats(),
@@ -266,6 +272,9 @@ async def get_audit_logs(
                 request_id=request_id
             )
 
+            logger.info("查询审计日志成功: 用户=%s, 查询条件: start=%s, end=%s, action=%s, 结果数=%d",
+                       current_user, start_date, end_date, action, len(logs))
+
             return {
                 "total": total,
                 "limit": limit,
@@ -301,6 +310,7 @@ async def get_audit_logs(
             reason=str(e),
             request_id=request_id
         )
+        logger.error("查询审计日志失败: 用户=%s, 错误=%s", current_user, e)
         raise HTTPException(status_code=500, detail=f"获取审计日志失败: {str(e)}")
 
 
@@ -353,8 +363,12 @@ async def detailed_health_check(
         "hit_rate": 0
     }
 
+    health_status = "healthy" if db_health['status'] == 'healthy' else "degraded"
+    logger.info("详细健康检查: 用户=%s, 状态=%s, 数据库=%s, 已加载模型数=%d",
+               current_user, health_status, db_health['status'], len(model_loader.get_loaded_models()))
+
     return {
-        "status": "healthy" if db_health['status'] == 'healthy' else "degraded",
+        "status": health_status,
         "timestamp": datetime.now().isoformat(),
         "components": {
             "database": db_health,
@@ -437,6 +451,9 @@ async def clear_cache(
             request_id=request_id
         )
 
+        logger.info("缓存清除成功: 用户=%s, 缓存类型=%s, 清除项=%s",
+                   current_user, cache_type, cleared_items)
+
         return {
             "success": True,
             "message": f"缓存已清除: {cache_type}",
@@ -460,6 +477,7 @@ async def clear_cache(
             reason=str(e),
             request_id=request_id
         )
+        logger.error("缓存清除失败: 用户=%s, 缓存类型=%s, 错误=%s", current_user, cache_type, e)
         raise HTTPException(status_code=500, detail=f"清除缓存失败: {str(e)}")
 
 
@@ -490,6 +508,8 @@ async def get_config(
         },
         request_id=request_id
     )
+
+    logger.info("获取系统配置: 用户=%s", current_user)
 
     return {
         "app": {

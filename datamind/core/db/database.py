@@ -29,8 +29,8 @@
   - 复制槽监控：检测不活跃复制槽，防止 WAL 堆积
 """
 
-import traceback
 import logging
+import traceback
 from contextlib import contextmanager
 from typing import Generator, Optional, Dict, Any, List
 from datetime import datetime
@@ -42,9 +42,12 @@ from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from datamind.core.logging import log_audit, log_performance, context
+from datamind.core.logging import get_logger
 from datamind.core.db.base import Base
 from datamind.core.domain.enums import AuditAction
 from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 
 class DatabaseManager:
@@ -184,7 +187,7 @@ class DatabaseManager:
             self._session_factories[name] = sessionmaker(bind=engine)
             self._scoped_sessions[name] = scoped_session(self._session_factories[name])
 
-            self.logger.debug(f"创建数据库引擎: {name}")
+            self.logger.info(f"数据库引擎创建成功: {name}")
 
         except Exception as e:
             log_audit(
@@ -917,14 +920,14 @@ def init_db(database_url: str = None):
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     settings = get_settings()
-    logger = logging.getLogger(f"{settings.app.app_name}.database.init")
+    logger_db = logging.getLogger(f"{settings.app.app_name}.database.init")
 
     try:
         if not database_url:
             database_url = settings.database.url
 
         engine = create_engine(database_url)
-        logger.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")
+        logger_db.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")
 
         with engine.connect() as conn:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"))
@@ -948,7 +951,7 @@ def init_db(database_url: str = None):
             request_id=request_id
         )
 
-        logger.info(f"数据库表创建完成，耗时: {round(duration, 2)}ms")
+        logger_db.info(f"数据库表创建完成，耗时: {round(duration, 2)}ms")
 
     except Exception as e:
         log_audit(
@@ -962,5 +965,5 @@ def init_db(database_url: str = None):
             },
             request_id=request_id
         )
-        logger.error(f"数据库表创建失败: {str(e)}")
+        logger_db.error(f"数据库表创建失败: {str(e)}")
         raise

@@ -11,9 +11,9 @@
   - 自定义暴露的响应头（expose_headers）
   - 支持凭证传递（credentials）
   - 预检请求缓存时间（max_age）
-  - CORS 请求日志记录
-  - 链路追踪支持
   - 从配置中心读取配置
+  - CORS 请求日志记录
+  - 链路追踪：完整的 span 追踪
 
 默认配置：
   - allow_origins: ["*"]（允许所有源，生产环境建议限制）
@@ -107,8 +107,9 @@ class CustomCORSMiddleware(CORSMiddleware):
         if allow_origin_regex:
             try:
                 self.allow_origin_regex_compiled = re.compile(allow_origin_regex)
+                logger.info("CORS允许源正则表达式已编译: %s", allow_origin_regex)
             except re.error as e:
-                logger.debug("无效的正则表达式: %s, 错误: %s", allow_origin_regex, e)
+                logger.error("无效的正则表达式: %s, 错误: %s", allow_origin_regex, e)
 
         super().__init__(
             app=app,
@@ -120,6 +121,9 @@ class CustomCORSMiddleware(CORSMiddleware):
             max_age=self.max_age,
             allow_origin_regex=allow_origin_regex
         )
+
+        logger.info("CORS中间件初始化完成: 环境=%s, 允许源=%s, 允许凭证=%s, 允许方法=%s",
+                   settings.app.env, self.allow_origins, self.allow_credentials, self.allow_methods)
 
     async def __call__(self, scope, receive, send):
         """处理请求，添加 CORS 日志和链路追踪"""
@@ -140,13 +144,15 @@ class CustomCORSMiddleware(CORSMiddleware):
         # 检查源是否允许
         is_origin_allowed = self._is_origin_allowed(origin) if origin else False
 
-        # 记录 CORS 请求日志
-        if self.log_cors_requests:
-            logger.debug(
-                "CORS请求: %s %s origin=%s, preflight=%s, allowed=%s",
-                request.method, request.url.path,
-                origin or "none", is_preflight, is_origin_allowed
-            )
+        # 记录被拒绝的 CORS 请求（重要安全事件）
+        if not is_origin_allowed and origin:
+            logger.warning("CORS请求被拒绝: 源=%s, 路径=%s, 方法=%s",
+                          origin, request.url.path, request.method)
+
+        # 记录 CORS 预检请求（可选，用于调试）
+        if self.log_cors_requests and is_preflight and is_origin_allowed:
+            logger.debug("CORS预检请求: 源=%s, 路径=%s, 请求方法=%s",
+                        origin, request.url.path, request.headers.get("access-control-request-method"))
 
         # 自定义 send 函数来记录响应和添加追踪头
         async def send_wrapper(message):
@@ -298,6 +304,7 @@ def setup_cors(
             allow_credentials=allow_credentials,
             log_cors_requests=log_cors_requests
         )
+        logger.info("CORS中间件已添加（自定义配置），允许源=%s", allow_origins)
         return
 
     # 根据环境选择配置
@@ -309,6 +316,7 @@ def setup_cors(
             allow_credentials=allow_credentials,
             log_cors_requests=log_cors_requests
         )
+        logger.info("CORS中间件已添加（生产环境配置），环境=%s", settings.app.env)
     else:
         # 开发/测试环境：使用开发环境中间件
         app.add_middleware(
@@ -317,6 +325,7 @@ def setup_cors(
             allow_credentials=allow_credentials,
             log_cors_requests=log_cors_requests
         )
+        logger.info("CORS中间件已添加（开发环境配置），环境=%s", settings.app.env)
 
 
 def get_cors_config() -> Dict[str, Any]:
@@ -328,7 +337,7 @@ def get_cors_config() -> Dict[str, Any]:
     """
     settings = get_settings()
 
-    return {
+    config = {
         "allow_origins": settings.cors.cors_origins,
         "allow_credentials": settings.cors.cors_allow_credentials,
         "allow_methods": settings.cors.cors_methods,
@@ -337,6 +346,9 @@ def get_cors_config() -> Dict[str, Any]:
         "max_age": settings.cors.cors_max_age,
         "log_requests": settings.cors.cors_log_requests
     }
+
+    logger.debug("获取CORS配置: %s", config)
+    return config
 
 
 def is_cors_preflight_request(request: Request) -> bool:
@@ -411,6 +423,7 @@ def validate_cors_config(config: Optional[CORSConfig] = None) -> List[str]:
             "安全警告: 当 allow_credentials=True 时使用通配符源 '*' 是不安全的，"
             "浏览器会拒绝此配置。建议指定具体的源列表。"
         )
+        logger.warning("CORS配置安全警告: 通配符源与凭证同时使用")
 
     # 检查生产环境配置
     if settings.app.env == "production":
@@ -419,10 +432,12 @@ def validate_cors_config(config: Optional[CORSConfig] = None) -> List[str]:
                 "生产环境警告: 不应在生产环境使用通配符源 '*'，"
                 "请配置具体的允许源列表"
             )
+            logger.warning("生产环境CORS配置警告: 使用了通配符源")
 
         if not cors_config.cors_origins:
             warnings.append(
                 "生产环境警告: 未配置允许的源列表，CORS 将拒绝所有跨域请求"
             )
+            logger.warning("生产环境CORS配置警告: 未配置允许的源列表")
 
     return warnings

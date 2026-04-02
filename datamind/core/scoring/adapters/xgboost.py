@@ -59,6 +59,8 @@ class XGBoostAdapter(BaseModelAdapter):
         # XGBoost 不支持 coef，统一接口保留
         self._coef_map = None
 
+        logger.debug("XGBoost 适配器初始化完成")
+
     def get_capabilities(self) -> ScorecardCapability:
         """
         获取模型能力集
@@ -82,7 +84,7 @@ class XGBoostAdapter(BaseModelAdapter):
             proba = self.model.predict(X, iteration_range=(0, self.model.best_iteration + 1))[0]
             return float(proba)
         except Exception as e:
-            logger.error("XGBoost预测失败: %s", e)
+            logger.error("XGBoost 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -99,7 +101,7 @@ class XGBoostAdapter(BaseModelAdapter):
             probs = self.model.predict(X, iteration_range=(0, self.model.best_iteration + 1))
             return probs.tolist()
         except Exception as e:
-            logger.error("XGBoost批量预测失败: %s", e)
+            logger.error("XGBoost 批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self, importance_type: str = 'gain') -> Dict[str, float]:

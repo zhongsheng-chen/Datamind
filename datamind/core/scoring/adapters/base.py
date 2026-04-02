@@ -389,6 +389,7 @@ class BaseModelAdapter(ABC):
         返回:
             特征重要性字典，如果不支持则返回空字典
         """
+        logger.debug("模型不支持特征重要性提取")
         return {}
 
     def get_capabilities(self) -> ScorecardCapability:

@@ -109,7 +109,7 @@ class ModelRegistry:
             self.cache_path = BASE_DIR / models_path
         self.cache_path.mkdir(parents=True, exist_ok=True)
 
-        logger.debug("模型存储路径: %s", self.cache_path.absolute())
+        logger.info("模型注册中心初始化完成，存储路径: %s", self.cache_path.absolute())
 
     @staticmethod
     def _clean_none_values(obj: Any) -> Any:
@@ -364,7 +364,8 @@ class ModelRegistry:
                     request_id=request_id
                 )
 
-                logger.debug("模型注册成功: %s -> %s", model_id, bento_model.tag)
+                logger.info("模型注册成功: %s v%s, 模型ID: %s, BentoML标签: %s, 文件大小: %.2fMB",
+                           model_name, model_version, model_id, bento_model.tag, file_size / 1024 / 1024)
                 return model_id
 
             finally:
@@ -391,6 +392,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("模型注册失败: %s v%s, 错误: %s", model_name, model_version, str(e))
             raise
 
     @staticmethod
@@ -587,7 +589,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.debug("模型激活成功: %s", model_id)
+            logger.info("模型激活成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -607,6 +609,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("模型激活失败: %s, 错误: %s", model_id, str(e))
             raise
 
     def deactivate_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -675,7 +678,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.debug("模型停用成功: %s", model_id)
+            logger.info("模型停用成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -695,6 +698,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("模型停用失败: %s, 错误: %s", model_id, str(e))
             raise
 
     def promote_to_production(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -726,10 +730,13 @@ class ModelRegistry:
                 model_version = model.model_version
 
                 # 将同任务类型的其他模型设为非生产
-                session.query(ModelMetadata).filter_by(
+                updated_count = session.query(ModelMetadata).filter_by(
                     task_type=task_type,
                     is_production=True
                 ).update({'is_production': False})
+
+                if updated_count > 0:
+                    logger.info("已取消 %d 个同任务类型的生产模型，任务类型: %s", updated_count, task_type)
 
                 # 设置当前模型为生产
                 before_prod = model.is_production
@@ -774,7 +781,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.debug("生产模型设置成功: %s", model_id)
+            logger.info("生产模型设置成功: %s v%s, 任务类型: %s", model_name, model_version, task_type)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -794,6 +801,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("生产模型设置失败: %s, 错误: %s", model_id, str(e))
             raise
 
     @staticmethod
@@ -857,6 +865,7 @@ class ModelRegistry:
                     "parent_span_id": parent_span_id
                 }
             )
+            logger.debug("获取模型信息失败: %s, 错误: %s", model_id, str(e))
             raise
 
     @staticmethod
@@ -929,6 +938,7 @@ class ModelRegistry:
                     "parent_span_id": parent_span_id
                 }
             )
+            logger.debug("列出模型失败: %s", str(e))
             raise
 
     @staticmethod
@@ -975,6 +985,7 @@ class ModelRegistry:
                     "parent_span_id": parent_span_id
                 }
             )
+            logger.debug("获取模型历史失败: %s, 错误: %s", model_id, str(e))
             raise
 
     def update_model_params(
@@ -1011,17 +1022,22 @@ class ModelRegistry:
 
                 if scorecard_params and model.task_type == TaskType.SCORING.value:
                     self._validate_scorecard_params(scorecard_params)
+                    logger.debug("验证评分卡参数通过: %s", model_id)
+
                 if risk_config and model.task_type == TaskType.FRAUD_DETECTION.value:
                     self._validate_risk_config(risk_config)
+                    logger.debug("验证风险配置通过: %s", model_id)
 
                 if not model.model_params:
                     model.model_params = {}
 
                 if scorecard_params:
                     model.model_params['scorecard'] = scorecard_params
+                    logger.debug("更新评分卡配置: %s", model_id)
 
                 if risk_config:
                     model.model_params['risk_config'] = risk_config
+                    logger.debug("更新风险配置: %s", model_id)
 
                 model.updated_at = datetime.now()
 
@@ -1070,7 +1086,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.debug("模型参数更新成功: %s", model_id)
+            logger.info("模型参数更新成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -1090,6 +1106,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("模型参数更新失败: %s, 错误: %s", model_id, str(e))
             raise
 
     def archive_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -1155,7 +1172,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.debug("模型归档成功: %s", model_id)
+            logger.info("模型归档成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             log_audit(
@@ -1173,7 +1190,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.debug("模型归档失败: %s, 错误: %s", model_id, e)
+            logger.error("模型归档失败: %s, 错误: %s", model_id, str(e))
             raise
 
     @staticmethod
@@ -1189,10 +1206,10 @@ class ModelRegistry:
         """
         try:
             bentoml.models.delete(model_id)
-            logger.debug("从 BentoML 删除模型成功: %s", model_id)
+            logger.info("从 BentoML 删除模型成功: %s", model_id)
             return True
         except BentoMLException as e:
-            logger.debug("从 BentoML 删除模型失败: %s", e)
+            logger.warning("从 BentoML 删除模型失败: %s, 错误: %s", model_id, str(e))
             return False
 
     def _validate_task_specific_config(

@@ -262,14 +262,14 @@ class ScoringService:
 
         # 验证必需参数
         if not application_id:
-            logger.debug("application_id 为空")
+            logger.debug("请求参数缺失: application_id 为空")
             return {
                 "code": 1006,
                 "message": "参数错误",
                 "data": {"error": "application_id 不能为空"}
             }
         if not features:
-            logger.debug("features 为空")
+            logger.debug("请求参数缺失: features 为空")
             return {
                 "code": 1006,
                 "message": "参数错误",
@@ -287,7 +287,7 @@ class ScoringService:
                     user_id=application_id,
                     ip_address=None
                 )
-                logger.debug(f"AB测试分配结果: {assignment}")
+                logger.debug("A/B测试分配结果: %s", assignment)
 
                 if assignment.get('in_test') and assignment.get('model_id'):
                     actual_model_id = assignment['model_id']
@@ -295,22 +295,24 @@ class ScoringService:
                         'test_id': assignment['test_id'],
                         'group_name': assignment['group_name']
                     }
-                    logger.debug(f"AB测试信息已设置: {ab_test_info}")
+                    logger.info("A/B测试分流: 申请ID=%s, 测试ID=%s, 分组=%s, 模型ID=%s",
+                               application_id, ab_test_id, assignment['group_name'], actual_model_id)
                 else:
-                    logger.debug(f"用户不在测试中或没有模型ID: {assignment}")
+                    logger.debug("用户不在测试中或没有模型ID: %s", assignment)
             except Exception as e:
-                logger.debug("A/B测试错误: %s", e)
+                logger.warning("A/B测试分配失败: 测试ID=%s, 申请ID=%s, 错误=%s",
+                              ab_test_id, application_id, e)
         else:
-            logger.debug(f"未启用AB测试: ab_test_id={ab_test_id}, enabled={settings.ab_test.enabled}")
+            logger.debug("未启用A/B测试: ab_test_id=%s, enabled=%s", ab_test_id, settings.ab_test.enabled)
 
         # 如果没有指定模型，使用生产模型
         if not actual_model_id:
             prod_model_id, _, _ = self.base.get_production_model()
             if prod_model_id:
                 actual_model_id = prod_model_id
-                logger.debug("使用生产模型: %s", actual_model_id)
+                logger.info("使用生产模型: 申请ID=%s, 模型ID=%s", application_id, actual_model_id)
             else:
-                logger.warning("未指定 model_id 且没有生产模型")
+                logger.warning("未指定模型ID且没有生产模型: 申请ID=%s", application_id)
                 return {
                     "code": 1003,
                     "message": "模型未加载",
@@ -321,7 +323,7 @@ class ScoringService:
             # 获取模型引擎
             _, engine, model_version = self.base.get_model(actual_model_id)
             if engine is None:
-                logger.warning("模型未加载: %s", actual_model_id)
+                logger.warning("模型未加载: 申请ID=%s, 模型ID=%s", application_id, actual_model_id)
                 return {
                     "code": 1003,
                     "message": "模型未加载",
@@ -338,8 +340,9 @@ class ScoringService:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            logger.debug("预测完成: model=%s, score=%.2f, proba=%.6f, latency=%.2fms",
-                         actual_model_id, result.get('score'), result.get('proba'), latency_ms)
+            logger.info("评分预测完成: 申请ID=%s, 模型ID=%s, 版本=%s, 评分=%.2f, 概率=%.6f, 耗时=%.2fms",
+                       application_id, actual_model_id, model_version,
+                       result.get('score'), result.get('proba'), latency_ms)
 
             # 构建基础响应
             response_data = {
@@ -378,9 +381,10 @@ class ScoringService:
                         result.get('score'),
                         engine
                     )
-                    logger.debug("特征贡献解释完成: type=%s", explain_result.get('explain_type', 'unknown'))
+                    logger.debug("特征贡献解释完成: 申请ID=%s, 解释类型=%s",
+                                application_id, explain_result.get('explain_type', 'unknown'))
                 except Exception as e:
-                    logger.debug("获取特征贡献失败: %s", e)
+                    logger.warning("获取特征贡献失败: 申请ID=%s, 错误=%s", application_id, e)
                     response_data["explain"] = {
                         "type": "unsupported",
                         "reason": "explain_failed",
@@ -432,7 +436,8 @@ class ScoringService:
             return response
 
         except ModelNotFoundException as e:
-            logger.warning("模型未找到: %s, %s", actual_model_id, e)
+            logger.warning("模型未找到: 申请ID=%s, 模型ID=%s, 错误=%s",
+                          application_id, actual_model_id, e)
             return {
                 "code": 1003,
                 "message": "模型未找到",
@@ -440,7 +445,8 @@ class ScoringService:
             }
 
         except ModelInferenceException as e:
-            logger.error("模型预测失败: %s, %s", actual_model_id, e)
+            logger.error("模型预测失败: 申请ID=%s, 模型ID=%s, 错误=%s",
+                        application_id, actual_model_id, e)
             return {
                 "code": 1005,
                 "message": "模型预测失败",
@@ -448,7 +454,8 @@ class ScoringService:
             }
 
         except Exception as e:
-            logger.error("预测失败: %s, error=%s", actual_model_id, e, exc_info=True)
+            logger.error("预测异常: 申请ID=%s, 模型ID=%s, 错误=%s",
+                        application_id, actual_model_id, e, exc_info=True)
             log_audit(
                 action=AuditAction.MODEL_INFERENCE.value,
                 user_id="bentoml",
@@ -474,10 +481,14 @@ class ScoringService:
     async def health(self) -> dict:
         """健康检查"""
         result = self.base.health_check()
-        logger.debug("健康检查: status=%s", result.get("status"))
+        status = result.get("status")
+        if status == "healthy":
+            logger.debug("健康检查: 状态=健康")
+        else:
+            logger.warning("健康检查: 状态=%s, 问题=%s", status, result.get("issues", []))
         return {
             "code": 0,
-            "message": "成功" if result.get("status") == "healthy" else "服务降级",
+            "message": "成功" if status == "healthy" else "服务降级",
             "data": result
         }
 
@@ -485,7 +496,7 @@ class ScoringService:
     async def models(self) -> dict:
         """列出已加载的模型"""
         models = self.base.get_loaded_models()
-        logger.debug("列出模型: total=%d", len(models))
+        logger.info("列出已加载模型: 服务=%s, 模型数量=%d", "scoring_service", len(models))
         return {
             "code": 0,
             "message": "成功",
@@ -501,13 +512,18 @@ class ScoringService:
         """重新加载模型"""
         model_id = request.get("model_id")
         if not model_id:
+            logger.debug("重新加载模型请求缺少model_id参数")
             return {
                 "code": 1006,
                 "message": "参数错误",
                 "data": {"error": "model_id 不能为空"}
             }
-        logger.info("手动重新加载模型: %s", model_id)
+        logger.info("手动重新加载模型: 模型ID=%s", model_id)
         result = self.base.reload_model(model_id)
+        if result.get("success"):
+            logger.info("模型重新加载成功: 模型ID=%s, 版本=%s", model_id, result.get("version"))
+        else:
+            logger.error("模型重新加载失败: 模型ID=%s, 错误=%s", model_id, result.get("message"))
         return {
             "code": 0 if result.get("success") else 1001,
             "message": "成功" if result.get("success") else "失败",

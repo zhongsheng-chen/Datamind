@@ -215,7 +215,7 @@ class ABTestManager:
         }
         self.splitter = TrafficSplitter()
 
-        logger.debug("初始化A/B测试管理器")
+        logger.info("A/B测试管理器初始化完成")
 
     def _init_redis(self):
         try:
@@ -227,9 +227,9 @@ class ABTestManager:
                     socket_timeout=self.redis_socket_timeout,
                     decode_responses=True
                 )
-                logger.debug("Redis连接成功")
+                logger.info("A/B测试 Redis 连接成功")
         except Exception as e:
-            logger.debug("Redis连接失败: %s", e)
+            logger.warning("A/B测试 Redis 连接失败: %s，将使用内存缓存", e)
             self.redis_client = None
 
     def create_test(
@@ -305,7 +305,8 @@ class ABTestManager:
                 request_id=request_id
             )
 
-            logger.debug("创建A/B测试成功: %s", test_id)
+            logger.info("A/B测试创建成功: test_id=%s, 名称=%s, 任务类型=%s, 创建人=%s",
+                       test_id, test_name, task_type, created_by)
             return test_id
 
         except Exception as e:
@@ -325,6 +326,7 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("A/B测试创建失败: 名称=%s, 错误=%s", test_name, e)
             raise
 
     def _validate_groups(self, groups: List[Dict[str, Any]]):
@@ -383,7 +385,8 @@ class ABTestManager:
                 request_id=request_id
             )
 
-            logger.debug("启动A/B测试成功: %s", test_id)
+            logger.info("A/B测试启动成功: test_id=%s, 名称=%s, 操作人=%s",
+                       test_id, test.test_name, operator)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -402,6 +405,7 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("A/B测试启动失败: test_id=%s, 错误=%s", test_id, e)
             raise
 
     def get_assignment(
@@ -421,7 +425,7 @@ class ABTestManager:
                 cached = self.redis_client.get(cache_key)
                 if cached:
                     self._stats['cache_hits'] += 1
-                    logger.debug("缓存命中: %s", cache_key)
+                    logger.debug("A/B测试分配缓存命中: %s", cache_key)
                     return json.loads(cached)
 
             self._stats['cache_misses'] += 1
@@ -523,7 +527,8 @@ class ABTestManager:
                     request_id=request_id
                 )
 
-                logger.debug("分配成功: %s -> %s", test_id, group['name'])
+                logger.debug("A/B测试分配成功: test_id=%s, user_id=%s, group=%s, model_id=%s",
+                            test_id, user_id, group['name'], group['model_id'])
                 return result
 
         except Exception as e:
@@ -543,6 +548,7 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("A/B测试分配失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, e)
             raise
 
     def _assign_group(self, groups: List[Dict], user_id: str, strategy: str) -> Dict:
@@ -557,7 +563,7 @@ class ABTestManager:
                     json.dumps(value, default=str)
                 )
             except Exception as e:
-                logger.debug("缓存失败: %s", e)
+                logger.debug("A/B测试分配缓存失败: %s, 错误=%s", key, e)
 
     def record_result(
             self,
@@ -603,6 +609,8 @@ class ABTestManager:
                     request_id=request_id
                 )
 
+                logger.debug("A/B测试结果记录成功: test_id=%s, user_id=%s", test_id, user_id)
+
         except Exception as e:
             log_audit(
                 action=AuditAction.AB_TEST_ERROR.value,
@@ -618,6 +626,7 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
+            logger.error("A/B测试结果记录失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, e)
             raise
 
     def analyze_results(self, test_id: str) -> Dict[str, Any]:
@@ -692,6 +701,9 @@ class ABTestManager:
                     }
                 )
 
+                logger.info("A/B测试结果分析完成: test_id=%s, 名称=%s, 总用户数=%d, 获胜组=%s",
+                           test_id, test.test_name, len(test.results), winning_group)
+
                 return result
 
         except Exception as e:
@@ -706,6 +718,7 @@ class ABTestManager:
                     "parent_span_id": parent_span_id
                 }
             )
+            logger.error("A/B测试结果分析失败: test_id=%s, 错误=%s", test_id, e)
             raise
 
     def _determine_winner(self, group_results: Dict, criteria: Optional[Dict]) -> Optional[str]:

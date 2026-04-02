@@ -2,18 +2,60 @@
 
 """数据库性能监控中间件
 
-提供 PostgreSQL 数据库性能监控功能，包括：
-  - 请求级别的数据库查询统计
-  - pg_stat_statements 查询统计
-  - 连接池状态监控
-  - 数据库大小和表统计
-  - 索引使用情况分析
+提供 PostgreSQL 数据库性能监控功能，包括请求级别的数据库查询统计、pg_stat_statements 查询统计、
+连接池状态监控、数据库大小和表统计、索引使用情况分析等。
+
+功能特性：
+  - 请求级别的数据库查询统计：记录每个请求的数据库查询次数和耗时
+  - pg_stat_statements 查询统计：收集数据库级别的查询统计信息
+  - 连接池状态监控：监控数据库连接池的使用情况
+  - 数据库大小和表统计：收集数据库大小和表统计信息
+  - 索引使用情况分析：分析索引使用情况，识别未使用的索引
+  - 慢查询记录：自动记录执行时间超过阈值的慢查询
+  - 后台统计收集：定时收集数据库性能指标
+  - 链路追踪：完整的 span 追踪
+
+中间件类型：
+  PostgreSQLPerformanceMiddleware: PostgreSQL 性能监控中间件
+     - 请求级别的查询统计
+     - 慢查询检测和记录
+     - pg_stat_statements 统计收集
+     - 连接池状态监控
+     - 数据库大小和表统计
+
+性能指标：
+  - db_queries: 请求中的数据库查询次数
+  - db_time_ms: 请求中的数据库查询总耗时
+  - avg_query_time_ms: 平均查询耗时
+  - slow_queries: 慢查询数量
+  - cache_hit_ratio: 缓存命中率
+  - connection_usage_percent: 连接池使用率
+
+慢查询阈值：
+  - slow_query_threshold: 慢查询阈值（毫秒），默认 100ms
+  - 超过阈值的查询会被记录到慢查询列表
+  - 最多保留 1000 条慢查询记录
+
+使用示例：
+    # 添加中间件
+    app.add_middleware(
+        PostgreSQLPerformanceMiddleware,
+        slow_query_threshold=100.0,
+        enable_pg_stat=True,
+        collect_interval=60
+    )
+
+    # 获取慢查询列表
+    slow_queries = await middleware.get_slow_queries(limit=50)
+
+    # 获取查询统计
+    stats = await middleware.get_query_stats()
 """
 
-import asyncio
 import time
-from typing import Dict, Any, Optional, Set, List
+import asyncio
 from contextvars import ContextVar
+from typing import Dict, Any, Optional, Set, List
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -40,11 +82,17 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
     PostgreSQL 性能监控中间件
 
     监控 PostgreSQL 数据库性能，包括：
-    - 请求级别的数据库查询统计
-    - 使用 pg_stat_statements 获取查询统计
-    - 监控连接池状态
-    - 记录慢查询
-    - 查询性能分析
+      - 请求级别的数据库查询统计
+      - 使用 pg_stat_statements 获取查询统计
+      - 监控连接池状态
+      - 记录慢查询
+      - 查询性能分析
+
+    属性:
+        slow_query_threshold: 慢查询阈值（毫秒）
+        enable_pg_stat: 是否启用 pg_stat_statements 统计
+        collect_interval: 收集统计信息的间隔（秒）
+        enable_request_tracking: 是否启用请求级别的查询追踪
     """
 
     def __init__(
@@ -62,9 +110,9 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
         参数:
             app: ASGI 应用
             config: 性能监控配置对象
-            slow_query_threshold: 慢查询阈值（毫秒）
+            slow_query_threshold: 慢查询阈值（毫秒），默认 100ms
             enable_pg_stat: 是否启用 pg_stat_statements 统计
-            collect_interval: 收集统计信息的间隔（秒）
+            collect_interval: 收集统计信息的间隔（秒），默认 60秒
             enable_request_tracking: 是否启用请求级别的查询追踪
         """
         super().__init__(app)
@@ -96,6 +144,9 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
         # 注册 SQLAlchemy 事件监听（只注册一次）
         if enable_request_tracking:
             self._register_sqlalchemy_events()
+
+        logger.info("PostgreSQL性能监控中间件初始化完成: 慢查询阈值=%.2fms, 收集间隔=%ds, pg_stat=%s",
+                   self.slow_query_threshold, self.collect_interval, "启用" if enable_pg_stat else "禁用")
 
     def _register_sqlalchemy_events(self):
         """注册 SQLAlchemy 事件监听，用于追踪查询"""
@@ -161,10 +212,10 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
                             delattr(context, '_query_start_time')
 
                     _events_registered = True
-                    logger.debug("SQLAlchemy 事件监听已注册")
+                    logger.info("SQLAlchemy 数据库查询事件监听已注册")
 
                 except Exception as e:
-                    logger.debug("注册 SQLAlchemy 事件失败: %s", e)
+                    logger.warning("注册 SQLAlchemy 事件失败: %s", e)
 
         # 在事件循环中执行注册
         try:
@@ -229,6 +280,8 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
                 # 如果有慢查询，记录详细信息
                 slow_queries = [q for q in request_stats["queries"] if q["duration_ms"] > self.slow_query_threshold]
                 if slow_queries:
+                    logger.warning("请求包含慢查询: 路径=%s, 慢查询数=%d, 最大耗时=%.2fms",
+                                  request.url.path, len(slow_queries), max(q["duration_ms"] for q in slow_queries))
                     for sq in slow_queries[:5]:  # 最多记录5条慢查询
                         log_audit(
                             action=AuditAction.SLOW_QUERY.value,
@@ -464,6 +517,7 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
     def _start_stats_collector(self):
         """启动后台统计收集任务"""
         async def collect_stats():
+            logger.info("数据库统计收集器已启动，收集间隔=%d秒", self.collect_interval)
             while True:
                 try:
                     await asyncio.sleep(self.collect_interval)
@@ -507,6 +561,8 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
                                             "database_stats_available": bool(db_stats and "error" not in db_stats)
                                         }
                                     )
+                                    if pg_stats and "top_queries" in pg_stats:
+                                        logger.debug("数据库统计收集完成: 查询统计数=%d", len(pg_stats["top_queries"]))
 
                             except Exception as e:
                                 logger.debug("收集统计失败: %s", e)
@@ -517,9 +573,10 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
                         logger.debug("获取数据库会话失败: %s", e)
 
                 except asyncio.CancelledError:
+                    logger.info("数据库统计收集器已停止")
                     break
                 except Exception as e:
-                    logger.debug("统计收集器异常: %s", e)
+                    logger.warning("统计收集器异常: %s", e)
 
         task = asyncio.create_task(collect_stats())
         self._background_tasks.add(task)
@@ -549,11 +606,13 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
 
     async def shutdown(self):
         """关闭中间件，清理后台任务"""
+        logger.info("正在关闭数据库性能监控中间件...")
         for task in self._background_tasks:
             task.cancel()
         if self._background_tasks:
             await asyncio.gather(*self._background_tasks, return_exceptions=True)
         self._background_tasks.clear()
+        logger.info("数据库性能监控中间件已关闭")
 
 
 def setup_database_performance_middleware(
@@ -570,3 +629,4 @@ def setup_database_performance_middleware(
         **kwargs: 其他参数，会传递给 PostgreSQLPerformanceMiddleware
     """
     app.add_middleware(PostgreSQLPerformanceMiddleware, config=config, **kwargs)
+    logger.info("数据库性能监控中间件已添加")

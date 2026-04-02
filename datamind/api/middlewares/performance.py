@@ -38,14 +38,28 @@
   - 自动识别 /scoring/predict 和 /fraud/predict 路径
   - 获取模型ID和版本
   - 记录模型推理的详细性能指标
+
+采样率说明：
+  - 采样率 (sample_rate) 范围 0.0-1.0
+  - 默认值 1.0 表示记录所有请求
+  - 高负载场景可降低采样率减少性能开销
+
+使用示例：
+    # 添加性能监控中间件
+    setup_performance_middleware(
+        app,
+        enable_detailed=True,
+        enable_concurrent_tracking=True,
+        sample_rate=0.5
+    )
 """
 
 import re
 import time
 import json
+import random
 import psutil
 import asyncio
-import random
 from typing import Optional, Dict, Any, List, Set
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -79,6 +93,14 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
     性能监控中间件
 
     记录系统性能指标和模型性能，包括 CPU、内存、请求耗时等。
+
+    属性:
+        enable_detailed: 是否启用详细监控（CPU/内存）
+        enable_concurrent_tracking: 是否启用并发请求追踪
+        enable_db_tracking: 是否启用数据库查询追踪
+        sample_rate: 采样率 (0.0-1.0)
+        slow_threshold: 慢请求阈值（毫秒）
+        slow_query_threshold: 慢查询阈值（毫秒）
     """
 
     def __init__(
@@ -151,6 +173,9 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         # 内存缓存清理任务
         if self.enable_detailed:
             self._start_cleanup_task()
+
+        logger.info("性能监控中间件初始化完成: 详细监控=%s, 并发追踪=%s, 采样率=%.2f, 慢请求阈值=%dms",
+                   self.enable_detailed, self.enable_concurrent_tracking, self.sample_rate, self.slow_threshold)
 
     def _should_monitor(self, path: str) -> bool:
         """检查是否应该监控该路径"""
@@ -577,6 +602,11 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
     慢请求监控中间件
 
     记录处理时间超过阈值的请求，帮助识别性能瓶颈。
+
+    属性:
+        slow_threshold: 慢请求阈值（毫秒）
+        log_body: 是否记录请求体
+        sanitize_body: 是否对请求体进行脱敏处理
     """
 
     def __init__(
@@ -613,6 +643,9 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
 
         # 敏感字段列表（用于脱敏）
         self.sensitive_fields = settings.sensitive_data.sensitive_fields
+
+        logger.info("慢请求监控中间件初始化完成: 慢请求阈值=%dms, 记录请求体=%s",
+                   self.slow_threshold, self.log_body)
 
     def _should_monitor(self, path: str) -> bool:
         """检查是否应该监控该路径"""
@@ -754,10 +787,9 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
                 request_id=request_id
             )
 
-            logger.debug(
-                "慢请求: %s %s 用户=%s, 耗时=%.2fms, 阈值=%dms",
-                request.method, request.url.path, username, round(process_time, 2), self.slow_threshold
-            )
+            logger.warning("慢请求: %s %s, 用户=%s, 耗时=%.2fms, 阈值=%dms",
+                          request.method, request.url.path, username,
+                          round(process_time, 2), self.slow_threshold)
 
         return response
 
@@ -774,6 +806,14 @@ def setup_performance_middleware(
         app: ASGI 应用
         config: 性能监控配置对象
         **kwargs: 其他参数，会传递给 PerformanceMiddleware
+
+    示例:
+        setup_performance_middleware(
+            app,
+            enable_detailed=True,
+            sample_rate=0.5
+        )
     """
     app.add_middleware(PerformanceMiddleware, config=config, **kwargs)
     app.add_middleware(SlowRequestMiddleware, config=config, **kwargs)
+    logger.info("性能监控中间件已添加")

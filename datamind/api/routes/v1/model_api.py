@@ -29,8 +29,8 @@ API 端点：
   - GET /api/v1/models/stats/loaded - 获取已加载模型列表
 """
 
-import json
 import os
+import json
 import tempfile
 from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
@@ -41,7 +41,8 @@ from datamind.core.common.exceptions import (
 )
 from datamind.core.model import get_model_registry
 from datamind.core.model import get_model_loader
-from datamind.core.logging import log_audit, context, get_logger
+from datamind.core.logging import log_audit, context
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import TaskType, ModelType, Framework, AuditAction
 from datamind.core.domain.validation import get_supported_models, get_supported_frameworks
 from datamind.api.dependencies import get_current_user, get_api_key
@@ -163,6 +164,9 @@ async def register_model(
                 request_id=request_id
             )
 
+            logger.info("模型注册成功: 用户=%s, 模型ID=%s, 名称=%s v%s, 任务类型=%s, 框架=%s, 大小=%.2fMB",
+                       current_user, model_id, model_name, model_version, task_type, framework, file_size / 1024 / 1024)
+
             return {
                 "success": True,
                 "model_id": model_id,
@@ -176,12 +180,20 @@ async def register_model(
             os.unlink(tmp_path)
 
     except ModelAlreadyExistsException as e:
+        logger.warning("模型注册失败: 用户=%s, 名称=%s v%s, 错误=%s",
+                      current_user, model_name, model_version, e)
         raise HTTPException(status_code=409, detail=str(e))
     except ModelValidationException as e:
+        logger.warning("模型注册失败: 用户=%s, 名称=%s v%s, 验证错误=%s",
+                      current_user, model_name, model_version, e)
         raise HTTPException(status_code=400, detail=str(e))
     except ModelFileException as e:
+        logger.warning("模型注册失败: 用户=%s, 名称=%s v%s, 文件错误=%s",
+                      current_user, model_name, model_version, e)
         raise HTTPException(status_code=400, detail=str(e))
     except json.JSONDecodeError as e:
+        logger.warning("模型注册失败: 用户=%s, 名称=%s v%s, JSON解析错误=%s",
+                      current_user, model_name, model_version, e)
         raise HTTPException(status_code=400, detail=f"JSON格式错误: {str(e)}")
     except Exception as e:
         log_audit(
@@ -196,6 +208,8 @@ async def register_model(
             },
             request_id=request_id
         )
+        logger.error("模型注册失败: 用户=%s, 名称=%s v%s, 错误=%s",
+                    current_user, model_name, model_version, e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"注册失败: {str(e)}")
 
 
@@ -214,11 +228,14 @@ async def get_model(
     try:
         model_info = model_registry.get_model_info(model_id)
         if not model_info:
+            logger.warning("获取模型信息失败: 用户=%s, 模型ID=%s, 原因=模型不存在",
+                          current_user, model_id)
             raise HTTPException(status_code=404, detail=f"模型不存在: {model_id}")
 
         # 添加加载状态
         model_info['is_loaded'] = model_loader.is_loaded(model_id)
 
+        logger.debug("获取模型信息成功: 用户=%s, 模型ID=%s", current_user, model_id)
         return model_info
 
     except ModelNotFoundException as e:
@@ -237,6 +254,8 @@ async def get_model(
             },
             request_id=request_id
         )
+        logger.error("获取模型信息失败: 用户=%s, 模型ID=%s, 错误=%s",
+                    current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"获取模型信息失败: {str(e)}")
 
 
@@ -289,6 +308,9 @@ async def list_models(
             request_id=request_id
         )
 
+        logger.info("列出模型成功: 用户=%s, 筛选条件: task_type=%s, status=%s, 结果数=%d",
+                   current_user, task_type, status, len(models))
+
         return {
             "total": len(models),
             "models": models,
@@ -310,6 +332,7 @@ async def list_models(
             reason=str(e),
             request_id=request_id
         )
+        logger.error("列出模型失败: 用户=%s, 错误=%s", current_user, e)
         raise HTTPException(status_code=500, detail=f"获取模型列表失败: {str(e)}")
 
 
@@ -349,6 +372,8 @@ async def activate_model(
             request_id=request_id
         )
 
+        logger.info("模型激活成功: 用户=%s, 模型ID=%s, 原因=%s", current_user, model_id, reason)
+
         return {
             "success": True,
             "message": f"模型 {model_id} 已激活",
@@ -356,8 +381,10 @@ async def activate_model(
         }
 
     except ModelNotFoundException as e:
+        logger.warning("模型激活失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error("模型激活失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"激活模型失败: {str(e)}")
 
 
@@ -397,6 +424,8 @@ async def deactivate_model(
             request_id=request_id
         )
 
+        logger.info("模型停用成功: 用户=%s, 模型ID=%s, 原因=%s", current_user, model_id, reason)
+
         return {
             "success": True,
             "message": f"模型 {model_id} 已停用",
@@ -404,8 +433,10 @@ async def deactivate_model(
         }
 
     except ModelNotFoundException as e:
+        logger.warning("模型停用失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error("模型停用失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"停用模型失败: {str(e)}")
 
 
@@ -445,6 +476,8 @@ async def promote_model(
             request_id=request_id
         )
 
+        logger.info("模型提升为生产成功: 用户=%s, 模型ID=%s, 原因=%s", current_user, model_id, reason)
+
         return {
             "success": True,
             "message": f"模型 {model_id} 已设置为生产模型",
@@ -452,8 +485,10 @@ async def promote_model(
         }
 
     except ModelNotFoundException as e:
+        logger.warning("模型提升为生产失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error("模型提升为生产失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"设置生产模型失败: {str(e)}")
 
 
@@ -491,17 +526,22 @@ async def load_model(
                 request_id=request_id
             )
 
+            logger.info("模型加载成功: 用户=%s, 模型ID=%s", current_user, model_id)
+
             return {
                 "success": True,
                 "message": f"模型 {model_id} 加载成功",
                 "request_id": request_id
             }
         else:
+            logger.warning("模型加载失败: 用户=%s, 模型ID=%s", current_user, model_id)
             raise HTTPException(status_code=500, detail="模型加载失败")
 
     except ModelNotFoundException as e:
+        logger.warning("模型加载失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error("模型加载失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"加载模型失败: {str(e)}")
 
 
@@ -538,6 +578,8 @@ async def unload_model(
             request_id=request_id
         )
 
+        logger.info("模型卸载成功: 用户=%s, 模型ID=%s", current_user, model_id)
+
         return {
             "success": True,
             "message": f"模型 {model_id} 已卸载",
@@ -545,6 +587,7 @@ async def unload_model(
         }
 
     except Exception as e:
+        logger.error("模型卸载失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"卸载模型失败: {str(e)}")
 
 
@@ -579,6 +622,9 @@ async def get_model_history(
             request_id=request_id
         )
 
+        logger.debug("获取模型历史成功: 用户=%s, 模型ID=%s, 历史记录数=%d",
+                    current_user, model_id, len(history))
+
         return {
             "model_id": model_id,
             "history": history,
@@ -587,6 +633,7 @@ async def get_model_history(
         }
 
     except ModelNotFoundException as e:
+        logger.warning("获取模型历史失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         log_audit(
@@ -603,6 +650,7 @@ async def get_model_history(
             reason=str(e),
             request_id=request_id
         )
+        logger.error("获取模型历史失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"获取模型历史失败: {str(e)}")
 
 
@@ -647,6 +695,8 @@ async def delete_model(
             request_id=request_id
         )
 
+        logger.info("模型删除成功: 用户=%s, 模型ID=%s, 原因=%s", current_user, model_id, reason)
+
         return {
             "success": True,
             "message": f"模型 {model_id} 已删除",
@@ -654,17 +704,21 @@ async def delete_model(
         }
 
     except ModelNotFoundException as e:
+        logger.warning("模型删除失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error("模型删除失败: 用户=%s, 模型ID=%s, 错误=%s", current_user, model_id, e)
         raise HTTPException(status_code=500, detail=f"删除模型失败: {str(e)}")
 
 
 @router.get("/types/task")
 async def get_task_types():
     """获取任务类型列表"""
+    request_id = context.get_request_id()
+    logger.debug("获取任务类型列表: request_id=%s", request_id)
     return {
         "task_types": [{"value": t.value, "name": t.name} for t in TaskType],
-        "request_id": context.get_request_id()
+        "request_id": request_id
     }
 
 
@@ -677,14 +731,17 @@ async def get_model_types(framework: Optional[str] = None):
         try:
             framework_enum = Framework(framework)
             model_types = get_supported_models(framework_enum)
+            logger.debug("获取模型类型列表: framework=%s, 数量=%d", framework, len(model_types))
             return {
                 "framework": framework,
                 "model_types": [{"value": mt.value, "name": mt.name} for mt in model_types],
                 "request_id": request_id
             }
         except ValueError:
+            logger.warning("不支持的框架: %s", framework)
             raise HTTPException(status_code=400, detail=f"不支持的框架: {framework}")
 
+    logger.debug("获取所有模型类型列表: 数量=%d", len(ModelType))
     return {
         "model_types": [{"value": t.value, "name": t.name} for t in ModelType],
         "request_id": request_id
@@ -700,14 +757,17 @@ async def get_frameworks(model_type: Optional[str] = None):
         try:
             model_type_enum = ModelType(model_type)
             frameworks = get_supported_frameworks(model_type_enum)
+            logger.debug("获取框架列表: model_type=%s, 数量=%d", model_type, len(frameworks))
             return {
                 "model_type": model_type,
                 "frameworks": [{"value": f.value, "name": f.name} for f in frameworks],
                 "request_id": request_id
             }
         except ValueError:
+            logger.warning("不支持的模型类型: %s", model_type)
             raise HTTPException(status_code=400, detail=f"不支持的模型类型: {model_type}")
 
+    logger.debug("获取所有框架列表: 数量=%d", len(Framework))
     return {
         "frameworks": [{"value": f.value, "name": f.name} for f in Framework],
         "request_id": request_id
@@ -720,6 +780,7 @@ async def get_loaded_models(
 ):
     """获取已加载的模型列表"""
     loaded_models = model_loader.get_loaded_models()
+    logger.info("获取已加载模型列表: 用户=%s, 数量=%d", current_user, len(loaded_models))
 
     return {
         "total": len(loaded_models),

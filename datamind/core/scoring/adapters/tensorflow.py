@@ -53,6 +53,8 @@ class TensorFlowAdapter(BaseModelAdapter):
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
+        logger.debug("TensorFlow 适配器初始化完成")
+
     def get_capabilities(self) -> ScorecardCapability:
         """
         获取模型能力集
@@ -83,7 +85,7 @@ class TensorFlowAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            logger.error("TensorFlow预测失败: %s", e)
+            logger.error("TensorFlow 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -107,7 +109,7 @@ class TensorFlowAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            logger.error("TensorFlow批量预测失败: %s", e)
+            logger.error("TensorFlow 批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self) -> Dict[str, float]:

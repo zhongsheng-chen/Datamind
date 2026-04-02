@@ -258,7 +258,8 @@ def get_adapter(
     if best_cls is None or best_score <= 0:
         raise ValueError(f"无法识别模型类型: {module}.{name}")
 
-    logger.info("选择适配器: %s (分数=%d)", best_cls.__name__, best_score)
+    logger.info("自动选择适配器: %s (模型: %s.%s, 匹配分数: %d)",
+               best_cls.__name__, module, name, best_score)
     return best_cls(model, feature_names, transformer=transformer)
 
 

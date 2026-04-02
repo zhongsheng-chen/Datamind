@@ -21,10 +21,10 @@ AB 测试分流功能测试
     - PostgreSQL 已启动（用于存储测试配置）
 """
 
-import requests
 import json
 import time
 import uuid
+import requests
 from typing import Dict, Any, List
 from collections import defaultdict
 

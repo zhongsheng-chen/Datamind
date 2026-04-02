@@ -29,6 +29,10 @@
      - 请求签名验证（防止请求篡改）
      - 支持 HMAC-SHA256 签名
 
+  SecurityMiddleware: 组合安全中间件
+     - 整合所有安全功能，简化配置
+     - 支持按需启用各项安全功能
+
 安全头说明：
   - X-Content-Type-Options: nosniff - 防止 MIME 类型嗅探
   - X-Frame-Options: DENY - 防止点击劫持
@@ -42,6 +46,21 @@
   - 客户端计算签名：HMAC-SHA256(secret, method + path + timestamp + body)
   - 在请求头中添加 X-Timestamp 和 X-Signature
   - 服务端验证签名，防止请求被篡改
+
+使用示例：
+    # 添加组合安全中间件
+    setup_security_middleware(
+        app,
+        enable_headers=True,
+        enable_ip_access=True,
+        enable_size_limit=True
+    )
+
+    # 单独添加安全头中间件
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # 单独添加IP访问控制中间件
+    app.add_middleware(IPAccessMiddleware, whitelist=["192.168.1.0/24"])
 """
 
 import time
@@ -72,6 +91,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     安全头中间件
 
     添加各种安全相关的 HTTP 响应头，增强应用安全性。
+
+    属性:
+        enabled: 是否启用安全头
+        remove_server_header: 是否移除 Server 响应头
+        csp_policy: Content-Security-Policy 策略
+        security_headers: 安全头字典
     """
 
     def __init__(
@@ -129,6 +154,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "form-action 'self'"
             )
 
+        logger.info("安全头中间件初始化完成: 启用=%s, 移除Server头=%s, 环境=%s",
+                   self.enabled, self.remove_server_header, settings.app.env)
+
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
@@ -149,6 +177,12 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
     IP访问控制中间件
 
     支持白名单和黑名单，支持 CIDR 表示法。
+
+    属性:
+        whitelist_enabled: 是否启用白名单
+        blacklist_enabled: 是否启用黑名单
+        whitelist_networks: 白名单网络集合
+        blacklist_networks: 黑名单网络集合
     """
 
     def __init__(
@@ -193,7 +227,7 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
                 else:
                     self.whitelist_networks.add(ipaddress.ip_network(f"{ip}/32"))
             except ValueError as e:
-                logger.debug("无效的IP白名单配置: %s, 错误: %s", ip, e)
+                logger.warning("无效的IP白名单配置: %s, 错误: %s", ip, e)
 
         # 初始化黑名单网络对象
         self.blacklist_networks: Set[ipaddress._BaseNetwork] = set()
@@ -204,10 +238,14 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
                 else:
                     self.blacklist_networks.add(ipaddress.ip_network(f"{ip}/32"))
             except ValueError as e:
-                logger.debug("无效的IP黑名单配置: %s, 错误: %s", ip, e)
+                logger.warning("无效的IP黑名单配置: %s, 错误: %s", ip, e)
 
         self.whitelist_enabled = self.enable_whitelist and len(self.whitelist_networks) > 0
         self.blacklist_enabled = self.enable_blacklist and len(self.blacklist_networks) > 0
+
+        logger.info("IP访问控制中间件初始化完成: 白名单启用=%s(%d条), 黑名单启用=%s(%d条)",
+                   self.whitelist_enabled, len(self.whitelist_networks),
+                   self.blacklist_enabled, len(self.blacklist_networks))
 
     def _is_ip_allowed(self, ip_str: str) -> bool:
         """检查IP是否允许访问"""
@@ -279,10 +317,7 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
                 request_id=request_id
             )
 
-            logger.debug(
-                "IP被阻止: %s, 路径: %s %s",
-                client_ip, request.method, request.url.path
-            )
+            logger.warning("IP访问被阻止: IP=%s, 路径=%s %s", client_ip, request.method, request.url.path)
 
             raise HTTPException(
                 status_code=403,
@@ -301,6 +336,11 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     请求大小限制中间件
 
     限制请求体大小，防止恶意大请求消耗资源。
+
+    属性:
+        max_size: 最大请求体大小（字节）
+        max_size_mb: 最大请求体大小（MB）
+        exclude_paths: 排除大小限制的路径列表
     """
 
     def __init__(
@@ -329,6 +369,8 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         self.max_size = max_size if max_size is not None else self.config.max_request_size
         self.exclude_paths = exclude_paths or self.config.size_limit_exclude_paths
         self.max_size_mb = self.max_size / 1024 / 1024
+
+        logger.info("请求大小限制中间件初始化完成: 最大大小=%.2fMB", self.max_size_mb)
 
     def _should_exclude(self, path: str) -> bool:
         """检查是否应该排除大小限制"""
@@ -381,6 +423,9 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                         request_id=request_id
                     )
 
+                    logger.warning("请求体过大: 路径=%s, 大小=%d字节, 限制=%d字节",
+                                  request.url.path, size, self.max_size)
+
                     raise HTTPException(
                         status_code=413,
                         detail=f"请求体过大，最大允许 {self.max_size_mb:.0f}MB"
@@ -396,6 +441,12 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
     请求验证中间件
 
     验证请求的合法性，包括时间戳验证（防重放）和签名验证（防篡改）。
+
+    属性:
+        enable_timestamp: 是否启用时间戳验证
+        enable_signature: 是否启用签名验证
+        timestamp_max_age: 时间戳最大有效期（秒）
+        exclude_paths: 排除验证的路径列表
     """
 
     def __init__(
@@ -430,6 +481,9 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
         self.timestamp_max_age = timestamp_max_age if timestamp_max_age is not None else self.config.timestamp_max_age
         self.exclude_paths = exclude_paths or self.config.validation_exclude_paths
         self.settings = get_settings()
+
+        logger.info("请求验证中间件初始化完成: 时间戳验证=%s, 签名验证=%s, 时间戳有效期=%ds",
+                   self.enable_timestamp, self.enable_signature, self.timestamp_max_age)
 
     def _should_exclude(self, path: str) -> bool:
         """检查是否应该排除验证"""
@@ -488,6 +542,9 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
                             },
                             request_id=request_id
                         )
+
+                        logger.warning("时间戳验证失败: 路径=%s, 时间戳=%s, 差值=%ds",
+                                      request.url.path, timestamp, time_diff)
 
                         raise HTTPException(
                             status_code=400,
@@ -573,10 +630,7 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
                     request_id=request_id
                 )
 
-                logger.debug(
-                    "无效签名: %s %s",
-                    request.method, request.url.path
-                )
+                logger.warning("签名验证失败: 路径=%s, 方法=%s", request.url.path, request.method)
 
                 raise HTTPException(
                     status_code=400,
@@ -598,6 +652,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     组合安全中间件
 
     整合所有安全功能，简化配置。
+
+    属性:
+        enable_headers: 是否启用安全头
+        enable_ip_access: 是否启用IP访问控制
+        enable_size_limit: 是否启用请求大小限制
+        enable_timestamp_validation: 是否启用时间戳验证
+        enable_signature_validation: 是否启用签名验证
     """
 
     def __init__(
@@ -610,6 +671,18 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             enable_signature_validation: Optional[bool] = None,
             **kwargs
     ):
+        """
+        初始化组合安全中间件
+
+        参数:
+            app: ASGI 应用
+            enable_headers: 是否启用安全头
+            enable_ip_access: 是否启用IP访问控制
+            enable_size_limit: 是否启用请求大小限制
+            enable_timestamp_validation: 是否启用时间戳验证
+            enable_signature_validation: 是否启用签名验证
+            **kwargs: 传递给子中间件的参数
+        """
         super().__init__(app)
         settings = get_settings()
 
@@ -624,6 +697,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # 存储 kwargs 供子中间件使用
         self.kwargs = kwargs
+
+        logger.info("组合安全中间件初始化完成: 安全头=%s, IP访问控制=%s, 大小限制=%s, 时间戳验证=%s, 签名验证=%s",
+                   self.enable_headers, self.enable_ip_access, self.enable_size_limit,
+                   self.enable_timestamp_validation, self.enable_signature_validation)
 
     async def dispatch(self, request: Request, call_next):
         # 构建中间件列表
@@ -681,5 +758,15 @@ def setup_security_middleware(
     参数:
         app: ASGI 应用
         **kwargs: 传递给 SecurityMiddleware 的参数
+
+    示例:
+        setup_security_middleware(
+            app,
+            enable_headers=True,
+            enable_ip_access=True,
+            enable_size_limit=True,
+            whitelist=["192.168.1.0/24"]
+        )
     """
     app.add_middleware(SecurityMiddleware, **kwargs)
+    logger.info("安全中间件已添加")

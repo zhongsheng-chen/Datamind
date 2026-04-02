@@ -32,6 +32,20 @@
   - password, token, api_key, secret
   - credit_card, card_number, cvv
   - id_number, ssn, phone, email
+
+配置说明：
+  - 通过 LoggingMiddlewareConfig 配置中间件行为
+  - 通过 SensitiveDataConfig 配置敏感字段和脱敏规则
+  - 支持环境变量覆盖默认配置
+
+使用示例：
+    # 添加中间件
+    app.add_middleware(
+        LoggingMiddleware,
+        log_request_body=True,
+        log_response_body=False,
+        mask_sensitive_data=True
+    )
 """
 
 import re
@@ -59,6 +73,16 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     日志中间件
 
     记录所有HTTP请求和响应的详细信息，支持请求体脱敏和响应时间统计。
+
+    属性:
+        exclude_paths: 排除日志记录的路径列表
+        log_request_body: 是否记录请求体
+        log_response_body: 是否记录响应体
+        mask_sensitive_data: 是否脱敏敏感数据
+        max_body_size: 最大记录请求体大小（字节）
+        log_headers: 是否记录请求头
+        sensitive_fields: 敏感字段集合
+        sensitive_headers: 敏感请求头集合
     """
 
     def __init__(
@@ -110,6 +134,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # 预编译正则表达式
         self._compile_sensitive_patterns()
+
+        logger.debug("日志中间件初始化完成: log_request_body=%s, log_response_body=%s, mask_sensitive=%s",
+                    self.log_request_body, self.log_response_body, self.mask_sensitive_data)
 
     def _compile_sensitive_patterns(self):
         """预编译敏感字段正则表达式"""
@@ -607,5 +634,13 @@ def setup_logging_middleware(
         app: ASGI 应用
         config: 日志中间件配置对象
         **kwargs: 其他参数，会传递给 LoggingMiddleware
+
+    示例:
+        setup_logging_middleware(
+            app,
+            log_request_body=True,
+            log_response_body=False
+        )
     """
     app.add_middleware(LoggingMiddleware, config=config, **kwargs)
+    logger.info("日志中间件已添加")

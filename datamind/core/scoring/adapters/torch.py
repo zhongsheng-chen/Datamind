@@ -59,7 +59,7 @@ class TorchAdapter(BaseModelAdapter):
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        logger.debug("模型设备: %s", self.device)
+        logger.debug("PyTorch 适配器初始化完成，模型设备: %s", self.device)
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -94,7 +94,7 @@ class TorchAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            logger.error("PyTorch预测失败: %s", e)
+            logger.error("PyTorch 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -121,7 +121,7 @@ class TorchAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            logger.error("PyTorch批量预测失败: %s", e)
+            logger.error("PyTorch 批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self) -> Dict[str, float]:

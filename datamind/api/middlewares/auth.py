@@ -108,6 +108,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # 缓存有效角色列表
         self._valid_roles = [r.value for r in UserRole]
 
+        logger.info("认证中间件初始化完成，排除路径数=%d，公开路径数=%d",
+                   len(self.exclude_paths), len(self.public_paths))
+
     async def dispatch(self, request: Request, call_next):
         """处理请求"""
         # OPTIONS 请求不需要认证
@@ -146,6 +149,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 },
                 request_id=request_id
             )
+            logger.warning("认证失败: 路径=%s, 原因=%s, 客户端IP=%s",
+                          request.url.path, auth_result['reason'], self._get_client_ip(request))
 
             raise HTTPException(
                 status_code=401,
@@ -182,6 +187,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             },
             request_id=request_id
         )
+        logger.info("认证成功: 用户=%s, 认证方式=%s, 路径=%s",
+                   user_info.get('username'), auth_result.get('auth_type'), request.url.path)
 
         response = await call_next(request)
         return response
@@ -300,6 +307,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             # 获取权限信息
             permissions = payload.get('permissions', [])
 
+            logger.debug("JWT认证成功: 用户=%s", payload.get('username'))
+
             return {
                 'authenticated': True,
                 'user': {
@@ -314,11 +323,13 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             }
 
         except jwt.ExpiredSignatureError:
+            logger.warning("JWT认证失败: Token已过期")
             return {
                 'authenticated': False,
                 'reason': "Token已过期"
             }
         except jwt.InvalidTokenError as e:
+            logger.warning("JWT认证失败: 无效Token, 错误=%s", e)
             return {
                 'authenticated': False,
                 'reason': f"无效的Token: {str(e)}"
@@ -346,11 +357,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return result
 
         except ImportError as e:
-            logger.debug("导入模块失败: %s", e)
+            logger.warning("API Key验证模块导入失败: %s", e)
             # 降级到简化验证
             return await self._verify_api_key_fallback(api_key, request)
         except Exception as e:
-            logger.debug("API Key验证失败: %s", e)
+            logger.error("API Key验证失败: %s", e)
             return {
                 'authenticated': False,
                 'reason': "API Key验证失败"
@@ -391,6 +402,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                     request_id=request_id
                 )
+                logger.warning("API Key认证失败: API密钥不存在或已禁用, 前缀=%s", api_key[:8])
                 return {
                     'authenticated': False,
                     'reason': "无效的API Key"
@@ -412,6 +424,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                     request_id=request_id
                 )
+                logger.warning("API Key认证失败: %s, 密钥ID=%s", reason, api_key_record.api_key_id)
                 return {
                     'authenticated': False,
                     'reason': reason
@@ -437,6 +450,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                     request_id=request_id
                 )
+                logger.warning("API Key认证失败: 关联用户不可用, 用户ID=%s", api_key_record.user_id)
                 return {
                     'authenticated': False,
                     'reason': "API Key无效"
@@ -458,6 +472,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         },
                         request_id=request_id
                     )
+                    logger.warning("API Key认证失败: IP不在白名单中, IP=%s, 允许IP=%s",
+                                  client_ip, api_key_record.allowed_ips)
                     return {
                         'authenticated': False,
                         'reason': "IP地址不在白名单中"
@@ -510,6 +526,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 'api_key_name': api_key_record.name,
             }
 
+            logger.info("API Key认证成功: 用户=%s, 密钥名称=%s", user.username, api_key_record.name)
+
             return {
                 'authenticated': True,
                 'user': user_info
@@ -551,6 +569,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         }
 
         if api_key not in valid_keys:
+            logger.warning("API Key降级认证失败: 无效密钥, 前缀=%s", api_key[:8])
             return {
                 'authenticated': False,
                 'reason': "无效的API Key"
@@ -570,6 +589,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             },
             request_id=request_id
         )
+
+        logger.info("API Key降级认证成功: 用户=%s (开发环境)", user_info['username'])
 
         return {
             'authenticated': True,
@@ -604,7 +625,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return result
 
         except Exception as e:
-            logger.debug("Basic Auth验证失败: %s", e)
+            logger.warning("Basic Auth验证失败: %s", e)
             return {'authenticated': False, 'reason': "认证失败"}
 
     @staticmethod
@@ -645,6 +666,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                     request_id=request_id
                 )
+                logger.warning("Basic Auth认证失败: 用户不存在, 用户名=%s", username)
                 return {'authenticated': False, 'reason': "用户名或密码错误"}
 
             # 检查账户是否被锁定
@@ -663,6 +685,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                     request_id=request_id
                 )
+                logger.warning("Basic Auth认证失败: 账户已锁定, 用户=%s", username)
                 return {'authenticated': False, 'reason': "账户已被锁定，请稍后再试"}
 
             # 验证密码
@@ -684,6 +707,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                     request_id=request_id
                 )
+                logger.warning("Basic Auth认证失败: 密码错误, 用户=%s, 失败次数=%d",
+                              username, user.failed_login_attempts)
                 return {'authenticated': False, 'reason': "用户名或密码错误"}
 
             # 记录登录成功
@@ -703,6 +728,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 },
                 request_id=request_id
             )
+
+            logger.info("Basic Auth认证成功: 用户=%s, 角色=%s", username, user.role.value)
 
             return {
                 'authenticated': True,
@@ -763,11 +790,14 @@ def create_jwt_token(
     if extra_payload:
         payload.update(extra_payload)
 
-    return jwt.encode(
+    token = jwt.encode(
         payload,
         settings.auth.jwt_secret_key,
         algorithm=settings.auth.jwt_algorithm
     )
+
+    logger.debug("JWT Token创建成功: 用户=%s, 过期时间=%d秒", username, settings.auth.jwt_expire_minutes * 60)
+    return token
 
 
 def verify_jwt_token(token: str) -> Dict[str, Any]:
@@ -793,6 +823,8 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         valid_roles = [r.value for r in UserRole]
         valid_roles_list = [r for r in roles if r in valid_roles]
 
+        logger.debug("JWT Token验证成功: 用户=%s", payload.get('username'))
+
         return {
             'valid': True,
             'user_id': payload.get('sub'),
@@ -804,8 +836,10 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         }
 
     except jwt.ExpiredSignatureError:
+        logger.warning("JWT Token验证失败: Token已过期")
         return {'valid': False, 'reason': 'Token已过期'}
     except jwt.InvalidTokenError as e:
+        logger.warning("JWT Token验证失败: 无效Token, 错误=%s", e)
         return {'valid': False, 'reason': f'无效的Token: {str(e)}'}
 
 
@@ -835,12 +869,15 @@ def refresh_jwt_token(token: str) -> Optional[str]:
     """
     verification = verify_jwt_token(token)
     if not verification['valid']:
+        logger.warning("JWT Token刷新失败: 原Token无效")
         return None
 
     # 创建新token，保持原有信息
-    return create_jwt_token(
+    new_token = create_jwt_token(
         user_id=verification['user_id'],
         username=verification['username'],
         roles=verification['roles'],
         permissions=verification['permissions']
     )
+    logger.info("JWT Token刷新成功: 用户=%s", verification['username'])
+    return new_token

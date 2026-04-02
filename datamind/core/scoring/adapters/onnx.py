@@ -58,7 +58,7 @@ class ONNXAdapter(BaseModelAdapter):
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        logger.debug("输入名称: %s, 输出名称: %s", self.input_name, self.output_names)
+        logger.debug("ONNX 模型信息: 输入名称=%s, 输出名称=%s", self.input_name, self.output_names)
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -92,7 +92,7 @@ class ONNXAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            logger.error("ONNX预测失败: %s", e)
+            logger.error("ONNX 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -118,7 +118,7 @@ class ONNXAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            logger.error("ONNX批量预测失败: %s", e)
+            logger.error("ONNX 批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self) -> Dict[str, float]:

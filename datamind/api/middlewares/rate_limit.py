@@ -25,6 +25,37 @@
   - 用户ID（已认证用户）
   - API Key
   - 客户端 IP
+
+中间件类型：
+  RateLimitMiddleware: 通用限流中间件
+     - 支持多种限流维度
+     - 支持 Redis 和内存两种存储后端
+     - 自动降级（Redis 故障时降级到内存）
+
+  IPRateLimitMiddleware: IP限流中间件
+     - 只根据客户端 IP 进行限流
+     - 适用于无需用户认证的场景
+
+  UserRateLimitMiddleware: 用户限流中间件
+     - 优先使用用户ID进行限流
+     - 无用户时降级到 IP 限流
+
+配置说明：
+  - 通过 RateLimitConfig 配置限流规则
+  - 支持环境变量覆盖默认配置
+  - 限流规则可根据用户角色动态调整
+
+使用示例：
+    # 添加限流中间件
+    setup_rate_limit_middleware(
+        app,
+        redis_client=redis_client,
+        default_limit=100,
+        default_period=60
+    )
+
+    # 获取当前请求使用情况
+    usage = await middleware.get_current_usage(request)
 """
 
 import time
@@ -79,6 +110,15 @@ return {1, 0}
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     限流中间件
+
+    提供多维度、多等级的 API 限流功能，支持 Redis 分布式限流和内存单机限流。
+
+    属性:
+        default_limit: 默认限流次数
+        default_period: 默认限流周期（秒）
+        use_redis: 是否使用 Redis（False 则使用内存存储）
+        rate_limit_enabled: 是否启用限流
+        rules: 限流规则字典
     """
 
     def __init__(
@@ -158,9 +198,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not self.use_redis and self.rate_limit_enabled:
             asyncio.create_task(self._periodic_cleanup())
 
-        # 调试打印
-        logger.debug("INIT: default_limit=%d, default_period=%d", self.default_limit, self.default_period)
-        logger.debug("INIT: rules['default']=%s", self.rules.get('default', {}))
+        logger.info("限流中间件初始化完成: 启用=%s, 存储=%s, 默认限制=%d/%ds",
+                   self.rate_limit_enabled, "Redis" if self.use_redis else "内存",
+                   self.default_limit, self.default_period)
 
     def _ensure_roles_in_rules(self) -> None:
         """确保所有角色都在限流规则中"""
@@ -259,10 +299,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 request_id=request_id
             )
 
-            logger.debug(
-                "限流触发: %s %s, 用户=%s, 等级=%s, 限制=%d/%d秒",
-                request.method, request.url.path, username, tier, rule['limit'], rule['period']
-            )
+            logger.warning("限流触发: %s %s, 用户=%s, 等级=%s, 限制=%d/%d秒",
+                          request.method, request.url.path, username, tier,
+                          rule['limit'], rule['period'])
 
             raise HTTPException(
                 status_code=429,
@@ -486,7 +525,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return is_limited, remaining
 
         except Exception as e:
-            logger.debug("Redis限流检查失败: %s", e)
+            logger.warning("Redis限流检查失败，降级到内存限流: %s", e)
             # Redis 故障时降级到内存限流
             return await self._check_memory_rate_limit(key, rule)
 
@@ -609,6 +648,14 @@ def setup_rate_limit_middleware(
         config: 速率限制配置对象
         enabled: 是否启用限流
         **kwargs: 其他参数，会传递给 RateLimitMiddleware
+
+    示例:
+        setup_rate_limit_middleware(
+            app,
+            redis_client=redis_client,
+            default_limit=100,
+            default_period=60
+        )
     """
     app.add_middleware(
         RateLimitMiddleware,
@@ -617,6 +664,7 @@ def setup_rate_limit_middleware(
         enabled=enabled,
         **kwargs
     )
+    logger.info("限流中间件已添加")
 
 
 # IP限流中间件
@@ -624,6 +672,9 @@ class IPRateLimitMiddleware(RateLimitMiddleware):
     """基于IP的限流中间件
 
     只根据客户端 IP 进行限流，适用于无需用户认证的场景。
+
+    使用示例：
+        app.add_middleware(IPRateLimitMiddleware, default_limit=100, default_period=60)
     """
 
     async def _get_rate_limit_key(self, request: Request) -> str:
@@ -636,6 +687,9 @@ class UserRateLimitMiddleware(RateLimitMiddleware):
     """基于用户的限流中间件
 
     优先使用用户ID进行限流，无用户时降级到 IP 限流。
+
+    使用示例：
+        app.add_middleware(UserRateLimitMiddleware, default_limit=100, default_period=60)
     """
 
     async def _get_rate_limit_key(self, request: Request) -> str:

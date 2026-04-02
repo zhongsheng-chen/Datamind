@@ -9,9 +9,9 @@
   - 批量反欺诈预测：批量处理多个反欺诈请求
   - A/B 测试支持：集成 A/B 测试分流
   - 生产模型自动选择：未指定模型时使用生产模型
-  - 完整的审计日志：记录所有预测请求
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
   - 风险因素分析：识别主要风险因素
+  - 完整的审计日志：记录所有预测请求
+  - 链路追踪：完整的 span 追踪
 
 API 端点：
   - POST /api/v1/fraud/predict - 单次反欺诈预测
@@ -62,7 +62,7 @@ from pydantic import BaseModel, Field
 
 from datamind.core.common.exceptions import ModelNotFoundException, ModelInferenceException
 from datamind.core.model import get_model_registry
-from datamind.core.logging import log_audit, context, log_performance
+from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging import get_logger
 from datamind.core.domain.enums import TaskType, AuditAction
 from datamind.core.experiment.ab_test import ab_test_manager
@@ -145,6 +145,9 @@ async def predict_fraud(
                         'group_name': assignment['group_name'],
                         'in_test': True
                     }
+                    logger.info("A/B测试分流: 申请ID=%s, 测试ID=%s, 分组=%s, 模型ID=%s",
+                               fraud_request.application_id, fraud_request.ab_test_id,
+                               assignment['group_name'], model_id)
             except Exception as e:
                 # A/B测试失败不影响主流程
                 log_audit(
@@ -161,7 +164,8 @@ async def predict_fraud(
                     },
                     request_id=request_id
                 )
-                logger.debug("A/B测试错误: %s", e)
+                logger.warning("A/B测试分配失败: 测试ID=%s, 申请ID=%s, 错误=%s",
+                              fraud_request.ab_test_id, fraud_request.application_id, e)
 
         # 如果没有指定model_id且没有AB测试分配，使用生产模型
         if not model_id:
@@ -172,6 +176,7 @@ async def predict_fraud(
             )
             if models:
                 model_id = models[0]['model_id']
+                logger.info("使用生产模型: 申请ID=%s, 模型ID=%s", fraud_request.application_id, model_id)
             else:
                 log_audit(
                     action=AuditAction.MODEL_QUERY.value,
@@ -185,6 +190,7 @@ async def predict_fraud(
                     },
                     request_id=request_id
                 )
+                logger.warning("未配置生产模型: 申请ID=%s", fraud_request.application_id)
                 raise HTTPException(
                     status_code=400,
                     detail="未配置生产模型，请指定model_id"
@@ -204,6 +210,10 @@ async def predict_fraud(
         }
 
         processing_time_ms = (time.time() - start_time) * 1000
+
+        logger.info("反欺诈预测完成: 申请ID=%s, 模型ID=%s, 版本=%s, 欺诈概率=%.6f, 风险评分=%.2f, 耗时=%.2fms",
+                   fraud_request.application_id, model_id, result['model_version'],
+                   result['fraud_probability'], result['risk_score'], processing_time_ms)
 
         # 构建响应
         response_data = {
@@ -284,6 +294,8 @@ async def predict_fraud(
                     },
                     request_id=request_id
                 )
+                logger.warning("A/B测试结果记录失败: 测试ID=%s, 申请ID=%s, 错误=%s",
+                              ab_test_info['test_id'], fraud_request.application_id, e)
 
         return response_data
 
@@ -304,6 +316,8 @@ async def predict_fraud(
             },
             request_id=request_id
         )
+        logger.warning("模型未找到: 申请ID=%s, 模型ID=%s, 错误=%s",
+                      fraud_request.application_id, fraud_request.model_id, e)
         raise HTTPException(status_code=404, detail=str(e))
 
     except ModelInferenceException as e:
@@ -323,6 +337,8 @@ async def predict_fraud(
             },
             request_id=request_id
         )
+        logger.error("模型推理失败: 申请ID=%s, 模型ID=%s, 错误=%s",
+                    fraud_request.application_id, fraud_request.model_id, e)
         raise HTTPException(status_code=422, detail=str(e))
 
     except HTTPException:
@@ -344,6 +360,7 @@ async def predict_fraud(
             },
             request_id=request_id
         )
+        logger.error("反欺诈预测异常: 申请ID=%s, 错误=%s", fraud_request.application_id, e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"预测失败: {str(e)}")
 
 
@@ -424,6 +441,9 @@ async def batch_predict_fraud(
             "span_id": span_id
         }
     )
+
+    logger.info("批量反欺诈预测完成: 总请求数=%d, 成功=%d, 失败=%d, 耗时=%.2fms",
+               len(requests), len(results), len(errors), processing_time_ms)
 
     return {
         "total": len(requests),
