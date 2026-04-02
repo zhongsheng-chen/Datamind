@@ -28,7 +28,9 @@ from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
 from datamind.core.scoring.binning import Bin
-from datamind.core.logging.manager import LogManager
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class MissingStrategy(Enum):
@@ -47,8 +49,7 @@ class WOETransformer:
     def __init__(
         self,
         binning_config: Dict[str, List[Bin]],
-        missing_strategy: MissingStrategy = MissingStrategy.RAISE,
-        debug: bool = False
+        missing_strategy: MissingStrategy = MissingStrategy.RAISE
     ):
         """
         初始化 WOE 转换器
@@ -57,60 +58,38 @@ class WOETransformer:
             binning_config: 分箱配置字典
                 格式：{"feature_name": [Bin(), Bin(), ...], ...}
             missing_strategy: 缺失值处理策略
-            debug: 是否启用调试日志
         """
         self.binning = binning_config
         self.missing_strategy = missing_strategy
-        self._debug_enabled = debug
-
-        # 获取日志器
-        self._log_manager = LogManager()
-        self.logger = self._log_manager.app_logger
 
         # 验证分箱配置
         self._validate_binning_config()
 
-        # 构建快速查找索引（可选，用于性能优化）
-        self._build_feature_index()
-
-    def _debug(self, msg: str, *args) -> None:
-        """调试输出"""
-        if self._debug_enabled and self.logger:
-            self.logger.debug(msg, *args)
-
-    def _error(self, msg: str, *args) -> None:
-        """错误输出"""
-        if self.logger:
-            self.logger.error(msg, *args)
+        total_bins = sum(len(bins) for bins in self.binning.values())
+        logger.debug("WOE转换器初始化完成，特征数: %d，分箱总数: %d", len(self.binning), total_bins)
 
     def _validate_binning_config(self) -> None:
         """验证分箱配置的完整性"""
         for feature, bins in self.binning.items():
             if not bins:
-                self._error("特征 %s 的分箱配置为空", feature)
+                logger.error("特征 %s 的分箱配置为空", feature)
                 raise ValueError(f"特征 {feature} 的分箱配置为空")
 
             # 检查分箱 ID 是否重复
             bin_ids = [b.id for b in bins if b.id is not None]
             if len(bin_ids) != len(set(bin_ids)):
-                self._error("特征 %s 存在重复的分箱 ID", feature)
+                logger.error("特征 %s 存在重复的分箱 ID", feature)
                 raise ValueError(f"特征 {feature} 存在重复的分箱 ID")
 
             # 检查缺失值分箱配置
             has_missing_bin = any(b.is_missing for b in bins)
             if not has_missing_bin and self.missing_strategy == MissingStrategy.DEFAULT:
-                self._error("特征 %s 缺少缺失值分箱", feature)
+                logger.error("特征 %s 缺少缺失值分箱", feature)
                 raise ValueError(f"特征 {feature} 缺少缺失值分箱")
 
-        self._debug("分箱配置验证通过，特征数: %d", len(self.binning))
+        logger.debug("分箱配置验证通过")
 
-    def _build_feature_index(self) -> None:
-        """构建特征快速查找索引（用于性能优化）"""
-        # 按特征名存储分箱列表，已存在
-        # 可以添加数值范围索引用于快速查找
-        self._feature_bin_map = self.binning
-
-    def _find_bin(self, feature: str, value: Any) -> Bin:
+    def _find_bin(self, feature: str, value: Any) -> Optional[Bin]:
         """
         查找值对应的分箱
 
@@ -119,10 +98,10 @@ class WOETransformer:
             value: 特征值
 
         返回:
-            匹配的分箱对象
+            匹配的分箱对象，如果策略为 SKIP 且值为缺失则返回 None
 
         异常:
-            ValueError: 值不在任何分箱中
+            ValueError: 值不在任何分箱中（且策略为 RAISE 或 DEFAULT 但无缺失分箱）
         """
         bins = self.binning.get(feature)
         if not bins:
@@ -136,7 +115,7 @@ class WOETransformer:
         # 处理缺失值策略
         if value is None:
             if self.missing_strategy == MissingStrategy.SKIP:
-                self._debug("特征 %s 的值为缺失，已跳过", feature)
+                logger.debug("特征 %s 的值为缺失，已跳过", feature)
                 return None
             elif self.missing_strategy == MissingStrategy.DEFAULT:
                 # 查找缺失值分箱
@@ -197,16 +176,17 @@ class WOETransformer:
                     "description": matched_bin.description,
                 }
 
-                self._debug("特征 %s 转换完成: value=%s, woe=%.4f, bin_id=%s",
-                            feature, value, matched_bin.woe, matched_bin.id)
+                logger.debug("特征 %s 转换完成: value=%s, woe=%.4f, bin_id=%s",
+                             feature, value, matched_bin.woe, matched_bin.id)
 
             except ValueError as e:
-                self._error("特征 %s 转换失败: %s", feature, e)
+                logger.error("特征 %s 转换失败: %s", feature, e)
                 raise
 
         return result
 
-    def to_woe_vector(self, feature_meta: Dict[str, Dict]) -> Dict[str, float]:
+    @staticmethod
+    def to_woe_vector(feature_meta: Dict[str, Dict]) -> Dict[str, float]:
         """
         从特征元信息中提取 WOE 向量
 
@@ -228,10 +208,13 @@ class WOETransformer:
         返回:
             WOE 值字典
         """
-        self._debug("开始转换特征，特征数: %d", len(features))
+        logger.debug("开始转换特征，特征数: %d", len(features))
+
         meta = self.transform_with_meta(features)
         woe_vector = self.to_woe_vector(meta)
-        self._debug("转换完成，WOE 向量数: %d", len(woe_vector))
+
+        logger.debug("转换完成，WOE 向量数: %d", len(woe_vector))
+
         return woe_vector
 
     def transform_batch(
@@ -249,19 +232,22 @@ class WOETransformer:
         返回:
             WOE 值字典列表
         """
+        logger.debug("开始批量转换，样本数: %d", len(features_list))
+
         results = []
         for i, features in enumerate(features_list):
             try:
                 results.append(self.transform(features))
             except Exception as e:
                 if skip_errors:
-                    self._error("批量转换第 %d 条失败: %s，返回空字典", i, e)
+                    logger.error("批量转换第 %d 条失败: %s，返回空字典", i, e)
                     results.append({})
                 else:
-                    self._error("批量转换第 %d 条失败: %s", i, e)
+                    logger.error("批量转换第 %d 条失败: %s", i, e)
                     raise
 
-        self._debug("批量转换完成，样本数: %d", len(results))
+        logger.debug("批量转换完成，成功: %d", len(results))
+
         return results
 
     def transform_batch_with_meta(
@@ -279,16 +265,21 @@ class WOETransformer:
         返回:
             特征元信息字典列表
         """
+        logger.debug("开始批量转换（带元信息），样本数: %d", len(features_list))
+
         results = []
         for i, features in enumerate(features_list):
             try:
                 results.append(self.transform_with_meta(features))
             except Exception as e:
                 if skip_errors:
-                    self._error("批量转换第 %d 条失败: %s，返回空字典", i, e)
+                    logger.error("批量转换第 %d 条失败: %s，返回空字典", i, e)
                     results.append({})
                 else:
+                    logger.error("批量转换第 %d 条失败: %s", i, e)
                     raise
+
+        logger.debug("批量转换完成（带元信息），成功: %d", len(results))
 
         return results
 

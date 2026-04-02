@@ -35,16 +35,24 @@ from sqlalchemy import func
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ApiCallLog, AuditLog
-from datamind.core.logging import log_audit, context
-from datamind.core.ml.model import inference_engine
-from datamind.core.ml.model import model_loader
-from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.core.domain.enums import AuditAction
+from datamind.core.logging import log_audit, context
+from datamind.core.logging import get_logger
+from datamind.core.model import get_model_loader
+from datamind.core.model import get_model_registry
+from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.api.dependencies import require_admin
 from datamind.config import get_settings
 
+# 模块级 logger
+logger = get_logger(__name__)
+
 router = APIRouter()
 settings = get_settings()
+
+# 获取模型加载器和注册中心实例
+model_loader = get_model_loader()
+model_registry = get_model_registry()
 
 
 @router.get("/stats/inference")
@@ -165,8 +173,17 @@ async def get_engine_stats(
         request_id=request_id
     )
 
+    # 注意：inference_engine 需要根据实际实现提供
+    # 这里暂时返回模拟数据，实际使用时需要替换
+    inference_engine_stats = {
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "cache_size": 0,
+        "total_predictions": 0
+    }
+
     return {
-        "inference_engine": inference_engine.get_stats(),
+        "inference_engine": inference_engine_stats,
         "model_loader": {
             "loaded_models": len(model_loader.get_loaded_models()),
             "models": model_loader.get_loaded_models()
@@ -321,6 +338,21 @@ async def detailed_health_check(
         request_id=request_id
     )
 
+    # 注意：inference_engine 需要根据实际实现提供
+    # 这里暂时返回模拟数据
+    inference_engine_stats = {
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "cache_size": 0,
+        "total_predictions": 0
+    }
+
+    inference_engine_cache_stats = {
+        "size": 0,
+        "max_size": settings.inference.cache_size,
+        "hit_rate": 0
+    }
+
     return {
         "status": "healthy" if db_health['status'] == 'healthy' else "degraded",
         "timestamp": datetime.now().isoformat(),
@@ -333,8 +365,8 @@ async def detailed_health_check(
             },
             "inference_engine": {
                 "status": "healthy",
-                "stats": inference_engine.get_stats(),
-                "cache_stats": inference_engine.get_cache_stats()
+                "stats": inference_engine_stats,
+                "cache_stats": inference_engine_cache_stats
             },
             "ab_test": {
                 "status": "healthy" if settings.ab_test.enabled else "disabled",
@@ -468,8 +500,8 @@ async def get_config(
         },
         "api": {
             "prefix": settings.api.prefix,
-            "rate_limit_enabled": settings.security.rate_limit_enabled,
-            "rate_limit": f"{settings.security.rate_limit_requests}/{settings.security.rate_limit_period}s"
+            "rate_limit_enabled": settings.rate_limit.rate_limit_enabled,
+            "rate_limit": f"{settings.rate_limit.rate_limit_default_limit}/{settings.rate_limit.rate_limit_default_period}s"
         },
         "database": {
             "pool_size": settings.database.pool_size,

@@ -54,15 +54,17 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
-from datamind.config import get_settings
-from datamind.config.settings import (
+from datamind.config import (
     SecurityHeadersConfig,
     IPAccessConfig,
     RequestSizeConfig,
     RequestValidationConfig
 )
+from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -191,7 +193,7 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
                 else:
                     self.whitelist_networks.add(ipaddress.ip_network(f"{ip}/32"))
             except ValueError as e:
-                debug_print("IPAccessMiddleware", f"无效的IP白名单配置: {ip}, 错误: {e}")
+                logger.debug("无效的IP白名单配置: %s, 错误: %s", ip, e)
 
         # 初始化黑名单网络对象
         self.blacklist_networks: Set[ipaddress._BaseNetwork] = set()
@@ -202,7 +204,7 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
                 else:
                     self.blacklist_networks.add(ipaddress.ip_network(f"{ip}/32"))
             except ValueError as e:
-                debug_print("IPAccessMiddleware", f"无效的IP黑名单配置: {ip}, 错误: {e}")
+                logger.debug("无效的IP黑名单配置: %s, 错误: %s", ip, e)
 
         self.whitelist_enabled = self.enable_whitelist and len(self.whitelist_networks) > 0
         self.blacklist_enabled = self.enable_blacklist and len(self.blacklist_networks) > 0
@@ -277,9 +279,9 @@ class IPAccessMiddleware(BaseHTTPMiddleware):
                 request_id=request_id
             )
 
-            debug_print(
-                "IPAccessMiddleware",
-                f"IP被阻止: {client_ip}, 路径: {request.method} {request.url.path}"
+            logger.debug(
+                "IP被阻止: %s, 路径: %s %s",
+                client_ip, request.method, request.url.path
             )
 
             raise HTTPException(
@@ -571,9 +573,9 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
                     request_id=request_id
                 )
 
-                debug_print(
-                    "RequestValidationMiddleware",
-                    f"无效签名: {request.method} {request.url.path}"
+                logger.debug(
+                    "无效签名: %s %s",
+                    request.method, request.url.path
                 )
 
                 raise HTTPException(
@@ -584,7 +586,7 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
         except HTTPException:
             raise
         except Exception as e:
-            debug_print("RequestValidationMiddleware", f"签名验证失败: {e}")
+            logger.debug("签名验证失败: %s", e)
             raise HTTPException(
                 status_code=400,
                 detail="签名验证失败"

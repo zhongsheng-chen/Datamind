@@ -1,4 +1,4 @@
-# tests/ml/test_ab_test.py
+# tests/ml/test_ab_test_01.py
 
 """测试 A/B 测试模块"""
 

@@ -28,7 +28,7 @@
 """
 
 from enum import IntFlag, auto
-from typing import List, Dict, Set, Union
+from typing import List, Dict, Set, Any, Callable
 
 
 class ScorecardCapability(IntFlag):
@@ -279,9 +279,9 @@ def get_capability_weight_sum(caps: ScorecardCapability) -> int:
 
 
 def sort_by_capability_weight(
-    items: List[any],
-    key_func: callable
-) -> List[any]:
+    items: List[Any],
+    key_func: Callable[[Any], ScorecardCapability]
+) -> List[Any]:
     """
     根据能力权重对项目列表排序
 

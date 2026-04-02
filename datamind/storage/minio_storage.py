@@ -24,13 +24,15 @@ import json
 from typing import BinaryIO, Optional, List, Dict, Any
 from datetime import timedelta
 from minio import Minio
-from minio.api import CopySource  # 正确的导入路径
+from minio.api import CopySource
 from minio.error import S3Error
 
 from datamind.storage.base import StorageBackend
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
+
+logger = get_logger(__name__)
 
 
 class MinIOStorage(StorageBackend):
@@ -70,14 +72,14 @@ class MinIOStorage(StorageBackend):
         # 确保存储桶存在
         self._ensure_bucket_exists(bucket_name)
 
-        debug_print("MinIOStorage", f"MinIO存储初始化完成: {endpoint}/{bucket_name}")
+        logger.debug("MinIO存储初始化完成: %s/%s", endpoint, bucket_name)
 
     def _ensure_bucket_exists(self, bucket_name: str):
         """确保存储桶存在，不存在则创建"""
         try:
             if not self.client.bucket_exists(bucket_name):
                 self.client.make_bucket(bucket_name)
-                debug_print("MinIOStorage", f"创建存储桶: {bucket_name}")
+                logger.debug("创建存储桶: %s", bucket_name)
 
                 # 设置存储桶策略（公开读）- 需要转换为 JSON 字符串
                 policy = {
@@ -94,7 +96,7 @@ class MinIOStorage(StorageBackend):
                 # 将字典转换为 JSON 字符串
                 self.client.set_bucket_policy(bucket_name, json.dumps(policy))
         except S3Error as e:
-            debug_print("MinIOStorage", f"存储桶操作失败: {e}")
+            logger.debug("存储桶操作失败: %s", e)
             raise
 
     async def save(self, path: str, content: BinaryIO,
@@ -135,7 +137,7 @@ class MinIOStorage(StorageBackend):
                             minio_metadata[key] = value
                         except UnicodeEncodeError:
                             # 跳过非 ASCII 字符
-                            debug_print("MinIOStorage", f"跳过非 ASCII 元数据: {key}={value}")
+                            logger.debug("跳过非 ASCII 元数据: %s=%s", key, value)
                     elif isinstance(value, (int, float, bool)):
                         minio_metadata[key] = str(value)
                     else:
@@ -168,7 +170,7 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"文件上传成功: {self.bucket_name}/{full_path}")
+            logger.debug("文件上传成功: %s/%s", self.bucket_name, full_path)
 
             return {
                 'path': full_path,
@@ -197,7 +199,7 @@ class MinIOStorage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("MinIOStorage", f"文件上传失败: {e}")
+            logger.debug("文件上传失败: %s", e)
             raise
 
     async def load(self, path: str, version: Optional[str] = None) -> bytes:
@@ -244,7 +246,7 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"文件下载成功: {self.bucket_name}/{full_path}")
+            logger.debug("文件下载成功: %s/%s", self.bucket_name, full_path)
             return content
 
         except S3Error as e:
@@ -264,7 +266,7 @@ class MinIOStorage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("MinIOStorage", f"文件下载失败: {e}")
+            logger.debug("文件下载失败: %s", e)
             raise
 
     async def delete(self, path: str, version: Optional[str] = None) -> bool:
@@ -308,7 +310,7 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"文件删除成功: {self.bucket_name}/{full_path}")
+            logger.debug("文件删除成功: %s/%s", self.bucket_name, full_path)
             return True
 
         except S3Error as e:
@@ -328,7 +330,7 @@ class MinIOStorage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("MinIOStorage", f"文件删除失败: {e}")
+            logger.debug("文件删除失败: %s", e)
             return False
 
     async def exists(self, path: str) -> bool:
@@ -401,11 +403,11 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"列出文件成功: {full_prefix}, 共 {len(files)} 个文件")
+            logger.debug("列出文件成功: %s, 共 %d 个文件", full_prefix, len(files))
             return files
 
         except S3Error as e:
-            debug_print("MinIOStorage", f"列出文件失败: {e}")
+            logger.debug("列出文件失败: %s", e)
             return []
 
     async def get_metadata(self, path: str) -> Dict[str, Any]:
@@ -449,7 +451,7 @@ class MinIOStorage(StorageBackend):
             }
 
         except S3Error as e:
-            debug_print("MinIOStorage", f"获取元数据失败: {e}")
+            logger.debug("获取元数据失败: %s", e)
             raise
 
     async def copy(self, source_path: str, dest_path: str) -> Dict[str, Any]:
@@ -489,7 +491,7 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"文件复制成功: {source_full} -> {dest_full}")
+            logger.debug("文件复制成功: %s -> %s", source_full, dest_full)
 
             return {
                 'source': source_path,
@@ -516,7 +518,7 @@ class MinIOStorage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("MinIOStorage", f"文件复制失败: {e}")
+            logger.debug("文件复制失败: %s", e)
             raise
 
     async def move(self, source_path: str, dest_path: str) -> Dict[str, Any]:
@@ -550,7 +552,7 @@ class MinIOStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("MinIOStorage", f"文件移动成功: {source_path} -> {dest_path}")
+        logger.debug("文件移动成功: %s -> %s", source_path, dest_path)
 
         return result
 
@@ -569,7 +571,7 @@ class MinIOStorage(StorageBackend):
             return url
 
         except S3Error as e:
-            debug_print("MinIOStorage", f"生成签名URL失败: {e}")
+            logger.debug("生成签名URL失败: %s", e)
             raise
 
     async def get_upload_url(self, path: str, expires_in: int = 3600) -> str:
@@ -587,7 +589,7 @@ class MinIOStorage(StorageBackend):
             return url
 
         except S3Error as e:
-            debug_print("MinIOStorage", f"生成上传URL失败: {e}")
+            logger.debug("生成上传URL失败: %s", e)
             raise
 
     async def get_object_info(self, path: str) -> Dict[str, Any]:
@@ -654,7 +656,7 @@ class MinIOStorage(StorageBackend):
             }
 
         except S3Error as e:
-            debug_print("MinIOStorage", f"获取对象信息失败: {e}")
+            logger.debug("获取对象信息失败: %s", e)
             raise
 
     async def set_object_tags(self, path: str, tags: Dict[str, str]) -> bool:
@@ -690,11 +692,11 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"设置对象标签成功: {full_path}")
+            logger.debug("设置对象标签成功: %s", full_path)
             return True
 
         except S3Error as e:
-            debug_print("MinIOStorage", f"设置对象标签失败: {e}")
+            logger.debug("设置对象标签失败: %s", e)
             return False
 
     async def list_buckets(self) -> List[str]:
@@ -725,7 +727,7 @@ class MinIOStorage(StorageBackend):
 
             return bucket_names
         except S3Error as e:
-            debug_print("MinIOStorage", f"列出存储桶失败: {e}")
+            logger.debug("列出存储桶失败: %s", e)
             return []
 
     async def create_bucket(self, bucket_name: str) -> bool:
@@ -754,11 +756,11 @@ class MinIOStorage(StorageBackend):
                     request_id=request_id
                 )
 
-                debug_print("MinIOStorage", f"创建存储桶成功: {bucket_name}")
+                logger.debug("创建存储桶成功: %s", bucket_name)
                 return True
             return False
         except S3Error as e:
-            debug_print("MinIOStorage", f"创建存储桶失败: {e}")
+            logger.debug("创建存储桶失败: %s", e)
             return False
 
     async def delete_bucket(self, bucket_name: str) -> bool:
@@ -795,10 +797,10 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"删除存储桶成功: {bucket_name}")
+            logger.debug("删除存储桶成功: %s", bucket_name)
             return True
         except S3Error as e:
-            debug_print("MinIOStorage", f"删除存储桶失败: {e}")
+            logger.debug("删除存储桶失败: %s", e)
             return False
 
     async def get_bucket_policy(self, bucket_name: str) -> str:
@@ -828,7 +830,7 @@ class MinIOStorage(StorageBackend):
 
             return policy
         except S3Error as e:
-            debug_print("MinIOStorage", f"获取存储桶策略失败: {e}")
+            logger.debug("获取存储桶策略失败: %s", e)
             raise
 
     async def set_bucket_policy(self, bucket_name: str, policy: dict) -> bool:
@@ -856,8 +858,8 @@ class MinIOStorage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("MinIOStorage", f"设置存储桶策略成功: {bucket_name}")
+            logger.debug("设置存储桶策略成功: %s", bucket_name)
             return True
         except S3Error as e:
-            debug_print("MinIOStorage", f"设置存储桶策略失败: {e}")
+            logger.debug("设置存储桶策略失败: %s", e)
             return False

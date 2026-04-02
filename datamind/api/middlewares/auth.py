@@ -7,9 +7,9 @@
 功能特性：
   - 多种认证方式：JWT Bearer Token、API Key、Basic Auth
   - 路径排除：支持排除公开路径和健康检查路径
-  - 审计日志：记录所有认证成功和失败事件
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
   - JWT 工具函数：创建和验证 JWT token
+  - 审计日志：记录所有认证成功和失败事件
+  - 链路追踪：完整的 span 追踪
 
 认证方式优先级：
   - Bearer Token (JWT) - 最优先，适用于用户登录后的请求
@@ -38,22 +38,24 @@ API Key 验证：
   - 支持 IP 白名单、过期时间检查
 """
 
+import jwt
 import time
 import base64
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
-import jwt
 from fastapi import Request, HTTPException
 from fastapi.security import HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import UserStatus, UserRole
 from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
@@ -184,7 +186,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
-    def _get_client_ip(self, request: Request) -> Optional[str]:
+    @staticmethod
+    def _get_client_ip(request: Request) -> Optional[str]:
         """获取客户端真实IP"""
         # 检查代理头
         forwarded = request.headers.get("X-Forwarded-For")
@@ -343,11 +346,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return result
 
         except ImportError as e:
-            debug_print("AuthMiddleware", f"导入模块失败: {e}")
+            logger.debug("导入模块失败: %s", e)
             # 降级到简化验证
             return await self._verify_api_key_fallback(api_key, request)
         except Exception as e:
-            debug_print("AuthMiddleware", f"API Key验证失败: {e}")
+            logger.debug("API Key验证失败: %s", e)
             return {
                 'authenticated': False,
                 'reason': "API Key验证失败"
@@ -601,11 +604,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return result
 
         except Exception as e:
-            debug_print("AuthMiddleware", f"Basic Auth验证失败: {e}")
+            logger.debug("Basic Auth验证失败: %s", e)
             return {'authenticated': False, 'reason': "认证失败"}
 
+    @staticmethod
     def _sync_verify_basic_auth(
-            self,
             username: str,
             password: str,
             client_ip: Optional[str],

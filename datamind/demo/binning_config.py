@@ -3,28 +3,9 @@
 """示例分箱配置
 
 定义评分卡模型的分箱规则，用于 WOE 转换。
-
-使用说明：
-    此文件定义了6个特征的示例分箱配置，包括：
-    - age: 年龄
-    - income: 收入
-    - debt_ratio: 负债率
-    - credit_history: 信用历史
-    - employment_years: 工作年限
-    - loan_amount: 贷款金额
-
-每个分箱包含以下信息：
-    - lower: 下边界（None 表示负无穷）
-    - upper: 上边界（None 表示正无穷）
-    - woe: 权重证据（Weight of Evidence）
-    - bin_id: 分箱ID
-    - label: 分箱标签
-    - bad_rate: 坏账率（可选，用于监控）
-    - sample_ratio: 样本占比（可选，用于监控）
 """
 
 from datamind.core.scoring.binning import Bin
-
 
 # 年龄分箱
 age_bins = [

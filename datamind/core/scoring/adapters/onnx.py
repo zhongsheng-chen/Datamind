@@ -22,6 +22,9 @@ from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ONNXAdapter(BaseModelAdapter):
@@ -37,8 +40,7 @@ class ONNXAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None,
-        debug: bool = False
+        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
@@ -47,9 +49,8 @@ class ONNXAdapter(BaseModelAdapter):
             model: ONNX Runtime InferenceSession 实例
             feature_names: 特征名称列表（可选）
             transformer: WOE转换器（评分卡模型使用）
-            debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, transformer=transformer, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer)
 
         # 获取输入输出信息
         self.input_name = self.model.get_inputs()[0].name
@@ -57,7 +58,7 @@ class ONNXAdapter(BaseModelAdapter):
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        self._debug("输入名称: %s, 输出名称: %s", self.input_name, self.output_names)
+        logger.debug("输入名称: %s, 输出名称: %s", self.input_name, self.output_names)
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -91,7 +92,7 @@ class ONNXAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            self._error("预测失败: %s", e)
+            logger.error("ONNX预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -117,7 +118,7 @@ class ONNXAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            self._error("批量预测失败: %s", e)
+            logger.error("ONNX批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self) -> Dict[str, float]:

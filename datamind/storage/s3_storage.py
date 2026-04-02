@@ -40,9 +40,10 @@ import mimetypes
 from typing import BinaryIO, Optional, List, Dict, Any
 
 from datamind.storage.base import StorageBackend
-from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import log_audit, context, get_logger
 from datamind.core.domain.enums import AuditAction
+
+logger = get_logger(__name__)
 
 
 class S3Storage(StorageBackend):
@@ -86,7 +87,7 @@ class S3Storage(StorageBackend):
                 CreateBucketConfiguration={'LocationConstraint': region_name}
             )
 
-        debug_print("S3Storage", f"S3存储初始化完成: {bucket_name}")
+        logger.debug("S3存储初始化完成: %s", bucket_name)
 
     async def save(self, path: str, content: BinaryIO,
                    metadata: Optional[Dict] = None) -> Dict[str, Any]:
@@ -148,7 +149,7 @@ class S3Storage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("S3Storage", f"文件上传成功: s3://{self.bucket_name}/{full_path}")
+        logger.debug("文件上传成功: s3://%s/%s", self.bucket_name, full_path)
 
         return {
             'path': full_path,
@@ -200,7 +201,7 @@ class S3Storage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("S3Storage", f"文件下载成功: s3://{self.bucket_name}/{full_path}")
+            logger.debug("文件下载成功: s3://%s/%s", self.bucket_name, full_path)
             return content
 
         except botocore.exceptions.ClientError as e:
@@ -220,7 +221,7 @@ class S3Storage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("S3Storage", f"文件下载失败: {e}")
+            logger.debug("文件下载失败: %s", e)
             raise
 
     async def delete(self, path: str, version: Optional[str] = None) -> bool:
@@ -264,7 +265,7 @@ class S3Storage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("S3Storage", f"文件删除成功: s3://{self.bucket_name}/{full_path}")
+            logger.debug("文件删除成功: s3://%s/%s", self.bucket_name, full_path)
             return True
 
         except botocore.exceptions.ClientError as e:
@@ -287,7 +288,7 @@ class S3Storage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("S3Storage", f"文件删除失败: {e}")
+            logger.debug("文件删除失败: %s", e)
             return False
 
     async def exists(self, path: str) -> bool:
@@ -356,7 +357,7 @@ class S3Storage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("S3Storage", f"列出文件成功: s3://{self.bucket_name}/{full_prefix}, 共 {len(files)} 个文件")
+        logger.debug("列出文件成功: s3://%s/%s, 共 %d 个文件", self.bucket_name, full_prefix, len(files))
         return files
 
     async def get_metadata(self, path: str) -> Dict[str, Any]:
@@ -400,7 +401,7 @@ class S3Storage(StorageBackend):
             }
 
         except botocore.exceptions.ClientError as e:
-            debug_print("S3Storage", f"获取元数据失败: {e}")
+            logger.debug("获取元数据失败: %s", e)
             raise
 
     async def copy(self, source_path: str, dest_path: str) -> Dict[str, Any]:
@@ -441,7 +442,7 @@ class S3Storage(StorageBackend):
                 request_id=request_id
             )
 
-            debug_print("S3Storage", f"文件复制成功: {source_full} -> {dest_full}")
+            logger.debug("文件复制成功: %s -> %s", source_full, dest_full)
 
             return {
                 'source': source_path,
@@ -467,7 +468,7 @@ class S3Storage(StorageBackend):
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("S3Storage", f"文件复制失败: {e}")
+            logger.debug("文件复制失败: %s", e)
             raise
 
     async def move(self, source_path: str, dest_path: str) -> Dict[str, Any]:
@@ -501,7 +502,7 @@ class S3Storage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("S3Storage", f"文件移动成功: {source_path} -> {dest_path}")
+        logger.debug("文件移动成功: %s -> %s", source_path, dest_path)
 
         return result
 
@@ -522,5 +523,5 @@ class S3Storage(StorageBackend):
             return url
 
         except botocore.exceptions.ClientError as e:
-            debug_print("S3Storage", f"生成签名URL失败: {e}")
+            logger.debug("生成签名URL失败: %s", e)
             raise

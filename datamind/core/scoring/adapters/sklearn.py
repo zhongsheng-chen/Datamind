@@ -10,6 +10,7 @@
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
   - get_coef: 获取特征系数（仅逻辑回归模型）
+  - get_intercept: 获取截距项（仅逻辑回归模型）
   - get_feature_logit: 获取特征对 logit 的贡献（仅逻辑回归模型）
 
 特性：
@@ -25,10 +26,13 @@ from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, infer_capabilities
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class SklearnAdapter(BaseModelAdapter):
-    """Sklearn 模型适配器（支持 Pipeline）"""
+    """Sklearn 模型适配器"""
 
     SUPPORTED_CAPABILITIES: ScorecardCapability = (
         ScorecardCapability.PREDICT_CLASS |
@@ -39,8 +43,7 @@ class SklearnAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None,
-        debug: bool = False
+        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
@@ -49,9 +52,8 @@ class SklearnAdapter(BaseModelAdapter):
             model: sklearn 模型或 Pipeline
             feature_names: 特征名称列表（可选，不提供时尝试从模型提取）
             transformer: WOE转换器（评分卡模型使用）
-            debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, transformer=transformer, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer)
 
         self.capabilities = infer_capabilities(self)
 
@@ -87,7 +89,7 @@ class SklearnAdapter(BaseModelAdapter):
                     ScorecardCapability.FEATURE_SCORE |
                     ScorecardCapability.EXPORT_SCORECARD
                 )
-                self._debug("检测到逻辑回归模型，启用评分卡能力")
+                logger.debug("检测到逻辑回归模型，启用评分卡能力")
 
         # 树模型额外支持的能力
         if hasattr(estimator, 'feature_importances_'):
@@ -95,7 +97,7 @@ class SklearnAdapter(BaseModelAdapter):
                 ScorecardCapability.SHAP |
                 ScorecardCapability.FEATURE_IMPORTANCE
             )
-            self._debug("检测到树模型，启用特征重要性能力")
+            logger.debug("检测到树模型，启用特征重要性能力")
 
     def _get_estimator(self):
         """获取最终估算器"""
@@ -152,12 +154,12 @@ class SklearnAdapter(BaseModelAdapter):
                     pass
 
             if self.feature_names:
-                self._debug("成功提取特征名: %s...", self.feature_names[:5])
+                logger.debug("成功提取特征名: %s...", self.feature_names[:5])
             else:
-                self._debug("无法提取特征名，将使用默认命名")
+                logger.debug("无法提取特征名，将使用默认命名")
 
         except Exception as e:
-            self._debug("提取特征名失败: %s", e)
+            logger.debug("提取特征名失败: %s", e)
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -176,7 +178,7 @@ class SklearnAdapter(BaseModelAdapter):
                 proba = float(self.model.predict(X)[0])
             return float(proba)
         except Exception as e:
-            self._error("预测失败: %s", e)
+            logger.error("Sklearn预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -189,9 +191,13 @@ class SklearnAdapter(BaseModelAdapter):
         返回:
             概率列表，长度 n_samples
         """
-        if hasattr(self.model, "predict_proba"):
-            return self.model.predict_proba(X)[:, 1].tolist()
-        return self.model.predict(X).tolist()
+        try:
+            if hasattr(self.model, "predict_proba"):
+                return self.model.predict_proba(X)[:, 1].tolist()
+            return self.model.predict(X).tolist()
+        except Exception as e:
+            logger.error("Sklearn批量预测失败: %s", e)
+            raise
 
     def predict_score(self, X: np.ndarray) -> float:
         """
@@ -316,6 +322,15 @@ class SklearnAdapter(BaseModelAdapter):
             raise ValueError(f"特征 '{feature_name}' 不存在")
 
         return self._coef_map[feature_name]
+
+    def get_intercept(self) -> float:
+        """
+        获取截距项
+
+        返回:
+            截距值
+        """
+        return self._get_intercept()
 
     def get_feature_logit(self, feature_name: str, woe: float) -> float:
         """

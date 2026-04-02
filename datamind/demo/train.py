@@ -7,7 +7,7 @@
 核心功能：
   - generate_data: 生成示例信贷数据用于模型训练
   - woe_transform: 基于分箱配置进行WOE转换
-  - train_scorecard: 训练WOE转换后的逻辑回归模型（推荐）
+  - train_scorecard: 训练WOE转换后的逻辑回归模型
   - train_pipeline: 训练 sklearn Pipeline 模型（直接使用原始特征）
   - evaluate_model: 评估模型性能
   - register_scorecard: 注册评分卡模型（包含WOE分箱配置）
@@ -51,7 +51,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, accuracy_score
 
-from datamind.core.model.registry import get_model_registry
+from datamind.core.model import get_model_registry
 from datamind.core.domain.enums import TaskType, ModelType, Framework
 from datamind.core.db.database import db_manager
 from datamind.config import get_settings
@@ -393,7 +393,7 @@ def register_scorecard(
                 "intercept": intercept,
                 "feature_importance": eval_result['feature_importance']
             },
-            scorecard_params=scorecard_params
+            scorecard_params=scorecard_params  # 关键：传入WOE分箱配置
         )
         logger.info("模型注册成功，ID: %s", model_id)
 

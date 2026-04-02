@@ -22,6 +22,9 @@ from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class LightGBMAdapter(BaseModelAdapter):
@@ -39,8 +42,7 @@ class LightGBMAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None,
-        debug: bool = False
+        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
@@ -49,9 +51,8 @@ class LightGBMAdapter(BaseModelAdapter):
             model: LightGBM 模型
             feature_names: 特征名称列表（可选）
             transformer: WOE转换器（评分卡模型使用）
-            debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, transformer=transformer, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer)
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
@@ -76,11 +77,11 @@ class LightGBMAdapter(BaseModelAdapter):
         try:
             if hasattr(self.model, 'feature_name'):
                 self.feature_names = list(self.model.feature_name())
-                self._debug("成功提取特征名: %s...", self.feature_names[:5])
+                logger.debug("成功提取特征名: %s...", self.feature_names[:5])
             else:
-                self._debug("无法提取特征名，将使用默认命名")
+                logger.debug("无法提取特征名，将使用默认命名")
         except Exception as e:
-            self._debug("提取特征名失败: %s", e)
+            logger.debug("提取特征名失败: %s", e)
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -99,7 +100,7 @@ class LightGBMAdapter(BaseModelAdapter):
                 proba = float(self.model.predict(X)[0])
             return float(proba)
         except Exception as e:
-            self._error("预测失败: %s", e)
+            logger.error("LightGBM预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -112,9 +113,13 @@ class LightGBMAdapter(BaseModelAdapter):
         返回:
             概率列表，长度 n_samples
         """
-        if hasattr(self.model, "predict_proba"):
-            return self.model.predict_proba(X)[:, 1].tolist()
-        return self.model.predict(X).tolist()
+        try:
+            if hasattr(self.model, "predict_proba"):
+                return self.model.predict_proba(X)[:, 1].tolist()
+            return self.model.predict(X).tolist()
+        except Exception as e:
+            logger.error("LightGBM批量预测失败: %s", e)
+            raise
 
     def get_feature_importance(self, importance_type: str = 'split') -> Dict[str, float]:
         """
@@ -145,6 +150,6 @@ class LightGBMAdapter(BaseModelAdapter):
                     for name in importance:
                         importance[name] = importance[name] / total
         except Exception as e:
-            self._error("获取特征重要性失败: %s", e)
+            logger.error("获取LightGBM特征重要性失败: %s", e)
 
         return importance

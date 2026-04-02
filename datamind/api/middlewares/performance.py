@@ -1,4 +1,4 @@
-# Datamind/datamind/api/middlewares/performance.py
+# datamind/api/middlewares/performance.py
 
 """性能监控中间件
 
@@ -40,12 +40,12 @@
   - 记录模型推理的详细性能指标
 """
 
+import re
 import time
 import json
 import psutil
 import asyncio
 import random
-import re
 from typing import Optional, Dict, Any, List, Set
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -54,11 +54,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
-from datamind.core.ml.model import model_loader
+from datamind.core.model import get_model_loader
 from datamind.config import get_settings
 from datamind.config import PerformanceConfig
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -142,6 +144,9 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         # 查询计数器（用于当前请求）
         self._query_counters: Dict[str, Dict[str, float]] = defaultdict(lambda: {"count": 0, "time": 0.0})
         self._counter_lock = asyncio.Lock()
+
+        # 获取模型加载器实例
+        self._model_loader = get_model_loader()
 
         # 内存缓存清理任务
         if self.enable_detailed:
@@ -451,20 +456,11 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
                 data = json.loads(body)
                 return data.get('model_id')
         except json.JSONDecodeError as e:
-            debug_print(
-                "PerformanceMiddleware",
-                f"解析请求体 JSON 失败: {e}, 路径: {request.url.path}"
-            )
+            logger.debug("解析请求体 JSON 失败: %s, 路径: %s", e, request.url.path)
         except UnicodeDecodeError as e:
-            debug_print(
-                "PerformanceMiddleware",
-                f"请求体编码错误: {e}, 路径: {request.url.path}"
-            )
+            logger.debug("请求体编码错误: %s, 路径: %s", e, request.url.path)
         except Exception as e:
-            debug_print(
-                "PerformanceMiddleware",
-                f"提取模型ID时发生未知错误: {e}, 路径: {request.url.path}"
-            )
+            logger.debug("提取模型ID时发生未知错误: %s, 路径: %s", e, request.url.path)
 
         return None
 
@@ -482,20 +478,11 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
                 data = json.loads(body)
                 return data.get('model_version')
         except json.JSONDecodeError as e:
-            debug_print(
-                "PerformanceMiddleware",
-                f"解析请求体 JSON 失败: {e}, 路径: {request.url.path}"
-            )
+            logger.debug("解析请求体 JSON 失败: %s, 路径: %s", e, request.url.path)
         except UnicodeDecodeError as e:
-            debug_print(
-                "PerformanceMiddleware",
-                f"请求体编码错误: {e}, 路径: {request.url.path}"
-            )
+            logger.debug("请求体编码错误: %s, 路径: %s", e, request.url.path)
         except Exception as e:
-            debug_print(
-                "PerformanceMiddleware",
-                f"提取模型版本时发生未知错误: {e}, 路径: {request.url.path}"
-            )
+            logger.debug("提取模型版本时发生未知错误: %s, 路径: %s", e, request.url.path)
 
         return None
 
@@ -517,13 +504,14 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         }
 
         try:
-            if model_loader.is_loaded(model_id):
-                model_info = model_loader._loaded_models.get(model_id, {})
-                info['loaded'] = True
-                info['type'] = model_info.get('metadata', {}).get('model_type')
-                info['version'] = model_info.get('metadata', {}).get('model_version')
+            if self._model_loader.is_loaded(model_id):
+                metadata = self._model_loader.get_model_metadata(model_id)
+                if metadata:
+                    info['loaded'] = True
+                    info['type'] = metadata.get('model_type')
+                    info['version'] = metadata.get('model_version')
         except Exception as e:
-            debug_print("PerformanceMiddleware", f"获取模型信息失败: {e}")
+            logger.debug("获取模型信息失败: %s", e)
 
         # 更新缓存
         async with self._cache_lock:
@@ -577,7 +565,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
-                    debug_print("PerformanceMiddleware", f"清理任务异常: {e}")
+                    logger.debug("清理任务异常: %s", e)
 
         task = asyncio.create_task(cleanup())
         self._background_tasks.add(task)
@@ -678,7 +666,7 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
 
                 return result
             except Exception as e:
-                debug_print("SlowRequestMiddleware", f"脱敏处理失败: {e}")
+                logger.debug("脱敏处理失败: %s", e)
                 return "<body content (sanitization failed)>"
 
     async def _safe_read_body(self, request: Request) -> Optional[str]:
@@ -710,7 +698,7 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            debug_print("SlowRequestMiddleware", f"读取请求体失败: {e}")
+            logger.debug("读取请求体失败: %s", e)
             return f"<error reading body: {type(e).__name__}>"
 
     async def dispatch(self, request: Request, call_next):
@@ -766,10 +754,9 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
                 request_id=request_id
             )
 
-            debug_print(
-                "SlowRequestMiddleware",
-                f"慢请求: {request.method} {request.url.path} "
-                f"用户={username}, 耗时={round(process_time, 2)}ms, 阈值={self.slow_threshold}ms"
+            logger.debug(
+                "慢请求: %s %s 用户=%s, 耗时=%.2fms, 阈值=%dms",
+                request.method, request.url.path, username, round(process_time, 2), self.slow_threshold
             )
 
         return response

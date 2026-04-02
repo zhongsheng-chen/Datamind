@@ -37,14 +37,14 @@
     - 批量优化：NumPy 向量化实现，性能提升 10~100 倍
 """
 
-from typing import List
-from math import log, exp
 import numpy as np
+from typing import List, Tuple
+from math import log, exp
 
-from datamind.core.logging.manager import LogManager
+from datamind.core.logging import get_logger
+from datamind.config.scorecard_config import ScorecardConstants
 
-_log_manager = LogManager()
-logger = _log_manager.app_logger
+logger = get_logger(__name__)
 
 
 class Score:
@@ -54,15 +54,19 @@ class Score:
     所有路径最终统一到 logit，确保公式唯一、易于维护。
     """
 
+    # 概率剪裁默认值
+    DEFAULT_MIN_PROB = 1e-6
+    DEFAULT_MAX_PROB = 1 - 1e-6
+
     def __init__(
         self,
-        pdo: float = 50.0,
-        base_score: float = 600.0,
-        base_odds: float = 20.0,
-        min_score: float = 0.0,
-        max_score: float = 1000.0,
-        min_prob: float = 1e-6,
-        max_prob: float = 1 - 1e-6,
+        pdo: float = None,
+        base_score: float = None,
+        base_odds: float = None,
+        min_score: float = None,
+        max_score: float = None,
+        min_prob: float = None,
+        max_prob: float = None,
         validate: bool = True
     ):
         """
@@ -78,6 +82,14 @@ class Score:
             max_prob: 概率最大值剪裁阈值
             validate: 是否执行参数校验
         """
+        pdo = pdo if pdo is not None else ScorecardConstants.DEFAULT_PDO
+        base_score = base_score if base_score is not None else ScorecardConstants.DEFAULT_BASE_SCORE
+        base_odds = base_odds if base_odds is not None else ScorecardConstants.DEFAULT_ODDS
+        min_score = min_score if min_score is not None else ScorecardConstants.DEFAULT_MIN_SCORE
+        max_score = max_score if max_score is not None else ScorecardConstants.DEFAULT_MAX_SCORE
+        min_prob = min_prob if min_prob is not None else self.DEFAULT_MIN_PROB
+        max_prob = max_prob if max_prob is not None else self.DEFAULT_MAX_PROB
+
         if validate:
             self._validate_params(pdo, base_odds, min_score, max_score, min_prob, max_prob)
 
@@ -404,13 +416,13 @@ class Score:
         """获取基准 logit 值"""
         return -log(self.base_odds)
 
-    def get_score_range(self) -> tuple:
+    def get_score_range(self) -> Tuple[float, float]:
         """获取有效分数范围"""
-        return (self.min_score, self.max_score)
+        return self.min_score, self.max_score
 
-    def get_prob_range(self) -> tuple:
+    def get_prob_range(self) -> Tuple[float, float]:
         """获取有效概率范围"""
-        return (self.min_prob, self.max_prob)
+        return self.min_prob, self.max_prob
 
     def __repr__(self) -> str:
         return (
@@ -423,41 +435,95 @@ class Score:
 
 def to_score(
     prob: float,
-    pdo: float = 50,
-    base_score: float = 600,
-    base_odds: float = 20,
-    min_score: float = 0,
-    max_score: float = 1000
+    pdo: float = None,
+    base_score: float = None,
+    base_odds: float = None,
+    min_score: float = None,
+    max_score: float = None
 ) -> float:
     """违约概率转信用分数"""
-    scorer = Score(pdo=pdo, base_score=base_score, base_odds=base_odds,
-                   min_score=min_score, max_score=max_score)
+    scorer = Score(
+        pdo=pdo, base_score=base_score, base_odds=base_odds,
+        min_score=min_score, max_score=max_score
+    )
     return scorer.to_score(prob)
+
+
+def to_score_batch(
+    probs: List[float],
+    pdo: float = None,
+    base_score: float = None,
+    base_odds: float = None,
+    min_score: float = None,
+    max_score: float = None
+) -> List[float]:
+    """批量违约概率转信用分数"""
+    scorer = Score(
+        pdo=pdo, base_score=base_score, base_odds=base_odds,
+        min_score=min_score, max_score=max_score
+    )
+    return scorer.to_score_batch(probs)
 
 
 def from_logit(
     logit: float,
-    pdo: float = 50,
-    base_score: float = 600,
-    base_odds: float = 20,
-    min_score: float = 0,
-    max_score: float = 1000
+    pdo: float = None,
+    base_score: float = None,
+    base_odds: float = None,
+    min_score: float = None,
+    max_score: float = None
 ) -> float:
     """逻辑回归输出转信用分数"""
-    scorer = Score(pdo=pdo, base_score=base_score, base_odds=base_odds,
-                   min_score=min_score, max_score=max_score)
+    scorer = Score(
+        pdo=pdo, base_score=base_score, base_odds=base_odds,
+        min_score=min_score, max_score=max_score
+    )
     return scorer.from_logit(logit)
+
+
+def from_logit_batch(
+    logits: List[float],
+    pdo: float = None,
+    base_score: float = None,
+    base_odds: float = None,
+    min_score: float = None,
+    max_score: float = None
+) -> List[float]:
+    """批量逻辑回归输出转信用分数"""
+    scorer = Score(
+        pdo=pdo, base_score=base_score, base_odds=base_odds,
+        min_score=min_score, max_score=max_score
+    )
+    return scorer.from_logit_batch(logits)
 
 
 def to_probability(
     score: float,
-    pdo: float = 50,
-    base_score: float = 600,
-    base_odds: float = 20,
-    min_prob: float = 1e-6,
-    max_prob: float = 1 - 1e-6
+    pdo: float = None,
+    base_score: float = None,
+    base_odds: float = None,
+    min_prob: float = None,
+    max_prob: float = None
 ) -> float:
     """信用分数转违约概率"""
-    scorer = Score(pdo=pdo, base_score=base_score, base_odds=base_odds,
-                   min_prob=min_prob, max_prob=max_prob)
+    scorer = Score(
+        pdo=pdo, base_score=base_score, base_odds=base_odds,
+        min_prob=min_prob, max_prob=max_prob
+    )
     return scorer.to_probability(score)
+
+
+def to_probability_batch(
+    scores: List[float],
+    pdo: float = None,
+    base_score: float = None,
+    base_odds: float = None,
+    min_prob: float = None,
+    max_prob: float = None
+) -> List[float]:
+    """批量信用分数转违约概率"""
+    scorer = Score(
+        pdo=pdo, base_score=base_score, base_odds=base_odds,
+        min_prob=min_prob, max_prob=max_prob
+    )
+    return scorer.to_probability_batch(scores)

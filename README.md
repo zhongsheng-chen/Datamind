@@ -1666,13 +1666,13 @@ curl http://localhost:3000/health
 
 ## 训练
 ```bash
-# 训练逻辑回归评分卡模型（使用WOE转换）
-python -m datamind.demo.train --type logistic_regression --mode woe
-
-# 训练随机森林模型（使用原始特征）
+# 训练随机森林模型并注册
 python -m datamind.demo.train --type random_forest --mode raw
 
-# 不注册到数据库，只保存本地文件
+# 训练逻辑回归模型并注册
+python -m datamind.demo.train --type logistic_regression --mode woe
+
+# 只保存到本地文件，不注册
 python -m datamind.demo.train --type logistic_regression --mode woe --no-registry --output ./my_model.pkl
 ```
 
@@ -1692,19 +1692,17 @@ python -m alembic upgrade head
 # 4.确认枚举类型
 docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL::audit_action_enum);"
 
-python -m datamind.demo.train --type logistic_regression
-
 
 docker exec -it postgres psql -U datamind -d postgres -c "DROP DATABASE IF EXISTS datamind;"
 docker exec -it postgres psql -U datamind -d postgres -c "CREATE DATABASE datamind OWNER datamind;"
 python -m alembic upgrade head
-python -m datamind.demo.train --type logistic_regression
+python -m datamind.demo.train --type logistic_regression --mode woe
 
 ## 检查生产模型
 ```bash
 python -c "
 from datamind.core.db.database import db_manager
-from datamind.core.ml.model_registry import get_model_registry
+from datamind.core.model import get_model_registry
 
 db_manager.initialize()
 registry = get_model_registry()
@@ -1721,8 +1719,8 @@ for m in models:
 ```bash
 python -c "
 from datamind.core.db.database import db_manager, get_db
-from datamind.core.db.models.model.deployment import ModelDeployment
-from datamind.core.ml.model_registry import get_model_registry
+from datamind.core.db.models import ModelDeployment
+from datamind.core.model import get_model_registry
 from datamind.config import get_settings
 
 db_manager.initialize()
@@ -1753,12 +1751,17 @@ if models:
             session.add(deployment)
             session.commit()
             print(f'部署记录创建成功: {model_id} -> {settings.app.env}')
+        else:
+            print(f'部署记录已存在: {model_id} -> {settings.app.env}')
+else:
+    print('没有找到生产环境的评分卡模型')
 "
 ```
 
 ## 测试服务
 ```bash
 python datamind/serving/scoring_service.py
+python -m datamind.serving.scoring_service
 ```
 
 ## 启动服务
@@ -1767,21 +1770,80 @@ python datamind/scripts/start_bentoml_service.py scoring --dev
 ```
 
 ## 测试服务
+### 低风险请求
 ```bash
 curl -X POST http://localhost:3000/predict \
   -H "Content-Type: application/json" \
   -d '{
-    "application_id": "TEST_001",
-    "features": {
-      "age": 35,
-      "income": 50000,
-      "debt_ratio": 0.35,
-      "credit_history": 720,
-      "employment_years": 5,
-      "loan_amount": 100000
+    "request": {
+      "application_id": "TEST_003",
+      "features": {
+        "age": 55,
+        "income": 150000,
+        "debt_ratio": 0.15,
+        "credit_history": 820,
+        "employment_years": 20,
+        "loan_amount": 30000
+      },
+      "return_details": true
     }
   }'
 ```
+
+### 高风险请求
+```bash
+curl -X POST http://localhost:3000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request": {
+      "application_id": "TEST_002",
+      "features": {
+        "age": 20,
+        "income": 20000,
+        "debt_ratio": 0.8,
+        "credit_history": 400,
+        "employment_years": 1,
+        "loan_amount": 500000
+      },
+      "return_details": true
+    }
+  }'
+```
+
+### 正常请求
+```bash
+curl -X POST http://localhost:3000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request": {
+      "application_id": "TEST_001",
+      "features": {
+        "age": 35,
+        "income": 50000,
+        "debt_ratio": 0.3,
+        "credit_history": 720,
+        "employment_years": 5,
+        "loan_amount": 100000
+      },
+      "return_details": true
+    }
+  }'
+```
+### 健康检查
+```bash
+curl -X POST http://localhost:3000/health -H "Content-Type: application/json" -d '{}'
+```
+
+### 列出模型
+```bash
+curl -X POST http://localhost:3000/models -H "Content-Type: application/json" -d '{}'
+```
+
+### 列出模型
+```bash
+curl -X POST http://localhost:3000/models -H "Content-Type: application/json" -d '{}'
+```
+
 
 根据您的项目结构，有以下几种方式启动 BentoML 服务：
 

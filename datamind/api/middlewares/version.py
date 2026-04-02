@@ -16,9 +16,11 @@ from starlette.types import ASGIApp
 from starlette.responses import RedirectResponse
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
 from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 
 class APIVersionMiddleware(BaseHTTPMiddleware):

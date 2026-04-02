@@ -12,26 +12,30 @@
 特性：
   - A/B测试支持：集成 A/B 测试分流
   - 生产模型自动选择：未指定模型时使用生产模型
+  - 多解释体系：统一接口支持 scorecard/shap/unsupported 三种解释类型
+  - 特征贡献转换：使用 ContributionConverter 确保评分贡献转换一致性
   - 完整审计：记录所有预测请求
   - 链路追踪：完整的 trace_id, span_id, parent_span_id
-  - 多解释体系：统一接口支持 scorecard/shap/unsupported 三种解释类型
 """
 
 import time
 import json
 import bentoml
 import traceback
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from datamind.serving.base import BaseBentoService
 from datamind.core.scoring.engine import ScoringEngine
-from datamind.core.logging import log_audit, context, log_performance
-from datamind.core.logging.manager import LogManager
+from datamind.core.scoring.contrib import ContributionConverter
+from datamind.core.logging import log_audit, log_performance, context
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
 from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.config import get_settings
 
 settings = get_settings()
+
+logger = get_logger(__name__)
 
 
 class ModelNotFoundException(Exception):
@@ -58,40 +62,13 @@ class ModelInferenceException(Exception):
     threads=4,
 )
 class ScoringService:
-    """评分卡服务
-
-    提供评分卡模型的预测接口，支持单条评分和特征贡献分析。
-    """
+    """评分卡服务"""
 
     def __init__(self):
-        """
-        初始化评分卡服务
-        """
-        # 调试模式从环境变量读取
-        debug = getattr(settings, 'debug', False)
-        self.base = BaseBentoService('scoring', 'scoring_service', debug=debug)
-        self._debug_enabled = debug
+        """初始化评分卡服务"""
+        self.base = BaseBentoService('scoring', 'scoring_service', debug=False)
 
-        # 获取日志器
-        self._log_manager = LogManager()
-        self.logger = self._log_manager.app_logger
-
-        self._info("评分卡服务初始化完成")
-
-    def _debug(self, msg: str, *args) -> None:
-        """调试输出"""
-        if self._debug_enabled and self.logger:
-            self.logger.debug(msg, *args)
-
-    def _info(self, msg: str, *args) -> None:
-        """信息输出"""
-        if self.logger:
-            self.logger.info(msg, *args)
-
-    def _error(self, msg: str, *args) -> None:
-        """错误输出"""
-        if self.logger:
-            self.logger.error(msg, *args)
+        logger.info("评分卡服务初始化完成")
 
     @staticmethod
     def _get_score_mapping(engine: ScoringEngine) -> Dict[str, Any]:
@@ -114,13 +91,21 @@ class ScoringService:
         }
 
     @staticmethod
-    def _make_explain(explain_result: Dict[str, Any], score: float) -> Dict[str, Any]:
+    def _make_explain(
+        explain_result: Dict[str, Any],
+        score: float,
+        engine: ScoringEngine
+    ) -> Dict[str, Any]:
         """
         构建特征贡献响应
+
+        使用 ContributionConverter 将 logit 空间的贡献转换为评分空间，
+        确保与 Score 模块的转换逻辑完全一致。
 
         参数:
             explain_result: engine.explain() 返回的结果
             score: 预测的信用评分（用于验证）
+            engine: 评分引擎实例（用于获取评分参数）
 
         返回:
             统一格式的 explain 响应
@@ -128,20 +113,56 @@ class ScoringService:
         explain_type = explain_result.get('explain_type', 'unknown')
 
         if explain_type == 'scorecard':
-            total_score = explain_result.get('total_score', score)
+            # 创建贡献转换器
+            converter = ContributionConverter(engine.score_converter)
+
+            # 获取评分参数
+            factor = converter.get_factor()
+            offset = converter.get_offset()
+
+            # 获取 logit 空间的贡献
+            log_odds_contrib = explain_result.get("log_odds_contributions", {})
+            intercept_log_odds = explain_result.get("intercept_log_odds", 0.0)
+            total_log_odds = explain_result.get("total_log_odds", 0.0)
+
+            # 使用转换器将 logit 贡献转换为评分贡献
+            score_contrib = converter.logit_to_score(log_odds_contrib)
+
+            # 截距评分贡献：intercept_score = -factor × intercept_log_odds
+            intercept_score = -factor * intercept_log_odds
+
+            # 总评分：使用 Score.from_logit 方法，公式为 offset - factor × logit
+            total_score = engine.score_converter.from_logit(total_log_odds)
+
+            # 获取评分参数信息
+            score_params = {
+                "factor": factor,
+                "offset": offset,
+                "pdo": engine.score_converter.pdo,
+                "base_score": engine.score_converter.base_score,
+                "base_odds": engine.score_converter.base_odds
+            }
+
+            # 如果 engine.explain() 已经返回了 score_contributions，可以用于验证
+            original_score_contrib = explain_result.get("score_contributions", {})
+            has_original = bool(original_score_contrib)
+
             return {
                 "type": "scorecard",
                 "contribution_unit": "score",
+                "score_params": score_params,
                 "details": {
-                    "log_odds": explain_result.get("log_odds_contributions", {}),
-                    "score": explain_result.get("score_contributions", {}),
-                    "intercept_log_odds": explain_result.get("intercept_log_odds", 0),
-                    "intercept_score": explain_result.get("intercept_score", 0),
-                    "total_log_odds": explain_result.get("total_log_odds", 0),
+                    "log_odds": log_odds_contrib,
+                    "score": score_contrib,
+                    "intercept_log_odds": intercept_log_odds,
+                    "intercept_score": intercept_score,
+                    "total_log_odds": total_log_odds,
                     "total_score": total_score,
                     "validation": {
                         "score_from_explain": total_score,
-                        "score_match": abs(total_score - score) < 0.01
+                        "score_match": abs(total_score - score) < 0.01,
+                        "converter_used": True,
+                        "has_original_score_contrib": has_original
                     }
                 }
             }
@@ -182,7 +203,7 @@ class ScoringService:
             }
 
     @bentoml.api
-    async def predict(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def predict(self, request: dict) -> dict:
         """
         评分卡预测
 
@@ -197,23 +218,27 @@ class ScoringService:
 
         响应格式:
             {
-                "score": 685.42,
-                "probability": 0.023,
-                "model": {
-                    "id": "MDL_001",
-                    "version": "1.0.0",
-                    "type": "logistic_regression",
-                    "framework": "sklearn",
-                    "score_mapping": {...}
-                },
-                "trace": {
-                    "request_id": "req-xxx",
-                    "trace_id": "trace-xxx",
-                    "span_id": "span-xxx",
-                    "parent_span_id": "",
-                    "latency_ms": 12.5
-                },
-                "explain": {...}
+                "code": 0,
+                "message": "成功",
+                "data": {
+                    "score": 685.42,
+                    "probability": 0.023,
+                    "model": {
+                        "id": "MDL_001",
+                        "version": "1.0.0",
+                        "type": "logistic_regression",
+                        "framework": "sklearn",
+                        "score_mapping": {...}
+                    },
+                    "trace": {
+                        "request_id": "req-xxx",
+                        "trace_id": "trace-xxx",
+                        "span_id": "span-xxx",
+                        "parent_span_id": "",
+                        "latency_ms": 12.5
+                    },
+                    "explain": {...}
+                }
             }
         """
         start_time = time.time()
@@ -237,12 +262,14 @@ class ScoringService:
 
         # 验证必需参数
         if not application_id:
+            logger.debug("application_id 为空")
             return {
                 "code": 1006,
                 "message": "参数错误",
                 "data": {"error": "application_id 不能为空"}
             }
         if not features:
+            logger.debug("features 为空")
             return {
                 "code": 1006,
                 "message": "参数错误",
@@ -260,21 +287,30 @@ class ScoringService:
                     user_id=application_id,
                     ip_address=None
                 )
+                logger.debug(f"AB测试分配结果: {assignment}")
+
                 if assignment.get('in_test') and assignment.get('model_id'):
                     actual_model_id = assignment['model_id']
                     ab_test_info = {
                         'test_id': assignment['test_id'],
                         'group_name': assignment['group_name']
                     }
+                    logger.debug(f"AB测试信息已设置: {ab_test_info}")
+                else:
+                    logger.debug(f"用户不在测试中或没有模型ID: {assignment}")
             except Exception as e:
-                self._debug("A/B测试错误: %s", e)
+                logger.debug("A/B测试错误: %s", e)
+        else:
+            logger.debug(f"未启用AB测试: ab_test_id={ab_test_id}, enabled={settings.ab_test.enabled}")
 
         # 如果没有指定模型，使用生产模型
         if not actual_model_id:
             prod_model_id, _, _ = self.base.get_production_model()
             if prod_model_id:
                 actual_model_id = prod_model_id
+                logger.debug("使用生产模型: %s", actual_model_id)
             else:
+                logger.warning("未指定 model_id 且没有生产模型")
                 return {
                     "code": 1003,
                     "message": "模型未加载",
@@ -285,6 +321,7 @@ class ScoringService:
             # 获取模型引擎
             _, engine, model_version = self.base.get_model(actual_model_id)
             if engine is None:
+                logger.warning("模型未加载: %s", actual_model_id)
                 return {
                     "code": 1003,
                     "message": "模型未加载",
@@ -300,6 +337,9 @@ class ScoringService:
             result = engine.score(features, return_proba=True)
 
             latency_ms = (time.time() - start_time) * 1000
+
+            logger.debug("预测完成: model=%s, score=%.2f, proba=%.6f, latency=%.2fms",
+                         actual_model_id, result.get('score'), result.get('proba'), latency_ms)
 
             # 构建基础响应
             response_data = {
@@ -334,10 +374,13 @@ class ScoringService:
                 try:
                     explain_result = engine.explain(features, return_score_scale=True)
                     response_data["explain"] = self._make_explain(
-                        explain_result, result.get('score')
+                        explain_result,
+                        result.get('score'),
+                        engine
                     )
+                    logger.debug("特征贡献解释完成: type=%s", explain_result.get('explain_type', 'unknown'))
                 except Exception as e:
-                    self._debug("获取特征贡献失败: %s", e)
+                    logger.debug("获取特征贡献失败: %s", e)
                     response_data["explain"] = {
                         "type": "unsupported",
                         "reason": "explain_failed",
@@ -389,6 +432,7 @@ class ScoringService:
             return response
 
         except ModelNotFoundException as e:
+            logger.warning("模型未找到: %s, %s", actual_model_id, e)
             return {
                 "code": 1003,
                 "message": "模型未找到",
@@ -396,6 +440,7 @@ class ScoringService:
             }
 
         except ModelInferenceException as e:
+            logger.error("模型预测失败: %s, %s", actual_model_id, e)
             return {
                 "code": 1005,
                 "message": "模型预测失败",
@@ -403,7 +448,7 @@ class ScoringService:
             }
 
         except Exception as e:
-            self._error("预测失败: %s", e)
+            logger.error("预测失败: %s, error=%s", actual_model_id, e, exc_info=True)
             log_audit(
                 action=AuditAction.MODEL_INFERENCE.value,
                 user_id="bentoml",
@@ -426,9 +471,10 @@ class ScoringService:
             }
 
     @bentoml.api
-    async def health(self) -> Dict[str, Any]:
+    async def health(self) -> dict:
         """健康检查"""
         result = self.base.health_check()
+        logger.debug("健康检查: status=%s", result.get("status"))
         return {
             "code": 0,
             "message": "成功" if result.get("status") == "healthy" else "服务降级",
@@ -436,9 +482,10 @@ class ScoringService:
         }
 
     @bentoml.api
-    async def models(self) -> Dict[str, Any]:
+    async def models(self) -> dict:
         """列出已加载的模型"""
         models = self.base.get_loaded_models()
+        logger.debug("列出模型: total=%d", len(models))
         return {
             "code": 0,
             "message": "成功",
@@ -450,7 +497,7 @@ class ScoringService:
         }
 
     @bentoml.api
-    async def reload_model(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def reload_model(self, request: dict) -> dict:
         """重新加载模型"""
         model_id = request.get("model_id")
         if not model_id:
@@ -459,6 +506,7 @@ class ScoringService:
                 "message": "参数错误",
                 "data": {"error": "model_id 不能为空"}
             }
+        logger.info("手动重新加载模型: %s", model_id)
         result = self.base.reload_model(model_id)
         return {
             "code": 0 if result.get("success") else 1001,
@@ -480,16 +528,15 @@ if __name__ == "__main__":
     async def run_test():
         """测试评分卡服务"""
         service = ScoringService()
-        service._debug_enabled = True
 
-        service._debug("等待模型加载...")
+        logger.info("等待模型加载...")
         await asyncio.sleep(3)
 
         loaded_models = service.base.get_loaded_models()
-        service._debug("已加载模型: %s", loaded_models)
+        logger.info("已加载模型: %s", loaded_models)
 
         if not loaded_models:
-            service._debug("没有已加载的模型，跳过测试")
+            logger.warning("没有已加载的模型，跳过测试")
             return
 
         def random_features():

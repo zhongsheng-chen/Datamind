@@ -24,7 +24,15 @@
 from datamind.core.scoring.engine import ScoringEngine
 from datamind.core.scoring.predictor import Predictor
 from datamind.core.scoring.explain import Explainer
-from datamind.core.scoring.score import Score, to_score, to_score_batch
+from datamind.core.scoring.score import (
+    Score,
+    to_score,
+    to_score_batch,
+    from_logit,
+    from_logit_batch,
+    to_probability,
+    to_probability_batch
+)
 from datamind.core.scoring.transform import WOETransformer, MissingStrategy
 from datamind.core.scoring.binning import Bin
 
@@ -56,6 +64,10 @@ __all__ = [
     'Score',
     'to_score',
     'to_score_batch',
+    'from_logit',
+    'from_logit_batch',
+    'to_probability',
+    'to_probability_batch',
     'WOETransformer',
     'MissingStrategy',
     'Bin',

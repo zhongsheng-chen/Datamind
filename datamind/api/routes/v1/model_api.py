@@ -35,20 +35,26 @@ import tempfile
 from typing import Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
 
-from datamind.core.ml.model import model_registry
-from datamind.core.ml.model import model_loader
 from datamind.core.common.exceptions import (
     ModelNotFoundException, ModelAlreadyExistsException,
     ModelValidationException, ModelFileException
 )
-from datamind.core.logging import log_audit, context
+from datamind.core.model import get_model_registry
+from datamind.core.model import get_model_loader
+from datamind.core.logging import log_audit, context, get_logger
 from datamind.core.domain.enums import TaskType, ModelType, Framework, AuditAction
 from datamind.core.domain.validation import get_supported_models, get_supported_frameworks
 from datamind.api.dependencies import get_current_user, get_api_key
 from datamind.config import get_settings
 
+logger = get_logger(__name__)
+
 router = APIRouter()
 settings = get_settings()
+
+# 获取模型注册中心和加载器实例
+model_registry = get_model_registry()
+model_loader = get_model_loader()
 
 
 @router.post("/register")

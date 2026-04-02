@@ -22,7 +22,9 @@ import numpy as np
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, has_capability
 from datamind.core.scoring.score import Score
-from datamind.core.logging.manager import LogManager
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Predictor:
@@ -39,8 +41,7 @@ class Predictor:
         base_odds: Optional[float] = None,
         min_score: Optional[float] = None,
         max_score: Optional[float] = None,
-        validate_features: bool = False,
-        debug: bool = False
+        validate_features: bool = False
     ):
         """
         初始化预测器
@@ -53,15 +54,9 @@ class Predictor:
             min_score: 最低分数限制，默认 0
             max_score: 最高分数限制，默认 1000
             validate_features: 是否验证特征完整性
-            debug: 是否启用调试日志
         """
         self.adapter = adapter
         self._validate_features = validate_features
-        self._debug_enabled = debug
-
-        # 获取日志器
-        self._log_manager = LogManager()
-        self.logger = self._log_manager.app_logger
 
         # 初始化分数转换器
         self.score_converter = Score(
@@ -80,21 +75,11 @@ class Predictor:
             self.capabilities, ScorecardCapability.BATCH_PREDICT
         )
 
-        self._debug(
+        logger.debug(
             "预测器初始化完成，支持批量: %s, 验证特征: %s",
             self._supports_batch,
             validate_features
         )
-
-    def _debug(self, msg: str, *args) -> None:
-        """调试输出"""
-        if self._debug_enabled and self.logger:
-            self.logger.debug(msg, *args)
-
-    def _error(self, msg: str, *args) -> None:
-        """错误输出"""
-        if self.logger:
-            self.logger.error(msg, *args)
 
     def _validate_features_dict(self, features: Dict[str, Any]) -> None:
         """验证特征完整性"""
@@ -103,7 +88,7 @@ class Predictor:
 
         missing = self.adapter.validate_features(features)
         if missing:
-            self._debug("缺失特征: %s", missing)
+            logger.debug("缺失特征: %s", missing)
 
     def predict_proba(self, features: Dict[str, Any]) -> float:
         """
@@ -126,11 +111,11 @@ class Predictor:
             X = self.adapter.to_array(features)
             proba = self.adapter.predict_proba(X)
 
-            self._debug("预测概率: %.6f", proba)
+            logger.debug("预测概率: %.6f", proba)
             return proba
 
         except Exception as e:
-            self._error("单样本概率预测失败: %s", e)
+            logger.error("单样本概率预测失败: %s", e)
             raise
 
     def predict_proba_batch(
@@ -152,7 +137,7 @@ class Predictor:
             ValueError: 批量预测失败且 skip_errors=False
         """
         if not features_list:
-            self._debug("输入为空列表，返回空结果")
+            logger.debug("输入为空列表，返回空结果")
             return []
 
         # 使用向量化批量预测（如果支持）
@@ -161,7 +146,7 @@ class Predictor:
                 return self._predict_proba_batch_vectorized(features_list, skip_errors)
             except Exception as e:
                 if skip_errors:
-                    self._error("向量化批量预测失败，降级为循环: %s", e)
+                    logger.error("向量化批量预测失败，降级为循环: %s", e)
                 else:
                     raise
 
@@ -174,7 +159,7 @@ class Predictor:
         skip_errors: bool = False
     ) -> List[float]:
         """向量化批量概率预测（性能优化）"""
-        self._debug("使用向量化批量预测，样本数: %d", len(features_list))
+        logger.debug("使用向量化批量预测，样本数: %d", len(features_list))
 
         # 批量转换为数组
         X_batch = self.adapter.to_array_batch(features_list)
@@ -190,7 +175,7 @@ class Predictor:
         skip_errors: bool = False
     ) -> List[Optional[float]]:
         """循环批量概率预测（降级方案）"""
-        self._debug("使用循环批量预测，样本数: %d", len(features_list))
+        logger.debug("使用循环批量预测，样本数: %d", len(features_list))
 
         results = []
         for i, features in enumerate(features_list):
@@ -199,10 +184,10 @@ class Predictor:
                 results.append(prob)
             except Exception as e:
                 if skip_errors:
-                    self._error("第 %d 条预测失败: %s，返回 None", i, e)
+                    logger.error("第 %d 条预测失败: %s，返回 None", i, e)
                     results.append(None)
                 else:
-                    self._error("第 %d 条预测失败: %s", i, e)
+                    logger.error("第 %d 条预测失败: %s", i, e)
                     raise
 
         return results
@@ -220,11 +205,11 @@ class Predictor:
         try:
             prob = self.predict_proba(features)
             score = self.score_converter.to_score(prob)
-            self._debug("预测分数: %.2f", score)
+            logger.debug("预测分数: %.2f", score)
             return score
 
         except Exception as e:
-            self._error("单样本分数预测失败: %s", e)
+            logger.error("单样本分数预测失败: %s", e)
             raise
 
     def predict_score_batch(
@@ -282,11 +267,11 @@ class Predictor:
                 proba = self.adapter.predict_proba(X)
                 raw = np.log(proba / (1 - proba))
 
-            self._debug("原始输出: %.6f", raw)
+            logger.debug("原始输出: %.6f", raw)
             return float(raw)
 
         except Exception as e:
-            self._error("原始输出预测失败: %s", e)
+            logger.error("原始输出预测失败: %s", e)
             raise
 
     def predict_raw_batch(
@@ -314,7 +299,7 @@ class Predictor:
                 return self.adapter.predict_raw_batch(X_batch)
             except Exception as e:
                 if skip_errors:
-                    self._error("向量化批量原始输出失败，降级为循环: %s", e)
+                    logger.error("向量化批量原始输出失败，降级为循环: %s", e)
                 else:
                     raise
 
@@ -325,7 +310,7 @@ class Predictor:
                 results.append(self.predict_raw(features))
             except Exception as e:
                 if skip_errors:
-                    self._error("第 %d 条原始输出预测失败: %s，返回 None", i, e)
+                    logger.error("第 %d 条原始输出预测失败: %s，返回 None", i, e)
                     results.append(None)
                 else:
                     raise
@@ -357,5 +342,5 @@ class Predictor:
             }
 
         except Exception as e:
-            self._error("预测置信度失败: %s", e)
+            logger.error("预测置信度失败: %s", e)
             raise

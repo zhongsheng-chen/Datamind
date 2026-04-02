@@ -24,10 +24,9 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from datamind.core.scoring.score import Score
-from datamind.core.logging.manager import LogManager
+from datamind.core.logging import get_logger
 
-_log_manager = LogManager()
-_logger = _log_manager.app_logger
+logger = get_logger(__name__)
 
 
 class ContributionConverter:
@@ -54,7 +53,7 @@ class ContributionConverter:
         self.factor = score.factor
         self.offset = score.offset
 
-        _logger.debug(
+        logger.debug(
             "ContributionConverter 初始化: factor=%.6f, offset=%.6f",
             self.factor,
             self.offset
@@ -62,97 +61,97 @@ class ContributionConverter:
 
     # ==================== 核心转换 ====================
 
-    def logit_to_score(self, contrib: Dict[str, float]) -> Dict[str, float]:
+    def logit_to_score(self, contribution: Dict[str, float]) -> Dict[str, float]:
         """
         将 logit 贡献转换为 score 贡献
 
         参数:
-            contrib: 特征对 logit 的贡献字典，格式 {"feature_name": logit_contribution}
+            contribution: 特征对 logit 的贡献字典，格式 {"feature_name": logit_contribution}
 
         返回:
             特征对评分的贡献字典，格式 {"feature_name": score_contribution}
         """
-        if not contrib:
+        if not contribution:
             return {}
 
         result = {}
 
-        for k, v in contrib.items():
+        for k, v in contribution.items():
             try:
                 if np.isfinite(v):
                     result[k] = float(self.factor * v)
             except Exception as e:
-                _logger.debug("转换特征 %s 失败: %s", k, e)
+                logger.debug("转换特征 %s 失败: %s", k, e)
                 continue
 
         return result
 
     def logit_to_score_batch(
         self,
-        contribs: List[Dict[str, float]]
+        contributions: List[Dict[str, float]]
     ) -> List[Dict[str, float]]:
         """
         批量将 logit 贡献转换为 score 贡献
 
         参数:
-            contribs: logit 贡献字典列表
+            contributions: logit 贡献字典列表
 
         返回:
             score 贡献字典列表
         """
-        if not contribs:
+        if not contributions:
             return []
 
-        return [self.logit_to_score(c) for c in contribs]
+        return [self.logit_to_score(c) for c in contributions]
 
-    def score_to_logit(self, contrib: Dict[str, float]) -> Dict[str, float]:
+    def score_to_logit(self, contribution: Dict[str, float]) -> Dict[str, float]:
         """
         将 score 贡献转换为 logit 贡献（反向转换）
 
         参数:
-            contrib: 特征对评分的贡献字典
+            contribution: 特征对评分的贡献字典
 
         返回:
             特征对 logit 的贡献字典
         """
-        if not contrib:
+        if not contribution:
             return {}
 
         result = {}
 
-        for k, v in contrib.items():
+        for k, v in contribution.items():
             try:
                 if np.isfinite(v):
                     result[k] = float(v / self.factor)
             except Exception as e:
-                _logger.debug("反向转换特征 %s 失败: %s", k, e)
+                logger.debug("反向转换特征 %s 失败: %s", k, e)
                 continue
 
         return result
 
     def score_to_logit_batch(
         self,
-        contribs: List[Dict[str, float]]
+        contributions: List[Dict[str, float]]
     ) -> List[Dict[str, float]]:
         """
         批量将 score 贡献转换为 logit 贡献
 
         参数:
-            contribs: score 贡献字典列表
+            contributions: score 贡献字典列表
 
         返回:
             logit 贡献字典列表
         """
-        if not contribs:
+        if not contributions:
             return []
 
-        return [self.score_to_logit(c) for c in contribs]
+        return [self.score_to_logit(c) for c in contributions]
 
     # ==================== 排序 / Reason Code ====================
 
+    @staticmethod
     def top_features(
-        self,
-        contrib: Dict[str, float],
+        contribution: Dict[str, float],
         top_k: int = 5,
         reverse: bool = True
     ) -> List[Tuple[str, float]]:
@@ -160,34 +159,34 @@ class ContributionConverter:
         获取 Top K 特征（用于 Reason Code）
 
         参数:
-            contrib: 贡献字典（可以是 logit 或 score 空间，建议用 score）
+            contribution: 贡献字典（可以是 logit 或 score 空间，建议用 score）
             top_k: 返回前 K 个特征
             reverse: True 表示按绝对值降序（影响最大优先），False 表示升序
 
         返回:
             特征名和贡献值的元组列表，格式 [(feature, contribution), ...]
         """
-        if not contrib:
+        if not contribution:
             return []
 
         items = sorted(
-            contrib.items(),
+            contribution.items(),
             key=lambda x: abs(x[1]),
             reverse=reverse
         )
 
         return items[:top_k]
 
+    @staticmethod
     def top_features_by_impact(
-        self,
-        contrib: Dict[str, float],
+        contribution: Dict[str, float],
         top_k: int = 5
     ) -> Dict[str, List[Tuple[str, float]]]:
         """
         分别获取正向和负向的 Top K 特征
 
         参数:
-            contrib: 贡献字典（建议用 score 空间）
+            contribution: 贡献字典（建议用 score 空间）
             top_k: 每类返回前 K 个
 
         返回:
@@ -196,11 +195,11 @@ class ContributionConverter:
                 "negative": [(feature, contribution), ...]
             }
         """
-        if not contrib:
+        if not contribution:
             return {"positive": [], "negative": []}
 
-        positive = [(k, v) for k, v in contrib.items() if v > 0]
-        negative = [(k, v) for k, v in contrib.items() if v < 0]
+        positive = [(k, v) for k, v in contribution.items() if v > 0]
+        negative = [(k, v) for k, v in contribution.items() if v < 0]
 
         positive_sorted = sorted(positive, key=lambda x: x[1], reverse=True)[:top_k]
         negative_sorted = sorted(negative, key=lambda x: abs(x[1]), reverse=True)[:top_k]
@@ -210,15 +209,15 @@ class ContributionConverter:
             "negative": negative_sorted
         }
 
+    @staticmethod
     def split_positive_negative(
-        self,
-        contrib: Dict[str, float]
+        contribution: Dict[str, float]
     ) -> Dict[str, Dict[str, float]]:
         """
         拆分正负贡献（用于风控解释）
 
         参数:
-            contrib: 贡献字典（建议用 score 空间）
+            contribution: 贡献字典（建议用 score 空间）
 
         返回:
             {
@@ -226,42 +225,44 @@ class ContributionConverter:
                 "negative": {"feature": contribution, ...}
             }
         """
-        pos = {}
-        neg = {}
+        positive = {}
+        negative = {}
 
-        for k, v in contrib.items():
+        for k, v in contribution.items():
             if v > 0:
-                pos[k] = v
+                positive[k] = v
             elif v < 0:
-                neg[k] = v
+                negative[k] = v
 
         return {
-            "positive": pos,
-            "negative": neg
+            "positive": positive,
+            "negative": negative
         }
 
     # ==================== 统计汇总 ====================
 
-    def total_contribution(self, contrib: Dict[str, float]) -> float:
+    @staticmethod
+    def total_contribution(contribution: Dict[str, float]) -> float:
         """
         计算总贡献（验证用）
 
         对于 score 空间的贡献，总和应等于 final_score - offset
 
         参数:
-            contrib: 贡献字典
+            contribution: 贡献字典
 
         返回:
             总贡献值
         """
-        return sum(contrib.values())
+        return sum(contribution.values())
 
-    def contribution_summary(self, contrib: Dict[str, float]) -> Dict[str, float]:
+    @staticmethod
+    def contribution_summary(contribution: Dict[str, float]) -> Dict[str, float]:
         """
         获取贡献汇总统计
 
         参数:
-            contrib: 贡献字典
+            contribution: 贡献字典
 
         返回:
             {
@@ -272,7 +273,7 @@ class ContributionConverter:
                 "max_negative": 最大负向贡献（绝对值）
             }
         """
-        if not contrib:
+        if not contribution:
             return {
                 "total": 0.0,
                 "positive_sum": 0.0,
@@ -281,14 +282,14 @@ class ContributionConverter:
                 "max_negative": 0.0
             }
 
-        values = list(contrib.values())
-        pos_sum = sum(v for v in values if v > 0)
-        neg_sum = sum(v for v in values if v < 0)
+        values = list(contribution.values())
+        positive_sum = sum(v for v in values if v > 0)
+        negative_sum = sum(v for v in values if v < 0)
 
         return {
             "total": sum(values),
-            "positive_sum": pos_sum,
-            "negative_sum": neg_sum,
+            "positive_sum": positive_sum,
+            "negative_sum": negative_sum,
             "max_positive": max(values) if values else 0.0,
             "max_negative": min(values) if values else 0.0
         }
@@ -312,7 +313,7 @@ class ContributionConverter:
 # ==================== 便捷函数 ====================
 
 def logit_to_score(
-    contrib: Dict[str, float],
+    contribution: Dict[str, float],
     pdo: float = 50,
     base_score: float = 600,
     base_odds: float = 20
@@ -321,7 +322,7 @@ def logit_to_score(
     将 logit 贡献转换为 score 贡献（便捷函数）
 
     参数:
-        contrib: logit 贡献字典
+        contribution: logit 贡献字典
         pdo: 分数翻倍点
         base_score: 基准分数
         base_odds: 基准 odds
@@ -333,28 +334,28 @@ def logit_to_score(
 
     score = Score(pdo=pdo, base_score=base_score, base_odds=base_odds)
     converter = ContributionConverter(score)
-    return converter.logit_to_score(contrib)
+    return converter.logit_to_score(contribution)
 
 
 def top_features(
-    contrib: Dict[str, float],
+    contribution: Dict[str, float],
     top_k: int = 5
 ) -> List[Tuple[str, float]]:
     """
     获取 Top K 特征（便捷函数）
 
     参数:
-        contrib: 贡献字典（score 空间）
+        contribution: 贡献字典（score 空间）
         top_k: 返回前 K 个
 
     返回:
         特征名和贡献值的元组列表
     """
-    if not contrib:
+    if not contribution:
         return []
 
     items = sorted(
-        contrib.items(),
+        contribution.items(),
         key=lambda x: abs(x[1]),
         reverse=True
     )

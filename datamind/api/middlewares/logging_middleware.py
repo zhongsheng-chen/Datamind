@@ -8,10 +8,10 @@
   - 请求日志记录：方法、路径、请求头、请求体
   - 响应日志记录：状态码、响应头、处理时间
   - 请求ID追踪：自动生成或提取 X-Request-ID
-  - 链路追踪：完整的 span 追踪（trace_id, span_id, parent_span_id）
   - 敏感数据脱敏：自动隐藏密码、token 等敏感信息（支持配置化）
   - 错误日志记录：异常信息和堆栈跟踪
   - 审计日志：记录错误请求和异常事件
+  - 链路追踪：完整的 span 追踪
 
 中间件行为：
   - 自动生成请求ID（如果请求头没有 X-Request-ID）
@@ -34,10 +34,10 @@
   - id_number, ssn, phone, email
 """
 
+import re
 import time
 import uuid
 import json
-import re
 import asyncio
 import traceback
 from typing import Optional, List, Dict, Any
@@ -47,9 +47,11 @@ from starlette.types import ASGIApp
 from starlette.responses import Response
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
-from datamind.config import get_settings
+from datamind.core.logging import get_logger
 from datamind.config.settings import LoggingMiddlewareConfig, SensitiveDataConfig
+from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -274,7 +276,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            debug_print("LoggingMiddleware", f"读取请求体失败: {e}")
+            logger.debug("读取请求体失败: %s", e)
             return f"<error reading body: {type(e).__name__}>"
 
     async def _capture_response_body(self, response: Response) -> Response:
@@ -302,7 +304,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             response.body_iterator = generate()
             return response
         except Exception as e:
-            debug_print("LoggingMiddleware", f"捕获响应体失败: {e}")
+            logger.debug("捕获响应体失败: %s", e)
             return response
 
     async def _log_request(self, request: Request, request_id: str,
@@ -527,7 +529,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 result = pattern.sub(lambda m: f"{m.group(1)}=***", result)
             return result
         except Exception as e:
-            debug_print("LoggingMiddleware", f"脱敏处理失败: {e}")
+            logger.debug("脱敏处理失败: %s", e)
             return "***"
 
     def _mask_dict(self, obj: Any) -> Any:

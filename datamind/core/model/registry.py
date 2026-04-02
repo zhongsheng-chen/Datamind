@@ -1,4 +1,4 @@
-# datamind/core/ml/model/registry.py
+# datamind/core/model/registry.py
 
 """模型注册中心
 
@@ -42,7 +42,7 @@ from datamind.core.db.models import ModelMetadata, ModelVersionHistory
 from datamind.core.domain.enums import ModelStatus, AuditAction, TaskType, ModelType, Framework
 from datamind.core.domain.validation import validate_or_raise
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.common.exceptions import (
     ModelNotFoundException,
     ModelAlreadyExistsException,
@@ -56,6 +56,8 @@ from datamind.core.common.frameworks import (
     is_framework_supported,
     get_supported_frameworks
 )
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -107,7 +109,7 @@ class ModelRegistry:
             self.cache_path = BASE_DIR / models_path
         self.cache_path.mkdir(parents=True, exist_ok=True)
 
-        debug_print("ModelRegistry", f"模型存储路径: {self.cache_path.absolute()}")
+        logger.debug("模型存储路径: %s", self.cache_path.absolute())
 
     @staticmethod
     def _clean_none_values(obj: Any) -> Any:
@@ -362,7 +364,7 @@ class ModelRegistry:
                     request_id=request_id
                 )
 
-                debug_print("ModelRegistry", f"模型注册成功: {model_id} -> {bento_model.tag}")
+                logger.debug("模型注册成功: %s -> %s", model_id, bento_model.tag)
                 return model_id
 
             finally:
@@ -585,7 +587,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            debug_print("ModelRegistry", f"模型激活成功: {model_id}")
+            logger.debug("模型激活成功: %s", model_id)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -673,7 +675,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            debug_print("ModelRegistry", f"模型停用成功: {model_id}")
+            logger.debug("模型停用成功: %s", model_id)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -772,7 +774,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            debug_print("ModelRegistry", f"生产模型设置成功: {model_id}")
+            logger.debug("生产模型设置成功: %s", model_id)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -1068,7 +1070,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            debug_print("ModelRegistry", f"模型参数更新成功: {model_id}")
+            logger.debug("模型参数更新成功: %s", model_id)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -1153,7 +1155,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            debug_print("ModelRegistry", f"模型归档成功: {model_id}")
+            logger.debug("模型归档成功: %s", model_id)
 
         except Exception as e:
             log_audit(
@@ -1171,7 +1173,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            debug_print("ModelRegistry", f"模型归档失败: {model_id}, 错误: {e}")
+            logger.debug("模型归档失败: %s, 错误: %s", model_id, e)
             raise
 
     @staticmethod
@@ -1187,10 +1189,10 @@ class ModelRegistry:
         """
         try:
             bentoml.models.delete(model_id)
-            debug_print("ModelRegistry", f"从 BentoML 删除模型成功: {model_id}")
+            logger.debug("从 BentoML 删除模型成功: %s", model_id)
             return True
         except BentoMLException as e:
-            debug_print("ModelRegistry", f"从 BentoML 删除模型失败: {e}")
+            logger.debug("从 BentoML 删除模型失败: %s", e)
             return False
 
     def _validate_task_specific_config(

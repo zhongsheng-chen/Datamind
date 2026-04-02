@@ -21,6 +21,9 @@ from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class TensorFlowAdapter(BaseModelAdapter):
@@ -36,8 +39,7 @@ class TensorFlowAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None,
-        debug: bool = False
+        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
@@ -46,9 +48,8 @@ class TensorFlowAdapter(BaseModelAdapter):
             model: TensorFlow/Keras 模型实例
             feature_names: 特征名称列表（可选）
             transformer: WOE转换器（评分卡模型使用）
-            debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, transformer=transformer, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer)
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
@@ -82,7 +83,7 @@ class TensorFlowAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            self._error("预测失败: %s", e)
+            logger.error("TensorFlow预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -106,7 +107,7 @@ class TensorFlowAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            self._error("批量预测失败: %s", e)
+            logger.error("TensorFlow批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self) -> Dict[str, float]:

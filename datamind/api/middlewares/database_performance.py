@@ -21,11 +21,13 @@ from starlette.types import ASGIApp
 from sqlalchemy import text, event
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
-from datamind.core.db.database import get_db, get_engine
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
-from datamind.config import get_settings
+from datamind.core.db.database import get_db, get_engine
 from datamind.config.settings import PerformanceConfig
+from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 # 上下文变量：存储当前请求的查询统计
 _request_query_stats: ContextVar[Dict[str, Any]] = ContextVar("request_query_stats", default={})
@@ -153,19 +155,16 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
                                 )
 
                             # 调试输出
-                            debug_print(
-                                "PostgreSQLPerformanceMiddleware",
-                                f"查询耗时: {elapsed:.2f}ms - {statement[:100]}"
-                            )
+                            logger.debug("查询耗时: %.2fms - %s", elapsed, statement[:100])
 
                             # 清理开始时间
                             delattr(context, '_query_start_time')
 
                     _events_registered = True
-                    debug_print("PostgreSQLPerformanceMiddleware", "SQLAlchemy 事件监听已注册")
+                    logger.debug("SQLAlchemy 事件监听已注册")
 
                 except Exception as e:
-                    debug_print("PostgreSQLPerformanceMiddleware", f"注册 SQLAlchemy 事件失败: {e}")
+                    logger.debug("注册 SQLAlchemy 事件失败: %s", e)
 
         # 在事件循环中执行注册
         try:
@@ -278,10 +277,7 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
             if len(self.slow_queries) > self._max_slow_queries:
                 self.slow_queries = self.slow_queries[:self._max_slow_queries]
 
-        debug_print(
-            "PostgreSQLPerformanceMiddleware",
-            f"慢查询: {duration_ms:.2f}ms - {query_text[:200]}"
-        )
+        logger.debug("慢查询: %.2fms - %s", duration_ms, query_text[:200])
 
     async def collect_pg_stat_statements(self, db) -> Dict[str, Any]:
         """
@@ -334,7 +330,7 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
             }
 
         except Exception as e:
-            debug_print("PostgreSQLPerformanceMiddleware", f"收集 pg_stat_statements 失败: {e}")
+            logger.debug("收集 pg_stat_statements 失败: %s", e)
             return {"error": str(e)}
 
     async def collect_connection_pool_stats(self, db) -> Dict[str, Any]:
@@ -368,7 +364,7 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
             }
 
         except Exception as e:
-            debug_print("PostgreSQLPerformanceMiddleware", f"收集连接池统计失败: {e}")
+            logger.debug("收集连接池统计失败: %s", e)
             return {"error": str(e)}
 
     async def collect_database_stats(self, db) -> Dict[str, Any]:
@@ -453,7 +449,7 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
             }
 
         except Exception as e:
-            debug_print("PostgreSQLPerformanceMiddleware", f"收集数据库统计失败: {e}")
+            logger.debug("收集数据库统计失败: %s", e)
             return {"error": str(e)}
 
     async def reset_pg_stat_statements(self, db) -> Dict[str, Any]:
@@ -513,17 +509,17 @@ class PostgreSQLPerformanceMiddleware(BaseHTTPMiddleware):
                                     )
 
                             except Exception as e:
-                                debug_print("PostgreSQLPerformanceMiddleware", f"收集统计失败: {e}")
+                                logger.debug("收集统计失败: %s", e)
                             finally:
                                 await db.close()
                                 break
                     except Exception as e:
-                        debug_print("PostgreSQLPerformanceMiddleware", f"获取数据库会话失败: {e}")
+                        logger.debug("获取数据库会话失败: %s", e)
 
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
-                    debug_print("PostgreSQLPerformanceMiddleware", f"统计收集器异常: {e}")
+                    logger.debug("统计收集器异常: %s", e)
 
         task = asyncio.create_task(collect_stats())
         self._background_tasks.add(task)

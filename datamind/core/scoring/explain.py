@@ -29,15 +29,14 @@ import numpy as np
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, has_capability
-from datamind.core.logging.manager import LogManager
+from datamind.core.logging import get_logger
 
 try:
     import shap
 except ImportError:
     shap = None
 
-_log_manager = LogManager()
-logger = _log_manager.app_logger
+logger = get_logger(__name__)
 
 
 class Explainer:
@@ -95,11 +94,12 @@ class Explainer:
         # TreeExplainer 优先
         try:
             explainer = shap.TreeExplainer(self.model_adapter.model)
-        except Exception:
+        except Exception as e:
+            # 如果 TreeExplainer 失败，尝试 KernelExplainer
             if self._background_data is None:
                 raise RuntimeError(
                     "当前模型不支持 TreeExplainer，请先调用 set_background_data"
-                )
+                ) from e
 
             explainer = shap.KernelExplainer(
                 self.model_adapter.model.predict_proba,
@@ -204,7 +204,8 @@ class Explainer:
 
             return {}
 
-        except Exception:
+        except Exception as e:
+            logger.error("解释失败: %s", e)
             return {}
 
     def explain_logit_batch(
@@ -232,8 +233,9 @@ class Explainer:
                 vals = self._compute_shap(arr)
                 return [self._format_shap_output(row) for row in vals]
 
-        except Exception:
+        except Exception as e:
             # 批量失败时降级到单条循环
+            logger.warning("批量解释失败，降级为单条循环: %s", e)
             return [self.explain_logit(x) for x in X_batch]
 
         return []

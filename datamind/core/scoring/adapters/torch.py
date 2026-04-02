@@ -24,6 +24,9 @@ from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class TorchAdapter(BaseModelAdapter):
@@ -39,8 +42,7 @@ class TorchAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None,
-        debug: bool = False
+        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
@@ -49,16 +51,15 @@ class TorchAdapter(BaseModelAdapter):
             model: PyTorch 模型（nn.Module 实例）
             feature_names: 特征名称列表（可选）
             transformer: WOE转换器（评分卡模型使用）
-            debug: 是否启用调试日志
         """
-        super().__init__(model, feature_names, transformer=transformer, debug=debug)
+        super().__init__(model, feature_names, transformer=transformer)
 
         self.device = next(model.parameters()).device
         self.model.eval()
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        self._debug("模型设备: %s", self.device)
+        logger.debug("模型设备: %s", self.device)
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -93,7 +94,7 @@ class TorchAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            self._error("预测失败: %s", e)
+            logger.error("PyTorch预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -120,7 +121,7 @@ class TorchAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            self._error("批量预测失败: %s", e)
+            logger.error("PyTorch批量预测失败: %s", e)
             raise
 
     def get_feature_importance(self) -> Dict[str, float]:

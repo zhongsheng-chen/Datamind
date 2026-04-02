@@ -13,6 +13,7 @@
   - get_feature_importance: 获取特征重要性（子类可重写）
   - get_capabilities: 获取模型能力集（子类可重写）
   - get_coef: 获取特征系数（仅逻辑回归模型）
+  - get_intercept: 获取截距项（仅逻辑回归模型）
   - get_feature_logit: 获取特征对 logit 的贡献（仅逻辑回归模型）
 
 特性：
@@ -24,16 +25,15 @@
   - 能力驱动：支持模型能力声明和运行时检查
 """
 
-from abc import ABC, abstractmethod
 import numpy as np
+from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Tuple
 
-from datamind.core.logging.manager import LogManager
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import DataType
 from datamind.core.scoring.capability import ScorecardCapability
 
-_log_manager = LogManager()
-logger = _log_manager.app_logger
+logger = get_logger(__name__)
 
 
 class BaseModelAdapter(ABC):
@@ -44,8 +44,7 @@ class BaseModelAdapter(ABC):
         model,
         feature_names: Optional[List[str]] = None,
         data_types: Optional[Dict[str, DataType]] = None,
-        transformer: Optional[Any] = None,
-        debug: bool = False
+        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
@@ -55,35 +54,13 @@ class BaseModelAdapter(ABC):
             feature_names: 特征名称列表（用于保证特征顺序）
             data_types: 特征数据类型映射，用于类型验证
             transformer: WOE转换器（评分卡模型使用）
-            debug: 是否启用调试日志
         """
         self.model = model
         self.feature_names = feature_names
         self.data_types = data_types or {}
         self.transformer = transformer
-        self._debug_enabled = debug
 
-        if self._debug_enabled:
-            self._debug("初始化适配器")
-
-    # ==================== 日志方法 ====================
-
-    def _debug(self, msg: str, *args: Any) -> None:
-        """调试输出"""
-        if self._debug_enabled:
-            logger.debug(msg, *args)
-
-    def _info(self, msg: str, *args: Any) -> None:
-        """信息输出"""
-        logger.info(msg, *args)
-
-    def _warning(self, msg: str, *args: Any) -> None:
-        """警告输出"""
-        logger.warning(msg, *args)
-
-    def _error(self, msg: str, *args: Any) -> None:
-        """错误输出"""
-        logger.error(msg, *args)
+        logger.debug("初始化适配器: %s", self.__class__.__name__)
 
     # ==================== 核心抽象方法 ====================
 
@@ -113,7 +90,7 @@ class BaseModelAdapter(ABC):
         返回:
             概率列表，长度 n_samples
         """
-        self._debug("使用默认循环批量预测，样本数: %d", len(X))
+        logger.debug("使用默认循环批量预测，样本数: %d", len(X))
         return [self.predict_proba(x.reshape(1, -1)) for x in X]
 
     # ==================== 统一预测接口 ====================
@@ -141,20 +118,20 @@ class BaseModelAdapter(ABC):
             raise ValueError("输入数据不能为 None")
 
         if isinstance(X, list) and len(X) == 0:
-            self._warning("输入为空列表，返回空列表")
+            logger.warning("输入为空列表，返回空列表")
             return []
 
         if isinstance(X, np.ndarray) and X.size == 0:
-            self._warning("输入为空数组，返回空列表")
+            logger.warning("输入为空数组，返回空列表")
             return []
 
         # 处理字典输入（单条）
         if isinstance(X, dict):
             missing, type_errors = self.validate_features_with_types(X)
             if missing:
-                self._debug("缺失特征: %s，将使用默认值 0", missing)
+                logger.debug("缺失特征: %s，将使用默认值 0", missing)
             if type_errors:
-                self._warning("类型错误: %s", type_errors)
+                logger.warning("类型错误: %s", type_errors)
 
             X_array = self.to_array(X)
             return self.predict_proba(X_array)
@@ -162,13 +139,13 @@ class BaseModelAdapter(ABC):
         # 处理字典列表输入（批量）
         if isinstance(X, list) and X and isinstance(X[0], dict):
             # 批量验证（仅对小批量验证，避免性能损耗）
-            if self._debug_enabled and len(X) <= 100:
+            if len(X) <= 100:
                 for i, features in enumerate(X[:5]):
                     missing, type_errors = self.validate_features_with_types(features)
                     if missing:
-                        self._debug("样本 %d 缺失特征: %s", i, missing)
+                        logger.debug("样本 %d 缺失特征: %s", i, missing)
                     if type_errors:
-                        self._debug("样本 %d 类型错误: %s", i, type_errors)
+                        logger.debug("样本 %d 类型错误: %s", i, type_errors)
 
             X_array = self.to_array_batch(X)
             return self.predict_proba_batch(X_array)
@@ -209,7 +186,7 @@ class BaseModelAdapter(ABC):
             for name in self.feature_names:
                 value = features.get(name)
                 if value is None:
-                    self._debug("特征 '%s' 缺失，使用默认值 0", name)
+                    logger.debug("特征 '%s' 缺失，使用默认值 0", name)
                     values.append(0.0)
                 else:
                     values.append(self._to_float(value, name))
@@ -241,14 +218,14 @@ class BaseModelAdapter(ABC):
             import pandas as pd
             return self._to_array_batch_pandas(features_list)
         except ImportError:
-            self._debug("pandas 不可用，使用原生实现")
+            logger.debug("pandas 不可用，使用原生实现")
             return self._to_array_batch_fallback(features_list)
         except Exception as e:
             # 打印完整前几条样本，方便排查
             sample_count = min(3, len(features_list))
-            self._error("pandas 批量转换失败: %s", e)
+            logger.error("pandas 批量转换失败: %s", e)
             for i in range(sample_count):
-                self._error("  样本 %d: %s", i, features_list[i])
+                logger.error("  样本 %d: %s", i, features_list[i])
             raise
 
     def _to_array_batch_pandas(self, features_list: List[Dict[str, Any]]) -> np.ndarray:
@@ -260,7 +237,7 @@ class BaseModelAdapter(ABC):
         if self.feature_names:
             missing = set(self.feature_names) - set(df.columns)
             if missing:
-                self._debug("缺失特征: %s，填充默认值 0", missing)
+                logger.debug("缺失特征: %s，填充默认值 0", missing)
 
             for col in missing:
                 df[col] = 0.0
@@ -291,7 +268,8 @@ class BaseModelAdapter(ABC):
 
         return np.array(values, dtype=np.float32)
 
-    def _to_float(self, value: Any, feature_name: Optional[str] = None) -> float:
+    @staticmethod
+    def _to_float(value: Any, feature_name: Optional[str] = None) -> float:
         """
         将值转换为 float
 
@@ -345,8 +323,8 @@ class BaseModelAdapter(ABC):
             return []
 
         missing = [name for name in self.feature_names if name not in features]
-        if missing and self._debug_enabled:
-            self._debug("缺失特征: %s", missing)
+        if missing:
+            logger.debug("缺失特征: %s", missing)
 
         return missing
 
@@ -392,11 +370,11 @@ class BaseModelAdapter(ABC):
                 # 分类特征可以是字符串、整数等，不做严格类型检查
                 pass
 
-        if missing and self._debug_enabled:
-            self._debug("缺失特征: %s", missing)
+        if missing:
+            logger.debug("缺失特征: %s", missing)
 
         if type_errors:
-            self._warning("类型错误: %s", type_errors)
+            logger.warning("类型错误: %s", type_errors)
 
         return missing, type_errors
 
@@ -441,6 +419,22 @@ class BaseModelAdapter(ABC):
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} 不支持系数提取，请检查模型类型是否为逻辑回归"
+        )
+
+    def get_intercept(self) -> float:
+        """
+        获取截距项（仅逻辑回归模型）
+
+        子类可重写此方法以提供截距提取功能。
+
+        返回:
+            截距值
+
+        异常:
+            NotImplementedError: 模型不支持截距提取
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} 不支持截距提取"
         )
 
     def get_feature_logit(self, feature_name: str, woe: float) -> float:
