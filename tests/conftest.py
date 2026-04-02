@@ -7,9 +7,9 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from datamind.core.ml.model.loader import ModelLoader
-from datamind.core.ml.model.registry import ModelRegistry
-from datamind.core.ml.model.inference import InferenceEngine
+from datamind.core.ml.model import ModelLoader
+from datamind.core.ml.model import ModelRegistry
+from datamind.core.ml.model import InferenceEngine
 from datamind.core.domain.enums import TaskType, ModelStatus, Framework, ModelType
 
 

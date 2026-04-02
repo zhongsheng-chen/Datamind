@@ -40,9 +40,11 @@ from typing import Dict, Any, Optional, List, BinaryIO
 
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
 from datamind.storage.base import StorageBackend
+
+logger = get_logger(__name__)
 
 
 class VersionManager:
@@ -65,7 +67,7 @@ class VersionManager:
         self.model_id = model_id
         self.metadata_file = f"{model_id}/versions.json"
         self._versions_cache = None
-        debug_print("VersionManager", f"初始化版本管理器: {model_id}")
+        logger.debug("初始化版本管理器: %s", model_id)
 
     async def init_versions(self) -> Dict[str, Any]:
         """初始化版本记录文件"""
@@ -80,7 +82,7 @@ class VersionManager:
 
         # 创建空的版本记录文件
         await self._save_versions(versions_data)
-        debug_print("VersionManager", f"初始化版本记录: {self.model_id}")
+        logger.debug("初始化版本记录: %s", self.model_id)
         return versions_data
 
     async def add_version(self, version: str, file_path: str,
@@ -170,7 +172,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        debug_print("VersionManager", f"添加版本成功: {self.model_id} v{version}")
+        logger.debug("添加版本成功: %s v%s", self.model_id, version)
         return version_info
 
     async def get_version(self, version: Optional[str] = None) -> Dict[str, Any]:
@@ -296,7 +298,7 @@ class VersionManager:
         try:
             await self.storage.delete(version_info['file_path'])
         except Exception as e:
-            debug_print("VersionManager", f"删除文件失败: {e}")
+            logger.debug("删除文件失败: %s", e)
 
         # 从列表中移除
         versions_data['versions'] = [
@@ -336,7 +338,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        debug_print("VersionManager", f"删除版本成功: {self.model_id} v{version}")
+        logger.debug("删除版本成功: %s v%s", self.model_id, version)
         return True
 
     async def set_production_version(self, version: str) -> Dict[str, Any]:
@@ -387,7 +389,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        debug_print("VersionManager", f"设置生产版本: {self.model_id} v{version}")
+        logger.debug("设置生产版本: %s v%s", self.model_id, version)
         return version_info
 
     async def get_production_version(self) -> Optional[Dict[str, Any]]:
@@ -537,7 +539,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        debug_print("VersionManager", f"回滚到版本: {self.model_id} v{version} -> v{rollback_version}")
+        logger.debug("回滚到版本: %s v%s -> v%s", self.model_id, version, rollback_version)
         return version_info
 
     async def tag_version(self, version: str, tag: str) -> Dict[str, Any]:
@@ -585,7 +587,7 @@ class VersionManager:
                 request_id=request_id
             )
 
-            debug_print("VersionManager", f"添加标签: {self.model_id} v{version} -> {tag}")
+            logger.debug("添加标签: %s v%s -> %s", self.model_id, version, tag)
 
         return version_info
 
@@ -740,9 +742,9 @@ class VersionManager:
                 await self.storage.delete(v['file_path'])
                 versions_data['versions'].remove(v)
                 deleted.append(v['version'])
-                debug_print("VersionManager", f"清理旧版本: {self.model_id} v{v['version']}")
+                logger.debug("清理旧版本: %s v%s", self.model_id, v['version'])
             except Exception as e:
-                debug_print("VersionManager", f"清理失败: {e}")
+                logger.debug("清理失败: %s", e)
 
         # 更新
         versions_data['total_versions'] = len(versions_data['versions'])
@@ -782,7 +784,7 @@ class VersionManager:
             # 文件不存在，初始化
             self._versions_cache = await self.init_versions()
         except Exception as e:
-            debug_print("VersionManager", f"读取版本文件失败: {e}")
+            logger.debug("读取版本文件失败: %s", e)
             self._versions_cache = await self.init_versions()
 
         return self._versions_cache
@@ -801,7 +803,7 @@ class VersionManager:
         )
 
         self._versions_cache = versions_data
-        debug_print("VersionManager", f"保存版本文件: {self.metadata_file}")
+        logger.debug("保存版本文件: %s", self.metadata_file)
 
     def _find_version(self, versions_data: Dict, version: str) -> Optional[Dict]:
         """查找版本"""

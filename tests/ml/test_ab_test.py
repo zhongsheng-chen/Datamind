@@ -1,4 +1,4 @@
-# tests/ml/test_ab_test.py
+# tests/ml/test_ab_test_01.py
 
 """测试 A/B 测试模块"""
 
@@ -12,7 +12,7 @@ from datamind.core.experiment.ab_test import (
     TrafficSplitter,
     AssignmentStrategy
 )
-from datamind.core.ml.common.exceptions import ABTestException
+from datamind.core.common.exceptions import ABTestException
 from datamind.core.domain.enums import ABTestStatus, AuditAction
 
 

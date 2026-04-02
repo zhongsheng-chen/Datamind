@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 from datetime import datetime, timedelta
 
-from datamind.core.ml.model.loader import ModelLoader
+from datamind.core.ml.model import ModelLoader
 
 
 

@@ -46,7 +46,9 @@ import hashlib
 from abc import ABC, abstractmethod
 from typing import BinaryIO, Optional, List, Dict, Any
 
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class StorageBackend(ABC):
@@ -69,7 +71,7 @@ class StorageBackend(ABC):
         """
         self.bucket_name = bucket_name
         self.base_path = base_path.rstrip('/')
-        debug_print("StorageBackend", f"初始化存储后端: {self.__class__.__name__}")
+        logger.debug("初始化存储后端: %s", self.__class__.__name__)
 
     @abstractmethod
     async def save(self, path: str, content: BinaryIO,
@@ -257,7 +259,8 @@ class StorageBackend(ABC):
             return f"{self.base_path}/{path.lstrip('/')}"
         return path
 
-    def _calculate_hash(self, content: BinaryIO) -> str:
+    @staticmethod
+    def _calculate_hash(content: BinaryIO) -> str:
         """
         计算文件内容的 SHA256 哈希值
 

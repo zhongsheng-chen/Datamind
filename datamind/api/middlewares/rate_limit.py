@@ -11,7 +11,7 @@
   - 多等级限流：根据用户等级（admin/developer/analyst/api_user）应用不同规则
   - 限流头信息：返回 X-RateLimit-* 头信息供客户端参考
   - 审计日志：记录限流触发事件
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 链路追踪：完整的 span 追踪
 
 限流规则：
   - default: 默认限流（100次/60秒）
@@ -27,22 +27,23 @@
   - 客户端 IP
 """
 
-import asyncio
 import time
+import asyncio
+import redis.asyncio as redis
 from typing import Dict, List, Optional, Any, Tuple
 from collections import defaultdict
-
-import redis.asyncio as redis
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import UserStatus, UserRole
 from datamind.core.domain.enums import AuditAction
-from datamind.config import get_settings
 from datamind.config.settings import RateLimitConfig
+from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 # 原子性限流检查
 RATE_LIMIT_LUA_SCRIPT = """
@@ -158,10 +159,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             asyncio.create_task(self._periodic_cleanup())
 
         # 调试打印
-        debug_print("RateLimitMiddleware",
-                    f"INIT: default_limit={self.default_limit}, default_period={self.default_period}")
-        debug_print("RateLimitMiddleware",
-                    f"INIT: rules['default']={self.rules.get('default', {})}")
+        logger.debug("INIT: default_limit=%d, default_period=%d", self.default_limit, self.default_period)
+        logger.debug("INIT: rules['default']=%s", self.rules.get('default', {}))
 
     def _ensure_roles_in_rules(self) -> None:
         """确保所有角色都在限流规则中"""
@@ -206,7 +205,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # 如果未启用限流，直接放行
         if not self.rate_limit_enabled:
             return await call_next(request)
-        debug_print("RateLimitMiddleware", f"限流检查开始: {request.method} {request.url.path}")
+
+        logger.debug("限流检查开始: %s %s", request.method, request.url.path)
 
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -259,10 +259,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 request_id=request_id
             )
 
-            debug_print(
-                "RateLimitMiddleware",
-                f"限流触发: {request.method} {request.url.path}, "
-                f"用户={username}, 等级={tier}, 限制={rule['limit']}/{rule['period']}秒"
+            logger.debug(
+                "限流触发: %s %s, 用户=%s, 等级=%s, 限制=%d/%d秒",
+                request.method, request.url.path, username, tier, rule['limit'], rule['period']
             )
 
             raise HTTPException(
@@ -417,7 +416,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     return tier
 
         except Exception as e:
-            debug_print("RateLimitMiddleware", f"获取API Key用户等级失败: {e}")
+            logger.debug("获取API Key用户等级失败: %s", e)
 
         return "api_user"
 
@@ -456,7 +455,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             return None
         except Exception as e:
-            debug_print("RateLimitMiddleware", f"同步查询API Key失败: {e}")
+            logger.debug("同步查询API Key失败: %s", e)
             return None
 
     async def _check_rate_limit(self, key: str, rule: Dict[str, int]) -> Tuple[bool, int]:
@@ -487,7 +486,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return is_limited, remaining
 
         except Exception as e:
-            debug_print("RateLimitMiddleware", f"Redis限流检查失败: {e}")
+            logger.debug("Redis限流检查失败: %s", e)
             # Redis 故障时降级到内存限流
             return await self._check_memory_rate_limit(key, rule)
 
@@ -508,15 +507,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             current_count = len(self.memory_storage[key])
 
             # 调试输出
-            debug_print(
-                "RateLimitMiddleware",
-                f"限流检查: key={key}, limit={rule['limit']}, period={rule['period']}, "
-                f"current={current_count}, before_cleanup={before_count}, after_cleanup={after_count}"
+            logger.debug(
+                "限流检查: key=%s, limit=%d, period=%d, "
+                "current=%d, before_cleanup=%d, after_cleanup=%d",
+                key, rule['limit'], rule['period'],
+                current_count, before_count, after_count
             )
 
             # 检查是否超过限制
             if current_count >= rule['limit']:
-                debug_print("RateLimitMiddleware", f"限流触发: current={current_count} >= limit={rule['limit']}")
+                logger.debug("限流触发: current=%d >= limit=%d", current_count, rule['limit'])
                 return True, 0
 
             # 记录当前请求
@@ -525,8 +525,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if remaining < 0:
                 remaining = 0
 
-            debug_print("RateLimitMiddleware",
-                        f"请求记录: key={key}, new_count={current_count + 1}, remaining={remaining}")
+            logger.debug("请求记录: key=%s, new_count=%d, remaining=%d",
+                        key, current_count + 1, remaining)
 
             return False, remaining
 
@@ -563,7 +563,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                debug_print("RateLimitMiddleware", f"清理任务异常: {e}")
+                logger.debug("清理任务异常: %s", e)
 
     async def get_current_usage(self, request: Request) -> Dict[str, Any]:
         """获取当前请求使用情况（用于监控）"""

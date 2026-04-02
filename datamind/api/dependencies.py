@@ -23,8 +23,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from datamind.core.db.database import get_db
-from datamind.core.ml.model.loader import model_loader
-from datamind.core.ml.model.registry import model_registry
+from datamind.core.ml.model import model_loader
+from datamind.core.ml.model import model_registry
 from datamind.core.experiment.ab_test import ab_test_manager
 from datamind.core.logging import log_audit, context
 from datamind.core.domain.enums import AuditAction, UserRole, UserStatus

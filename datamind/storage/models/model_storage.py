@@ -40,12 +40,14 @@ import tempfile
 from typing import Optional, Dict, Any, List, BinaryIO
 from datetime import datetime
 
+from datamind.core.logging import log_audit, context
+from datamind.core.logging import get_logger
+from datamind.core.domain.enums import AuditAction
 from datamind.storage.base import StorageBackend
 from datamind.storage.local_storage import LocalStorage
-from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
-from datamind.core.domain.enums import AuditAction
 from datamind.config import get_settings
+
+logger = get_logger(__name__)
 
 
 class ModelStorage:
@@ -73,7 +75,7 @@ class ModelStorage:
                 base_path="models"
             )
 
-        debug_print("ModelStorage", f"模型存储初始化完成")
+        logger.debug("模型存储初始化完成")
 
     async def save_model(self, model_id: str, version: str,
                          model_file: BinaryIO, framework: str,
@@ -146,7 +148,7 @@ class ModelStorage:
             request_id=request_id
         )
 
-        debug_print("ModelStorage", f"模型保存成功: {model_id} v{version}")
+        logger.debug("模型保存成功: %s v%s", model_id, version)
 
         return result
 
@@ -284,7 +286,7 @@ class ModelStorage:
                         request_id=request_id
                     )
 
-                    debug_print("ModelStorage", f"删除模型版本: {model_id} v{version}")
+                    logger.debug("删除模型版本: %s v%s", model_id, version)
                     return result
             return False
         else:
@@ -311,7 +313,7 @@ class ModelStorage:
                 request_id=request_id
             )
 
-            debug_print("ModelStorage", f"删除所有模型版本: {model_id}")
+            logger.debug("删除所有模型版本: %s", model_id)
             return True
 
     async def list_models(self, prefix: str = "") -> List[Dict[str, Any]]:
@@ -469,7 +471,7 @@ class ModelStorage:
             request_id=request_id
         )
 
-        debug_print("ModelStorage", f"模型迁移成功: {model_id}, {len(migrated)}个版本")
+        logger.debug("模型迁移成功: %s, %d个版本", model_id, len(migrated))
 
         return {
             'model_id': model_id,

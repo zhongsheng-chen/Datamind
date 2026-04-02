@@ -32,18 +32,20 @@ CORS 响应头说明：
   - Access-Control-Max-Age: 预检请求缓存时间
 """
 
-import time
 import re
+import time
 from typing import List, Optional, Dict, Any
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp
 
-from datamind.core.domain.enums import AuditAction
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
+from datamind.core.domain.enums import AuditAction
 from datamind.config import get_settings
 from datamind.config.settings import CORSConfig
+
+logger = get_logger(__name__)
 
 
 class CustomCORSMiddleware(CORSMiddleware):
@@ -97,10 +99,7 @@ class CustomCORSMiddleware(CORSMiddleware):
 
         # 生产环境安全检查：不允许通配符源
         if settings.app.env == "production" and "*" in self.allow_origins:
-            debug_print(
-                "CORS",
-                "警告: 生产环境不允许使用通配符源 '*'，将使用空列表"
-            )
+            logger.warning("生产环境不允许使用通配符源 '*'，将使用空列表")
             self.allow_origins = []
 
         # 编译源正则表达式（如果提供）
@@ -109,7 +108,7 @@ class CustomCORSMiddleware(CORSMiddleware):
             try:
                 self.allow_origin_regex_compiled = re.compile(allow_origin_regex)
             except re.error as e:
-                debug_print("CORS", f"无效的正则表达式: {allow_origin_regex}, 错误: {e}")
+                logger.debug("无效的正则表达式: %s, 错误: %s", allow_origin_regex, e)
 
         super().__init__(
             app=app,
@@ -143,12 +142,10 @@ class CustomCORSMiddleware(CORSMiddleware):
 
         # 记录 CORS 请求日志
         if self.log_cors_requests:
-            debug_print(
-                "CORS",
-                f"CORS请求: {request.method} {request.url.path} "
-                f"origin={origin or 'none'}, "
-                f"preflight={is_preflight}, "
-                f"allowed={is_origin_allowed}"
+            logger.debug(
+                "CORS请求: %s %s origin=%s, preflight=%s, allowed=%s",
+                request.method, request.url.path,
+                origin or "none", is_preflight, is_origin_allowed
             )
 
         # 自定义 send 函数来记录响应和添加追踪头
@@ -232,8 +229,6 @@ class CustomCORSMiddleware(CORSMiddleware):
 
         return False
 
-
-# datamind/api/middlewares/cors.py
 
 class DevelopmentCORSMiddleware(CustomCORSMiddleware):
     """开发环境专用的 CORS 中间件，允许所有源"""

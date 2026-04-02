@@ -35,16 +35,18 @@
 """
 
 
+import json
 import shutil
 from pathlib import Path
 from typing import BinaryIO, Optional, Union, List, Dict, Any
 from datetime import datetime
-import json
 
 from datamind.core.logging import log_audit, context
-from datamind.core.logging.debug import debug_print
+from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
 from datamind.storage.base import StorageBackend
+
+logger = get_logger(__name__)
 
 
 class LocalStorage(StorageBackend):
@@ -61,7 +63,7 @@ class LocalStorage(StorageBackend):
         super().__init__(base_path=base_path)
         self.root_path = Path(root_path)
         self.root_path.mkdir(parents=True, exist_ok=True)
-        debug_print("LocalStorage", f"本地存储根目录: {self.root_path}")
+        logger.debug("本地存储根目录: %s", self.root_path)
 
     async def save(self, path: str, content: BinaryIO,
                    metadata: Optional[Dict] = None) -> Dict[str, Any]:
@@ -108,7 +110,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"文件保存成功: {full_path}")
+        logger.debug("文件保存成功: %s", full_path)
 
         return {
             'path': str(full_path.relative_to(self.root_path)),
@@ -151,7 +153,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"文件加载成功: {full_path}")
+        logger.debug("文件加载成功: %s", full_path)
         return content
 
     async def delete(self, path: str, version: Optional[str] = None) -> bool:
@@ -189,7 +191,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"文件删除成功: {full_path}")
+        logger.debug("文件删除成功: %s", full_path)
         return True
 
     async def exists(self, path: str) -> bool:
@@ -244,7 +246,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"列出文件成功: {search_path}, 共 {len(files)} 个文件")
+        logger.debug("列出文件成功: %s, 共 %d 个文件", search_path, len(files))
         return files
 
     async def get_metadata(self, path: str) -> Dict[str, Any]:
@@ -290,7 +292,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"获取元数据成功: {full_path}")
+        logger.debug("获取元数据成功: %s", full_path)
         return metadata
 
     async def copy(self, source_path: str, dest_path: str) -> Dict[str, Any]:
@@ -331,7 +333,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"文件复制成功: {source_full} -> {dest_full}")
+        logger.debug("文件复制成功: %s -> %s", source_full, dest_full)
 
         return {
             'source': source_path,
@@ -377,7 +379,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        debug_print("LocalStorage", f"文件移动成功: {source_full} -> {dest_full}")
+        logger.debug("文件移动成功: %s -> %s", source_full, dest_full)
 
         return {
             'source': source_path,

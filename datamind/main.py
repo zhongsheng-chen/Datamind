@@ -26,7 +26,7 @@ from datamind.api.middlewares import (
 )
 from datamind.core.logging import log_manager, context, bootstrap
 from datamind.core.db.database import db_manager, init_db
-from datamind.core.ml.model.loader import get_model_loader
+from datamind.core.ml.model import get_model_loader
 from datamind.config import get_settings
 
 # 获取配置
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     bootstrap.bootstrap_info(f"模型加载器初始化完成，缓存TTL: {model_loader._cache_ttl}秒")
 
     bootstrap.bootstrap_info("初始化推理引擎...")
-    from datamind.core.ml.model.inference import get_inference_engine
+    from datamind.core.ml.model import get_inference_engine
     inference_engine = get_inference_engine()
     bootstrap.bootstrap_info(f"推理引擎初始化完成，缓存大小: {inference_engine._cache._max_size}")
 

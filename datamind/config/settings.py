@@ -47,7 +47,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .logging_config import LoggingConfig
 from .storage_config import StorageConfig
-from .scorecard_config import ScorecardDefaultConfig, ScorecardConstants
+from .scorecard_config import ScorecardDefaultConfig
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
