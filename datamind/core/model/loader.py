@@ -21,8 +21,8 @@
   - 链路追踪：完整的 span 追踪
 """
 
-import threading
 import time
+import threading
 import traceback
 from datetime import datetime
 from typing import Dict, Any, Optional, List
@@ -70,7 +70,7 @@ class ModelLoader:
         self._cache_ttl = cache_ttl
         self._max_concurrent_loads = max_concurrent_loads
         self._max_retries = max_retries
-        logger.debug("初始化模型加载器: cache_ttl=%d秒", cache_ttl)
+        logger.info("模型加载器初始化完成，缓存过期时间: %d秒", cache_ttl)
 
     def load_model(
             self,
@@ -105,7 +105,7 @@ class ModelLoader:
                     return True
 
             if self.is_loaded(model_id) and self._is_cache_expired(model_id):
-                logger.debug("模型缓存已过期，重新加载: %s", model_id)
+                logger.info("模型缓存已过期，重新加载: %s", model_id)
                 self.unload_model(model_id, operator, ip_address)
 
             try:
@@ -214,7 +214,8 @@ class ModelLoader:
                     request_id=request_id
                 )
 
-                logger.debug("模型加载成功: %s, 耗时: %.2f毫秒", model_id, duration)
+                logger.info("模型加载成功: %s v%s, 框架: %s, 耗时: %.2f毫秒",
+                           model_name, model_version, framework, duration)
                 return True
 
             except Exception as e:
@@ -236,6 +237,7 @@ class ModelLoader:
                     reason=str(e),
                     request_id=request_id
                 )
+                logger.error("模型加载失败: %s, 错误: %s", model_id, str(e))
                 raise ModelLoadException(f"模型加载失败: {model_id}, {str(e)}")
 
     def _load_from_bentoml(self, model_id: str, framework: str, file_path: str = None) -> Optional[Any]:
@@ -283,11 +285,14 @@ class ModelLoader:
             except BentoMLException as e:
                 if attempt < self._max_retries:
                     wait_time = 2 ** attempt
-                    logger.debug("加载失败，%d秒后重试 (%d/%d): %s", wait_time, attempt, self._max_retries, e)
+                    logger.warning("BentoML 加载失败，%d秒后重试 (%d/%d): %s",
+                                   wait_time, attempt, self._max_retries, str(e))
                     time.sleep(wait_time)
                 else:
+                    logger.error("BentoML 加载失败，已达最大重试次数: %s", model_id)
                     raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}, {str(e)}")
             except Exception as e:
+                logger.error("从 BentoML 加载模型异常: %s, %s", model_id, str(e))
                 raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}, {str(e)}")
 
         return None
@@ -310,6 +315,7 @@ class ModelLoader:
             lock = self.get_lock(model_id)
             with lock:
                 if model_id in self._loaded_models:
+                    model_name = self._loaded_models[model_id]['metadata'].get('model_name', model_id)
                     del self._loaded_models[model_id]
                     if model_id in self._model_locks:
                         del self._model_locks[model_id]
@@ -328,7 +334,7 @@ class ModelLoader:
                         request_id=request_id
                     )
 
-                    logger.debug("模型卸载成功: %s", model_id)
+                    logger.info("模型卸载成功: %s", model_name)
 
     def get_model(self, model_id: str, refresh: bool = False) -> Optional[Any]:
         """
@@ -538,11 +544,11 @@ class ModelLoader:
                 }
             )
 
-            logger.debug("模型预热成功: %s, 耗时: %.2f毫秒", model_id, duration)
+            logger.info("模型预热成功: %s, 框架: %s, 耗时: %.2f毫秒", model_id, framework, duration)
             return True
 
         except Exception as e:
-            logger.debug("模型预热失败: %s, %s", model_id, e)
+            logger.warning("模型预热失败: %s, 错误: %s", model_id, str(e))
             return False
 
     def _is_cache_expired(self, model_id: str) -> bool:
@@ -573,7 +579,7 @@ class ModelLoader:
             if self._is_cache_expired(model_id):
                 self.unload_model(model_id)
                 expired_count += 1
-                logger.debug("清除过期缓存: %s", model_id)
+                logger.info("清除过期缓存: %s", model_id)
         return expired_count
 
     def health_check(self) -> Dict[str, Any]:

@@ -668,7 +668,7 @@ class LogManager:
         """
         log_path = Path(self.config.log_dir) / filename
 
-        self._debug(f"🔧 创建文件处理器:")
+        self._debug(f"创建文件处理器:")
         self._debug(f"   - config.log_dir: '{self.config.log_dir}'")
         self._debug(f"   - filename: '{filename}'")
         self._debug(f"   - log_path: '{log_path}'")

@@ -7,6 +7,8 @@
 核心功能：
   - predict_proba: 预测违约概率
   - predict_proba_batch: 批量预测概率
+  - decision_function: 获取原始 logit 值
+  - decision_function_batch: 批量获取 logit 值
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
 
@@ -42,7 +44,7 @@ class XGBoostAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None
+        data_types: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化适配器
@@ -50,14 +52,13 @@ class XGBoostAdapter(BaseModelAdapter):
         参数:
             model: XGBoost 模型实例
             feature_names: 特征名称列表（可选）
-            transformer: WOE转换器（评分卡模型使用）
+            data_types: 特征数据类型映射，用于类型验证
         """
-        super().__init__(model, feature_names, transformer=transformer)
+        super().__init__(model, feature_names, data_types)
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        # XGBoost 不支持 coef，统一接口保留
-        self._coef_map = None
+        logger.debug("XGBoost 适配器初始化完成")
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -67,6 +68,8 @@ class XGBoostAdapter(BaseModelAdapter):
             ScorecardCapability 位掩码
         """
         return self._capabilities
+
+    # ==================== 核心预测方法 ====================
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -82,7 +85,7 @@ class XGBoostAdapter(BaseModelAdapter):
             proba = self.model.predict(X, iteration_range=(0, self.model.best_iteration + 1))[0]
             return float(proba)
         except Exception as e:
-            logger.error("XGBoost预测失败: %s", e)
+            logger.error("XGBoost 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -99,8 +102,35 @@ class XGBoostAdapter(BaseModelAdapter):
             probs = self.model.predict(X, iteration_range=(0, self.model.best_iteration + 1))
             return probs.tolist()
         except Exception as e:
-            logger.error("XGBoost批量预测失败: %s", e)
+            logger.error("XGBoost 批量预测失败: %s", e)
             raise
+
+    def decision_function(self, X: np.ndarray) -> float:
+        """
+        获取原始 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (1, n_features)
+
+        返回:
+            logit 值
+        """
+        # XGBoost 使用 output_margin=True 获取原始分数
+        return float(self.model.predict(X, output_margin=True)[0])
+
+    def decision_function_batch(self, X: np.ndarray) -> List[float]:
+        """
+        批量获取 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (n_samples, n_features)
+
+        返回:
+            logit 值列表
+        """
+        return self.model.predict(X, output_margin=True).tolist()
+
+    # ==================== 特征重要性 ====================
 
     def get_feature_importance(self, importance_type: str = 'gain') -> Dict[str, float]:
         """

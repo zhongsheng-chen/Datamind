@@ -5,15 +5,15 @@
 提供日志过滤功能：
   - RequestIdFilter: 请求ID过滤器，向日志记录添加 request_id/trace_id/span_id
   - SensitiveDataFilter: 敏感数据过滤器，脱敏敏感字段
-  - SamplingFilter: 采样过滤器，控制日志采样率
+  - SamplingFilter: 采样过滤器，控制日志采样率（在 Filter 层实现，避免空行污染）
 """
 
 import re
 import time
 import logging
 import threading
-from typing import Optional, Dict, Any, Pattern, Set
-from dataclasses import dataclass, field
+from typing import Optional, Dict, Any, Pattern
+from dataclasses import dataclass
 
 from datamind.config import LoggingConfig
 from datamind.core.logging.debug import debug_print
@@ -41,7 +41,10 @@ class FilterStats:
 
 
 class RequestIdFilter(logging.Filter):
-    """请求ID过滤器"""
+    """请求ID过滤器
+
+    向每条日志记录添加 request_id、trace_id、span_id，用于链路追踪。
+    """
 
     def __init__(self):
         super().__init__()
@@ -99,9 +102,19 @@ class RequestIdFilter(logging.Filter):
 
 
 class SensitiveDataFilter(logging.Filter):
-    """敏感数据过滤器"""
+    """敏感数据过滤器
+
+    自动识别并脱敏日志中的敏感信息，如密码、token、身份证号等。
+    支持 JSON 格式和表单格式的脱敏。
+    """
 
     def __init__(self, config: LoggingConfig):
+        """
+        初始化敏感数据过滤器
+
+        参数:
+            config: 日志配置对象
+        """
         super().__init__()
         self.config = config
         self._stats: FilterStats = FilterStats()
@@ -332,9 +345,26 @@ class SensitiveDataFilter(logging.Filter):
 
 
 class SamplingFilter(logging.Filter):
-    """日志采样过滤器"""
+    """日志采样过滤器
+
+    在 Filter 层实现日志采样，避免在 Formatter 层产生空行污染。
+
+    采样策略：
+        - 错误级别以上的日志总是记录
+        - 根据采样率随机丢弃日志
+        - 支持按时间间隔采样
+
+    使用示例：
+        handler.addFilter(SamplingFilter(config))
+    """
 
     def __init__(self, config: LoggingConfig):
+        """
+        初始化采样过滤器
+
+        参数:
+            config: 日志配置对象
+        """
         super().__init__()
         self.config = config
         self._stats: FilterStats = FilterStats()
@@ -421,6 +451,11 @@ class SamplingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         """判断是否应该记录此日志
 
+        采样优先级：
+            1. 错误级别以上的日志 -> 总是记录
+            2. 采样率检查 -> 按比例丢弃
+            3. 采样间隔检查 -> 按时间间隔丢弃
+
         参数:
             record: 日志记录对象
 
@@ -469,9 +504,12 @@ class SamplingFilter(logging.Filter):
         返回:
             统计信息字典
         """
+        retention_rate = 0
+        if self._stats.total_processed > 0:
+            retention_rate = (1 - self._stats.sampling_dropped / self._stats.total_processed) * 100
+
         return {
             'total_processed': self._stats.total_processed,
             'sampling_dropped': self._stats.sampling_dropped,
-            'retention_rate': 0 if self._stats.total_processed == 0 else
-            (1 - self._stats.sampling_dropped / self._stats.total_processed) * 100,
+            'retention_rate': round(retention_rate, 2),
         }

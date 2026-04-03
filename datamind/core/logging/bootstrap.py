@@ -362,8 +362,12 @@ def _broadcast_logs(buffer: List[logging.LogRecord], app_logger: logging.Logger)
 
         try:
             for record in buffer:
-                handler.handle(record)
-                flushed_count += 1
+                # 检查 handler 的级别是否允许该日志
+                if record.levelno >= handler.level:
+                    handler.handle(record)
+                    flushed_count += 1
+                else:
+                    _debug_log(f"    跳过日志 (级别 {record.levelname} < handler级别 {logging.getLevelName(handler.level)})")
 
             if hasattr(handler, "flush"):
                 handler.flush()

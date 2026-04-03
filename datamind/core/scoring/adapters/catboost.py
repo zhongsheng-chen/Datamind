@@ -7,6 +7,8 @@
 核心功能：
   - predict_proba: 预测违约概率
   - predict_proba_batch: 批量预测概率
+  - decision_function: 获取原始 logit 值
+  - decision_function_batch: 批量获取 logit 值
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
 
@@ -42,7 +44,7 @@ class CatBoostAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None
+        data_types: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化适配器
@@ -50,14 +52,11 @@ class CatBoostAdapter(BaseModelAdapter):
         参数:
             model: CatBoost 模型
             feature_names: 特征名称列表（可选）
-            transformer: WOE转换器（评分卡模型使用）
+            data_types: 特征数据类型映射，用于类型验证
         """
-        super().__init__(model, feature_names, transformer=transformer)
+        super().__init__(model, feature_names, data_types)
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
-
-        # CatBoost 不支持 coef，统一接口保留
-        self._coef_map = None
 
         # 尝试提取特征名（如果未提供）
         if feature_names is None:
@@ -77,11 +76,13 @@ class CatBoostAdapter(BaseModelAdapter):
         try:
             if hasattr(self.model, 'feature_names_'):
                 self.feature_names = list(self.model.feature_names_)
-                logger.debug("成功提取特征名: %s...", self.feature_names[:5])
+                logger.debug("成功提取 CatBoost 特征名，数量: %d", len(self.feature_names))
             else:
-                logger.debug("无法提取特征名，将使用默认命名")
+                logger.debug("CatBoost 模型无 feature_names_ 属性，将使用默认命名")
         except Exception as e:
-            logger.debug("提取特征名失败: %s", e)
+            logger.debug("提取 CatBoost 特征名失败: %s", e)
+
+    # ==================== 核心预测方法 ====================
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -100,7 +101,7 @@ class CatBoostAdapter(BaseModelAdapter):
                 proba = float(self.model.predict(X)[0])
             return float(proba)
         except Exception as e:
-            logger.error("CatBoost预测失败: %s", e)
+            logger.error("CatBoost 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -118,8 +119,35 @@ class CatBoostAdapter(BaseModelAdapter):
                 return self.model.predict_proba(X)[:, 1].tolist()
             return self.model.predict(X).tolist()
         except Exception as e:
-            logger.error("CatBoost批量预测失败: %s", e)
+            logger.error("CatBoost 批量预测失败: %s", e)
             raise
+
+    def decision_function(self, X: np.ndarray) -> float:
+        """
+        获取原始 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (1, n_features)
+
+        返回:
+            logit 值
+        """
+        # CatBoost 使用 prediction_type='RawFormulaVal' 获取原始分数
+        return float(self.model.predict(X, prediction_type='RawFormulaVal')[0])
+
+    def decision_function_batch(self, X: np.ndarray) -> List[float]:
+        """
+        批量获取 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (n_samples, n_features)
+
+        返回:
+            logit 值列表
+        """
+        return self.model.predict(X, prediction_type='RawFormulaVal').tolist()
+
+    # ==================== 特征重要性 ====================
 
     def get_feature_importance(self) -> Dict[str, float]:
         """
@@ -147,6 +175,6 @@ class CatBoostAdapter(BaseModelAdapter):
                     for name in importance:
                         importance[name] = importance[name] / total
         except Exception as e:
-            logger.error("获取CatBoost特征重要性失败: %s", e)
+            logger.error("获取 CatBoost 特征重要性失败: %s", e)
 
         return importance

@@ -15,7 +15,7 @@
   - 风险评分转换：将欺诈概率转换为 0-100 的风险评分
   - 风险因子提取：基于特征重要性提取主要风险因素
   - 完整审计：记录所有预测请求
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 链路追踪：完整的 span 追踪
 """
 
 import time
@@ -64,9 +64,7 @@ class FraudService:
 
     def __init__(self):
         """初始化反欺诈服务"""
-        debug = getattr(settings, 'debug', False)
-        self.base = BaseBentoService('fraud_detection', 'fraud_service', debug=debug)
-        self._debug_enabled = debug
+        self.base = BaseBentoService('fraud_detection', 'fraud_service')
 
         logger.info("反欺诈服务初始化完成")
 
@@ -182,16 +180,14 @@ class FraudService:
 
         # 验证必需参数
         if not application_id:
-            if self._debug_enabled:
-                logger.debug("application_id 为空")
+            logger.debug("请求参数缺失: application_id 为空")
             return {
                 "code": 1006,
                 "message": "参数错误",
                 "data": {"error": "application_id 不能为空"}
             }
         if not features:
-            if self._debug_enabled:
-                logger.debug("features 为空")
+            logger.debug("请求参数缺失: features 为空")
             return {
                 "code": 1006,
                 "message": "参数错误",
@@ -215,21 +211,22 @@ class FraudService:
                         'test_id': assignment['test_id'],
                         'group_name': assignment['group_name']
                     }
-                    if self._debug_enabled:
-                        logger.debug("A/B测试分配: test=%s, group=%s, model=%s",
-                                     ab_test_id, assignment['group_name'], actual_model_id)
+                    logger.info("A/B测试分流: 申请ID=%s, 测试ID=%s, 分组=%s, 模型ID=%s",
+                               application_id, ab_test_id, assignment['group_name'], actual_model_id)
+                else:
+                    logger.debug("用户不在测试中或没有模型ID: %s", assignment)
             except Exception as e:
-                logger.debug("A/B测试错误: %s", e)
+                logger.warning("A/B测试分配失败: 测试ID=%s, 申请ID=%s, 错误=%s",
+                              ab_test_id, application_id, e)
 
         # 如果没有指定模型，使用生产模型
         if not actual_model_id:
             prod_model_id, _, _ = self.base.get_production_model()
             if prod_model_id:
                 actual_model_id = prod_model_id
-                if self._debug_enabled:
-                    logger.debug("使用生产模型: %s", actual_model_id)
+                logger.info("使用生产模型: 申请ID=%s, 模型ID=%s", application_id, actual_model_id)
             else:
-                logger.warning("未指定 model_id 且没有生产模型")
+                logger.warning("未指定模型ID且没有生产模型: 申请ID=%s", application_id)
                 return {
                     "code": 1003,
                     "message": "模型未加载",
@@ -240,7 +237,7 @@ class FraudService:
             # 获取模型引擎
             _, engine, model_version = self.base.get_model(actual_model_id)
             if engine is None:
-                logger.warning("模型未加载: %s", actual_model_id)
+                logger.warning("模型未加载: 申请ID=%s, 模型ID=%s", application_id, actual_model_id)
                 return {
                     "code": 1003,
                     "message": "模型未加载",
@@ -259,17 +256,19 @@ class FraudService:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            if self._debug_enabled:
-                logger.debug("预测完成: model=%s, proba=%.6f, risk_score=%.2f, latency=%.2fms",
-                             actual_model_id, fraud_probability, risk_score, latency_ms)
+            logger.info("反欺诈预测完成: 申请ID=%s, 模型ID=%s, 版本=%s, 欺诈概率=%.6f, 风险评分=%.2f, 耗时=%.2fms",
+                       application_id, actual_model_id, model_version,
+                       fraud_probability, risk_score, latency_ms)
 
             # 获取特征重要性（如果需要详细信息）
             feature_importance = {}
             if return_details:
                 try:
                     feature_importance = engine.get_feature_importance()
+                    logger.debug("获取特征重要性成功: 申请ID=%s, 特征数量=%d",
+                                application_id, len(feature_importance))
                 except Exception as e:
-                    logger.debug("获取特征重要性失败: %s", e)
+                    logger.debug("获取特征重要性失败: 申请ID=%s, 错误=%s", application_id, e)
 
             # 获取风险因子
             risk_factors = self._get_risk_factors(features, feature_importance)
@@ -351,7 +350,8 @@ class FraudService:
             return response
 
         except ModelNotFoundException as e:
-            logger.warning("模型未找到: %s, %s", actual_model_id, e)
+            logger.warning("模型未找到: 申请ID=%s, 模型ID=%s, 错误=%s",
+                          application_id, actual_model_id, e)
             return {
                 "code": 1003,
                 "message": "模型未找到",
@@ -359,7 +359,8 @@ class FraudService:
             }
 
         except ModelInferenceException as e:
-            logger.error("模型预测失败: %s, %s", actual_model_id, e)
+            logger.error("模型预测失败: 申请ID=%s, 模型ID=%s, 错误=%s",
+                        application_id, actual_model_id, e)
             return {
                 "code": 1005,
                 "message": "模型预测失败",
@@ -367,7 +368,8 @@ class FraudService:
             }
 
         except Exception as e:
-            logger.error("预测失败: %s, error=%s", actual_model_id, e, exc_info=True)
+            logger.error("预测异常: 申请ID=%s, 模型ID=%s, 错误=%s",
+                        application_id, actual_model_id, e, exc_info=True)
             log_audit(
                 action=AuditAction.MODEL_INFERENCE.value,
                 user_id="bentoml",
@@ -393,10 +395,14 @@ class FraudService:
     async def health(self) -> Dict[str, Any]:
         """健康检查"""
         result = self.base.health_check()
-        logger.debug("健康检查: status=%s", result.get("status"))
+        status = result.get("status")
+        if status == "healthy":
+            logger.debug("健康检查: 状态=健康")
+        else:
+            logger.warning("健康检查: 状态=%s, 问题=%s", status, result.get("issues", []))
         return {
             "code": 0,
-            "message": "成功" if result.get("status") == "healthy" else "服务降级",
+            "message": "成功" if status == "healthy" else "服务降级",
             "data": result
         }
 
@@ -404,7 +410,7 @@ class FraudService:
     async def models(self) -> Dict[str, Any]:
         """列出已加载的模型"""
         models = self.base.get_loaded_models()
-        logger.debug("列出模型: total=%d", len(models))
+        logger.info("列出已加载模型: 服务=%s, 模型数量=%d", "fraud_service", len(models))
         return {
             "code": 0,
             "message": "成功",
@@ -420,86 +426,20 @@ class FraudService:
         """重新加载模型"""
         model_id = request.get("model_id")
         if not model_id:
+            logger.debug("重新加载模型请求缺少model_id参数")
             return {
                 "code": 1006,
                 "message": "参数错误",
                 "data": {"error": "model_id 不能为空"}
             }
-        logger.info("手动重新加载模型: %s", model_id)
+        logger.info("手动重新加载模型: 模型ID=%s", model_id)
         result = self.base.reload_model(model_id)
+        if result.get("success"):
+            logger.info("模型重新加载成功: 模型ID=%s, 版本=%s", model_id, result.get("version"))
+        else:
+            logger.error("模型重新加载失败: 模型ID=%s, 错误=%s", model_id, result.get("message"))
         return {
             "code": 0 if result.get("success") else 1001,
             "message": "成功" if result.get("success") else "失败",
             "data": result
         }
-
-
-# ==================== 测试代码 ====================
-if __name__ == "__main__":
-    import asyncio
-    import random
-
-    from datamind.core.logging.bootstrap import install_bootstrap_logger, flush_bootstrap_logs
-
-    install_bootstrap_logger()
-
-
-    async def run_test():
-        """测试反欺诈服务"""
-        service = FraudService()
-
-        logger.info("等待模型加载...")
-        await asyncio.sleep(3)
-
-        loaded_models = service.base.get_loaded_models()
-        logger.info("已加载模型: %s", loaded_models)
-
-        if not loaded_models:
-            logger.warning("没有已加载的模型，跳过测试")
-            return
-
-        def random_features():
-            return {
-                "amount": random.randint(1000, 500000),
-                "ip_risk": round(random.uniform(0, 1), 2),
-                "device_risk": round(random.uniform(0, 1), 2),
-                "location_risk": round(random.uniform(0, 1), 2),
-                "transaction_frequency": random.randint(1, 100),
-                "time_since_last": random.randint(0, 3600)
-            }
-
-        test_cases = [
-            {
-                "application_id": f"TEST_{context.generate_request_id()}",
-                "features": random_features(),
-                "return_details": True
-            }
-        ]
-
-        print("\n" + "=" * 60)
-        print("开始测试反欺诈服务")
-        print("=" * 60)
-
-        for i, test_case in enumerate(test_cases):
-            print(f"\n测试用例 {i + 1}:")
-            print(f"  application_id: {test_case['application_id']}")
-            print(f"  features: {json.dumps(test_case['features'], indent=4)}")
-            print(f"  return_details: {test_case['return_details']}")
-
-            try:
-                response = await service.predict(test_case)
-                print(f"\n响应:")
-                print(json.dumps(response, ensure_ascii=False, indent=2))
-            except Exception as e:
-                print(f"\n错误: {e}")
-                traceback.print_exc()
-
-        print("\n" + "=" * 60)
-        print("测试完成")
-        print("=" * 60)
-
-
-    try:
-        asyncio.run(run_test())
-    finally:
-        flush_bootstrap_logs()

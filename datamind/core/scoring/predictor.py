@@ -146,7 +146,7 @@ class Predictor:
                 return self._predict_proba_batch_vectorized(features_list, skip_errors)
             except Exception as e:
                 if skip_errors:
-                    logger.error("向量化批量预测失败，降级为循环: %s", e)
+                    logger.warning("向量化批量预测失败，降级为循环预测: %s", e)
                 else:
                     raise
 
@@ -299,7 +299,7 @@ class Predictor:
                 return self.adapter.predict_raw_batch(X_batch)
             except Exception as e:
                 if skip_errors:
-                    logger.error("向量化批量原始输出失败，降级为循环: %s", e)
+                    logger.warning("向量化批量原始输出失败，降级为循环预测: %s", e)
                 else:
                     raise
 

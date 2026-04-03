@@ -98,11 +98,9 @@ class ScoringEngine:
             self.capabilities, ScorecardCapability.BATCH_PREDICT
         )
 
-        logger.debug(
-            "评分引擎初始化完成，能力: %s, 支持批量: %s",
-            get_capability_list(self.capabilities),
-            self._supports_batch
-        )
+        logger.info("评分引擎初始化完成，模型能力: %s, 支持批量预测: %s",
+                   get_capability_list(self.capabilities),
+                   self._supports_batch)
 
     def _transform_features(self, features: Dict[str, Any]) -> Dict[str, float]:
         """
@@ -182,7 +180,7 @@ class ScoringEngine:
                 return self._score_batch_vectorized(features_list, return_proba, skip_errors)
             except Exception as e:
                 if skip_errors:
-                    logger.error("批量预测失败，降级为循环预测: %s", e)
+                    logger.warning("批量预测失败，降级为循环预测: %s", e)
                 else:
                     raise
 
