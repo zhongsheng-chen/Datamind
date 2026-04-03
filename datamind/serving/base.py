@@ -10,36 +10,33 @@
   - 热加载监控：检测模型版本变化，自动重新加载
   - 生产模型管理：自动加载生产环境配置的模型
   - 健康检查：检查数据库、模型加载状态
-  - 完整审计：记录模型加载、卸载、版本更新等操作
 
 特性：
   - 异步加载：不阻塞服务启动
   - 线程安全：使用锁保护共享资源
   - 热更新：检测模型版本变化自动重载
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 审计日志：记录模型加载、卸载、版本更新等操作
+  - 链路追踪：完整的 span 追踪
   - 多环境支持：development/testing/staging/production
 """
 
 import time
 import atexit
 import threading
-from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
+from typing import Dict, Any, Optional, List, Tuple
 
+from datamind.config import ScorecardConstants, get_settings
+from datamind.core.db.database import get_db
+from datamind.core.db.models import ModelDeployment, ModelMetadata
+from datamind.core.domain.enums import AuditAction, DeploymentEnvironment, ModelStatus, TaskType
+from datamind.core.logging import context, get_logger, log_audit
 from datamind.core.scoring.adapters import get_adapter
+from datamind.core.scoring.binning import Bin
 from datamind.core.scoring.engine import ScoringEngine
 from datamind.core.scoring.transform import WOETransformer
-from datamind.core.scoring.binning import Bin
-from datamind.core.db.database import get_db, db_manager
-from datamind.core.db.models import ModelDeployment, ModelMetadata
-from datamind.core.domain.enums import AuditAction, TaskType, ModelStatus, DeploymentEnvironment
-from datamind.core.logging import log_audit, context
-from datamind.core.logging import get_logger
-from datamind.config import ScorecardConstants
-from datamind.config import get_settings
 
 settings = get_settings()
-
 logger = get_logger(__name__)
 
 
@@ -60,18 +57,13 @@ class BaseBentoService:
         _reload_interval: 热加载检查间隔（秒）
     """
 
-    # 类级别锁，确保数据库只初始化一次
-    _db_lock = threading.RLock()
-    _db_initialized = False
-
-    def __init__(self, service_type: str, service_name: str, debug: bool = False):
+    def __init__(self, service_type: str, service_name: str):
         """
         初始化服务
 
         参数:
             service_type: 服务类型 (scoring/fraud_detection)
             service_name: 服务名称
-            debug: 是否启用调试日志（保留参数以兼容，但不再使用）
         """
         self.service_type = service_type
         self.service_name = service_name
@@ -92,8 +84,8 @@ class BaseBentoService:
         # 初始化状态
         self._initialized = False
 
-        # 初始化数据库连接
-        self._init_database()
+        # 注意：日志系统和数据库连接已在 main.py 中初始化
+        # 这里不再重复初始化
 
         # 加载生产模型（异步，不阻塞启动）
         self._load_production_model_async()
@@ -105,30 +97,6 @@ class BaseBentoService:
         atexit.register(self._cleanup)
 
         logger.info("服务初始化完成: 服务名称=%s, 任务类型=%s", service_name, self._task_type.value)
-
-    def _cleanup(self):
-        """清理资源（由 atexit 调用）"""
-        logger.info("开始清理资源...")
-
-        self._stop_reload.set()
-
-        if self._hot_reload_thread and self._hot_reload_thread.is_alive():
-            try:
-                self._hot_reload_thread.join(timeout=2)
-                if self._hot_reload_thread.is_alive():
-                    logger.warning("热加载线程未能在2秒内退出")
-                else:
-                    logger.debug("热加载线程已退出")
-            except Exception as e:
-                logger.error("等待热加载线程退出时出错: %s", e)
-
-        for model_id in list(self._active_models.keys()):
-            try:
-                self._unload_model(model_id)
-            except Exception as e:
-                logger.error("清理模型 %s 时出错: %s", model_id, e)
-
-        logger.info("资源清理完成")
 
     # ==================== 环境配置 ====================
 
@@ -143,20 +111,6 @@ class BaseBentoService:
         elif env == "testing":
             return DeploymentEnvironment.TESTING.value
         return DeploymentEnvironment.DEVELOPMENT.value
-
-    # ==================== 数据库初始化 ====================
-
-    def _init_database(self):
-        """初始化数据库连接（线程安全）"""
-        with self._db_lock:
-            if not self._db_initialized:
-                try:
-                    logger.debug("初始化数据库连接...")
-                    db_manager.initialize()
-                    self._db_initialized = True
-                    logger.info("数据库连接初始化成功")
-                except Exception as e:
-                    logger.error("数据库连接初始化失败: %s", e)
 
     # ==================== 模型加载/卸载 ====================
 
@@ -175,10 +129,6 @@ class BaseBentoService:
 
     def _load_production_model(self):
         """加载生产环境模型"""
-        if not self._db_initialized:
-            logger.debug("数据库未就绪，跳过生产模型加载")
-            return
-
         try:
             env_value = self._get_environment()
             logger.debug("当前环境: %s", env_value)
@@ -255,7 +205,7 @@ class BaseBentoService:
                 # 获取特征名
                 feature_names = model_info.input_features if hasattr(model_info, 'input_features') else None
 
-                # ========== 创建WOE转换器==========
+                # ========== 创建WOE转换器 ==========
                 transformer = None
                 if self._task_type == TaskType.SCORING:
                     # 从模型参数中获取评分卡配置
@@ -344,10 +294,6 @@ class BaseBentoService:
 
             while not self._stop_reload.is_set():
                 try:
-                    if not self._db_initialized:
-                        self._stop_reload.wait(self._reload_interval)
-                        continue
-
                     with get_db() as session:
                         deployments = session.query(ModelDeployment).filter(
                             ModelDeployment.environment == env_value,
@@ -526,10 +472,6 @@ class BaseBentoService:
         status = 'healthy'
         issues = []
 
-        if not self._db_initialized:
-            status = 'degraded'
-            issues.append('database_not_initialized')
-
         if not self._active_models:
             status = 'degraded'
             issues.append('no_models_loaded')
@@ -548,6 +490,32 @@ class BaseBentoService:
             'issues': issues,
             'timestamp': datetime.now().isoformat()
         }
+
+    # ==================== 清理 ====================
+
+    def _cleanup(self):
+        """清理资源（由 atexit 调用）"""
+        logger.info("开始清理资源...")
+
+        self._stop_reload.set()
+
+        if self._hot_reload_thread and self._hot_reload_thread.is_alive():
+            try:
+                self._hot_reload_thread.join(timeout=2)
+                if self._hot_reload_thread.is_alive():
+                    logger.warning("热加载线程未能在2秒内退出")
+                else:
+                    logger.debug("热加载线程已退出")
+            except Exception as e:
+                logger.error("等待热加载线程退出时出错: %s", e)
+
+        for model_id in list(self._active_models.keys()):
+            try:
+                self._unload_model(model_id)
+            except Exception as e:
+                logger.error("清理模型 %s 时出错: %s", model_id, e)
+
+        logger.info("资源清理完成")
 
     def stop(self):
         """停止服务"""

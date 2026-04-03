@@ -26,7 +26,6 @@ from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.common.frameworks import get_supported_frameworks as get_frameworks_list
 from datamind.core.logging import get_logger
 
-# 模块级 logger
 logger = get_logger(__name__)
 
 
@@ -165,7 +164,7 @@ def get_adapter(
         model,
         framework: Optional[str] = None,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None
+        data_types: Optional[Dict[str, Any]] = None,
 ) -> BaseModelAdapter:
     """
     获取模型适配器
@@ -179,7 +178,7 @@ def get_adapter(
         model: 训练好的模型
         framework: 框架名称（可选，推荐显式指定）
         feature_names: 特征名称列表（可选）
-        transformer: WOE转换器（可选，评分卡模型使用）
+        data_types: 特征数据类型映射（可选）
 
     返回:
         BaseModelAdapter 实例
@@ -206,7 +205,7 @@ def get_adapter(
 
         best = min(candidates, key=lambda x: x["priority"])
         logger.info("使用显式框架: %s -> %s", fw, best["class"].__name__)
-        return best["class"](model, feature_names, transformer=transformer)
+        return best["class"](model, feature_names, data_types)
 
     # ---------- 自动匹配 ----------
     best_score = -1
@@ -225,15 +224,12 @@ def get_adapter(
         score += kw_score * item.get("weight", 1)
 
         # 强匹配：can_handle
-        # 策略1：有 keyword 命中时执行
-        # 策略2：没有 keyword 但只有 can_handle 时也执行（兜底）
         if item["can_handle"] is not None:
             should_check = False
 
             if kw_score > 0:
                 should_check = True
             elif kw_score == 0 and not item["keywords"]:
-                # 没有配置 keyword，只依赖 can_handle 的适配器
                 should_check = True
 
             if should_check:
@@ -260,7 +256,7 @@ def get_adapter(
 
     logger.info("自动选择适配器: %s (模型: %s.%s, 匹配分数: %d)",
                best_cls.__name__, module, name, best_score)
-    return best_cls(model, feature_names, transformer=transformer)
+    return best_cls(model, feature_names, data_types)
 
 
 # ==================== 能力辅助 ====================

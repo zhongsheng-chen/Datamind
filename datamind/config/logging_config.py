@@ -1,4 +1,4 @@
-# Datamind/datamind/config/logging_config.py
+# datamind/config/logging_config.py
 
 """日志配置模块
 
@@ -34,6 +34,9 @@
   - TimestampPrecision: 时间戳精度（seconds/milliseconds/microseconds/nanoseconds）
   - EpochUnit: 纪元时间单位（seconds/milliseconds/microseconds/nanoseconds）
   - RotationStrategy: 轮转策略（size/time）
+
+日志字段常量（LogField）：
+  定义日志输出字段的标准化名称，避免魔法字符串，确保 ELK/Loki 等日志系统能够正确解析。
 """
 
 import re
@@ -45,13 +48,87 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# ==================== 日志字段常量 ====================
+
+class LogField:
+    """日志字段常量"""
+
+    # 核心字段
+    TIMESTAMP = "@timestamp"                       # ISO8601 时间戳（带时区）
+    LEVEL = "level"                                # 日志级别 (INFO/ERROR)
+    LEVEL_NO = "levelno"                           # 日志级别数字 (20/40)
+    MESSAGE = "message"                            # 日志内容
+    LOGGER = "logger"                              # logger 名称
+
+    # 运行环境字段
+    SERVICE = "service"                            # 服务名称
+    ENVIRONMENT = "environment"                    # 环境 (dev/test/prod)
+    HOSTNAME = "hostname"                          # 主机名
+    PID = "pid"                                    # 进程ID
+
+    # 请求链路字段
+    REQUEST_ID = "request_id"                      # 请求ID
+    TRACE_ID = "trace_id"                          # 链路追踪ID
+    SPAN_ID = "span_id"                            # Span ID
+    PARENT_SPAN_ID = "parent_span_id"              # 父Span ID
+
+    # 代码位置字段（调试用）
+    MODULE = "module"                              # 模块名
+    FUNC_NAME = "funcName"                         # 函数名
+    LINE_NO = "lineno"                             # 行号
+    FILE_NAME = "filename"                         # 文件名
+    PATH_NAME = "pathname"                         # 文件路径
+
+    # 线程/进程字段
+    THREAD_NAME = "threadName"                     # 线程名
+    PROCESS_NAME = "processName"                   # 进程名
+
+    # 异常字段
+    EXCEPTION_TYPE = "exception.type"              # 异常类型
+    EXCEPTION_MESSAGE = "exception.message"        # 异常消息
+    EXCEPTION_STACKTRACE = "exception.stacktrace"  # 异常堆栈
+
+    # 性能字段
+    DURATION_MS = "duration_ms"  # 耗时（毫秒）
+
+
+# ==================== 敏感字段配置 ====================
+
+class SensitiveField:
+    """敏感字段配置
+
+    定义需要脱敏的字段名称，用于日志输出时的自动脱敏处理。
+    """
+
+    # 默认敏感字段列表
+    DEFAULT_SENSITIVE_KEYS = [
+        "password", "token", "secret", "api_key", "api_secret",
+        "access_token", "refresh_token", "auth_token",
+        "credit_card", "card_number", "cvv", "cvc",
+        "id_number", "id_card", "ssn", "social_security",
+        "private_key", "pem", "certificate"
+    ]
+
+    # 系统保留字段（不允许被 extra 覆盖）
+    RESERVED_KEYS = {
+        LogField.TIMESTAMP, LogField.LEVEL, LogField.LEVEL_NO,
+        LogField.MESSAGE, LogField.LOGGER, LogField.SERVICE,
+        LogField.ENVIRONMENT, LogField.HOSTNAME, LogField.PID,
+        LogField.REQUEST_ID, LogField.TRACE_ID, LogField.SPAN_ID,
+        LogField.EXCEPTION_TYPE, LogField.EXCEPTION_MESSAGE,
+        LogField.EXCEPTION_STACKTRACE
+    }
+
+
+# ==================== 枚举定义 ====================
+
 class LogLevel(int, Enum):
     """日志级别枚举"""
-    DEBUG = logging.DEBUG  # 10
-    INFO = logging.INFO  # 20
-    WARNING = logging.WARNING  # 30
-    ERROR = logging.ERROR  # 40
-    CRITICAL = logging.CRITICAL  # 50
+    DEBUG = logging.DEBUG
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+    CRITICAL = logging.CRITICAL
 
 
 class LogFormat(str, Enum):
@@ -108,7 +185,8 @@ class RotationStrategy(str, Enum):
     TIME = "time"
 
 
-# 验证用的常量
+# ==================== 验证常量 ====================
+
 VALID_LOGRECORD_FIELDS = {
     'args', 'asctime', 'created', 'exc_info', 'exc_text', 'filename',
     'funcName', 'levelname', 'levelno', 'lineno', 'message', 'module',
@@ -118,6 +196,8 @@ VALID_LOGRECORD_FIELDS = {
 
 FIELD_PATTERN = re.compile(r"^[a-zA-Z0-9_.@\-\[\]]+$")
 
+
+# ==================== 日志配置 ====================
 
 class LoggingConfig(BaseSettings):
     """日志配置"""
@@ -144,6 +224,13 @@ class LoggingConfig(BaseSettings):
         default="utf-8",
         validation_alias="DATAMIND_LOG_ENCODING",
         description="日志文件编码"
+    )
+
+    # 采样配置（高并发场景）
+    sample_rate: float = Field(
+        default=1.0,
+        validation_alias="DATAMIND_LOG_SAMPLE_RATE",
+        description="日志采样率 (0.0-1.0)，1.0 表示记录所有日志"
     )
 
     # 调试配置
@@ -209,7 +296,7 @@ class LoggingConfig(BaseSettings):
 
     # JSON日志时间格式
     json_timestamp_field: str = Field(
-        default="@timestamp",
+        default=LogField.TIMESTAMP,
         validation_alias="DATAMIND_JSON_TIMESTAMP_FIELD",
         description="JSON日志时间戳字段名"
     )
@@ -224,7 +311,7 @@ class LoggingConfig(BaseSettings):
         description="是否使用纪元时间戳"
     )
     json_epoch_unit: EpochUnit = Field(
-        default="milliseconds",
+        default=EpochUnit.MILLISECONDS,
         validation_alias="DATAMIND_JSON_EPOCH_UNIT",
         description="纪元时间戳单位"
     )
@@ -285,10 +372,10 @@ class LoggingConfig(BaseSettings):
     )
     json_format: Dict[str, str] = Field(
         default_factory=lambda: {
-            "@timestamp": "asctime",
+            LogField.TIMESTAMP: "asctime",
             "log.level": "levelname",
             "log.logger": "name",
-            "message": "message",
+            LogField.MESSAGE: "message",
             "trace.id": "extra.request_id",
             "source.file": "filename",
             "source.line": "lineno",
@@ -392,9 +479,7 @@ class LoggingConfig(BaseSettings):
         description="是否启用敏感信息脱敏"
     )
     sensitive_fields: Set[str] = Field(
-        default_factory=lambda: {
-            "id_number", "phone", "card_number", "password", "token"
-        },
+        default_factory=lambda: set(SensitiveField.DEFAULT_SENSITIVE_KEYS),
         validation_alias="DATAMIND_SENSITIVE_FIELDS",
         description="敏感字段列表"
     )
@@ -513,20 +598,13 @@ class LoggingConfig(BaseSettings):
     @field_validator('level', 'console_level', mode='before')
     @classmethod
     def coerce_log_level(cls, v):
-        """将字符串或整数转换为 LogLevel 枚举"""
-        # 如果已经是 LogLevel 枚举，直接返回
         if isinstance(v, LogLevel):
             return v
-
-        # 如果是整数，尝试转换为对应的枚举
         if isinstance(v, int):
             try:
                 return LogLevel(v)
             except ValueError:
-                # 如果整数不在枚举范围内，返回默认值
                 return LogLevel.INFO
-
-        # 如果是字符串，转换为对应的枚举
         if isinstance(v, str):
             level_map = {
                 "DEBUG": LogLevel.DEBUG,
@@ -535,16 +613,12 @@ class LoggingConfig(BaseSettings):
                 "ERROR": LogLevel.ERROR,
                 "CRITICAL": LogLevel.CRITICAL,
             }
-            # 忽略大小写
             return level_map.get(v.upper(), LogLevel.INFO)
-
-        # 其他情况返回默认值
         return LogLevel.INFO
 
     @field_validator('sampling_rate')
     @classmethod
     def validate_sampling_rate(cls, v):
-        """验证采样率"""
         if v < 0 or v > 1:
             raise ValueError("采样率必须在0到1之间")
         return v
@@ -552,7 +626,6 @@ class LoggingConfig(BaseSettings):
     @field_validator('max_bytes')
     @classmethod
     def validate_max_bytes(cls, v):
-        """验证最大字节数"""
         if v < 0:
             raise ValueError("max_bytes 不能为负数")
         return v
@@ -560,7 +633,6 @@ class LoggingConfig(BaseSettings):
     @field_validator("json_format", mode="before")
     @classmethod
     def validate_json_format(cls, v):
-        """验证JSON格式配置"""
         if v is None:
             return v
 
@@ -597,7 +669,6 @@ class LoggingConfig(BaseSettings):
     @field_validator('rotation_at_time')
     @classmethod
     def validate_rotation_at_time(cls, v):
-        """验证轮转时间格式"""
         if v is not None:
             if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
                 raise ValueError("rotation_at_time 必须是 HH:MM 格式")
@@ -606,7 +677,6 @@ class LoggingConfig(BaseSettings):
     @field_validator('cleanup_at_time')
     @classmethod
     def validate_cleanup_at_time(cls, v):
-        """验证清理时间格式"""
         if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', v):
             raise ValueError("cleanup_at_time 必须是 HH:MM 格式")
         return v
@@ -614,7 +684,6 @@ class LoggingConfig(BaseSettings):
     @field_validator('log_dir')
     @classmethod
     def validate_log_dir(cls, v):
-        """验证日志目录"""
         if not v or v.strip() == "":
             raise ValueError("log_dir 不能为空")
         if '../' in v or '..\\' in v:
@@ -624,21 +693,18 @@ class LoggingConfig(BaseSettings):
     @field_validator('text_suffix', 'json_suffix')
     @classmethod
     def validate_suffix(cls, v):
-        """验证文件后缀"""
         if v and not re.match(r'^[a-zA-Z0-9_\-]+$', v):
             raise ValueError(f"文件后缀只能包含字母、数字、下划线和连字符: {v}")
         return v
 
     @model_validator(mode='after')
     def validate_remote_config(self):
-        """验证远程日志配置"""
         if self.enable_remote and not self.remote_url:
             raise ValueError("启用远程日志时必须提供 remote_url")
         return self
 
     @model_validator(mode='after')
     def validate_rotation_strategy(self):
-        """验证轮转策略配置"""
         if self.rotation_strategy == RotationStrategy.TIME:
             if not self.rotation_when:
                 raise ValueError("rotation_strategy=TIME 必须配置 rotation_when")
@@ -653,20 +719,43 @@ class LoggingConfig(BaseSettings):
 
     @model_validator(mode='after')
     def validate_json_timestamp(self):
-        """验证JSON日志时间戳配置"""
         if self.format in (LogFormat.JSON, LogFormat.BOTH):
             if self.json_timestamp_field not in self.json_format:
                 raise ValueError(f"json_format 必须包含 {self.json_timestamp_field}")
         return self
 
 
+# ==================== 全局配置实例 ====================
+
+_logging_config: Optional[LoggingConfig] = None
+
+
+def get_logging_config() -> LoggingConfig:
+    """获取日志配置实例"""
+    global _logging_config
+    if _logging_config is None:
+        _logging_config = LoggingConfig()
+    return _logging_config
+
+
+def reload_logging_config() -> LoggingConfig:
+    """重新加载日志配置"""
+    global _logging_config
+    _logging_config = LoggingConfig()
+    return _logging_config
+
+
 __all__ = [
     "LoggingConfig",
+    "get_logging_config",
+    "reload_logging_config",
     "LogLevel",
     "LogFormat",
     "RotationWhen",
     "TimeZone",
     "TimestampPrecision",
     "EpochUnit",
-    "RotationStrategy"
+    "RotationStrategy",
+    "LogField",
+    "SensitiveField",
 ]

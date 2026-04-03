@@ -8,7 +8,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from datamind.main import app
+from datamind.serving.main import app
 
 
 class TestAPIVersion:
@@ -49,7 +49,6 @@ class TestAPIVersion:
 
     def test_version_deprecation_header(self, client, monkeypatch):
         """测试版本弃用头"""
-        from datamind.config import get_settings
 
         # 模拟 v1 已弃用
         monkeypatch.setattr(

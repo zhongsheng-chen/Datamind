@@ -24,8 +24,8 @@
     - 缓存优化：SHAP explainer 按模型 ID 缓存，避免重复创建
 """
 
-from typing import Dict, List, Optional, Any
 import numpy as np
+from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, has_capability

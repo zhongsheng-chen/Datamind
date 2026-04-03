@@ -7,7 +7,7 @@
 核心功能：
   - 测试创建与管理：创建、启动、停止A/B测试
   - 流量分配：支持多种分配策略（随机、一致性、分桶、轮询、加权）
-  - 用户分组：根据策略将用户分配到不同的测试组
+  - 用户分组：永久一致性分组，同一用户在同一测试中永远分配到同一组
   - 结果记录：记录测试指标和用户行为
   - 结果分析：统计分析测试结果，判断获胜组
   - 缓存机制：使用Redis缓存用户分配结果，提升性能
@@ -19,6 +19,13 @@
   - ROUND_ROBIN: 轮询分配，按顺序循环分配
   - WEIGHTED: 加权分配，基于权重的随机分配
 
+设计原则：
+  - 永久一致性：同一用户在同一测试中永远分配到同一组
+  - 实验隔离：不同测试使用 test_id 与 user_id 的组合作为分组依据
+  - 无状态分组：分组结果可复现，不依赖数据库状态
+  - 数据库仅作记录：数据库只存储分配记录用于审计，不参与分组决策
+  - 永不过期：分配记录永久有效，不存在过期后重新分组的问题
+
 特性：
   - 流量控制：支持按百分比控制进入测试的流量
   - 时间控制：支持设置测试的开始和结束时间
@@ -26,7 +33,7 @@
   - 获胜判断：支持基于指标自动判断获胜组
   - Redis缓存：提升高并发场景下的分配性能
   - 完整审计：记录所有测试操作和用户分配
-  - 链路追踪：完整的 span 追踪
+  - 链路追踪：链路追踪：完整的 span 追踪
 """
 
 import time
@@ -75,14 +82,14 @@ class AssignmentStrategy(str, Enum):
 
     @classmethod
     def get_default(cls) -> str:
-        return cls.RANDOM.value
+        return cls.CONSISTENT.value
 
     @classmethod
     def get_description(cls, strategy: str) -> str:
         descriptions = {
-            cls.RANDOM.value: "每次请求随机分配，适用于无状态测试",
+            cls.RANDOM.value: "每次请求随机分配，不推荐金融场景使用",
             cls.CONSISTENT.value: "同一用户始终分配到同一组，保证用户体验一致性",
-            cls.BUCKET.value: "基于用户ID的哈希值分桶，适合大规模分流",
+            cls.BUCKET.value: "基于用户ID的哈希值分桶，适合大规模分流，结果可复现",
             cls.ROUND_ROBIN.value: "按顺序循环分配，适合均匀流量分配",
             cls.WEIGHTED.value: "基于权重的随机分配，可精细控制各组流量比例",
         }
@@ -101,6 +108,7 @@ class TrafficSplitter:
 
     @staticmethod
     def split_random(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """随机分配"""
         weights = [g.get('weight', 0) for g in groups]
         total = sum(weights)
         if abs(total - 100) > 0.01:
@@ -108,8 +116,18 @@ class TrafficSplitter:
         return random.choices(groups, weights=weights)[0]
 
     @staticmethod
-    def split_consistent(groups: List[Dict[str, Any]], user_id: str) -> Dict[str, Any]:
-        hash_val = int(hashlib.md5(user_id.encode()).hexdigest()[:8], 16) % 100
+    def split_consistent(groups: List[Dict[str, Any]], user_key: str) -> Dict[str, Any]:
+        """
+        一致性分配
+
+        参数:
+            groups: 测试组列表
+            user_key: 用户唯一标识（使用 test_id:user_id 实现实验隔离）
+
+        返回:
+            分配到的组
+        """
+        hash_val = int(hashlib.sha256(user_key.encode()).hexdigest()[:8], 16) % 100
         cumulative = 0
         for group in groups:
             cumulative += group.get('weight', 0)
@@ -118,8 +136,19 @@ class TrafficSplitter:
         return groups[-1]
 
     @staticmethod
-    def split_bucket(groups: List[Dict[str, Any]], user_id: str, bucket_count: int = 1000) -> Dict[str, Any]:
-        bucket = int(hashlib.md5(user_id.encode()).hexdigest()[:8], 16) % bucket_count
+    def split_bucket(groups: List[Dict[str, Any]], user_key: str, bucket_count: int = 1000) -> Dict[str, Any]:
+        """
+        分桶分配
+
+        参数:
+            groups: 测试组列表
+            user_key: 用户唯一标识（使用 test_id:user_id 实现实验隔离）
+            bucket_count: 桶数量，默认1000
+
+        返回:
+            分配到的组
+        """
+        bucket = int(hashlib.sha256(user_key.encode()).hexdigest()[:8], 16) % bucket_count
         buckets_per_group = []
         for group in groups:
             group_buckets = int(group.get('weight', 0) / 100 * bucket_count)
@@ -133,6 +162,7 @@ class TrafficSplitter:
 
     @staticmethod
     def split_round_robin(groups: List[Dict[str, Any]], counter: int = None) -> Dict[str, Any]:
+        """轮询分配"""
         if counter is None:
             counter = random.randint(0, len(groups) - 1)
         weighted_groups = []
@@ -145,11 +175,23 @@ class TrafficSplitter:
 
     @staticmethod
     def split_weighted(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """加权随机分配"""
         weights = [g.get('weight', 0) for g in groups]
         return random.choices(groups, weights=weights)[0]
 
     @classmethod
-    def split(cls, groups: List[Dict[str, Any]], strategy: str, user_id: str = None, **kwargs) -> Dict[str, Any]:
+    def split(cls, groups: List[Dict[str, Any]], strategy: str, user_key: str = None, **kwargs) -> Dict[str, Any]:
+        """
+        核心分组方法
+
+        参数:
+            groups: 测试组列表
+            strategy: 分配策略
+            user_key: 用户唯一标识（一致性分配和分桶分配需要提供）
+
+        返回:
+            分配到的组
+        """
         if not groups:
             raise ValueError("测试组列表不能为空")
         strategy = strategy or AssignmentStrategy.get_default()
@@ -157,14 +199,14 @@ class TrafficSplitter:
         if strategy == AssignmentStrategy.RANDOM:
             return cls.split_random(groups)
         elif strategy == AssignmentStrategy.CONSISTENT:
-            if not user_id:
-                raise ValueError("一致性分配需要提供 user_id")
-            return cls.split_consistent(groups, user_id)
+            if not user_key:
+                raise ValueError("一致性分配需要提供 user_key")
+            return cls.split_consistent(groups, user_key)
         elif strategy == AssignmentStrategy.BUCKET:
-            if not user_id:
-                raise ValueError("分桶分配需要提供 user_id")
+            if not user_key:
+                raise ValueError("分桶分配需要提供 user_key")
             bucket_count = kwargs.get('bucket_count', 1000)
-            return cls.split_bucket(groups, user_id, bucket_count)
+            return cls.split_bucket(groups, user_key, bucket_count)
         elif strategy == AssignmentStrategy.ROUND_ROBIN:
             counter = kwargs.get('counter')
             return cls.split_round_robin(groups, counter)
@@ -173,8 +215,8 @@ class TrafficSplitter:
         else:
             raise ValueError(f"不支持的分配策略: {strategy}")
 
-    def split_with_stats(self, groups: List[Dict[str, Any]], user_id: str = None, **kwargs) -> Dict[str, Any]:
-        result = self.split(groups, self.strategy, user_id, **kwargs)
+    def split_with_stats(self, groups: List[Dict[str, Any]], user_key: str = None, **kwargs) -> Dict[str, Any]:
+        result = self.split(groups, self.strategy, user_key, **kwargs)
         self._stats['total_splits'] += 1
         strategy_key = self.strategy
         if strategy_key not in self._stats['strategy_usage']:
@@ -199,7 +241,7 @@ class ABTestManager:
 
         self.enabled = ab_test_config.enabled
         self.redis_key_prefix = ab_test_config.redis_key_prefix
-        self.assignment_expiry = ab_test_config.assignment_expiry
+        self.assignment_expiry = 365 * 24 * 3600
 
         self.redis_url = redis_config.url
         self.redis_password = redis_config.password
@@ -240,7 +282,7 @@ class ABTestManager:
             created_by: str,
             description: Optional[str] = None,
             traffic_allocation: float = 100.0,
-            assignment_strategy: str = 'random',
+            assignment_strategy: str = 'consistent',
             start_date: Optional[datetime] = None,
             end_date: Optional[datetime] = None,
             metrics: Optional[List[str]] = None,
@@ -305,8 +347,8 @@ class ABTestManager:
                 request_id=request_id
             )
 
-            logger.info("A/B测试创建成功: test_id=%s, 名称=%s, 任务类型=%s, 创建人=%s",
-                       test_id, test_name, task_type, created_by)
+            logger.info("A/B测试创建成功: test_id=%s, 名称=%s, 策略=%s, 创建人=%s",
+                       test_id, test_name, assignment_strategy, created_by)
             return test_id
 
         except Exception as e:
@@ -414,18 +456,41 @@ class ABTestManager:
             user_id: str,
             ip_address: Optional[str] = None
     ) -> Dict[str, Any]:
+        """
+        获取用户分组分配
+
+        参数:
+            test_id: A/B测试ID
+            user_id: 用户唯一标识（建议使用 customer_id，不要使用 application_id）
+            ip_address: 客户端IP地址
+
+        注意:
+            user_id 应该是客户的永久标识（如 customer_id），
+            如果使用每次申请的临时ID（如 application_id），会导致同一客户每次申请分配到不同组。
+
+        返回:
+            分配结果字典
+        """
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = time.time()
 
+        # 检查是否误用了 application_id
+        if user_id and user_id.lower().startswith(("ap_", "app_", "apply_", "application_", "req_")):
+            logger.warning(
+                "A/B测试分组: user_id=%s 可能是 application_id，建议使用 customer_id 以保证永久一致性",
+                user_id
+            )
+
         try:
             cache_key = f"{self.redis_key_prefix}{test_id}:{user_id}"
+
             if self.redis_client:
                 cached = self.redis_client.get(cache_key)
                 if cached:
                     self._stats['cache_hits'] += 1
-                    logger.debug("A/B测试分配缓存命中: %s", cache_key)
+                    logger.debug("A/B测试分配缓存命中: test_id=%s, user_id=%s", test_id, user_id)
                     return json.loads(cached)
 
             self._stats['cache_misses'] += 1
@@ -439,10 +504,7 @@ class ABTestManager:
                 if not test:
                     raise ABTestException(f"测试不存在或未运行: {test_id}")
 
-                # 获取当前时间（带时区）
                 now = datetime.now(timezone.utc)
-
-                # 确保 start_date 和 end_date 带时区
                 start_date = _ensure_tzaware(test.start_date)
                 end_date = _ensure_tzaware(test.end_date)
 
@@ -459,77 +521,63 @@ class ABTestManager:
                         'in_test': False
                     }
 
+                user_key = f"{test_id}:{user_id}"
+                group = TrafficSplitter.split(
+                    groups=test.groups,
+                    strategy=test.assignment_strategy,
+                    user_key=user_key
+                )
+
                 existing = session.query(ABTestAssignment).filter_by(
                     test_id=test_id,
                     user_id=user_id
                 ).first()
 
-                if existing:
-                    expires_at = _ensure_tzaware(existing.expires_at)
-                    if expires_at and now > expires_at:
-                        session.delete(existing)
-                        session.commit()
-                    else:
-                        result = {
-                            'test_id': test_id,
-                            'user_id': user_id,
-                            'group_name': existing.group_name,
-                            'model_id': existing.model_id,
-                            'assigned_at': existing.assigned_at.isoformat(),
-                            'in_test': True
-                        }
-                        self._cache_assignment(cache_key, result)
-                        return result
+                if not existing:
+                    assignment = ABTestAssignment(
+                        test_id=test_id,
+                        user_id=user_id,
+                        group_name=group['name'],
+                        model_id=group['model_id'],
+                        expires_at=None
+                    )
+                    session.add(assignment)
+                    session.commit()
 
-                group = TrafficSplitter.split(
-                    groups=test.groups,
-                    strategy=test.assignment_strategy,
-                    user_id=user_id
-                )
+            result = {
+                'test_id': test_id,
+                'user_id': user_id,
+                'group_name': group['name'],
+                'model_id': group['model_id'],
+                'assigned_at': now.isoformat(),
+                'in_test': True
+            }
 
-                assignment = ABTestAssignment(
-                    test_id=test_id,
-                    user_id=user_id,
-                    group_name=group['name'],
-                    model_id=group['model_id'],
-                    expires_at=now + timedelta(seconds=self.assignment_expiry)
-                )
-                session.add(assignment)
-                session.commit()
+            self._cache_assignment(cache_key, result)
+            self._stats['total_assignments'] += 1
 
-                result = {
-                    'test_id': test_id,
-                    'user_id': user_id,
-                    'group_name': group['name'],
-                    'model_id': group['model_id'],
-                    'assigned_at': now.isoformat(),
-                    'in_test': True
-                }
+            duration = (time.time() - start_time) * 1000
 
-                self._cache_assignment(cache_key, result)
-                self._stats['total_assignments'] += 1
+            log_audit(
+                action=AuditAction.AB_TEST_ASSIGNMENT.value,
+                user_id=user_id,
+                ip_address=ip_address,
+                resource_type="ab_test",
+                resource_id=test_id,
+                details={
+                    "group_name": group['name'],
+                    "model_id": group['model_id'],
+                    "strategy": test.assignment_strategy,
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
 
-                duration = (time.time() - start_time) * 1000
-                log_audit(
-                    action=AuditAction.AB_TEST_ASSIGNMENT.value,
-                    user_id=user_id,
-                    ip_address=ip_address,
-                    resource_type="ab_test",
-                    resource_id=test_id,
-                    details={
-                        "group_name": group['name'],
-                        "model_id": group['model_id'],
-                        "strategy": test.assignment_strategy,
-                        "duration_ms": round(duration, 2),
-                        "span_id": span_id,
-                        "parent_span_id": parent_span_id
-                    },
-                    request_id=request_id
-                )
-
-                logger.debug("A/B测试分配成功: test_id=%s, user_id=%s, group=%s, model_id=%s",
-                            test_id, user_id, group['name'], group['model_id'])
-                return result
+            logger.debug("A/B测试分配成功: test_id=%s, user_id=%s, group=%s, model_id=%s",
+                        test_id, user_id, group['name'], group['model_id'])
+            return result
 
         except Exception as e:
             duration = (time.time() - start_time) * 1000
@@ -550,9 +598,6 @@ class ABTestManager:
             )
             logger.error("A/B测试分配失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, e)
             raise
-
-    def _assign_group(self, groups: List[Dict], user_id: str, strategy: str) -> Dict:
-        return TrafficSplitter.split(groups, strategy, user_id)
 
     def _cache_assignment(self, key: str, value: Dict, ttl: int = 3600):
         if self.redis_client:

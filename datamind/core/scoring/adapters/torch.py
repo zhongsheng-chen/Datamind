@@ -7,6 +7,8 @@
 核心功能：
   - predict_proba: 预测违约概率
   - predict_proba_batch: 批量预测概率
+  - decision_function: 获取原始 logit 值
+  - decision_function_batch: 批量获取 logit 值
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
 
@@ -42,7 +44,7 @@ class TorchAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None
+        data_types: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化适配器
@@ -50,9 +52,9 @@ class TorchAdapter(BaseModelAdapter):
         参数:
             model: PyTorch 模型（nn.Module 实例）
             feature_names: 特征名称列表（可选）
-            transformer: WOE转换器（评分卡模型使用）
+            data_types: 特征数据类型映射，用于类型验证
         """
-        super().__init__(model, feature_names, transformer=transformer)
+        super().__init__(model, feature_names, data_types)
 
         self.device = next(model.parameters()).device
         self.model.eval()
@@ -69,6 +71,8 @@ class TorchAdapter(BaseModelAdapter):
             ScorecardCapability 位掩码
         """
         return self._capabilities
+
+    # ==================== 核心预测方法 ====================
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -123,6 +127,50 @@ class TorchAdapter(BaseModelAdapter):
         except Exception as e:
             logger.error("PyTorch 批量预测失败: %s", e)
             raise
+
+    def decision_function(self, X: np.ndarray) -> float:
+        """
+        获取原始 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (1, n_features)
+
+        返回:
+            logit 值
+        """
+        X_tensor = torch.from_numpy(X).float().to(self.device)
+
+        with torch.no_grad():
+            output = self.model(X_tensor)
+
+            if output.shape[-1] == 2:
+                logit = output[0, 1].item()
+            else:
+                logit = output.item() if output.numel() == 1 else output[0].item()
+
+        return float(logit)
+
+    def decision_function_batch(self, X: np.ndarray) -> List[float]:
+        """
+        批量获取 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (n_samples, n_features)
+
+        返回:
+            logit 值列表
+        """
+        X_tensor = torch.from_numpy(X).float().to(self.device)
+
+        with torch.no_grad():
+            output = self.model(X_tensor)
+
+            if output.shape[-1] == 2:
+                logits = output[:, 1].cpu().numpy()
+            else:
+                logits = output.cpu().numpy().flatten()
+
+        return logits.tolist()
 
     def get_feature_importance(self) -> Dict[str, float]:
         """

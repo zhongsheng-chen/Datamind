@@ -15,7 +15,7 @@
   - 多解释体系：统一接口支持 scorecard/shap/unsupported 三种解释类型
   - 特征贡献转换：使用 ContributionConverter 确保评分贡献转换一致性
   - 完整审计：记录所有预测请求
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 链路追踪：完整的 span 追踪
 """
 
 import time
@@ -66,7 +66,7 @@ class ScoringService:
 
     def __init__(self):
         """初始化评分卡服务"""
-        self.base = BaseBentoService('scoring', 'scoring_service', debug=False)
+        self.base = BaseBentoService('scoring', 'scoring_service')
 
         logger.info("评分卡服务初始化完成")
 
@@ -529,74 +529,3 @@ class ScoringService:
             "message": "成功" if result.get("success") else "失败",
             "data": result
         }
-
-
-# ==================== 测试代码 ====================
-if __name__ == "__main__":
-    import asyncio
-    import random
-
-    from datamind.core.logging.bootstrap import install_bootstrap_logger, flush_bootstrap_logs
-
-    install_bootstrap_logger()
-
-
-    async def run_test():
-        """测试评分卡服务"""
-        service = ScoringService()
-
-        logger.info("等待模型加载...")
-        await asyncio.sleep(3)
-
-        loaded_models = service.base.get_loaded_models()
-        logger.info("已加载模型: %s", loaded_models)
-
-        if not loaded_models:
-            logger.warning("没有已加载的模型，跳过测试")
-            return
-
-        def random_features():
-            return {
-                "age": random.randint(18, 65),
-                "income": random.randint(30000, 150000),
-                "debt_ratio": round(random.uniform(0, 0.8), 2),
-                "credit_history": random.randint(300, 850),
-                "employment_years": random.randint(0, 40),
-                "loan_amount": random.randint(10000, 500000)
-            }
-
-        test_cases = [
-            {
-                "application_id": f"TEST_{context.generate_request_id()}",
-                "features": random_features(),
-                "return_details": True
-            }
-        ]
-
-        print("\n" + "=" * 60)
-        print("开始测试评分卡服务")
-        print("=" * 60)
-
-        for i, test_case in enumerate(test_cases):
-            print(f"\n测试用例 {i + 1}:")
-            print(f"  application_id: {test_case['application_id']}")
-            print(f"  features: {json.dumps(test_case['features'], indent=4)}")
-            print(f"  return_details: {test_case['return_details']}")
-
-            try:
-                response = await service.predict(test_case)
-                print(f"\n响应:")
-                print(json.dumps(response, ensure_ascii=False, indent=2))
-            except Exception as e:
-                print(f"\n错误: {e}")
-                traceback.print_exc()
-
-        print("\n" + "=" * 60)
-        print("测试完成")
-        print("=" * 60)
-
-
-    try:
-        asyncio.run(run_test())
-    finally:
-        flush_bootstrap_logs()

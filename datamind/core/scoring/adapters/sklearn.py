@@ -7,6 +7,8 @@
 核心功能：
   - predict_proba: 预测违约概率
   - predict_proba_batch: 批量预测概率
+  - decision_function: 获取原始 logit 值
+  - decision_function_batch: 批量获取 logit 值
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
   - get_coef: 获取特征系数（仅逻辑回归模型）
@@ -43,7 +45,7 @@ class SklearnAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None
+        data_types: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化适配器
@@ -51,9 +53,9 @@ class SklearnAdapter(BaseModelAdapter):
         参数:
             model: sklearn 模型或 Pipeline
             feature_names: 特征名称列表（可选，不提供时尝试从模型提取）
-            transformer: WOE转换器（评分卡模型使用）
+            data_types: 特征数据类型映射，用于类型验证
         """
-        super().__init__(model, feature_names, transformer=transformer)
+        super().__init__(model, feature_names, data_types)
 
         self.capabilities = infer_capabilities(self)
 
@@ -161,6 +163,8 @@ class SklearnAdapter(BaseModelAdapter):
         except Exception as e:
             logger.debug("从 Pipeline 提取特征名失败: %s", e)
 
+    # ==================== 核心预测方法 ====================
+
     def predict_proba(self, X: np.ndarray) -> float:
         """
         预测违约概率
@@ -198,6 +202,39 @@ class SklearnAdapter(BaseModelAdapter):
         except Exception as e:
             logger.error("Sklearn 批量预测失败: %s", e)
             raise
+
+    def decision_function(self, X: np.ndarray) -> float:
+        """
+        获取原始 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (1, n_features)
+
+        返回:
+            logit 值
+        """
+        if hasattr(self.model, "decision_function"):
+            return float(self.model.decision_function(X)[0])
+        # 降级：从概率反推（不推荐，但作为 fallback）
+        proba = self.predict_proba(X)
+        proba = np.clip(proba, 1e-15, 1 - 1e-15)
+        return float(np.log(proba / (1 - proba)))
+
+    def decision_function_batch(self, X: np.ndarray) -> List[float]:
+        """
+        批量获取 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (n_samples, n_features)
+
+        返回:
+            logit 值列表
+        """
+        if hasattr(self.model, "decision_function"):
+            return self.model.decision_function(X).tolist()
+        return super().decision_function_batch(X)
+
+    # ==================== 评分卡专用方法 ====================
 
     def predict_score(self, X: np.ndarray) -> float:
         """
@@ -261,6 +298,10 @@ class SklearnAdapter(BaseModelAdapter):
 
         返回:
             特征贡献分数
+
+        异常:
+            RuntimeError: 非逻辑回归模型
+            ValueError: 特征不存在
         """
         if self._coef_map is None:
             raise RuntimeError("当前模型不支持特征分计算，仅逻辑回归模型支持")
@@ -279,6 +320,9 @@ class SklearnAdapter(BaseModelAdapter):
 
         返回:
             特征名到贡献分数的映射
+
+        异常:
+            RuntimeError: 非逻辑回归模型
         """
         if self._coef_map is None:
             raise RuntimeError("当前模型不支持特征分计算，仅逻辑回归模型支持")
@@ -296,6 +340,9 @@ class SklearnAdapter(BaseModelAdapter):
 
         返回:
             评分卡配置字典
+
+        异常:
+            RuntimeError: 非逻辑回归模型
         """
         if self._coef_map is None:
             raise RuntimeError("当前模型不支持评分卡导出，仅逻辑回归模型支持")
@@ -315,6 +362,10 @@ class SklearnAdapter(BaseModelAdapter):
 
         返回:
             特征系数
+
+        异常:
+            RuntimeError: 非逻辑回归模型
+            ValueError: 特征不存在
         """
         if self._coef_map is None:
             raise RuntimeError("当前模型不支持系数提取，请确保模型类型为逻辑回归")

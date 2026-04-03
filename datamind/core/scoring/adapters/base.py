@@ -6,8 +6,11 @@
 
 核心功能：
   - predict_proba: 预测违约概率（抽象方法，子类必须实现）
+  - decision_function: 获取原始 logit 值（抽象方法，子类必须实现）
   - predict_proba_batch: 批量预测概率（子类可重写优化）
+  - decision_function_batch: 批量获取 logit（子类可重写优化）
   - predict: 统一的预测接口，自动识别输入类型并分发
+  - predict_logit: 统一的 logit 预测接口
   - to_array: 特征字典转 numpy 数组
   - to_array_batch: 批量特征字典转 numpy 数组
   - get_feature_importance: 获取特征重要性（子类可重写）
@@ -20,8 +23,10 @@
   - 统一接口：所有框架模型通过相同方式调用
   - 类型自动识别：无需手动转换输入格式
   - 特征顺序保证：支持指定特征名列表，确保数组顺序与训练时一致
+  - 缺失值保留：None 转换为 NaN，由 WOETransformer 处理
+  - 分类型保留：字符串等分类特征保持原值，不强制转 float
   - 批量优化：子类可重写 predict_proba_batch 实现向量化计算
-  - 易于扩展：新增框架只需继承并实现 predict_proba 方法
+  - 易于扩展：新增框架只需继承并实现 predict_proba 和 decision_function
   - 能力驱动：支持模型能力声明和运行时检查
 """
 
@@ -31,7 +36,6 @@ from typing import Dict, Any, List, Optional, Union, Tuple
 
 from datamind.core.logging import get_logger
 from datamind.core.domain.enums import DataType
-from datamind.core.scoring.capability import ScorecardCapability
 
 logger = get_logger(__name__)
 
@@ -44,23 +48,29 @@ class BaseModelAdapter(ABC):
         model,
         feature_names: Optional[List[str]] = None,
         data_types: Optional[Dict[str, DataType]] = None,
-        transformer: Optional[Any] = None
     ):
         """
         初始化适配器
 
         参数:
             model: 训练好的模型
-            feature_names: 特征名称列表（用于保证特征顺序）
+            feature_names: 特征名称列表，用于保证特征顺序
             data_types: 特征数据类型映射，用于类型验证
-            transformer: WOE转换器（评分卡模型使用）
         """
         self.model = model
         self.feature_names = feature_names
         self.data_types = data_types or {}
-        self.transformer = transformer
 
-        logger.debug("初始化适配器: %s", self.__class__.__name__)
+        # 预构建特征索引
+        self._feature_index: Optional[Dict[str, int]] = None
+        if feature_names:
+            self._feature_index = {name: idx for idx, name in enumerate(feature_names)}
+
+        # 记录特征类型分布
+        numeric_count = sum(1 for dt in self.data_types.values() if dt == DataType.NUMERIC)
+        categorical_count = sum(1 for dt in self.data_types.values() if dt == DataType.CATEGORICAL)
+        logger.debug("初始化适配器: %s, 特征数=%d, 数值型=%d, 分类型=%d",
+                    self.__class__.__name__, len(feature_names or []), numeric_count, categorical_count)
 
     # ==================== 核心抽象方法 ====================
 
@@ -77,12 +87,33 @@ class BaseModelAdapter(ABC):
         """
         pass
 
+    @abstractmethod
+    def decision_function(self, X: np.ndarray) -> float:
+        """
+        获取原始 logit 值（核心方法，子类必须实现）
+
+        这是评分卡 explain 的基础，子类必须直接调用模型的原始输出：
+          - sklearn: model.decision_function(X)
+          - XGBoost: model.predict(X, output_margin=True)
+          - LightGBM: model.predict(X, raw_score=True)
+          - CatBoost: model.predict(X, prediction_type='RawFormulaVal')
+
+        参数:
+            X: 输入特征数组，形状为 (1, n_features)
+
+        返回:
+            logit 值（原始模型输出）
+        """
+        pass
+
+    # ==================== 批量方法 ====================
+
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
         """
         批量预测概率（子类可重写优化）
 
         默认实现为循环调用单条预测，效率较低。
-        支持向量化的模型（sklearn、tensorflow、xgboost等）应重写此方法。
+        支持向量化的模型（sklearn、xgboost等）应重写此方法。
 
         参数:
             X: 输入特征数组，形状为 (n_samples, n_features)
@@ -92,6 +123,19 @@ class BaseModelAdapter(ABC):
         """
         logger.debug("使用默认循环批量预测，样本数: %d", len(X))
         return [self.predict_proba(x.reshape(1, -1)) for x in X]
+
+    def decision_function_batch(self, X: np.ndarray) -> List[float]:
+        """
+        批量获取原始 logit 值（子类可重写优化）
+
+        参数:
+            X: 输入特征数组，形状为 (n_samples, n_features)
+
+        返回:
+            logit 值列表
+        """
+        logger.debug("使用默认循环批量获取 logit，样本数: %d", len(X))
+        return [self.decision_function(x.reshape(1, -1)) for x in X]
 
     # ==================== 统一预测接口 ====================
 
@@ -113,7 +157,6 @@ class BaseModelAdapter(ABC):
         异常:
             ValueError: 输入类型不支持或数据为空
         """
-        # 处理空数据
         if X is None:
             raise ValueError("输入数据不能为 None")
 
@@ -129,7 +172,7 @@ class BaseModelAdapter(ABC):
         if isinstance(X, dict):
             missing, type_errors = self.validate_features_with_types(X)
             if missing:
-                logger.debug("缺失特征: %s，将使用默认值 0", missing)
+                logger.debug("缺失特征: %s，将转换为 NaN 由 WOE 处理", missing)
             if type_errors:
                 logger.warning("类型错误: %s", type_errors)
 
@@ -138,7 +181,6 @@ class BaseModelAdapter(ABC):
 
         # 处理字典列表输入（批量）
         if isinstance(X, list) and X and isinstance(X[0], dict):
-            # 批量验证（仅对小批量验证，避免性能损耗）
             if len(X) <= 100:
                 for i, features in enumerate(X[:5]):
                     missing, type_errors = self.validate_features_with_types(features)
@@ -153,67 +195,94 @@ class BaseModelAdapter(ABC):
         # 处理数组输入
         if isinstance(X, np.ndarray):
             if X.ndim == 1:
-                # 单条 1D 数组，转换为 (1, n_features)
                 return self.predict_proba(X.reshape(1, -1))
             elif X.ndim == 2:
-                # 批量 2D 数组
                 return self.predict_proba_batch(X)
             else:
                 raise ValueError(f"不支持的数组维度: {X.ndim}，仅支持 1D 或 2D")
 
         raise TypeError(f"不支持的类型: {type(X)}，支持的类型: np.ndarray, dict, List[dict]")
 
-    # ==================== 特征转换 ====================
+    def predict_logit(self, X: Union[np.ndarray, Dict[str, Any], List[Dict[str, Any]]]) -> Union[float, List[float]]:
+        """
+        预测 logit 值（原始模型输出）
+
+        参数:
+            X: 输入数据
+
+        返回:
+            logit 值或列表
+        """
+        if isinstance(X, dict):
+            X_array = self.to_array(X)
+            return self.decision_function(X_array)
+
+        if isinstance(X, list) and X and isinstance(X[0], dict):
+            X_array = self.to_array_batch(X)
+            return self.decision_function_batch(X_array)
+
+        if isinstance(X, np.ndarray):
+            if X.ndim == 1:
+                return self.decision_function(X.reshape(1, -1))
+            elif X.ndim == 2:
+                return self.decision_function_batch(X)
+
+        raise TypeError(f"不支持的类型: {type(X)}")
+
+    # ==================== 特征转换（保留分类型） ====================
 
     def to_array(self, features: Dict[str, Any]) -> np.ndarray:
         """
-        特征字典转 numpy 数组
+        特征字典转 numpy 数组（保留分类型为 object dtype）
+
+        数值特征 -> float
+        分类特征 -> 原始值（如字符串）
+        缺失值 -> NaN
 
         参数:
             features: 特征字典
 
         返回:
-            numpy 数组，形状为 (1, n_features)
+            numpy 数组，形状为 (1, n_features)，dtype=object（混合类型）
 
         异常:
-            ValueError: 特征值类型不支持
+            ValueError: 特征字典为空
         """
         if not features:
             raise ValueError("特征字典不能为空")
 
-        if self.feature_names:
-            values = []
-            for name in self.feature_names:
-                value = features.get(name)
-                if value is None:
-                    logger.debug("特征 '%s' 缺失，使用默认值 0", name)
-                    values.append(0.0)
-                else:
-                    values.append(self._to_float(value, name))
+        if self._feature_index is not None:
+            # 使用预构建索引（性能优化）
+            values = [np.nan] * len(self.feature_names)
+            for name, value in features.items():
+                idx = self._feature_index.get(name)
+                if idx is not None:
+                    values[idx] = self._to_value_or_nan(value, name)
         else:
+            # 降级：按特征名排序
             values = []
-            for k in sorted(features.keys()):
-                values.append(self._to_float(features[k], k))
+            for name in sorted(features.keys()):
+                values.append(self._to_value_or_nan(features[name], name))
 
-        return np.array([values], dtype=np.float32)
+        # 使用 object dtype 以支持混合类型（数值 + 字符串）
+        return np.array([values], dtype=object)
 
     def to_array_batch(self, features_list: List[Dict[str, Any]]) -> np.ndarray:
         """
-        批量特征字典转 numpy 数组
+        批量特征字典转 numpy 数组（保留分类型为 object dtype）
 
         参数:
             features_list: 特征字典列表
 
         返回:
-            numpy 数组，形状为 (n_samples, n_features)
+            numpy 数组，形状为 (n_samples, n_features)，dtype=object
 
         异常:
-            ValueError: 输入为空或特征值类型不支持
+            ValueError: 特征列表为空
         """
         if not features_list:
             raise ValueError("特征列表不能为空")
 
-        # 使用 pandas 提升性能（如果可用）
         try:
             import pandas as pd
             return self._to_array_batch_pandas(features_list)
@@ -221,91 +290,94 @@ class BaseModelAdapter(ABC):
             logger.debug("pandas 不可用，使用原生实现")
             return self._to_array_batch_fallback(features_list)
         except Exception as e:
-            # 打印完整前几条样本，方便排查
-            sample_count = min(3, len(features_list))
-            logger.error("pandas 批量转换失败: %s", e)
-            for i in range(sample_count):
-                logger.error("  样本 %d: %s", i, features_list[i])
+            logger.error("批量转换失败: %s", e)
             raise
 
     def _to_array_batch_pandas(self, features_list: List[Dict[str, Any]]) -> np.ndarray:
-        """使用 pandas 实现批量特征转换"""
+        """使用 pandas 实现批量特征转换（保留分类型）"""
         import pandas as pd
 
         df = pd.DataFrame(features_list)
 
         if self.feature_names:
-            missing = set(self.feature_names) - set(df.columns)
-            if missing:
-                logger.debug("缺失特征: %s，填充默认值 0", missing)
-
-            for col in missing:
-                df[col] = 0.0
-
+            # 确保所有特征列都存在，缺失的填充 NaN
+            for col in self.feature_names:
+                if col not in df.columns:
+                    df[col] = np.nan
             df = df[self.feature_names]
         else:
             df = df[sorted(df.columns)]
 
-        df = df.fillna(0)
-        return df.values.astype(np.float32)
+        # 注意：不转换类型，保留原始值（字符串等）
+        # 数值列会自动成为 float，字符串列保持 object
+        return df.values.astype(object)
 
     def _to_array_batch_fallback(self, features_list: List[Dict[str, Any]]) -> np.ndarray:
-        """回退方案：原生实现批量特征转换（pandas 不可用时使用）"""
-        if self.feature_names:
-            values = []
-            for features in features_list:
-                row = []
-                for name in self.feature_names:
-                    value = features.get(name, 0.0)
-                    row.append(self._to_float(value, name))
-                values.append(row)
-        else:
-            all_keys = sorted({k for features in features_list for k in features.keys()})
-            values = []
-            for features in features_list:
-                row = [self._to_float(features.get(k, 0.0), k) for k in all_keys]
-                values.append(row)
+        """回退方案：原生实现批量特征转换"""
+        if self._feature_index is not None:
+            n_features = len(self.feature_names)
+            # 使用 object dtype 初始化
+            values = np.full((len(features_list), n_features), np.nan, dtype=object)
 
-        return np.array(values, dtype=np.float32)
+            for i, features in enumerate(features_list):
+                for name, value in features.items():
+                    idx = self._feature_index.get(name)
+                    if idx is not None:
+                        values[i, idx] = self._to_value_or_nan(value, name)
+            return values
+        else:
+            # 动态收集所有特征名
+            all_keys = sorted({k for features in features_list for k in features.keys()})
+            values = np.full((len(features_list), len(all_keys)), np.nan, dtype=object)
+
+            for i, features in enumerate(features_list):
+                for j, key in enumerate(all_keys):
+                    value = features.get(key)
+                    values[i, j] = self._to_value_or_nan(value, key)
+            return values
 
     @staticmethod
-    def _to_float(value: Any, feature_name: Optional[str] = None) -> float:
+    def _to_value_or_nan(value: Any, feature_name: Optional[str] = None) -> Any:
         """
-        将值转换为 float
+        将值转换为合适的类型，无法转换时返回 NaN
+
+        规则：
+          - None -> np.nan
+          - 数值类型 -> float
+          - 布尔类型 -> float (0.0/1.0)
+          - 字符串 -> 保留原值（分类型，由 WOETransformer 处理）
+          - 其他类型 -> 保留原值或 NaN
 
         参数:
             value: 输入值
-            feature_name: 特征名称（用于错误提示）
+            feature_name: 特征名称（用于日志）
 
         返回:
-            float 值
-
-        异常:
-            ValueError: 无法转换为 float
+            转换后的值，或 np.nan
         """
+        # 缺失值 -> NaN
         if value is None:
-            return 0.0
+            return np.nan
 
+        # 数值类型 -> float
         if isinstance(value, (int, float)):
             return float(value)
 
         if isinstance(value, (np.integer, np.floating)):
             return float(value)
 
+        # 布尔类型 -> 0.0/1.0
         if isinstance(value, bool):
             return 1.0 if value else 0.0
 
+        # 字符串 -> 保留原值（分类型，由 WOETransformer 处理）
         if isinstance(value, str):
-            try:
-                return float(value)
-            except ValueError:
-                if feature_name:
-                    raise ValueError(f"特征 '{feature_name}' 的值 '{value}' 无法转换为 float")
-                raise ValueError(f"无法将字符串 '{value}' 转换为 float")
+            return value
 
-        if feature_name:
-            raise ValueError(f"特征 '{feature_name}' 不支持的类型: {type(value)}，值: {value}")
-        raise ValueError(f"不支持的类型: {type(value)}，值: {value}")
+        # 其他类型：记录警告，尝试保留原值
+        logger.debug("特征 '%s' 的类型 %s 将保留原值: %s",
+                    feature_name, type(value).__name__, value)
+        return value
 
     # ==================== 特征验证 ====================
 
@@ -392,7 +464,7 @@ class BaseModelAdapter(ABC):
         logger.debug("模型不支持特征重要性提取")
         return {}
 
-    def get_capabilities(self) -> ScorecardCapability:
+    def get_capabilities(self):
         """
         获取模型能力集
 
@@ -401,6 +473,7 @@ class BaseModelAdapter(ABC):
         返回:
             ScorecardCapability 位掩码
         """
+        from datamind.core.scoring.capability import ScorecardCapability
         return ScorecardCapability.NONE
 
     def get_coef(self, feature_name: str) -> float:
@@ -416,7 +489,7 @@ class BaseModelAdapter(ABC):
             特征系数
 
         异常:
-            NotImplementedError: 模型不支持系数提取
+            NotImplementedError: 非逻辑回归模型
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} 不支持系数提取，请检查模型类型是否为逻辑回归"
@@ -432,7 +505,7 @@ class BaseModelAdapter(ABC):
             截距值
 
         异常:
-            NotImplementedError: 模型不支持截距提取
+            NotImplementedError: 非逻辑回归模型
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} 不支持截距提取"
@@ -452,7 +525,7 @@ class BaseModelAdapter(ABC):
             特征对 logit 的贡献值
 
         异常:
-            NotImplementedError: 子类未实现此方法
+            NotImplementedError: 非评分卡模型
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} 不支持 get_feature_logit，请检查是否为评分卡模型"

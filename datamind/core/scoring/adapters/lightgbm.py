@@ -7,6 +7,8 @@
 核心功能：
   - predict_proba: 预测违约概率
   - predict_proba_batch: 批量预测概率
+  - decision_function: 获取原始 logit 值
+  - decision_function_batch: 批量获取 logit 值
   - get_feature_importance: 获取特征重要性
   - get_capabilities: 获取模型能力集
 
@@ -42,7 +44,7 @@ class LightGBMAdapter(BaseModelAdapter):
         self,
         model,
         feature_names: Optional[List[str]] = None,
-        transformer: Optional[Any] = None
+        data_types: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化适配器
@@ -50,14 +52,11 @@ class LightGBMAdapter(BaseModelAdapter):
         参数:
             model: LightGBM 模型
             feature_names: 特征名称列表（可选）
-            transformer: WOE转换器（评分卡模型使用）
+            data_types: 特征数据类型映射，用于类型验证
         """
-        super().__init__(model, feature_names, transformer=transformer)
+        super().__init__(model, feature_names, data_types)
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
-
-        # LightGBM 不支持 coef，统一接口保留
-        self._coef_map = None
 
         # 尝试提取特征名（如果未提供）
         if feature_names is None:
@@ -82,6 +81,8 @@ class LightGBMAdapter(BaseModelAdapter):
                 logger.debug("LightGBM 模型无 feature_name 属性，将使用默认命名")
         except Exception as e:
             logger.debug("提取 LightGBM 特征名失败: %s", e)
+
+    # ==================== 核心预测方法 ====================
 
     def predict_proba(self, X: np.ndarray) -> float:
         """
@@ -120,6 +121,33 @@ class LightGBMAdapter(BaseModelAdapter):
         except Exception as e:
             logger.error("LightGBM 批量预测失败: %s", e)
             raise
+
+    def decision_function(self, X: np.ndarray) -> float:
+        """
+        获取原始 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (1, n_features)
+
+        返回:
+            logit 值
+        """
+        # LightGBM 使用 raw_score=True 获取原始分数
+        return float(self.model.predict(X, raw_score=True)[0])
+
+    def decision_function_batch(self, X: np.ndarray) -> List[float]:
+        """
+        批量获取 logit 值
+
+        参数:
+            X: 输入特征数组，形状为 (n_samples, n_features)
+
+        返回:
+            logit 值列表
+        """
+        return self.model.predict(X, raw_score=True).tolist()
+
+    # ==================== 特征重要性 ====================
 
     def get_feature_importance(self, importance_type: str = 'split') -> Dict[str, float]:
         """
