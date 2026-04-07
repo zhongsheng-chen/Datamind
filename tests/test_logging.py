@@ -667,7 +667,7 @@ class TestLogManager:
 
     def test_get_app_logger(self, test_log_manager):
         """测试获取应用日志器"""
-        logger = test_log_manager.app_logger
+        logger = test_log_manager.logger
         assert logger is not None
         assert logger.name == "test_app"
 

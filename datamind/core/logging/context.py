@@ -1,23 +1,59 @@
-# Datamind/datamind/core/logging/context.py
+# datamind/core/logging/context.py
 
 """请求上下文管理
 
 提供请求ID、链路追踪ID(trace_id)、调用层级ID(span_id)的上下文管理。
 
-使用 contextvars 实现异步安全的上下文传递，支持：
-  - 请求ID管理（request_id）
-  - 链路追踪（trace_id）
-  - 调用层级追踪（span_id）
-  - 嵌套调用上下文（SpanContext）
-  - 完整请求上下文（RequestContext）
-  - 装饰器支持（with_span, with_request_id）
+核心功能：
+  - get/set request_id/trace_id/span_id: 获取/设置上下文变量
+  - ensure_request/trace/span: 确保上下文存在
+  - generate_request_id/trace_id/span_id: 生成新的ID
+  - get_context/set_context: 批量获取/设置上下文
+  - reset_context: 重置所有上下文（测试用）
+
+特性：
+  - 异步安全：使用 contextvars 实现异步上下文传递
+  - 线程传递：支持跨线程上下文传递
+  - 嵌套调用：支持 SpanContext 嵌套
+  - 装饰器支持：with_request_id, with_span
+  - 上下文管理器：RequestIdContext, SpanContext, RequestContext
+  - 调试支持：可配置的调试输出
+
+使用示例：
+    from datamind.core.logging import context
+
+    # 设置请求ID
+    context.set_request_id("req-12345")
+
+    # 获取当前请求ID
+    request_id = context.get_request_id()
+
+    # 使用上下文管理器
+    with context.RequestIdContext("req-67890"):
+        # 在此上下文中请求ID被临时替换
+        pass
+
+    # 使用装饰器
+    @context.with_request_id()
+    def my_function():
+        pass
+
+    # 在子线程中保留上下文
+    def worker():
+        print(context.get_request_id())  # 自动继承父线程的上下文
+
+    thread = context.run_in_thread(worker)
 """
 
+import os
+import sys
 import uuid
+import threading
 import contextvars
+import logging
 from typing import Optional, Callable, Any, TypeVar, cast
 
-from datamind.core.logging.debug import debug_print
+_logger = logging.getLogger(__name__)
 
 # 类型变量
 F = TypeVar('F', bound=Callable[..., Any])
@@ -28,8 +64,20 @@ _trace_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("trace_id", 
 _span_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("span_id", default="-")
 _parent_span_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("parent_span_id", default="-")
 
-# 配置引用（将在初始化时设置）
+# 配置引用
 _config = None
+
+# 上下文调试开关
+_CONTEXT_DEBUG = os.environ.get('DATAMIND_CONTEXT_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
+
+
+def _debug(msg: str, *args) -> None:
+    """上下文内部调试输出"""
+    if _CONTEXT_DEBUG:
+        if args:
+            print(f"[Context] {msg % args}", file=sys.stderr)
+        else:
+            print(f"[Context] {msg}", file=sys.stderr)
 
 
 def set_config(config: Any) -> None:
@@ -38,18 +86,68 @@ def set_config(config: Any) -> None:
     _config = config
 
 
-def _debug(msg: str, *args: Any) -> None:
-    """调试输出"""
-    if _config and _config.context_debug:
-        debug_print("Context", msg, *args)
+# ==================== 线程上下文传递 ====================
+
+def run_in_thread(target: Callable, *args, **kwargs) -> threading.Thread:
+    """在子线程中运行函数，自动复制当前上下文
+
+    参数:
+        target: 目标函数
+        *args: 位置参数
+        **kwargs: 关键字参数
+
+    返回:
+        创建的线程对象
+
+    示例:
+        def worker():
+            print(context.get_request_id())  # 自动继承父线程的上下文
+
+        thread = context.run_in_thread(worker)
+        thread.join()
+    """
+    ctx = contextvars.copy_context()
+
+    def wrapper() -> None:
+        for var, value in ctx.items():
+            var.set(value)
+        return target(*args, **kwargs)
+
+    thread = threading.Thread(target=wrapper)
+    _debug("创建上下文感知线程: %s", thread.name)
+    return thread
 
 
-# Request ID 相关函数
+def start_thread(target: Callable, *args, **kwargs) -> threading.Thread:
+    """启动一个上下文感知的线程（run_in_thread 的别名）"""
+    thread = run_in_thread(target, *args, **kwargs)
+    thread.start()
+    return thread
+
+
+class ContextPreservingThread(threading.Thread):
+    """自动保留上下文的线程类
+
+    使用示例:
+        thread = ContextPreservingThread(target=worker)
+        thread.start()
+    """
+
+    def __init__(self, target: Optional[Callable] = None, *args, **kwargs):
+        self._target = target
+        self._ctx = contextvars.copy_context()
+        super().__init__(*args, **kwargs)
+
+    def run(self) -> None:
+        if self._target:
+            self._ctx.run(self._target)
+
+
+# ==================== Request ID 相关函数 ====================
+
 def get_request_id() -> str:
     """获取当前请求ID"""
-    request_id = _request_id_ctx.get()
-    _debug("获取请求ID: %s", request_id)
-    return request_id
+    return _request_id_ctx.get()
 
 
 def set_request_id(request_id: str) -> None:
@@ -61,9 +159,7 @@ def set_request_id(request_id: str) -> None:
 
 def has_request_id() -> bool:
     """检查是否有请求ID"""
-    has_id = _request_id_ctx.get() != "-"
-    _debug("检查请求ID是否存在: %s", has_id)
-    return has_id
+    return _request_id_ctx.get() != "-"
 
 
 def clear_request_id() -> None:
@@ -73,12 +169,11 @@ def clear_request_id() -> None:
     _debug("清除请求ID: %s -> -", old_id)
 
 
-# Trace ID 相关函数
+# ==================== Trace ID 相关函数 ====================
+
 def get_trace_id() -> str:
     """获取当前 trace_id（链路追踪ID）"""
-    trace_id = _trace_id_ctx.get()
-    _debug("获取 trace_id: %s", trace_id)
-    return trace_id
+    return _trace_id_ctx.get()
 
 
 def set_trace_id(trace_id: str) -> None:
@@ -90,9 +185,7 @@ def set_trace_id(trace_id: str) -> None:
 
 def has_trace_id() -> bool:
     """检查是否有 trace_id"""
-    has_id = _trace_id_ctx.get() != "-"
-    _debug("检查 trace_id 是否存在: %s", has_id)
-    return has_id
+    return _trace_id_ctx.get() != "-"
 
 
 def clear_trace_id() -> None:
@@ -102,12 +195,11 @@ def clear_trace_id() -> None:
     _debug("清除 trace_id: %s -> -", old_id)
 
 
-# Span ID 相关函数
+# ==================== Span ID 相关函数 ====================
+
 def get_span_id() -> str:
     """获取当前 span_id（调用层级ID）"""
-    span_id = _span_id_ctx.get()
-    _debug("获取 span_id: %s", span_id)
-    return span_id
+    return _span_id_ctx.get()
 
 
 def set_span_id(span_id: str) -> None:
@@ -119,9 +211,7 @@ def set_span_id(span_id: str) -> None:
 
 def has_span_id() -> bool:
     """检查是否有 span_id"""
-    has_id = _span_id_ctx.get() != "-"
-    _debug("检查 span_id 是否存在: %s", has_id)
-    return has_id
+    return _span_id_ctx.get() != "-"
 
 
 def clear_span_id() -> None:
@@ -131,12 +221,11 @@ def clear_span_id() -> None:
     _debug("清除 span_id: %s -> -", old_id)
 
 
-# Parent Span ID 相关函数
+# ==================== Parent Span ID 相关函数 ====================
+
 def get_parent_span_id() -> str:
     """获取当前父 span_id"""
-    parent_id = _parent_span_id_ctx.get()
-    _debug("获取 parent_span_id: %s", parent_id)
-    return parent_id
+    return _parent_span_id_ctx.get()
 
 
 def set_parent_span_id(parent_span_id: str) -> None:
@@ -148,9 +237,7 @@ def set_parent_span_id(parent_span_id: str) -> None:
 
 def has_parent_span_id() -> bool:
     """检查是否有 parent_span_id"""
-    has_id = _parent_span_id_ctx.get() != "-"
-    _debug("检查 parent_span_id 是否存在: %s", has_id)
-    return has_id
+    return _parent_span_id_ctx.get() != "-"
 
 
 def clear_parent_span_id() -> None:
@@ -160,7 +247,8 @@ def clear_parent_span_id() -> None:
     _debug("清除 parent_span_id: %s -> -", old_id)
 
 
-# 辅助函数
+# ==================== 辅助函数 ====================
+
 def ensure_request(create_request: bool = True) -> None:
     """确保请求ID存在（入口调用）
 
@@ -170,6 +258,7 @@ def ensure_request(create_request: bool = True) -> None:
     if create_request and _request_id_ctx.get() == "-":
         request_id = generate_request_id()
         set_request_id(request_id)
+        _debug("自动创建请求ID: %s", request_id)
 
 
 def ensure_trace(create_trace: bool = True, create_request: bool = True) -> None:
@@ -182,10 +271,12 @@ def ensure_trace(create_trace: bool = True, create_request: bool = True) -> None
     if create_trace and _trace_id_ctx.get() == "-":
         trace_id = generate_trace_id()
         set_trace_id(trace_id)
+        _debug("自动创建 trace_id: %s", trace_id)
 
     if create_request and _request_id_ctx.get() == "-":
         request_id = generate_request_id()
         set_request_id(request_id)
+        _debug("自动创建请求ID: %s", request_id)
 
 
 def ensure_span(create_span: bool = True, create_parent_span: bool = False) -> None:
@@ -198,10 +289,12 @@ def ensure_span(create_span: bool = True, create_parent_span: bool = False) -> N
     if create_span and _span_id_ctx.get() == "-":
         span_id = generate_span_id()
         set_span_id(span_id)
+        _debug("自动创建 span_id: %s", span_id)
 
     if create_parent_span and _parent_span_id_ctx.get() == "-":
         parent_span_id = generate_span_id()
         set_parent_span_id(parent_span_id)
+        _debug("自动创建 parent_span_id: %s", parent_span_id)
 
 
 def generate_request_id(prefix: str = "req") -> str:
@@ -260,7 +353,8 @@ def reset_context() -> None:
     _debug("重置所有上下文")
 
 
-# 上下文管理器
+# ==================== 上下文管理器 ====================
+
 class SpanContext:
     """Span 上下文（支持嵌套调用）"""
 
@@ -276,15 +370,12 @@ class SpanContext:
         self.old_parent: Optional[str] = None
 
     def __enter__(self) -> 'SpanContext':
-        # 保存当前状态
         self.old_span = get_span_id()
         self.old_parent = get_parent_span_id()
 
-        # 生成新的 span_id
         new_span = generate_span_id()
         set_span_id(new_span)
 
-        # 设置 parent_span_id 为进入前的 span_id
         if self.old_span != "-":
             set_parent_span_id(self.old_span)
 
@@ -293,10 +384,8 @@ class SpanContext:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        # 恢复父 span
         if self.old_parent is not None:
             set_parent_span_id(self.old_parent)
-        # 恢复当前 span
         set_span_id(self.old_span if self.old_span is not None else "-")
         _debug("退出 span -> %s", get_span_id())
 
@@ -355,11 +444,11 @@ class RequestContext:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         set_request_id(self.old_request if self.old_request is not None else "-")
         set_trace_id(self.old_trace if self.old_trace is not None else "-")
-
         _debug("退出请求上下文")
 
 
-# 装饰器
+# ==================== 装饰器 ====================
+
 def with_request_id(request_id: Optional[str] = None) -> Callable[[F], F]:
     """装饰器：在函数执行期间设置请求ID
 
@@ -403,3 +492,17 @@ def with_span(name: Optional[str] = None) -> Callable[[F], F]:
         return cast(F, wrapper)
 
     return decorator
+
+
+__all__ = [
+    "get_request_id", "set_request_id", "clear_request_id", "has_request_id",
+    "get_trace_id", "set_trace_id", "clear_trace_id", "has_trace_id",
+    "get_span_id", "set_span_id", "clear_span_id", "has_span_id",
+    "get_parent_span_id", "set_parent_span_id", "clear_parent_span_id", "has_parent_span_id",
+    "ensure_request", "ensure_trace", "ensure_span",
+    "generate_request_id", "generate_trace_id", "generate_span_id",
+    "get_context", "set_context", "reset_context",
+    "SpanContext", "RequestIdContext", "RequestContext",
+    "with_request_id", "with_span",
+    "run_in_thread", "start_thread", "ContextPreservingThread",
+]

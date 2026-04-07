@@ -32,7 +32,7 @@ from bentoml.exceptions import BentoMLException
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata
-from datamind.core.domain.enums import AuditAction, ModelStatus
+from datamind.core.domain.enums import AuditAction, ModelStatus, PerformanceOperation
 from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging import get_logger
 from datamind.core.common.exceptions import (
@@ -109,7 +109,6 @@ class ModelLoader:
                 self.unload_model(model_id, operator, ip_address)
 
             try:
-                # 在 session 内提取所有需要的属性，避免 detached 对象问题
                 with get_db() as session:
                     model_metadata = session.query(ModelMetadata).filter_by(
                         model_id=model_id,
@@ -125,7 +124,6 @@ class ModelLoader:
                             f"支持的框架: {get_supported_frameworks()}"
                         )
 
-                    # 提取所有需要的属性到本地变量
                     framework = model_metadata.framework
                     model_name = model_metadata.model_name
                     model_version = model_metadata.model_version
@@ -145,8 +143,7 @@ class ModelLoader:
                     description = model_metadata.description
                     tags = model_metadata.tags
 
-                # 从 BentoML 加载模型（使用 framework 和 file_path，不再传递 detached 对象）
-                model = self._load_from_bentoml(model_id, framework, file_path)
+                model = self._load_from_bentoml(model_id, framework)
 
                 if not model:
                     raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}")
@@ -183,13 +180,14 @@ class ModelLoader:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
 
                 log_performance(
-                    operation=AuditAction.MODEL_LOAD.value,
+                    operation=PerformanceOperation.MODEL_LOAD,
                     duration_ms=duration,
+                    model_id=model_id,
+                    request_id=request_id,
                     extra={
-                        "model_id": model_id,
                         "model_name": model_name,
+                        "model_version": model_version,
                         "framework": framework,
-                        "request_id": request_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
@@ -200,13 +198,13 @@ class ModelLoader:
                     action=AuditAction.MODEL_LOAD.value,
                     user_id=operator,
                     ip_address=ip_address,
+                    resource_type="model",
+                    resource_id=model_id,
+                    resource_name=model_name,
                     details={
-                        "model_id": model_id,
-                        "model_name": model_name,
                         "model_version": model_version,
                         "framework": framework,
                         "duration_ms": round(duration, 2),
-                        "request_id": request_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
@@ -224,12 +222,12 @@ class ModelLoader:
                     action=AuditAction.MODEL_LOAD.value,
                     user_id=operator,
                     ip_address=ip_address,
+                    resource_type="model",
+                    resource_id=model_id,
                     details={
-                        "model_id": model_id,
                         "error": str(e),
                         "traceback": traceback.format_exc(),
                         "duration_ms": round(duration, 2),
-                        "request_id": request_id,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
@@ -237,17 +235,16 @@ class ModelLoader:
                     reason=str(e),
                     request_id=request_id
                 )
-                logger.error("模型加载失败: %s, 错误: %s", model_id, str(e))
+                logger.error("模型加载失败: %s, 错误: %s", model_id, str(e), exc_info=True)
                 raise ModelLoadException(f"模型加载失败: {model_id}, {str(e)}")
 
-    def _load_from_bentoml(self, model_id: str, framework: str, file_path: str = None) -> Optional[Any]:
+    def _load_from_bentoml(self, model_id: str, framework: str) -> Optional[Any]:
         """
         从 BentoML Model Store 加载模型
 
         参数:
             model_id: 模型ID
             framework: 模型框架
-            file_path: 模型文件路径（用于调试）
 
         返回:
             加载的模型实例
@@ -324,9 +321,10 @@ class ModelLoader:
                         action=AuditAction.MODEL_UNLOAD.value,
                         user_id=operator,
                         ip_address=ip_address,
+                        resource_type="model",
+                        resource_id=model_id,
+                        resource_name=model_name,
                         details={
-                            "model_id": model_id,
-                            "request_id": request_id,
                             "trace_id": trace_id,
                             "span_id": span_id,
                             "parent_span_id": parent_span_id
@@ -478,7 +476,7 @@ class ModelLoader:
 
         参数:
             model_id: 模型ID
-            sample_data: 样本数据
+            sample_data: 样本数据（可选，不提供则自动生成）
 
         返回:
             是否预热成功
@@ -494,14 +492,25 @@ class ModelLoader:
             return False
 
         start_time = datetime.now()
-        framework = self._loaded_models[model_id]['metadata']['framework']
+        model_info = self._loaded_models.get(model_id)
+        if not model_info:
+            return False
+
+        framework = model_info['metadata']['framework']
+
+        input_features = model_info['metadata'].get('input_features', [])
+        feature_count = len(input_features)
+
+        if feature_count == 0:
+            logger.warning("模型 %s 未定义 input_features，使用默认特征数10", model_id)
+            feature_count = 10
 
         try:
             import numpy as np
 
             if framework in ['sklearn', 'xgboost', 'lightgbm', 'catboost']:
                 if sample_data is None:
-                    sample_data = np.random.randn(1, 10)
+                    sample_data = np.random.randn(1, feature_count)
 
                 if framework == 'sklearn':
                     model.predict(sample_data)
@@ -514,41 +523,43 @@ class ModelLoader:
             elif framework in ['torch', 'pytorch']:
                 import torch
                 if sample_data is None:
-                    sample_data = torch.randn(1, 10)
+                    sample_data = torch.randn(1, feature_count)
                 model.eval()
                 with torch.no_grad():
                     model(sample_data)
 
             elif framework == 'tensorflow':
                 if sample_data is None:
-                    sample_data = np.random.randn(1, 10)
+                    sample_data = np.random.randn(1, feature_count)
                 model.predict(sample_data)
 
             elif framework == 'onnx':
                 if sample_data is None:
-                    sample_data = np.random.randn(1, 10).astype(np.float32)
+                    sample_data = np.random.randn(1, feature_count).astype(np.float32)
                 model.run(None, {'input': sample_data})
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
 
             log_performance(
-                operation=AuditAction.MODEL_WARM_UP.value,
+                operation=PerformanceOperation.MODEL_WARM_UP,
                 duration_ms=duration,
+                model_id=model_id,
+                request_id=request_id,
                 extra={
-                    "model_id": model_id,
                     "framework": framework,
-                    "request_id": request_id,
+                    "feature_count": feature_count,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 }
             )
 
-            logger.info("模型预热成功: %s, 框架: %s, 耗时: %.2f毫秒", model_id, framework, duration)
+            logger.info("模型预热成功: %s, 框架: %s, 特征数: %d, 耗时: %.2f毫秒",
+                       model_id, framework, feature_count, duration)
             return True
 
         except Exception as e:
-            logger.warning("模型预热失败: %s, 错误: %s", model_id, str(e))
+            logger.warning("模型预热失败: %s, 框架: %s, 错误: %s", model_id, framework, str(e))
             return False
 
     def _is_cache_expired(self, model_id: str) -> bool:

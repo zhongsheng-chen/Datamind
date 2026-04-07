@@ -29,10 +29,8 @@
   - 复制槽监控：检测不活跃复制槽，防止 WAL 堆积
 """
 
-import logging
-import traceback
 from contextlib import contextmanager
-from typing import Generator, Optional, Dict, Any, List
+from typing import Generator, Dict, Any, List, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
@@ -41,24 +39,29 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from datamind.core.logging import log_audit, log_performance, context
-from datamind.core.logging import get_logger
+from datamind.core.logging import context, get_logger, log_audit, log_performance
 from datamind.core.db.base import Base
-from datamind.core.domain.enums import AuditAction
+from datamind.core.domain.enums import AuditAction, PerformanceOperation
 from datamind.config import get_settings
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class DatabaseManager:
     """PostgreSQL数据库管理器"""
 
     def __init__(self):
-        self._engines = {}
-        self._session_factories = {}
-        self._scoped_sessions = {}
-        self._initialized = False
+        self._engines: Dict[str, Engine] = {}
+        self._session_factories: Dict[str, sessionmaker] = {}
+        self._scoped_sessions: Dict[str, scoped_session] = {}
+        self.initialized: bool = False
         self._settings = None
+        self.database_url: Optional[str] = None
+        self.pool_size: int = 20
+        self.max_overflow: int = 40
+        self.pool_timeout: int = 30
+        self.pool_recycle: int = 3600
+        self.echo: bool = False
 
         # 复制告警阈值配置
         self.replication_alert_thresholds = {
@@ -74,6 +77,33 @@ class DatabaseManager:
             self._settings = get_settings()
         return self._settings
 
+    def get_engine(self, engine_name: str = 'default') -> Engine:
+        """获取数据库引擎（公共方法）
+
+        参数:
+            engine_name: 引擎名称 ('default' 或 'readonly')
+
+        返回:
+            SQLAlchemy Engine 对象
+        """
+        if not self.initialized:
+            self.initialize()
+
+        if engine_name not in self._engines:
+            raise ValueError(f"引擎 '{engine_name}' 不存在，可用的引擎: {list(self._engines.keys())}")
+
+        return self._engines[engine_name]
+
+    def get_engines(self) -> Dict[str, Engine]:
+        """获取所有数据库引擎（公共方法）
+
+        返回:
+            引擎名称到 Engine 对象的映射字典
+        """
+        if not self.initialized:
+            self.initialize()
+        return self._engines.copy()
+
     def initialize(
             self,
             database_url: str = None,
@@ -84,7 +114,7 @@ class DatabaseManager:
             echo: bool = False
     ):
         """初始化数据库连接"""
-        if self._initialized:
+        if self.initialized:
             return
 
         start_time = datetime.now()
@@ -125,9 +155,21 @@ class DatabaseManager:
                     echo=self.echo
                 )
 
-            self._initialized = True
+            self.initialized = True
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
+
+            log_performance(
+                operation=PerformanceOperation.DB_INITIALIZE,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "database_url": self.database_url.split('@')[-1],
+                    "pool_size": pool_size,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
 
             log_audit(
                 action=AuditAction.DB_INITIALIZE.value,
@@ -143,21 +185,22 @@ class DatabaseManager:
                 request_id=request_id
             )
 
-            self.logger.info(f"数据库初始化完成: {self.database_url.split('@')[-1]}")
-
         except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
                 action=AuditAction.DB_INITIALIZE.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
                     "error": str(e),
+                    "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
+                reason=str(e),
                 request_id=request_id
             )
-            self.logger.error(f"数据库初始化失败: {str(e)}")
+            _logger.error(f"数据库初始化失败: {str(e)}", exc_info=True)
             raise
 
     def _create_engine(self, name: str, url: str, **kwargs):
@@ -165,6 +208,7 @@ class DatabaseManager:
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
+        start_time = datetime.now()
 
         try:
             engine = create_engine(
@@ -187,9 +231,36 @@ class DatabaseManager:
             self._session_factories[name] = sessionmaker(bind=engine)
             self._scoped_sessions[name] = scoped_session(self._session_factories[name])
 
-            self.logger.info(f"数据库引擎创建成功: {name}")
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+
+            log_performance(
+                operation=PerformanceOperation.DB_CREATE_ENGINE,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "engine_name": name,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
+
+            log_audit(
+                action=AuditAction.DB_CREATE_ENGINE.value,
+                user_id="system",
+                ip_address="localhost",
+                details={
+                    "engine_name": name,
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
+            _logger.info(f"数据库引擎创建成功: {name}")
 
         except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
                 action=AuditAction.DB_CREATE_ENGINE.value,
                 user_id="system",
@@ -197,24 +268,35 @@ class DatabaseManager:
                 details={
                     "engine_name": name,
                     "error": str(e),
+                    "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
+                reason=str(e),
                 request_id=request_id
             )
-            self.logger.error(f"创建数据库引擎失败 {name}: {str(e)}")
+            _logger.error(f"创建数据库引擎失败 {name}: {str(e)}", exc_info=True)
             raise
 
-    def _add_engine_events(self, engine: Engine):
+    @staticmethod
+    def _add_engine_events(engine: Engine):
         """添加数据库引擎事件监听"""
 
         @event.listens_for(engine, "connect")
-        def connect(dbapi_connection, connection_record):
-            self.logger.debug("数据库连接已建立")
+        def connect(_dbapi_connection, _connection_record):
+            _logger.debug("数据库连接已建立")
 
         @event.listens_for(engine, "checkout")
-        def checkout(dbapi_connection, connection_record, connection_proxy):
-            self.logger.debug("从连接池取出连接")
+        def checkout(_dbapi_connection, _connection_record, _connection_proxy):
+            _logger.debug("从连接池取出连接")
+
+        @event.listens_for(engine.pool, "checkin")
+        def checkin(_dbapi_connection, _connection_record):
+            _logger.debug("连接归还到连接池")
+
+        @event.listens_for(engine.pool, "close")
+        def close(_dbapi_connection, _connection_record):
+            _logger.debug("数据库连接已关闭")
 
     @retry(
         stop=stop_after_attempt(3),
@@ -234,7 +316,7 @@ class DatabaseManager:
             session = self._scoped_sessions[engine_name]()
             self._health_check(session)
 
-            self.logger.debug(f"获取数据库会话: {engine_name}")
+            _logger.debug(f"获取数据库会话: {engine_name}")
             return session
 
         except OperationalError as e:
@@ -251,7 +333,7 @@ class DatabaseManager:
                 reason="数据库连接失败",
                 request_id=request_id
             )
-            self.logger.error(f"获取数据库会话失败 (将重试): {engine_name}, {str(e)}")
+            _logger.error(f"获取数据库会话失败 (将重试): {engine_name}, {str(e)}")
             self.reconnect(engine_name)
             raise
         except Exception as e:
@@ -265,13 +347,15 @@ class DatabaseManager:
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
+                reason=str(e),
                 request_id=request_id
             )
-            self.logger.error(f"获取数据库会话失败: {engine_name}, {str(e)}")
+            _logger.error(f"获取数据库会话失败: {engine_name}, {str(e)}")
             raise
 
-    def _health_check(self, session: Session):
-        """数据库健康检查"""
+    @staticmethod
+    def _health_check(session: Session):
+        """数据库健康检查（实例方法，使用上下文变量）"""
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
@@ -288,9 +372,10 @@ class DatabaseManager:
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
+                reason=str(e),
                 request_id=request_id
             )
-            self.logger.error(f"数据库健康检查失败: {str(e)}")
+            _logger.error(f"数据库健康检查失败: {str(e)}", exc_info=True)
             raise
 
     @contextmanager
@@ -305,12 +390,25 @@ class DatabaseManager:
         parent_span_id = context.get_parent_span_id()
 
         try:
-            self.logger.debug(f"开始事务: {engine_name}")
+            _logger.debug(f"开始事务: {engine_name}")
             yield session
 
             if commit:
                 session.commit()
                 duration = (datetime.now() - start_time).total_seconds() * 1000
+
+                log_performance(
+                    operation=PerformanceOperation.DB_TRANSACTION,
+                    duration_ms=duration,
+                    request_id=request_id,
+                    extra={
+                        "engine_name": engine_name,
+                        "commit": True,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id,
+                        "trace_id": trace_id
+                    }
+                )
 
                 log_audit(
                     action=AuditAction.DB_TRANSACTION.value,
@@ -327,33 +425,29 @@ class DatabaseManager:
                 )
 
                 if duration > 100:
-                    log_performance(
-                        operation=AuditAction.DB_TRANSACTION.value,
-                        duration_ms=duration,
+                    _logger.warning(
+                        f"事务耗时过长: {duration:.2f}ms",
                         extra={
                             "engine_name": engine_name,
+                            "duration_ms": duration,
                             "span_id": span_id,
                             "parent_span_id": parent_span_id,
                             "trace_id": trace_id
                         }
                     )
 
-                self.logger.debug(f"事务提交成功，耗时: {duration:.2f}ms")
-
         except SQLAlchemyError as e:
             session.rollback()
             duration = (datetime.now() - start_time).total_seconds() * 1000
             error_msg = str(e)
-            error_trace = traceback.format_exc()
 
             log_audit(
-                action=AuditAction.DB_TRANSACTION.value,
+                action=AuditAction.DB_TRANSACTION_ERROR.value,
                 user_id="system",
                 ip_address="localhost",
                 details={
                     "engine_name": engine_name,
                     "error": error_msg,
-                    "traceback": error_trace,
                     "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id,
@@ -362,12 +456,11 @@ class DatabaseManager:
                 reason=error_msg,
                 request_id=request_id
             )
-
-            self.logger.error(f"事务回滚: {error_msg}, 耗时: {duration:.2f}ms")
+            _logger.error(f"事务回滚: {error_msg}, 耗时: {duration:.2f}ms", exc_info=True)
             raise
         finally:
             session.close()
-            self.logger.debug("会话已关闭")
+            _logger.debug("会话已关闭")
 
     @contextmanager
     def transaction(self, engine_name: str = 'default') -> Generator[Session, None, None]:
@@ -375,11 +468,11 @@ class DatabaseManager:
         session = self.get_session(engine_name)
 
         try:
-            self.logger.debug(f"开始手动事务: {engine_name}")
+            _logger.debug(f"开始手动事务: {engine_name}")
             yield session
         except SQLAlchemyError as e:
             session.rollback()
-            self.logger.error(f"手动事务回滚: {str(e)}")
+            _logger.error(f"手动事务回滚: {str(e)}", exc_info=True)
             raise
         finally:
             session.close()
@@ -390,16 +483,30 @@ class DatabaseManager:
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         settings = self._get_settings()
+        start_time = datetime.now()
 
         try:
             if engine_name in self._engines:
                 self._engines[engine_name].dispose()
-                self.logger.info(f"数据库引擎已释放: {engine_name}")
+                _logger.info(f"数据库引擎已释放: {engine_name}")
 
             if engine_name == 'default':
                 self._create_engine(engine_name, self.database_url)
             elif engine_name == 'readonly' and settings.database.readonly_url:
                 self._create_engine(engine_name, settings.database.readonly_url)
+
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+
+            log_performance(
+                operation=PerformanceOperation.DB_RECONNECT,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "engine_name": engine_name,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
 
             log_audit(
                 action=AuditAction.DB_RECONNECT.value,
@@ -407,14 +514,15 @@ class DatabaseManager:
                 ip_address="localhost",
                 details={
                     "engine_name": engine_name,
+                    "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
                 request_id=request_id
             )
-            self.logger.info(f"数据库重新连接成功: {engine_name}")
 
         except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
                 action=AuditAction.DB_RECONNECT.value,
                 user_id="system",
@@ -422,12 +530,14 @@ class DatabaseManager:
                 details={
                     "engine_name": engine_name,
                     "error": str(e),
+                    "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
+                reason=str(e),
                 request_id=request_id
             )
-            self.logger.error(f"数据库重新连接失败: {engine_name}, {str(e)}")
+            _logger.error(f"数据库重新连接失败: {engine_name}, {str(e)}", exc_info=True)
             raise
 
     def check_health(self) -> dict:
@@ -443,7 +553,7 @@ class DatabaseManager:
                     conn.execute(text("SELECT 1"))
                     health_status['engines'][name] = {'status': 'healthy'}
 
-                self.logger.debug(f"数据库健康检查通过: {name}")
+                _logger.debug(f"数据库健康检查通过: {name}")
 
             except Exception as e:
                 health_status['status'] = 'unhealthy'
@@ -462,9 +572,10 @@ class DatabaseManager:
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
+                    reason=str(e),
                     request_id=request_id
                 )
-                self.logger.error(f"数据库健康检查失败: {name}, {str(e)}")
+                _logger.error(f"数据库健康检查失败: {name}, {str(e)}")
 
         return health_status
 
@@ -473,6 +584,7 @@ class DatabaseManager:
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
+        start_time = datetime.now()
 
         try:
             with self.get_session('default') as session:
@@ -503,38 +615,46 @@ class DatabaseManager:
                     }
 
                 result = session.execute(text("""
-                                              SELECT application_name,
-                                                     client_addr,
-                                                     state,
-                                                     sync_state,
-                                                     replay_lag,
-                                                     EXTRACT(EPOCH FROM replay_lag)                    as replay_lag_seconds,
-                                                     write_lag,
-                                                     flush_lag,
-                                                     pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) as byte_lag
-                                              FROM pg_stat_replication;
-                                              """)).fetchall()
+                    SELECT application_name,
+                           client_addr,
+                           state,
+                           sync_state,
+                           replay_lag,
+                           EXTRACT(EPOCH FROM replay_lag) as replay_lag_seconds,
+                           write_lag,
+                           flush_lag,
+                           pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) as byte_lag
+                    FROM pg_stat_replication;
+                """)).fetchall()
 
                 replicas = []
-                max_lag = 0
+                max_lag = 0.0
                 max_byte_lag = 0
 
                 for row in result:
-                    lag_seconds = row.replay_lag_seconds or 0
-                    byte_lag = row.byte_lag or 0
-                    max_lag = max(max_lag, lag_seconds)
+                    replay_lag_seconds = row[5] if len(row) > 5 else 0
+                    if replay_lag_seconds is None:
+                        replay_lag_seconds = 0.0
+                    else:
+                        replay_lag_seconds = float(replay_lag_seconds)
+
+                    byte_lag = row[8] if len(row) > 8 else 0
+                    if byte_lag is None:
+                        byte_lag = 0
+
+                    max_lag = max(max_lag, replay_lag_seconds)
                     max_byte_lag = max(max_byte_lag, byte_lag)
 
                     replicas.append({
-                        'name': row.application_name or 'unknown',
-                        'address': str(row.client_addr) if row.client_addr else None,
-                        'state': row.state,
-                        'sync_state': row.sync_state,
-                        'replay_lag_seconds': float(lag_seconds),
+                        'name': row[0] or 'unknown',
+                        'address': str(row[1]) if row[1] else None,
+                        'state': row[2],
+                        'sync_state': row[3],
+                        'replay_lag_seconds': replay_lag_seconds,
                         'byte_lag': byte_lag,
                         'byte_lag_mb': round(byte_lag / 1024 / 1024, 2),
-                        'write_lag': str(row.write_lag) if row.write_lag else None,
-                        'flush_lag': str(row.flush_lag) if row.flush_lag else None,
+                        'write_lag': str(row[4]) if row[4] else None,
+                        'flush_lag': str(row[6]) if row[6] else None,
                     })
 
                 if max_lag > self.replication_alert_thresholds['critical_lag_seconds']:
@@ -543,6 +663,21 @@ class DatabaseManager:
                     status = 'warning'
                 else:
                     status = 'healthy'
+
+                duration = (datetime.now() - start_time).total_seconds() * 1000
+
+                log_performance(
+                    operation=PerformanceOperation.REPLICATION_STATUS_CHECK,
+                    duration_ms=duration,
+                    request_id=request_id,
+                    extra={
+                        "status": status,
+                        "replicas_count": len(replicas),
+                        "max_lag_seconds": max_lag,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    }
+                )
 
                 log_audit(
                     action=AuditAction.REPLICATION_STATUS.value,
@@ -553,6 +688,7 @@ class DatabaseManager:
                         "max_lag_seconds": max_lag,
                         "max_byte_lag_mb": round(max_byte_lag / 1024 / 1024, 2),
                         "status": status,
+                        "duration_ms": round(duration, 2),
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -572,19 +708,15 @@ class DatabaseManager:
                 }
 
         except Exception as e:
-            self.logger.error(f"检查复制状态失败: {e}")
             log_audit(
                 action=AuditAction.REPLICATION_STATUS.value,
                 user_id="system",
                 ip_address="localhost",
-                details={
-                    "error": str(e),
-                    "span_id": span_id,
-                    "parent_span_id": parent_span_id
-                },
-                reason="复制状态检查失败",
+                details={"error": str(e)},
+                reason=str(e),
                 request_id=request_id
             )
+            _logger.error(f"检查复制状态失败: {e}", exc_info=True)
             return {
                 'status': 'error',
                 'error': str(e),
@@ -607,13 +739,16 @@ class DatabaseManager:
                         pg_is_in_recovery() as is_replica
                 """)).fetchone()
 
+                if result is None:
+                    return {'error': '无法获取同步状态', 'timestamp': datetime.now().isoformat()}
+
                 log_audit(
                     action=AuditAction.SYNC_STATUS.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
-                        "synchronous_commit": result.synchronous_commit,
-                        "is_primary": not result.in_recovery,
+                        "synchronous_commit": result[1],
+                        "is_primary": not result[2],
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -621,14 +756,22 @@ class DatabaseManager:
                 )
 
                 return {
-                    'synchronous_standby_names': result.synchronous_standby_names,
-                    'synchronous_commit': result.synchronous_commit,
-                    'is_primary': not result.in_recovery,
-                    'is_replica': result.is_replica,
+                    'synchronous_standby_names': result[0],
+                    'synchronous_commit': result[1],
+                    'is_primary': not result[2],
+                    'is_replica': result[3],
                     'timestamp': datetime.now().isoformat()
                 }
         except Exception as e:
-            self.logger.error(f"检查同步状态失败: {e}")
+            log_audit(
+                action=AuditAction.SYNC_STATUS.value,
+                user_id="system",
+                ip_address="localhost",
+                details={"error": str(e)},
+                reason=str(e),
+                request_id=request_id
+            )
+            _logger.error(f"检查同步状态失败: {e}", exc_info=True)
             return {'error': str(e), 'timestamp': datetime.now().isoformat()}
 
     def check_replication_slots(self) -> Dict[str, Any]:
@@ -652,38 +795,42 @@ class DatabaseManager:
                     }
 
                 result = session.execute(text("""
-                                              SELECT slot_name,
-                                                     slot_type,
-                                                     database,
-                                                     active,
-                                                     restart_lsn,
-                                                     pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) as wal_retained_bytes,
-                                                     CASE
-                                                         WHEN active = false THEN 'inactive'
-                                                         WHEN pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) > 1024 * 1024 * 1024
-                                                             THEN 'high_lag'
-                                                         ELSE 'healthy'
-                                                         END                                            as status
-                                              FROM pg_replication_slots
-                                              WHERE slot_type = 'physical';
-                                              """)).fetchall()
+                    SELECT slot_name,
+                           slot_type,
+                           database,
+                           active,
+                           restart_lsn,
+                           pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) as wal_retained_bytes,
+                           CASE
+                               WHEN active = false THEN 'inactive'
+                               WHEN pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) > 1024 * 1024 * 1024
+                                   THEN 'high_lag'
+                               ELSE 'healthy'
+                           END as status
+                    FROM pg_replication_slots
+                    WHERE slot_type = 'physical';
+                """)).fetchall()
 
                 slots = []
                 for row in result:
+                    wal_retained_bytes = row[5] if len(row) > 5 else 0
+                    if wal_retained_bytes is None:
+                        wal_retained_bytes = 0
+
                     slots.append({
-                        'name': row.slot_name,
-                        'type': row.slot_type,
-                        'database': row.database,
-                        'active': row.active,
-                        'restart_lsn': row.restart_lsn,
-                        'wal_retained_bytes': row.wal_retained_bytes or 0,
-                        'wal_retained_mb': round((row.wal_retained_bytes or 0) / 1024 / 1024, 2),
-                        'status': row.status
+                        'name': row[0],
+                        'type': row[1],
+                        'database': row[2],
+                        'active': row[3],
+                        'restart_lsn': row[4],
+                        'wal_retained_bytes': wal_retained_bytes,
+                        'wal_retained_mb': round(wal_retained_bytes / 1024 / 1024, 2),
+                        'status': row[6] if len(row) > 6 else 'unknown'
                     })
 
                 inactive_slots = [s for s in slots if not s['active']]
                 if inactive_slots:
-                    self.logger.warning(f"发现不活跃的复制槽: {[s['name'] for s in inactive_slots]}")
+                    _logger.warning(f"发现不活跃的复制槽: {[s['name'] for s in inactive_slots]}")
 
                 log_audit(
                     action=AuditAction.REPLICATION_SLOTS.value,
@@ -708,7 +855,15 @@ class DatabaseManager:
                 }
 
         except Exception as e:
-            self.logger.error(f"检查复制槽失败: {e}")
+            log_audit(
+                action=AuditAction.REPLICATION_SLOTS.value,
+                user_id="system",
+                ip_address="localhost",
+                details={"error": str(e)},
+                reason=str(e),
+                request_id=request_id
+            )
+            _logger.error(f"检查复制槽失败: {e}", exc_info=True)
             return {'error': str(e), 'timestamp': datetime.now().isoformat()}
 
     def get_replication_metrics(self) -> Dict[str, Any]:
@@ -716,6 +871,7 @@ class DatabaseManager:
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
+        start_time = datetime.now()
 
         try:
             with self.get_session('default') as session:
@@ -732,26 +888,52 @@ class DatabaseManager:
                     }
 
                 result = session.execute(text("""
-                                              SELECT COUNT(*)                                               as total_replicas,
-                                                     COUNT(CASE WHEN state = 'streaming' THEN 1 END)        as streaming_replicas,
-                                                     AVG(EXTRACT(EPOCH FROM replay_lag))                    as avg_replay_lag,
-                                                     MAX(EXTRACT(EPOCH FROM replay_lag))                    as max_replay_lag,
-                                                     SUM(pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)) as total_byte_lag,
-                                                     COUNT(CASE WHEN sync_state = 'sync' THEN 1 END)        as sync_replicas,
-                                                     COUNT(CASE WHEN sync_state = 'quorum' THEN 1 END)      as quorum_replicas,
-                                                     COUNT(CASE WHEN sync_state = 'async' THEN 1 END)       as async_replicas
-                                              FROM pg_stat_replication;
-                                              """)).fetchone()
+                    SELECT COUNT(*) as total_replicas,
+                           COUNT(CASE WHEN state = 'streaming' THEN 1 END) as streaming_replicas,
+                           AVG(EXTRACT(EPOCH FROM replay_lag)) as avg_replay_lag,
+                           MAX(EXTRACT(EPOCH FROM replay_lag)) as max_replay_lag,
+                           SUM(pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn)) as total_byte_lag,
+                           COUNT(CASE WHEN sync_state = 'sync' THEN 1 END) as sync_replicas,
+                           COUNT(CASE WHEN sync_state = 'quorum' THEN 1 END) as quorum_replicas,
+                           COUNT(CASE WHEN sync_state = 'async' THEN 1 END) as async_replicas
+                    FROM pg_stat_replication;
+                """)).fetchone()
+
+                if result is None:
+                    return {'total_replicas': 0, 'timestamp': datetime.now().isoformat()}
+
+                total_replicas = result[0] or 0
+                streaming_replicas = result[1] or 0
+                avg_replay_lag = result[2] or 0.0
+                max_replay_lag = result[3] or 0.0
+                total_byte_lag = result[4] or 0
+                sync_replicas = result[5] or 0
+                quorum_replicas = result[6] or 0
+                async_replicas = result[7] or 0
+
+                duration = (datetime.now() - start_time).total_seconds() * 1000
+
+                log_performance(
+                    operation=PerformanceOperation.REPLICATION_METRICS,
+                    duration_ms=duration,
+                    request_id=request_id,
+                    extra={
+                        "total_replicas": total_replicas,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    }
+                )
 
                 log_audit(
                     action=AuditAction.REPLICATION_METRICS.value,
                     user_id="system",
                     ip_address="localhost",
                     details={
-                        "total_replicas": result.total_replicas or 0,
-                        "streaming_replicas": result.streaming_replicas or 0,
-                        "avg_replay_lag_seconds": float(result.avg_replay_lag or 0),
-                        "max_replay_lag_seconds": float(result.max_replay_lag or 0),
+                        "total_replicas": total_replicas,
+                        "streaming_replicas": streaming_replicas,
+                        "avg_replay_lag_seconds": float(avg_replay_lag),
+                        "max_replay_lag_seconds": float(max_replay_lag),
+                        "duration_ms": round(duration, 2),
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
                     },
@@ -759,19 +941,27 @@ class DatabaseManager:
                 )
 
                 return {
-                    'total_replicas': result.total_replicas or 0,
-                    'streaming_replicas': result.streaming_replicas or 0,
-                    'avg_replay_lag_seconds': float(result.avg_replay_lag or 0),
-                    'max_replay_lag_seconds': float(result.max_replay_lag or 0),
-                    'total_byte_lag_mb': round((result.total_byte_lag or 0) / 1024 / 1024, 2),
-                    'sync_replicas': result.sync_replicas or 0,
-                    'quorum_replicas': result.quorum_replicas or 0,
-                    'async_replicas': result.async_replicas or 0,
+                    'total_replicas': total_replicas,
+                    'streaming_replicas': streaming_replicas,
+                    'avg_replay_lag_seconds': float(avg_replay_lag),
+                    'max_replay_lag_seconds': float(max_replay_lag),
+                    'total_byte_lag_mb': round(total_byte_lag / 1024 / 1024, 2),
+                    'sync_replicas': sync_replicas,
+                    'quorum_replicas': quorum_replicas,
+                    'async_replicas': async_replicas,
                     'timestamp': datetime.now().isoformat()
                 }
 
         except Exception as e:
-            self.logger.error(f"获取复制指标失败: {e}")
+            log_audit(
+                action=AuditAction.REPLICATION_METRICS.value,
+                user_id="system",
+                ip_address="localhost",
+                details={"error": str(e)},
+                reason=str(e),
+                request_id=request_id
+            )
+            _logger.error(f"获取复制指标失败: {e}", exc_info=True)
             return {'error': str(e), 'timestamp': datetime.now().isoformat()}
 
     def get_replication_recommendations(self) -> Dict[str, Any]:
@@ -832,7 +1022,8 @@ class DatabaseManager:
             'timestamp': datetime.now().isoformat()
         }
 
-    def _send_replication_alert(self, status: str, lag_seconds: float, byte_lag: int, replicas: List[Dict]):
+    @staticmethod
+    def _send_replication_alert(status: str, lag_seconds: float, byte_lag: int, replicas: List[Dict]):
         """发送复制告警"""
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
@@ -853,7 +1044,7 @@ class DatabaseManager:
                 f"延迟={replica['replay_lag_seconds']:.2f}秒\n"
             )
 
-        self.logger.warning(alert_msg)
+        _logger.warning(alert_msg)
 
         log_audit(
             action=AuditAction.REPLICATION_ALERT.value,
@@ -871,11 +1062,6 @@ class DatabaseManager:
             request_id=request_id
         )
 
-    @property
-    def logger(self):
-        """获取日志记录器"""
-        return logging.getLogger(f"{self._get_settings().app.app_name}.database")
-
 
 # 全局数据库管理器实例
 db_manager = DatabaseManager()
@@ -890,20 +1076,12 @@ def get_engine(engine_name: str = 'default') -> Engine:
     返回:
         SQLAlchemy Engine 对象
     """
-    if not db_manager._initialized:
-        db_manager.initialize()
-
-    if engine_name not in db_manager._engines:
-        raise ValueError(f"引擎 '{engine_name}' 不存在，可用的引擎: {list(db_manager._engines.keys())}")
-
-    return db_manager._engines[engine_name]
+    return db_manager.get_engine(engine_name)
 
 
 def get_engines() -> Dict[str, Engine]:
     """获取所有数据库引擎"""
-    if not db_manager._initialized:
-        db_manager.initialize()
-    return db_manager._engines
+    return db_manager.get_engines()
 
 
 @contextmanager
@@ -920,23 +1098,33 @@ def init_db(database_url: str = None):
     span_id = context.get_span_id()
     parent_span_id = context.get_parent_span_id()
     settings = get_settings()
-    logger_db = logging.getLogger(f"{settings.app.app_name}.database.init")
 
     try:
         if not database_url:
             database_url = settings.database.url
 
         engine = create_engine(database_url)
-        logger_db.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")
+        _logger.info(f"开始初始化数据库表: {database_url.split('@')[-1]}")
 
         with engine.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"))
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";"))
-            conn.commit()
+            with conn.begin():
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"))
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";"))
 
         Base.metadata.create_all(engine)
 
         duration = (datetime.now() - start_time).total_seconds() * 1000
+
+        log_performance(
+            operation=PerformanceOperation.DB_INIT_SCHEMA,
+            duration_ms=duration,
+            request_id=request_id,
+            extra={
+                "database_url": database_url.split('@')[-1],
+                "span_id": span_id,
+                "parent_span_id": parent_span_id
+            }
+        )
 
         log_audit(
             action=AuditAction.DB_INIT_SCHEMA.value,
@@ -951,8 +1139,6 @@ def init_db(database_url: str = None):
             request_id=request_id
         )
 
-        logger_db.info(f"数据库表创建完成，耗时: {round(duration, 2)}ms")
-
     except Exception as e:
         log_audit(
             action=AuditAction.DB_INIT_SCHEMA.value,
@@ -963,7 +1149,8 @@ def init_db(database_url: str = None):
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
             },
+            reason=str(e),
             request_id=request_id
         )
-        logger_db.error(f"数据库表创建失败: {str(e)}")
+        _logger.error(f"数据库表创建失败: {str(e)}", exc_info=True)
         raise

@@ -1,4 +1,5 @@
 # datamind/config/scorecard_config.py
+
 """评分卡配置模块
 
 定义评分卡模型的所有配置项，支持动态分箱调整和配置版本管理。
@@ -12,46 +13,22 @@
   - 配置热加载支持
   - 配置生效时间控制
   - 多环境隔离（开发/测试/生产）
-
-配置来源：
-  支持从环境变量读取配置，例如：
-    - `SCORECARD_BASE_SCORE=600`
-    - `SCORECARD_PDO=50`
-    - `SCORECARD_ODDS=20`
-    - `SCORECARD_MIN_SCORE=0`
-    - `SCORECARD_MAX_SCORE=1000`
-    - `SCORECARD_DEFAULT_N_BINS=10`
-    - `SCORECARD_DEFAULT_MIN_SAMPLES=5`
-
-配置验证：
-  提供完善的配置验证，包括：
-    - 类型验证（枚举、整数、浮点数、字符串）
-    - 范围验证（评分 `0-1000`、`pdo>0`、`odds>0`）
-    - 一致性验证（分箱边界递增、WOE数量匹配）
-    - 完整性验证（特征系数与分箱配置对应）
-    - 依赖验证（有效时间区间、生产配置标识）
-
-枚举类型：
-  - `BinningStrategy`: 分箱策略（quantile/uniform/custom/monotonic/tree）
-  - `ScoreDirection`: 评分方向（higher_better/lower_better）
-  - `ConfigState`: 配置状态（draft/active/deprecated/archived）
-
-使用示例：
-  >>> from datamind.config import get_scorecard_default_config
-  >>> config = get_scorecard_default_config()
-  >>> print(config.base_score)
-  600
+  - 环境变量支持：支持 DATAMIND_SCORECARD_* 前缀的环境变量
 """
 
 import json
 import hashlib
-import threading
+import numpy as np
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from .base import BaseConfig
+
+# 类型别名
+BinEdge = Union[float, int, str]
 
 
 class ScorecardConstants:
@@ -138,147 +115,134 @@ class ConfigState(str, Enum):
     ARCHIVED = "archived"
 
 
-class ScorecardDefaultConfig(BaseSettings):
+class ScorecardDefaultConfig(BaseConfig):
     """评分卡默认配置
 
-    从环境变量读取评分卡的默认参数配置。
-
-    配置示例：
-        SCORECARD_BASE_SCORE=600
-        SCORECARD_PDO=50
-        SCORECARD_ODDS=20
-        SCORECARD_MIN_SCORE=0
-        SCORECARD_MAX_SCORE=1000
-        SCORECARD_DIRECTION=higher_better
-        SCORECARD_DEFAULT_N_BINS=10
-        SCORECARD_DEFAULT_MIN_SAMPLES=5
-        SCORECARD_DEFAULT_STRATEGY=quantile
-        SCORECARD_ENABLE_CACHE=true
-        SCORECARD_CACHE_TTL=300
+    环境变量前缀：DATAMIND_SCORECARD_
+    例如：DATAMIND_SCORECARD_BASE_SCORE=600, DATAMIND_SCORECARD_PDO=50
 
     属性:
-        base_score: 基准分，默认 `600`
-        pdo: 点数翻倍比（Points to Double the Odds），默认 `50`
-        odds: 基准 odds，默认 `20`
-        min_score: 最低分，默认 `0`
-        max_score: 最高分，默认 `1000`
-        direction: 评分方向，默认 `higher_better`
-        default_n_bins: 默认分箱数量，默认 `10`
-        default_min_samples_per_bin: 每箱默认最小样本数，默认 `5`
-        default_strategy: 默认分箱策略，默认 `quantile`
-        enable_cache: 是否启用配置缓存，默认 `True`
-        cache_ttl: 缓存过期时间（秒），默认 `300`
-        default_version: 默认版本，默认 `1.0.0`
+        base_score: 基准分，默认 600
+        pdo: 点数翻倍比（Points to Double the Odds），默认 50
+        odds: 基准 odds，默认 20
+        min_score: 最低分，默认 0
+        max_score: 最高分，默认 1000
+        direction: 评分方向，默认 higher_better
+        default_n_bins: 默认分箱数量，默认 10
+        default_min_samples_per_bin: 每箱默认最小样本数，默认 5
+        default_strategy: 默认分箱策略，默认 quantile
+        enable_cache: 是否启用配置缓存，默认 True
+        cache_ttl: 缓存过期时间（秒），默认 300
+        default_version: 默认版本，默认 1.0.0
     """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-        env_prefix="SCORECARD_"
-    )
+    __env_prefix__ = "DATAMIND_SCORECARD_"
 
-    base_score: float = Field(
-        default=ScorecardConstants.DEFAULT_BASE_SCORE,
-        ge=ScorecardConstants.MIN_SCORE_LIMIT,
-        le=ScorecardConstants.MAX_SCORE_LIMIT,
-        validation_alias="SCORECARD_BASE_SCORE",
-        description="基准分"
-    )
+    __enum_mappings__ = {
+        "direction": ScoreDirection,
+        "default_strategy": BinningStrategy,
+    }
 
-    pdo: float = Field(
-        default=ScorecardConstants.DEFAULT_PDO,
-        gt=0,
-        validation_alias="SCORECARD_PDO",
-        description="点数翻倍比（Points to Double the Odds）"
-    )
-
-    odds: float = Field(
-        default=ScorecardConstants.DEFAULT_ODDS,
-        gt=0,
-        validation_alias="SCORECARD_ODDS",
-        description="基准 odds"
-    )
-
-    min_score: float = Field(
-        default=ScorecardConstants.DEFAULT_MIN_SCORE,
-        ge=0,
-        validation_alias="SCORECARD_MIN_SCORE",
-        description="最低分"
-    )
-
-    max_score: float = Field(
-        default=ScorecardConstants.DEFAULT_MAX_SCORE,
-        le=ScorecardConstants.MAX_SCORE_LIMIT,
-        validation_alias="SCORECARD_MAX_SCORE",
-        description="最高分"
-    )
-
-    direction: str = Field(
-        default=ScorecardConstants.DEFAULT_DIRECTION,
-        validation_alias="SCORECARD_DIRECTION",
-        description="评分方向：`higher_better` 或 `lower_better`"
-    )
-
-    default_n_bins: int = Field(
-        default=ScorecardConstants.DEFAULT_N_BINS,
-        ge=ScorecardConstants.MIN_N_BINS,
-        le=ScorecardConstants.MAX_N_BINS,
-        validation_alias="SCORECARD_DEFAULT_N_BINS",
-        description="默认分箱数量"
-    )
-
-    default_min_samples_per_bin: int = Field(
-        default=ScorecardConstants.DEFAULT_MIN_SAMPLES_PER_BIN,
-        ge=ScorecardConstants.MIN_SAMPLES_PER_BIN,
-        validation_alias="SCORECARD_DEFAULT_MIN_SAMPLES",
-        description="每箱默认最小样本数"
-    )
-
-    default_strategy: str = Field(
-        default=ScorecardConstants.DEFAULT_STRATEGY,
-        validation_alias="SCORECARD_DEFAULT_STRATEGY",
-        description="默认分箱策略：`quantile`/`uniform`/`custom`/`monotonic`/`tree`"
-    )
-
-    enable_cache: bool = Field(
-        default=ScorecardConstants.DEFAULT_ENABLE_CACHE,
-        validation_alias="SCORECARD_ENABLE_CACHE",
-        description="是否启用配置缓存"
-    )
-
-    cache_ttl: int = Field(
-        default=ScorecardConstants.DEFAULT_CACHE_TTL,
-        ge=60,
-        validation_alias="SCORECARD_CACHE_TTL",
-        description="缓存过期时间（秒）"
-    )
-
-    default_version: str = Field(
-        default=ScorecardConstants.DEFAULT_VERSION,
-        pattern=r"^\d+\.\d+\.\d+$",
-        validation_alias="SCORECARD_DEFAULT_VERSION",
-        description="默认配置版本，格式：`major.minor.patch`"
-    )
+    base_score: float = Field(default=ScorecardConstants.DEFAULT_BASE_SCORE, alias="BASE_SCORE", description="基准分")
+    pdo: float = Field(default=ScorecardConstants.DEFAULT_PDO, alias="PDO", description="点数翻倍比（Points to Double the Odds）")
+    odds: float = Field(default=ScorecardConstants.DEFAULT_ODDS, alias="ODDS", description="基准 odds")
+    min_score: float = Field(default=ScorecardConstants.DEFAULT_MIN_SCORE, alias="MIN_SCORE", description="最低分")
+    max_score: float = Field(default=ScorecardConstants.DEFAULT_MAX_SCORE, alias="MAX_SCORE", description="最高分")
+    direction: ScoreDirection = Field(default=ScoreDirection.HIGHER_BETTER, alias="DIRECTION", description="评分方向")
+    default_n_bins: int = Field(default=ScorecardConstants.DEFAULT_N_BINS, alias="DEFAULT_N_BINS", description="默认分箱数量")
+    default_min_samples_per_bin: int = Field(default=ScorecardConstants.DEFAULT_MIN_SAMPLES_PER_BIN, alias="DEFAULT_MIN_SAMPLES_PER_BIN", description="每箱默认最小样本数")
+    default_strategy: BinningStrategy = Field(default=BinningStrategy.QUANTILE, alias="DEFAULT_STRATEGY", description="默认分箱策略")
+    enable_cache: bool = Field(default=ScorecardConstants.DEFAULT_ENABLE_CACHE, alias="ENABLE_CACHE", description="是否启用配置缓存")
+    cache_ttl: int = Field(default=ScorecardConstants.DEFAULT_CACHE_TTL, alias="CACHE_TTL", description="缓存过期时间（秒）")
+    default_version: str = Field(default=ScorecardConstants.DEFAULT_VERSION, alias="DEFAULT_VERSION", description="默认配置版本，格式：major.minor.patch")
 
     @field_validator('direction', mode='before')
     @classmethod
-    def _validate_direction(cls, v: str) -> str:
-        """验证评分方向"""
+    def _validate_direction(cls, v):
         if isinstance(v, str):
             if v not in ['higher_better', 'lower_better']:
-                return ScorecardConstants.DEFAULT_DIRECTION
+                raise ValueError(f"无效的评分方向: {v}，必须是 'higher_better' 或 'lower_better'")
         return v
 
     @field_validator('default_strategy', mode='before')
     @classmethod
-    def _validate_strategy(cls, v: str) -> str:
-        """验证分箱策略"""
-        valid_strategies = ['quantile', 'uniform', 'custom', 'monotonic', 'tree']
-        if v not in valid_strategies:
-            return ScorecardConstants.DEFAULT_STRATEGY
+    def _validate_strategy(cls, v):
+        if isinstance(v, str):
+            valid_strategies = ['quantile', 'uniform', 'custom', 'monotonic', 'tree']
+            if v not in valid_strategies:
+                raise ValueError(f"无效的分箱策略: {v}，必须是 {valid_strategies}")
         return v
+
+    @field_validator('base_score')
+    @classmethod
+    def _validate_base_score(cls, v: float) -> float:
+        if v < ScorecardConstants.MIN_SCORE_LIMIT or v > ScorecardConstants.MAX_SCORE_LIMIT:
+            raise ValueError(f"base_score 必须在 {ScorecardConstants.MIN_SCORE_LIMIT}-{ScorecardConstants.MAX_SCORE_LIMIT} 之间")
+        return v
+
+    @field_validator('pdo')
+    @classmethod
+    def _validate_pdo(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError(f"pdo 必须大于 0")
+        return v
+
+    @field_validator('odds')
+    @classmethod
+    def _validate_odds(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError(f"odds 必须大于 0")
+        return v
+
+    @field_validator('min_score', 'max_score')
+    @classmethod
+    def _validate_score_range(cls, v: float, info) -> float:
+        field_name = info.field_name
+        if field_name == 'min_score':
+            other = info.data.get('max_score', ScorecardConstants.DEFAULT_MAX_SCORE)
+            if v >= other:
+                raise ValueError(f"min_score({v}) 必须小于 max_score({other})")
+        else:
+            other = info.data.get('min_score', ScorecardConstants.DEFAULT_MIN_SCORE)
+            if other >= v:
+                raise ValueError(f"min_score({other}) 必须小于 max_score({v})")
+        return v
+
+    @field_validator('cache_ttl')
+    @classmethod
+    def _validate_cache_ttl(cls, v: int) -> int:
+        if v < 60:
+            raise ValueError(f"cache_ttl 不能小于 60 秒")
+        return v
+
+    @field_validator('default_version')
+    @classmethod
+    def _validate_version(cls, v: str) -> str:
+        import re
+        if not re.match(r"^\d+\.\d+\.\d+$", v):
+            raise ValueError(f"版本格式无效: {v}，必须为 major.minor.patch 格式")
+        return v
+
+    def to_summary_dict(self) -> Dict[str, Any]:
+        """获取配置摘要
+
+        返回:
+            配置摘要字典
+        """
+        return {
+            "base_score": self.base_score,
+            "pdo": self.pdo,
+            "odds": self.odds,
+            "min_score": self.min_score,
+            "max_score": self.max_score,
+            "direction": self.direction.value,
+            "default_n_bins": self.default_n_bins,
+            "default_min_samples_per_bin": self.default_min_samples_per_bin,
+            "default_strategy": self.default_strategy.value,
+            "enable_cache": self.enable_cache,
+            "cache_ttl": self.cache_ttl,
+            "default_version": self.default_version,
+        }
 
 
 class FeatureBinConfig(BaseModel):
@@ -312,78 +276,33 @@ class FeatureBinConfig(BaseModel):
         custom_breaks: 自定义分箱边界（`strategy=CUSTOM` 时使用）
     """
 
-    name: str = Field(
-        default="",
-        min_length=1,
-        max_length=100,
-        description="特征名称"
-    )
+    name: str = Field(default="", min_length=1, max_length=100, description="特征名称")
+    strategy: BinningStrategy = Field(default=BinningStrategy.QUANTILE, description="分箱策略")
+    bin_edges: List[BinEdge] = Field(default_factory=list, description="分箱边界列表，长度为 `n_bins + 1`")
+    woe_values: List[float] = Field(default_factory=list, description="WOE值列表，长度为 `n_bins`")
+    iv: float = Field(default=0.0, ge=0.0, description="信息值（Information Value）")
+    missing_bin: Optional[str] = Field(default=None, description="缺失值分箱标识")
+    n_bins: int = Field(default=ScorecardConstants.DEFAULT_N_BINS, ge=ScorecardConstants.MIN_N_BINS, le=ScorecardConstants.MAX_N_BINS, description="分箱数量")
+    min_samples_per_bin: int = Field(default=ScorecardConstants.DEFAULT_MIN_SAMPLES_PER_BIN, ge=ScorecardConstants.MIN_SAMPLES_PER_BIN, description="每箱最小样本数")
+    monotonic_cst: Optional[int] = Field(default=None, ge=-1, le=1, description="单调约束：`1`=递增，`-1`=递减，`None`=无约束")
+    custom_breaks: Optional[List[float]] = Field(default=None, description="自定义分箱边界（`strategy=CUSTOM` 时使用）")
 
-    strategy: BinningStrategy = Field(
-        default=BinningStrategy.QUANTILE,
-        description="分箱策略"
-    )
-
-    bin_edges: List[Union[float, int, str]] = Field(
-        default_factory=list,
-        description="分箱边界列表，长度为 `n_bins + 1`"
-    )
-
-    woe_values: List[float] = Field(
-        default_factory=list,
-        description="WOE值列表，长度为 `n_bins`"
-    )
-
-    iv: float = Field(
-        default=0.0,
-        ge=0.0,
-        description="信息值（Information Value）"
-    )
-
-    missing_bin: Optional[str] = Field(
-        default=None,
-        description="缺失值分箱标识，`None` 表示缺失值单独处理"
-    )
-
-    n_bins: int = Field(
-        default=ScorecardConstants.DEFAULT_N_BINS,
-        ge=ScorecardConstants.MIN_N_BINS,
-        le=ScorecardConstants.MAX_N_BINS,
-        description="分箱数量"
-    )
-
-    min_samples_per_bin: int = Field(
-        default=ScorecardConstants.DEFAULT_MIN_SAMPLES_PER_BIN,
-        ge=ScorecardConstants.MIN_SAMPLES_PER_BIN,
-        description="每箱最小样本数"
-    )
-
-    monotonic_cst: Optional[int] = Field(
-        default=None,
-        ge=-1,
-        le=1,
-        description="单调约束：`1`=递增，`-1`=递减，`None`=无约束"
-    )
-
-    custom_breaks: Optional[List[float]] = Field(
-        default=None,
-        description="自定义分箱边界（`strategy=CUSTOM` 时使用）"
-    )
+    model_config = {"validate_assignment": True}
 
     @field_validator('woe_values')
     @classmethod
     def _validate_woe_count(cls, woe_values: List[float], info) -> List[float]:
-        """验证WOE值数量与分箱数量匹配"""
+        """验证 WOE 值数量与分箱数量匹配"""
         bin_edges = info.data.get('bin_edges', [])
         if bin_edges and len(woe_values) != len(bin_edges) - 1:
             raise ValueError(
-                f"WOE值数量({len(woe_values)})必须比分箱数({len(bin_edges) - 1})相等"
+                f"WOE值数量({len(woe_values)})必须与分箱数({len(bin_edges) - 1})相等"
             )
         return woe_values
 
     @field_validator('bin_edges')
     @classmethod
-    def _validate_bin_edges(cls, bin_edges: List[Union[float, int, str]]) -> List[Union[float, int, str]]:
+    def _validate_bin_edges(cls, bin_edges: List[BinEdge]) -> List[BinEdge]:
         """验证分箱边界严格递增"""
         if not bin_edges:
             return bin_edges
@@ -400,17 +319,34 @@ class FeatureBinConfig(BaseModel):
     @field_validator('monotonic_cst')
     @classmethod
     def _validate_monotonic_constraint(cls, monotonic_cst: Optional[int]) -> Optional[int]:
-        """验证单调约束值"""
+        """验证单调约束值有效"""
         if monotonic_cst is not None and monotonic_cst not in (-1, 1):
             raise ValueError(f"单调约束必须为 `-1`（递减）、`1`（递增）或 `None`")
         return monotonic_cst
 
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式
+    @field_validator('n_bins')
+    @classmethod
+    def _validate_n_bins(cls, v: int) -> int:
+        if v < ScorecardConstants.MIN_N_BINS or v > ScorecardConstants.MAX_N_BINS:
+            raise ValueError(f"n_bins 必须在 {ScorecardConstants.MIN_N_BINS}-{ScorecardConstants.MAX_N_BINS} 之间")
+        return v
 
-        返回:
-            字典格式的配置，用于序列化存储
-        """
+    @field_validator('min_samples_per_bin')
+    @classmethod
+    def _validate_min_samples(cls, v: int) -> int:
+        if v < ScorecardConstants.MIN_SAMPLES_PER_BIN:
+            raise ValueError(f"min_samples_per_bin 不能小于 {ScorecardConstants.MIN_SAMPLES_PER_BIN}")
+        return v
+
+    @field_validator('iv')
+    @classmethod
+    def _validate_iv(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError(f"IV 值不能为负数: {v}")
+        return v
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典格式"""
         result = {
             'name': self.name,
             'strategy': self.strategy.value,
@@ -427,22 +363,18 @@ class FeatureBinConfig(BaseModel):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], feature_name: Optional[str] = None) -> 'FeatureBinConfig':
-        """从字典创建实例
-
-        参数:
-            data: 字典格式的配置数据
-            feature_name: 特征名称，如果提供则覆盖 `data` 中的 `name`
-
-        返回:
-            `FeatureBinConfig` 实例
-        """
+        """从字典创建实例"""
         name = feature_name or data.get('name', '')
         if not name:
             raise ValueError("特征名称不能为空")
 
+        strategy = data.get('strategy', ScorecardConstants.DEFAULT_STRATEGY)
+        if isinstance(strategy, str):
+            strategy = BinningStrategy(strategy)
+
         return cls(
             name=name,
-            strategy=BinningStrategy(data.get('strategy', ScorecardConstants.DEFAULT_STRATEGY)),
+            strategy=strategy,
             bin_edges=data.get('bin_edges', []),
             woe_values=data.get('woe_values', []),
             iv=data.get('iv', 0.0),
@@ -498,136 +430,55 @@ class ScorecardConfig(BaseModel):
         tags: 标签字典
     """
 
-    base_score: float = Field(
-        default=ScorecardConstants.DEFAULT_BASE_SCORE,
-        ge=ScorecardConstants.MIN_SCORE_LIMIT,
-        le=ScorecardConstants.MAX_SCORE_LIMIT,
-        description="基准分"
-    )
+    base_score: float = Field(default=ScorecardConstants.DEFAULT_BASE_SCORE, ge=ScorecardConstants.MIN_SCORE_LIMIT, le=ScorecardConstants.MAX_SCORE_LIMIT, description="基准分")
+    pdo: float = Field(default=ScorecardConstants.DEFAULT_PDO, gt=0, description="点数翻倍比（Points to Double the Odds）")
+    odds: float = Field(default=ScorecardConstants.DEFAULT_ODDS, gt=0, description="基准 odds")
+    min_score: float = Field(default=ScorecardConstants.DEFAULT_MIN_SCORE, ge=0, description="最低分")
+    max_score: float = Field(default=ScorecardConstants.DEFAULT_MAX_SCORE, le=ScorecardConstants.MAX_SCORE_LIMIT, description="最高分")
+    direction: ScoreDirection = Field(default=ScoreDirection.HIGHER_BETTER, description="评分方向")
+    feature_bins: Dict[str, FeatureBinConfig] = Field(default_factory=dict, description="特征分箱配置字典")
+    coefficients: Dict[str, float] = Field(default_factory=dict, description="特征系数字典")
+    intercept: float = Field(default=0.0, description="截距项")
+    feature_importance: Dict[str, float] = Field(default_factory=dict, description="特征重要性字典")
+    version: str = Field(default=ScorecardConstants.DEFAULT_VERSION, pattern=r"^\d+\.\d+\.\d+$", description="配置版本，格式：major.minor.patch")
+    config_id: str = Field(default="", description="配置唯一标识")
+    state: ConfigState = Field(default=ConfigState.DRAFT, description="配置状态")
+    created_by: str = Field(default="system", max_length=50, description="创建人")
+    created_at: Optional[datetime] = Field(default=None, description="创建时间")
+    updated_by: str = Field(default="system", max_length=50, description="更新人")
+    updated_at: Optional[datetime] = Field(default=None, description="更新时间")
+    effective_from: Optional[datetime] = Field(default=None, description="生效开始时间")
+    effective_to: Optional[datetime] = Field(default=None, description="生效结束时间")
+    description: Optional[str] = Field(default=None, max_length=500, description="配置描述")
+    tags: Dict[str, str] = Field(default_factory=dict, description="标签字典")
 
-    pdo: float = Field(
-        default=ScorecardConstants.DEFAULT_PDO,
-        gt=0,
-        description="点数翻倍比（Points to Double the Odds）"
-    )
-
-    odds: float = Field(
-        default=ScorecardConstants.DEFAULT_ODDS,
-        gt=0,
-        description="基准 odds"
-    )
-
-    min_score: float = Field(
-        default=ScorecardConstants.DEFAULT_MIN_SCORE,
-        ge=ScorecardConstants.MIN_SCORE_LIMIT,
-        description="最低分"
-    )
-
-    max_score: float = Field(
-        default=ScorecardConstants.DEFAULT_MAX_SCORE,
-        le=ScorecardConstants.MAX_SCORE_LIMIT,
-        description="最高分"
-    )
-
-    direction: ScoreDirection = Field(
-        default=ScoreDirection.HIGHER_BETTER,
-        description="评分方向"
-    )
-
-    feature_bins: Dict[str, FeatureBinConfig] = Field(
-        default_factory=dict,
-        description="特征分箱配置字典"
-    )
-
-    coefficients: Dict[str, float] = Field(
-        default_factory=dict,
-        description="特征系数字典"
-    )
-
-    intercept: float = Field(
-        default=0.0,
-        description="截距项"
-    )
-
-    feature_importance: Dict[str, float] = Field(
-        default_factory=dict,
-        description="特征重要性字典"
-    )
-
-    version: str = Field(
-        default=ScorecardConstants.DEFAULT_VERSION,
-        pattern=r"^\d+\.\d+\.\d+$",
-        description="配置版本，格式：`major.minor.patch`"
-    )
-
-    config_id: str = Field(
-        default="",
-        description="配置唯一标识"
-    )
-
-    state: ConfigState = Field(
-        default=ConfigState.DRAFT,
-        description="配置状态"
-    )
-
-    created_by: str = Field(
-        default="system",
-        max_length=50,
-        description="创建人"
-    )
-
-    created_at: Optional[datetime] = Field(
-        default=None,
-        description="创建时间"
-    )
-
-    updated_by: str = Field(
-        default="system",
-        max_length=50,
-        description="更新人"
-    )
-
-    updated_at: Optional[datetime] = Field(
-        default=None,
-        description="更新时间"
-    )
-
-    effective_from: Optional[datetime] = Field(
-        default=None,
-        description="生效开始时间"
-    )
-
-    effective_to: Optional[datetime] = Field(
-        default=None,
-        description="生效结束时间"
-    )
-
-    description: Optional[str] = Field(
-        default=None,
-        max_length=500,
-        description="配置描述"
-    )
-
-    tags: Dict[str, str] = Field(
-        default_factory=dict,
-        description="标签字典"
-    )
+    model_config = {"validate_assignment": True}
 
     @field_validator('min_score', 'max_score')
     @classmethod
     def _validate_score_range(cls, v: float, info) -> float:
-        """验证评分范围"""
-        if 'min_score' in info.data and 'max_score' in info.data:
-            if info.data['min_score'] >= info.data['max_score']:
-                raise ValueError(
-                    f"`min_score`({info.data['min_score']})必须小于`max_score`({info.data['max_score']})"
-                )
+        """验证分数范围：min_score 必须小于 max_score"""
+        field_name = info.field_name
+
+        if field_name == 'min_score':
+            other_field = 'max_score'
+        else:
+            other_field = 'min_score'
+
+        other_value = info.data.get(other_field)
+
+        if other_value is not None:
+            if field_name == 'min_score' and v >= other_value:
+                raise ValueError(f"min_score({v})必须小于max_score({other_value})")
+            if field_name == 'max_score' and other_value >= v:
+                raise ValueError(f"min_score({other_value})必须小于max_score({v})")
+
         return v
 
     @field_validator('coefficients')
     @classmethod
     def _validate_coefficients(cls, coefficients: Dict[str, float], info) -> Dict[str, float]:
-        """验证系数与特征分箱匹配"""
+        """验证系数中的特征都有对应的分箱配置"""
         feature_bins = info.data.get('feature_bins', {})
         missing_features = set(coefficients.keys()) - set(feature_bins.keys())
         if missing_features:
@@ -638,29 +489,23 @@ class ScorecardConfig(BaseModel):
 
     @model_validator(mode='after')
     def _generate_config_id(self) -> 'ScorecardConfig':
-        """生成配置唯一标识"""
+        """生成配置ID（使用确定性字段，避免递归）"""
         if not self.config_id:
-            config_str = json.dumps(self.to_dict(), sort_keys=True, default=str)
+            id_data = {
+                'base_score': self.base_score,
+                'pdo': self.pdo,
+                'odds': self.odds,
+                'min_score': self.min_score,
+                'max_score': self.max_score,
+                'direction': self.direction.value if self.direction else None,
+                'version': self.version,
+            }
+            config_str = json.dumps(id_data, sort_keys=True, default=str)
             self.config_id = hashlib.sha256(config_str.encode()).hexdigest()[:16]
         return self
 
     def get_score_params(self) -> Dict[str, float]:
-        """获取评分参数
-
-        计算评分公式中的 `factor` 和 `offset`。
-
-        评分公式：
-            score = offset + factor * (intercept + Σ(coefficient_i * WOE_i))
-
-        其中：
-            factor = pdo / ln(2)
-            offset = base_score - factor * ln(odds)
-
-        返回:
-            包含 `factor` 和 `offset` 的字典
-        """
-        import numpy as np
-
+        """获取评分参数"""
         factor = self.pdo / np.log(2)
         offset = self.base_score - factor * np.log(self.odds)
 
@@ -673,18 +518,14 @@ class ScorecardConfig(BaseModel):
         }
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式
-
-        返回:
-            字典格式的配置，用于序列化存储
-        """
+        """转换为字典格式"""
         result = {
             'base_score': self.base_score,
             'pdo': self.pdo,
             'odds': self.odds,
             'min_score': self.min_score,
             'max_score': self.max_score,
-            'direction': self.direction.value,
+            'direction': self.direction.value if self.direction else None,
             'feature_bins': {
                 name: bin_config.to_dict()
                 for name, bin_config in self.feature_bins.items()
@@ -694,7 +535,7 @@ class ScorecardConfig(BaseModel):
             'feature_importance': self.feature_importance,
             'version': self.version,
             'config_id': self.config_id,
-            'state': self.state.value,
+            'state': self.state.value if self.state else None,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_by': self.updated_by,
@@ -708,14 +549,7 @@ class ScorecardConfig(BaseModel):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ScorecardConfig':
-        """从字典创建实例
-
-        参数:
-            data: 字典格式的配置数据
-
-        返回:
-            `ScorecardConfig` 实例
-        """
+        """从字典创建实例"""
         feature_bins = {}
         for name, bin_data in data.get('feature_bins', {}).items():
             feature_bins[name] = FeatureBinConfig.from_dict(bin_data, feature_name=name)
@@ -736,20 +570,28 @@ class ScorecardConfig(BaseModel):
         if effective_to and isinstance(effective_to, str):
             effective_to = datetime.fromisoformat(effective_to)
 
+        direction = data.get('direction', ScorecardConstants.DEFAULT_DIRECTION)
+        if isinstance(direction, str):
+            direction = ScoreDirection(direction)
+
+        state = data.get('state', ConfigState.DRAFT.value)
+        if isinstance(state, str):
+            state = ConfigState(state)
+
         return cls(
             base_score=data.get('base_score', ScorecardConstants.DEFAULT_BASE_SCORE),
             pdo=data.get('pdo', ScorecardConstants.DEFAULT_PDO),
             odds=data.get('odds', ScorecardConstants.DEFAULT_ODDS),
             min_score=data.get('min_score', ScorecardConstants.DEFAULT_MIN_SCORE),
             max_score=data.get('max_score', ScorecardConstants.DEFAULT_MAX_SCORE),
-            direction=ScoreDirection(data.get('direction', ScorecardConstants.DEFAULT_DIRECTION)),
+            direction=direction,
             feature_bins=feature_bins,
             coefficients=data.get('coefficients', {}),
             intercept=data.get('intercept', 0.0),
             feature_importance=data.get('feature_importance', {}),
             version=data.get('version', ScorecardConstants.DEFAULT_VERSION),
             config_id=data.get('config_id', ''),
-            state=ConfigState(data.get('state', ConfigState.DRAFT.value)),
+            state=state,
             created_by=data.get('created_by', 'system'),
             created_at=created_at,
             updated_by=data.get('updated_by', 'system'),
@@ -761,16 +603,13 @@ class ScorecardConfig(BaseModel):
         )
 
     def validate(self) -> List[str]:
-        """验证配置有效性
-
-        返回:
-            错误列表，空列表表示验证通过
-        """
+        """验证配置有效性"""
         errors = []
 
         if self.base_score < ScorecardConstants.MIN_SCORE_LIMIT or self.base_score > ScorecardConstants.MAX_SCORE_LIMIT:
             errors.append(
-                f"`base_score`({self.base_score})必须在{ScorecardConstants.MIN_SCORE_LIMIT}-{ScorecardConstants.MAX_SCORE_LIMIT}之间")
+                f"`base_score`({self.base_score})必须在{ScorecardConstants.MIN_SCORE_LIMIT}-{ScorecardConstants.MAX_SCORE_LIMIT}之间"
+            )
 
         if self.pdo <= 0:
             errors.append(f"`pdo`({self.pdo})必须大于0")
@@ -796,14 +635,7 @@ class ScorecardConfig(BaseModel):
         return errors
 
     def is_effective(self, check_time: Optional[datetime] = None) -> bool:
-        """检查配置是否在有效期内
-
-        参数:
-            check_time: 检查时间点，`None` 表示当前时间
-
-        返回:
-            `True` 表示在有效期内，`False` 表示已过期或尚未生效
-        """
+        """检查配置是否在有效期内"""
         if self.state != ConfigState.ACTIVE:
             return False
 
@@ -817,44 +649,6 @@ class ScorecardConfig(BaseModel):
 
         return True
 
-_scorecard_default_config: Optional[ScorecardDefaultConfig] = None
-_config_lock = threading.Lock()
-
-
-def get_scorecard_default_config() -> ScorecardDefaultConfig:
-    """获取评分卡默认配置实例
-
-    从 `.env` 文件和环境变量加载配置，支持热重载。
-
-    返回:
-        `ScorecardDefaultConfig` 单例实例
-
-    示例:
-        >>> config = get_scorecard_default_config()
-        >>> print(config.base_score)
-        600
-    """
-    global _scorecard_default_config
-    if _scorecard_default_config is None:
-        with _config_lock:
-            if _scorecard_default_config is None:
-                _scorecard_default_config = ScorecardDefaultConfig()
-    return _scorecard_default_config
-
-
-def reload_scorecard_default_config() -> ScorecardDefaultConfig:
-    """重新加载评分卡默认配置
-
-    用于配置文件热重载场景。
-
-    返回:
-        新加载的 `ScorecardDefaultConfig` 实例
-    """
-    global _scorecard_default_config
-    with _config_lock:
-        _scorecard_default_config = ScorecardDefaultConfig()
-    return _scorecard_default_config
-
 
 __all__ = [
     'ScorecardConstants',
@@ -864,6 +658,4 @@ __all__ = [
     'FeatureBinConfig',
     'ScorecardConfig',
     'ScorecardDefaultConfig',
-    'get_scorecard_default_config',
-    'reload_scorecard_default_config'
 ]

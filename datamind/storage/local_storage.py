@@ -46,7 +46,7 @@ from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
 from datamind.storage.base import StorageBackend
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class LocalStorage(StorageBackend):
@@ -63,7 +63,7 @@ class LocalStorage(StorageBackend):
         super().__init__(base_path=base_path)
         self.root_path = Path(root_path)
         self.root_path.mkdir(parents=True, exist_ok=True)
-        logger.info("本地存储初始化完成，根目录: %s", self.root_path)
+        _logger.info("本地存储初始化完成，根目录: %s", self.root_path)
 
     async def save(self, path: str, content: BinaryIO,
                    metadata: Optional[Dict] = None) -> Dict[str, Any]:
@@ -110,7 +110,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.info("文件保存成功: %s, 大小=%.2fKB", full_path, file_size / 1024)
+        _logger.info("文件保存成功: %s, 大小=%.2fKB", full_path, file_size / 1024)
 
         return {
             'path': str(full_path.relative_to(self.root_path)),
@@ -153,7 +153,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.info("文件加载成功: %s, 大小=%.2fKB", full_path, len(content) / 1024)
+        _logger.info("文件加载成功: %s, 大小=%.2fKB", full_path, len(content) / 1024)
         return content
 
     async def delete(self, path: str, version: Optional[str] = None) -> bool:
@@ -191,7 +191,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.info("文件删除成功: %s", full_path)
+        _logger.info("文件删除成功: %s", full_path)
         return True
 
     async def exists(self, path: str) -> bool:
@@ -246,7 +246,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.info("列出文件成功: 路径=%s, 共 %d 个文件", search_path, len(files))
+        _logger.info("列出文件成功: 路径=%s, 共 %d 个文件", search_path, len(files))
         return files
 
     async def get_metadata(self, path: str) -> Dict[str, Any]:
@@ -292,7 +292,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.debug("获取元数据成功: %s", full_path)
+        _logger.debug("获取元数据成功: %s", full_path)
         return metadata
 
     async def copy(self, source_path: str, dest_path: str) -> Dict[str, Any]:
@@ -333,7 +333,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.info("文件复制成功: %s -> %s, 大小=%.2fKB",
+        _logger.info("文件复制成功: %s -> %s, 大小=%.2fKB",
                    source_full, dest_full, dest_full.stat().st_size / 1024)
 
         return {
@@ -380,7 +380,7 @@ class LocalStorage(StorageBackend):
             request_id=request_id
         )
 
-        logger.info("文件移动成功: %s -> %s, 大小=%.2fKB",
+        _logger.info("文件移动成功: %s -> %s, 大小=%.2fKB",
                    source_full, dest_full, dest_full.stat().st_size / 1024)
 
         return {

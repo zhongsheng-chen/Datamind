@@ -47,7 +47,7 @@ from datamind.storage.base import StorageBackend
 from datamind.storage.local_storage import LocalStorage
 from datamind.config import get_settings
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class ModelStorage:
@@ -75,7 +75,7 @@ class ModelStorage:
                 base_path="models"
             )
 
-        logger.info("模型存储管理器初始化完成，存储后端: %s", type(self.storage).__name__)
+        _logger.info("模型存储管理器初始化完成，存储后端: %s", type(self.storage).__name__)
 
     async def save_model(self, model_id: str, version: str,
                          model_file: BinaryIO, framework: str,
@@ -148,8 +148,8 @@ class ModelStorage:
             request_id=request_id
         )
 
-        logger.info("模型保存成功: %s v%s, 框架=%s, 大小=%.2fMB",
-                   model_id, version, framework, result.get('size', 0) / 1024 / 1024)
+        _logger.info("模型保存成功: %s v%s, 框架=%s, 大小=%.2fMB",
+                     model_id, version, framework, result.get('size', 0) / 1024 / 1024)
 
         return result
 
@@ -198,8 +198,8 @@ class ModelStorage:
                             request_id=request_id
                         )
 
-                        logger.info("模型加载成功: %s v%s, 大小=%.2fKB",
-                                   model_id, version, len(content) / 1024)
+                        _logger.info("模型加载成功: %s v%s, 大小=%.2fKB",
+                                     model_id, version, len(content) / 1024)
                         return content
                 raise FileNotFoundError(f"未找到模型 {model_id} 版本 {version}")
             else:
@@ -228,8 +228,8 @@ class ModelStorage:
                         request_id=request_id
                     )
 
-                    logger.info("模型加载成功: %s (最新版本), 大小=%.2fKB",
-                               model_id, len(content) / 1024)
+                    _logger.info("模型加载成功: %s (最新版本), 大小=%.2fKB",
+                                 model_id, len(content) / 1024)
                     return content
                 raise FileNotFoundError(f"未找到模型 {model_id}")
 
@@ -249,7 +249,7 @@ class ModelStorage:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型加载失败: %s, 版本=%s, 错误=%s", model_id, version or "latest", e)
+            _logger.error("模型加载失败: %s, 版本=%s, 错误=%s", model_id, version or "latest", e)
             raise
 
     async def delete_model(self, model_id: str, version: Optional[str] = None) -> bool:
@@ -292,7 +292,7 @@ class ModelStorage:
                         request_id=request_id
                     )
 
-                    logger.info("删除模型版本成功: %s v%s", model_id, version)
+                    _logger.info("删除模型版本成功: %s v%s", model_id, version)
                     return result
             return False
         else:
@@ -319,7 +319,7 @@ class ModelStorage:
                 request_id=request_id
             )
 
-            logger.info("删除所有模型版本成功: %s, 共删除 %d 个文件", model_id, deleted_count)
+            _logger.info("删除所有模型版本成功: %s, 共删除 %d 个文件", model_id, deleted_count)
             return True
 
     async def list_models(self, prefix: str = "") -> List[Dict[str, Any]]:
@@ -365,7 +365,7 @@ class ModelStorage:
             request_id=request_id
         )
 
-        logger.info("列出模型完成，共 %d 个模型", len(result))
+        _logger.info("列出模型完成，共 %d 个模型", len(result))
         return result
 
     async def get_model_info(self, model_id: str) -> Dict[str, Any]:
@@ -407,7 +407,7 @@ class ModelStorage:
             request_id=request_id
         )
 
-        logger.debug("获取模型信息: %s, 版本数=%d", model_id, len(versions))
+        _logger.debug("获取模型信息: %s, 版本数=%d", model_id, len(versions))
         return result
 
     async def get_signed_url(self, model_id: str, version: Optional[str] = None) -> str:
@@ -419,7 +419,7 @@ class ModelStorage:
                 file_name = f['path'].split('/')[-1]
                 if file_name.startswith(f"model_{version}"):
                     url = await self.storage.get_signed_url(f['path'])
-                    logger.debug("生成签名URL成功: %s v%s", model_id, version)
+                    _logger.debug("生成签名URL成功: %s v%s", model_id, version)
                     return url
             raise FileNotFoundError(f"未找到模型 {model_id} 版本 {version}")
         else:
@@ -428,7 +428,7 @@ class ModelStorage:
             latest_files = [f for f in files if 'latest' in f['path']]
             if latest_files:
                 url = await self.storage.get_signed_url(latest_files[0]['path'])
-                logger.debug("生成签名URL成功: %s (最新版本)", model_id)
+                _logger.debug("生成签名URL成功: %s (最新版本)", model_id)
                 return url
             raise FileNotFoundError(f"未找到模型 {model_id}")
 
@@ -483,8 +483,8 @@ class ModelStorage:
             request_id=request_id
         )
 
-        logger.info("模型迁移成功: %s, 源存储=%s, 目标存储=%s, 迁移版本数=%d",
-                   model_id, type(self.storage).__name__, type(target_storage).__name__, len(migrated))
+        _logger.info("模型迁移成功: %s, 源存储=%s, 目标存储=%s, 迁移版本数=%d",
+                     model_id, type(self.storage).__name__, type(target_storage).__name__, len(migrated))
 
         return {
             'model_id': model_id,
