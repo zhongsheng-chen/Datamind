@@ -24,11 +24,12 @@ class AuditLog(Base):
         Index('idx_audit_resource', 'resource_type', 'resource_id'),
         Index('idx_audit_event', 'event_type'),
         Index('idx_audit_action', 'action'),
+        Index('idx_audit_model', 'model_id'),
         {'schema': 'public'}
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    audit_id = Column(String(50), unique=True, nullable=False)
+    audit_id = Column(String(50), unique=True, nullable=False, index=True)
     event_type = Column(String(50), nullable=False)
 
     action = Column(
@@ -54,7 +55,7 @@ class AuditLog(Base):
     changes = Column(JSONB, nullable=True)
     details = Column(JSONB, nullable=True)
 
-    result = Column(String(20))
+    result = Column(String(20), nullable=True)  # success, failure, pending
     reason = Column(Text, nullable=True)
     error_code = Column(String(50), nullable=True)
 
@@ -68,3 +69,27 @@ class AuditLog(Base):
 
     def __repr__(self):
         return f"<AuditLog(audit_id='{self.audit_id}', action='{self.action}', operator='{self.operator}')>"
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            'audit_id': self.audit_id,
+            'event_type': self.event_type,
+            'action': self.action.value if self.action else None,
+            'operator': self.operator,
+            'operator_ip': str(self.operator_ip) if self.operator_ip else None,
+            'operator_role': self.operator_role,
+            'session_id': self.session_id,
+            'resource_type': self.resource_type,
+            'resource_id': self.resource_id,
+            'resource_name': self.resource_name,
+            'before_state': self.before_state,
+            'after_state': self.after_state,
+            'changes': self.changes,
+            'details': self.details,
+            'result': self.result,
+            'reason': self.reason,
+            'error_code': self.error_code,
+            'model_id': self.model_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

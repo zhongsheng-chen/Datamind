@@ -1,6 +1,8 @@
 # Datamind/datamind/core/db/models/__init__.py
 
 """数据库模型
+
+汇数据库模型定义，提供统一的导入入口。
 """
 
 from datamind.core.db.models.audit import AuditLog

@@ -33,7 +33,7 @@
   - 获胜判断：支持基于指标自动判断获胜组
   - Redis缓存：提升高并发场景下的分配性能
   - 完整审计：记录所有测试操作和用户分配
-  - 链路追踪：链路追踪：完整的 span 追踪
+  - 链路追踪：完整的 span 追踪
 """
 
 import time
@@ -47,8 +47,8 @@ from enum import Enum
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ABTestConfig, ABTestAssignment, ModelMetadata
-from datamind.core.domain.enums import ABTestStatus, AuditAction
-from datamind.core.logging import log_audit, context, get_logger
+from datamind.core.domain.enums import ABTestStatus, AuditAction, PerformanceOperation
+from datamind.core.logging import context, get_logger, log_audit, log_performance
 from datamind.core.common.exceptions import ABTestException
 from datamind.config import get_settings
 
@@ -62,6 +62,11 @@ def _ensure_tzaware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def _calculate_duration_ms(start_time: float) -> float:
+    """计算耗时（毫秒）"""
+    return (time.time() - start_time) * 1000
 
 
 class AssignmentStrategy(str, Enum):
@@ -117,16 +122,7 @@ class TrafficSplitter:
 
     @staticmethod
     def split_consistent(groups: List[Dict[str, Any]], user_key: str) -> Dict[str, Any]:
-        """
-        一致性分配
-
-        参数:
-            groups: 测试组列表
-            user_key: 用户唯一标识（使用 test_id:user_id 实现实验隔离）
-
-        返回:
-            分配到的组
-        """
+        """一致性分配"""
         hash_val = int(hashlib.sha256(user_key.encode()).hexdigest()[:8], 16) % 100
         cumulative = 0
         for group in groups:
@@ -137,17 +133,7 @@ class TrafficSplitter:
 
     @staticmethod
     def split_bucket(groups: List[Dict[str, Any]], user_key: str, bucket_count: int = 1000) -> Dict[str, Any]:
-        """
-        分桶分配
-
-        参数:
-            groups: 测试组列表
-            user_key: 用户唯一标识（使用 test_id:user_id 实现实验隔离）
-            bucket_count: 桶数量，默认1000
-
-        返回:
-            分配到的组
-        """
+        """分桶分配"""
         bucket = int(hashlib.sha256(user_key.encode()).hexdigest()[:8], 16) % bucket_count
         buckets_per_group = []
         for group in groups:
@@ -181,17 +167,7 @@ class TrafficSplitter:
 
     @classmethod
     def split(cls, groups: List[Dict[str, Any]], strategy: str, user_key: str = None, **kwargs) -> Dict[str, Any]:
-        """
-        核心分组方法
-
-        参数:
-            groups: 测试组列表
-            strategy: 分配策略
-            user_key: 用户唯一标识（一致性分配和分桶分配需要提供）
-
-        返回:
-            分配到的组
-        """
+        """核心分组方法"""
         if not groups:
             raise ValueError("测试组列表不能为空")
         strategy = strategy or AssignmentStrategy.get_default()
@@ -244,7 +220,6 @@ class ABTestManager:
         self.assignment_expiry = 365 * 24 * 3600
 
         self.redis_url = redis_config.url
-        self.redis_password = redis_config.password
         self.redis_max_connections = redis_config.max_connections
         self.redis_socket_timeout = redis_config.socket_timeout
 
@@ -264,7 +239,6 @@ class ABTestManager:
             if self.redis_url:
                 self.redis_client = redis.from_url(
                     self.redis_url,
-                    password=self.redis_password,
                     max_connections=self.redis_max_connections,
                     socket_timeout=self.redis_socket_timeout,
                     decode_responses=True
@@ -292,7 +266,7 @@ class ABTestManager:
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
-        start_time = datetime.now()
+        start_time = time.time()
 
         try:
             if not AssignmentStrategy.is_valid(assignment_strategy):
@@ -326,8 +300,23 @@ class ABTestManager:
                 session.add(test)
                 session.commit()
 
-            duration = (datetime.now() - start_time).total_seconds() * 1000
+            duration = _calculate_duration_ms(start_time)
 
+            # 性能日志
+            log_performance(
+                operation=PerformanceOperation.AB_TEST_CREATE,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "test_id": test_id,
+                    "task_type": task_type,
+                    "groups_count": len(groups),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
+
+            # 审计日志（成功）
             log_audit(
                 action=AuditAction.AB_TEST_CREATE.value,
                 user_id=created_by,
@@ -347,14 +336,15 @@ class ABTestManager:
                 request_id=request_id
             )
 
-            logger.info("A/B测试创建成功: test_id=%s, 名称=%s, 策略=%s, 创建人=%s",
-                       test_id, test_name, assignment_strategy, created_by)
+            logger.info("A/B测试创建成功: test_id=%s, 名称=%s", test_id, test_name)
             return test_id
 
         except Exception as e:
-            duration = (datetime.now() - start_time).total_seconds() * 1000
+            duration = _calculate_duration_ms(start_time)
+
+            # 审计日志（失败）
             log_audit(
-                action=AuditAction.AB_TEST_CREATE.value,
+                action=AuditAction.AB_TEST_ERROR.value,
                 user_id=created_by,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -368,10 +358,11 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("A/B测试创建失败: 名称=%s, 错误=%s", test_name, e)
+            logger.error("A/B测试创建失败: 名称=%s, 错误=%s", test_name, str(e), exc_info=True)
             raise
 
-    def _validate_groups(self, groups: List[Dict[str, Any]]):
+    @staticmethod
+    def _validate_groups(groups: List[Dict[str, Any]]):
         if not groups:
             raise ABTestException("测试组不能为空")
 
@@ -392,11 +383,12 @@ class ABTestManager:
                 if not model:
                     raise ABTestException(f"模型不存在或未激活: {model_id}")
 
-    def start_test(self, test_id: str, operator: str, ip_address: Optional[str] = None):
+    @staticmethod
+    def start_test(test_id: str, operator: str, ip_address: Optional[str] = None):
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
-        start_time = datetime.now()
+        start_time = time.time()
 
         try:
             with get_db() as session:
@@ -409,16 +401,30 @@ class ABTestManager:
 
                 test.status = ABTestStatus.RUNNING.value
                 session.commit()
+                test_name = test.test_name
 
-            duration = (datetime.now() - start_time).total_seconds() * 1000
+            duration = _calculate_duration_ms(start_time)
 
+            # 性能日志
+            log_performance(
+                operation=PerformanceOperation.AB_TEST_START,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "test_id": test_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
+
+            # 审计日志
             log_audit(
                 action=AuditAction.AB_TEST_START.value,
                 user_id=operator,
                 ip_address=ip_address,
                 resource_type="ab_test",
                 resource_id=test_id,
-                resource_name=test.test_name,
+                resource_name=test_name,
                 details={
                     "duration_ms": round(duration, 2),
                     "span_id": span_id,
@@ -427,13 +433,13 @@ class ABTestManager:
                 request_id=request_id
             )
 
-            logger.info("A/B测试启动成功: test_id=%s, 名称=%s, 操作人=%s",
-                       test_id, test.test_name, operator)
+            logger.info("A/B测试启动成功: test_id=%s, 名称=%s", test_id, test_name)
 
         except Exception as e:
-            duration = (datetime.now() - start_time).total_seconds() * 1000
+            duration = _calculate_duration_ms(start_time)
+
             log_audit(
-                action=AuditAction.AB_TEST_START.value,
+                action=AuditAction.AB_TEST_ERROR.value,
                 user_id=operator,
                 ip_address=ip_address,
                 resource_type="ab_test",
@@ -447,7 +453,7 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("A/B测试启动失败: test_id=%s, 错误=%s", test_id, e)
+            logger.error("A/B测试启动失败: test_id=%s, 错误=%s", test_id, str(e), exc_info=True)
             raise
 
     def get_assignment(
@@ -456,27 +462,12 @@ class ABTestManager:
             user_id: str,
             ip_address: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        获取用户分组分配
-
-        参数:
-            test_id: A/B测试ID
-            user_id: 用户唯一标识（建议使用 customer_id，不要使用 application_id）
-            ip_address: 客户端IP地址
-
-        注意:
-            user_id 应该是客户的永久标识（如 customer_id），
-            如果使用每次申请的临时ID（如 application_id），会导致同一客户每次申请分配到不同组。
-
-        返回:
-            分配结果字典
-        """
+        """获取用户分组分配"""
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
         start_time = time.time()
 
-        # 检查是否误用了 application_id
         if user_id and user_id.lower().startswith(("ap_", "app_", "apply_", "application_", "req_")):
             logger.warning(
                 "A/B测试分组: user_id=%s 可能是 application_id，建议使用 customer_id 以保证永久一致性",
@@ -556,8 +547,24 @@ class ABTestManager:
             self._cache_assignment(cache_key, result)
             self._stats['total_assignments'] += 1
 
-            duration = (time.time() - start_time) * 1000
+            duration = _calculate_duration_ms(start_time)
 
+            # 性能日志
+            log_performance(
+                operation=PerformanceOperation.AB_TEST_ASSIGNMENT,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "test_id": test_id,
+                    "group_name": group['name'],
+                    "strategy": test.assignment_strategy,
+                    "cache_hit": False,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
+
+            # 审计日志
             log_audit(
                 action=AuditAction.AB_TEST_ASSIGNMENT.value,
                 user_id=user_id,
@@ -575,12 +582,12 @@ class ABTestManager:
                 request_id=request_id
             )
 
-            logger.debug("A/B测试分配成功: test_id=%s, user_id=%s, group=%s, model_id=%s",
-                        test_id, user_id, group['name'], group['model_id'])
+            logger.debug("A/B测试分配成功: test_id=%s, user_id=%s, group=%s", test_id, user_id, group['name'])
             return result
 
         except Exception as e:
-            duration = (time.time() - start_time) * 1000
+            duration = _calculate_duration_ms(start_time)
+
             log_audit(
                 action=AuditAction.AB_TEST_ERROR.value,
                 user_id=user_id,
@@ -596,7 +603,7 @@ class ABTestManager:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("A/B测试分配失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, e)
+            logger.error("A/B测试分配失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, str(e), exc_info=True)
             raise
 
     def _cache_assignment(self, key: str, value: Dict, ttl: int = 3600):
@@ -610,8 +617,8 @@ class ABTestManager:
             except Exception as e:
                 logger.debug("A/B测试分配缓存失败: %s, 错误=%s", key, e)
 
+    @staticmethod
     def record_result(
-            self,
             test_id: str,
             user_id: str,
             metrics: Dict[str, Any],
@@ -620,6 +627,7 @@ class ABTestManager:
         request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
+        start_time = time.time()
 
         try:
             with get_db() as session:
@@ -640,23 +648,39 @@ class ABTestManager:
 
                 session.commit()
 
-                log_audit(
-                    action=AuditAction.AB_TEST_RECORD.value,
-                    user_id=user_id,
-                    ip_address=ip_address,
-                    resource_type="ab_test",
-                    resource_id=test_id,
-                    details={
-                        "metrics": metrics,
-                        "span_id": span_id,
-                        "parent_span_id": parent_span_id
-                    },
-                    request_id=request_id
-                )
+            duration = _calculate_duration_ms(start_time)
 
-                logger.debug("A/B测试结果记录成功: test_id=%s, user_id=%s", test_id, user_id)
+            log_performance(
+                operation=PerformanceOperation.AB_TEST_RECORD,
+                duration_ms=duration,
+                request_id=request_id,
+                extra={
+                    "test_id": test_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
+
+            log_audit(
+                action=AuditAction.AB_TEST_RECORD.value,
+                user_id=user_id,
+                ip_address=ip_address,
+                resource_type="ab_test",
+                resource_id=test_id,
+                details={
+                    "metrics": metrics,
+                    "duration_ms": round(duration, 2),
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                request_id=request_id
+            )
+
+            logger.debug("A/B测试结果记录成功: test_id=%s, user_id=%s", test_id, user_id)
 
         except Exception as e:
+            duration = _calculate_duration_ms(start_time)
+
             log_audit(
                 action=AuditAction.AB_TEST_ERROR.value,
                 user_id=user_id,
@@ -665,18 +689,21 @@ class ABTestManager:
                 resource_id=test_id,
                 details={
                     "error": str(e),
+                    "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("A/B测试结果记录失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, e)
+            logger.error("A/B测试结果记录失败: test_id=%s, user_id=%s, 错误=%s", test_id, user_id, str(e), exc_info=True)
             raise
 
     def analyze_results(self, test_id: str) -> Dict[str, Any]:
+        request_id = context.get_request_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
+        start_time = time.time()
 
         try:
             with get_db() as session:
@@ -723,7 +750,39 @@ class ABTestManager:
 
                 winning_group = self._determine_winner(group_results, test.winning_criteria)
 
-                result = {
+                duration = _calculate_duration_ms(start_time)
+
+                log_performance(
+                    operation=PerformanceOperation.AB_TEST_COMPLETE,
+                    duration_ms=duration,
+                    request_id=request_id,
+                    extra={
+                        "test_id": test_id,
+                        "total_users": len(test.results),
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    }
+                )
+
+                log_audit(
+                    action=AuditAction.AB_TEST_COMPLETE.value,
+                    user_id="system",
+                    ip_address=None,
+                    resource_type="ab_test",
+                    resource_id=test_id,
+                    details={
+                        "winning_group": winning_group,
+                        "total_users": len(test.results),
+                        "duration_ms": round(duration, 2),
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    },
+                    request_id=request_id
+                )
+
+                logger.info("A/B测试结果分析完成: test_id=%s, 获胜组=%s", test_id, winning_group)
+
+                return {
                     'test_id': test_id,
                     'test_name': test.test_name,
                     'status': test.status,
@@ -733,40 +792,29 @@ class ABTestManager:
                     'total_users': len(test.results)
                 }
 
-                log_audit(
-                    action=AuditAction.AB_TEST_COMPLETE.value,
-                    user_id="system",
-                    resource_type="ab_test",
-                    resource_id=test_id,
-                    details={
-                        "winning_group": winning_group,
-                        "total_users": len(test.results),
-                        "span_id": span_id,
-                        "parent_span_id": parent_span_id
-                    }
-                )
-
-                logger.info("A/B测试结果分析完成: test_id=%s, 名称=%s, 总用户数=%d, 获胜组=%s",
-                           test_id, test.test_name, len(test.results), winning_group)
-
-                return result
-
         except Exception as e:
+            duration = _calculate_duration_ms(start_time)
+
             log_audit(
-                action=AuditAction.AB_TEST_COMPLETE.value,
+                action=AuditAction.AB_TEST_ERROR.value,
                 user_id="system",
+                ip_address=None,
                 resource_type="ab_test",
                 resource_id=test_id,
                 details={
                     "error": str(e),
+                    "duration_ms": round(duration, 2),
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
-                }
+                },
+                reason=str(e),
+                request_id=request_id
             )
-            logger.error("A/B测试结果分析失败: test_id=%s, 错误=%s", test_id, e)
+            logger.error("A/B测试结果分析失败: test_id=%s, 错误=%s", test_id, str(e), exc_info=True)
             raise
 
-    def _determine_winner(self, group_results: Dict, criteria: Optional[Dict]) -> Optional[str]:
+    @staticmethod
+    def _determine_winner(group_results: Dict, criteria: Optional[Dict]) -> Optional[str]:
         if not criteria:
             return None
 

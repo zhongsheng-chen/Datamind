@@ -1,165 +1,73 @@
-# Datamind/datamind/config/__init__.py
-"""配置模块
+# datamind/config/__init__.py
 
-该模块集中管理应用程序的所有配置项，提供统一的配置访问接口。
+"""Datamind 配置模块
 
-主要功能:
-    - 应用配置管理
-    - 日志配置管理
-    - 存储配置管理
-    - 数据库配置管理
-    - API配置管理
-    - 认证配置管理
-    - 模型配置管理
-    - 监控配置管理
-    - 安全配置管理（CORS、速率限制、IP访问控制等）
-    - A/B测试配置管理
-    - 批处理配置管理
-    - 特征存储配置管理
-    - 性能监控配置管理
-    - 请求验证配置管理
-    - 安全响应头配置管理
-    - 请求大小限制配置管理
-    - 评分卡配置管理
+提供统一的配置管理入口，支持懒加载、热重载和线程安全的配置访问。
 
-导出内容:
-    get_settings: 获取应用配置实例的函数
-    Settings: 根配置类
-    AppConfig: 应用配置类
-    ApiConfig: API配置类
-    DatabaseConfig: 数据库配置类
-    RedisConfig: Redis配置类
-    AuthConfig: 认证配置类
-    ModelConfig: 模型配置类
-    InferenceConfig: 推理配置类
-    FeatureStoreConfig: 特征存储配置类
-    ABTestConfig: A/B测试配置类
-    BatchConfig: 批处理配置类
-    MonitoringConfig: 监控配置类
-    AlertConfig: 告警配置类
-    CORSConfig: CORS跨域配置类
-    RateLimitConfig: 速率限制配置类
-    IPAccessConfig: IP访问控制配置类
-    RequestValidationConfig: 请求验证配置类
-    SecurityHeadersConfig: 安全响应头配置类
-    RequestSizeConfig: 请求大小限制配置类
-    PerformanceConfig: 性能监控配置类
-    LoggingMiddlewareConfig: 日志中间件配置类
-    SensitiveDataConfig: 敏感数据脱敏配置类
-    LoggingConfig: 日志配置类
-    StorageConfig: 存储配置类
-    ScorecardDefaultConfig: 评分卡默认配置类
-    get_scorecard_default_config: 获取评分卡默认配置实例
-    reload_scorecard_default_config: 重新加载评分卡默认配置
-    BASE_DIR: 项目基础目录
-    ... 以及其他枚举和配置类
+核心功能：
+  - get_settings: 获取完整配置对象
+  - get_logging_config: 获取日志配置
+  - get_storage_config: 获取存储配置
+  - get_scorecard_config: 获取评分卡配置
+  - reload_settings: 热重载所有配置
+  - reload_logging_config: 热重载日志配置
+  - reload_storage_config: 热重载存储配置
+  - reload_scorecard_config: 热重载评分卡配置
+  - reload_all_configs: 热重载所有配置
+
+特性：
+  - 懒加载：配置在首次访问时初始化，不阻塞启动
+  - 线程安全：使用双重检查锁保证并发安全
+  - 热重载：支持运行时重新加载配置（用于多租户/动态环境）
+  - 统一入口：所有配置通过 get_xxx() 获取
+  - 独立环境变量：每个配置模块使用独立的环境变量前缀
+  - 测试友好：支持在单元测试中替换配置实现
 """
 
-from datamind.config.settings import (
+from dotenv import load_dotenv
+
+from datamind import PROJECT_ROOT
+
+
+def _load_env_file() -> None:
+    """加载 .env 文件
+
+    加载顺序：
+        - 优先从项目根目录加载
+        - 如果找不到，尝试从当前工作目录加载
+        - 不覆盖已存在的系统环境变量（系统变量优先级更高）
+    """
+    env_file = PROJECT_ROOT / '.env'
+
+    if env_file.exists():
+        load_dotenv(env_file, override=False)
+    else:
+        load_dotenv(override=False)
+
+
+_load_env_file()
+
+
+from .manager import (
     get_settings,
-    Settings,
-    AppConfig,
-    ApiConfig,
-    DatabaseConfig,
-    RedisConfig,
-    AuthConfig,
-    ModelConfig,
-    InferenceConfig,
-    FeatureStoreConfig,
-    ABTestConfig,
-    BatchConfig,
-    MonitoringConfig,
-    AlertConfig,
-    CORSConfig,
-    RateLimitConfig,
-    IPAccessConfig,
-    RequestValidationConfig,
-    SecurityHeadersConfig,
-    RequestSizeConfig,
-    PerformanceConfig,
-    LoggingMiddlewareConfig,
-    SensitiveDataConfig,
-    BASE_DIR
-)
-
-from datamind.config.logging_config import (
-    LoggingConfig,
-    LogLevel,
-    LogFormat,
-    LogField,
-    RotationWhen,
-    TimeZone,
-    TimestampPrecision,
-    EpochUnit,
-    RotationStrategy
-)
-
-from datamind.config.storage_config import (
-    StorageConfig,
-    StorageType,
-    LocalStorageConfig,
-    MinIOStorageConfig,
-    S3StorageConfig
-)
-
-from datamind.config.scorecard_config import (
-    ScorecardConstants,
-    BinningStrategy,
-    ScoreDirection,
-    ConfigState,
-    FeatureBinConfig,
-    ScorecardConfig,
-    ScorecardDefaultConfig,
-    get_scorecard_default_config,
-    reload_scorecard_default_config
+    get_logging_config,
+    get_storage_config,
+    get_scorecard_config,
+    reload_settings,
+    reload_logging_config,
+    reload_storage_config,
+    reload_scorecard_config,
+    reload_all_configs,
 )
 
 __all__ = [
-    'get_settings',
-    'Settings',
-    'BASE_DIR',
-    'AppConfig',
-    'ApiConfig',
-    'DatabaseConfig',
-    'RedisConfig',
-    'AuthConfig',
-    'MonitoringConfig',
-    'AlertConfig',
-    'ModelConfig',
-    'InferenceConfig',
-    'FeatureStoreConfig',
-    'ABTestConfig',
-    'BatchConfig',
-    'CORSConfig',
-    'RateLimitConfig',
-    'IPAccessConfig',
-    'RequestValidationConfig',
-    'SecurityHeadersConfig',
-    'RequestSizeConfig',
-    'PerformanceConfig',
-    'LoggingMiddlewareConfig',
-    'SensitiveDataConfig',
-    'LoggingConfig',
-    'StorageConfig',
-    'LogLevel',
-    'LogFormat',
-    'LogField',
-    'RotationWhen',
-    'TimeZone',
-    'TimestampPrecision',
-    'EpochUnit',
-    'RotationStrategy',
-    'StorageType',
-    'LocalStorageConfig',
-    'MinIOStorageConfig',
-    'S3StorageConfig',
-    'ScorecardConstants',
-    'BinningStrategy',
-    'ScoreDirection',
-    'ConfigState',
-    'FeatureBinConfig',
-    'ScorecardConfig',
-    'ScorecardDefaultConfig',
-    'get_scorecard_default_config',
-    'reload_scorecard_default_config',
+    "get_settings",
+    "get_logging_config",
+    "get_storage_config",
+    "get_scorecard_config",
+    "reload_settings",
+    "reload_logging_config",
+    "reload_storage_config",
+    "reload_scorecard_config",
+    "reload_all_configs",
 ]

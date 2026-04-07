@@ -40,8 +40,7 @@ from sqlalchemy import MetaData
 
 
 def enum_values(enum_cls):
-    """
-    获取枚举的所有值，用于 SQLEnum 的 values_callable
+    """获取枚举的所有值，用于 SQLEnum 的 values_callable
 
     参数:
         enum_cls: 枚举类
@@ -56,12 +55,16 @@ def enum_values(enum_cls):
     return [e.value for e in enum_cls]
 
 
-metadata = MetaData(naming_convention={
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
-})
+# 元数据配置，包含命名约定
+metadata = MetaData(
+    naming_convention={
+        "ix": "ix_%(column_0_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s"
+    }
+)
 
+# 声明式基类
 Base = declarative_base(metadata=metadata)

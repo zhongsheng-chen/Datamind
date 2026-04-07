@@ -44,7 +44,7 @@ from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
 from datamind.storage.base import StorageBackend
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class VersionManager:
@@ -67,7 +67,7 @@ class VersionManager:
         self.model_id = model_id
         self.metadata_file = f"{model_id}/versions.json"
         self._versions_cache = None
-        logger.info("版本管理器初始化完成: 模型ID=%s", model_id)
+        _logger.info("版本管理器初始化完成: 模型ID=%s", model_id)
 
     async def init_versions(self) -> Dict[str, Any]:
         """初始化版本记录文件"""
@@ -82,7 +82,7 @@ class VersionManager:
 
         # 创建空的版本记录文件
         await self._save_versions(versions_data)
-        logger.debug("初始化版本记录: %s", self.model_id)
+        _logger.debug("初始化版本记录: %s", self.model_id)
         return versions_data
 
     async def add_version(self, version: str, file_path: str,
@@ -172,8 +172,8 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("添加版本成功: %s v%s, 生产版本=%s, 文件大小=%.2fKB",
-                   self.model_id, version, is_production, file_info['size'] / 1024)
+        _logger.info("添加版本成功: %s v%s, 生产版本=%s, 文件大小=%.2fKB",
+                     self.model_id, version, is_production, file_info['size'] / 1024)
         return version_info
 
     async def get_version(self, version: Optional[str] = None) -> Dict[str, Any]:
@@ -220,7 +220,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.debug("获取版本信息: %s, 版本=%s", self.model_id, version or "latest")
+        _logger.debug("获取版本信息: %s, 版本=%s", self.model_id, version or "latest")
         return version_info
 
     async def list_versions(self, include_metadata: bool = False) -> List[Dict[str, Any]]:
@@ -268,8 +268,8 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("列出版本: %s, 版本数=%d, 包含元数据=%s",
-                   self.model_id, len(result), include_metadata)
+        _logger.info("列出版本: %s, 版本数=%d, 包含元数据=%s",
+                     self.model_id, len(result), include_metadata)
         return result
 
     async def delete_version(self, version: str) -> bool:
@@ -302,7 +302,7 @@ class VersionManager:
         try:
             await self.storage.delete(version_info['file_path'])
         except Exception as e:
-            logger.warning("删除版本文件失败: %s, 错误=%s", version, e)
+            _logger.warning("删除版本文件失败: %s, 错误=%s", version, e)
 
         # 从列表中移除
         versions_data['versions'] = [
@@ -342,7 +342,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("删除版本成功: %s v%s", self.model_id, version)
+        _logger.info("删除版本成功: %s v%s", self.model_id, version)
         return True
 
     async def set_production_version(self, version: str) -> Dict[str, Any]:
@@ -393,7 +393,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("设置生产版本: %s v%s", self.model_id, version)
+        _logger.info("设置生产版本: %s v%s", self.model_id, version)
         return version_info
 
     async def get_production_version(self) -> Optional[Dict[str, Any]]:
@@ -421,10 +421,10 @@ class VersionManager:
                     },
                     request_id=request_id
                 )
-                logger.debug("获取生产版本: %s v%s", self.model_id, v['version'])
+                _logger.debug("获取生产版本: %s v%s", self.model_id, v['version'])
                 return v
 
-        logger.debug("未找到生产版本: %s", self.model_id)
+        _logger.debug("未找到生产版本: %s", self.model_id)
         return None
 
     async def compare_versions(self, version1: str, version2: str) -> Dict[str, Any]:
@@ -441,7 +441,7 @@ class VersionManager:
         v1 = semver.VersionInfo.parse(version1)
         v2 = semver.VersionInfo.parse(version2)
 
-        logger.debug("版本比较: %s vs %s, v1>v2=%s", version1, version2, v1 > v2)
+        _logger.debug("版本比较: %s vs %s, v1>v2=%s", version1, version2, v1 > v2)
         return {
             'version1': version1,
             'version2': version2,
@@ -478,9 +478,9 @@ class VersionManager:
             if metadata1[k] != metadata2[k]
         }
 
-        logger.debug("版本差异: %s vs %s, 文件大小差=%d字节, hash变化=%s",
-                    version1, version2, v2_info['file_size'] - v1_info['file_size'],
-                    v1_info['file_hash'] != v2_info['file_hash'])
+        _logger.debug("版本差异: %s vs %s, 文件大小差=%d字节, hash变化=%s",
+                      version1, version2, v2_info['file_size'] - v1_info['file_size'],
+                      v1_info['file_hash'] != v2_info['file_hash'])
 
         return {
             'version1': version1,
@@ -550,7 +550,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("版本回滚成功: %s v%s -> v%s", self.model_id, version, rollback_version)
+        _logger.info("版本回滚成功: %s v%s -> v%s", self.model_id, version, rollback_version)
         return version_info
 
     async def tag_version(self, version: str, tag: str) -> Dict[str, Any]:
@@ -598,7 +598,7 @@ class VersionManager:
                 request_id=request_id
             )
 
-            logger.info("添加版本标签: %s v%s -> %s", self.model_id, version, tag)
+            _logger.info("添加版本标签: %s v%s -> %s", self.model_id, version, tag)
 
         return version_info
 
@@ -640,7 +640,7 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("根据标签获取版本: %s, 标签=%s, 版本数=%d", self.model_id, tag, len(result))
+        _logger.info("根据标签获取版本: %s, 标签=%s, 版本数=%d", self.model_id, tag, len(result))
         return result
 
     async def increment_download_count(self, version: str) -> int:
@@ -662,8 +662,8 @@ class VersionManager:
         version_info['download_count'] = version_info.get('download_count', 0) + 1
         await self._save_versions(versions_data)
 
-        logger.debug("增加下载计数: %s v%s, 当前下载次数=%d",
-                    self.model_id, version, version_info['download_count'])
+        _logger.debug("增加下载计数: %s v%s, 当前下载次数=%d",
+                      self.model_id, version, version_info['download_count'])
         return version_info['download_count']
 
     async def get_version_stats(self) -> Dict[str, Any]:
@@ -713,9 +713,9 @@ class VersionManager:
             request_id=request_id
         )
 
-        logger.info("获取版本统计: %s, 总版本数=%d, 总下载次数=%d, 生产版本=%s",
-                   self.model_id, result['total_versions'], total_downloads,
-                   result.get('production_version'))
+        _logger.info("获取版本统计: %s, 总版本数=%d, 总下载次数=%d, 生产版本=%s",
+                     self.model_id, result['total_versions'], total_downloads,
+                     result.get('production_version'))
         return result
 
     async def cleanup_old_versions(self, keep_count: int = 10) -> List[str]:
@@ -736,8 +736,8 @@ class VersionManager:
         versions_data = await self._get_versions()
 
         if len(versions_data['versions']) <= keep_count:
-            logger.debug("版本数量未超过保留阈值，无需清理: %s, 当前版本数=%d, 保留阈值=%d",
-                        self.model_id, len(versions_data['versions']), keep_count)
+            _logger.debug("版本数量未超过保留阈值，无需清理: %s, 当前版本数=%d, 保留阈值=%d",
+                          self.model_id, len(versions_data['versions']), keep_count)
             return []
 
         # 按版本号排序（降序）
@@ -755,16 +755,16 @@ class VersionManager:
         for v in delete_versions:
             # 跳过生产版本
             if v.get('is_production'):
-                logger.debug("跳过生产版本，不清理: %s v%s", self.model_id, v['version'])
+                _logger.debug("跳过生产版本，不清理: %s v%s", self.model_id, v['version'])
                 continue
 
             try:
                 await self.storage.delete(v['file_path'])
                 versions_data['versions'].remove(v)
                 deleted.append(v['version'])
-                logger.debug("清理旧版本: %s v%s", self.model_id, v['version'])
+                _logger.debug("清理旧版本: %s v%s", self.model_id, v['version'])
             except Exception as e:
-                logger.warning("清理旧版本失败: %s v%s, 错误=%s", self.model_id, v['version'], e)
+                _logger.warning("清理旧版本失败: %s v%s, 错误=%s", self.model_id, v['version'], e)
 
         # 更新
         versions_data['total_versions'] = len(versions_data['versions'])
@@ -788,8 +788,8 @@ class VersionManager:
                 },
                 request_id=request_id
             )
-            logger.info("清理旧版本完成: %s, 已删除=%d, 保留=%d",
-                       self.model_id, len(deleted), keep_count)
+            _logger.info("清理旧版本完成: %s, 已删除=%d, 保留=%d",
+                         self.model_id, len(deleted), keep_count)
 
         return deleted
 
@@ -806,7 +806,7 @@ class VersionManager:
             # 文件不存在，初始化
             self._versions_cache = await self.init_versions()
         except Exception as e:
-            logger.debug("读取版本文件失败: %s", e)
+            _logger.debug("读取版本文件失败: %s", e)
             self._versions_cache = await self.init_versions()
 
         return self._versions_cache
@@ -825,7 +825,7 @@ class VersionManager:
         )
 
         self._versions_cache = versions_data
-        logger.debug("保存版本文件: %s", self.metadata_file)
+        _logger.debug("保存版本文件: %s", self.metadata_file)
 
     def _find_version(self, versions_data: Dict, version: str) -> Optional[Dict]:
         """查找版本"""

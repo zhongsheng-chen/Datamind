@@ -48,7 +48,7 @@ from typing import BinaryIO, Optional, List, Dict, Any
 
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class StorageBackend(ABC):
@@ -71,7 +71,7 @@ class StorageBackend(ABC):
         """
         self.bucket_name = bucket_name
         self.base_path = base_path.rstrip('/')
-        logger.debug("初始化存储后端: %s", self.__class__.__name__)
+        _logger.debug("初始化存储后端: %s", self.__class__.__name__)
 
     @abstractmethod
     async def save(self, path: str, content: BinaryIO,

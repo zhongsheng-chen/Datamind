@@ -12,12 +12,12 @@
   - get_model_info: 获取模型详细信息
   - list_models: 列出模型（支持多维度筛选）
   - get_model_history: 获取模型操作历史
-  - update_model_params: 更新模型参数（评分卡/风险配置）
+  - update_model_params: 更新模型参数（评分卡/反欺诈配置）
 
 特性：
   - 版本管理：支持模型版本控制和历史追溯
   - 生产环境管理：同一任务类型只能有一个生产模型
-  - 配置验证：自动验证评分卡参数和风险配置
+  - 配置验证：自动验证评分卡参数和反欺诈配置
   - BentoML 集成：模型存储在 BentoML Model Store
   - 完整审计：记录所有模型操作到版本历史表
   - 链路追踪：完整的 span 追踪
@@ -29,6 +29,7 @@ import shutil
 import hashlib
 import uuid
 import pickle
+from sqlalchemy import desc
 from pathlib import Path
 from typing import Dict, Optional, List, Any, BinaryIO
 from datetime import datetime
@@ -37,11 +38,12 @@ from dataclasses import dataclass, asdict
 import bentoml
 from bentoml.exceptions import BentoMLException
 
+from datamind import PROJECT_ROOT
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata, ModelVersionHistory
-from datamind.core.domain.enums import ModelStatus, AuditAction, TaskType, ModelType, Framework
+from datamind.core.domain.enums import ModelStatus, AuditAction, TaskType, ModelType, Framework, PerformanceOperation
 from datamind.core.domain.validation import validate_or_raise
-from datamind.core.logging import log_audit, context
+from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging import get_logger
 from datamind.core.common.exceptions import (
     ModelNotFoundException,
@@ -76,8 +78,8 @@ class BentoMLMetadata:
     created_at: str
     description: Optional[str] = None
     tags: Optional[Dict[str, Any]] = None
-    scorecard_params: Optional[Dict[str, Any]] = None
-    risk_config: Optional[Dict[str, Any]] = None
+    scorecard_config: Optional[Dict[str, Any]] = None  # 评分卡配置
+    fraud_config: Optional[Dict[str, Any]] = None      # 反欺诈配置
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典，自动过滤 None 值"""
@@ -94,19 +96,18 @@ class ModelRegistry:
         参数:
             settings: 配置对象
         """
-        from datamind.config import get_settings, BASE_DIR
+        from datamind.config import get_settings
 
         if settings is None:
             settings = get_settings()
 
         model_config = settings.model
 
-        # 构建绝对路径（本地缓存路径）
         models_path = model_config.models_path
         if os.path.isabs(models_path):
             self.cache_path = Path(models_path)
         else:
-            self.cache_path = BASE_DIR / models_path
+            self.cache_path = PROJECT_ROOT / models_path
         self.cache_path.mkdir(parents=True, exist_ok=True)
 
         logger.info("模型注册中心初始化完成，存储路径: %s", self.cache_path.absolute())
@@ -137,8 +138,8 @@ class ModelRegistry:
             model_params: Optional[Dict] = None,
             tags: Optional[Dict] = None,
             ip_address: Optional[str] = None,
-            scorecard_params: Optional[Dict] = None,
-            risk_config: Optional[Dict] = None
+            scorecard_config: Optional[Dict] = None,
+            fraud_config: Optional[Dict] = None
     ) -> str:
         """
         注册新模型
@@ -157,8 +158,8 @@ class ModelRegistry:
             model_params: 模型参数
             tags: 标签
             ip_address: IP地址
-            scorecard_params: 评分卡配置参数
-            risk_config: 风险配置参数
+            scorecard_config: 评分卡配置参数（task_type=scoring 时使用）
+            fraud_config: 反欺诈配置参数（task_type=fraud_detection 时使用）
 
         返回:
             模型ID
@@ -190,15 +191,15 @@ class ModelRegistry:
             # 验证任务类型特定的配置
             self._validate_task_specific_config(
                 task_type=task_type,
-                scorecard_params=scorecard_params,
-                risk_config=risk_config
+                scorecard_config=scorecard_config,
+                fraud_config=fraud_config
             )
 
             # 合并配置到 model_params
             merged_model_params = self._merge_model_params(
                 model_params=model_params,
-                scorecard_params=scorecard_params,
-                risk_config=risk_config,
+                scorecard_config=scorecard_config,
+                fraud_config=fraud_config,
                 task_type=task_type
             )
 
@@ -242,8 +243,8 @@ class ModelRegistry:
                     created_at=datetime.now().isoformat(),
                     description=description,
                     tags=tags,
-                    scorecard_params=scorecard_params,
-                    risk_config=risk_config
+                    scorecard_config=scorecard_config,
+                    fraud_config=fraud_config
                 )
                 metadata = metadata_obj.to_dict()
 
@@ -316,10 +317,10 @@ class ModelRegistry:
                         'parent_span_id': parent_span_id
                     }
 
-                    if scorecard_params:
-                        history_details['scorecard_params'] = scorecard_params
-                    if risk_config:
-                        history_details['risk_config'] = risk_config
+                    if scorecard_config:
+                        history_details['scorecard_config'] = scorecard_config
+                    if fraud_config:
+                        history_details['fraud_config'] = fraud_config
 
                     history = ModelVersionHistory(
                         model_id=model_id,
@@ -335,6 +336,24 @@ class ModelRegistry:
 
                 duration = (datetime.now() - start_time).total_seconds() * 1000
 
+                # 性能日志
+                log_performance(
+                    operation=PerformanceOperation.MODEL_SAVE,
+                    duration_ms=duration,
+                    model_id=model_id,
+                    request_id=request_id,
+                    extra={
+                        "model_name": model_name,
+                        "model_version": model_version,
+                        "framework": framework,
+                        "file_size_mb": round(file_size / 1024 / 1024, 2),
+                        "trace_id": trace_id,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    }
+                )
+
+                # 审计日志
                 audit_details = {
                     "model_id": model_id,
                     "model_name": model_name,
@@ -343,23 +362,25 @@ class ModelRegistry:
                     "model_type": model_type,
                     "framework": framework,
                     "bentoml_tag": str(bento_model.tag),
-                    "file_size": file_size,
+                    "file_size_mb": round(file_size / 1024 / 1024, 2),
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 }
 
-                if scorecard_params:
-                    audit_details["scorecard_params"] = scorecard_params
-                if risk_config:
-                    audit_details["risk_config"] = risk_config
+                if scorecard_config:
+                    audit_details["scorecard_config"] = scorecard_config
+                if fraud_config:
+                    audit_details["fraud_config"] = fraud_config
 
                 log_audit(
                     action=AuditAction.MODEL_CREATE.value,
                     user_id=created_by,
                     ip_address=ip_address,
+                    resource_type="model",
+                    resource_id=model_id,
+                    resource_name=model_name,
                     details=audit_details,
                     request_id=request_id
                 )
@@ -379,12 +400,12 @@ class ModelRegistry:
                 action=AuditAction.MODEL_CREATE.value,
                 user_id=created_by,
                 ip_address=ip_address,
+                resource_type="model",
                 details={
                     "model_name": model_name,
                     "model_version": model_version,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -392,7 +413,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型注册失败: %s v%s, 错误: %s", model_name, model_version, str(e))
+            logger.error("模型注册失败: %s v%s, 错误: %s", model_name, model_version, str(e), exc_info=True)
             raise
 
     @staticmethod
@@ -548,7 +569,6 @@ class ModelRegistry:
                 model.status = ModelStatus.ACTIVE.value
                 model.updated_at = datetime.now()
 
-                # 在 session 内获取 model_name
                 model_name = model.model_name
                 model_version = model.model_version
 
@@ -572,16 +592,34 @@ class ModelRegistry:
                 session.commit()
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
+
+            log_performance(
+                operation=PerformanceOperation.MODEL_LOAD,
+                duration_ms=duration,
+                model_id=model_id,
+                request_id=request_id,
+                extra={
+                    "model_name": model_name,
+                    "model_version": model_version,
+                    "action": "activate",
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                }
+            )
+
             log_audit(
                 action=AuditAction.MODEL_ACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
+                resource_name=model_name,
                 details={
-                    "model_id": model_id,
-                    "model_name": model_name,
+                    "before_status": before_status,
+                    "after_status": ModelStatus.ACTIVE.value,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -597,11 +635,11 @@ class ModelRegistry:
                 action=AuditAction.MODEL_ACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -609,7 +647,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型激活失败: %s, 错误: %s", model_id, str(e))
+            logger.error("模型激活失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     def deactivate_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -661,16 +699,19 @@ class ModelRegistry:
                 session.commit()
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
+
             log_audit(
                 action=AuditAction.MODEL_DEACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
+                resource_name=model_name,
                 details={
-                    "model_id": model_id,
-                    "model_name": model_name,
+                    "before_status": before_status,
+                    "after_status": ModelStatus.INACTIVE.value,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -686,11 +727,11 @@ class ModelRegistry:
                 action=AuditAction.MODEL_DEACTIVATE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -698,7 +739,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型停用失败: %s, 错误: %s", model_id, str(e))
+            logger.error("模型停用失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     def promote_to_production(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -763,17 +804,18 @@ class ModelRegistry:
                 session.commit()
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
+
             log_audit(
                 action=AuditAction.MODEL_PROMOTE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
+                resource_name=model_name,
                 details={
-                    "model_id": model_id,
-                    "model_name": model_name,
                     "task_type": task_type,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -789,11 +831,11 @@ class ModelRegistry:
                 action=AuditAction.MODEL_PROMOTE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -801,7 +843,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("生产模型设置失败: %s, 错误: %s", model_id, str(e))
+            logger.error("生产模型设置失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     @staticmethod
@@ -856,14 +898,15 @@ class ModelRegistry:
                 action=AuditAction.MODEL_QUERY.value,
                 user_id="system",
                 ip_address="localhost",
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
-                }
+                },
+                request_id=request_id
             )
             logger.debug("获取模型信息失败: %s, 错误: %s", model_id, str(e))
             raise
@@ -909,7 +952,7 @@ class ModelRegistry:
                 if is_production is not None:
                     query = query.filter_by(is_production=is_production)
 
-                models = query.order_by(ModelMetadata.created_at.desc()).all()
+                models = query.order_by(desc(ModelMetadata.created_at)).all()
 
                 return [{
                     'model_id': m.model_id,
@@ -930,13 +973,14 @@ class ModelRegistry:
                 action=AuditAction.MODEL_QUERY.value,
                 user_id="system",
                 ip_address="localhost",
+                resource_type="model",
                 details={
                     "error": str(e),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
-                }
+                },
+                request_id=request_id
             )
             logger.debug("列出模型失败: %s", str(e))
             raise
@@ -961,7 +1005,7 @@ class ModelRegistry:
             with get_db() as session:
                 history = session.query(ModelVersionHistory).filter_by(
                     model_id=model_id
-                ).order_by(ModelVersionHistory.operation_time.desc()).all()
+                ).order_by(desc(ModelVersionHistory.operation_time)).all()
 
                 return [{
                     'operation': h.operation,
@@ -976,35 +1020,36 @@ class ModelRegistry:
                 action=AuditAction.MODEL_QUERY.value,
                 user_id="system",
                 ip_address="localhost",
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
-                }
+                },
+                request_id=request_id
             )
             logger.debug("获取模型历史失败: %s, 错误: %s", model_id, str(e))
             raise
 
-    def update_model_params(
+    def update_model_config(
             self,
             model_id: str,
             operator: str,
-            scorecard_params: Optional[Dict] = None,
-            risk_config: Optional[Dict] = None,
+            scorecard_config: Optional[Dict] = None,
+            fraud_config: Optional[Dict] = None,
             reason: str = None,
             ip_address: str = None
     ):
         """
-        更新模型的评分卡配置或风险配置
+        更新模型的评分卡配置或反欺诈配置
 
         参数:
             model_id: 模型ID
             operator: 操作人
-            scorecard_params: 评分卡配置参数
-            risk_config: 风险配置参数
+            scorecard_config: 评分卡配置参数
+            fraud_config: 反欺诈配置参数
             reason: 操作原因
             ip_address: IP地址
         """
@@ -1020,24 +1065,24 @@ class ModelRegistry:
                 if not model:
                     raise ModelNotFoundException(f"模型未找到: {model_id}")
 
-                if scorecard_params and model.task_type == TaskType.SCORING.value:
-                    self._validate_scorecard_params(scorecard_params)
-                    logger.debug("验证评分卡参数通过: %s", model_id)
+                if scorecard_config and model.task_type == TaskType.SCORING.value:
+                    self._validate_scorecard_config(scorecard_config)
+                    logger.debug("验证评分卡配置通过: %s", model_id)
 
-                if risk_config and model.task_type == TaskType.FRAUD_DETECTION.value:
-                    self._validate_risk_config(risk_config)
-                    logger.debug("验证风险配置通过: %s", model_id)
+                if fraud_config and model.task_type == TaskType.FRAUD_DETECTION.value:
+                    self._validate_fraud_config(fraud_config)
+                    logger.debug("验证反欺诈配置通过: %s", model_id)
 
                 if not model.model_params:
                     model.model_params = {}
 
-                if scorecard_params:
-                    model.model_params['scorecard'] = scorecard_params
+                if scorecard_config:
+                    model.model_params['scorecard'] = scorecard_config
                     logger.debug("更新评分卡配置: %s", model_id)
 
-                if risk_config:
-                    model.model_params['risk_config'] = risk_config
-                    logger.debug("更新风险配置: %s", model_id)
+                if fraud_config:
+                    model.model_params['fraud'] = fraud_config
+                    logger.debug("更新反欺诈配置: %s", model_id)
 
                 model.updated_at = datetime.now()
 
@@ -1054,8 +1099,8 @@ class ModelRegistry:
                     metadata_snapshot=self._create_snapshot(model),
                     details={
                         'updated_params': {
-                            'scorecard': scorecard_params,
-                            'risk_config': risk_config
+                            'scorecard': scorecard_config,
+                            'fraud': fraud_config
                         },
                         'request_id': request_id,
                         'trace_id': trace_id,
@@ -1067,18 +1112,19 @@ class ModelRegistry:
                 session.commit()
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
+
             log_audit(
                 action=AuditAction.MODEL_UPDATE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
+                resource_name=model_name,
                 details={
-                    "model_id": model_id,
-                    "model_name": model_name,
-                    "scorecard_updated": scorecard_params is not None,
-                    "risk_config_updated": risk_config is not None,
+                    "scorecard_updated": scorecard_config is not None,
+                    "fraud_updated": fraud_config is not None,
                     "reason": reason,
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -1086,7 +1132,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.info("模型参数更新成功: %s v%s", model_name, model_version)
+            logger.info("模型配置更新成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -1094,11 +1140,11 @@ class ModelRegistry:
                 action=AuditAction.MODEL_UPDATE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
                     "duration_ms": round(duration, 2),
-                    "request_id": request_id,
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -1106,7 +1152,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型参数更新失败: %s, 错误: %s", model_id, str(e))
+            logger.error("模型配置更新失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     def archive_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -1123,6 +1169,7 @@ class ModelRegistry:
         trace_id = context.get_trace_id()
         span_id = context.get_span_id()
         parent_span_id = context.get_parent_span_id()
+        start_time = datetime.now()
 
         try:
             with get_db() as session:
@@ -1156,15 +1203,18 @@ class ModelRegistry:
                 session.add(history)
                 session.commit()
 
+            duration = (datetime.now() - start_time).total_seconds() * 1000
+
             log_audit(
                 action=AuditAction.MODEL_ARCHIVE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
+                resource_name=model_name,
                 details={
-                    "model_id": model_id,
-                    "model_name": model_name,
                     "reason": reason,
-                    "request_id": request_id,
+                    "duration_ms": round(duration, 2),
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -1175,14 +1225,16 @@ class ModelRegistry:
             logger.info("模型归档成功: %s v%s", model_name, model_version)
 
         except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds() * 1000
             log_audit(
                 action=AuditAction.MODEL_ARCHIVE.value,
                 user_id=operator,
                 ip_address=ip_address,
+                resource_type="model",
+                resource_id=model_id,
                 details={
-                    "model_id": model_id,
                     "error": str(e),
-                    "request_id": request_id,
+                    "duration_ms": round(duration, 2),
                     "trace_id": trace_id,
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
@@ -1190,7 +1242,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型归档失败: %s, 错误: %s", model_id, str(e))
+            logger.error("模型归档失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     @staticmethod
@@ -1215,71 +1267,83 @@ class ModelRegistry:
     def _validate_task_specific_config(
             self,
             task_type: str,
-            scorecard_params: Optional[Dict] = None,
-            risk_config: Optional[Dict] = None
+            scorecard_config: Optional[Dict] = None,
+            fraud_config: Optional[Dict] = None
     ):
         """验证任务特定的配置参数"""
-        if task_type == TaskType.SCORING.value and scorecard_params:
-            self._validate_scorecard_params(scorecard_params)
-        if task_type == TaskType.FRAUD_DETECTION.value and risk_config:
-            self._validate_risk_config(risk_config)
+        if task_type == TaskType.SCORING.value and scorecard_config:
+            self._validate_scorecard_config(scorecard_config)
+        if task_type == TaskType.FRAUD_DETECTION.value and fraud_config:
+            self._validate_fraud_config(fraud_config)
 
     @staticmethod
-    def _validate_scorecard_params(params: Dict):
-        """验证评分卡参数"""
-        if 'base_score' in params:
+    def _validate_scorecard_config(config: Dict):
+        """验证评分卡配置"""
+        if 'base_score' in config:
             try:
-                base_score = int(params['base_score'])
+                base_score = int(config['base_score'])
                 if base_score < 0:
                     raise ValueError("base_score 必须大于等于0")
             except (ValueError, TypeError):
                 raise ModelValidationException("base_score 必须是有效的整数")
 
-        if 'pdo' in params:
+        if 'pdo' in config:
             try:
-                pdo = float(params['pdo'])
+                pdo = float(config['pdo'])
                 if pdo <= 0:
                     raise ValueError("pdo 必须大于0")
             except (ValueError, TypeError):
                 raise ModelValidationException("pdo 必须是有效的正数")
 
-        if 'min_score' in params and 'max_score' in params:
+        if 'min_score' in config and 'max_score' in config:
             try:
-                min_score = int(params['min_score'])
-                max_score = int(params['max_score'])
+                min_score = int(config['min_score'])
+                max_score = int(config['max_score'])
                 if min_score >= max_score:
                     raise ValueError("min_score 必须小于 max_score")
             except (ValueError, TypeError):
                 raise ModelValidationException("min_score 和 max_score 必须是有效的整数")
 
-        if 'direction' in params:
-            direction = params['direction']
+        if 'direction' in config:
+            direction = config['direction']
             if direction not in ["lower_better", "higher_better"]:
                 raise ModelValidationException(
                     "direction 必须是 'lower_better' 或 'higher_better'"
                 )
 
     @staticmethod
-    def _validate_risk_config(config: Dict):
-        """验证风险配置"""
-        if 'levels' not in config:
-            raise ModelValidationException("风险配置必须包含 'levels' 字段")
+    def _validate_fraud_config(config: Dict):
+        """验证反欺诈配置"""
+        if 'threshold' in config:
+            threshold = config['threshold']
+            if not isinstance(threshold, (int, float)) or not 0 <= threshold <= 1:
+                raise ModelValidationException("threshold 必须是 0-1 之间的数字")
+
+        if 'risk_levels' in config:
+            risk_levels = config['risk_levels']
+            if not isinstance(risk_levels, dict):
+                raise ModelValidationException("risk_levels 必须是字典类型")
+
+        if 'output_fields' in config:
+            output_fields = config['output_fields']
+            if not isinstance(output_fields, list):
+                raise ModelValidationException("output_fields 必须是列表类型")
 
     @staticmethod
     def _merge_model_params(
             model_params: Optional[Dict],
-            scorecard_params: Optional[Dict],
-            risk_config: Optional[Dict],
+            scorecard_config: Optional[Dict],
+            fraud_config: Optional[Dict],
             task_type: str
     ) -> Dict:
         """合并模型参数"""
         merged = model_params.copy() if model_params else {}
 
-        if task_type == TaskType.SCORING.value and scorecard_params:
-            merged['scorecard'] = scorecard_params
+        if task_type == TaskType.SCORING.value and scorecard_config:
+            merged['scorecard'] = scorecard_config
 
-        if task_type == TaskType.FRAUD_DETECTION.value and risk_config:
-            merged['risk_config'] = risk_config
+        if task_type == TaskType.FRAUD_DETECTION.value and fraud_config:
+            merged['fraud'] = fraud_config
 
         return merged
 

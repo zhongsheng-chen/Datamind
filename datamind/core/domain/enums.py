@@ -23,6 +23,7 @@
   - Framework: 机器学习框架（sklearn/xgboost等）
   - ModelStatus: 模型生命周期状态
   - AuditAction: 审计操作类型
+  - PerformanceOperation: 性能监控操作类型
   - DeploymentEnvironment: 部署环境
   - ABTestStatus: A/B测试状态
   - UserRole: 用户角色
@@ -361,6 +362,170 @@ class AuditAction(str, Enum):
     CACHE_MISS = "cache_miss"
 
 
+class PerformanceOperation(str, Enum):
+    """性能监控操作类型枚举
+
+    定义需要记录性能指标的操作类型，用于性能监控和优化分析。
+
+    分类说明：
+        数据库操作: 数据库初始化、连接池、事务、查询等
+        复制监控: 复制状态检查、复制槽状态等
+        模型操作: 模型加载、推理、预热、保存等
+        A/B测试: 测试分配、测试创建、测试启动、测试完成、结果记录等
+        API操作: 请求处理、响应生成等
+        缓存操作: 缓存读写、命中率等
+
+    属性定义：
+        数据库操作
+            DB_INITIALIZE: 数据库初始化 - 创建连接池和引擎
+            DB_CREATE_ENGINE: 创建数据库引擎 - 建立数据库连接
+            DB_GET_SESSION: 获取会话 - 从连接池获取会话
+            DB_TRANSACTION: 数据库事务 - 事务提交耗时
+            DB_RECONNECT: 数据库重连 - 重新建立连接
+            DB_QUERY: 数据库查询 - SQL查询执行耗时
+            DB_BATCH_QUERY: 批量查询 - 批量SQL查询耗时
+            DB_INSERT: 数据库插入 - 插入操作耗时
+            DB_UPDATE: 数据库更新 - 更新操作耗时
+            DB_DELETE: 数据库删除 - 删除操作耗时
+            DB_INIT_SCHEMA: 初始化表结构 - 创建数据库表
+
+        复制监控
+            REPLICATION_STATUS_CHECK: 复制状态检查 - 主备复制状态查询
+            REPLICATION_METRICS: 复制指标采集 - 复制延迟等指标
+
+        模型操作
+            MODEL_LOAD: 模型加载 - 从存储加载模型到内存
+            MODEL_UNLOAD: 模型卸载 - 从内存卸载模型
+            MODEL_INFERENCE: 模型推理 - 单次预测耗时
+            MODEL_BATCH_INFERENCE: 批量推理 - 批量预测耗时
+            MODEL_WARM_UP: 模型预热 - 预热推理耗时
+            MODEL_SAVE: 模型保存 - 保存模型到存储
+            MODEL_VALIDATION: 模型验证 - 验证模型文件完整性
+
+        A/B测试
+            AB_TEST_ASSIGNMENT: A/B测试分配 - 用户分组分配耗时
+            AB_TEST_CREATE: A/B测试创建 - 创建测试配置耗时
+            AB_TEST_START: A/B测试启动 - 启动测试耗时
+            AB_TEST_COMPLETE: A/B测试完成 - 完成测试耗时
+            AB_TEST_RECORD: A/B测试记录 - 记录测试结果耗时
+
+        API操作
+            API_REQUEST: API请求 - 完整请求处理耗时
+            API_PREDICT: 预测API - /predict 端点耗时
+            API_HEALTH: 健康检查 - /health 端点耗时
+            API_METRICS: 指标API - /metrics 端点耗时
+
+        缓存操作
+            CACHE_GET: 缓存读取 - 从缓存获取数据耗时
+            CACHE_SET: 缓存写入 - 写入缓存耗时
+            CACHE_DELETE: 缓存删除 - 删除缓存耗时
+            CACHE_CLEAR: 缓存清理 - 清理过期缓存耗时
+
+        特征处理
+            FEATURE_EXTRACT: 特征提取 - 从原始数据提取特征
+            FEATURE_TRANSFORM: 特征转换 - 特征预处理耗时
+            FEATURE_VALIDATION: 特征验证 - 验证特征完整性
+
+        评分卡专用
+            SCORECARD_CALCULATE: 评分卡计算 - 计算模型总分
+            SCORECARD_FEATURE_SCORE: 特征分计算 - 计算各特征分数
+    """
+
+    # 数据库操作
+    DB_INITIALIZE = "db_initialize"
+    DB_CREATE_ENGINE = "db_create_engine"
+    DB_GET_SESSION = "db_get_session"
+    DB_TRANSACTION = "db_transaction"
+    DB_RECONNECT = "db_reconnect"
+    DB_QUERY = "db_query"
+    DB_BATCH_QUERY = "db_batch_query"
+    DB_INSERT = "db_insert"
+    DB_UPDATE = "db_update"
+    DB_DELETE = "db_delete"
+    DB_INIT_SCHEMA = "db_init_schema"
+
+    # 复制监控
+    REPLICATION_STATUS_CHECK = "replication_status_check"
+    REPLICATION_METRICS = "replication_metrics"
+
+    # 模型操作
+    MODEL_LOAD = "model_load"
+    MODEL_UNLOAD = "model_unload"
+    MODEL_INFERENCE = "model_inference"
+    MODEL_BATCH_INFERENCE = "model_batch_inference"
+    MODEL_WARM_UP = "model_warm_up"
+    MODEL_SAVE = "model_save"
+    MODEL_VALIDATION = "model_validation"
+
+    # A/B测试
+    AB_TEST_ASSIGNMENT = "ab_test_assignment"
+    AB_TEST_CREATE = "ab_test_create"
+    AB_TEST_START = "ab_test_start"
+    AB_TEST_COMPLETE = "ab_test_complete"
+    AB_TEST_RECORD = "ab_test_record"  # 修复：添加缺失的值
+
+    # API操作
+    API_REQUEST = "api_request"
+    API_PREDICT = "api_predict"
+    API_HEALTH = "api_health"
+    API_METRICS = "api_metrics"
+
+    # 缓存操作
+    CACHE_GET = "cache_get"
+    CACHE_SET = "cache_set"
+    CACHE_DELETE = "cache_delete"
+    CACHE_CLEAR = "cache_clear"
+
+    # 特征处理
+    FEATURE_EXTRACT = "feature_extract"
+    FEATURE_TRANSFORM = "feature_transform"
+    FEATURE_VALIDATION = "feature_validation"
+
+    # 评分卡专用
+    SCORECARD_CALCULATE = "scorecard_calculate"
+    SCORECARD_FEATURE_SCORE = "scorecard_feature_score"
+
+    @classmethod
+    def get_all(cls) -> list:
+        """获取所有性能操作类型"""
+        return [item.value for item in cls]
+
+    @classmethod
+    def get_by_category(cls, category: str) -> list:
+        """根据分类获取性能操作类型
+
+        参数:
+            category: 分类名称（db/replication/model/ab_test/api/cache/feature/scorecard）
+
+        返回:
+            该分类下的所有操作类型列表
+        """
+        category_map = {
+            'db': [
+                cls.DB_INITIALIZE, cls.DB_CREATE_ENGINE, cls.DB_GET_SESSION,
+                cls.DB_TRANSACTION, cls.DB_RECONNECT, cls.DB_QUERY,
+                cls.DB_BATCH_QUERY, cls.DB_INSERT, cls.DB_UPDATE, cls.DB_DELETE,
+                cls.DB_INIT_SCHEMA
+            ],
+            'replication': [cls.REPLICATION_STATUS_CHECK, cls.REPLICATION_METRICS],
+            'model': [
+                cls.MODEL_LOAD, cls.MODEL_UNLOAD, cls.MODEL_INFERENCE,
+                cls.MODEL_BATCH_INFERENCE, cls.MODEL_WARM_UP, cls.MODEL_SAVE,
+                cls.MODEL_VALIDATION
+            ],
+            'ab_test': [
+                cls.AB_TEST_ASSIGNMENT, cls.AB_TEST_CREATE,
+                cls.AB_TEST_START, cls.AB_TEST_COMPLETE, cls.AB_TEST_RECORD
+            ],
+            'api': [cls.API_REQUEST, cls.API_PREDICT, cls.API_HEALTH, cls.API_METRICS],
+            'cache': [cls.CACHE_GET, cls.CACHE_SET, cls.CACHE_DELETE, cls.CACHE_CLEAR],
+            'feature': [cls.FEATURE_EXTRACT, cls.FEATURE_TRANSFORM, cls.FEATURE_VALIDATION],
+            'scorecard': [cls.SCORECARD_CALCULATE, cls.SCORECARD_FEATURE_SCORE],
+        }
+        ops = category_map.get(category, [])
+        return [op.value for op in ops]
+
+
 class DeploymentEnvironment(str, Enum):
     """部署环境枚举
 
@@ -426,10 +591,12 @@ class UserStatus(str, Enum):
         ACTIVE: 活跃状态 - 正常使用
         INACTIVE: 非活跃状态 - 临时禁用
         SUSPENDED: 已暂停 - 因违规等暂停使用
+        LOCKED: 已锁定 - 因多次登录失败临时锁定
     """
     ACTIVE = "active"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
+    LOCKED = "locked"
 
 
 class DataType(str, Enum):
@@ -455,6 +622,7 @@ __all__ = [
     'Framework',
     'ModelStatus',
     'AuditAction',
+    'PerformanceOperation',
     'DeploymentEnvironment',
     'ABTestStatus',
     'UserRole',

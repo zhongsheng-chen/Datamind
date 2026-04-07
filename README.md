@@ -1931,3 +1931,20 @@ curl -X POST http://localhost:8000/predict \
 
 # 查看已加载模型
 curl http://localhost:8000/models
+
+
+## 键导出代码（推荐）
+
+在项目根目录运行：
+```bash
+tree -a -I "__pycache__|.git|*.pyc"
+```
+然后：
+```bash
+pip install code-merger
+merge -e py -f merged_output.md
+```
+或者一键：
+```bash
+tar -czf datamind.tar.gz .
+```

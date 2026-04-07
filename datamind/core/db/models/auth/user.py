@@ -3,7 +3,8 @@
 """用户表定义
 """
 
-from datetime import timedelta
+from datetime import timedelta, datetime
+from typing import Optional
 from sqlalchemy import (
     Column, String, DateTime, Boolean, Text, BigInteger,
     ForeignKey, Index, Enum as SQLEnum
@@ -52,7 +53,7 @@ class User(Base):
         default=UserRole.API_USER,
         nullable=False
     )
-    permissions = Column(JSONB, default=list, nullable=True)  # 额外权限列表
+    permissions = Column(JSONB, default=list, nullable=True)
 
     # 账户状态
     status = Column(
@@ -96,8 +97,12 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
+    # 锁定配置常量
+    MAX_FAILED_ATTEMPTS = 5
+    LOCK_DURATION_MINUTES = 15
+
     def __repr__(self):
-        return f"<User(user_id='{self.user_id}', username='{self.username}', strategy='{self.role}')>"
+        return f"<User(user_id='{self.user_id}', username='{self.username}', role='{self.role}')>"
 
     def to_dict(self, include_sensitive: bool = False) -> dict:
         """转换为字典
@@ -115,7 +120,7 @@ class User(Base):
             'full_name': self.full_name,
             'avatar': self.avatar,
             'phone': self.phone,
-            'strategy': self.role.value if self.role else None,
+            'role': self.role.value if self.role else None,
             'permissions': self.permissions,
             'status': self.status.value if self.status else None,
             'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None,
@@ -136,22 +141,42 @@ class User(Base):
         """检查账户是否可用"""
         if self.status != UserStatus.ACTIVE:
             return False
-        if self.locked_until and self.locked_until > func.now():
+        if self.is_locked():
             return False
         return True
 
     def is_locked(self) -> bool:
         """检查账户是否被锁定"""
-        if self.locked_until and self.locked_until > func.now():
+        if self.locked_until:
+            # 使用 func.now() 需要在一个会话中执行
+            # 这里返回布尔值，实际比较在调用时进行
             return True
         return False
+
+    def is_locked_at(self, current_time: Optional[datetime] = None) -> bool:
+        """检查账户在指定时间是否被锁定
+
+        参数:
+            current_time: 当前时间，默认为 None（需要在会话中比较）
+
+        返回:
+            True 表示被锁定，False 表示未锁定
+        """
+        if not self.locked_until:
+            return False
+
+        if current_time is None:
+            # 返回 True 表示有锁定时间，需要调用方传入当前时间进行比较
+            return True
+
+        return current_time < self.locked_until
 
     def increment_failed_login(self) -> None:
         """增加失败登录计数"""
         self.failed_login_attempts += 1
-        # 5次失败后锁定15分钟
-        if self.failed_login_attempts >= 5:
-            self.locked_until = func.now() + timedelta(minutes=15)
+
+        if self.failed_login_attempts >= self.MAX_FAILED_ATTEMPTS:
+            self.locked_until = func.now() + timedelta(minutes=self.LOCK_DURATION_MINUTES)
             self.status = UserStatus.LOCKED
 
     def reset_failed_login(self) -> None:
@@ -159,14 +184,38 @@ class User(Base):
         self.failed_login_attempts = 0
         self.locked_until = None
 
-    def record_login(self, ip_address: str = None) -> None:
+        if self.status == UserStatus.LOCKED:
+            self.status = UserStatus.ACTIVE
+
+    def record_login(self, ip_address: Optional[str] = None) -> None:
         """记录登录成功"""
         self.last_login_at = func.now()
         self.last_login_ip = ip_address
         self.login_attempts += 1
         self.reset_failed_login()
-        if self.status == UserStatus.LOCKED:
-            self.status = UserStatus.ACTIVE
+
+    def get_lock_remaining_seconds(self, current_time: Optional[datetime] = None) -> int:
+        """获取锁定剩余秒数
+
+        参数:
+            current_time: 当前时间
+
+        返回:
+            剩余秒数，0 表示未锁定或已过期
+        """
+        if not self.locked_until:
+            return 0
+
+        if not isinstance(self.locked_until, datetime):
+            return -1
+
+        if current_time is None:
+            current_time = datetime.now()
+
+        if current_time >= self.locked_until:
+            return 0
+
+        return int((self.locked_until - current_time).total_seconds())
 
 
 class ApiKey(Base):
@@ -188,9 +237,8 @@ class ApiKey(Base):
 
     name = Column(String(100), nullable=False)
     key = Column(String(255), unique=True, nullable=False)
-    key_prefix = Column(String(10), nullable=True)  # 用于显示，如 "dm_"
+    key_prefix = Column(String(10), nullable=True)
 
-    # 权限（覆盖用户权限或额外权限）
     permissions = Column(JSONB, default=list, nullable=True)
     roles = Column(JSONB, default=list, nullable=True)
 
@@ -198,12 +246,10 @@ class ApiKey(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
 
-    # 安全限制
-    allowed_ips = Column(JSONB, default=list, nullable=True)  # IP白名单
-    allowed_origins = Column(JSONB, default=list, nullable=True)  # 域名白名单
-    rate_limit = Column(JSONB, nullable=True)  # 自定义限流配置 {"requests": 100, "period": 60}
+    allowed_ips = Column(JSONB, default=list, nullable=True)
+    allowed_origins = Column(JSONB, default=list, nullable=True)
+    rate_limit = Column(JSONB, nullable=True)
 
-    # 元数据
     extra_metadata = Column(JSONB, nullable=True)
     description = Column(Text, nullable=True)
 
@@ -211,18 +257,31 @@ class ApiKey(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # 关系
     user = relationship("User", back_populates="api_keys")
 
     def __repr__(self):
         return f"<ApiKey(api_key_id='{self.api_key_id}', name='{self.name}', user='{self.user_id}')>"
 
-    def is_valid(self) -> bool:
-        """检查API密钥是否有效"""
+    def is_valid(self, current_time: Optional[datetime] = None) -> bool:
+        """检查API密钥是否有效
+
+        参数:
+            current_time: 当前时间，默认为 None（使用 func.now()）
+
+        返回:
+            True 表示有效，False 表示无效
+        """
         if not self.is_active:
             return False
-        if self.expires_at and self.expires_at < func.now():
-            return False
+
+        if self.expires_at:
+            if current_time is None:
+                # 需要在会话中比较
+                return True
+
+            if current_time > self.expires_at:
+                return False
+
         return True
 
     def update_last_used(self) -> None:
@@ -243,3 +302,31 @@ class ApiKey(Base):
             'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+    def is_ip_allowed(self, ip_address: str) -> bool:
+        """检查IP是否在白名单中
+
+        参数:
+            ip_address: 客户端IP地址
+
+        返回:
+            True 表示允许，False 表示拒绝
+        """
+        if not self.allowed_ips:
+            return True
+
+        return ip_address in self.allowed_ips
+
+    def is_origin_allowed(self, origin: str) -> bool:
+        """检查域名是否在白名单中
+
+        参数:
+            origin: 请求来源域名
+
+        返回:
+            True 表示允许，False 表示拒绝
+        """
+        if not self.allowed_origins:
+            return True
+
+        return origin in self.allowed_origins
