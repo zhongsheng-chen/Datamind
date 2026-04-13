@@ -20,7 +20,6 @@
     - StorageNotFoundException: 文件不存在
     - StoragePermissionException: 权限错误
     - StorageQuotaException: 配额超限
-    - StorageConnectionException: 连接错误
     - StorageValidationException: 参数验证错误
   - ValidationException: 请求验证失败
   - UnauthorizedException: 未授权
@@ -176,11 +175,9 @@ class StorageException(DatamindError):
 
 class StorageNotFoundException(StorageException):
     """文件不存在异常"""
-    def __init__(self, path: str = None, bucket: str = None, message: str = None):
+    def __init__(self, path: str = None, message: str = None):
         if message is not None:
             msg = message
-        elif path and bucket:
-            msg = f"文件不存在: {bucket}/{path}"
         elif path:
             msg = f"文件不存在: {path}"
         else:
@@ -212,18 +209,6 @@ class StorageQuotaException(StorageException):
         else:
             msg = "存储配额已满"
         super().__init__(msg, code="STORAGE_QUOTA_EXCEEDED", status_code=429)
-
-
-class StorageConnectionException(StorageException):
-    """连接错误异常"""
-    def __init__(self, endpoint: str = None, message: str = None):
-        if message is not None:
-            msg = message
-        elif endpoint is not None:
-            msg = f"无法连接到存储后端: {endpoint}"
-        else:
-            msg = "存储后端连接失败"
-        super().__init__(msg, code="STORAGE_CONNECTION_ERROR", status_code=503)
 
 
 class StorageValidationException(StorageException):
