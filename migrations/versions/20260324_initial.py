@@ -560,6 +560,9 @@ def upgrade() -> None:
         sa.Column('is_encrypted', sa.Boolean(), nullable=False, server_default=sa.text('false'),
                   comment='是否加密'),
         sa.Column('version', sa.Integer(), nullable=False, server_default='1', comment='配置版本'),
+        sa.Column('tenant_id', sa.String(length=50), nullable=True, comment='租户ID'),
+        sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
+        sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
         sa.Column('updated_by', sa.String(length=50), nullable=False, comment='更新人'),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, comment='更新时间'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'),
@@ -569,8 +572,13 @@ def upgrade() -> None:
         schema='public',
         comment='系统配置表'
     )
-    op.create_index('idx_config_category', 'system_configs', ['category'],
+    op.create_index('idx_config_key', 'system_configs', ['config_key'], unique=True, schema='public')
+    op.create_index('idx_config_category', 'system_configs', ['category'], schema='public')
+    op.create_index('idx_config_tenant', 'system_configs', ['tenant_id'], schema='public')
+    op.create_index('idx_config_updated_at', 'system_configs', ['updated_at'], schema='public')
+    op.create_index('idx_config_tenant_key', 'system_configs', ['tenant_id', 'config_key'], unique=True,
                     schema='public')
+    op.create_index('idx_config_effective', 'system_configs', ['effective_from', 'effective_to'], schema='public')
 
     # 10. 用户表
     op.create_table(
@@ -583,7 +591,7 @@ def upgrade() -> None:
         sa.Column('full_name', sa.String(length=100), nullable=True, comment='全名'),
         sa.Column('avatar', sa.String(length=500), nullable=True, comment='头像URL'),
         sa.Column('phone', sa.String(length=20), nullable=True, comment='手机号'),
-        sa.Column('strategy', PgEnum('admin', 'developer', 'analyst', 'api_user',
+        sa.Column('role', PgEnum('admin', 'developer', 'analyst', 'api_user',
                                    name='user_role_enum', create_type=False),
                   nullable=False, server_default='api_user', comment='用户角色'),
         sa.Column('permissions', postgresql.JSONB(), default=list, nullable=True, comment='额外权限列表'),
@@ -616,7 +624,7 @@ def upgrade() -> None:
     op.create_index('idx_user_email', 'users', ['email'], unique=True, schema='public')
     op.create_index('idx_user_username', 'users', ['username'], unique=True, schema='public')
     op.create_index('idx_user_status', 'users', ['status'], schema='public')
-    op.create_index('idx_user_role', 'users', ['strategy'], schema='public')
+    op.create_index('idx_user_role', 'users', ['role'], schema='public')
     op.create_index('idx_user_created_at', 'users', ['created_at'], schema='public')
     op.create_index('idx_user_last_login', 'users', ['last_login_at'], schema='public')
 

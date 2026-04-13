@@ -30,7 +30,7 @@ from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, infer_capabilities
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class SklearnAdapter(BaseModelAdapter):
@@ -91,7 +91,7 @@ class SklearnAdapter(BaseModelAdapter):
                     ScorecardCapability.FEATURE_SCORE |
                     ScorecardCapability.EXPORT_SCORECARD
                 )
-                logger.debug("检测到逻辑回归模型，启用评分卡能力")
+                _logger.debug("检测到逻辑回归模型，启用评分卡能力")
 
         # 树模型额外支持的能力
         if hasattr(estimator, 'feature_importances_'):
@@ -99,7 +99,7 @@ class SklearnAdapter(BaseModelAdapter):
                 ScorecardCapability.SHAP |
                 ScorecardCapability.FEATURE_IMPORTANCE
             )
-            logger.debug("检测到树模型，启用特征重要性能力")
+            _logger.debug("检测到树模型，启用特征重要性能力")
 
     def _get_estimator(self):
         """获取最终估算器"""
@@ -149,19 +149,19 @@ class SklearnAdapter(BaseModelAdapter):
 
             if hasattr(last_step, 'feature_names_in_'):
                 self.feature_names = list(last_step.feature_names_in_)
-                logger.debug("从 Pipeline 提取特征名成功，数量: %d", len(self.feature_names))
+                _logger.debug("从 Pipeline 提取特征名成功，数量: %d", len(self.feature_names))
             elif hasattr(self.model, 'get_feature_names_out'):
                 try:
                     self.feature_names = list(self.model.get_feature_names_out())
-                    logger.debug("从 Pipeline get_feature_names_out 提取特征名成功，数量: %d", len(self.feature_names))
+                    _logger.debug("从 Pipeline get_feature_names_out 提取特征名成功，数量: %d", len(self.feature_names))
                 except Exception:
                     pass
 
             if not self.feature_names:
-                logger.debug("无法提取特征名，将使用默认命名")
+                _logger.debug("无法提取特征名，将使用默认命名")
 
         except Exception as e:
-            logger.debug("从 Pipeline 提取特征名失败: %s", e)
+            _logger.debug("从 Pipeline 提取特征名失败: %s", e)
 
     # ==================== 核心预测方法 ====================
 
@@ -182,7 +182,7 @@ class SklearnAdapter(BaseModelAdapter):
                 proba = float(self.model.predict(X)[0])
             return float(proba)
         except Exception as e:
-            logger.error("Sklearn 单条预测失败: %s", e)
+            _logger.error("Sklearn 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -200,7 +200,7 @@ class SklearnAdapter(BaseModelAdapter):
                 return self.model.predict_proba(X)[:, 1].tolist()
             return self.model.predict(X).tolist()
         except Exception as e:
-            logger.error("Sklearn 批量预测失败: %s", e)
+            _logger.error("Sklearn 批量预测失败: %s", e)
             raise
 
     def decision_function(self, X: np.ndarray) -> float:
@@ -270,7 +270,7 @@ class SklearnAdapter(BaseModelAdapter):
                 coef = coef[0]
             values = np.abs(coef)
         else:
-            logger.debug("模型不支持特征重要性提取")
+            _logger.debug("模型不支持特征重要性提取")
             return {}
 
         if self.feature_names:

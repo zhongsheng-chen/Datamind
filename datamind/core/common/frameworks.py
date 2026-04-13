@@ -1,4 +1,4 @@
-# datamind/core/ml/common/frameworks.py
+# datamind/core/common/frameworks.py
 
 """机器学习框架配置
 
@@ -68,7 +68,7 @@ def get_bentoml_backend(framework: str):
     backend = FRAMEWORK_TO_BENTOML.get(framework_lower)
     if backend is None:
         raise ValueError(
-            f"不支持的框架: {framework}. 支持的框架: {SUPPORTED_FRAMEWORKS}"
+            f"不支持的框架: {framework}。支持的框架: {SUPPORTED_FRAMEWORKS}"
         )
     return backend
 

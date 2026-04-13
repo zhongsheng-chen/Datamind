@@ -16,15 +16,17 @@
   - 特征验证（可选）
 """
 
+import time
 from typing import List, Dict, Any, Optional, Union
 import numpy as np
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, has_capability
 from datamind.core.scoring.score import Score
-from datamind.core.logging import get_logger
+from datamind.core.logging import get_logger, log_performance
+from datamind.core.domain.enums import PerformanceOperation
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class Predictor:
@@ -75,7 +77,7 @@ class Predictor:
             self.capabilities, ScorecardCapability.BATCH_PREDICT
         )
 
-        logger.debug(
+        _logger.debug(
             "预测器初始化完成，支持批量: %s, 验证特征: %s",
             self._supports_batch,
             validate_features
@@ -86,9 +88,11 @@ class Predictor:
         if not self._validate_features:
             return
 
-        missing = self.adapter.validate_features(features)
+        missing, type_errors = self.adapter.validate_features(features)
         if missing:
-            logger.debug("缺失特征: %s", missing)
+            _logger.debug("缺失特征: %s", missing)
+        if type_errors:
+            _logger.warning("类型错误: %s", type_errors)
 
     def predict_proba(self, features: Dict[str, Any]) -> float:
         """
@@ -103,6 +107,7 @@ class Predictor:
         异常:
             ValueError: 特征转换失败
         """
+        start_time = time.time()
         try:
             # 特征验证
             self._validate_features_dict(features)
@@ -111,11 +116,19 @@ class Predictor:
             X = self.adapter.to_array(features)
             proba = self.adapter.predict_proba(X)
 
-            logger.debug("预测概率: %.6f", proba)
+            duration = (time.time() - start_time) * 1000
+            log_performance(
+                operation=PerformanceOperation.MODEL_INFERENCE,
+                duration_ms=duration,
+                extra={"adapter_type": self.adapter.__class__.__name__}
+            )
+
+            _logger.debug("预测概率: %.6f, 耗时: %.2fms", proba, duration)
             return proba
 
         except Exception as e:
-            logger.error("单样本概率预测失败: %s", e)
+            duration = (time.time() - start_time) * 1000
+            _logger.error("单样本概率预测失败: %s, 耗时: %.2fms", e, duration)
             raise
 
     def predict_proba_batch(
@@ -137,29 +150,44 @@ class Predictor:
             ValueError: 批量预测失败且 skip_errors=False
         """
         if not features_list:
-            logger.debug("输入为空列表，返回空结果")
+            _logger.debug("输入为空列表，返回空结果")
             return []
+
+        start_time = time.time()
 
         # 使用向量化批量预测（如果支持）
         if self._supports_batch:
             try:
-                return self._predict_proba_batch_vectorized(features_list, skip_errors)
+                results = self._predict_proba_batch_vectorized(features_list)
+                duration = (time.time() - start_time) * 1000
+                log_performance(
+                    operation=PerformanceOperation.MODEL_BATCH_INFERENCE,
+                    duration_ms=duration,
+                    extra={"batch_size": len(features_list), "vectorized": True}
+                )
+                return results
             except Exception as e:
                 if skip_errors:
-                    logger.warning("向量化批量预测失败，降级为循环预测: %s", e)
+                    _logger.warning("向量化批量预测失败，降级为循环预测: %s", e)
                 else:
                     raise
 
         # 降级：循环预测
-        return self._predict_proba_batch_loop(features_list, skip_errors)
+        results = self._predict_proba_batch_loop(features_list, skip_errors)
+        duration = (time.time() - start_time) * 1000
+        log_performance(
+            operation=PerformanceOperation.MODEL_BATCH_INFERENCE,
+            duration_ms=duration,
+            extra={"batch_size": len(features_list), "vectorized": False}
+        )
+        return results
 
     def _predict_proba_batch_vectorized(
-        self,
-        features_list: List[Dict[str, Any]],
-        skip_errors: bool = False
+            self,
+            features_list: List[Dict[str, Any]]
     ) -> List[float]:
         """向量化批量概率预测（性能优化）"""
-        logger.debug("使用向量化批量预测，样本数: %d", len(features_list))
+        _logger.debug("使用向量化批量预测，样本数: %d", len(features_list))
 
         # 批量转换为数组
         X_batch = self.adapter.to_array_batch(features_list)
@@ -175,7 +203,7 @@ class Predictor:
         skip_errors: bool = False
     ) -> List[Optional[float]]:
         """循环批量概率预测（降级方案）"""
-        logger.debug("使用循环批量预测，样本数: %d", len(features_list))
+        _logger.debug("使用循环批量预测，样本数: %d", len(features_list))
 
         results = []
         for i, features in enumerate(features_list):
@@ -184,10 +212,10 @@ class Predictor:
                 results.append(prob)
             except Exception as e:
                 if skip_errors:
-                    logger.error("第 %d 条预测失败: %s，返回 None", i, e)
+                    _logger.error("第 %d 条预测失败: %s，返回 None", i, e)
                     results.append(None)
                 else:
-                    logger.error("第 %d 条预测失败: %s", i, e)
+                    _logger.error("第 %d 条预测失败: %s", i, e)
                     raise
 
         return results
@@ -205,11 +233,11 @@ class Predictor:
         try:
             prob = self.predict_proba(features)
             score = self.score_converter.to_score(prob)
-            logger.debug("预测分数: %.2f", score)
+            _logger.debug("预测分数: %.2f", score)
             return score
 
         except Exception as e:
-            logger.error("单样本分数预测失败: %s", e)
+            _logger.error("单样本分数预测失败: %s", e)
             raise
 
     def predict_score_batch(
@@ -267,11 +295,11 @@ class Predictor:
                 proba = self.adapter.predict_proba(X)
                 raw = np.log(proba / (1 - proba))
 
-            logger.debug("原始输出: %.6f", raw)
+            _logger.debug("原始输出: %.6f", raw)
             return float(raw)
 
         except Exception as e:
-            logger.error("原始输出预测失败: %s", e)
+            _logger.error("原始输出预测失败: %s", e)
             raise
 
     def predict_raw_batch(
@@ -299,7 +327,7 @@ class Predictor:
                 return self.adapter.predict_raw_batch(X_batch)
             except Exception as e:
                 if skip_errors:
-                    logger.warning("向量化批量原始输出失败，降级为循环预测: %s", e)
+                    _logger.warning("向量化批量原始输出失败，降级为循环预测: %s", e)
                 else:
                     raise
 
@@ -310,7 +338,7 @@ class Predictor:
                 results.append(self.predict_raw(features))
             except Exception as e:
                 if skip_errors:
-                    logger.error("第 %d 条原始输出预测失败: %s，返回 None", i, e)
+                    _logger.error("第 %d 条原始输出预测失败: %s，返回 None", i, e)
                     results.append(None)
                 else:
                     raise
@@ -342,5 +370,5 @@ class Predictor:
             }
 
         except Exception as e:
-            logger.error("预测置信度失败: %s", e)
+            _logger.error("预测置信度失败: %s", e)
             raise

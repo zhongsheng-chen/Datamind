@@ -265,7 +265,7 @@ class ModelRegistry:
                     }
                 )
 
-                # 保存到本地缓存（用于调试）
+                # 保存到本地缓存
                 cached_path = self.cache_path / model_id / 'versions' / f"model_{model_version}"
                 cached_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(tmp_path, cached_path)

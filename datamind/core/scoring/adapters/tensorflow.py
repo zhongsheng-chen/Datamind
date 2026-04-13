@@ -25,7 +25,7 @@ from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class TensorFlowAdapter(BaseModelAdapter):
@@ -55,7 +55,7 @@ class TensorFlowAdapter(BaseModelAdapter):
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        logger.debug("TensorFlow 适配器初始化完成")
+        _logger.debug("TensorFlow 适配器初始化完成")
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -89,7 +89,7 @@ class TensorFlowAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            logger.error("TensorFlow 单条预测失败: %s", e)
+            _logger.error("TensorFlow 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -113,7 +113,7 @@ class TensorFlowAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            logger.error("TensorFlow 批量预测失败: %s", e)
+            _logger.error("TensorFlow 批量预测失败: %s", e)
             raise
 
     def decision_function(self, X: np.ndarray) -> float:

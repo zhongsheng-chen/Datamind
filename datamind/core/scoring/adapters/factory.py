@@ -26,7 +26,7 @@ from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.common.frameworks import get_supported_frameworks as get_frameworks_list
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 # ==================== 注册表 ====================
@@ -113,7 +113,7 @@ def register_adapter(
         # 防重复注册
         for item in _ADAPTER_REGISTRY:
             if item["class"] == adapter_cls:
-                logger.debug("适配器已注册，跳过: %s", adapter_cls.__name__)
+                _logger.debug("适配器已注册，跳过: %s", adapter_cls.__name__)
                 return
 
         record = {
@@ -128,7 +128,7 @@ def register_adapter(
         _ADAPTER_REGISTRY.append(record)
         _ADAPTER_REGISTRY.sort(key=lambda x: x["priority"])
 
-        logger.debug(
+        _logger.debug(
             "注册适配器: %s, 优先级: %d, 关键字数: %d, 权重: %d, 框架数: %d, 自定义判断: %s",
             adapter_cls.__name__,
             priority,
@@ -153,7 +153,7 @@ def unregister_adapter(adapter_cls: Type[BaseModelAdapter]) -> bool:
         for i, item in enumerate(_ADAPTER_REGISTRY):
             if item["class"] == adapter_cls:
                 _ADAPTER_REGISTRY.pop(i)
-                logger.debug("注销适配器: %s", adapter_cls.__name__)
+                _logger.debug("注销适配器: %s", adapter_cls.__name__)
                 return True
     return False
 
@@ -170,9 +170,9 @@ def get_adapter(
     获取模型适配器
 
     优先级：
-        1. 显式 framework（生产推荐）
-        2. 统一评分（can_handle + keywords）
-        3. can_handle 权重 1000，keywords 权重由 weight 参数控制
+        - 显式 framework（生产推荐）
+        - 统一评分（can_handle + keywords）
+        - can_handle 权重 1000，keywords 权重由 weight 参数控制
 
     参数:
         model: 训练好的模型
@@ -195,7 +195,7 @@ def get_adapter(
     name = model.__class__.__name__.lower()
 
     registry = _get_registry_snapshot()
-    logger.debug("识别模型: %s.%s", module, name)
+    _logger.debug("识别模型: %s.%s", module, name)
 
     if framework:
         fw = framework.lower()
@@ -204,7 +204,7 @@ def get_adapter(
             raise ValueError(f"不支持的框架: {framework}")
 
         best = min(candidates, key=lambda x: x["priority"])
-        logger.info("使用显式框架: %s -> %s", fw, best["class"].__name__)
+        _logger.info("使用显式框架: %s -> %s", fw, best["class"].__name__)
         return best["class"](model, feature_names, data_types)
 
     # ---------- 自动匹配 ----------
@@ -236,13 +236,13 @@ def get_adapter(
                 try:
                     if item["can_handle"](model):
                         score += 1000
-                        logger.debug("can_handle 匹配: %s, 加分 1000", item["class"].__name__)
+                        _logger.debug("can_handle 匹配: %s, 加分 1000", item["class"].__name__)
                 except Exception as e:
-                    logger.debug("can_handle 执行失败: %s, %s", item["class"].__name__, e)
+                    _logger.debug("can_handle 执行失败: %s, %s", item["class"].__name__, e)
 
         if kw_score > 0:
-            logger.debug("keyword 匹配: %s, 加分 %d (weight=%d)",
-                         item["class"].__name__, kw_score, item.get("weight", 1))
+            _logger.debug("keyword 匹配: %s, 加分 %d (weight=%d)",
+                          item["class"].__name__, kw_score, item.get("weight", 1))
 
         # 选最优：分数高的优先，分数相同时优先级高的优先
         if score > best_score or (score == best_score and item["priority"] < best_priority):
@@ -254,8 +254,8 @@ def get_adapter(
     if best_cls is None or best_score <= 0:
         raise ValueError(f"无法识别模型类型: {module}.{name}")
 
-    logger.info("自动选择适配器: %s (模型: %s.%s, 匹配分数: %d)",
-               best_cls.__name__, module, name, best_score)
+    _logger.info("自动选择适配器: %s (模型: %s.%s, 匹配分数: %d)",
+                 best_cls.__name__, module, name, best_score)
     return best_cls(model, feature_names, data_types)
 
 
@@ -299,7 +299,7 @@ def clear_registry() -> None:
     with _REGISTRY_LOCK:
         _ADAPTER_REGISTRY.clear()
     _INITIALIZED = False
-    logger.debug("适配器注册表已清空")
+    _logger.debug("适配器注册表已清空")
 
 
 # ==================== 内置适配器注册 ====================

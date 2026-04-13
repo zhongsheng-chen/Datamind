@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from datamind.core.db.base import Base
+from datamind.core.db.base import Base, enum_values
 from datamind.core.domain.enums import TaskType
 
 
@@ -34,7 +34,15 @@ class ModelPerformanceMetrics(Base):
                      nullable=False, index=True)
     model_version = Column(String(20), nullable=False)
 
-    task_type = Column(SQLEnum(TaskType), nullable=False)
+    task_type = Column(
+        SQLEnum(
+            TaskType,
+            name="task_type_enum",
+            values_callable=enum_values
+        ),
+        nullable=False,
+        default=TaskType.SCORING.value
+    )
 
     date = Column(DateTime, nullable=False)
 

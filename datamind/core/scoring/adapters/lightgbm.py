@@ -26,7 +26,7 @@ from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class LightGBMAdapter(BaseModelAdapter):
@@ -76,11 +76,11 @@ class LightGBMAdapter(BaseModelAdapter):
         try:
             if hasattr(self.model, 'feature_name'):
                 self.feature_names = list(self.model.feature_name())
-                logger.debug("成功提取 LightGBM 特征名，数量: %d", len(self.feature_names))
+                _logger.debug("成功提取 LightGBM 特征名，数量: %d", len(self.feature_names))
             else:
-                logger.debug("LightGBM 模型无 feature_name 属性，将使用默认命名")
+                _logger.debug("LightGBM 模型无 feature_name 属性，将使用默认命名")
         except Exception as e:
-            logger.debug("提取 LightGBM 特征名失败: %s", e)
+            _logger.debug("提取 LightGBM 特征名失败: %s", e)
 
     # ==================== 核心预测方法 ====================
 
@@ -101,7 +101,7 @@ class LightGBMAdapter(BaseModelAdapter):
                 proba = float(self.model.predict(X)[0])
             return float(proba)
         except Exception as e:
-            logger.error("LightGBM 单条预测失败: %s", e)
+            _logger.error("LightGBM 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -119,7 +119,7 @@ class LightGBMAdapter(BaseModelAdapter):
                 return self.model.predict_proba(X)[:, 1].tolist()
             return self.model.predict(X).tolist()
         except Exception as e:
-            logger.error("LightGBM 批量预测失败: %s", e)
+            _logger.error("LightGBM 批量预测失败: %s", e)
             raise
 
     def decision_function(self, X: np.ndarray) -> float:
@@ -178,6 +178,6 @@ class LightGBMAdapter(BaseModelAdapter):
                     for name in importance:
                         importance[name] = importance[name] / total
         except Exception as e:
-            logger.error("获取 LightGBM 特征重要性失败: %s", e)
+            _logger.error("获取 LightGBM 特征重要性失败: %s", e)
 
         return importance

@@ -359,7 +359,7 @@ def register_scorecard(
         binning_serializable[col] = [b.to_dict() for b in bins]
 
     # 构建评分卡参数
-    scorecard_params = {
+    scorecard_config = {
         "binning": binning_serializable,
         "coefficients": coef_map,
         "intercept": intercept,
@@ -393,7 +393,7 @@ def register_scorecard(
                 "intercept": intercept,
                 "feature_importance": eval_result['feature_importance']
             },
-            scorecard_params=scorecard_params  # 关键：传入WOE分箱配置
+            scorecard_config=scorecard_config  # 关键：传入WOE分箱配置
         )
         logger.info("模型注册成功，ID: %s", model_id)
 

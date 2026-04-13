@@ -37,7 +37,7 @@ from typing import Dict, Any, List, Optional, Union, Tuple
 from datamind.core.logging import get_logger
 from datamind.core.domain.enums import DataType
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class BaseModelAdapter(ABC):
@@ -69,8 +69,12 @@ class BaseModelAdapter(ABC):
         # 记录特征类型分布
         numeric_count = sum(1 for dt in self.data_types.values() if dt == DataType.NUMERIC)
         categorical_count = sum(1 for dt in self.data_types.values() if dt == DataType.CATEGORICAL)
-        logger.debug("初始化适配器: %s, 特征数=%d, 数值型=%d, 分类型=%d",
-                    self.__class__.__name__, len(feature_names or []), numeric_count, categorical_count)
+        _logger.debug("初始化适配器: %s, 特征数=%d, 数值型=%d, 分类型=%d",
+                      self.__class__.__name__, len(self.feature_names or []), numeric_count, categorical_count)
+
+    def get_model_id(self) -> str:
+        """获取模型唯一标识（用于缓存）"""
+        return str(id(self.model))
 
     # ==================== 核心抽象方法 ====================
 
@@ -121,7 +125,7 @@ class BaseModelAdapter(ABC):
         返回:
             概率列表，长度 n_samples
         """
-        logger.debug("使用默认循环批量预测，样本数: %d", len(X))
+        _logger.debug("使用默认循环批量预测，样本数: %d", len(X))
         return [self.predict_proba(x.reshape(1, -1)) for x in X]
 
     def decision_function_batch(self, X: np.ndarray) -> List[float]:
@@ -134,7 +138,7 @@ class BaseModelAdapter(ABC):
         返回:
             logit 值列表
         """
-        logger.debug("使用默认循环批量获取 logit，样本数: %d", len(X))
+        _logger.debug("使用默认循环批量获取 logit，样本数: %d", len(X))
         return [self.decision_function(x.reshape(1, -1)) for x in X]
 
     # ==================== 统一预测接口 ====================
@@ -161,20 +165,20 @@ class BaseModelAdapter(ABC):
             raise ValueError("输入数据不能为 None")
 
         if isinstance(X, list) and len(X) == 0:
-            logger.warning("输入为空列表，返回空列表")
+            _logger.warning("输入为空列表，返回空列表")
             return []
 
         if isinstance(X, np.ndarray) and X.size == 0:
-            logger.warning("输入为空数组，返回空列表")
+            _logger.warning("输入为空数组，返回空列表")
             return []
 
         # 处理字典输入（单条）
         if isinstance(X, dict):
-            missing, type_errors = self.validate_features_with_types(X)
+            missing, type_errors = self.validate_features(X)
             if missing:
-                logger.debug("缺失特征: %s，将转换为 NaN 由 WOE 处理", missing)
+                _logger.debug("缺失特征: %s，将转换为 NaN 由 WOE 处理", missing)
             if type_errors:
-                logger.warning("类型错误: %s", type_errors)
+                _logger.warning("类型错误: %s", type_errors)
 
             X_array = self.to_array(X)
             return self.predict_proba(X_array)
@@ -183,11 +187,11 @@ class BaseModelAdapter(ABC):
         if isinstance(X, list) and X and isinstance(X[0], dict):
             if len(X) <= 100:
                 for i, features in enumerate(X[:5]):
-                    missing, type_errors = self.validate_features_with_types(features)
+                    missing, type_errors = self.validate_features(features)
                     if missing:
-                        logger.debug("样本 %d 缺失特征: %s", i, missing)
+                        _logger.debug("样本 %d 缺失特征: %s", i, missing)
                     if type_errors:
-                        logger.debug("样本 %d 类型错误: %s", i, type_errors)
+                        _logger.debug("样本 %d 类型错误: %s", i, type_errors)
 
             X_array = self.to_array_batch(X)
             return self.predict_proba_batch(X_array)
@@ -287,10 +291,10 @@ class BaseModelAdapter(ABC):
             import pandas as pd
             return self._to_array_batch_pandas(features_list)
         except ImportError:
-            logger.debug("pandas 不可用，使用原生实现")
+            _logger.debug("pandas 不可用，使用原生实现")
             return self._to_array_batch_fallback(features_list)
         except Exception as e:
-            logger.error("批量转换失败: %s", e)
+            _logger.error("批量转换失败: %s", e)
             raise
 
     def _to_array_batch_pandas(self, features_list: List[Dict[str, Any]]) -> np.ndarray:
@@ -375,32 +379,13 @@ class BaseModelAdapter(ABC):
             return value
 
         # 其他类型：记录警告，尝试保留原值
-        logger.debug("特征 '%s' 的类型 %s 将保留原值: %s",
-                    feature_name, type(value).__name__, value)
+        _logger.debug("特征 '%s' 的类型 %s 将保留原值: %s",
+                      feature_name, type(value).__name__, value)
         return value
 
     # ==================== 特征验证 ====================
 
-    def validate_features(self, features: Dict[str, Any]) -> List[str]:
-        """
-        验证特征完整性
-
-        参数:
-            features: 特征字典
-
-        返回:
-            缺失的特征名称列表
-        """
-        if not self.feature_names:
-            return []
-
-        missing = [name for name in self.feature_names if name not in features]
-        if missing:
-            logger.debug("缺失特征: %s", missing)
-
-        return missing
-
-    def validate_features_with_types(self, features: Dict[str, Any]) -> Tuple[List[str], List[Tuple[str, str, str]]]:
+    def validate_features(self, features: Dict[str, Any]) -> Tuple[List[str], List[Tuple[str, str, str]]]:
         """
         验证特征完整性和类型
 
@@ -443,10 +428,10 @@ class BaseModelAdapter(ABC):
                 pass
 
         if missing:
-            logger.debug("缺失特征: %s", missing)
+            _logger.debug("缺失特征: %s", missing)
 
         if type_errors:
-            logger.warning("类型错误: %s", type_errors)
+            _logger.warning("类型错误: %s", type_errors)
 
         return missing, type_errors
 
@@ -459,10 +444,14 @@ class BaseModelAdapter(ABC):
         子类可重写此方法以提供特征重要性提取功能。
 
         返回:
-            特征重要性字典，如果不支持则返回空字典
+            特征重要性字典
+
+        异常:
+            NotImplementedError: 子类未实现
         """
-        logger.debug("模型不支持特征重要性提取")
-        return {}
+        raise NotImplementedError(
+            f"{self.__class__.__name__} 不支持特征重要性提取"
+        )
 
     def get_capabilities(self):
         """

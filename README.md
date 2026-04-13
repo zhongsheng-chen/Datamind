@@ -1737,7 +1737,7 @@ if models:
     with get_db() as session:
         existing = session.query(ModelDeployment).filter_by(
             model_id=model_id,
-            environment=settings.app.env
+            environment=settings.app.environment
         ).first()
         
         if not existing:
@@ -1745,24 +1745,130 @@ if models:
                 deployment_id=f'DEPLOY_{model_id}',
                 model_id=model_id,
                 model_version=model_version,
-                environment=settings.app.env,
+                environment=settings.app.environment,
                 is_active=True,
                 deployed_by='system'
             )
             session.add(deployment)
             session.commit()
-            print(f'部署记录创建成功: {model_id} -> {settings.app.env}')
+            print(f'部署记录创建成功: {model_id} -> {settings.app.environment}')
         else:
-            print(f'部署记录已存在: {model_id} -> {settings.app.env}')
+            print(f'部署记录已存在: {model_id} -> {settings.app.environment}')
 else:
     print('没有找到生产环境的评分卡模型')
 "
 ```
 
+## 创建 A/B 测试
+```bash
+python -c "
+from datetime import datetime, timedelta
+from datamind.core.db.database import db_manager
+from datamind.core.experiment import ab_test_manager
+
+db_manager.initialize()
+
+# 假设你的模型ID是 MDL_20260414000640_3DDD2BD1:
+# 请替换成你实际的模型ID
+champion_model_id = 'MDL_20260414000640_3DDD2BD1:'
+challenger_model_id = 'MDL_20260414000640_3DDD2BD1:'  # 如果有其他模型可以替换
+
+# 创建 A/B 测试
+test_id = ab_test_manager.create_test(
+    test_name='评分卡模型对比测试',
+    task_type='scoring',
+    groups=[
+        {
+            'name': 'control',
+            'model_id': champion_model_id,
+            'weight': 50,
+            'description': '对照组，使用主模型'
+        },
+        {
+            'name': 'treatment',
+            'model_id': challenger_model_id,
+            'weight': 50,
+            'description': '实验组，使用挑战者模型'
+        }
+    ],
+    created_by='admin',
+    description='测试不同评分卡模型的效果对比',
+    traffic_allocation=100.0,
+    assignment_strategy='consistent',
+    start_date=datetime.now(),
+    end_date=datetime.now() + timedelta(days=7),
+    metrics=['score', 'probability', 'latency_ms']
+)
+
+print(f'A/B测试创建成功！')
+print(f'测试ID: {test_id}')
+"
+```
+
+```bash
+python -c "
+from datetime import datetime, timedelta
+from datamind.core.db.database import db_manager
+from datamind.core.experiment.ab_test import ab_test_manager
+
+db_manager.initialize()
+
+# 替换成你实际的模型ID（去掉末尾的冒号）
+champion_model_id = 'MDL_20260414000640_3DDD2BD1'
+challenger_model_id = 'MDL_20260414000640_3DDD2BD1'
+
+# 创建 A/B 测试
+test_id = ab_test_manager.create_test(
+    test_name='评分卡模型对比测试',
+    task_type='scoring',
+    groups=[
+        {
+            'name': 'control',
+            'model_id': champion_model_id,
+            'weight': 50,
+            'description': '对照组，使用主模型'
+        },
+        {
+            'name': 'treatment',
+            'model_id': challenger_model_id,
+            'weight': 50,
+            'description': '实验组，使用挑战者模型'
+        }
+    ],
+    created_by='admin',
+    description='测试不同评分卡模型的效果对比',
+    traffic_allocation=100.0,
+    assignment_strategy='consistent',
+    start_date=datetime.now(),
+    end_date=datetime.now() + timedelta(days=7),
+    metrics=['score', 'probability', 'latency_ms']
+)
+
+print(f'A/B测试创建成功！')
+print(f'测试ID: {test_id}')
+"
+```
+
+## 启动 A/B 测试
+```bash
+python -c "
+from datamind.core.db.database import db_manager
+from datamind.core.experiment.ab_test import ab_test_manager
+
+db_manager.initialize()
+
+# 替换成上一步创建的 test_id
+test_id = 'ABT_20260414092617_6920'
+
+ab_test_manager.start_test(test_id, operator='admin')
+print(f'A/B测试已启动: {test_id}')
+"
+
+```
+
 ## 测试服务
 ```bash
-python datamind/serving/scoring_service.py
-python -m datamind.serving.scoring_service
+bentoml serve datamind.serving.scoring_service:ScoringService --reload --port 3000
 ```
 
 ## 启动服务
@@ -1778,6 +1884,8 @@ curl -X POST http://localhost:3000/predict \
   -d '{
     "request": {
       "application_id": "TEST_003",
+      "model_id": "MDL_20260414000640_3DDD2BD1",
+      "ab_test_id": "ABT_20260414092617_6920",
       "features": {
         "age": 55,
         "income": 150000,
@@ -1798,6 +1906,8 @@ curl -X POST http://localhost:3000/predict \
   -d '{
     "request": {
       "application_id": "TEST_002",
+      "model_id": "MDL_20260414000640_3DDD2BD1",
+      "ab_test_id": "ABT_20260414092617_6920",
       "features": {
         "age": 20,
         "income": 20000,
@@ -1818,6 +1928,8 @@ curl -X POST http://localhost:3000/predict \
   -d '{
     "request": {
       "application_id": "TEST_001",
+      "model_id": "MDL_20260414000640_3DDD2BD1",
+      "ab_test_id": "ABT_20260414092617_6920",
       "features": {
         "age": 35,
         "income": 50000,
@@ -1845,6 +1957,98 @@ curl -X POST http://localhost:3000/models -H "Content-Type: application/json" -d
 curl -X POST http://localhost:3000/models -H "Content-Type: application/json" -d '{}'
 ```
 
+
+
+## 检查 API 调用记录
+```bash
+python -c "
+from datamind.core.db.database import db_manager, get_db
+from datamind.core.db.models.monitoring import ApiCallLog
+import json
+
+db_manager.initialize()
+
+with get_db() as session:
+    logs = session.query(ApiCallLog).order_by(ApiCallLog.created_at.desc()).limit(5).all()
+    print(f'共 {len(logs)} 条记录')
+    print()
+    
+    for i, log in enumerate(logs, 1):
+        print(f'--- 记录 {i} ---')
+        print(f'  请求ID: {log.request_id}')
+        print(f'  应用ID: {log.application_id}')
+        print(f'  模型ID: {log.model_id}')
+        print(f'  模型版本: {log.model_version}')
+        print(f'  端点: {log.endpoint}')
+        print(f'  状态码: {log.status_code}')
+        print(f'  耗时: {log.processing_time_ms} ms')
+        print(f'  任务类型: {log.task_type}')
+        print(f'  创建时间: {log.created_at}')
+        if log.business_metrics:
+            print(f'  业务指标: {json.dumps(log.business_metrics, ensure_ascii=False)}')
+        if log.error_message:
+            print(f'  错误信息: {log.error_message}')
+        print()
+"
+```
+## 查看审计日志
+```bash
+python -c "
+from datamind.core.db.database import db_manager, get_db
+from datamind.core.db.models import AuditLog
+
+db_manager.initialize()
+
+with get_db() as session:
+    logs = session.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(10).all()
+    print(f'共 {len(logs)} 条审计记录')
+    print('=' * 80)
+    for log in logs:
+        print(f'时间: {log.created_at}')
+        print(f'审计ID: {log.audit_id}')
+        print(f'操作: {log.action}')
+        print(f'操作人: {log.operator}')
+        print(f'资源类型: {log.resource_type}')
+        print(f'资源ID: {log.resource_id}')
+        print(f'结果: {log.result}')
+        if log.details:
+            print(f'详情: {log.details}')
+        print('-' * 40)
+"
+```
+
+## 检查性能记录
+```bash
+python -c "
+from datamind.core.db.database import db_manager, get_db
+from datamind.core.db.models.monitoring import ModelPerformanceMetrics
+
+db_manager.initialize()
+
+with get_db() as session:
+    records = session.query(ModelPerformanceMetrics).order_by(ModelPerformanceMetrics.date.desc()).limit(10).all()
+    print(f'共 {len(records)} 条性能记录')
+    print('=' * 80)
+    for r in records:
+        print(f'日期: {r.date}')
+        print(f'模型ID: {r.model_id}')
+        print(f'模型版本: {r.model_version}')
+        print(f'任务类型: {r.task_type}')
+        print(f'总请求数: {r.total_requests}')
+        print(f'成功数: {r.success_count}')
+        print(f'失败数: {r.error_count}')
+        print(f'超时数: {r.timeout_count}')
+        print(f'平均响应时间: {r.avg_response_time_ms}ms')
+        print(f'P95响应时间: {r.p95_response_time_ms}ms')
+        print(f'最大响应时间: {r.max_response_time_ms}ms')
+        print(f'最小响应时间: {r.min_response_time_ms}ms')
+        print(f'平均评分: {r.avg_score}')
+        print(f'平均概率: {r.fraud_rate}')
+        if r.score_distribution:
+            print(f'评分分布: {r.score_distribution}')
+        print('-' * 40)
+"
+```
 
 根据您的项目结构，有以下几种方式启动 BentoML 服务：
 

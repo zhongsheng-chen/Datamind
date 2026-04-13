@@ -1,4 +1,5 @@
-# Datamind/datamind/storage/models/__init__.py
+# datamind/storage/models/__init__.py
+
 """
 模型存储模块
 

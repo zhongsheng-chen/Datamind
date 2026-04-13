@@ -397,31 +397,15 @@ class DatabaseManager:
                 session.commit()
                 duration = (datetime.now() - start_time).total_seconds() * 1000
 
-                log_performance(
-                    operation=PerformanceOperation.DB_TRANSACTION,
-                    duration_ms=duration,
-                    request_id=request_id,
+                _logger.debug(
+                    f"事务提交成功，耗时: {duration:.2f}ms",
                     extra={
-                        "engine_name": engine_name,
-                        "commit": True,
-                        "span_id": span_id,
-                        "parent_span_id": parent_span_id,
-                        "trace_id": trace_id
-                    }
-                )
-
-                log_audit(
-                    action=AuditAction.DB_TRANSACTION.value,
-                    user_id="system",
-                    ip_address="localhost",
-                    details={
                         "engine_name": engine_name,
                         "duration_ms": round(duration, 2),
                         "span_id": span_id,
                         "parent_span_id": parent_span_id,
                         "trace_id": trace_id
-                    },
-                    request_id=request_id
+                    }
                 )
 
                 if duration > 100:
