@@ -14,19 +14,6 @@
   - torch: PyTorch 模型适配器
   - tensorflow: TensorFlow/Keras 模型适配器
   - onnx: ONNX Runtime 模型适配器
-
-使用示例：
-    >>> from datamind.core.scoring.adapters import get_adapter, is_supported
-    >>>
-    >>> # 自动识别模型
-    >>> adapter = get_adapter(model, feature_names=["age", "income"])
-    >>>
-    >>> # 显式指定框架
-    >>> adapter = get_adapter(model, framework="sklearn")
-    >>>
-    >>> # 检查是否支持
-    >>> if is_supported(model):
-    ...     adapter = get_adapter(model)
 """
 
 from .base import BaseModelAdapter

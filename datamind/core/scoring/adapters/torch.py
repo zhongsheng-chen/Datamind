@@ -28,7 +28,7 @@ from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class TorchAdapter(BaseModelAdapter):
@@ -61,7 +61,7 @@ class TorchAdapter(BaseModelAdapter):
 
         self._capabilities = self.SUPPORTED_CAPABILITIES
 
-        logger.debug("PyTorch 适配器初始化完成，模型设备: %s", self.device)
+        _logger.debug("PyTorch 适配器初始化完成，模型设备: %s", self.device)
 
     def get_capabilities(self) -> ScorecardCapability:
         """
@@ -98,7 +98,7 @@ class TorchAdapter(BaseModelAdapter):
             return float(proba)
 
         except Exception as e:
-            logger.error("PyTorch 单条预测失败: %s", e)
+            _logger.error("PyTorch 单条预测失败: %s", e)
             raise
 
     def predict_proba_batch(self, X: np.ndarray) -> List[float]:
@@ -125,7 +125,7 @@ class TorchAdapter(BaseModelAdapter):
             return probs.tolist()
 
         except Exception as e:
-            logger.error("PyTorch 批量预测失败: %s", e)
+            _logger.error("PyTorch 批量预测失败: %s", e)
             raise
 
     def decision_function(self, X: np.ndarray) -> float:

@@ -140,6 +140,11 @@ class LogManager:
             self._watch_thread: Optional[threading.Thread] = None
             self._shutdown_called: bool = False
 
+    @property
+    def initialized(self) -> bool:
+        """检查日志系统是否已初始化"""
+        return self._initialized
+
     def _get_logger_names(self) -> List[str]:
         """获取所有需要管理的日志器名称列表"""
         if self.config:

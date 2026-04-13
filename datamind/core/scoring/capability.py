@@ -42,9 +42,9 @@ class ScorecardCapability(IntFlag):
         PREDICT_SCORE: 输出信用评分
         PREDICT_CLASS: 输出分类标签（0/1）
         FEATURE_SCORE: 支持特征分计算
-        SHAP: 支持 SHAP 值解释（通用）
+        SHAP: 支持 SHAP 值解释
         SHAP_TREE: 支持 TreeExplainer（高性能，适用于树模型）
-        SHAP_KERNEL: 支持 KernelExplainer（通用，需背景数据）
+        SHAP_KERNEL: 支持 KernelExplainer（需背景数据）
         FEATURE_IMPORTANCE: 支持全局特征重要性
         EXPORT_SCORECARD: 支持导出评分卡
         BATCH_PREDICT: 支持批量预测
@@ -78,15 +78,15 @@ _CAPABILITY_NAMES = {
 
 # 能力描述映射
 _CAPABILITY_DESCRIPTIONS = {
-    ScorecardCapability.PREDICT_PROBA: "违约概率",
-    ScorecardCapability.PREDICT_SCORE: "信用评分",
-    ScorecardCapability.PREDICT_CLASS: "分类结果",
-    ScorecardCapability.FEATURE_SCORE: "特征分",
-    ScorecardCapability.SHAP: "SHAP解释",
-    ScorecardCapability.SHAP_TREE: "SHAP TreeExplainer（树模型专用）",
-    ScorecardCapability.SHAP_KERNEL: "SHAP KernelExplainer（通用，需背景数据）",
+    ScorecardCapability.PREDICT_PROBA: "违约概率预测",
+    ScorecardCapability.PREDICT_SCORE: "信用评分预测",
+    ScorecardCapability.PREDICT_CLASS: "分类标签预测",
+    ScorecardCapability.FEATURE_SCORE: "特征分计算",
+    ScorecardCapability.SHAP: "SHAP特征解释",
+    ScorecardCapability.SHAP_TREE: "SHAP树模型解释",
+    ScorecardCapability.SHAP_KERNEL: "SHAP核函数解释",
     ScorecardCapability.FEATURE_IMPORTANCE: "特征重要性",
-    ScorecardCapability.EXPORT_SCORECARD: "导出评分卡",
+    ScorecardCapability.EXPORT_SCORECARD: "评分卡导出",
     ScorecardCapability.BATCH_PREDICT: "批量预测",
 }
 

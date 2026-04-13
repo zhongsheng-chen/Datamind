@@ -12,9 +12,9 @@ from sqlalchemy import pool
 from sqlalchemy import engine_from_config
 from logging.config import fileConfig
 
-from datamind.config.settings import get_settings
-from datamind.core.db import models
 from datamind.core.db import Base
+from datamind.config import get_settings
+from datamind.config.settings import Environment
 
 # 获取配置实例
 settings = get_settings()
@@ -39,10 +39,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # 可以添加调试信息（可选）
-if settings.app.debug:
+if settings.app.environment == Environment.DEVELOPMENT:
     print(f"数据库连接: {settings.database.url}")
-    print(f"环境: {settings.app.env}")
-    print(f"调试模式: {settings.app.debug}")
+    print(f"环境: {settings.app.environment}")
 
 
 def run_migrations_offline() -> None:

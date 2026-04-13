@@ -90,6 +90,7 @@ if TYPE_CHECKING:
 
 _fallback_logger = logging.getLogger("datamind.fallback")
 _fallback_logger.propagate = False
+_fallback_logger.setLevel(logging.WARNING)
 
 if not _fallback_logger.handlers:
     _console_handler = logging.StreamHandler(sys.stderr)
@@ -121,7 +122,7 @@ def get_logger(name: str = None) -> logging.Logger:
         日志记录器实例
     """
     try:
-        logger = log_manager._logger
+        logger = log_manager.logger
         if logger is not None:
             if name is None:
                 return logger

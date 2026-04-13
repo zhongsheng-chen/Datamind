@@ -44,7 +44,7 @@ from math import log, exp
 from datamind.core.logging import get_logger
 from datamind.config.scorecard_config import ScorecardConstants
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class Score:
@@ -109,7 +109,7 @@ class Score:
             self._validate_monotonicity()
             self._validate_pdo()
 
-        logger.debug(
+        _logger.debug(
             "信用评分转换器初始化完成: pdo=%.2f, base_score=%.2f, base_odds=%.2f, "
             "score_range=[%.2f, %.2f], prob_range=[%.2e, %.2e]",
             pdo, base_score, base_odds, min_score, max_score, min_prob, max_prob
@@ -146,7 +146,7 @@ class Score:
                 f"违约概率 {p_high:.6f} 对应分数 {score_high:.2f}。"
                 f"分数应随违约概率增加而降低，请检查参数配置。"
             )
-            logger.error(error_msg)
+            _logger.error(error_msg)
             raise ValueError(error_msg)
 
     def _validate_pdo(self):
@@ -161,7 +161,7 @@ class Score:
                 f"odds={odds*2} 分数={score2:.2f}, "
                 f"期望差值={self.pdo:.2f}, 实际差值={score2 - score1:.2f}"
             )
-            logger.error(error_msg)
+            _logger.error(error_msg)
             raise ValueError(error_msg)
 
     # ==================== 内部裁剪方法 ====================
@@ -233,7 +233,7 @@ class Score:
         """
         score = self.offset - self.factor * logit
         result = self._clip_score(score)
-        logger.debug("logit转分数: logit=%.6f -> score=%.2f", logit, result)
+        _logger.debug("logit转分数: logit=%.6f -> score=%.2f", logit, result)
         return result
 
     def from_logit_batch(self, logits: List[float]) -> List[float]:
@@ -334,7 +334,7 @@ class Score:
         logit = self.to_logit(score)
         prob = self._sigmoid(logit)
         result = self._clip_prob(prob)
-        logger.debug("分数转概率: score=%.2f -> prob=%.6f", score, result)
+        _logger.debug("分数转概率: score=%.2f -> prob=%.6f", score, result)
         return result
 
     def to_probability_batch(self, scores: List[float]) -> List[float]:

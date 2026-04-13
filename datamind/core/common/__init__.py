@@ -30,7 +30,6 @@ from .exceptions import (
     StorageNotFoundException,
     StoragePermissionException,
     StorageQuotaException,
-    StorageConnectionException,
     StorageValidationException,
     DatabaseException,
     ValidationException,

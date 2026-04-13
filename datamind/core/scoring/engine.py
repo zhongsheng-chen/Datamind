@@ -18,6 +18,7 @@
   - 异常安全处理，保证评分流程稳定
 """
 
+import time
 from typing import Dict, List, Optional, Any, Tuple
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
@@ -29,9 +30,10 @@ from datamind.core.scoring.capability import (
 from datamind.core.scoring.predictor import Predictor
 from datamind.core.scoring.score import Score
 from datamind.core.scoring.transform import WOETransformer
-from datamind.core.logging import get_logger
+from datamind.core.logging import get_logger, log_performance
+from datamind.core.domain.enums import PerformanceOperation
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class ScoringEngine:
@@ -98,9 +100,9 @@ class ScoringEngine:
             self.capabilities, ScorecardCapability.BATCH_PREDICT
         )
 
-        logger.info("评分引擎初始化完成，模型能力: %s, 支持批量预测: %s",
-                   get_capability_list(self.capabilities),
-                   self._supports_batch)
+        _logger.info("评分引擎初始化完成，模型能力: %s, 支持批量预测: %s",
+                     get_capability_list(self.capabilities),
+                     self._supports_batch)
 
     def _transform_features(self, features: Dict[str, Any]) -> Dict[str, float]:
         """
@@ -116,7 +118,7 @@ class ScoringEngine:
             try:
                 return self.transformer.transform(features)
             except ValueError as e:
-                logger.error("特征转换失败: %s", e)
+                _logger.error("特征转换失败: %s", e)
                 raise
         return features
 
@@ -133,24 +135,33 @@ class ScoringEngine:
                 "score": 信用分
                 "proba": 违约概率（可选）
         """
+        start_time = time.time()
         try:
             # 特征转换
             transformed = self._transform_features(features)
 
             # 预测概率
             proba = self.predictor.predict_proba(transformed)
-            logger.debug("预测概率: %.6f", proba)
+            _logger.debug("预测概率: %.6f", proba)
 
-            result = {
-                "score": self.score_converter.to_score(proba),
-            }
+            score = self.score_converter.to_score(proba)
+
+            duration = (time.time() - start_time) * 1000
+            log_performance(
+                operation=PerformanceOperation.SCORECARD_CALCULATE,
+                duration_ms=duration,
+                extra={"return_proba": return_proba}
+            )
+
+            result = {"score": score}
             if return_proba:
                 result["proba"] = proba
 
             return result
 
         except Exception as e:
-            logger.error("单条评分失败: %s", e)
+            duration = (time.time() - start_time) * 1000
+            _logger.error("单条评分失败: %s, 耗时: %.2fms", e, duration)
             return {"score": None, "proba": None if return_proba else None}
 
     def score_batch(
@@ -171,21 +182,37 @@ class ScoringEngine:
             字典列表
         """
         if not features_list:
-            logger.debug("输入为空列表，返回空结果")
+            _logger.debug("输入为空列表，返回空结果")
             return []
+
+        start_time = time.time()
 
         # 使用批量预测（如果支持）
         if self._supports_batch:
             try:
-                return self._score_batch_vectorized(features_list, return_proba, skip_errors)
+                results = self._score_batch_vectorized(features_list, return_proba, skip_errors)
+                duration = (time.time() - start_time) * 1000
+                log_performance(
+                    operation=PerformanceOperation.SCORECARD_CALCULATE,
+                    duration_ms=duration,
+                    extra={"batch_size": len(features_list), "vectorized": True}
+                )
+                return results
             except Exception as e:
                 if skip_errors:
-                    logger.warning("批量预测失败，降级为循环预测: %s", e)
+                    _logger.warning("批量预测失败，降级为循环预测: %s", e)
                 else:
                     raise
 
         # 降级为循环预测
-        return self._score_batch_loop(features_list, return_proba, skip_errors)
+        results = self._score_batch_loop(features_list, return_proba, skip_errors)
+        duration = (time.time() - start_time) * 1000
+        log_performance(
+            operation=PerformanceOperation.SCORECARD_CALCULATE,
+            duration_ms=duration,
+            extra={"batch_size": len(features_list), "vectorized": False}
+        )
+        return results
 
     def _score_batch_vectorized(
             self,
@@ -204,7 +231,7 @@ class ScoringEngine:
         返回:
             评分结果列表
         """
-        logger.debug("使用向量化批量评分，样本数: %d", len(features_list))
+        _logger.debug("使用向量化批量评分，样本数: %d", len(features_list))
 
         # 批量特征转换
         transformed_list = []
@@ -216,7 +243,7 @@ class ScoringEngine:
                 valid_indices.append(i)
             except Exception as e:
                 if skip_errors:
-                    logger.error("第 %d 条特征转换失败: %s", i, e)
+                    _logger.error("第 %d 条特征转换失败: %s", i, e)
                 else:
                     raise
 
@@ -263,13 +290,12 @@ class ScoringEngine:
         返回:
             评分结果列表
         """
-        logger.debug("使用循环批量评分，样本数: %d", len(features_list))
+        _logger.debug("使用循环批量评分，样本数: %d", len(features_list))
 
         results: List[Dict[str, Optional[float]]] = []
         for i, features in enumerate(features_list):
             try:
                 result = self.score(features, return_proba=return_proba)
-                # 确保 result 是预期的类型
                 typed_result: Dict[str, Optional[float]] = {
                     "score": result.get("score"),
                 }
@@ -278,13 +304,13 @@ class ScoringEngine:
                 results.append(typed_result)
             except Exception as e:
                 if skip_errors:
-                    logger.error("第 %d 条评分失败: %s，返回 None", i, e)
+                    _logger.error("第 %d 条评分失败: %s，返回 None", i, e)
                     result_dict: Dict[str, Optional[float]] = {"score": None}
                     if return_proba:
                         result_dict["proba"] = None
                     results.append(result_dict)
                 else:
-                    logger.error("第 %d 条评分失败: %s", i, e)
+                    _logger.error("第 %d 条评分失败: %s", i, e)
                     raise
 
         return results
@@ -323,14 +349,14 @@ class ScoringEngine:
         # 评分卡模型：使用特征分数
         if has_capability(self.capabilities, ScorecardCapability.FEATURE_SCORE):
             try:
-                logger.debug("使用评分卡模型解释")
+                _logger.debug("使用评分卡模型解释")
 
                 if self.transformer is None:
-                    logger.debug("评分卡模型没有WOE转换器，将使用原始特征值计算（可能不准确）")
+                    _logger.debug("评分卡模型没有WOE转换器，将使用原始特征值计算（可能不准确）")
                     transformed = features
                 else:
                     transformed = self._transform_features(features)
-                    logger.debug("WOE转换完成，特征数: %d", len(transformed))
+                    _logger.debug("WOE转换完成，特征数: %d", len(transformed))
 
                 # 获取评分参数
                 factor = self.score_converter.factor
@@ -357,11 +383,11 @@ class ScoringEngine:
                             score_contributions[feat_name] = score_contrib
                             total_score += score_contrib
 
-                        logger.debug("特征 %s: WOE=%.4f, 系数=%.4f, 对数几率贡献=%.4f, 评分贡献=%.4f",
-                                    feat_name, woe, coefficient, log_odds_contrib,
-                                    score_contrib if return_score_scale else 0)
+                        _logger.debug("特征 %s: WOE=%.4f, 系数=%.4f, 对数几率贡献=%.4f, 评分贡献=%.4f",
+                                      feat_name, woe, coefficient, log_odds_contrib,
+                                      score_contrib if return_score_scale else 0)
                     except (RuntimeError, ValueError, AttributeError) as e:
-                        logger.debug("获取特征 %s 系数失败: %s", feat_name, e)
+                        _logger.debug("获取特征 %s 系数失败: %s", feat_name, e)
 
                 # 添加截距贡献
                 intercept_log_odds = 0.0
@@ -373,11 +399,11 @@ class ScoringEngine:
                     if return_score_scale:
                         intercept_score = -factor * intercept_log_odds
                         total_score += intercept_score
-                    logger.debug("截距: 对数几率=%.4f, 评分贡献=%.4f", intercept_log_odds, intercept_score)
+                    _logger.debug("截距: 对数几率=%.4f, 评分贡献=%.4f", intercept_log_odds, intercept_score)
                 except NotImplementedError:
-                    logger.debug("模型不支持截距提取")
+                    _logger.debug("模型不支持截距提取")
                 except Exception as e:
-                    logger.debug("获取截距失败: %s", e)
+                    _logger.debug("获取截距失败: %s", e)
 
                 # 构建返回结果
                 result = {
@@ -392,12 +418,12 @@ class ScoringEngine:
                     result["intercept_score"] = intercept_score
                     result["total_score"] = total_score
 
-                logger.debug("解释完成: 总对数几率=%.4f, 总评分=%.4f",
-                            total_log_odds, total_score if return_score_scale else 0)
+                _logger.debug("解释完成: 总对数几率=%.4f, 总评分=%.4f",
+                              total_log_odds, total_score if return_score_scale else 0)
                 return result
 
             except Exception as e:
-                logger.error("特征贡献解释失败: %s", e)
+                _logger.error("特征贡献解释失败: %s", e)
                 import traceback
                 traceback.print_exc()
                 return {
@@ -408,7 +434,7 @@ class ScoringEngine:
 
         # SHAP 解释（非评分卡模型）
         if has_capability(self.capabilities, ScorecardCapability.SHAP):
-            logger.debug("使用 SHAP 解释")
+            _logger.debug("使用 SHAP 解释")
             try:
                 X_array = self.model_adapter.to_array(features)
 
@@ -422,10 +448,10 @@ class ScoringEngine:
                             "expected_value": 0.0
                         }
             except Exception as e:
-                logger.error("SHAP 解释失败: %s", e)
+                _logger.error("SHAP 解释失败: %s", e)
 
         # 模型不支持解释
-        logger.debug("模型不支持特征贡献解释")
+        _logger.debug("模型不支持特征贡献解释")
         return {
             "explain_type": "unsupported",
             "message": "模型不支持特征贡献解释"
@@ -452,10 +478,10 @@ class ScoringEngine:
                 results.append(self.explain(features))
             except Exception as e:
                 if skip_errors:
-                    logger.error("第 %d 条解释失败: %s，返回空字典", i, e)
+                    _logger.error("第 %d 条解释失败: %s，返回空字典", i, e)
                     results.append({})
                 else:
-                    logger.error("第 %d 条解释失败: %s", i, e)
+                    _logger.error("第 %d 条解释失败: %s", i, e)
                     raise
 
         return results
@@ -473,13 +499,13 @@ class ScoringEngine:
             for feature, bins in self.transformer.binning.items():
                 max_woe = max(abs(b.woe) for b in bins)
                 importance[feature] = max_woe
-            logger.debug("从 transformer 获取特征重要性，特征数: %d", len(importance))
+            _logger.debug("从 transformer 获取特征重要性，特征数: %d", len(importance))
             return importance
 
         # 其他模型：从适配器获取
         importance = self.model_adapter.get_feature_importance()
         if importance:
-            logger.debug("从适配器获取特征重要性，特征数: %d", len(importance))
+            _logger.debug("从适配器获取特征重要性，特征数: %d", len(importance))
         return importance
 
     def get_score_range(self) -> Tuple[float, float]:

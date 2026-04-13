@@ -10,8 +10,6 @@
   - A/B测试支持
 """
 
-from datamind.serving import main
-
 from datamind.serving.scoring_service import ScoringService
 from datamind.serving.fraud_service import FraudService
 from datamind.serving.base import BaseBentoService

@@ -44,8 +44,10 @@
 
 import os
 import sys
+import time
 import logging
 from logging.handlers import MemoryHandler
+from datetime import datetime
 from typing import Optional
 from dataclasses import dataclass
 
@@ -62,6 +64,12 @@ def _debug(msg: str, *args) -> None:
             print(f"[Bootstrap] {msg % args}", file=sys.stderr)
         else:
             print(f"[Bootstrap] {msg}", file=sys.stderr)
+
+
+def _format_log(level: str, msg: str) -> str:
+    """格式化日志输出，保持与正式日志格式一致"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+    return f"{timestamp} - datamind.core.logging.bootstrap - {level} - [-] - {msg}"
 
 
 @dataclass
@@ -258,11 +266,9 @@ def bootstrap_info(msg: str, *args, **kwargs) -> None:
     if _bootstrap_logger:
         _bootstrap_logger.info(msg, *args, **kwargs)
     else:
-        # 降级：bootstrap 未初始化时输出到 stderr
-        if args:
-            print(f"[BOOTSTRAP INFO] {msg % args}")
-        else:
-            print(f"[BOOTSTRAP INFO] {msg}")
+        # 降级：输出到 stderr
+        formatted_msg = msg % args if args else msg
+        print(_format_log("INFO", formatted_msg), file=sys.stderr)
 
 
 def bootstrap_debug(msg: str, *args, **kwargs) -> None:
@@ -276,10 +282,9 @@ def bootstrap_debug(msg: str, *args, **kwargs) -> None:
     if _bootstrap_logger:
         _bootstrap_logger.debug(msg, *args, **kwargs)
     else:
-        if args:
-            print(f"[BOOTSTRAP DEBUG] {msg % args}")
-        else:
-            print(f"[BOOTSTRAP DEBUG] {msg}")
+        # 降级：输出到 stderr
+        formatted_msg = msg % args if args else msg
+        print(_format_log("DEBUG", formatted_msg), file=sys.stderr)
 
 
 def bootstrap_warning(msg: str, *args, **kwargs) -> None:
@@ -293,10 +298,9 @@ def bootstrap_warning(msg: str, *args, **kwargs) -> None:
     if _bootstrap_logger:
         _bootstrap_logger.warning(msg, *args, **kwargs)
     else:
-        if args:
-            print(f"[BOOTSTRAP WARNING] {msg % args}")
-        else:
-            print(f"[BOOTSTRAP WARNING] {msg}")
+        # 降级：输出到 stderr
+        formatted_msg = msg % args if args else msg
+        print(_format_log("WARNING", formatted_msg), file=sys.stderr)
 
 
 def bootstrap_error(msg: str, *args, **kwargs) -> None:
@@ -310,10 +314,9 @@ def bootstrap_error(msg: str, *args, **kwargs) -> None:
     if _bootstrap_logger:
         _bootstrap_logger.error(msg, *args, **kwargs)
     else:
-        if args:
-            print(f"[BOOTSTRAP ERROR] {msg % args}")
-        else:
-            print(f"[BOOTSTRAP ERROR] {msg}")
+        # 降级：输出到 stderr
+        formatted_msg = msg % args if args else msg
+        print(_format_log("ERROR", formatted_msg), file=sys.stderr)
 
 
 def bootstrap_critical(msg: str, *args, **kwargs) -> None:
@@ -327,10 +330,9 @@ def bootstrap_critical(msg: str, *args, **kwargs) -> None:
     if _bootstrap_logger:
         _bootstrap_logger.critical(msg, *args, **kwargs)
     else:
-        if args:
-            print(f"[BOOTSTRAP CRITICAL] {msg % args}")
-        else:
-            print(f"[BOOTSTRAP CRITICAL] {msg}")
+        # 降级：输出到 stderr
+        formatted_msg = msg % args if args else msg
+        print(_format_log("CRITICAL", formatted_msg), file=sys.stderr)
 
 
 __all__ = [

@@ -24,35 +24,39 @@
     - 缓存优化：SHAP explainer 按模型 ID 缓存，避免重复创建
 """
 
+import time
 import numpy as np
 from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability, has_capability
-from datamind.core.logging import get_logger
+from datamind.core.logging import get_logger, log_performance
+from datamind.core.domain.enums import PerformanceOperation
 
 try:
     import shap
 except ImportError:
     shap = None
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class Explainer:
     """特征贡献解释器（统一 logit 空间）"""
 
-    def __init__(self, model_adapter: BaseModelAdapter):
+    def __init__(self, model_adapter: BaseModelAdapter, transformer=None):
         """
         初始化解释器
 
         参数:
             model_adapter: 模型适配器实例
+            transformer: WOE转换器（评分卡模型使用）
         """
         self.model_adapter = model_adapter
+        self.transformer = transformer
 
         # 模型类型判断
-        self.is_scorecard = hasattr(model_adapter, "transformer")
+        self.is_scorecard = transformer is not None and hasattr(model_adapter, "get_feature_logit")
         self.capabilities = model_adapter.get_capabilities()
 
         # SHAP explainer 缓存
@@ -61,8 +65,8 @@ class Explainer:
         # 背景数据（KernelExplainer）
         self._background_data: Optional[np.ndarray] = None
 
-        logger.debug("特征贡献解释器初始化完成，评分卡模型: %s, 支持SHAP: %s",
-                    self.is_scorecard, self._supports_shap())
+        _logger.debug("特征贡献解释器初始化完成，评分卡模型: %s, 支持SHAP: %s",
+                      self.is_scorecard, self._supports_shap())
 
     # ==================== 能力判断 ====================
 
@@ -76,9 +80,7 @@ class Explainer:
 
     def _get_model_id(self) -> str:
         """获取模型唯一标识（用于缓存）"""
-        if hasattr(self.model_adapter, "get_model_id"):
-            return self.model_adapter.get_model_id()
-        return str(id(self.model_adapter.model))
+        return self.model_adapter.get_model_id()
 
     def _get_shap_explainer(self):
         """
@@ -92,22 +94,22 @@ class Explainer:
         model_id = self._get_model_id()
 
         if model_id in self._explainer_cache:
-            logger.debug("使用缓存的 SHAP explainer: %s", model_id)
+            _logger.debug("使用缓存的 SHAP explainer: %s", model_id)
             return self._explainer_cache[model_id]
 
         # TreeExplainer 优先
         try:
             explainer = shap.TreeExplainer(self.model_adapter.model)
-            logger.debug("创建 TreeExplainer 成功: %s", model_id)
+            _logger.debug("创建 TreeExplainer 成功: %s", model_id)
         except Exception as e:
             # 如果 TreeExplainer 失败，尝试 KernelExplainer
             if self._background_data is None:
-                logger.error("TreeExplainer 失败且未设置背景数据: %s", e)
+                _logger.error("TreeExplainer 失败且未设置背景数据: %s", e)
                 raise RuntimeError(
                     "当前模型不支持 TreeExplainer，请先调用 set_background_data"
                 ) from e
 
-            logger.debug("TreeExplainer 失败，使用 KernelExplainer: %s", e)
+            _logger.debug("TreeExplainer 失败，使用 KernelExplainer: %s", e)
             explainer = shap.KernelExplainer(
                 self.model_adapter.model.predict_proba,
                 self._background_data
@@ -155,11 +157,15 @@ class Explainer:
         要求 adapter 实现 get_feature_logit 方法。
         """
         if not hasattr(self.model_adapter, "get_feature_logit"):
-            logger.debug("模型不支持 get_feature_logit，无法解释评分卡")
+            _logger.debug("模型不支持 get_feature_logit，无法解释评分卡")
+            return {}
+
+        if self.transformer is None:
+            _logger.debug("评分卡模型没有WOE转换器，无法解释")
             return {}
 
         try:
-            woe_features = self.model_adapter.transformer.transform(X)
+            woe_features = self.transformer.transform(X)
 
             result = {}
             for feat, woe in woe_features.items():
@@ -168,13 +174,13 @@ class Explainer:
                     if np.isfinite(val):
                         result[feat] = float(val)
                 except Exception as e:
-                    logger.debug("获取特征 %s 的 logit 贡献失败: %s", feat, e)
+                    _logger.debug("获取特征 %s 的 logit 贡献失败: %s", feat, e)
                     continue
 
             return result
 
         except Exception as e:
-            logger.error("评分卡解释失败: %s", e)
+            _logger.error("评分卡解释失败: %s", e)
             return {}
 
     # ==================== 背景数据 ====================
@@ -187,11 +193,11 @@ class Explainer:
             X_batch: 背景样本特征字典列表
         """
         if not X_batch:
-            logger.debug("背景数据为空，跳过设置")
+            _logger.debug("背景数据为空，跳过设置")
             return
 
         self._background_data = self.model_adapter.to_array_batch(X_batch)
-        logger.info("背景数据设置完成，样本数: %d", len(X_batch))
+        _logger.info("背景数据设置完成，样本数: %d", len(X_batch))
 
     # ==================== 核心 API ====================
 
@@ -205,20 +211,28 @@ class Explainer:
         返回:
             特征对 logit 的贡献字典
         """
+        start_time = time.time()
         try:
             if self.is_scorecard:
-                return self._explain_scorecard(X)
+                result = self._explain_scorecard(X)
+                duration = (time.time() - start_time) * 1000
+                log_performance(
+                    operation=PerformanceOperation.SCORECARD_FEATURE_SCORE,
+                    duration_ms=duration,
+                    extra={"feature_count": len(result)}
+                )
+                return result
 
             if self._supports_shap():
                 arr = self.model_adapter.to_array(X)
                 vals = self._compute_shap(arr)
                 return self._format_shap_output(vals[0])
 
-            logger.debug("模型不支持任何解释方式")
+            _logger.debug("模型不支持任何解释方式")
             return {}
 
         except Exception as e:
-            logger.error("单条解释失败: %s", e)
+            _logger.error("单条解释失败: %s", e)
             return {}
 
     def explain_logit_batch(
@@ -235,26 +249,49 @@ class Explainer:
             特征贡献字典列表
         """
         if not X_batch:
-            logger.debug("批量解释输入为空")
+            _logger.debug("批量解释输入为空")
             return []
+
+        start_time = time.time()
 
         try:
             if self.is_scorecard:
-                logger.debug("使用评分卡批量解释，样本数: %d", len(X_batch))
-                return [self._explain_scorecard(x) for x in X_batch]
+                _logger.debug("使用评分卡批量解释，样本数: %d", len(X_batch))
+                results = [self._explain_scorecard(x) for x in X_batch]
+                duration = (time.time() - start_time) * 1000
+                log_performance(
+                    operation=PerformanceOperation.SCORECARD_FEATURE_SCORE,
+                    duration_ms=duration,
+                    extra={"batch_size": len(X_batch), "vectorized": False}
+                )
+                return results
 
             if self._supports_shap():
-                logger.debug("使用 SHAP 批量解释，样本数: %d", len(X_batch))
+                _logger.debug("使用 SHAP 批量解释，样本数: %d", len(X_batch))
                 arr = self.model_adapter.to_array_batch(X_batch)
                 vals = self._compute_shap(arr)
-                return [self._format_shap_output(row) for row in vals]
+                results = [self._format_shap_output(row) for row in vals]
+                duration = (time.time() - start_time) * 1000
+                log_performance(
+                    operation=PerformanceOperation.SCORECARD_FEATURE_SCORE,
+                    duration_ms=duration,
+                    extra={"batch_size": len(X_batch), "vectorized": True}
+                )
+                return results
 
         except Exception as e:
             # 批量失败时降级到单条循环
-            logger.warning("批量解释失败，降级为单条循环: %s", e)
-            return [self.explain_logit(x) for x in X_batch]
+            _logger.warning("批量解释失败，降级为单条循环: %s", e)
+            results = [self.explain_logit(x) for x in X_batch]
+            duration = (time.time() - start_time) * 1000
+            log_performance(
+                operation=PerformanceOperation.SCORECARD_FEATURE_SCORE,
+                duration_ms=duration,
+                extra={"batch_size": len(X_batch), "vectorized": False, "fallback": True}
+            )
+            return results
 
-        logger.debug("模型不支持任何解释方式")
+        _logger.debug("模型不支持任何解释方式")
         return []
 
     # ==================== 全局重要性 ====================
@@ -283,13 +320,13 @@ class Explainer:
             n = len(results)
             if n > 0:
                 importance = {k: v / n for k, v in agg.items()}
-                logger.info("基于 SHAP 计算特征重要性完成，特征数: %d", len(importance))
+                _logger.info("基于 SHAP 计算特征重要性完成，特征数: %d", len(importance))
                 return importance
             return {}
 
         importance = self.model_adapter.get_feature_importance() or {}
         if importance:
-            logger.info("从适配器获取特征重要性，特征数: %d", len(importance))
+            _logger.info("从适配器获取特征重要性，特征数: %d", len(importance))
         return importance
 
     # ==================== SHAP 统计 ====================
@@ -311,7 +348,7 @@ class Explainer:
         """
         results = self.explain_logit_batch(X_batch)
         if not results:
-            logger.debug("SHAP 统计摘要无数据")
+            _logger.debug("SHAP 统计摘要无数据")
             return {}
 
         summary = {}
@@ -328,5 +365,5 @@ class Explainer:
                 "abs_mean": float(np.mean(np.abs(vals))),
             }
 
-        logger.debug("SHAP 统计摘要计算完成，特征数: %d", len(summary))
+        _logger.debug("SHAP 统计摘要计算完成，特征数: %d", len(summary))
         return summary

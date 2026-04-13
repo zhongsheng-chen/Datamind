@@ -26,7 +26,7 @@ import numpy as np
 from datamind.core.scoring.score import Score
 from datamind.core.logging import get_logger
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class ContributionConverter:
@@ -53,7 +53,7 @@ class ContributionConverter:
         self.factor = score.factor
         self.offset = score.offset
 
-        logger.debug(
+        _logger.debug(
             "ContributionConverter 初始化: factor=%.6f, offset=%.6f",
             self.factor,
             self.offset
@@ -81,7 +81,7 @@ class ContributionConverter:
                 if np.isfinite(v):
                     result[k] = float(self.factor * v)
             except Exception as e:
-                logger.debug("转换特征 %s 失败: %s", k, e)
+                _logger.debug("转换特征 %s 失败: %s", k, e)
                 continue
 
         return result
@@ -124,7 +124,7 @@ class ContributionConverter:
                 if np.isfinite(v):
                     result[k] = float(v / self.factor)
             except Exception as e:
-                logger.debug("反向转换特征 %s 失败: %s", k, e)
+                _logger.debug("反向转换特征 %s 失败: %s", k, e)
                 continue
 
         return result
