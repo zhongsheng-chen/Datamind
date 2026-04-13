@@ -13,7 +13,7 @@
   - 签名URL：生成模型下载的签名URL
   - 模型迁移：将模型从一个存储后端迁移到另一个存储后端
   - 完整审计：记录所有模型存储操作到审计日志
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 链路追踪：完整的 span 追踪
 
 使用示例：
     storage = ModelStorage()
@@ -42,12 +42,25 @@ from datetime import datetime
 
 from datamind.core.logging import log_audit, context
 from datamind.core.logging import get_logger
-from datamind.core.domain.enums import AuditAction
-from datamind.storage.base import StorageBackend
+from datamind.core.domain.enums import AuditAction, Framework
+from datamind.core.common import StorageNotFoundException, ModelNotFoundException
+from datamind.storage.base import StorageBackend, StorageResult
 from datamind.storage.local_storage import LocalStorage
 from datamind.config import get_settings
 
 _logger = get_logger(__name__)
+
+
+# 框架到文件扩展名的映射
+FRAMEWORK_EXTENSION_MAP = {
+    Framework.SKLEARN.value: '.pkl',
+    Framework.XGBOOST.value: '.json',
+    Framework.LIGHTGBM.value: '.txt',
+    Framework.TORCH.value: '.pt',
+    Framework.TENSORFLOW.value: '.h5',
+    Framework.ONNX.value: '.onnx',
+    Framework.CATBOOST.value: '.cbm',
+}
 
 
 class ModelStorage:
@@ -61,7 +74,7 @@ class ModelStorage:
         """
         初始化模型存储
 
-        Args:
+        参数:
             storage_backend: 存储后端，默认为本地存储
         """
         settings = get_settings()
@@ -77,21 +90,28 @@ class ModelStorage:
 
         _logger.info("模型存储管理器初始化完成，存储后端: %s", type(self.storage).__name__)
 
+    @staticmethod
+    def _get_extension(framework: str) -> str:
+        """获取框架对应的文件扩展名"""
+        ext = FRAMEWORK_EXTENSION_MAP.get(framework.lower(), '.bin')
+        _logger.debug("框架 %s 使用扩展名: %s", framework, ext)
+        return ext
+
     async def save_model(self, model_id: str, version: str,
                          model_file: BinaryIO, framework: str,
-                         metadata: Optional[Dict] = None) -> Dict[str, Any]:
+                         metadata: Optional[Dict] = None) -> StorageResult:
         """
         保存模型文件
 
-        Args:
+        参数:
             model_id: 模型ID
             version: 版本号
             model_file: 模型文件
             framework: 框架类型
             metadata: 元数据
 
-        Returns:
-            保存结果
+        返回:
+            StorageResult: 保存结果
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -99,16 +119,7 @@ class ModelStorage:
         parent_span_id = context.get_parent_span_id()
 
         # 确定文件扩展名
-        ext_map = {
-            'sklearn': '.pkl',
-            'xgboost': '.json',
-            'lightgbm': '.txt',
-            'torch': '.pt',
-            'tensorflow': '.h5',
-            'onnx': '.onnx',
-            'catboost': '.cbm'
-        }
-        ext = ext_map.get(framework, '.bin')
+        ext = self._get_extension(framework)
 
         # 构建存储路径
         path = f"{model_id}/versions/model_{version}{ext}"
@@ -140,7 +151,7 @@ class ModelStorage:
                 "framework": framework,
                 "storage_type": type(self.storage).__name__,
                 "path": path,
-                "size": result.get('size', 0),
+                "size": result.size,
                 "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
@@ -149,7 +160,7 @@ class ModelStorage:
         )
 
         _logger.info("模型保存成功: %s v%s, 框架=%s, 大小=%.2fMB",
-                     model_id, version, framework, result.get('size', 0) / 1024 / 1024)
+                     model_id, version, framework, result.size / 1024 / 1024)
 
         return result
 
@@ -157,12 +168,15 @@ class ModelStorage:
         """
         加载模型文件
 
-        Args:
+        参数:
             model_id: 模型ID
             version: 版本号，None表示最新版本
 
-        Returns:
+        返回:
             模型文件内容
+
+        抛出:
+            ModelNotFoundException: 模型或版本不存在
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -175,11 +189,11 @@ class ModelStorage:
                 files = await self.storage.list(prefix=f"{model_id}/versions/")
                 for f in files:
                     # 从路径中提取文件名
-                    file_name = f['path'].split('/')[-1]
+                    file_name = f.path.split('/')[-1]
 
                     # 检查文件名是否以 model_{version} 开头（可能有扩展名）
                     if file_name.startswith(f"model_{version}"):
-                        content = await self.storage.load(f['path'])
+                        content = await self.storage.load(f.path)
 
                         log_audit(
                             action=AuditAction.MODEL_LOAD.value,
@@ -189,7 +203,7 @@ class ModelStorage:
                                 "model_id": model_id,
                                 "version": version,
                                 "storage_type": type(self.storage).__name__,
-                                "path": f['path'],
+                                "path": f.path,
                                 "size": len(content),
                                 "trace_id": trace_id,
                                 "span_id": span_id,
@@ -201,15 +215,15 @@ class ModelStorage:
                         _logger.info("模型加载成功: %s v%s, 大小=%.2fKB",
                                      model_id, version, len(content) / 1024)
                         return content
-                raise FileNotFoundError(f"未找到模型 {model_id} 版本 {version}")
+                raise ModelNotFoundException(model_id=f"{model_id} 版本 {version}")
             else:
                 # 加载最新版本
                 files = await self.storage.list(prefix=f"{model_id}/")
 
-                # 查找 latest 文件（可能是软链接或实际文件）
-                latest_files = [f for f in files if 'latest' in f['path']]
+                # 查找 latest 文件
+                latest_files = [f for f in files if 'latest' in f.path]
                 if latest_files:
-                    content = await self.storage.load(latest_files[0]['path'])
+                    content = await self.storage.load(latest_files[0].path)
 
                     log_audit(
                         action=AuditAction.MODEL_LOAD.value,
@@ -219,7 +233,7 @@ class ModelStorage:
                             "model_id": model_id,
                             "version": "latest",
                             "storage_type": type(self.storage).__name__,
-                            "path": latest_files[0]['path'],
+                            "path": latest_files[0].path,
                             "size": len(content),
                             "trace_id": trace_id,
                             "span_id": span_id,
@@ -231,9 +245,9 @@ class ModelStorage:
                     _logger.info("模型加载成功: %s (最新版本), 大小=%.2fKB",
                                  model_id, len(content) / 1024)
                     return content
-                raise FileNotFoundError(f"未找到模型 {model_id}")
+                raise ModelNotFoundException(model_id=model_id)
 
-        except FileNotFoundError as e:
+        except (StorageNotFoundException, ModelNotFoundException) as e:
             log_audit(
                 action=AuditAction.MODEL_LOAD.value,
                 user_id="system",
@@ -246,7 +260,6 @@ class ModelStorage:
                     "span_id": span_id,
                     "parent_span_id": parent_span_id
                 },
-                reason=str(e),
                 request_id=request_id
             )
             _logger.error("模型加载失败: %s, 版本=%s, 错误=%s", model_id, version or "latest", e)
@@ -256,9 +269,12 @@ class ModelStorage:
         """
         删除模型
 
-        Args:
+        参数:
             model_id: 模型ID
             version: 版本号，None表示删除所有版本
+
+        返回:
+            True: 删除成功，False: 未找到
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -269,12 +285,9 @@ class ModelStorage:
             # 删除指定版本
             files = await self.storage.list(prefix=f"{model_id}/versions/")
             for f in files:
-                # 从路径中提取文件名
-                file_name = f['path'].split('/')[-1]
-
-                # 检查文件名是否以 model_{version} 开头（可能有扩展名）
+                file_name = f.path.split('/')[-1]
                 if file_name.startswith(f"model_{version}"):
-                    result = await self.storage.delete(f['path'])
+                    result = await self.storage.delete(f.path)
 
                     log_audit(
                         action=AuditAction.MODEL_DELETE.value,
@@ -284,7 +297,7 @@ class ModelStorage:
                             "model_id": model_id,
                             "version": version,
                             "storage_type": type(self.storage).__name__,
-                            "path": f['path'],
+                            "path": f.path,
                             "trace_id": trace_id,
                             "span_id": span_id,
                             "parent_span_id": parent_span_id
@@ -294,13 +307,14 @@ class ModelStorage:
 
                     _logger.info("删除模型版本成功: %s v%s", model_id, version)
                     return result
+            _logger.warning("未找到要删除的模型版本: %s v%s", model_id, version)
             return False
         else:
             # 删除所有版本
             files = await self.storage.list(prefix=f"{model_id}/")
             deleted_count = 0
             for f in files:
-                if await self.storage.delete(f['path']):
+                if await self.storage.delete(f.path):
                     deleted_count += 1
 
             log_audit(
@@ -320,7 +334,7 @@ class ModelStorage:
             )
 
             _logger.info("删除所有模型版本成功: %s, 共删除 %d 个文件", model_id, deleted_count)
-            return True
+            return deleted_count > 0
 
     async def list_models(self, prefix: str = "") -> List[Dict[str, Any]]:
         """列出所有模型"""
@@ -334,7 +348,7 @@ class ModelStorage:
         # 按模型分组
         models = {}
         for f in files:
-            parts = f['path'].split('/')
+            parts = f.path.split('/')
             if len(parts) >= 1:
                 model_id = parts[0]
                 if model_id not in models:
@@ -344,10 +358,10 @@ class ModelStorage:
                         'latest': None
                     }
 
-                if 'versions' in f['path']:
-                    models[model_id]['versions'].append(f)
-                elif 'latest' in f['path']:
-                    models[model_id]['latest'] = f
+                if 'versions' in f.path:
+                    models[model_id]['versions'].append(f.to_dict())
+                elif 'latest' in f.path:
+                    models[model_id]['latest'] = f.to_dict()
 
         result = list(models.values())
 
@@ -381,10 +395,10 @@ class ModelStorage:
         latest = None
 
         for f in files:
-            if 'versions' in f['path']:
-                versions.append(f)
-            elif 'latest' in f['path']:
-                latest = f
+            if 'versions' in f.path:
+                versions.append(f.to_dict())
+            elif 'latest' in f.path:
+                latest = f.to_dict()
 
         result = {
             'model_id': model_id,
@@ -416,29 +430,32 @@ class ModelStorage:
             # 查找指定版本的文件
             files = await self.storage.list(prefix=f"{model_id}/versions/")
             for f in files:
-                file_name = f['path'].split('/')[-1]
+                file_name = f.path.split('/')[-1]
                 if file_name.startswith(f"model_{version}"):
-                    url = await self.storage.get_signed_url(f['path'])
+                    url = await self.storage.get_signed_url(f.path)
                     _logger.debug("生成签名URL成功: %s v%s", model_id, version)
                     return url
-            raise FileNotFoundError(f"未找到模型 {model_id} 版本 {version}")
+            raise ModelNotFoundException(model_id=f"{model_id} 版本 {version}")
         else:
             # 查找最新版本
             files = await self.storage.list(prefix=f"{model_id}/")
-            latest_files = [f for f in files if 'latest' in f['path']]
+            latest_files = [f for f in files if 'latest' in f.path]
             if latest_files:
-                url = await self.storage.get_signed_url(latest_files[0]['path'])
+                url = await self.storage.get_signed_url(latest_files[0].path)
                 _logger.debug("生成签名URL成功: %s (最新版本)", model_id)
                 return url
-            raise FileNotFoundError(f"未找到模型 {model_id}")
+            raise ModelNotFoundException(model_id=model_id)
 
     async def migrate_model(self, model_id: str, target_storage: StorageBackend) -> Dict[str, Any]:
         """
         迁移模型到其他存储后端
 
-        Args:
+        参数:
             model_id: 模型ID
             target_storage: 目标存储后端
+
+        返回:
+            迁移结果
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -465,7 +482,7 @@ class ModelStorage:
                         f,
                         version.get('metadata')
                     )
-                    migrated.append(result)
+                    migrated.append(result.to_dict())
 
         log_audit(
             action=AuditAction.MODEL_MIGRATE.value,
@@ -490,3 +507,8 @@ class ModelStorage:
             'model_id': model_id,
             'migrated_versions': migrated
         }
+
+    async def close(self):
+        """关闭存储连接"""
+        await self.storage.close()
+        _logger.info("模型存储管理器已关闭")

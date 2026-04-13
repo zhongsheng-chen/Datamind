@@ -1,4 +1,4 @@
-# datamind/core/ml/common/cache.py
+# datamind/core/common/cache.py
 
 """缓存工具模块
 

@@ -13,7 +13,7 @@
   - 版本统计：获取版本统计信息
   - 版本清理：清理旧版本，释放存储空间
   - 完整审计：记录所有版本操作到审计日志
-  - 链路追踪：完整的 trace_id, span_id, parent_span_id
+  - 链路追踪：完整的 span 追踪
 
 使用示例：
     version_manager = VersionManager(storage, model_id="model_001")
@@ -36,12 +36,12 @@ import io
 import json
 import semver
 from datetime import datetime
-from typing import Dict, Any, Optional, List, BinaryIO
-
+from typing import Dict, Any, Optional, List
 
 from datamind.core.logging import log_audit, context
 from datamind.core.logging import get_logger
 from datamind.core.domain.enums import AuditAction
+from datamind.core.common import StorageNotFoundException, ModelValidationException
 from datamind.storage.base import StorageBackend
 
 _logger = get_logger(__name__)
@@ -59,7 +59,7 @@ class VersionManager:
         """
         初始化版本管理器
 
-        Args:
+        参数:
             storage: 存储后端
             model_id: 模型ID
         """
@@ -91,14 +91,17 @@ class VersionManager:
         """
         添加新版本
 
-        Args:
+        参数:
             version: 版本号 (遵循语义化版本，如 1.0.0)
             file_path: 模型文件路径
             metadata: 版本元数据
             is_production: 是否为生产版本
 
-        Returns:
+        返回:
             版本信息
+
+        抛出:
+            ModelValidationException: 版本号格式无效或版本已存在
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -107,7 +110,7 @@ class VersionManager:
 
         # 验证版本号格式
         if not self._validate_version(version):
-            raise ValueError(f"无效的版本号格式: {version}，应为 x.y.z 格式")
+            raise ModelValidationException(f"无效的版本号格式: {version}，应为 x.y.z 格式")
 
         # 获取现有版本
         versions_data = await self._get_versions()
@@ -115,17 +118,20 @@ class VersionManager:
         # 检查版本是否已存在
         existing = self._find_version(versions_data, version)
         if existing:
-            raise ValueError(f"版本 {version} 已存在")
+            raise ModelValidationException(f"版本 {version} 已存在")
 
         # 获取文件信息
-        file_info = await self.storage.get_metadata(file_path)
+        try:
+            file_info = await self.storage.get_metadata(file_path)
+        except StorageNotFoundException:
+            raise ModelValidationException(f"版本文件不存在: {file_path}")
 
         # 创建版本记录
         version_info = {
             'version': version,
             'file_path': file_path,
-            'file_hash': file_info.get('hash') or file_info.get('etag', ''),
-            'file_size': file_info['size'],
+            'file_hash': file_info.hash or file_info.etag or '',
+            'file_size': file_info.size,
             'added_at': datetime.now().isoformat(),
             'is_production': is_production,
             'metadata': metadata or {},
@@ -164,7 +170,7 @@ class VersionManager:
                 "model_id": self.model_id,
                 "version": version,
                 "is_production": is_production,
-                "file_size": file_info['size'],
+                "file_size": file_info.size,
                 "trace_id": trace_id,
                 "span_id": span_id,
                 "parent_span_id": parent_span_id
@@ -173,18 +179,21 @@ class VersionManager:
         )
 
         _logger.info("添加版本成功: %s v%s, 生产版本=%s, 文件大小=%.2fKB",
-                     self.model_id, version, is_production, file_info['size'] / 1024)
+                     self.model_id, version, is_production, file_info.size / 1024)
         return version_info
 
     async def get_version(self, version: Optional[str] = None) -> Dict[str, Any]:
         """
         获取版本信息
 
-        Args:
+        参数:
             version: 版本号，None表示最新版本
 
-        Returns:
+        返回:
             版本信息
+
+        抛出:
+            ModelValidationException: 版本不存在
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -197,13 +206,13 @@ class VersionManager:
             # 返回最新版本
             latest = versions_data.get('latest_version')
             if not latest:
-                raise ValueError(f"模型 {self.model_id} 没有版本")
+                raise ModelValidationException(f"模型 {self.model_id} 没有版本")
             version_info = self._find_version(versions_data, latest)
         else:
             # 返回指定版本
             version_info = self._find_version(versions_data, version)
             if not version_info:
-                raise ValueError(f"版本 {version} 不存在")
+                raise ModelValidationException(f"版本 {version} 不存在")
 
         # 审计日志（查询操作）
         log_audit(
@@ -227,10 +236,10 @@ class VersionManager:
         """
         列出所有版本
 
-        Args:
+        参数:
             include_metadata: 是否包含详细元数据
 
-        Returns:
+        返回:
             版本列表
         """
         request_id = context.get_request_id()
@@ -276,11 +285,14 @@ class VersionManager:
         """
         删除版本
 
-        Args:
+        参数:
             version: 版本号
 
-        Returns:
+        返回:
             是否删除成功
+
+        抛出:
+            ModelValidationException: 版本不存在或是生产版本
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -292,11 +304,11 @@ class VersionManager:
         # 查找版本
         version_info = self._find_version(versions_data, version)
         if not version_info:
-            raise ValueError(f"版本 {version} 不存在")
+            raise ModelValidationException(f"版本 {version} 不存在")
 
         # 如果是生产版本，不允许删除
         if version_info.get('is_production'):
-            raise ValueError(f"生产版本 {version} 不能删除")
+            raise ModelValidationException(f"生产版本 {version} 不能删除")
 
         # 删除文件
         try:
@@ -349,11 +361,14 @@ class VersionManager:
         """
         设置生产版本
 
-        Args:
+        参数:
             version: 版本号
 
-        Returns:
+        返回:
             更新后的版本信息
+
+        抛出:
+            ModelValidationException: 版本不存在
         """
         request_id = context.get_request_id()
         trace_id = context.get_trace_id()
@@ -365,7 +380,7 @@ class VersionManager:
         # 查找版本
         version_info = self._find_version(versions_data, version)
         if not version_info:
-            raise ValueError(f"版本 {version} 不存在")
+            raise ModelValidationException(f"版本 {version} 不存在")
 
         # 将其他版本的生产标记设为False
         for v in versions_data['versions']:
@@ -427,15 +442,16 @@ class VersionManager:
         _logger.debug("未找到生产版本: %s", self.model_id)
         return None
 
-    async def compare_versions(self, version1: str, version2: str) -> Dict[str, Any]:
+    @staticmethod
+    def compare_versions(version1: str, version2: str) -> Dict[str, Any]:
         """
         比较两个版本
 
-        Args:
+        参数:
             version1: 第一个版本号
             version2: 第二个版本号
 
-        Returns:
+        返回:
             比较结果
         """
         v1 = semver.VersionInfo.parse(version1)
@@ -457,11 +473,11 @@ class VersionManager:
         """
         获取两个版本的差异
 
-        Args:
+        参数:
             version1: 第一个版本号
             version2: 第二个版本号
 
-        Returns:
+        返回:
             版本差异
         """
         v1_info = await self.get_version(version1)
@@ -498,10 +514,10 @@ class VersionManager:
         """
         回滚到指定版本
 
-        Args:
+        参数:
             version: 目标版本号
 
-        Returns:
+        返回:
             回滚后的版本信息
         """
         request_id = context.get_request_id()
@@ -557,11 +573,11 @@ class VersionManager:
         """
         给版本打标签
 
-        Args:
+        参数:
             version: 版本号
             tag: 标签名
 
-        Returns:
+        返回:
             更新后的版本信息
         """
         request_id = context.get_request_id()
@@ -573,7 +589,7 @@ class VersionManager:
 
         version_info = self._find_version(versions_data, version)
         if not version_info:
-            raise ValueError(f"版本 {version} 不存在")
+            raise ModelValidationException(f"版本 {version} 不存在")
 
         if 'tags' not in version_info:
             version_info['tags'] = []
@@ -606,10 +622,10 @@ class VersionManager:
         """
         根据标签获取版本
 
-        Args:
+        参数:
             tag: 标签名
 
-        Returns:
+        返回:
             版本列表
         """
         request_id = context.get_request_id()
@@ -647,17 +663,17 @@ class VersionManager:
         """
         增加版本下载计数
 
-        Args:
+        参数:
             version: 版本号
 
-        Returns:
+        返回:
             更新后的下载计数
         """
         versions_data = await self._get_versions()
 
         version_info = self._find_version(versions_data, version)
         if not version_info:
-            raise ValueError(f"版本 {version} 不存在")
+            raise ModelValidationException(f"版本 {version} 不存在")
 
         version_info['download_count'] = version_info.get('download_count', 0) + 1
         await self._save_versions(versions_data)
@@ -722,10 +738,10 @@ class VersionManager:
         """
         清理旧版本，只保留最近的N个版本
 
-        Args:
+        参数:
             keep_count: 保留的版本数量
 
-        Returns:
+        返回:
             被删除的版本列表
         """
         request_id = context.get_request_id()
@@ -747,7 +763,7 @@ class VersionManager:
             reverse=True
         )
 
-        # 保留前keep_count个
+        # 保留前keep_count个，删除其余
         keep_versions = sorted_versions[:keep_count]
         delete_versions = sorted_versions[keep_count:]
 
@@ -755,20 +771,32 @@ class VersionManager:
         for v in delete_versions:
             # 跳过生产版本
             if v.get('is_production'):
-                _logger.debug("跳过生产版本，不清理: %s v%s", self.model_id, v['version'])
+                _logger.debug("生产版本不清理，添加到保留列表: %s v%s", self.model_id, v['version'])
+                keep_versions.append(v)
                 continue
 
             try:
                 await self.storage.delete(v['file_path'])
-                versions_data['versions'].remove(v)
                 deleted.append(v['version'])
                 _logger.debug("清理旧版本: %s v%s", self.model_id, v['version'])
             except Exception as e:
                 _logger.warning("清理旧版本失败: %s v%s, 错误=%s", self.model_id, v['version'], e)
 
-        # 更新
+        # 直接替换为保留的版本列表
+        versions_data['versions'] = keep_versions
+
+        # 重新排序
+        versions_data['versions'].sort(
+            key=lambda x: semver.VersionInfo.parse(x['version']),
+            reverse=True
+        )
+
+        # 更新最新版本
+        versions_data['latest_version'] = versions_data['versions'][0]['version'] if versions_data['versions'] else None
         versions_data['total_versions'] = len(versions_data['versions'])
         versions_data['updated_at'] = datetime.now().isoformat()
+
+        # 保存
         await self._save_versions(versions_data)
 
         # 审计日志
@@ -789,7 +817,7 @@ class VersionManager:
                 request_id=request_id
             )
             _logger.info("清理旧版本完成: %s, 已删除=%d, 保留=%d",
-                         self.model_id, len(deleted), keep_count)
+                         self.model_id, len(deleted), len(keep_versions))
 
         return deleted
 
@@ -802,7 +830,7 @@ class VersionManager:
             # 尝试读取版本文件
             content = await self.storage.load(self.metadata_file)
             self._versions_cache = json.loads(content.decode())
-        except FileNotFoundError:
+        except StorageNotFoundException:
             # 文件不存在，初始化
             self._versions_cache = await self.init_versions()
         except Exception as e:
@@ -827,14 +855,16 @@ class VersionManager:
         self._versions_cache = versions_data
         _logger.debug("保存版本文件: %s", self.metadata_file)
 
-    def _find_version(self, versions_data: Dict, version: str) -> Optional[Dict]:
+    @staticmethod
+    def _find_version(versions_data: Dict, version: str) -> Optional[Dict]:
         """查找版本"""
         for v in versions_data['versions']:
             if v['version'] == version:
                 return v
         return None
 
-    def _validate_version(self, version: str) -> bool:
+    @staticmethod
+    def _validate_version(version: str) -> bool:
         """
         验证版本号格式
 
@@ -850,7 +880,8 @@ class VersionManager:
         except ValueError:
             return False
 
-    def _generate_rollback_version(self, from_version: str) -> str:
+    @staticmethod
+    def _generate_rollback_version(from_version: str) -> str:
         """生成回滚版本号"""
         try:
             v = semver.VersionInfo.parse(from_version)
@@ -858,7 +889,7 @@ class VersionManager:
             new_version = f"{v.major}.{v.minor}.{v.patch + 1}"
             # 添加回滚标记
             return f"{new_version}-rollback"
-        except:
+        except ValueError:
             # 如果解析失败，使用时间戳
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             return f"0.0.0-rollback-{timestamp}"
