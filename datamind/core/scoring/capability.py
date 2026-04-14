@@ -1,371 +1,558 @@
-# Datamind/datamind/core/scoring/capability.py
+# datamind/core/scoring/capability.py
 
-"""评分卡模型能力定义
+"""模型能力和评分卡能力定义
 
-定义评分卡模型支持的各种能力，实现模型类型与能力的解耦。
+定义模型支持的各种能力和评分卡系统的能力，实现模型类型与能力的解耦。
 
 核心功能：
-  - infer_capabilities: 根据适配器声明推断能力集
+  - infer_model_capabilities: 根据适配器声明推断模型能力集
+  - infer_scorecard_capabilities: 根据评分卡引擎推断评分卡能力集
   - has_capability: 检查是否包含指定能力
-  - get_capability_list: 获取能力名称列表（用于序列化）
-  - validate_required_capabilities: 验证必需能力
+  - has_all_capabilities: 检查是否包含所有指定能力
+  - has_any_capability: 检查是否包含任意指定能力
+  - expand_capabilities: 根据依赖关系自动补全能力
+  - validate_capabilities: 验证能力集的有效性
   - combine_capabilities: 组合多个能力
-  - get_capability_weight: 获取能力权重（用于优先级排序）
+  - get_capability_list: 获取能力名称列表
+  - get_capability_descriptions: 获取能力描述列表
 
-设计原则：
-  - capability 只回答"支持什么"，不做执行校验
-  - 优先使用适配器的 SUPPORTED_CAPABILITIES 声明
-  - fallback 仅限安全推断，PREDICT_CLASS 必须声明
-  - 声明一旦存在，必须正确（Fail Fast）
-  - PREDICT_PROBA 是系统强约束，适配器不得声明
+能力分层：
+  - 模型能力（ModelCapability）：PREDICT_PROBA（违约概率）、PREDICT_CLASS（分类标签）、
+    PREDICT_LOG_ODDS（原始对数几率）、SHAP（SHAP 解释）、SHAP_TREE（SHAP 树解释）、
+    SHAP_KERNEL（SHAP 核解释）、FEATURE_IMPORTANCE（特征重要性）、BATCH_PREDICT（批量预测）
+  - 评分卡能力（ScorecardCapability）：SCORECARD_WOE（WOE 转换）、SCORECARD_LOGIT（对数几率）、
+    SCORECARD_SCORE（评分卡分数）、SCORECARD_EXPORT（评分卡导出）
 
-能力分类：
-  - 基础能力（强约束）：PREDICT_PROBA（系统注入，适配器不可声明）
-  - 核心能力：PREDICT_SCORE、PREDICT_CLASS
-  - 评分卡能力：FEATURE_SCORE
-  - 解释能力：SHAP、SHAP_TREE、SHAP_KERNEL、FEATURE_IMPORTANCE
-  - 工程能力：EXPORT_SCORECARD、BATCH_PREDICT
+依赖关系：
+  - 模型能力：PREDICT_CLASS 依赖 PREDICT_PROBA
+  - 评分卡能力：SCORECARD_SCORE 依赖 SCORECARD_LOGIT，SCORECARD_LOGIT 依赖 SCORECARD_WOE
+
+使用示例：
+    from datamind.core.scoring.capability import (
+        ModelCapability, ScorecardCapability, infer_model_capabilities
+    )
+
+    class MyAdapter(BaseModelAdapter):
+        SUPPORTED_CAPABILITIES = (
+            ModelCapability.PREDICT_CLASS |
+            ModelCapability.BATCH_PREDICT
+        )
+
+        def __init__(self, model):
+            super().__init__(model)
+            self.capabilities = infer_model_capabilities(self)
 """
 
 from enum import IntFlag, auto
-from typing import List, Dict, Set, Any, Callable
+from typing import List, Dict, Set, Any
 
 
-class ScorecardCapability(IntFlag):
-    """评分卡模型能力枚举
+class ModelCapability(IntFlag):
+    """模型能力枚举
 
     使用 IntFlag 支持位运算，可高效组合和判断多个能力。
 
     属性:
         NONE: 无能力
-        PREDICT_PROBA: 输出违约概率（强约束，系统注入，适配器不可声明）
-        PREDICT_SCORE: 输出信用评分
-        PREDICT_CLASS: 输出分类标签（0/1）
-        FEATURE_SCORE: 支持特征分计算
-        SHAP: 支持 SHAP 值解释
-        SHAP_TREE: 支持 TreeExplainer（高性能，适用于树模型）
-        SHAP_KERNEL: 支持 KernelExplainer（需背景数据）
-        FEATURE_IMPORTANCE: 支持全局特征重要性
-        EXPORT_SCORECARD: 支持导出评分卡
-        BATCH_PREDICT: 支持批量预测
+        PREDICT_PROBA: 违约概率
+        PREDICT_CLASS: 分类标签
+        PREDICT_LOG_ODDS: 原始对数几率
+        SHAP: SHAP 解释
+        SHAP_TREE: SHAP 树解释
+        SHAP_KERNEL: SHAP 核解释
+        FEATURE_IMPORTANCE: 特征重要性
+        BATCH_PREDICT: 批量预测
     """
     NONE = 0
+
+    # 预测能力
     PREDICT_PROBA = auto()
-    PREDICT_SCORE = auto()
     PREDICT_CLASS = auto()
-    FEATURE_SCORE = auto()
+    PREDICT_LOG_ODDS = auto()
+
+    # 解释能力
     SHAP = auto()
-    FEATURE_IMPORTANCE = auto()
-    EXPORT_SCORECARD = auto()
-    BATCH_PREDICT = auto()
     SHAP_TREE = auto()
     SHAP_KERNEL = auto()
+    FEATURE_IMPORTANCE = auto()
+
+    # 工程能力
+    BATCH_PREDICT = auto()
 
 
-# 能力名称映射
-_CAPABILITY_NAMES = {
-    ScorecardCapability.PREDICT_PROBA: "PREDICT_PROBA",
-    ScorecardCapability.PREDICT_SCORE: "PREDICT_SCORE",
-    ScorecardCapability.PREDICT_CLASS: "PREDICT_CLASS",
-    ScorecardCapability.FEATURE_SCORE: "FEATURE_SCORE",
-    ScorecardCapability.SHAP: "SHAP",
-    ScorecardCapability.SHAP_TREE: "SHAP_TREE",
-    ScorecardCapability.SHAP_KERNEL: "SHAP_KERNEL",
-    ScorecardCapability.FEATURE_IMPORTANCE: "FEATURE_IMPORTANCE",
-    ScorecardCapability.EXPORT_SCORECARD: "EXPORT_SCORECARD",
-    ScorecardCapability.BATCH_PREDICT: "BATCH_PREDICT",
+class ScorecardCapability(IntFlag):
+    """评分卡能力枚举
+
+    描述评分卡的各层能力。
+
+    属性:
+        NONE: 无能力
+        SCORECARD_WOE: WOE 转换
+        SCORECARD_LOGIT: 对数几率
+        SCORECARD_SCORE: 评分卡分数
+        SCORECARD_EXPORT: 评分卡导出
+    """
+    NONE = 0
+
+    SCORECARD_WOE = auto()
+    SCORECARD_LOGIT = auto()
+    SCORECARD_SCORE = auto()
+    SCORECARD_EXPORT = auto()
+
+
+# ==================== 模型能力依赖关系 ====================
+
+_MODEL_CAPABILITY_DEPENDENCIES: Dict[ModelCapability, Set[ModelCapability]] = {
+    ModelCapability.PREDICT_LOG_ODDS: {
+        ModelCapability.PREDICT_PROBA
+    },
+    ModelCapability.PREDICT_CLASS: {
+        ModelCapability.PREDICT_PROBA
+    },
+    ModelCapability.SHAP_TREE: {
+        ModelCapability.SHAP
+    },
+    ModelCapability.SHAP_KERNEL: {
+        ModelCapability.SHAP
+    },
 }
 
-# 能力描述映射
-_CAPABILITY_DESCRIPTIONS = {
-    ScorecardCapability.PREDICT_PROBA: "违约概率预测",
-    ScorecardCapability.PREDICT_SCORE: "信用评分预测",
-    ScorecardCapability.PREDICT_CLASS: "分类标签预测",
-    ScorecardCapability.FEATURE_SCORE: "特征分计算",
-    ScorecardCapability.SHAP: "SHAP特征解释",
-    ScorecardCapability.SHAP_TREE: "SHAP树模型解释",
-    ScorecardCapability.SHAP_KERNEL: "SHAP核函数解释",
-    ScorecardCapability.FEATURE_IMPORTANCE: "特征重要性",
-    ScorecardCapability.EXPORT_SCORECARD: "评分卡导出",
-    ScorecardCapability.BATCH_PREDICT: "批量预测",
+
+# ==================== 评分卡能力依赖关系 ====================
+
+_SCORECARD_CAPABILITY_DEPENDENCIES: Dict[ScorecardCapability, Set[ScorecardCapability]] = {
+    ScorecardCapability.SCORECARD_LOGIT: {
+        ScorecardCapability.SCORECARD_WOE
+    },
+    ScorecardCapability.SCORECARD_SCORE: {
+        ScorecardCapability.SCORECARD_LOGIT
+    },
+    ScorecardCapability.SCORECARD_EXPORT: {
+        ScorecardCapability.SCORECARD_SCORE
+    },
 }
 
-# 能力权重（用于优先级排序，数值越大优先级越高）
-_CAPABILITY_WEIGHTS = {
-    ScorecardCapability.PREDICT_PROBA: 100,
-    ScorecardCapability.PREDICT_SCORE: 90,
-    ScorecardCapability.PREDICT_CLASS: 80,
-    ScorecardCapability.FEATURE_SCORE: 70,
-    ScorecardCapability.SHAP: 60,
-    ScorecardCapability.SHAP_TREE: 65,   # TreeExplainer 优先级更高
-    ScorecardCapability.SHAP_KERNEL: 50, # KernelExplainer 优先级较低
-    ScorecardCapability.FEATURE_IMPORTANCE: 50,
-    ScorecardCapability.EXPORT_SCORECARD: 40,
-    ScorecardCapability.BATCH_PREDICT: 30,
+
+# ==================== 能力名称和描述映射 ====================
+
+_MODEL_CAPABILITY_NAMES: Dict[ModelCapability, str] = {
+    ModelCapability.PREDICT_PROBA: "PREDICT_PROBA",
+    ModelCapability.PREDICT_CLASS: "PREDICT_CLASS",
+    ModelCapability.PREDICT_LOG_ODDS: "PREDICT_LOG_ODDS",
+    ModelCapability.SHAP: "SHAP",
+    ModelCapability.SHAP_TREE: "SHAP_TREE",
+    ModelCapability.SHAP_KERNEL: "SHAP_KERNEL",
+    ModelCapability.FEATURE_IMPORTANCE: "FEATURE_IMPORTANCE",
+    ModelCapability.BATCH_PREDICT: "BATCH_PREDICT",
 }
 
-ALL_CAPABILITIES: List[ScorecardCapability] = [
-    ScorecardCapability.PREDICT_PROBA,
-    ScorecardCapability.PREDICT_SCORE,
-    ScorecardCapability.PREDICT_CLASS,
-    ScorecardCapability.FEATURE_SCORE,
-    ScorecardCapability.SHAP,
-    ScorecardCapability.SHAP_TREE,
-    ScorecardCapability.SHAP_KERNEL,
-    ScorecardCapability.FEATURE_IMPORTANCE,
-    ScorecardCapability.EXPORT_SCORECARD,
-    ScorecardCapability.BATCH_PREDICT,
+_MODEL_CAPABILITY_DESCRIPTIONS: Dict[ModelCapability, str] = {
+    ModelCapability.PREDICT_PROBA: "违约概率",
+    ModelCapability.PREDICT_CLASS: "分类标签",
+    ModelCapability.PREDICT_LOG_ODDS: "原始对数几率",
+    ModelCapability.SHAP: "SHAP 解释",
+    ModelCapability.SHAP_TREE: "SHAP 树解释",
+    ModelCapability.SHAP_KERNEL: "SHAP 核解释",
+    ModelCapability.FEATURE_IMPORTANCE: "特征重要性",
+    ModelCapability.BATCH_PREDICT: "批量预测",
+}
+
+_SCORECARD_CAPABILITY_NAMES: Dict[ScorecardCapability, str] = {
+    ScorecardCapability.SCORECARD_WOE: "SCORECARD_WOE",
+    ScorecardCapability.SCORECARD_LOGIT: "SCORECARD_LOGIT",
+    ScorecardCapability.SCORECARD_SCORE: "SCORECARD_SCORE",
+    ScorecardCapability.SCORECARD_EXPORT: "SCORECARD_EXPORT",
+}
+
+_SCORECARD_CAPABILITY_DESCRIPTIONS: Dict[ScorecardCapability, str] = {
+    ScorecardCapability.SCORECARD_WOE: "WOE 转换",
+    ScorecardCapability.SCORECARD_LOGIT: "对数几率",
+    ScorecardCapability.SCORECARD_SCORE: "评分卡分数",
+    ScorecardCapability.SCORECARD_EXPORT: "评分卡导出",
+}
+
+# 所有模型能力的列表
+ALL_MODEL_CAPABILITIES: List[ModelCapability] = [
+    ModelCapability.PREDICT_PROBA,
+    ModelCapability.PREDICT_CLASS,
+    ModelCapability.PREDICT_LOG_ODDS,
+    ModelCapability.SHAP,
+    ModelCapability.SHAP_TREE,
+    ModelCapability.SHAP_KERNEL,
+    ModelCapability.FEATURE_IMPORTANCE,
+    ModelCapability.BATCH_PREDICT,
 ]
 
-_REQUIRED_CAPABILITIES: Set[ScorecardCapability] = {
-    ScorecardCapability.PREDICT_PROBA,
+# 所有评分卡能力的列表
+ALL_SCORECARD_CAPABILITIES: List[ScorecardCapability] = [
+    ScorecardCapability.SCORECARD_WOE,
+    ScorecardCapability.SCORECARD_LOGIT,
+    ScorecardCapability.SCORECARD_SCORE,
+    ScorecardCapability.SCORECARD_EXPORT,
+]
+
+# 必需能力
+_REQUIRED_MODEL_CAPABILITIES: Set[ModelCapability] = {
+    ModelCapability.PREDICT_PROBA,
 }
 
 
-def infer_capabilities(adapter) -> ScorecardCapability:
+# ==================== 核心推断函数 ====================
+
+def expand_model_capabilities(caps: ModelCapability) -> ModelCapability:
     """
-    根据适配器声明推断能力集
+    根据依赖关系自动补全模型能力
+
+    参数:
+        caps: 原始能力集
+
+    返回:
+        补全后的能力集
+    """
+    result = caps
+    changed = True
+
+    while changed:
+        changed = False
+        for cap, deps in _MODEL_CAPABILITY_DEPENDENCIES.items():
+            if result & cap:
+                deps_mask = ModelCapability.NONE
+                for dep in deps:
+                    deps_mask |= dep
+
+                if not (result & deps_mask):
+                    result |= deps_mask
+                    changed = True
+
+    return result
+
+
+def expand_scorecard_capabilities(caps: ScorecardCapability) -> ScorecardCapability:
+    """
+    根据依赖关系自动补全评分卡能力
+
+    参数:
+        caps: 原始能力集
+
+    返回:
+        补全后的能力集
+    """
+    result = caps
+    changed = True
+
+    while changed:
+        changed = False
+        for cap, deps in _SCORECARD_CAPABILITY_DEPENDENCIES.items():
+            if result & cap:
+                deps_mask = ScorecardCapability.NONE
+                for dep in deps:
+                    deps_mask |= dep
+
+                if not (result & deps_mask):
+                    result |= deps_mask
+                    changed = True
+
+    return result
+
+
+def infer_model_capabilities(adapter) -> ModelCapability:
+    """
+    根据适配器声明推断模型能力集
+
+    推断规则：
+        - 强制要求实现 predict_proba
+        - 优先使用适配器声明的 SUPPORTED_CAPABILITIES
+        - 根据方法存在性自动推断
+        - 自动补全依赖关系
 
     参数:
         adapter: 模型适配器实例
 
     返回:
-        ScorecardCapability 位掩码
+        ModelCapability 位掩码
 
     异常:
-        RuntimeError: 缺少必需能力（PREDICT_PROBA）
+        RuntimeError: 缺少必需能力 PREDICT_PROBA
         TypeError: SUPPORTED_CAPABILITIES 类型错误
-        ValueError: SUPPORTED_CAPABILITIES 包含 PREDICT_PROBA
     """
-    caps = ScorecardCapability.NONE
+    caps = ModelCapability.NONE
 
-    # 强约束：必须实现 predict_proba
-    if not hasattr(adapter, "predict_proba"):
+    # 强制要求实现概率预测
+    if not callable(getattr(adapter, "predict_proba", None)):
         raise RuntimeError("模型适配器必须实现 predict_proba 方法")
 
-    caps |= ScorecardCapability.PREDICT_PROBA
+    caps |= ModelCapability.PREDICT_PROBA
 
-    # 声明优先
+    # 优先使用适配器声明
     declared = getattr(adapter, "SUPPORTED_CAPABILITIES", None)
 
     if declared is not None:
-        if not isinstance(declared, ScorecardCapability):
+        if not isinstance(declared, ModelCapability):
             raise TypeError(
-                f"SUPPORTED_CAPABILITIES 必须是 ScorecardCapability 类型，当前: {type(declared)}"
+                f"SUPPORTED_CAPABILITIES 必须是 ModelCapability 类型，当前: {type(declared)}"
             )
+        caps |= declared
 
-        # PREDICT_PROBA 是系统强约束，适配器不得声明
-        if declared & ScorecardCapability.PREDICT_PROBA:
-            raise ValueError(
-                "PREDICT_PROBA 为系统强约束能力，不应在 SUPPORTED_CAPABILITIES 中声明"
-            )
+    # 自动推断对数几率能力
+    if callable(getattr(adapter, "decision_function", None)):
+        caps |= ModelCapability.PREDICT_LOG_ODDS
 
-        return caps | declared
+    # 自动推断分类能力
+    if callable(getattr(adapter, "predict_class", None)):
+        caps |= ModelCapability.PREDICT_CLASS
 
-    # fallback（仅安全推断，不推断 PREDICT_CLASS）
-    if hasattr(adapter, "predict_score"):
-        caps |= ScorecardCapability.PREDICT_SCORE
+    # 自动推断解释能力
+    if callable(getattr(adapter, "get_shap_values", None)):
+        caps |= ModelCapability.SHAP
 
-    if hasattr(adapter, "get_feature_score"):
-        caps |= ScorecardCapability.FEATURE_SCORE
+    if callable(getattr(adapter, "get_shap_tree", None)):
+        caps |= ModelCapability.SHAP_TREE
 
-    if hasattr(adapter, "get_shap_values"):
-        caps |= ScorecardCapability.SHAP
+    if callable(getattr(adapter, "get_shap_kernel", None)):
+        caps |= ModelCapability.SHAP_KERNEL
 
-    if hasattr(adapter, "get_feature_importance"):
-        caps |= ScorecardCapability.FEATURE_IMPORTANCE
+    if callable(getattr(adapter, "get_feature_importance", None)):
+        caps |= ModelCapability.FEATURE_IMPORTANCE
 
-    if hasattr(adapter, "predict_proba_batch"):
-        caps |= ScorecardCapability.BATCH_PREDICT
+    # 自动推断批量预测能力
+    if callable(getattr(adapter, "predict_proba_batch", None)):
+        caps |= ModelCapability.BATCH_PREDICT
 
-    if hasattr(adapter, "export_scorecard"):
-        caps |= ScorecardCapability.EXPORT_SCORECARD
+    # 自动补全依赖关系
+    caps = expand_model_capabilities(caps)
 
     return caps
 
 
-def has_capability(caps: ScorecardCapability, capability: ScorecardCapability) -> bool:
+def infer_scorecard_capabilities(engine) -> ScorecardCapability:
     """
-    检查是否包含指定能力
+    根据评分卡引擎推断评分卡能力集
+
+    参数:
+        engine: 评分卡引擎实例
+
+    返回:
+        ScorecardCapability 位掩码
+    """
+    caps = ScorecardCapability.NONE
+
+    # WOE 转换能力
+    if hasattr(engine, "woe_transform") or hasattr(engine, "woe"):
+        caps |= ScorecardCapability.SCORECARD_WOE
+
+    # 对数几率输出能力
+    if hasattr(engine, "decision_function") or hasattr(engine, "logit"):
+        caps |= ScorecardCapability.SCORECARD_LOGIT
+
+    # 评分卡分数输出能力
+    if hasattr(engine, "score"):
+        caps |= ScorecardCapability.SCORECARD_SCORE
+
+    # 评分卡导出能力
+    if hasattr(engine, "export"):
+        caps |= ScorecardCapability.SCORECARD_EXPORT
+
+    # 自动补全依赖关系
+    caps = expand_scorecard_capabilities(caps)
+
+    return caps
+
+
+def validate_model_capabilities(caps: ModelCapability) -> List[str]:
+    """
+    验证模型能力集的有效性
 
     参数:
         caps: 能力集（位掩码）
-        capability: 要检查的能力
 
     返回:
-        True 表示包含该能力，False 表示不包含
+        错误信息列表，空列表表示验证通过
     """
+    errors = []
+
+    # 检查必需能力
+    for required in _REQUIRED_MODEL_CAPABILITIES:
+        if not (caps & required):
+            errors.append(f"缺少必需能力: {_MODEL_CAPABILITY_NAMES.get(required, str(required))}")
+
+    # 检查依赖关系
+    for cap, deps in _MODEL_CAPABILITY_DEPENDENCIES.items():
+        if caps & cap:
+            missing = []
+            for dep in deps:
+                if not (caps & dep):
+                    missing.append(dep)
+
+            if missing:
+                missing_names = [_MODEL_CAPABILITY_NAMES.get(d, str(d)) for d in missing]
+                errors.append(
+                    f"能力 {_MODEL_CAPABILITY_NAMES.get(cap, str(cap))} 缺少依赖: {missing_names}"
+                )
+
+    return errors
+
+
+def validate_scorecard_capabilities(caps: ScorecardCapability) -> List[str]:
+    """
+    验证评分卡能力集的有效性
+
+    参数:
+        caps: 能力集（位掩码）
+
+    返回:
+        错误信息列表，空列表表示验证通过
+    """
+    errors = []
+
+    for cap, deps in _SCORECARD_CAPABILITY_DEPENDENCIES.items():
+        if caps & cap:
+            missing = []
+            for dep in deps:
+                if not (caps & dep):
+                    missing.append(dep)
+
+            if missing:
+                missing_names = [_SCORECARD_CAPABILITY_NAMES.get(d, str(d)) for d in missing]
+                errors.append(
+                    f"能力 {_SCORECARD_CAPABILITY_NAMES.get(cap, str(cap))} 缺少依赖: {missing_names}"
+                )
+
+    return errors
+
+
+# ==================== 能力检查函数 ====================
+
+def has_model_capability(caps: ModelCapability, capability: ModelCapability) -> bool:
+    """检查模型是否包含指定能力"""
     return bool(caps & capability)
 
 
-def has_all_capabilities(
-    caps: ScorecardCapability,
-    required: ScorecardCapability
-) -> bool:
-    """
-    检查是否包含所有指定能力
+def has_scorecard_capability(caps: ScorecardCapability, capability: ScorecardCapability) -> bool:
+    """检查评分卡是否包含指定能力"""
+    return bool(caps & capability)
 
-    参数:
-        caps: 能力集（位掩码）
-        required: 必需的能力集
 
-    返回:
-        True 表示包含所有能力，False 表示缺少至少一个
-    """
+def has_all_model_capabilities(caps: ModelCapability, required: ModelCapability) -> bool:
+    """检查模型是否包含所有指定能力"""
     return (caps & required) == required
 
 
-def has_any_capability(
-    caps: ScorecardCapability,
-    capabilities: ScorecardCapability
-) -> bool:
-    """
-    检查是否包含任意一个指定能力
+def has_all_scorecard_capabilities(caps: ScorecardCapability, required: ScorecardCapability) -> bool:
+    """检查评分卡是否包含所有指定能力"""
+    return (caps & required) == required
 
-    参数:
-        caps: 能力集（位掩码）
-        capabilities: 待检查的能力集
 
-    返回:
-        True 表示包含至少一个能力，False 表示不包含任何能力
-    """
+def has_any_model_capability(caps: ModelCapability, capabilities: ModelCapability) -> bool:
+    """检查模型是否包含任意一个指定能力"""
     return bool(caps & capabilities)
 
 
-def combine_capabilities(capabilities: List[ScorecardCapability]) -> ScorecardCapability:
-    """
-    组合多个能力
+def has_any_scorecard_capability(caps: ScorecardCapability, capabilities: ScorecardCapability) -> bool:
+    """检查评分卡是否包含任意一个指定能力"""
+    return bool(caps & capabilities)
 
-    参数:
-        capabilities: 能力列表
 
-    返回:
-        组合后的能力集
-    """
+def combine_model_capabilities(capabilities: List[ModelCapability]) -> ModelCapability:
+    """组合多个模型能力"""
+    result = ModelCapability.NONE
+    for cap in capabilities:
+        result |= cap
+    return result
+
+
+def combine_scorecard_capabilities(capabilities: List[ScorecardCapability]) -> ScorecardCapability:
+    """组合多个评分卡能力"""
     result = ScorecardCapability.NONE
     for cap in capabilities:
         result |= cap
     return result
 
 
-def get_capability_weight(capability: ScorecardCapability) -> int:
-    """
-    获取能力权重（用于优先级排序）
+# ==================== 序列化和展示函数 ====================
 
-    参数:
-        capability: 能力枚举
-
-    返回:
-        权重值（数值越大优先级越高）
-    """
-    return _CAPABILITY_WEIGHTS.get(capability, 0)
-
-
-def get_capability_weight_sum(caps: ScorecardCapability) -> int:
-    """
-    获取能力集的总权重
-
-    参数:
-        caps: 能力集（位掩码）
-
-    返回:
-        总权重值
-    """
-    total = 0
-    for cap in ALL_CAPABILITIES:
-        if caps & cap:
-            total += _CAPABILITY_WEIGHTS.get(cap, 0)
-    return total
-
-
-def sort_by_capability_weight(
-    items: List[Any],
-    key_func: Callable[[Any], ScorecardCapability]
-) -> List[Any]:
-    """
-    根据能力权重对项目列表排序
-
-    参数:
-        items: 待排序的项目列表
-        key_func: 提取能力集的函数
-
-    返回:
-        排序后的列表（权重高的在前）
-    """
-    return sorted(
-        items,
-        key=lambda x: get_capability_weight_sum(key_func(x)),
-        reverse=True
-    )
-
-
-def validate_required_capabilities(caps: ScorecardCapability) -> None:
-    """
-    验证必需能力是否存在
-
-    参数:
-        caps: 能力集（位掩码）
-
-    异常:
-        RuntimeError: 缺少必需能力
-    """
-    missing = [
-        _CAPABILITY_NAMES[cap] for cap in _REQUIRED_CAPABILITIES
-        if not has_capability(caps, cap)
-    ]
-    if missing:
-        raise RuntimeError(f"模型缺少必需能力: {missing}")
-
-
-def get_capability_list(caps: ScorecardCapability) -> List[str]:
-    """
-    获取能力名称列表（用于序列化）
-
-    参数:
-        caps: 能力集（位掩码）
-
-    返回:
-        能力名称列表
-    """
+def get_model_capability_list(caps: ModelCapability) -> List[str]:
+    """获取模型能力名称列表"""
     result: List[str] = []
-    for cap in ALL_CAPABILITIES:
+    for cap in ALL_MODEL_CAPABILITIES:
         if caps & cap:
-            result.append(_CAPABILITY_NAMES[cap])
+            result.append(_MODEL_CAPABILITY_NAMES[cap])
     return result
 
 
-def get_capability_descriptions(caps: ScorecardCapability) -> List[Dict[str, str]]:
-    """
-    获取能力描述列表（用于 API 响应）
+def get_scorecard_capability_list(caps: ScorecardCapability) -> List[str]:
+    """获取评分卡能力名称列表"""
+    result: List[str] = []
+    for cap in ALL_SCORECARD_CAPABILITIES:
+        if caps & cap:
+            result.append(_SCORECARD_CAPABILITY_NAMES[cap])
+    return result
 
-    参数:
-        caps: 能力集（位掩码）
 
-    返回:
-        能力描述列表，每项包含 name 和 description
-    """
+def get_model_capability_descriptions(caps: ModelCapability) -> List[Dict[str, str]]:
+    """获取模型能力描述列表"""
     result: List[Dict[str, str]] = []
-    for cap in ALL_CAPABILITIES:
+    for cap in ALL_MODEL_CAPABILITIES:
         if caps & cap:
             result.append({
-                "name": _CAPABILITY_NAMES[cap],
-                "description": _CAPABILITY_DESCRIPTIONS.get(cap, _CAPABILITY_NAMES[cap])
+                "name": _MODEL_CAPABILITY_NAMES[cap],
+                "description": _MODEL_CAPABILITY_DESCRIPTIONS.get(cap, _MODEL_CAPABILITY_NAMES[cap])
             })
     return result
 
 
+def get_scorecard_capability_descriptions(caps: ScorecardCapability) -> List[Dict[str, str]]:
+    """获取评分卡能力描述列表"""
+    result: List[Dict[str, str]] = []
+    for cap in ALL_SCORECARD_CAPABILITIES:
+        if caps & cap:
+            result.append({
+                "name": _SCORECARD_CAPABILITY_NAMES[cap],
+                "description": _SCORECARD_CAPABILITY_DESCRIPTIONS.get(cap, _SCORECARD_CAPABILITY_NAMES[cap])
+            })
+    return result
+
+
+def get_model_capability_summary(caps: ModelCapability) -> Dict[str, Any]:
+    """获取模型能力摘要"""
+    return {
+        "names": get_model_capability_list(caps),
+        "count": len(get_model_capability_list(caps)),
+        "validation_errors": validate_model_capabilities(caps)
+    }
+
+
+def get_scorecard_capability_summary(caps: ScorecardCapability) -> Dict[str, Any]:
+    """获取评分卡能力摘要"""
+    return {
+        "names": get_scorecard_capability_list(caps),
+        "count": len(get_scorecard_capability_list(caps)),
+        "validation_errors": validate_scorecard_capabilities(caps)
+    }
+
+
 __all__ = [
+    'ModelCapability',
     'ScorecardCapability',
-    'ALL_CAPABILITIES',
-    'infer_capabilities',
-    'has_capability',
-    'has_all_capabilities',
-    'has_any_capability',
-    'combine_capabilities',
-    'get_capability_weight',
-    'get_capability_weight_sum',
-    'sort_by_capability_weight',
-    'validate_required_capabilities',
-    'get_capability_list',
-    'get_capability_descriptions',
+    'ALL_MODEL_CAPABILITIES',
+    'ALL_SCORECARD_CAPABILITIES',
+    'infer_model_capabilities',
+    'infer_scorecard_capabilities',
+    'expand_model_capabilities',
+    'expand_scorecard_capabilities',
+    'validate_model_capabilities',
+    'validate_scorecard_capabilities',
+    'has_model_capability',
+    'has_scorecard_capability',
+    'has_all_model_capabilities',
+    'has_all_scorecard_capabilities',
+    'has_any_model_capability',
+    'has_any_scorecard_capability',
+    'combine_model_capabilities',
+    'combine_scorecard_capabilities',
+    'get_model_capability_list',
+    'get_scorecard_capability_list',
+    'get_model_capability_descriptions',
+    'get_scorecard_capability_descriptions',
+    'get_model_capability_summary',
+    'get_scorecard_capability_summary',
 ]

@@ -19,7 +19,7 @@ class ABTestAssignment(Base):
     """A/B测试分配记录表"""
     __tablename__ = 'ab_test_assignments'
     __table_args__ = (
-        Index('idx_ab_assign_test_user', 'test_id', 'user_id'),
+        Index('idx_ab_assign_test_customer', 'test_id', 'customer_id'),
         Index('idx_ab_assign_time', 'assigned_at'),
         Index('idx_ab_assign_model', 'model_id'),
         Index('idx_ab_assign_expires', 'expires_at'),
@@ -29,7 +29,7 @@ class ABTestAssignment(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     test_id = Column(String(50), ForeignKey('public.ab_test_configs.test_id', ondelete='CASCADE'),
                     nullable=False, index=True)
-    user_id = Column(String(50), nullable=False, index=True)
+    customer_id = Column(String(50), nullable=False, index=True)
     group_name = Column(String(50), nullable=False)
     model_id = Column(String(50), ForeignKey('public.model_metadata.model_id', ondelete='CASCADE'),
                      nullable=False, index=True)
@@ -44,13 +44,13 @@ class ABTestAssignment(Base):
     model = relationship("ModelMetadata", back_populates="ab_test_assignments")
 
     def __repr__(self):
-        return f"<ABTestAssignment(test='{self.test_id}', user='{self.user_id}', group='{self.group_name}')>"
+        return f"<ABTestAssignment(test='{self.test_id}', customer='{self.customer_id}', group='{self.group_name}')>"
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
             'test_id': self.test_id,
-            'user_id': self.user_id,
+            'customer_id': self.customer_id,
             'group_name': self.group_name,
             'model_id': self.model_id,
             'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
@@ -117,7 +117,7 @@ class ABTestAssignment(Base):
     def create(
         cls,
         test_id: str,
-        user_id: str,
+        customer_id: str,
         group_name: str,
         model_id: str,
         assignment_hash: Optional[str] = None,
@@ -127,7 +127,7 @@ class ABTestAssignment(Base):
 
         参数:
             test_id: 测试ID
-            user_id: 用户ID
+            customer_id: 客户ID
             group_name: 组名称
             model_id: 模型ID
             assignment_hash: 分配哈希值（可选）
@@ -138,7 +138,7 @@ class ABTestAssignment(Base):
         """
         return cls(
             test_id=test_id,
-            user_id=user_id,
+            customer_id=customer_id,
             group_name=group_name,
             model_id=model_id,
             assignment_hash=assignment_hash,
@@ -159,4 +159,4 @@ class ABTestAssignment(Base):
         返回:
             缓存键字符串
         """
-        return f"ab_test:assignment:{self.test_id}:{self.user_id}"
+        return f"ab_test:assignment:{self.test_id}:{self.customer_id}"

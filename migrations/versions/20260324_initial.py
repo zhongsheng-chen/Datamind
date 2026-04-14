@@ -163,7 +163,7 @@ def upgrade() -> None:
     DO $$
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_status_enum') THEN
-            CREATE TYPE user_status_enum AS ENUM ('active', 'inactive', 'suspended');
+            CREATE TYPE user_status_enum AS ENUM ('active', 'inactive', 'suspended', 'locked');
         END IF;
     END$$;
     """)
@@ -481,6 +481,8 @@ def upgrade() -> None:
                     schema='public')
     op.create_index('idx_audit_action', 'audit_logs', ['action'],
                     schema='public')
+    op.create_index('idx_audit_model', 'audit_logs', ['model_id'],
+                    schema='public')
 
     # 7. A/B测试配置表
     op.create_table(
@@ -526,7 +528,7 @@ def upgrade() -> None:
         'ab_test_assignments',
         sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='主键ID'),
         sa.Column('test_id', sa.String(length=50), nullable=False, comment='测试ID'),
-        sa.Column('user_id', sa.String(length=50), nullable=False, comment='用户ID'),
+        sa.Column('customer_id', sa.String(length=50), nullable=False, comment='客户ID'),
         sa.Column('group_name', sa.String(length=50), nullable=False, comment='组名'),
         sa.Column('model_id', sa.String(length=50), nullable=False, comment='模型ID'),
         sa.Column('assigned_at', sa.DateTime(timezone=True), server_default=sa.text('now()'),
@@ -541,7 +543,7 @@ def upgrade() -> None:
         schema='public',
         comment='A/B测试分配表'
     )
-    op.create_index('idx_ab_assign_test_user', 'ab_test_assignments', ['test_id', 'user_id'],
+    op.create_index('idx_ab_assign_test_customer', 'ab_test_assignments', ['test_id', 'customer_id'],
                     schema='public')
     op.create_index('idx_ab_assign_time', 'ab_test_assignments', ['assigned_at'],
                     schema='public')
@@ -595,7 +597,7 @@ def upgrade() -> None:
                                    name='user_role_enum', create_type=False),
                   nullable=False, server_default='api_user', comment='用户角色'),
         sa.Column('permissions', postgresql.JSONB(), default=list, nullable=True, comment='额外权限列表'),
-        sa.Column('status', PgEnum('active', 'inactive', 'suspended',
+        sa.Column('status', PgEnum('active', 'inactive', 'suspended', 'locked',
                                     name='user_status_enum', create_type=False),
                   nullable=False, server_default='active', comment='用户状态'),
         sa.Column('last_login_at', sa.DateTime(timezone=True), nullable=True, comment='最后登录时间'),

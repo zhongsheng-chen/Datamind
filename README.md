@@ -1,5 +1,5 @@
 #
-我想设计一个银行贷款模型部署平台Datamind, 用于部署模型开发人员用Python跑出来的评分卡模型，反欺诈等模型。
+我想设计一个银行贷款模型部署平台Datamind, 用于部署模型开发人员用Python跑出来的评分卡模型，反欺诈,分类任务等模型。
 不用考虑批量预测，零售信贷贷款都是单笔处理的。
 模型部署工具考虑用bentoml实现，支持模型注册、注销，支持模型文件热更换，支持模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。
 支持模型类型：模型类型：decision_tree|random_forest|xgboost|lightgbm|logistic_regression。
@@ -7,7 +7,7 @@
 只跑模型，不管模型规则。
 模型ID应该是Datamind后台维护的识别模型的唯一主键。不应该作为模型注册参数。
 模型元数据不保存在数据库吗？金融场景要能审计，要有完善的日志系统。
-我已经有了配置组件，日志组件，AB测试组件，存储组件，数据库组件，评分组件，模型组件，服务组件，API组件。
+我已经有了配置组件，日志组件，AB测试组件，存储组件，数据库组件，评分组件，模型组件，服务组件。
 ```text
 datamind/
 ├── api/                            # API接口层
@@ -1667,14 +1667,26 @@ curl http://localhost:3000/health
 
 ## 训练
 ```bash
-# 训练随机森林模型并注册
-python -m datamind.demo.train --type random_forest --mode raw
+    # 逻辑回归（WOE编码）
+    python -m datamind.demo.train
 
-# 训练逻辑回归模型并注册
-python -m datamind.demo.train --type logistic_regression --mode woe
+    # 逻辑回归（无编码）
+    python -m datamind.demo.train --encoder none
 
-# 只保存到本地文件，不注册
-python -m datamind.demo.train --type logistic_regression --mode woe --no-registry --output ./my_model.pkl
+    # 逻辑回归（标准化编码）
+    python -m datamind.demo.train --encoder standard
+
+    # 随机森林
+    python -m datamind.demo.train --model_type random_forest
+
+    # 自定义模型名称和版本
+    python -m datamind.demo.train --model_name demo_logistic_woe --model_version 2.0.0
+
+    # 强制覆盖已存在的模型
+    python -m datamind.demo.train --force
+
+    # 只保存本地文件，不注册
+    python -m datamind.demo.train --local --output ./model.pkl
 ```
 
 步骤
@@ -1697,7 +1709,8 @@ docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL
 docker exec -it postgres psql -U datamind -d postgres -c "DROP DATABASE IF EXISTS datamind;"
 docker exec -it postgres psql -U datamind -d postgres -c "CREATE DATABASE datamind OWNER datamind;"
 python -m alembic upgrade head
-python -m datamind.demo.train --type logistic_regression --mode woe
+python -m datamind.demo.train --model_type logistic_regression
+python -m datamind.demo.train --model_type logistic_regression --model_name demo_logistic_woe --model_version 2.0.0
 
 ## 检查生产模型
 ```bash
@@ -1723,37 +1736,41 @@ from datamind.core.db.database import db_manager, get_db
 from datamind.core.db.models import ModelDeployment
 from datamind.core.model import get_model_registry
 from datamind.config import get_settings
+from datetime import datetime
 
 db_manager.initialize()
 settings = get_settings()
 registry = get_model_registry()
 
 models = registry.list_models(task_type='scoring', is_production=True)
+
 if models:
-    model = models[0]
-    model_id = model['model_id']
-    model_version = model['model_version']
-    
-    with get_db() as session:
-        existing = session.query(ModelDeployment).filter_by(
-            model_id=model_id,
-            environment=settings.app.environment
-        ).first()
+    print(f'找到 {len(models)} 个生产模型')
+    for model in models:
+        model_id = model['model_id']
+        model_version = model['model_version']
         
-        if not existing:
-            deployment = ModelDeployment(
-                deployment_id=f'DEPLOY_{model_id}',
+        with get_db() as session:
+            existing = session.query(ModelDeployment).filter_by(
                 model_id=model_id,
-                model_version=model_version,
-                environment=settings.app.environment,
-                is_active=True,
-                deployed_by='system'
-            )
-            session.add(deployment)
-            session.commit()
-            print(f'部署记录创建成功: {model_id} -> {settings.app.environment}')
-        else:
-            print(f'部署记录已存在: {model_id} -> {settings.app.environment}')
+                environment=settings.app.environment.value
+            ).first()
+            
+            if not existing:
+                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                deployment = ModelDeployment(
+                    deployment_id=f'DEPLOY_{model_id}_{timestamp}',
+                    model_id=model_id,
+                    model_version=model_version,
+                    environment=settings.app.environment.value,
+                    is_active=True,
+                    deployed_by='system'
+                )
+                session.add(deployment)
+                session.commit()
+                print(f'部署记录创建成功: {model_id} v{model_version} -> {settings.app.environment.value}')
+            else:
+                print(f'部署记录已存在: {model_id} v{model_version} -> {settings.app.environment.value}')
 else:
     print('没有找到生产环境的评分卡模型')
 "
@@ -1764,58 +1781,13 @@ else:
 python -c "
 from datetime import datetime, timedelta
 from datamind.core.db.database import db_manager
-from datamind.core.experiment import ab_test_manager
-
-db_manager.initialize()
-
-# 假设你的模型ID是 MDL_20260414000640_3DDD2BD1:
-# 请替换成你实际的模型ID
-champion_model_id = 'MDL_20260414000640_3DDD2BD1:'
-challenger_model_id = 'MDL_20260414000640_3DDD2BD1:'  # 如果有其他模型可以替换
-
-# 创建 A/B 测试
-test_id = ab_test_manager.create_test(
-    test_name='评分卡模型对比测试',
-    task_type='scoring',
-    groups=[
-        {
-            'name': 'control',
-            'model_id': champion_model_id,
-            'weight': 50,
-            'description': '对照组，使用主模型'
-        },
-        {
-            'name': 'treatment',
-            'model_id': challenger_model_id,
-            'weight': 50,
-            'description': '实验组，使用挑战者模型'
-        }
-    ],
-    created_by='admin',
-    description='测试不同评分卡模型的效果对比',
-    traffic_allocation=100.0,
-    assignment_strategy='consistent',
-    start_date=datetime.now(),
-    end_date=datetime.now() + timedelta(days=7),
-    metrics=['score', 'probability', 'latency_ms']
-)
-
-print(f'A/B测试创建成功！')
-print(f'测试ID: {test_id}')
-"
-```
-
-```bash
-python -c "
-from datetime import datetime, timedelta
-from datamind.core.db.database import db_manager
 from datamind.core.experiment.ab_test import ab_test_manager
 
 db_manager.initialize()
 
 # 替换成你实际的模型ID（去掉末尾的冒号）
-champion_model_id = 'MDL_20260414000640_3DDD2BD1'
-challenger_model_id = 'MDL_20260414000640_3DDD2BD1'
+champion_model_id = 'MDL_20260416110014_C9A03CA7'
+challenger_model_id = 'MDL_20260416110010_89F0A2FF'
 
 # 创建 A/B 测试
 test_id = ab_test_manager.create_test(
@@ -1858,7 +1830,7 @@ from datamind.core.experiment.ab_test import ab_test_manager
 db_manager.initialize()
 
 # 替换成上一步创建的 test_id
-test_id = 'ABT_20260414092617_6920'
+test_id = 'ABT_20260416110128_6464'
 
 ab_test_manager.start_test(test_id, operator='admin')
 print(f'A/B测试已启动: {test_id}')
@@ -1866,9 +1838,43 @@ print(f'A/B测试已启动: {test_id}')
 
 ```
 
+## 检查 A/B 测试配置
+```bash
+python -c "
+from datamind.core.db.database import db_manager, get_db
+from datamind.core.db.models import ABTestConfig
+import json
+
+db_manager.initialize()
+
+with get_db() as session:
+    # 查看最新的 A/B 测试
+    test = session.query(ABTestConfig).order_by(
+        ABTestConfig.created_at.desc()
+    ).first()
+    
+    if test:
+        print(f'测试ID: {test.test_id}')
+        print(f'测试名称: {test.test_name}')
+        print(f'状态: {test.status}')
+        print(f'分组配置:')
+        for group in test.groups:
+            print(f'  - {group[\"name\"]}: model_id={group[\"model_id\"]}, weight={group[\"weight\"]}')
+    else:
+        print('未找到 A/B 测试')
+"
+```
+
+
 ## 测试服务
 ```bash
 bentoml serve datamind.serving.scoring_service:ScoringService --reload --port 3000
+
+# 评分服务
+DATAMIND_LOG_FILE=scoring.log bentoml serve datamind.serving.scoring_service:ScoringService --port 3000
+
+# 反欺诈服务
+DATAMIND_LOG_FILE=fraud.log bentoml serve datamind.serving.fraud_service:FraudService --port 3001
 ```
 
 ## 启动服务
@@ -1884,8 +1890,9 @@ curl -X POST http://localhost:3000/predict \
   -d '{
     "request": {
       "application_id": "TEST_003",
-      "model_id": "MDL_20260414000640_3DDD2BD1",
-      "ab_test_id": "ABT_20260414092617_6920",
+      "customer_id": "CUST_003",
+      "model_id": "MDL_20260416110014_C9A03CA7",
+      "ab_test_id": "ABT_20260416110128_6464",
       "features": {
         "age": 55,
         "income": 150000,
@@ -1906,8 +1913,9 @@ curl -X POST http://localhost:3000/predict \
   -d '{
     "request": {
       "application_id": "TEST_002",
-      "model_id": "MDL_20260414000640_3DDD2BD1",
-      "ab_test_id": "ABT_20260414092617_6920",
+      "customer_id": "CUST_003",
+      "model_id": "MDL_20260416110014_C9A03CA7",
+      "ab_test_id": "ABT_20260416110128_6464",
       "features": {
         "age": 20,
         "income": 20000,
@@ -1928,8 +1936,9 @@ curl -X POST http://localhost:3000/predict \
   -d '{
     "request": {
       "application_id": "TEST_001",
-      "model_id": "MDL_20260414000640_3DDD2BD1",
-      "ab_test_id": "ABT_20260414092617_6920",
+      "customer_id": "CUST_003",
+      "model_id": "MDL_20260416110014_C9A03CA7",
+      "ab_test_id": "ABT_20260416110128_6464",
       "features": {
         "age": 35,
         "income": 50000,
@@ -2152,3 +2161,6 @@ merge -e py -f merged_output.md
 ```bash
 tar -czf datamind.tar.gz .
 ```
+
+
+参考：https://blog.51cto.com/u_16099215/9695963

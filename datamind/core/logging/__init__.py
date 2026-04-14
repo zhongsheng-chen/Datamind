@@ -197,7 +197,7 @@ def log_audit(
     if reason:
         logger.warning(f"审计失败: {action}", extra=extra)
     else:
-        logger.info(f"审计成功: {action}", extra=extra)
+        logger.debug(f"审计成功: {action}", extra=extra)
 
 
 # ==================== 访问日志 ====================
@@ -261,7 +261,7 @@ def log_access(
     if status_code >= 400:
         logger.warning(f"访问失败: {method} {endpoint} -> {status_code}", extra=extra)
     else:
-        logger.info(f"访问成功: {method} {endpoint} -> {status_code}", extra=extra)
+        logger.debug(f"访问成功: {method} {endpoint} -> {status_code}", extra=extra)
 
 
 # ==================== 性能日志 ====================
@@ -316,7 +316,7 @@ def log_performance(
         log_extra.update(extra)
     log_extra = {k: v for k, v in log_extra.items() if v is not None}
 
-    logger.info(f"性能指标: {operation.value} 耗时 {duration_ms:.2f}ms", extra=log_extra)
+    logger.debug(f"性能指标: {operation.value} 耗时 {duration_ms:.2f}ms", extra=log_extra)
 
 
 # ==================== 懒加载缓存 ====================

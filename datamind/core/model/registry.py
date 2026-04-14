@@ -8,15 +8,16 @@
   - register_model: 注册新模型，保存模型文件到 BentoML Model Store
   - activate_model: 激活模型（设置为 active 状态）
   - deactivate_model: 停用模型（设置为 inactive 状态）
-  - promote_to_production: 提升模型为生产模型
+  - promote_to_production: 提升模型为生产模型（允许多个生产模型共存）
   - get_model_info: 获取模型详细信息
   - list_models: 列出模型（支持多维度筛选）
   - get_model_history: 获取模型操作历史
   - update_model_params: 更新模型参数（评分卡/反欺诈配置）
+  - get_production_models: 获取生产模型列表
 
 特性：
   - 版本管理：支持模型版本控制和历史追溯
-  - 生产环境管理：同一任务类型只能有一个生产模型
+  - 生产环境管理：允许多个生产模型共存（支持A/B测试、灰度发布）
   - 配置验证：自动验证评分卡参数和反欺诈配置
   - BentoML 集成：模型存储在 BentoML Model Store
   - 完整审计：记录所有模型操作到版本历史表
@@ -24,14 +25,16 @@
 """
 
 import os
+import threading
 import tempfile
 import shutil
 import hashlib
 import uuid
 import pickle
+from enum import Enum
 from sqlalchemy import desc
 from pathlib import Path
-from typing import Dict, Optional, List, Any, BinaryIO
+from typing import Dict, Optional, List, Any, BinaryIO, Union
 from datetime import datetime
 from dataclasses import dataclass, asdict
 
@@ -41,7 +44,7 @@ from bentoml.exceptions import BentoMLException
 from datamind import PROJECT_ROOT
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata, ModelVersionHistory
-from datamind.core.domain.enums import ModelStatus, AuditAction, TaskType, ModelType, Framework, PerformanceOperation
+from datamind.core.domain.enums import ModelStatus, AuditAction, PerformanceOperation, TaskType, ModelType, Framework
 from datamind.core.domain.validation import validate_or_raise
 from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging import get_logger
@@ -59,7 +62,48 @@ from datamind.core.common.frameworks import (
     get_supported_frameworks
 )
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
+
+
+def _format_file_size(size_bytes: int) -> str:
+    """
+    将字节数格式化为人类可读的文件大小
+
+    参数:
+        size_bytes: 文件大小（字节）
+
+    返回:
+        格式化后的字符串，如 "1.21KB", "2.34MB", "1.12GB"
+    """
+    if size_bytes < 1024:
+        return f"{size_bytes}B"
+    elif size_bytes < 1024 * 1024:
+        return f"{round(size_bytes / 1024, 2)}KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{round(size_bytes / 1024 / 1024, 2)}MB"
+    else:
+        return f"{round(size_bytes / 1024 / 1024 / 1024, 2)}GB"
+
+
+def _convert_enum_to_str(obj: Any) -> Any:
+    """
+    递归将枚举转换为字符串
+
+    BentoML 的 metadata 不支持枚举类型，需要在保存前转换。
+
+    参数:
+        obj: 待转换的对象
+
+    返回:
+        转换后的对象（枚举转换为字符串，其他类型保持不变）
+    """
+    if isinstance(obj, Enum):
+        return obj.value
+    elif isinstance(obj, dict):
+        return {k: _convert_enum_to_str(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_enum_to_str(v) for v in obj]
+    return obj
 
 
 @dataclass
@@ -68,9 +112,9 @@ class BentoMLMetadata:
     model_id: str
     model_name: str
     model_version: str
-    task_type: str
-    model_type: str
-    framework: str
+    task_type: TaskType
+    model_type: ModelType
+    framework: Framework
     input_features: List[str]
     output_schema: Dict[str, str]
     model_params: Dict[str, Any]
@@ -78,12 +122,13 @@ class BentoMLMetadata:
     created_at: str
     description: Optional[str] = None
     tags: Optional[Dict[str, Any]] = None
-    scorecard_config: Optional[Dict[str, Any]] = None  # 评分卡配置
-    fraud_config: Optional[Dict[str, Any]] = None      # 反欺诈配置
+    scorecard_config: Optional[Dict[str, Any]] = None
+    fraud_config: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典，自动过滤 None 值"""
-        return {k: v for k, v in asdict(self).items() if v is not None}
+        """转换为字典，自动过滤 None 值，并将枚举转换为字符串"""
+        data = {k: v for k, v in asdict(self).items() if v is not None}
+        return _convert_enum_to_str(data)
 
 
 class ModelRegistry:
@@ -110,7 +155,7 @@ class ModelRegistry:
             self.cache_path = PROJECT_ROOT / models_path
         self.cache_path.mkdir(parents=True, exist_ok=True)
 
-        logger.info("模型注册中心初始化完成，存储路径: %s", self.cache_path.absolute())
+        _logger.debug("模型注册中心初始化完成，存储路径: %s", self.cache_path.absolute())
 
     @staticmethod
     def _clean_none_values(obj: Any) -> Any:
@@ -127,9 +172,9 @@ class ModelRegistry:
             self,
             model_name: str,
             model_version: str,
-            task_type: str,
-            model_type: str,
-            framework: str,
+            task_type: TaskType,
+            model_type: ModelType,
+            framework: Framework,
             input_features: List[str],
             output_schema: Dict[str, str],
             created_by: str,
@@ -214,7 +259,8 @@ class ModelRegistry:
                 ).first()
                 if existing:
                     raise ModelAlreadyExistsException(
-                        f"模型 {model_name} 版本 {model_version} 已存在"
+                        model_name=model_name,
+                        version=model_version
                     )
 
             # 保存模型文件到临时文件
@@ -228,7 +274,7 @@ class ModelRegistry:
                 file_size = tmp_path.stat().st_size
                 file_hash = self._calculate_file_hash(tmp_path)
 
-                # 使用 dataclass 构建元数据，自动过滤 None
+                # 构建元数据
                 metadata_obj = BentoMLMetadata(
                     model_id=model_id,
                     model_name=model_name,
@@ -248,21 +294,23 @@ class ModelRegistry:
                 )
                 metadata = metadata_obj.to_dict()
 
+                labels = {
+                    "model_id": model_id,
+                    "model_name": model_name,
+                    "model_version": model_version,
+                    "task_type": task_type.value if isinstance(task_type, TaskType) else task_type,
+                    "model_type": model_type.value if isinstance(model_type, ModelType) else model_type,
+                    "framework": framework.value if isinstance(framework, Framework) else framework,
+                    "created_by": created_by
+                }
+
                 # 保存到 BentoML Model Store
                 bento_model = self._save_to_bentoml(
                     name=model_id,
                     model_path=tmp_path,
                     framework=framework,
                     metadata=metadata,
-                    labels={
-                        "model_id": model_id,
-                        "model_name": model_name,
-                        "model_version": model_version,
-                        "task_type": task_type,
-                        "model_type": model_type,
-                        "framework": framework,
-                        "created_by": created_by
-                    }
+                    labels=labels
                 )
 
                 # 保存到本地缓存
@@ -276,7 +324,22 @@ class ModelRegistry:
                     latest_link.unlink()
                 latest_link.symlink_to(f"versions/model_{model_version}")
 
-                # 创建元数据
+                # 构建 metadata_json
+                metadata_json: Dict[str, Any] = {
+                    "bentoml_tag": str(bento_model.tag),
+                    "bentoml_name": bento_model.tag.name,
+                    "bentoml_version": bento_model.tag.version
+                }
+
+                if scorecard_config:
+                    metadata_json["scorecard_config"] = scorecard_config
+                    _logger.debug("评分卡配置已保存到 metadata_json: %s", model_id)
+
+                if fraud_config:
+                    metadata_json["fraud_config"] = fraud_config
+                    _logger.debug("反欺诈配置已保存到 metadata_json: %s", model_id)
+
+                # 创建元数据记录
                 with get_db() as session:
                     metadata_record = ModelMetadata(
                         model_id=model_id,
@@ -295,11 +358,7 @@ class ModelRegistry:
                         created_by=created_by,
                         description=description,
                         tags=tags,
-                        metadata_json={
-                            "bentoml_tag": str(bento_model.tag),
-                            "bentoml_name": bento_model.tag.name,
-                            "bentoml_version": bento_model.tag.version
-                        }
+                        metadata_json=metadata_json
                     )
                     session.add(metadata_record)
                     session.flush()
@@ -346,7 +405,7 @@ class ModelRegistry:
                         "model_name": model_name,
                         "model_version": model_version,
                         "framework": framework,
-                        "file_size_mb": round(file_size / 1024 / 1024, 2),
+                        "file_size": file_size,
                         "trace_id": trace_id,
                         "span_id": span_id,
                         "parent_span_id": parent_span_id
@@ -358,11 +417,11 @@ class ModelRegistry:
                     "model_id": model_id,
                     "model_name": model_name,
                     "model_version": model_version,
-                    "task_type": task_type,
-                    "model_type": model_type,
-                    "framework": framework,
+                    "task_type": task_type.value if isinstance(task_type, TaskType) else task_type,
+                    "model_type": model_type.value if isinstance(model_type, ModelType) else model_type,
+                    "framework": framework.value if isinstance(framework, Framework) else framework,
                     "bentoml_tag": str(bento_model.tag),
-                    "file_size_mb": round(file_size / 1024 / 1024, 2),
+                    "file_size": file_size,
                     "duration_ms": round(duration, 2),
                     "trace_id": trace_id,
                     "span_id": span_id,
@@ -385,8 +444,9 @@ class ModelRegistry:
                     request_id=request_id
                 )
 
-                logger.info("模型注册成功: %s v%s, 模型ID: %s, BentoML标签: %s, 文件大小: %.2fMB",
-                           model_name, model_version, model_id, bento_model.tag, file_size / 1024 / 1024)
+                human_size = _format_file_size(file_size)
+                _logger.info("模型注册成功: %s v%s, 模型ID: %s, BentoML标签: %s, 文件大小: %s",
+                             model_name, model_version, model_id, bento_model.tag, human_size)
                 return model_id
 
             finally:
@@ -413,14 +473,14 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型注册失败: %s v%s, 错误: %s", model_name, model_version, str(e), exc_info=True)
+            _logger.error("模型注册失败: %s v%s, 错误: %s", model_name, model_version, str(e), exc_info=True)
             raise
 
     @staticmethod
     def _save_to_bentoml(
             name: str,
             model_path: Path,
-            framework: str,
+            framework: Framework,
             metadata: Dict,
             labels: Dict
     ) -> bentoml.Model:
@@ -437,84 +497,87 @@ class ModelRegistry:
         返回:
             BentoML 模型对象
         """
-        bentoml_backend = get_bentoml_backend(framework)
-        signatures = get_framework_signatures(framework)
+        # 获取框架字符串
+        framework_str = framework.value.lower() if isinstance(framework, Framework) else str(framework).lower()
+
+        bentoml_backend = get_bentoml_backend(framework_str)
+        signatures = get_framework_signatures(framework_str)
 
         try:
             # 根据框架加载模型
-            if framework.lower() == 'sklearn':
+            if framework_str == 'sklearn':
                 import joblib
                 model = joblib.load(model_path)
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
                     metadata=metadata
                 )
 
-            elif framework.lower() == 'xgboost':
+            elif framework_str == 'xgboost':
                 import xgboost as xgb
                 model = xgb.Booster()
                 model.load_model(str(model_path))
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
                     metadata=metadata
                 )
 
-            elif framework.lower() == 'lightgbm':
+            elif framework_str == 'lightgbm':
                 import lightgbm as lgb
                 model = lgb.Booster(model_file=str(model_path))
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
                     metadata=metadata
                 )
 
-            elif framework.lower() == 'catboost':
+            elif framework_str == 'catboost':
                 from catboost import CatBoost
                 model = CatBoost()
                 model.load_model(str(model_path))
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
                     metadata=metadata
                 )
 
-            elif framework.lower() in ['torch', 'pytorch']:
+            elif framework_str in ['torch', 'pytorch']:
                 import torch
                 model = torch.load(model_path, map_location='cpu')
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
                     metadata=metadata
                 )
 
-            elif framework.lower() == 'tensorflow':
+            elif framework_str == 'tensorflow':
                 import tensorflow as tf
                 model = tf.keras.models.load_model(model_path)
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
                     metadata=metadata
                 )
 
-            elif framework.lower() == 'onnx':
+            elif framework_str == 'onnx':
                 import onnxruntime as ort
                 model = ort.InferenceSession(str(model_path))
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     signatures=signatures,
                     labels=labels,
@@ -525,7 +588,7 @@ class ModelRegistry:
                 with open(model_path, 'rb') as f:
                     model = pickle.load(f)
                 return bentoml_backend.save_model(
-                    name=name,
+                    name=name.lower(),
                     model=model,
                     labels=labels,
                     metadata=metadata
@@ -627,7 +690,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.info("模型激活成功: %s v%s", model_name, model_version)
+            _logger.info("模型激活成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -647,7 +710,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型激活失败: %s, 错误: %s", model_id, str(e), exc_info=True)
+            _logger.error("模型激活失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     def deactivate_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -719,7 +782,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.info("模型停用成功: %s v%s", model_name, model_version)
+            _logger.info("模型停用成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -739,14 +802,15 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型停用失败: %s, 错误: %s", model_id, str(e), exc_info=True)
+            _logger.error("模型停用失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     def promote_to_production(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
         """
-        将模型提升为生产模型
+        将模型提升为生产模型（允许多个生产模型共存）
 
-        同一任务类型只能有一个生产模型
+        注意：此方法不会降级其他生产模型，同一任务类型下可以有多个生产模型，
+        用于支持 A/B 测试、灰度发布等场景。
 
         参数:
             model_id: 模型ID
@@ -766,21 +830,14 @@ class ModelRegistry:
                 if not model:
                     raise ModelNotFoundException(f"模型未找到: {model_id}")
 
-                task_type = model.task_type
                 model_name = model.model_name
                 model_version = model.model_version
+                task_type = model.task_type
 
-                # 将同任务类型的其他模型设为非生产
-                updated_count = session.query(ModelMetadata).filter_by(
-                    task_type=task_type,
-                    is_production=True
-                ).update({'is_production': False})
-
-                if updated_count > 0:
-                    logger.info("已取消 %d 个同任务类型的生产模型，任务类型: %s", updated_count, task_type)
-
-                # 设置当前模型为生产
+                # 记录提升前的状态
                 before_prod = model.is_production
+
+                # 设置为生产模型
                 model.is_production = True
                 model.deployed_at = datetime.now()
 
@@ -794,6 +851,8 @@ class ModelRegistry:
                     metadata_snapshot=self._create_snapshot(model),
                     details={
                         'before_production': before_prod,
+                        'after_production': True,
+                        'task_type': task_type,
                         'request_id': request_id,
                         'trace_id': trace_id,
                         'span_id': span_id,
@@ -823,7 +882,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.info("生产模型设置成功: %s v%s, 任务类型: %s", model_name, model_version, task_type)
+            _logger.info("生产模型设置成功: %s v%s, 任务类型: %s", model_name, model_version, task_type)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -843,8 +902,96 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("生产模型设置失败: %s, 错误: %s", model_id, str(e), exc_info=True)
+            _logger.error("生产模型设置失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
+
+    @staticmethod
+    def get_production_models(
+            task_type: Optional[str] = None,
+            model_name: Optional[str] = None,
+            include_details: bool = False
+    ) -> Union[List[str], List[Dict[str, Any]]]:
+        """
+        获取生产模型列表
+
+        参数:
+            task_type: 可选，按任务类型筛选
+            model_name: 可选，按模型名称筛选
+            include_details: 是否返回详细信息（默认 False 只返回 ID 列表）
+
+        返回:
+            include_details=False 时返回 List[str]（模型ID列表）
+            include_details=True 时返回 List[Dict]（模型详细信息）
+        """
+        request_id = context.get_request_id()
+        trace_id = context.get_trace_id()
+        span_id = context.get_span_id()
+        parent_span_id = context.get_parent_span_id()
+
+        try:
+            with get_db() as session:
+                query = session.query(ModelMetadata).filter(
+                    ModelMetadata.is_production == True,
+                    ModelMetadata.status == ModelStatus.ACTIVE.value
+                )
+
+                if task_type:
+                    query = query.filter(ModelMetadata.task_type == task_type)
+
+                if model_name:
+                    query = query.filter(ModelMetadata.model_name == model_name)
+
+                models = query.order_by(desc(ModelMetadata.updated_at)).all()
+
+                log_audit(
+                    action=AuditAction.MODEL_QUERY.value,
+                    user_id="system",
+                    ip_address=None,
+                    resource_type="model",
+                    details={
+                        "task_type": task_type,
+                        "model_name": model_name,
+                        "count": len(models),
+                        "trace_id": trace_id,
+                        "span_id": span_id,
+                        "parent_span_id": parent_span_id
+                    },
+                    request_id=request_id
+                )
+
+                if include_details:
+                    return [{
+                        'model_id': m.model_id,
+                        'model_name': m.model_name,
+                        'model_version': m.model_version,
+                        'task_type': m.task_type,
+                        'model_type': m.model_type,
+                        'framework': m.framework,
+                        'status': m.status,
+                        'is_production': m.is_production,
+                        'updated_at': m.updated_at.isoformat() if m.updated_at else None,
+                        'deployed_at': m.deployed_at.isoformat() if m.deployed_at else None
+                    } for m in models]
+                else:
+                    return [m.model_id for m in models]
+
+        except Exception as e:
+            log_audit(
+                action=AuditAction.MODEL_QUERY.value,
+                user_id="system",
+                ip_address=None,
+                resource_type="model",
+                details={
+                    "error": str(e),
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id
+                },
+                reason=str(e),
+                request_id=request_id
+            )
+            _logger.error("获取生产模型列表失败: %s", e)
+            return []
 
     @staticmethod
     def get_model_info(model_id: str) -> Optional[Dict]:
@@ -908,7 +1055,7 @@ class ModelRegistry:
                 },
                 request_id=request_id
             )
-            logger.debug("获取模型信息失败: %s, 错误: %s", model_id, str(e))
+            _logger.debug("获取模型信息失败: %s, 错误: %s", model_id, str(e))
             raise
 
     @staticmethod
@@ -982,7 +1129,7 @@ class ModelRegistry:
                 },
                 request_id=request_id
             )
-            logger.debug("列出模型失败: %s", str(e))
+            _logger.debug("列出模型失败: %s", str(e))
             raise
 
     @staticmethod
@@ -1030,7 +1177,7 @@ class ModelRegistry:
                 },
                 request_id=request_id
             )
-            logger.debug("获取模型历史失败: %s, 错误: %s", model_id, str(e))
+            _logger.debug("获取模型历史失败: %s, 错误: %s", model_id, str(e))
             raise
 
     def update_model_config(
@@ -1067,22 +1214,30 @@ class ModelRegistry:
 
                 if scorecard_config and model.task_type == TaskType.SCORING.value:
                     self._validate_scorecard_config(scorecard_config)
-                    logger.debug("验证评分卡配置通过: %s", model_id)
+                    _logger.debug("验证评分卡配置通过: %s", model_id)
 
                 if fraud_config and model.task_type == TaskType.FRAUD_DETECTION.value:
                     self._validate_fraud_config(fraud_config)
-                    logger.debug("验证反欺诈配置通过: %s", model_id)
+                    _logger.debug("验证反欺诈配置通过: %s", model_id)
 
                 if not model.model_params:
                     model.model_params = {}
 
                 if scorecard_config:
                     model.model_params['scorecard'] = scorecard_config
-                    logger.debug("更新评分卡配置: %s", model_id)
+                    _logger.debug("更新评分卡配置: %s", model_id)
 
                 if fraud_config:
                     model.model_params['fraud'] = fraud_config
-                    logger.debug("更新反欺诈配置: %s", model_id)
+                    _logger.debug("更新反欺诈配置: %s", model_id)
+
+                if not model.metadata_json:
+                    model.metadata_json = {}
+
+                if scorecard_config:
+                    model.metadata_json['scorecard_config'] = scorecard_config
+                if fraud_config:
+                    model.metadata_json['fraud_config'] = fraud_config
 
                 model.updated_at = datetime.now()
 
@@ -1132,7 +1287,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.info("模型配置更新成功: %s v%s", model_name, model_version)
+            _logger.info("模型配置更新成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -1152,7 +1307,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型配置更新失败: %s, 错误: %s", model_id, str(e), exc_info=True)
+            _logger.error("模型配置更新失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     def archive_model(self, model_id: str, operator: str, reason: str = None, ip_address: str = None):
@@ -1222,7 +1377,7 @@ class ModelRegistry:
                 request_id=request_id
             )
 
-            logger.info("模型归档成功: %s v%s", model_name, model_version)
+            _logger.info("模型归档成功: %s v%s", model_name, model_version)
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
@@ -1242,7 +1397,7 @@ class ModelRegistry:
                 reason=str(e),
                 request_id=request_id
             )
-            logger.error("模型归档失败: %s, 错误: %s", model_id, str(e), exc_info=True)
+            _logger.error("模型归档失败: %s, 错误: %s", model_id, str(e), exc_info=True)
             raise
 
     @staticmethod
@@ -1258,10 +1413,10 @@ class ModelRegistry:
         """
         try:
             bentoml.models.delete(model_id)
-            logger.info("从 BentoML 删除模型成功: %s", model_id)
+            _logger.info("从 BentoML 删除模型成功: %s", model_id)
             return True
         except BentoMLException as e:
-            logger.warning("从 BentoML 删除模型失败: %s, 错误: %s", model_id, str(e))
+            _logger.warning("从 BentoML 删除模型失败: %s, 错误: %s", model_id, str(e))
             return False
 
     def _validate_task_specific_config(
@@ -1363,11 +1518,17 @@ class ModelRegistry:
 
 
 # ==================== 工厂函数 ====================
-def get_model_registry():
-    """
-    获取模型注册中心实例
+_model_registry: Optional[ModelRegistry] = None
+_registry_lock = threading.Lock()
 
-    返回:
-        ModelRegistry 实例
-    """
-    return ModelRegistry()
+
+def get_model_registry() -> ModelRegistry:
+    """获取模型注册中心实例"""
+    global _model_registry
+
+    if _model_registry is None:
+        with _registry_lock:
+            if _model_registry is None:
+                _model_registry = ModelRegistry()
+
+    return _model_registry

@@ -29,6 +29,7 @@
   - UserRole: 用户角色
   - UserStatus: 用户状态
   - DataType: 特征数据类型（数值/分类/布尔）
+  - DatabaseOperation: 数据库操作类型
 """
 
 from enum import Enum
@@ -462,7 +463,7 @@ class PerformanceOperation(str, Enum):
     AB_TEST_CREATE = "ab_test_create"
     AB_TEST_START = "ab_test_start"
     AB_TEST_COMPLETE = "ab_test_complete"
-    AB_TEST_RECORD = "ab_test_record"  # 修复：添加缺失的值
+    AB_TEST_RECORD = "ab_test_record"
 
     # API操作
     API_REQUEST = "api_request"
@@ -616,6 +617,28 @@ class DataType(str, Enum):
     ANY = "any"
 
 
+class DatabaseOperation(str, Enum):
+    """数据库操作类型枚举
+
+    定义异步/同步数据库写入器支持的操作类型。
+    用于技术层面的数据库操作，与业务审计的 AuditAction 区分。
+
+    属性:
+        INSERT: 插入单条记录
+        UPDATE: 更新记录
+        DELETE: 删除记录
+        BATCH_INSERT: 批量插入
+        BATCH_UPDATE: 批量更新
+        UPSERT: 插入或更新（PostgreSQL ON CONFLICT）
+    """
+    INSERT = "insert"
+    UPDATE = "update"
+    DELETE = "delete"
+    BATCH_INSERT = "batch_insert"
+    BATCH_UPDATE = "batch_update"
+    UPSERT = "upsert"
+
+
 __all__ = [
     'TaskType',
     'ModelType',
@@ -628,4 +651,5 @@ __all__ = [
     'UserRole',
     'UserStatus',
     'DataType',
+    'DatabaseOperation',
 ]

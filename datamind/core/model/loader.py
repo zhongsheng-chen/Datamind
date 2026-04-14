@@ -22,17 +22,16 @@
 """
 
 import time
+import bentoml
 import threading
 import traceback
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-
-import bentoml
 from bentoml.exceptions import BentoMLException
 
 from datamind.core.db.database import get_db
 from datamind.core.db.models import ModelMetadata
-from datamind.core.domain.enums import AuditAction, ModelStatus, PerformanceOperation
+from datamind.core.domain.enums import Framework, AuditAction, ModelStatus, PerformanceOperation
 from datamind.core.logging import log_audit, log_performance, context
 from datamind.core.logging import get_logger
 from datamind.core.common.exceptions import (
@@ -45,7 +44,7 @@ from datamind.core.common.frameworks import (
     get_supported_frameworks
 )
 
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class ModelLoader:
@@ -70,7 +69,7 @@ class ModelLoader:
         self._cache_ttl = cache_ttl
         self._max_concurrent_loads = max_concurrent_loads
         self._max_retries = max_retries
-        logger.info("模型加载器初始化完成，缓存过期时间: %d秒", cache_ttl)
+        _logger.debug("模型加载器初始化完成，缓存过期时间: %d秒", cache_ttl)
 
     def load_model(
             self,
@@ -101,11 +100,11 @@ class ModelLoader:
         with lock:
             if not force_reload and self.is_loaded(model_id):
                 if not self._is_cache_expired(model_id):
-                    logger.debug("模型已加载: %s", model_id)
+                    _logger.debug("模型已加载: %s", model_id)
                     return True
 
             if self.is_loaded(model_id) and self._is_cache_expired(model_id):
-                logger.info("模型缓存已过期，重新加载: %s", model_id)
+                _logger.info("模型缓存已过期，重新加载: %s", model_id)
                 self.unload_model(model_id, operator, ip_address)
 
             try:
@@ -212,8 +211,8 @@ class ModelLoader:
                     request_id=request_id
                 )
 
-                logger.info("模型加载成功: %s v%s, 框架: %s, 耗时: %.2f毫秒",
-                           model_name, model_version, framework, duration)
+                _logger.debug("模型加载成功: %s v%s, 框架: %s, 耗时: %.2f毫秒",
+                             model_name, model_version, framework, duration)
                 return True
 
             except Exception as e:
@@ -235,10 +234,10 @@ class ModelLoader:
                     reason=str(e),
                     request_id=request_id
                 )
-                logger.error("模型加载失败: %s, 错误: %s", model_id, str(e), exc_info=True)
+                _logger.error("模型加载失败: %s, 错误: %s", model_id, str(e), exc_info=True)
                 raise ModelLoadException(f"模型加载失败: {model_id}, {str(e)}")
 
-    def _load_from_bentoml(self, model_id: str, framework: str) -> Optional[Any]:
+    def _load_from_bentoml(self, model_id: str, framework: Framework) -> Optional[Any]:
         """
         从 BentoML Model Store 加载模型
 
@@ -249,47 +248,45 @@ class ModelLoader:
         返回:
             加载的模型实例
         """
-        framework_lower = framework.lower()
-
         for attempt in range(1, self._max_retries + 1):
             try:
-                bento_model = bentoml.models.get(model_id)
+                bento_model = bentoml.models.get(model_id.lower())
 
                 if not bento_model:
-                    logger.debug("BentoML 模型不存在: %s", model_id)
+                    _logger.debug("BentoML 模型不存在: %s", model_id)
                     return None
 
-                if framework_lower == 'sklearn':
+                if framework.value.lower() == 'sklearn':
                     model = bentoml.sklearn.load_model(bento_model.tag)
-                elif framework_lower == 'xgboost':
+                elif framework.value.lower() == 'xgboost':
                     model = bentoml.xgboost.load_model(bento_model.tag)
-                elif framework_lower == 'lightgbm':
+                elif framework.value.lower() == 'lightgbm':
                     model = bentoml.lightgbm.load_model(bento_model.tag)
-                elif framework_lower == 'catboost':
+                elif framework.value.lower() == 'catboost':
                     model = bentoml.catboost.load_model(bento_model.tag)
-                elif framework_lower in ['torch', 'pytorch']:
+                elif framework.value.lower() in ['torch', 'pytorch']:
                     model = bentoml.pytorch.load_model(bento_model.tag)
-                elif framework_lower == 'tensorflow':
+                elif framework.value.lower() == 'tensorflow':
                     model = bentoml.tensorflow.load_model(bento_model.tag)
-                elif framework_lower == 'onnx':
+                elif framework.value.lower() == 'onnx':
                     model = bentoml.onnx.load_model(bento_model.tag)
                 else:
                     model = bentoml.pickle.load_model(bento_model.tag)
 
-                logger.debug("从 BentoML 加载模型成功: %s", bento_model.tag)
+                _logger.debug("从 BentoML 加载模型成功: %s", bento_model.tag)
                 return model
 
             except BentoMLException as e:
                 if attempt < self._max_retries:
                     wait_time = 2 ** attempt
-                    logger.warning("BentoML 加载失败，%d秒后重试 (%d/%d): %s",
-                                   wait_time, attempt, self._max_retries, str(e))
+                    _logger.warning("BentoML 加载失败，%d秒后重试 (%d/%d): %s",
+                                    wait_time, attempt, self._max_retries, str(e))
                     time.sleep(wait_time)
                 else:
-                    logger.error("BentoML 加载失败，已达最大重试次数: %s", model_id)
+                    _logger.error("BentoML 加载失败，已达最大重试次数: %s", model_id)
                     raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}, {str(e)}")
             except Exception as e:
-                logger.error("从 BentoML 加载模型异常: %s, %s", model_id, str(e))
+                _logger.error("从 BentoML 加载模型异常: %s, %s", model_id, str(e))
                 raise ModelLoadException(f"从 BentoML 加载模型失败: {model_id}, {str(e)}")
 
         return None
@@ -332,7 +329,7 @@ class ModelLoader:
                         request_id=request_id
                     )
 
-                    logger.info("模型卸载成功: %s", model_name)
+                    _logger.info("模型卸载成功: %s", model_name)
 
     def get_model(self, model_id: str, refresh: bool = False) -> Optional[Any]:
         """
@@ -350,7 +347,7 @@ class ModelLoader:
             return None
 
         if self._is_cache_expired(model_id):
-            logger.debug("模型缓存已过期: %s", model_id)
+            _logger.debug("模型缓存已过期: %s", model_id)
             return None
 
         model_info = self._loaded_models.get(model_id)
@@ -488,7 +485,7 @@ class ModelLoader:
 
         model = self.get_model(model_id)
         if not model:
-            logger.debug("模型未加载，无法预热: %s", model_id)
+            _logger.debug("模型未加载，无法预热: %s", model_id)
             return False
 
         start_time = datetime.now()
@@ -502,7 +499,7 @@ class ModelLoader:
         feature_count = len(input_features)
 
         if feature_count == 0:
-            logger.warning("模型 %s 未定义 input_features，使用默认特征数10", model_id)
+            _logger.warning("模型 %s 未定义 input_features，使用默认特征数10", model_id)
             feature_count = 10
 
         try:
@@ -554,12 +551,12 @@ class ModelLoader:
                 }
             )
 
-            logger.info("模型预热成功: %s, 框架: %s, 特征数: %d, 耗时: %.2f毫秒",
-                       model_id, framework, feature_count, duration)
+            _logger.debug("模型预热成功: %s, 框架: %s, 特征数: %d, 耗时: %.2f毫秒",
+                          model_id, framework, feature_count, duration)
             return True
 
         except Exception as e:
-            logger.warning("模型预热失败: %s, 框架: %s, 错误: %s", model_id, framework, str(e))
+            _logger.warning("模型预热失败: %s, 框架: %s, 错误: %s", model_id, framework, str(e))
             return False
 
     def _is_cache_expired(self, model_id: str) -> bool:
@@ -590,7 +587,7 @@ class ModelLoader:
             if self._is_cache_expired(model_id):
                 self.unload_model(model_id)
                 expired_count += 1
-                logger.info("清除过期缓存: %s", model_id)
+                _logger.debug("清除过期缓存: %s", model_id)
         return expired_count
 
     def health_check(self) -> Dict[str, Any]:
@@ -638,6 +635,10 @@ class ModelLoader:
 
 # ==================== 工厂函数 ====================
 
+_model_loader: Optional[ModelLoader] = None
+_loader_lock = threading.Lock()
+
+
 def get_model_loader():
     """
     获取模型加载器实例
@@ -645,4 +646,11 @@ def get_model_loader():
     返回:
         ModelLoader 实例
     """
-    return ModelLoader()
+    global _model_loader
+
+    if _model_loader is None:
+        with _loader_lock:
+            if _model_loader is None:
+                _model_loader = ModelLoader()
+
+    return _model_loader
