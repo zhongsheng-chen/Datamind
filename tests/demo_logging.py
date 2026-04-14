@@ -242,7 +242,7 @@ def demo_async_logging():
         print("可以通过设置环境变量 DATAMIND_LOG_USE_ASYNC=true 启用")
         return
 
-    handler = log_manager.logger.handlers[0] if log_manager.logger else None
+    handler = log_manager._logger.handlers[0] if log_manager._logger else None
 
     if handler and hasattr(handler, 'get_stats'):
         stats = handler.get_stats()
@@ -433,8 +433,8 @@ def demo_get_stats():
             print(f"  {key}: {value}")
 
     # 处理器统计 - 遍历所有处理器
-    if log_manager.logger and log_manager.logger.handlers:
-        for i, handler in enumerate(log_manager.logger.handlers):
+    if log_manager._logger and log_manager._logger.handlers:
+        for i, handler in enumerate(log_manager._logger.handlers):
             if hasattr(handler, 'get_stats'):
                 stats = handler.get_stats()
                 handler_type = handler.__class__.__name__

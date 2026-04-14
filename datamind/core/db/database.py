@@ -257,7 +257,7 @@ class DatabaseManager:
                 request_id=request_id
             )
 
-            _logger.info(f"数据库引擎创建成功: {name}")
+            _logger.debug(f"数据库引擎创建成功: {name}")
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000

@@ -100,7 +100,7 @@ class ScoringEngine:
             self.capabilities, ScorecardCapability.BATCH_PREDICT
         )
 
-        _logger.info("评分引擎初始化完成，模型能力: %s, 支持批量预测: %s",
+        _logger.debug("评分引擎初始化完成，模型能力: %s, 支持批量预测: %s",
                      get_capability_list(self.capabilities),
                      self._supports_batch)
 
