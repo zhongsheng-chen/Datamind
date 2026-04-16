@@ -1,537 +1,684 @@
 # datamind/core/scoring/engine.py
 
-"""评分引擎
+"""评分卡引擎
 
-提供统一接口进行模型评分和特征解释。
+支持：
+  - RuleScorecardEngine: 规则评分卡（基于分箱）
+  - LogisticRegressionScorecardEngine: 逻辑回归评分卡（基于系数）
+  - PipelineScorecardEngine: 管道评分卡（基于WOE转换和逻辑回归）
 
 核心功能：
-  - score: 单条样本评分
-  - score_batch: 批量样本评分
-  - explain: 单条样本特征贡献解释（返回对数几率贡献和评分贡献）
-  - explain_batch: 批量特征贡献解释
-  - get_feature_importance: 获取全局特征重要性
+  - predict: 预测最终分数
+  - feature_score: 计算各特征分数
+  - raw_score: 计算原始分数
+  - final_score: 计算最终分数
+  - explain: 计算完整解释信息
 
-特性：
-  - 支持多种模型类型（评分卡/非评分卡）
-  - 自动处理特征转换（WOE、缺失值处理）
-  - 输出概率和分数，支持批量计算
-  - 异常安全处理，保证评分流程稳定
+三层分数体系：
+  - feature_score: 各特征独立贡献，用于解释
+  - raw_score: 特征分数总和加上截距，用于模型层
+  - final_score: 原始分数经过偏移和缩放，用于业务层
+
+分箱区间定义：
+  - 数值型分箱采用左闭右开区间
+  - 左边界为 None 表示负无穷，右边界为 None 表示正无穷
+  - 分箱配置不允许重叠，不允许有空洞
+
+使用示例：
+    from datamind.core.scoring.engine import RuleScorecardEngine
+
+    bins = {
+        "age": {
+            "type": "numeric",
+            "bins": [
+                {"min": None, "max": 25, "score": 20},
+                {"min": 25, "max": 35, "score": 40},
+                {"min": 35, "max": 50, "score": 60},
+                {"min": 50, "max": None, "score": 80},
+            ]
+        }
+    }
+
+    engine = RuleScorecardEngine(bins=bins)
+    score = engine.predict({"age": 30})
 """
 
-import time
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Any, Optional, List
+import math
 
-from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import (
     ScorecardCapability,
-    has_capability,
-    get_capability_list
+    infer_scorecard_capabilities,
 )
-from datamind.core.scoring.predictor import Predictor
-from datamind.core.scoring.score import Score
-from datamind.core.scoring.transform import WOETransformer
-from datamind.core.logging import get_logger, log_performance
-from datamind.core.domain.enums import PerformanceOperation
-
-_logger = get_logger(__name__)
 
 
-class ScoringEngine:
-    """评分引擎主入口
-
-    统一封装模型预测和特征解释功能。
+class BaseScorecardEngine:
+    """评分卡引擎基类
 
     属性:
-        model_adapter: 模型适配器实例
-        transformer: WOE转换器（评分卡模型使用）
-        predictor: 预测器
-        score_converter: 分数转换器
-        capabilities: 模型能力集
+        capabilities: 引擎能力集
+        offset: 分数偏移量
+        factor: 分数缩放因子
+    """
+
+    def __init__(self, offset: float = 0.0, factor: float = 1.0):
+        """
+        初始化评分卡引擎
+
+        参数:
+            offset: 分数偏移量，默认 0.0
+            factor: 分数缩放因子，默认 1.0
+        """
+        self.capabilities: ScorecardCapability = ScorecardCapability.NONE
+        self.offset = offset
+        self.factor = factor
+
+    def predict(self, X: Dict[str, Any]) -> float:
+        """
+        预测最终分数
+
+        参数:
+            X: 特征字典
+
+        返回:
+            最终分数
+        """
+        return self.final_score(X)
+
+    def feature_score(self, X: Dict[str, Any]) -> Dict[str, float]:
+        """
+        计算各特征分数（子类必须实现）
+
+        参数:
+            X: 特征字典
+
+        返回:
+            特征分数字典
+        """
+        raise NotImplementedError
+
+    def raw_score(self, X: Dict[str, Any]) -> float:
+        """
+        计算原始分数（子类必须实现）
+
+        语义依赖引擎类型：
+            - RuleScorecardEngine: raw_score = Σ feature_score
+            - LogisticRegressionScorecardEngine: raw_score = intercept + Σ(coef × value)
+            - PipelineScorecardEngine: raw_score = intercept + Σ(coef × woe)
+
+        参数:
+            X: 特征字典
+
+        返回:
+            原始分数
+
+        异常:
+            RuntimeError: 原始分数为 None
+        """
+        raise NotImplementedError
+
+    def final_score(self, X: Dict[str, Any]) -> float:
+        """
+        计算最终分数
+
+        公式: final_score = offset + factor × raw_score
+
+        参数:
+            X: 特征字典
+
+        返回:
+            最终分数
+        """
+        raw = self.raw_score(X)
+        if raw is None:
+            raise RuntimeError("raw_score 返回了 None")
+        return self.offset + self.factor * raw
+
+    def explain(self, X: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        计算完整解释信息
+
+        返回:
+            包含特征分数、原始分数、最终分数、特征分数类型的字典
+        """
+        fs = self.feature_score(X)
+        raw = self.raw_score(X)
+        if raw is None:
+            raise RuntimeError("raw_score 返回了 None")
+        final = self.offset + self.factor * raw
+
+        return {
+            "feature_score": fs,
+            "feature_score_type": self._get_feature_score_type(),
+            "raw_score": raw,
+            "final_score": final,
+        }
+
+    def get_capabilities(self) -> ScorecardCapability:
+        """获取引擎能力集"""
+        return self.capabilities
+
+    def _get_feature_score_type(self) -> str:
+        """
+        获取特征分数类型（子类可重写）
+
+        返回:
+            特征分数类型标识
+        """
+        return "unknown"
+
+    @staticmethod
+    def _validate_numeric_value(value: Any) -> Optional[float]:
+        """
+        验证并转换数值类型
+
+        参数:
+            value: 特征值
+
+        返回:
+            转换后的浮点数，无效时返回 None
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        return None
+
+
+class RuleScorecardEngine(BaseScorecardEngine):
+    """
+    规则评分卡引擎
+
+    基于分箱的规则评分卡，支持数值型和分类型特征。
+
+    分箱区间定义：
+        - 数值型分箱采用左闭右开区间
+        - 左边界为 None 表示负无穷，右边界为 None 表示正无穷
+        - 分箱配置不允许重叠，不允许有空洞
+
+    bins 格式:
+        {
+            "age": {
+                "type": "numeric",
+                "bins": [
+                    {"min": None, "max": 25, "score": 20},
+                    {"min": 25, "max": 35, "score": 40},
+                    {"min": 35, "max": 50, "score": 60},
+                    {"min": 50, "max": None, "score": 80},
+                ]
+            },
+            "gender": {
+                "type": "categorical",
+                "bins": [
+                    {"value": "male", "score": 10},
+                    {"value": "female", "score": 20},
+                ]
+            }
+        }
+
+    属性:
+        bins: 分箱配置字典
+        default_score: 默认分数
     """
 
     def __init__(
         self,
-        model_adapter: BaseModelAdapter,
-        transformer: Optional[WOETransformer] = None,
-        pdo: Optional[float] = None,
-        base_score: Optional[float] = None,
-        base_odds: Optional[float] = None,
-        min_score: Optional[float] = None,
-        max_score: Optional[float] = None,
-        validate_features: bool = False
+        bins: Dict[str, Any],
+        default_score: float = 0.0,
+        offset: float = 0.0,
+        factor: float = 1.0,
     ):
         """
-        初始化评分引擎
+        初始化规则评分卡引擎
 
         参数:
-            model_adapter: 已加载的模型适配器实例
-            transformer: 可选特征转换器（评分卡模型使用）
-            pdo: 分数翻倍点，默认 50
-            base_score: 基础分数，默认 600
-            base_odds: 基准赔率，默认 20
-            min_score: 最低分数限制，默认 0
-            max_score: 最高分数限制，默认 1000
-            validate_features: 是否验证特征完整性
+            bins: 分箱配置字典
+            default_score: 默认分数，默认 0.0
+            offset: 分数偏移量，默认 0.0
+            factor: 分数缩放因子，默认 1.0
         """
-        self.model_adapter = model_adapter
-        self.transformer = transformer
-        self._validate_features = validate_features
+        super().__init__(offset, factor)
+        self.bins = bins
+        self.default_score = default_score
+        self._validate_bins()
+        self.capabilities = infer_scorecard_capabilities(self)
 
-        # 初始化预测器（只负责预测概率和原始输出）
-        self.predictor = Predictor(
-            adapter=model_adapter,
-            validate_features=validate_features
-        )
+    def _validate_bins(self) -> None:
+        """校验分箱配置，检查重叠和空洞"""
+        if not __debug__:
+            return
 
-        # 初始化概率到分数的转换器
-        self.score_converter = Score(
-            pdo=pdo,
-            base_score=base_score,
-            base_odds=base_odds,
-            min_score=min_score,
-            max_score=max_score
-        )
+        for feature, cfg in self.bins.items():
+            if cfg["type"] != "numeric":
+                continue
 
-        # 获取模型能力
-        self.capabilities = model_adapter.get_capabilities()
+            bins = cfg["bins"]
+            if not bins:
+                raise ValueError(f"特征 {feature} 的分箱配置为空")
 
-        # 检查是否支持批量预测
-        self._supports_batch = has_capability(
-            self.capabilities, ScorecardCapability.BATCH_PREDICT
-        )
+            prev_max = None
+            for i, b in enumerate(bins):
+                min_val = b.get("min")
+                max_val = b.get("max")
 
-        _logger.debug("评分引擎初始化完成，模型能力: %s, 支持批量预测: %s",
-                     get_capability_list(self.capabilities),
-                     self._supports_batch)
+                # 检查第一个分箱左边界
+                if i == 0:
+                    if min_val is not None:
+                        raise ValueError(
+                            f"分箱配置错误: 特征 {feature} 的第一个分箱左边界应为 None，"
+                            f"当前为 {min_val}"
+                        )
+                else:
+                    if min_val is None:
+                        raise ValueError(
+                            f"分箱配置错误: 特征 {feature} 的第 {i + 1} 个分箱左边界不能为 None"
+                        )
 
-    def _transform_features(self, features: Dict[str, Any]) -> Dict[str, float]:
+                # 检查最后一个分箱右边界
+                if i == len(bins) - 1:
+                    if max_val is not None:
+                        raise ValueError(
+                            f"分箱配置错误: 特征 {feature} 的最后一个分箱右边界应为 None，"
+                            f"当前为 {max_val}"
+                        )
+                else:
+                    if max_val is None:
+                        raise ValueError(
+                            f"分箱配置错误: 特征 {feature} 的第 {i + 1} 个分箱右边界不能为 None"
+                        )
+
+                # 检查重叠
+                if prev_max is not None and min_val is not None and prev_max > min_val:
+                    raise ValueError(
+                        f"分箱配置错误: 特征 {feature} 的分箱存在重叠，"
+                        f"第 {i} 箱最大值 {prev_max} 大于第 {i + 1} 箱最小值 {min_val}"
+                    )
+
+                # 检查空洞
+                if prev_max is not None and min_val is not None and prev_max < min_val:
+                    raise ValueError(
+                        f"分箱配置错误: 特征 {feature} 的分箱存在空洞，"
+                        f"区间 ({prev_max}, {min_val}) 没有覆盖"
+                    )
+
+                prev_max = max_val
+
+    def _get_feature_score_type(self) -> str:
+        """返回规则评分卡的特征分数类型"""
+        return "rule"
+
+    def _match_numeric_bin(self, feature: str, value: float) -> float:
         """
-        转换特征（处理缺失值和 WOE）
+        匹配数值型分箱
 
         参数:
-            features: 原始特征字典
+            feature: 特征名称
+            value: 特征值
 
         返回:
-            转换后的特征字典
+            分箱分数
         """
-        if self.transformer:
-            try:
-                return self.transformer.transform(features)
-            except ValueError as e:
-                _logger.error("特征转换失败: %s", e)
-                raise
-        return features
+        cfg = self.bins[feature]
 
-    def score(self, features: Dict[str, Any], return_proba: bool = True) -> Dict[str, Optional[float]]:
+        for b in cfg["bins"]:
+            min_val = b.get("min")
+            max_val = b.get("max")
+
+            if (min_val is None or value >= min_val) and \
+               (max_val is None or value < max_val):
+                return float(b["score"])
+
+        return self.default_score
+
+    def _match_categorical_bin(self, feature: str, value: str) -> float:
         """
-        单条样本评分
+        匹配分类型分箱
 
         参数:
-            features: 特征字典
-            return_proba: 是否返回预测概率
+            feature: 特征名称
+            value: 特征值
 
         返回:
-            字典，包括：
-                "score": 信用分
-                "proba": 违约概率（可选）
+            分箱分数
         """
-        start_time = time.time()
-        try:
-            # 特征转换
-            transformed = self._transform_features(features)
+        cfg = self.bins[feature]
 
-            # 预测概率
-            proba = self.predictor.predict_proba(transformed)
-            _logger.debug("预测概率: %.6f", proba)
+        for b in cfg["bins"]:
+            if value == b["value"]:
+                return float(b["score"])
 
-            score = self.score_converter.to_score(proba)
+        return self.default_score
 
-            duration = (time.time() - start_time) * 1000
-            log_performance(
-                operation=PerformanceOperation.SCORECARD_CALCULATE,
-                duration_ms=duration,
-                extra={"return_proba": return_proba}
-            )
+    def feature_score(self, X: Dict[str, Any]) -> Dict[str, float]:
+        """
+        计算各特征分数
 
-            result = {"score": score}
-            if return_proba:
-                result["proba"] = proba
+        参数:
+            X: 特征字典
 
-            return result
+        返回:
+            特征分数字典
+        """
+        result: Dict[str, float] = {}
 
-        except Exception as e:
-            duration = (time.time() - start_time) * 1000
-            _logger.error("单条评分失败: %s, 耗时: %.2fms", e, duration)
-            return {"score": None, "proba": None if return_proba else None}
+        for feature, cfg in self.bins.items():
+            value = X.get(feature)
 
-    def score_batch(
+            if value is None:
+                result[feature] = self.default_score
+                continue
+
+            if cfg["type"] == "numeric":
+                numeric_val = self._validate_numeric_value(value)
+                if numeric_val is None:
+                    result[feature] = self.default_score
+                    continue
+                result[feature] = self._match_numeric_bin(feature, numeric_val)
+
+            elif cfg["type"] == "categorical":
+                if not isinstance(value, str):
+                    result[feature] = self.default_score
+                    continue
+                result[feature] = self._match_categorical_bin(feature, value)
+
+            else:
+                result[feature] = self.default_score
+
+        return result
+
+    def raw_score(self, X: Dict[str, Any]) -> float:
+        """
+        计算原始分数
+
+        公式: raw_score = Σ feature_score
+
+        参数:
+            X: 特征字典
+
+        返回:
+            原始分数
+        """
+        return sum(self.feature_score(X).values())
+
+
+class LogisticRegressionScorecardEngine(BaseScorecardEngine):
+    """
+    逻辑回归评分卡引擎
+
+    基于系数的逻辑回归评分卡，支持特征分数计算、分数缩放和概率输出。
+
+    公式:
+        raw_score = intercept + Σ(coef × value)
+        final_score = offset + factor × raw_score
+        probability = 1 / (1 + exp(-raw_score))
+
+    属性:
+        coef: 特征系数字典
+        _intercept: 截距
+    """
+
+    def __init__(
         self,
-        features_list: List[Dict[str, Any]],
-        return_proba: bool = True,
-        skip_errors: bool = False
-    ) -> List[Dict[str, Optional[float]]]:
+        coef: Dict[str, float],
+        intercept: float = 0.0,
+        offset: float = 0.0,
+        factor: float = 1.0,
+    ):
         """
-        批量样本评分
+        初始化逻辑回归评分卡引擎
 
         参数:
-            features_list: 特征字典列表
-            return_proba: 是否返回预测概率
-            skip_errors: 是否跳过错误样本（返回 None）
-
-        返回:
-            字典列表
+            coef: 特征系数字典
+            intercept: 截距，默认 0.0
+            offset: 分数偏移量，默认 0.0
+            factor: 分数缩放因子，默认 1.0
         """
-        if not features_list:
-            _logger.debug("输入为空列表，返回空结果")
-            return []
+        super().__init__(offset, factor)
+        self.coef = coef
+        self._intercept = intercept
+        self.capabilities = infer_scorecard_capabilities(self)
 
-        start_time = time.time()
+    def _get_feature_score_type(self) -> str:
+        """返回逻辑回归评分卡的特征分数类型"""
+        return "linear"
 
-        # 使用批量预测（如果支持）
-        if self._supports_batch:
-            try:
-                results = self._score_batch_vectorized(features_list, return_proba, skip_errors)
-                duration = (time.time() - start_time) * 1000
-                log_performance(
-                    operation=PerformanceOperation.SCORECARD_CALCULATE,
-                    duration_ms=duration,
-                    extra={"batch_size": len(features_list), "vectorized": True}
-                )
-                return results
-            except Exception as e:
-                if skip_errors:
-                    _logger.warning("批量预测失败，降级为循环预测: %s", e)
-                else:
-                    raise
-
-        # 降级为循环预测
-        results = self._score_batch_loop(features_list, return_proba, skip_errors)
-        duration = (time.time() - start_time) * 1000
-        log_performance(
-            operation=PerformanceOperation.SCORECARD_CALCULATE,
-            duration_ms=duration,
-            extra={"batch_size": len(features_list), "vectorized": False}
-        )
-        return results
-
-    def _score_batch_vectorized(
-            self,
-            features_list: List[Dict[str, Any]],
-            return_proba: bool = True,
-            skip_errors: bool = False
-    ) -> List[Dict[str, Optional[float]]]:
+    def feature_score(self, X: Dict[str, Any]) -> Dict[str, float]:
         """
-        向量化批量评分（性能优化）
+        计算各特征分数
+
+        公式: 特征分数 = coef × value
 
         参数:
-            features_list: 特征字典列表
-            return_proba: 是否返回预测概率
-            skip_errors: 是否跳过错误样本
+            X: 特征字典
 
         返回:
-            评分结果列表
+            特征分数字典
         """
-        _logger.debug("使用向量化批量评分，样本数: %d", len(features_list))
+        result: Dict[str, float] = {}
 
-        # 批量特征转换
-        transformed_list = []
-        valid_indices = []
-        for i, features in enumerate(features_list):
-            try:
-                transformed = self._transform_features(features)
-                transformed_list.append(transformed)
-                valid_indices.append(i)
-            except Exception as e:
-                if skip_errors:
-                    _logger.error("第 %d 条特征转换失败: %s", i, e)
-                else:
-                    raise
+        for feature, weight in self.coef.items():
+            value = X.get(feature)
 
-        # 初始化结果列表
-        results: List[Dict[str, Optional[float]]] = []
-        for _ in features_list:
-            result: Dict[str, Optional[float]] = {"score": None}
-            if return_proba:
-                result["proba"] = None
-            results.append(result)
+            numeric_val = self._validate_numeric_value(value)
+            if numeric_val is None:
+                result[feature] = 0.0
+                continue
 
-        # 如果没有有效样本，返回空结果
-        if not transformed_list:
-            return results
+            result[feature] = weight * numeric_val
 
-        # 批量预测概率
-        probs = self.predictor.predict_proba_batch(transformed_list)
+        return result
 
-        # 批量转换分数
-        scores = self.score_converter.to_score_batch(probs)
-
-        # 填充有效结果
-        for idx, i in enumerate(valid_indices):
-            results[i]["score"] = scores[idx]
-            if return_proba:
-                results[i]["proba"] = probs[idx]
-
-        return results
-
-    def _score_batch_loop(
-            self,
-            features_list: List[Dict[str, Any]],
-            return_proba: bool = True,
-            skip_errors: bool = False
-    ) -> List[Dict[str, Optional[float]]]:
+    def raw_score(self, X: Dict[str, Any]) -> float:
         """
-        循环批量评分（降级方案）
+        计算原始分数
+
+        公式: raw_score = intercept + Σ(coef × value)
 
         参数:
-            features_list: 特征字典列表
-            return_proba: 是否返回预测概率
-            skip_errors: 是否跳过错误样本
+            X: 特征字典
 
         返回:
-            评分结果列表
+            原始分数
         """
-        _logger.debug("使用循环批量评分，样本数: %d", len(features_list))
+        fs = self.feature_score(X)
+        return sum(fs.values()) + self._intercept
 
-        results: List[Dict[str, Optional[float]]] = []
-        for i, features in enumerate(features_list):
-            try:
-                result = self.score(features, return_proba=return_proba)
-                typed_result: Dict[str, Optional[float]] = {
-                    "score": result.get("score"),
-                }
-                if return_proba:
-                    typed_result["proba"] = result.get("proba")
-                results.append(typed_result)
-            except Exception as e:
-                if skip_errors:
-                    _logger.error("第 %d 条评分失败: %s，返回 None", i, e)
-                    result_dict: Dict[str, Optional[float]] = {"score": None}
-                    if return_proba:
-                        result_dict["proba"] = None
-                    results.append(result_dict)
-                else:
-                    _logger.error("第 %d 条评分失败: %s", i, e)
-                    raise
-
-        return results
-
-    def explain(self, features: Dict[str, Any], return_score_scale: bool = True) -> Dict[str, Any]:
+    def predict_proba(self, X: Dict[str, Any]) -> float:
         """
-        获取单条样本特征贡献解释
-
-        对于评分卡模型（逻辑回归）：
-            逻辑回归输出: log_odds_raw = intercept + Σ(coefficient × WOE) = log(p/(1-p))  # 坏/好空间
-            评分卡 odds: odds = (1-p)/p = exp(-log_odds_raw)  # 好/坏空间
-            信用评分: score = offset + factor × log(odds) = offset - factor × log_odds_raw
-
-            因此：
-                - log_odds_contributions: 特征的对数几率贡献（坏/好空间）
-                - score_contributions: 特征的评分贡献 = -factor × log_odds_contributions
-                - 总评分: score = offset + Σ(score_contributions)
-
-        对于黑盒模型（XGBoost、RandomForest等）：
-            返回 SHAP 值解释
+        预测违约概率
 
         参数:
-            features: 特征字典
-            return_score_scale: 是否返回评分尺度贡献（默认True）
+            X: 特征字典
 
         返回:
-            字典，包含：
-                "explain_type": 解释类型 ("scorecard" 或 "blackbox" 或 "unsupported")
-                "log_odds_contributions": 特征对数几率贡献（坏/好空间）
-                "intercept_log_odds": 截距对数几率（坏/好空间）
-                "total_log_odds": 总对数几率（坏/好空间）
-                "score_contributions": 特征评分贡献（可选，评分尺度）
-                "intercept_score": 截距评分贡献（可选）
-                "total_score": 总评分（可选）
+            违约概率
         """
-        # 评分卡模型：使用特征分数
-        if has_capability(self.capabilities, ScorecardCapability.FEATURE_SCORE):
-            try:
-                _logger.debug("使用评分卡模型解释")
+        raw = self.raw_score(X)
+        return 1.0 / (1.0 + math.exp(-raw))
 
-                if self.transformer is None:
-                    _logger.debug("评分卡模型没有WOE转换器，将使用原始特征值计算（可能不准确）")
-                    transformed = features
-                else:
-                    transformed = self._transform_features(features)
-                    _logger.debug("WOE转换完成，特征数: %d", len(transformed))
 
-                # 获取评分参数
-                factor = self.score_converter.factor
-                offset = self.score_converter.offset
+class PipelineScorecardEngine(BaseScorecardEngine):
+    """
+    管道评分卡引擎
 
-                # 计算贡献
-                log_odds_contributions = {}
-                score_contributions = {}
-                total_log_odds = 0.0
-                total_score = offset
+    支持 WOE 转换配合逻辑回归的管道评分卡。
 
-                for feat_name, woe in transformed.items():
-                    try:
-                        coefficient = self.model_adapter.get_coef(feat_name)
-                        # 对数几率贡献（坏/好空间）
-                        log_odds_contrib = coefficient * woe
-                        log_odds_contributions[feat_name] = log_odds_contrib
-                        total_log_odds += log_odds_contrib
-
-                        # 评分贡献（评分尺度）
-                        score_contrib = None
-                        if return_score_scale:
-                            score_contrib = -factor * log_odds_contrib
-                            score_contributions[feat_name] = score_contrib
-                            total_score += score_contrib
-
-                        _logger.debug("特征 %s: WOE=%.4f, 系数=%.4f, 对数几率贡献=%.4f, 评分贡献=%.4f",
-                                      feat_name, woe, coefficient, log_odds_contrib,
-                                      score_contrib if return_score_scale else 0)
-                    except (RuntimeError, ValueError, AttributeError) as e:
-                        _logger.debug("获取特征 %s 系数失败: %s", feat_name, e)
-
-                # 添加截距贡献
-                intercept_log_odds = 0.0
-                intercept_score = 0.0
-                try:
-                    intercept_log_odds = self.model_adapter.get_intercept()
-                    total_log_odds += intercept_log_odds
-
-                    if return_score_scale:
-                        intercept_score = -factor * intercept_log_odds
-                        total_score += intercept_score
-                    _logger.debug("截距: 对数几率=%.4f, 评分贡献=%.4f", intercept_log_odds, intercept_score)
-                except NotImplementedError:
-                    _logger.debug("模型不支持截距提取")
-                except Exception as e:
-                    _logger.debug("获取截距失败: %s", e)
-
-                # 构建返回结果
-                result = {
-                    "explain_type": "scorecard",
-                    "log_odds_contributions": log_odds_contributions,
-                    "intercept_log_odds": intercept_log_odds,
-                    "total_log_odds": total_log_odds
-                }
-
-                if return_score_scale:
-                    result["score_contributions"] = score_contributions
-                    result["intercept_score"] = intercept_score
-                    result["total_score"] = total_score
-
-                _logger.debug("解释完成: 总对数几率=%.4f, 总评分=%.4f",
-                              total_log_odds, total_score if return_score_scale else 0)
-                return result
-
-            except Exception as e:
-                _logger.error("特征贡献解释失败: %s", e)
-                import traceback
-                traceback.print_exc()
-                return {
-                    "explain_type": "scorecard",
-                    "log_odds_contributions": {},
-                    "total_log_odds": 0.0
-                }
-
-        # SHAP 解释（非评分卡模型）
-        if has_capability(self.capabilities, ScorecardCapability.SHAP):
-            _logger.debug("使用 SHAP 解释")
-            try:
-                X_array = self.model_adapter.to_array(features)
-
-                if hasattr(self.model_adapter, "get_shap_values"):
-                    shap_values = self.model_adapter.get_shap_values(X_array)
-                    if shap_values:
-                        return {
-                            "explain_type": "blackbox",
-                            "shap_values": shap_values,
-                            "base_value": 0.0,
-                            "expected_value": 0.0
-                        }
-            except Exception as e:
-                _logger.error("SHAP 解释失败: %s", e)
-
-        # 模型不支持解释
-        _logger.debug("模型不支持特征贡献解释")
-        return {
-            "explain_type": "unsupported",
-            "message": "模型不支持特征贡献解释"
+    pipeline 格式:
+        {
+            "woe_transformer": WOETransformer实例,
+            "model": 逻辑回归模型,
+            "features": 特征名称列表
         }
 
-    def explain_batch(
+    属性:
+        woe_transformer: WOE 转换器
+        features: 特征名称列表
+        _coef: 模型系数数组
+        _intercept: 模型截距
+    """
+
+    def __init__(
         self,
-        features_list: List[Dict[str, Any]],
-        skip_errors: bool = False
-    ) -> List[Dict[str, Any]]:
+        woe_transformer: Any,
+        model: Any,
+        features: List[str],
+        offset: float = 0.0,
+        factor: float = 1.0,
+    ):
         """
-        批量获取特征贡献解释
+        初始化管道评分卡引擎
 
         参数:
-            features_list: 特征字典列表
-            skip_errors: 是否跳过错误样本（返回空字典）
+            woe_transformer: WOE 转换器实例
+            model: 逻辑回归模型
+            features: 特征名称列表
+            offset: 分数偏移量，默认 0.0
+            factor: 分数缩放因子，默认 1.0
+
+        异常:
+            ValueError: 模型没有 coef_ 属性
+        """
+        super().__init__(offset, factor)
+        self.woe_transformer = woe_transformer
+        self.features = features
+        self.capabilities = infer_scorecard_capabilities(self)
+
+        # 提取模型系数
+        if hasattr(model, "coef_"):
+            self._coef = model.coef_.flatten()
+        else:
+            raise ValueError("管道评分卡引擎的模型没有 coef_ 属性")
+
+        # 提取截距
+        if hasattr(model, "intercept_"):
+            self._intercept = float(model.intercept_[0])
+        else:
+            self._intercept = 0.0
+
+    def _get_feature_score_type(self) -> str:
+        """返回管道评分卡的特征分数类型"""
+        return "woe_linear"
+
+    def _apply_woe(self, X: Dict[str, Any]) -> Dict[str, float]:
+        """
+        应用 WOE 转换
+
+        参数:
+            X: 特征字典
 
         返回:
-            特征贡献字典列表
+            WOE 转换后的特征字典
         """
-        results = []
-        for i, features in enumerate(features_list):
-            try:
-                results.append(self.explain(features))
-            except Exception as e:
-                if skip_errors:
-                    _logger.error("第 %d 条解释失败: %s，返回空字典", i, e)
-                    results.append({})
-                else:
-                    _logger.error("第 %d 条解释失败: %s", i, e)
-                    raise
+        return self.woe_transformer.transform(X)
 
-        return results
-
-    def get_feature_importance(self) -> Dict[str, float]:
+    def feature_score(self, X: Dict[str, Any]) -> Dict[str, float]:
         """
-        获取全局特征重要性
+        计算各特征分数
+
+        公式: 特征分数 = coef × woe
+
+        参数:
+            X: 特征字典
 
         返回:
-            特征重要性字典
+            特征分数字典
         """
-        # 评分卡模型：从 transformer 获取
-        if self.transformer and hasattr(self.transformer, 'binning'):
-            importance = {}
-            for feature, bins in self.transformer.binning.items():
-                max_woe = max(abs(b.woe) for b in bins)
-                importance[feature] = max_woe
-            _logger.debug("从 transformer 获取特征重要性，特征数: %d", len(importance))
-            return importance
+        X_woe = self._apply_woe(X)
 
-        # 其他模型：从适配器获取
-        importance = self.model_adapter.get_feature_importance()
-        if importance:
-            _logger.debug("从适配器获取特征重要性，特征数: %d", len(importance))
-        return importance
+        result: Dict[str, float] = {}
 
-    def get_score_range(self) -> Tuple[float, float]:
+        for i, feature in enumerate(self.features):
+            value = X_woe.get(feature, 0.0)
+
+            numeric_val = self._validate_numeric_value(value)
+            if numeric_val is None:
+                result[feature] = 0.0
+                continue
+
+            result[feature] = self._coef[i] * numeric_val
+
+        return result
+
+    def raw_score(self, X: Dict[str, Any]) -> float:
         """
-        获取有效分数范围
+        计算原始分数
 
-        返回:
-            (min_score, max_score) 元组
-        """
-        min_score, max_score = self.score_converter.get_score_range()
-        return min_score, max_score
+        公式: raw_score = intercept + Σ(coef × woe)
 
-    def is_scorecard_model(self) -> bool:
-        """
-        检查是否为评分卡模型
+        参数:
+            X: 特征字典
 
         返回:
-            True 表示是评分卡模型，False 表示不是
+            原始分数
         """
-        return has_capability(self.capabilities, ScorecardCapability.FEATURE_SCORE)
+        fs = self.feature_score(X)
+        return sum(fs.values()) + self._intercept
 
-    def get_model_capabilities(self) -> List[str]:
+    def predict_proba(self, X: Dict[str, Any]) -> float:
         """
-        获取模型能力列表
+        预测违约概率
+
+        参数:
+            X: 特征字典
 
         返回:
-            能力名称列表
+            违约概率
         """
-        return get_capability_list(self.capabilities)
+        raw = self.raw_score(X)
+        return 1.0 / (1.0 + math.exp(-raw))
+
+
+def create_scorecard_engine(mode: str, **kwargs) -> BaseScorecardEngine:
+    """
+    创建评分卡引擎
+
+    参数:
+        mode: 引擎类型，可选 'rule', 'logistic_regression', 'pipeline'
+        **kwargs: 引擎特定参数
+            - rule 模式: bins, default_score, offset, factor
+            - logistic_regression 模式: coef, intercept, offset, factor
+            - pipeline 模式: woe_transformer, model, features, offset, factor
+
+    返回:
+        BaseScorecardEngine 实例
+
+    异常:
+        ValueError: 不支持的引擎类型
+    """
+    if mode == "rule":
+        return RuleScorecardEngine(
+            bins=kwargs["bins"],
+            default_score=kwargs.get("default_score", 0.0),
+            offset=kwargs.get("offset", 0.0),
+            factor=kwargs.get("factor", 1.0),
+        )
+
+    if mode == "logistic_regression":
+        return LogisticRegressionScorecardEngine(
+            coef=kwargs["coef"],
+            intercept=kwargs.get("intercept", 0.0),
+            offset=kwargs.get("offset", 0.0),
+            factor=kwargs.get("factor", 1.0),
+        )
+
+    if mode == "pipeline":
+        return PipelineScorecardEngine(
+            woe_transformer=kwargs["woe_transformer"],
+            model=kwargs["model"],
+            features=kwargs["features"],
+            offset=kwargs.get("offset", 0.0),
+            factor=kwargs.get("factor", 1.0),
+        )
+
+    raise ValueError(f"不支持的评分卡引擎类型: {mode}")
+
+
+__all__ = [
+    'BaseScorecardEngine',
+    'RuleScorecardEngine',
+    'LogisticRegressionScorecardEngine',
+    'PipelineScorecardEngine',
+    'create_scorecard_engine',
+]

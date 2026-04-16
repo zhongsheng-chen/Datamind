@@ -21,11 +21,13 @@
     PREDICT_LOG_ODDS（原始对数几率）、SHAP（SHAP 解释）、SHAP_TREE（SHAP 树解释）、
     SHAP_KERNEL（SHAP 核解释）、FEATURE_IMPORTANCE（特征重要性）、BATCH_PREDICT（批量预测）
   - 评分卡能力（ScorecardCapability）：SCORECARD_WOE（WOE 转换）、SCORECARD_LOGIT（对数几率）、
-    SCORECARD_SCORE（评分卡分数）、SCORECARD_EXPORT（评分卡导出）
+    SCORECARD_FEATURE_SCORE（特征分数）、SCORECARD_SCORE（评分卡分数）、SCORECARD_EXPORT（评分卡导出）
 
 依赖关系：
   - 模型能力：PREDICT_CLASS 依赖 PREDICT_PROBA
-  - 评分卡能力：SCORECARD_SCORE 依赖 SCORECARD_LOGIT，SCORECARD_LOGIT 依赖 SCORECARD_WOE
+  - 评分卡能力：SCORECARD_SCORE 依赖 SCORECARD_FEATURE_SCORE，
+    SCORECARD_FEATURE_SCORE 依赖 SCORECARD_LOGIT，
+    SCORECARD_LOGIT 依赖 SCORECARD_WOE
 
 使用示例：
     from datamind.core.scoring.capability import (
@@ -89,6 +91,7 @@ class ScorecardCapability(IntFlag):
         NONE: 无能力
         SCORECARD_WOE: WOE 转换
         SCORECARD_LOGIT: 对数几率
+        SCORECARD_FEATURE_SCORE: 特征分数
         SCORECARD_SCORE: 评分卡分数
         SCORECARD_EXPORT: 评分卡导出
     """
@@ -96,6 +99,7 @@ class ScorecardCapability(IntFlag):
 
     SCORECARD_WOE = auto()
     SCORECARD_LOGIT = auto()
+    SCORECARD_FEATURE_SCORE = auto()
     SCORECARD_SCORE = auto()
     SCORECARD_EXPORT = auto()
 
@@ -124,8 +128,11 @@ _SCORECARD_CAPABILITY_DEPENDENCIES: Dict[ScorecardCapability, Set[ScorecardCapab
     ScorecardCapability.SCORECARD_LOGIT: {
         ScorecardCapability.SCORECARD_WOE
     },
-    ScorecardCapability.SCORECARD_SCORE: {
+    ScorecardCapability.SCORECARD_FEATURE_SCORE: {
         ScorecardCapability.SCORECARD_LOGIT
+    },
+    ScorecardCapability.SCORECARD_SCORE: {
+        ScorecardCapability.SCORECARD_FEATURE_SCORE
     },
     ScorecardCapability.SCORECARD_EXPORT: {
         ScorecardCapability.SCORECARD_SCORE
@@ -160,6 +167,7 @@ _MODEL_CAPABILITY_DESCRIPTIONS: Dict[ModelCapability, str] = {
 _SCORECARD_CAPABILITY_NAMES: Dict[ScorecardCapability, str] = {
     ScorecardCapability.SCORECARD_WOE: "SCORECARD_WOE",
     ScorecardCapability.SCORECARD_LOGIT: "SCORECARD_LOGIT",
+    ScorecardCapability.SCORECARD_FEATURE_SCORE: "SCORECARD_FEATURE_SCORE",
     ScorecardCapability.SCORECARD_SCORE: "SCORECARD_SCORE",
     ScorecardCapability.SCORECARD_EXPORT: "SCORECARD_EXPORT",
 }
@@ -167,6 +175,7 @@ _SCORECARD_CAPABILITY_NAMES: Dict[ScorecardCapability, str] = {
 _SCORECARD_CAPABILITY_DESCRIPTIONS: Dict[ScorecardCapability, str] = {
     ScorecardCapability.SCORECARD_WOE: "WOE 转换",
     ScorecardCapability.SCORECARD_LOGIT: "对数几率",
+    ScorecardCapability.SCORECARD_FEATURE_SCORE: "特征分数",
     ScorecardCapability.SCORECARD_SCORE: "评分卡分数",
     ScorecardCapability.SCORECARD_EXPORT: "评分卡导出",
 }
@@ -187,6 +196,7 @@ ALL_MODEL_CAPABILITIES: List[ModelCapability] = [
 ALL_SCORECARD_CAPABILITIES: List[ScorecardCapability] = [
     ScorecardCapability.SCORECARD_WOE,
     ScorecardCapability.SCORECARD_LOGIT,
+    ScorecardCapability.SCORECARD_FEATURE_SCORE,
     ScorecardCapability.SCORECARD_SCORE,
     ScorecardCapability.SCORECARD_EXPORT,
 ]
@@ -343,6 +353,10 @@ def infer_scorecard_capabilities(engine) -> ScorecardCapability:
     # 对数几率输出能力
     if hasattr(engine, "decision_function") or hasattr(engine, "logit"):
         caps |= ScorecardCapability.SCORECARD_LOGIT
+
+    # 特征分数能力
+    if hasattr(engine, "get_feature_score") or hasattr(engine, "feature_score"):
+        caps |= ScorecardCapability.SCORECARD_FEATURE_SCORE
 
     # 评分卡分数输出能力
     if hasattr(engine, "score"):
