@@ -1,3 +1,4 @@
+pytest
 psutil
 node-semver
 onnxruntime
