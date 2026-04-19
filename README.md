@@ -7,154 +7,87 @@
 能支持AB test.能跑评分卡任务也能跑分类任务，并提供API服务。对于评分卡模型，应该返回模型总评分和模型的特征分.不要直接输出决策结果。决策交给下游的内评系统
 只跑模型，不管模型规则。
 模型ID应该是Datamind后台维护的识别模型的唯一主键。不应该作为模型注册参数。
-模型元数据不保存在数据库吗？金融场景要能审计，要有完善的日志系统。
+模型元数据保存在数据库,金融场景要能审计，要有完善的日志系统。
 我已经有了配置组件，日志组件，AB测试组件，存储组件，数据库组件，评分组件，模型组件，服务组件。
 ```text
 datamind/
-├── api/                            # API接口层
-│   ├── __init__.py
-│   ├── register_api.py             # 模型注册API
-│   ├── model_api.py                # 模型查询API
-│   ├── management_api.py             
-│   ├── scoring_api.py             
-│   └── fraud_detection_api.py  
 │
-├── bento_services/                  # BentoML服务（独立部署）
-│   ├── __init__.py
-│   ├── scoring_service.py           # 评分卡服务
-│   │   ├── service.py               # BentoML服务定义
-│   │   ├── bentofile.yaml           # BentoML配置文件
-│   │   └── requirements.txt         # 服务依赖
+├── core/
 │   │
-│   └── fraud_service.py             # 反欺诈服务
-│       ├── service.py
-│       ├── bentofile.yaml
-│       └── requirements.txt
+│   ├── scoring/                     # ⭐评分卡系统（核心）
+│   │   ├── engine.py                # rule / lr / pipeline scoring
+│   │   ├── scorecard.py             # 对外统一Scorecard封装
+│   │   ├── runtime.py               # scoring runtime（轻量执行层）
+│   │   ├── explain.py               # explain入口
+│   │   ├── contrib.py               # feature贡献计算
+│   │   ├── transform.py             # WOE / binning 等
+│   │   ├── capability.py            # 能力声明
+│   │   └── utils.py
 │
-├── cli/                             # 命令行工具（新增）
-│   ├── __init__.py
-│   ├── main.py                      # CLI入口
-│   ├── commands/                    # 命令模块
-│   │   ├── __init__.py
-│   │   ├── model.py                  # 模型管理命令
-│   │   ├── audit.py                   # 审计日志命令
-│   │   ├── log.py                     # 日志管理命令
-│   │   ├── config.py                  # 配置管理命令
-│   │   ├── health.py                  # 健康检查命令
-│   │   └── version.py                 # 版本管理命令
-│   ├── utils/                        # CLI工具函数
-│   │   ├── __init__.py
-│   │   ├── printer.py                 # 格式化输出
-│   │   ├── progress.py                # 进度条显示
-│   │   └── config.py                  # CLI配置管理
-│   ├── completions/                  # 命令行补全
-│   │   ├── bash.sh                    # Bash补全
-│   │   ├── zsh.sh                     # Zsh补全
-│   │   └── fish.sh                    # Fish补全
-│   ├── templates/                    # 命令模板
-│   │   ├── model_registration.json    # 模型注册模板
-│   │   └── audit_query.json           # 审计查询模板
-│   └── README.md                      # CLI使用说明
-│
-├── core/                            # 核心业务逻辑
-│   ├── __init__.py
-│   ├── models.py                    # SQLAlchemy数据库模型
-│   ├── database.py                   # 数据库连接管理
-│   ├── log_manager.py                # 日志管理器
-│   ├── model_registry.py             # 模型注册核心逻辑
-│   ├── model_loader.py               # 模型热加载器
-│   ├── inference.py                  # 统一推理引擎
-│   ├── ab_test.py                    # AB测试管理器
-│   └── exceptions.py                 # 自定义异常
-│
-├── config/                           # 配置文件
-│   ├── __init__.py
-│   ├── settings.py                   # 应用配置
-│   ├── logging_config.py              # 日志配置模型
-│   ├── development.yaml               # 开发环境配置
-│   ├── testing.yaml                   # 测试环境配置
-│   ├── staging.yaml                   # 预发布环境配置
-│   └── production.yaml                # 生产环境配置
-│
-├── migrations/                       # 数据库迁移
-│   ├── __init__.py
-│   ├── env.py                         # Alembic环境配置
-│   ├── alembic.ini                    # Alembic配置文件
-│   └── versions/                      # 迁移版本
-│       ├── 20240115_initial.py        # 初始迁移
-│       └── 20240120_add_indexes.py    # 添加索引
-│
-├── scripts/                          # 脚本工具
-│   ├── __init__.py
-│   ├── backup_db.py                   # 数据库备份
-│   ├── migrate_data.py                # 数据迁移
-│   ├── init_db.py                     # 数据库初始化
-│   └── cron_jobs/                     # 定时任务脚本
-│       ├── cleanup_logs.py
-│       ├── archive_models.py
-│       └── send_daily_report.py
-│
-├── storage/                          # 文件存储
-│   ├── __init__.py
-│   └── file_store.py                  # 模型文件存储管理
-│
-├── utils/                            # 工具函数
-│   ├── __init__.py
-│   ├── time_converter.py              # 时间格式转换
-│   ├── log_converter.py               # 日志格式转换
-│   ├── validators.py                  # 数据验证器
-│   └── helpers.py                     # 通用辅助函数
-│
-├── tests/                            # 测试目录
-│   ├── __init__.py
-│
-├── logs/                             # 日志目录（运行时创建）
-│   ├── Datamind.log
-│   ├── Datamind.error.log
-│   ├── access.log
-│   ├── audit.log
-│   └── performance.log
-│
-── models/                       # 模型文件存储
-│       ├── scoring/                   # 评分卡模型
-│       │   └── mod_202401151030_abc12345/
-│       │       ├── metadata.json
-│       │       ├── model_1.0.0.pkl
-│       │       ├── latest -> model_1.0.0.pkl
-│       │       └── versions/
-│       │           └── 1.0.0.json
-│       └── fraud_detection/           # 反欺诈模型
-│           └── mod_202401151231_def45678/
-│               ├── metadata.json
-│               ├── model_1.0.0.pkl
-│               ├── latest -> model_1.0.0.pkl
-│               └── versions/
-│                   └── 1.0.0.json
-│
-├── docker/                           # Docker相关
-│   ├── Dockerfile                     # 主服务Dockerfile
-│   ├── Dockerfile.bento               # BentoML服务Dockerfile
-│   ├── docker-compose.yml             # 本地开发用
-│   ├── docker-compose.prod.yml        # 生产环境用
-│   └── entrypoint.sh                  # 容器入口脚本
+│   ├── classification/              # ⭐通用分类模型系统
+│   │   ├── predictor.py             # sklearn / xgb / lgb统一predict
+│   │   ├── explain.py               # feature importance / 可选SHAP接口
+│   │   └── utils.py
+││   └── common/
+│       ├── types.py            # ScoreResponse / ClassifyResponse
+│       └── errors.py
+
+├── runtime/                         # ⭐统一推理调度层
+│   ├── base.py                     # BaseRuntime
+│   ├── scorecard_runtime.py        # scoring runtime封装
+│   ├── ml_runtime.py               # ml runtime封装
+│   └── factory.py                  # 自动识别模型类型并路由
 │
 │
-├── docs/                             # 文档
-│   ├── api.md                         # API文档
-│   ├── deployment.md                  # 部署文档
-│   ├── configuration.md               # 配置说明
-│   ├── logging.md                     # 日志系统说明
-│   ├── ab_testing.md                  # AB测试说明
-│   └── cli.md                         # CLI使用说明
+├── service/                      # ⭐ BentoML服务层（极薄）
+│   ├── app.py                  # BentoML entrypoint
+│   ├── schemas.py              # 请求/响应定义
+│   ├── deps.py                 # runtime注入
 │
-├── .env.example                       # 环境变量示例
-├── .gitignore                         # Git忽略文件
-├── requirements.txt                   # Python依赖
-├── requirements-dev.txt               # 开发依赖
-├── Makefile                           # 常用命令
-├── pyproject.toml                     # 项目配置
-├── setup.py                           # 安装脚本（安装后可使用datamind命令）
-└── README.md                          # 项目说明
+│
+├── model/                          # ⭐模型加载层
+│   ├── loader.py                  # load from file / minio / local
+│   ├── registry.py                # model registry（轻量）
+│   └── artifacts/
+│
+│
+├── storage/                      # ⭐ 存储层（极简）
+│   ├── base.py
+│   ├── local.py
+│   ├── minio.py
+│   └── factory.py
+│
+│
+├── config/                    # ⭐ 配置系统（.env驱动）
+│   ├── settings.py            # 总入口
+│   ├── scorecard.py           # 评分卡配置
+│   ├── classification.py      # 分类配置
+│   ├── database.py            # DB配置
+│   ├── storage.py             # storage配置
+│   └── logging.py             # 日志配置
+│
+│
+├── logging/                        # ⭐最小可观测日志
+│   ├── logger.py                  # get_logger
+│   ├── context.py                 # trace_id / request_id
+│   └── formatter.py               # JSON结构化日志
+│
+── db/                           # ⭐ 数据库（轻量）
+│   ├── session.py
+│   ├── models/
+│   └── repository.py          # CRUD封装（统一数据访问）
+│
+├── abtest/                       # ⭐ AB测试（轻量）
+│   ├── router.py
+│   └── tracker.py
+
+├── utils/
+│   ├── json.py
+│   ├── time.py
+│   └── validation.py
+│
+│
+└── __init__.py
 ```
 
 ```text

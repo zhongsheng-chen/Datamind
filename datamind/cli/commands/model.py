@@ -1,4 +1,4 @@
-# Datamind/datamind/cli/commands/model.py
+# Datamind/datamind/cli/commands/model_type.py
 
 """模型管理命令行命令
 
