@@ -12,15 +12,25 @@
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 
 
 class ClassificationConfig(BaseSettings):
     """分类模型配置类"""
 
-    threshold: float = 0.5
-
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_CLASSIFICATION_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
+
+    threshold: float = 0.5
+
+    @model_validator(mode="after")
+    def validate(self):
+        """校验配置参数"""
+        if not 0 <= self.threshold <= 1:
+            raise ValueError(f"threshold 必须在 0 到 1 之间，当前值：{self.threshold}")
+
+        return self

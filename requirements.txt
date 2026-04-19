@@ -1,3 +1,4 @@
+structlog
 pytest
 psutil
 node-semver

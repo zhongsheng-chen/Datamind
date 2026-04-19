@@ -26,33 +26,41 @@ from pydantic import model_validator
 class ScorecardConfig(BaseSettings):
     """评分卡配置类"""
 
+    model_config = SettingsConfigDict(
+        env_prefix="DATAMIND_SCORECARD_",
+        env_file=".env",
+        extra="ignore",
+        frozen=True,
+    )
+
     base_score: float = 600.0
     base_odds: float = 50.0
     pdo: float = 50.0
     min_score: float = 0
     max_score: float = 1000
 
-    model_config = SettingsConfigDict(
-        env_prefix="DATAMIND_SCORECARD_",
-        env_file=".env",
-        extra="ignore",
-    )
-
     @model_validator(mode="after")
     def validate(self):
+        """校验配置参数"""
         if self.pdo <= 0:
             raise ValueError(f"pdo 必须大于 0，当前值：{self.pdo}")
+
         if self.base_odds <= 0:
             raise ValueError(f"base_odds 必须大于 0，当前值：{self.base_odds}")
+
         if self.min_score >= self.max_score:
             raise ValueError(f"min_score（{self.min_score}）必须小于 max_score（{self.max_score}）")
+
         if self.min_score < 0:
             raise ValueError(f"min_score 必须大于等于 0，当前值：{self.min_score}")
+
         if self.max_score - self.min_score < 100:
             raise ValueError(f"评分范围（{self.max_score - self.min_score}）太小，至少需要 100")
+
         if not 20 <= self.pdo <= 100:
             raise ValueError(f"pdo（{self.pdo}）应在 20 到 100 之间")
+
         if not self.min_score <= self.base_score <= self.max_score:
-            raise ValueError(
-                f"base_score（{self.base_score}）必须在 min_score（{self.min_score}）和 max_score（{self.max_score}）之间")
+            raise ValueError(f"base_score（{self.base_score}）必须在 min_score（{self.min_score}）和 max_score（{self.max_score}）之间")
+
         return self
