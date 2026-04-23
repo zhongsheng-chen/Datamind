@@ -19,9 +19,11 @@
 import time
 import functools
 
-from datamind.logging import logger
+from datamind.logging import get_logger
 from datamind.logging.context import get_context
 
+
+logger = get_logger(__name__)
 
 def observe_storage(op: str):
     """存储操作可观测性装饰器
