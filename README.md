@@ -1,7 +1,6 @@
 #
 我想设计一个银行贷款模型部署平台Datamind, 用于部署模型开发人员用Python跑出来的评分卡模型,分类任务等模型。
-不用考虑批量预测，零售信贷贷款都是单笔处理的。评分卡包含两大类，一类是基于规则的评分卡，是银行传统的评分卡实现方式。
-一类是基于逻辑回归的评分卡。
+不用考虑批量预测，零售信贷贷款都是单笔处理的。
 模型部署工具考虑用bentoml实现，支持模型注册、注销，支持模型文件热更换，支持模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。
 支持模型类型：模型类型：decision_tree|random_forest|xgboost|lightgbm|logistic_regression。
 能支持AB test.能跑评分卡任务也能跑分类任务，并提供API服务。对于评分卡模型，应该返回模型总评分和模型的特征分.不要直接输出决策结果。决策交给下游的内评系统

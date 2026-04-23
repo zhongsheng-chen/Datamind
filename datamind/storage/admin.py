@@ -22,6 +22,7 @@ from datamind.config.storage import StorageConfig
 from datamind.storage.base import BaseStorageBackend
 from datamind.storage.factory import get_backend
 from datamind.storage.strategy import StorageKeyStrategy
+from datamind.storage.observability import observe_storage
 
 
 class StorageAdmin:
@@ -37,6 +38,7 @@ class StorageAdmin:
         self.backend: BaseStorageBackend = get_backend(config)
         self._strategy = StorageKeyStrategy(config.model_dir)
 
+    @observe_storage("save")
     def save(self, model_id: str, filename: str, data: bytes) -> str:
         """保存模型文件
 
@@ -52,6 +54,7 @@ class StorageAdmin:
         self.backend.put_object(key, data)
         return key
 
+    @observe_storage("load")
     def load(self, model_id: str, filename: str) -> bytes:
         """加载模型文件
 
@@ -65,6 +68,7 @@ class StorageAdmin:
         key = self._strategy.model_key(model_id, filename)
         return self.backend.get_object(key)
 
+    @observe_storage("delete")
     def delete(self, model_id: str, filename: str) -> bool:
         """删除模型文件
 
@@ -79,6 +83,7 @@ class StorageAdmin:
         self.backend.delete_object(key)
         return True
 
+    @observe_storage("exists")
     def exists(self, model_id: str, filename: str) -> bool:
         """检查模型文件是否存在
 
@@ -92,6 +97,7 @@ class StorageAdmin:
         key = self._strategy.model_key(model_id, filename)
         return self.backend.object_exists(key)
 
+    @observe_storage("list")
     def list(self, model_id: str) -> list[str]:
         """列出模型的所有文件
 
