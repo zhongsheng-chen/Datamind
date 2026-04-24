@@ -39,62 +39,66 @@ class StorageAdmin:
         self._strategy = StorageKeyStrategy(config.model_dir)
 
     @observe_storage("save")
-    def save(self, model_id: str, filename: str, data: bytes) -> str:
+    def save(self, model_id: str, version: str, filename: str, data: bytes) -> str:
         """保存模型文件
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
             data: 文件二进制数据
 
         返回：
             存储 key
         """
-        key = self._strategy.model_key(model_id, filename)
+        key = self._strategy.model_key(model_id, version, filename)
         self.backend.put_object(key, data)
         return key
 
     @observe_storage("load")
-    def load(self, model_id: str, filename: str) -> bytes:
+    def load(self, model_id: str, version: str, filename: str) -> bytes:
         """加载模型文件
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
             文件二进制数据
         """
-        key = self._strategy.model_key(model_id, filename)
+        key = self._strategy.model_key(model_id, version, filename)
         return self.backend.get_object(key)
 
     @observe_storage("delete")
-    def delete(self, model_id: str, filename: str) -> bool:
+    def delete(self, model_id: str, version: str, filename: str) -> bool:
         """删除模型文件
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
             删除成功返回 True
         """
-        key = self._strategy.model_key(model_id, filename)
+        key = self._strategy.model_key(model_id, version, filename)
         self.backend.delete_object(key)
         return True
 
     @observe_storage("exists")
-    def exists(self, model_id: str, filename: str) -> bool:
+    def exists(self, model_id: str, version: str, filename: str) -> bool:
         """检查模型文件是否存在
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
             存在返回 True，否则返回 False
         """
-        key = self._strategy.model_key(model_id, filename)
+        key = self._strategy.model_key(model_id, version, filename)
         return self.backend.object_exists(key)
 
     @observe_storage("list")

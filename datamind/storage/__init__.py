@@ -37,6 +37,10 @@
   - StorageKeyStrategy 是唯一 key 规则来源
   - StorageAdmin 是唯一业务入口（model_id）
   - Backend 永远只认 key，不理解业务
+
+实际存储路径：
+  - 本地：{base_dir}/models/{model_id}/{version}/{filename}
+  - MinIO：{bucket}/{base_prefix}/models/{model_id}/{version}/{filename}
 """
 
 from functools import lru_cache
@@ -59,54 +63,58 @@ class Storage:
         """
         self._admin = storage_admin
 
-    def save(self, model_id: str, filename: str, data: bytes) -> str:
+    def save(self, model_id: str, version: str, filename: str, data: bytes) -> str:
         """保存模型文件
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
             data: 文件二进制数据
 
         返回：
             存储 key
         """
-        return self._admin.save(model_id, filename, data)
+        return self._admin.save(model_id, version, filename, data)
 
-    def load(self, model_id: str, filename: str) -> bytes:
+    def load(self, model_id: str, version: str, filename: str) -> bytes:
         """加载模型文件
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
             文件二进制数据
         """
-        return self._admin.load(model_id, filename)
+        return self._admin.load(model_id, version, filename)
 
-    def delete(self, model_id: str, filename: str) -> bool:
+    def delete(self, model_id: str, version: str, filename: str) -> bool:
         """删除模型文件
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
             删除成功返回 True
         """
-        return self._admin.delete(model_id, filename)
+        return self._admin.delete(model_id, version, filename)
 
-    def exists(self, model_id: str, filename: str) -> bool:
+    def exists(self, model_id: str, version: str, filename: str) -> bool:
         """检查模型文件是否存在
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
             存在返回 True，否则返回 False
         """
-        return self._admin.exists(model_id, filename)
+        return self._admin.exists(model_id, version, filename)
 
     def list(self, model_id: str) -> list[str]:
         """列出模型的所有文件

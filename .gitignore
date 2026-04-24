@@ -264,5 +264,5 @@ logs/
 
 # Model files
 models/
-datamind/models/
 !datamind/db/models
+!datamind/models

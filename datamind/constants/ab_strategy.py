@@ -11,9 +11,9 @@
 使用示例：
   from datamind.constants.ab_strategy import ABStrategy, SUPPORTED_AB_STRATEGIES
 
-  if strategy == ABStrategy.random:
-      return random.choice(groups)
-  elif strategy == ABStrategy.hash:
+  if strategy == ABStrategy.RANDOM:
+      return RANDOM.choice(groups)
+  elif strategy == ABStrategy.HASH:
       return hash_based_select(request_id, groups)
 """
 
@@ -21,11 +21,11 @@
 class ABStrategy:
     """AB测试策略常量"""
 
-    random: str = "random"
-    hash: str = "hash"
+    RANDOM: str = "random"
+    HASH: str = "hash"
 
 
 SUPPORTED_AB_STRATEGIES = frozenset({
-    ABStrategy.random,
-    ABStrategy.hash,
+    ABStrategy.RANDOM,
+    ABStrategy.HASH,
 })
