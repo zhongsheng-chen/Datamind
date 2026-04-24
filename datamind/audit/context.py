@@ -61,8 +61,13 @@ def audit_context(**kwargs):
         with audit_context(user_id="admin", ip="192.168.1.100"):
             recorder.record(...)
     """
+    old = _audit_ctx.get()
+    new = old.copy()
+    new.update(kwargs)
+
+    token = _audit_ctx.set(new)
+
     try:
-        set_context(**kwargs)
         yield
     finally:
-        clear_context()
+        _audit_ctx.reset(token)

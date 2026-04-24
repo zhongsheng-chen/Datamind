@@ -5,7 +5,7 @@
 定义模型版本的流量分配规则，支持多种路由策略。
 """
 
-from sqlalchemy import Column, String, JSON, Index
+from sqlalchemy import Column, String, Boolean, JSON, Index
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -34,7 +34,7 @@ class Routing(Base, IdMixin, TimestampMixin):
 
     config = Column(JSON, nullable=True)
 
-    enabled = Column(String(10), nullable=False, default="true")
+    enabled = Column(Boolean, nullable=False, default="true")
 
     def __repr__(self):
         return f"<Routing(model_id='{self.model_id}', strategy='{self.strategy}', enabled='{self.enabled}')>"

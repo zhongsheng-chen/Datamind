@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any
 
 
 @dataclass
-class ModelSpec:
+class ModelRecord:
     """模型注册信息（核心元数据）
 
     属性：

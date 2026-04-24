@@ -12,8 +12,17 @@
   from datamind.models.backend import BentoBackend
 
   backend = BentoBackend()
-  backend.save("sklearn", model, "my_model:latest")
-  loaded_model = backend.load("sklearn", "my_model:latest")
+
+  backend.save(
+      name="my_model",
+      framework="sklearn",
+      model=model
+  )
+
+  loaded_model = backend.load(
+      framework="sklearn",
+      tag="my_model:latest"
+  )
 """
 
 from typing import Any
@@ -33,7 +42,7 @@ FRAMEWORK_TO_BENTOML = {
 
 
 class BentoBackend:
-    """BentoML 模型后端（轻量封装）"""
+    """BentoML 模型后端"""
 
     @staticmethod
     def _get_backend(framework: str):
@@ -55,13 +64,13 @@ class BentoBackend:
                 f"不支持的框架: {framework}, 支持: {list(FRAMEWORK_TO_BENTOML.keys())}"
             )
 
-    def save(self, name:str, framework: str, model: Any, **kwargs) -> Any:
+    def save(self, *, name: str, framework: str, model: Any, **kwargs) -> Any:
         """保存模型到 BentoML Model Store
 
         参数：
+            name: 模型名称
             framework: 模型框架（sklearn/xgboost/lightgbm 等）
             model: 模型实例
-            name: 模型名称（支持 tag 格式）
 
         返回：
             保存的模型对象
@@ -69,7 +78,7 @@ class BentoBackend:
         backend = self._get_backend(framework)
         return backend.save_model(name=name, model=model, **kwargs)
 
-    def load(self, framework: str, tag: str) -> Any:
+    def load(self, *, framework: str, tag: str) -> Any:
         """从 BentoML Model Store 加载模型
 
         参数：

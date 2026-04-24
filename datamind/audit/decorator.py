@@ -60,22 +60,39 @@ def audit_action(
                 session = args[0] if args else None
                 audit_recorder = getattr(session, "audit_recorder", None)
 
-            result = func(*args, **kwargs)
+            try:
+                result = func(*args, **kwargs)
 
-            if audit_recorder:
-                target_id = (
-                    target_id_getter(result)
-                    if target_id_getter
-                    else getattr(result, "id", None)
-                )
+                if audit_recorder:
+                    target_id = (
+                        target_id_getter(result)
+                        if target_id_getter
+                        else getattr(result, "id", None)
+                    )
 
-                audit_recorder.record(
-                    action=action,
-                    target_type=target_type,
-                    target_id=target_id,
-                    after=_safe_dict(result),
-                )
+                    audit_recorder.record(
+                        action=action,
+                        target_type=target_type,
+                        target_id=target_id,
+                        after=_safe_dict(result),
+                        context={"status": "success"},
+                    )
 
-            return result
+                return result
+
+            except Exception as e:
+                if audit_recorder:
+                    audit_recorder.record(
+                        action=action,
+                        target_type=target_type,
+                        target_id=None,
+                        context={
+                            "status": "error",
+                            "error": str(e),
+                        },
+                    )
+
+                raise
+
         return wrapper
     return decorator

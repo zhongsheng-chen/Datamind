@@ -36,7 +36,7 @@ class ABTestConfig(BaseSettings):
     enabled: bool = False
     group_a_weight: float = 0.5
     group_b_weight: float = 0.5
-    strategy: str = ABStrategy.random
+    strategy: str = ABStrategy.RANDOM
 
     @model_validator(mode="after")
     def validate(self):

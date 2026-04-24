@@ -3,7 +3,6 @@
 """日志系统初始化
 
 配置 structlog 处理器链，支持 JSON 和文本两种输出格式，同时支持同步和异步日志。
-控制台输出简洁文本格式，文件输出相同格式（无颜色）。
 
 核心功能：
   - setup_logging: 初始化日志系统（处理器、处理器链、渲染器）
@@ -146,12 +145,10 @@ def setup_logging(config: LoggingConfig) -> None:
     # 创建格式化器
     console_formatter = ProcessorFormatter(
         processor=console_renderer,
-        foreign_pre_chain=shared_processors,
     )
 
     file_formatter = ProcessorFormatter(
         processor=file_renderer,
-        foreign_pre_chain=shared_processors,
     )
 
     # 添加控制台处理器
@@ -166,9 +163,11 @@ def setup_logging(config: LoggingConfig) -> None:
         file_handler.setFormatter(file_formatter)
         handlers.append(file_handler)
 
-    # 配置根日志器
-    root = logging.getLogger()
-    root.setLevel(getattr(logging, config.level.upper()))
+    # 配置日志器
+    logger = logging.getLogger("datamind")
+    logger.setLevel(getattr(logging, config.level.upper()))
+    logger.handlers = handlers
+    logger.propagate = False
 
     # 异步日志包装
     if config.enable_async:
@@ -180,9 +179,9 @@ def setup_logging(config: LoggingConfig) -> None:
             respect_handler_level=True,
         )
         listener.start()
-        root.handlers = [queue_handler]
+        logger.handlers = [queue_handler]
     else:
-        root.handlers = handlers
+        logger.handlers = handlers
 
     # 配置主处理器链
     structlog.configure(

@@ -7,9 +7,10 @@
 使用示例：
     writer = VersionWriter(session)
     writer.create(
-        model_id="scorecard_v1",
+        model_id="mdl_xxxx",
         version="1.0.0",
-        model_path="s3://models/scorecard_v1/1.0.0/model.pkl",
+        bento_tag="scorecard:abc123",
+        model_path="s3://models/mdl_xxxx/1.0.0/model.pkl",
         params={"C": 1.0, "max_iter": 100},
         metrics={"accuracy": 0.85, "auc": 0.92}
     )
@@ -27,6 +28,7 @@ class VersionWriter(BaseWriter):
         *,
         model_id: str,
         version: str,
+        bento_tag: str,
         model_path: str,
         params: dict = None,
         metrics: dict = None,
@@ -38,6 +40,7 @@ class VersionWriter(BaseWriter):
         参数：
             model_id: 所属模型ID
             version: 版本号
+            bento_tag: BentoML 标签
             model_path: 模型文件存储路径
             params: 模型参数
             metrics: 模型评估指标
@@ -50,6 +53,7 @@ class VersionWriter(BaseWriter):
         obj = Version(
             model_id=model_id,
             version=version,
+            bento_tag=bento_tag,
             model_path=model_path,
             params=params,
             metrics=metrics,
