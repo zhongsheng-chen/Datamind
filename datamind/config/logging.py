@@ -145,3 +145,5 @@ class LoggingConfig(BaseSettings):
 
         if self.unmasked_suffix < 0:
             raise ValueError(f"unmasked_suffix 必须大于等于 0，当前值：{self.unmasked_suffix}")
+
+        return self
