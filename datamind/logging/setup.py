@@ -45,8 +45,6 @@ def _create_file_handler(config: LoggingConfig):
     返回：
         文件处理器实例
     """
-    config.dir.mkdir(parents=True, exist_ok=True)
-
     if config.rotation == "time":
         return TimedRotatingFileHandler(
             filename=config.dir / config.filename,
@@ -109,6 +107,9 @@ def setup_logging(config: LoggingConfig) -> None:
     参数：
         config: 日志配置对象
     """
+    if config.enable_file:
+        config.dir.mkdir(parents=True, exist_ok=True)
+
     handlers = []
 
     # 构建共享处理器链
