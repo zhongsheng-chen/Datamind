@@ -64,22 +64,23 @@ class StorageKeyStrategy:
         if not filename or filename in ('.', '..'):
             raise ValueError(f"非法的文件名: {filename}")
 
-    def model_key(self, model_id: str, filename: str) -> str:
+    def model_key(self, model_id: str, version: str, filename: str) -> str:
         """构造模型文件的完整 key
 
         参数：
             model_id: 模型ID
+            version: 模型版本号
             filename: 文件名
 
         返回：
-            完整 key，格式: {model_dir}/{model_id}/{filename}
+            完整 key，格式: {model_dir}/{model_id}/{version}/{filename}
 
         异常：
             ValueError: 参数不合法
         """
         self.validate_model_id(model_id)
         self.validate_filename(filename)
-        return f"{self.model_dir}/{model_id}/{filename}"
+        return f"{self.model_dir}/{model_id}/{version}/{filename}"
 
     def model_prefix(self, model_id: str) -> str:
         """构造模型目录的 key 前缀

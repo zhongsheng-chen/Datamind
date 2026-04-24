@@ -10,7 +10,8 @@ def main():
     storage = get_storage()
     logger = get_logger(__name__)
 
-    model_id = "m1"
+    model_id = "mdl_2324"
+    version = "v1"
     filename = "model.pkl"
 
     # =========================
@@ -24,16 +25,16 @@ def main():
         data = b"this is a fake model binary"
 
         print("=== SAVE ===")
-        storage.save(model_id, filename, data)
-        logger.info("save completed", model_id=model_id, filename=filename)
+        storage.save(model_id, version, filename, data)
+        logger.info("save completed", model_id=model_id, version=version, filename=filename)
 
-        print("saved:", model_id, filename)
+        print("saved:", model_id, version, filename)
 
         # =========================
         # 2. 判断是否存在
         # =========================
         print("\n=== EXISTS ===")
-        exists = storage.exists(model_id, filename)
+        exists = storage.exists(model_id, version, filename)
         logger.info("exists checked", exists=exists)
 
         print("exists:", exists)
@@ -42,7 +43,7 @@ def main():
         # 3. 读取模型文件
         # =========================
         print("\n=== LOAD ===")
-        loaded = storage.load(model_id, filename)
+        loaded = storage.load(model_id, version, filename)
         logger.info("load completed", size=len(loaded))
 
         print("loaded:", loaded)
@@ -51,7 +52,7 @@ def main():
         # 4. 删除模型文件
         # =========================
         print("\n=== DELETE ===")
-        storage.delete(model_id, filename)
+        storage.delete(model_id, version, filename)
         logger.info("delete completed")
 
         print("deleted:", model_id, filename)
@@ -60,7 +61,7 @@ def main():
         # 5. 再检查是否存在
         # =========================
         print("\n=== EXISTS AFTER DELETE ===")
-        exists_after = storage.exists(model_id, filename)
+        exists_after = storage.exists(model_id, version, filename)
         logger.info("exists after delete", exists=exists_after)
 
         print("exists:", exists_after)

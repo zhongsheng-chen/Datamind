@@ -32,7 +32,7 @@ class LocalStorageBackend(BaseStorageBackend):
         参数：
             base_dir: 基础目录，所有文件存储在此目录下
         """
-        self.base_dir = base_dir.resolve()
+        self.base_dir = Path(base_dir).expanduser().resolve()
 
     def _safe_path(self, key: str) -> Path:
         """构造完整文件路径，并防止路径遍历攻击
