@@ -14,7 +14,7 @@ class Audit(Base, IdMixin, TimestampMixin):
     """审计日志表
 
     属性：
-        user_id: 操作者ID
+        user: 操作者
         ip: 操作者IP地址
         action: 操作类型（create/update/delete/deploy/pause/resume/rollback）
         target_type: 目标类型（experiment/deployment/routing/model/version）
@@ -29,14 +29,14 @@ class Audit(Base, IdMixin, TimestampMixin):
 
     __table_args__ = (
         Index("idx_audit_action", "action"),
-        Index("idx_audit_user_id", "user_id"),
+        Index("idx_audit_user", "user"),
         Index("idx_audit_target", "target_type", "target_id"),
         Index("idx_audit_occurred_at", "occurred_at"),
         Index("idx_audit_target_occurred_at", "target_type", "occurred_at"),
         Index("idx_audit_created_at", "created_at"),
     )
 
-    user_id = Column(String(64), nullable=True)
+    user = Column(String(64), nullable=True)
     ip = Column(String(64), nullable=True)
 
     action = Column(String(50), nullable=False)
@@ -52,4 +52,4 @@ class Audit(Base, IdMixin, TimestampMixin):
     occurred_at = Column(DateTime, nullable=False)
 
     def __repr__(self):
-        return f"<Audit(action='{self.action}', target='{self.target_type}', user_id='{self.user_id}')>"
+        return f"<Audit(action='{self.action}', target='{self.target_type}', user='{self.user}, ip='{self.ip}')>"
