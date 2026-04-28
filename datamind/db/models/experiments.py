@@ -15,11 +15,11 @@ class Experiment(Base, IdMixin, TimestampMixin):
 
     属性：
         experiment_id: 实验唯一标识
-        model_id: 所属模型ID
+        model_id: 所属模型 ID
         name: 实验名称
         description: 实验描述
-        status: 实验状态（running/paused/completed）
-        config: 实验配置（策略、变体、权重等）
+        status: 实验状态，可选值：running / paused / completed
+        config: 实验配置，JSON 格式，包含策略、变体、权重等
         effective_from: 生效开始时间
         effective_to: 生效结束时间
         created_by: 创建人

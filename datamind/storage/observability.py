@@ -20,7 +20,7 @@ import time
 import functools
 
 from datamind.logging import get_logger
-from datamind.logging.context import get_context
+from datamind.context import get_context
 
 
 logger = get_logger(__name__)

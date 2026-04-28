@@ -20,7 +20,7 @@
   }
 
   # 校验
-  missing = ALL_KEYS - set(context.keys())
+  missing = set(ALL_KEYS.keys()) - set(context.keys())
 """
 
 TRACE_ID = "trace_id"

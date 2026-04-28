@@ -1,52 +1,28 @@
-# datamind/audit/decorator.py
-
 """审计装饰器
 
 提供函数级别审计能力，自动记录操作行为并注入上下文信息。
 
 核心功能：
-  - audit: 审计装饰器，函数执行后自动记录审计日志
+  - audit: 审计装饰器，仅支持异步函数
 
 使用示例：
-
   from datamind.audit.decorator import audit
 
-
-  # 模型注册
   @audit(
       action="model.register",
       target_type="model",
       target_id_from="model_id",
   )
-  def register(model_id: str, name: str):
-      ...
-
-
-  # 模型下线
-  @audit(
-      action="model.retire",
-      target_type="model",
-      target_id_from="model_id",
-  )
-  def retire(model_id: str, version: str, reason: str):
-      ...
-
-
-  # 自定义 target_id
-  @audit(
-      action="deployment.create",
-      target_type="deployment",
-      target_id_func=lambda p: f"{p['model_id']}-{p['version']}"
-  )
-  def deploy(model_id: str, version: str):
+  async def register(model_id: str, name: str):
       ...
 """
 
 from functools import wraps
-from inspect import signature
+from inspect import signature, iscoroutinefunction
 from typing import Optional, Callable
 
-from datamind.db.core.uow import UnitOfWork
+from datamind.db.core import session_scope
+from datamind.db.writer import AuditWriter
 from datamind.audit.recorder import AuditRecorder
 
 
@@ -60,18 +36,19 @@ def audit(
     """审计装饰器
 
     参数：
-        action: 操作类型（resource.verb）
+        action: 操作类型（resource.operation）
         target_type: 目标类型
         target_id_from: 从函数参数中提取 target_id
         target_id_func: 自定义 target_id 生成函数
     """
-
     def decorator(func):
         sig = signature(func)
 
+        if not iscoroutinefunction(func):
+            raise TypeError(f"装饰器仅支持 async 函数：{func.__name__}")
+
         @wraps(func)
-        def wrapper(*args, **kwargs):
-            # 绑定参数
+        async def wrapper(*args, **kwargs):
             bound = sig.bind_partial(*args, **kwargs)
             bound.apply_defaults()
 
@@ -80,7 +57,6 @@ def audit(
                 if k != "self"
             }
 
-            # 生成 target_id
             if target_id_func:
                 target_id = target_id_func(params)
             elif target_id_from:
@@ -88,45 +64,37 @@ def audit(
             else:
                 target_id = None
 
-            try:
-                result = func(*args, **kwargs)
+            writer = None
+            recorder = None
 
-                # 成功审计
-                with UnitOfWork() as uow:
-                    recorder = AuditRecorder(uow.audit())
+            async with session_scope() as session:
+                writer = AuditWriter(session)
+                recorder = AuditRecorder(writer)
 
-                    recorder.record(
+                try:
+                    result = await func(*args, **kwargs)
+
+                    await recorder.record(
                         action=action,
                         target_type=target_type,
                         target_id=target_id,
-                        after={
-                            "result": result,
-                        },
-                        context={
-                            "params": params,
-                        },
+                        status="success",
+                        after={"result": result},
+                        context={"params": params},
                     )
 
-                return result
+                    return result
 
-            except Exception as e:
-                # 异常审计
-                with UnitOfWork() as uow:
-                    recorder = AuditRecorder(uow.audit())
-
-                    recorder.record(
+                except Exception as e:
+                    await recorder.record(
                         action=action,
                         target_type=target_type,
                         target_id=target_id,
-                        after={
-                            "error": str(e),
-                        },
-                        context={
-                            "params": params,
-                        },
+                        status="failed",
+                        after={"error": str(e)},
+                        context={"params": params},
                     )
-
-                raise
+                    raise
 
         return wrapper
 

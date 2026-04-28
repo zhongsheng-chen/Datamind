@@ -1,6 +1,6 @@
 # datamind/db/models/versions.py
 
-"""模型版本模型
+"""模型版本
 
 存储模型版本信息，每次模型注册生成一条记录。
 """
@@ -15,13 +15,13 @@ class Version(Base, IdMixin, TimestampMixin):
     """模型版本表
 
     属性：
-        model_id: 所属模型ID
+        model_id: 所属模型 ID
         version: 版本号
-        framework: 框架
-        bento_tag: BentoML 标签（格式：模型名:版本）
+        framework: 模型框架，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow
+        bento_tag: BentoML 标签，格式为 模型名:版本
         model_path: 模型文件存储路径
-        params: 模型参数
-        metrics: 模型评估指标
+        params: 模型参数，JSON 格式
+        metrics: 模型评估指标，JSON 格式
         description: 版本说明
         created_by: 创建人
     """

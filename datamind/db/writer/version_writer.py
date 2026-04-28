@@ -7,10 +7,10 @@
 使用示例：
     writer = VersionWriter(session)
     writer.create(
-        model_id="mdl_xxxx",
+        model_id="mdl_001",
         version="1.0.0",
         bento_tag="scorecard:abc123",
-        model_path="s3://models/mdl_xxxx/1.0.0/model.pkl",
+        model_path="s3://models/mdl_001/1.0.0/model.pkl",
         params={"C": 1.0, "max_iter": 100},
         metrics={"accuracy": 0.85, "auc": 0.92}
     )

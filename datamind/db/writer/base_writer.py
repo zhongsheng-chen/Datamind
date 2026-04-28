@@ -2,15 +2,25 @@
 
 """写入器基类
 
-提供统一的数据库写入接口，事务由 UnitOfWork 统一管理。
+提供数据库写入接口，事务由 session_scope 统一管理。
 
-注意：
-  - Writer 只负责 add()，不负责 flush/commit
-  - 事务控制由 UnitOfWork 统一管理
+核心功能：
+  - add: 添加单个对象
+  - add_all: 添加多个对象
+  - flush: 刷新会话，将待处理操作发送到数据库
+
+使用示例：
+  from datamind.db.writer.base_writer import BaseWriter
+
+  class UserWriter(BaseWriter):
+      def create(self, name: str):
+          user = User(name=name)
+          self.add(user)
+          return user
 """
 
 from dataclasses import dataclass
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @dataclass
@@ -21,7 +31,7 @@ class BaseWriter:
         session: 数据库会话
     """
 
-    session: Session
+    session: AsyncSession
 
     def add(self, obj):
         """添加单个对象"""
@@ -30,3 +40,7 @@ class BaseWriter:
     def add_all(self, objs):
         """添加多个对象"""
         self.session.add_all(objs)
+
+    async def flush(self):
+        """刷新会话"""
+        await self.session.flush()

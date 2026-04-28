@@ -2,7 +2,7 @@
 
 """请求分配表
 
-记录每个请求被路由到的模型版本及分配原因，用于 A/B 测试和灰度发布的审计追踪。
+记录每个请求被路由到的模型版本及分配原因，用于 A/B 测试和灰度发布的流量追踪。
 """
 
 from sqlalchemy import Column, String, DateTime, Index, JSON
@@ -15,12 +15,12 @@ class Assignment(Base, IdMixin, TimestampMixin):
 
     属性：
         request_id: 请求唯一标识
-        model_id: 被分配到的模型ID
+        model_id: 被分配到的模型 ID
         version: 被分配到的模型版本
-        user: 用户
-        source: 分配来源（routing/experiment/deployment）
-        strategy: 分配策略（random/hash/weighted）
-        context: 分配上下文（实验ID、分组、权重等）
+        user: 用户标识，用于用户级追踪
+        source: 分配来源，可选值：routing / experiment / deployment
+        strategy: 分配策略，可选值：random / hash / weighted
+        context: 分配上下文，如实验 ID、分组、权重等
         routed_at: 路由分配时间
     """
 
@@ -37,12 +37,10 @@ class Assignment(Base, IdMixin, TimestampMixin):
 
     request_id = Column(String(64), nullable=False)
     model_id = Column(String(64), nullable=False)
-
     version = Column(String(50), nullable=False)
 
     user = Column(String(64), nullable=True)
     source = Column(String(20), nullable=False)
-
     strategy = Column(String(20), nullable=True)
 
     context = Column(JSON, nullable=True)

@@ -7,7 +7,7 @@
 使用示例：
     writer = RoutingWriter(session)
     writer.write(
-        model_id="scorecard_v1",
+        model_id="mdl_001",
         strategy="WEIGHTED",
         config={"versions": {"1.0.0": 80, "2.0.0": 20}}
     )

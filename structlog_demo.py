@@ -14,7 +14,7 @@ logger.info("服务启动")
 
 logger.info(
     "用户登录成功",
-    user_id=12345,
+    user=12345,
     action="login"
 )
 
@@ -31,4 +31,7 @@ logger.error("这是失败日志")
 
 # 上下文作用域（统一语义）
 with context_scope(trace_id="trace-123", request_id="req-456", user="admin", ip="127.0.0.1"):
+    logger.debug("自动注入上下文")
+
+with context_scope(trace_id="trace-123", user="admin"):
     logger.debug("自动注入上下文")

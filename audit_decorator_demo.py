@@ -1,5 +1,7 @@
 """audit 装饰器示例"""
 
+import asyncio
+
 from datamind.audit import audit
 from datamind.context.scope import context_scope
 
@@ -13,7 +15,7 @@ from datamind.context.scope import context_scope
     target_type="model",
     target_id_from="model_id",
 )
-def register(model_id: str, name: str):
+async def register(model_id: str, name: str):
     return {
         "model_id": model_id,
         "name": name,
@@ -29,7 +31,7 @@ def register(model_id: str, name: str):
     target_type="model",
     target_id_from="model_id",
 )
-def retire(model_id: str, version: str, reason: str):
+async def retire(model_id: str, version: str, reason: str):
     return {
         "model_id": model_id,
         "version": version,
@@ -47,7 +49,7 @@ def retire(model_id: str, version: str, reason: str):
     target_type="deployment",
     target_id_func=lambda p: f"{p['model_id']}-{p['version']}",
 )
-def deploy(model_id: str, version: str):
+async def deploy(model_id: str, version: str):
     return {
         "deployment_id": f"{model_id}-{version}",
         "status": "active",
@@ -63,11 +65,15 @@ def deploy(model_id: str, version: str):
     target_type="model",
     target_id_from="model_id",
 )
-def delete(model_id: str):
+async def delete(model_id: str):
     raise RuntimeError("模型不存在")
 
 
-def main():
+# ================================
+# 主函数
+# ================================
+
+async def main():
     # 自动注入上下文
     with context_scope(
         user="admin",
@@ -75,21 +81,21 @@ def main():
         trace_id="trace-001",
         request_id="req-001",
     ):
-        register("mdl_001", "scorecard")
+        await register("mdl_001", "scorecard")
 
-        retire(
+        await retire(
             model_id="mdl_001",
             version="1.0.0",
             reason="模型过期",
         )
 
-        deploy(
+        await deploy(
             model_id="mdl_001",
             version="1.0.0",
         )
 
         try:
-            delete("mdl_404")
+            await delete("mdl_404")
         except RuntimeError:
             pass
 
@@ -97,11 +103,11 @@ def main():
     # 示例5：无 context_scope 审计
     # ================================
 
-    deploy(
+    await deploy(
         model_id="mdl_001",
         version="1.0.0-new",
     )
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
