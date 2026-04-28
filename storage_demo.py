@@ -1,6 +1,7 @@
 from datamind.storage import get_storage
 from datamind.config import get_settings
-from datamind.logging import setup_logging, get_logger, request_context
+from datamind.logging import setup_logging, get_logger
+from datamind.context import context_scope
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     # =========================
     # 加入请求级上下文
     # =========================
-    with request_context(trace_id="trace-001", request_id="req-001"):
+    with context_scope(trace_id="trace-001", request_id="req-001"):
 
         # =========================
         # 1. 写入模型文件

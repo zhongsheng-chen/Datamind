@@ -15,12 +15,12 @@ class Request(Base, IdMixin, TimestampMixin):
 
     属性：
         request_id: 请求唯一标识
-        model_id: 目标模型ID
-        payload: 请求输入
-        source: 请求来源
-        latency_ms: 处理耗时（毫秒）
-        user: 用户
-        ip: 客户端IP
+        model_id: 目标模型 ID
+        payload: 请求输入，JSON 格式
+        source: 请求来源，如 api / batch / stream
+        latency_ms: 处理耗时，单位毫秒
+        user: 用户标识
+        ip: 客户端 IP 地址
     """
 
     __tablename__ = "requests"
@@ -34,7 +34,6 @@ class Request(Base, IdMixin, TimestampMixin):
     )
 
     request_id = Column(String(64), nullable=False, unique=True)
-
     model_id = Column(String(64), nullable=False)
 
     payload = Column(JSON, nullable=True)

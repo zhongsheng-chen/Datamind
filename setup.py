@@ -30,7 +30,7 @@ setup(
         "fastapi>=0.100.0",
         "uvicorn[standard]>=0.23.0",
         # 数据库
-        "sqlalchemy<2.0.0",
+        "sqlalchemy>=2.0.0",
         "psycopg2-binary>=2.9.0",
         "alembic>=1.12.0",
         # Redis

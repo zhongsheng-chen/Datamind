@@ -8,7 +8,7 @@
     writer = ExperimentWriter(session)
     writer.write(
         experiment_id="exp_001",
-        model_id="scorecard_v1",
+        model_id="mdl_001",
         name="模型对比实验",
         config={"strategy": "WEIGHTED", "variants": [...]},
         created_by="system"

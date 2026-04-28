@@ -8,7 +8,7 @@
     writer = RequestWriter(session)
     writer.write(
         request_id="req-001",
-        model_id="scorecard_v1",
+        model_id="mdl_001",
         payload={"features": {"age": 35}},
         latency_ms=125.5
     )

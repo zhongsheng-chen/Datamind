@@ -1,56 +1,80 @@
-# datamind/db/core/engine.py
-
 """数据库引擎管理
 
-提供数据库引擎的单例管理和连接池配置。
+提供异步数据库引擎的创建和单例管理。
 
 核心功能：
-  - get_engine: 获取数据库引擎实例（单例）
-  - init_engine: 初始化数据库引擎（重置单例）
+  - create_engine: 创建异步数据库引擎
+  - get_engine: 获取数据库引擎实例
+
+使用示例：
+  from datamind.db.core.engine import get_engine
+
+  engine = get_engine()
 """
 
-from sqlalchemy import create_engine
-from datamind.config.database import DatabaseConfig
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-_engine = None
+from datamind.config import get_settings
+from datamind.logging import get_logger
+from datamind.db.core.url import get_db_url
+
+logger = get_logger(__name__)
+
+_engine: AsyncEngine | None = None
 
 
-def get_engine(config: DatabaseConfig = None):
-    """获取数据库引擎实例（单例）
-
-    参数：
-        config: 数据库配置对象
+def create_engine() -> AsyncEngine:
+    """创建异步数据库引擎
 
     返回：
-        SQLAlchemy 引擎实例
+        AsyncEngine 实例
+    """
+    settings = get_settings()
+    db = settings.database
+    url = get_db_url()
+
+    logger.info("创建数据库引擎...")
+    logger.debug(
+        "数据库连接池配置",
+        pool_size=db.pool_size,
+        max_overflow=db.max_overflow,
+        pool_timeout=db.pool_timeout,
+        pool_recycle=db.pool_recycle,
+        echo=db.echo,
+    )
+
+    engine = create_async_engine(
+        url,
+        pool_size=db.pool_size,
+        max_overflow=db.max_overflow,
+        pool_timeout=db.pool_timeout,
+        pool_recycle=db.pool_recycle,
+        echo=db.echo,
+        pool_pre_ping=True,
+        future=True,
+        connect_args={
+            "statement_cache_size": 0,
+        },
+    )
+
+    logger.info(
+        "创建数据库引擎成功",
+        url=make_url(url).render_as_string(hide_password=True),
+    )
+
+    return engine
+
+
+def get_engine() -> AsyncEngine:
+    """获取数据库引擎实例
+
+    返回：
+        AsyncEngine 实例
     """
     global _engine
+
     if _engine is None:
-        if config is None:
-            from datamind.config import get_settings
-            config = get_settings().database
+        _engine = create_engine()
 
-        db_url = f"postgresql+psycopg2://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}"
-
-        _engine = create_engine(
-            db_url,
-            pool_size=10,
-            max_overflow=20,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            future=True,
-            echo=False,
-            isolation_level="READ COMMITTED",
-        )
     return _engine
-
-
-def init_engine(config: DatabaseConfig = None):
-    """初始化数据库引擎（重置单例）
-
-    参数：
-        config: 数据库配置对象
-    """
-    global _engine
-    _engine = None
-    return get_engine(config)

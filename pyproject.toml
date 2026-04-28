@@ -1,6 +1,2 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
-filterwarnings = [
-    # 屏蔽 SQLAlchemy 1.4 迁移到 2.0 的警告（因为我们固定在 1.4.x）
-    "ignore:Deprecated API features detected:sqlalchemy.exc.MovedIn20Warning"
-]

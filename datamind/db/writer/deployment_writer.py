@@ -7,7 +7,7 @@
 使用示例：
     writer = DeploymentWriter(session)
     writer.write(
-        model_id="scorecard_v1",
+        model_id="mdl_001",
         version="1.0.0",
         status="active",
         traffic_ratio=1.0,

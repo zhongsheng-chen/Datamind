@@ -8,14 +8,12 @@
     writer = AssignmentWriter(session)
     writer.write(
         request_id="req-001",
-        model_id="scorecard_v2",
+        model_id="mdl_001",
         version="2.0.0",
         source="experiment",
         context={"experiment_id": "exp_001", "group": "B"},
     )
 """
-
-from datetime import datetime
 
 from datamind.db.models.assignments import Assignment
 from datamind.db.writer.base_writer import BaseWriter

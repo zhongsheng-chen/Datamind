@@ -7,7 +7,7 @@
 使用示例：
     writer = MetadataWriter(session)
     writer.create(
-        model_id="scorecard_v1",
+        model_id="mdl_001",
         name="信用评分卡",
         model_type="logistic_regression",
         task_type="scoring",

@@ -14,10 +14,10 @@ class Routing(Base, IdMixin, TimestampMixin):
     """模型路由表
 
     属性：
-        model_id: 所属模型ID
-        strategy: 路由策略（RANDOM/CONSISTENT/BUCKET/ROUND_ROBIN/WEIGHTED）
-        config: 策略配置（权重、桶范围等）
-        enabled: 是否启用（true/false）
+        model_id: 所属模型 ID
+        strategy: 路由策略，可选值：random / consistent / bucket / round_robin / weighted
+        config: 策略配置，JSON 格式，如权重、桶范围等
+        enabled: 是否启用
     """
 
     __tablename__ = "routing"
@@ -29,11 +29,8 @@ class Routing(Base, IdMixin, TimestampMixin):
     )
 
     model_id = Column(String(64), nullable=False)
-
     strategy = Column(String(20), nullable=False)
-
     config = Column(JSON, nullable=True)
-
     enabled = Column(Boolean, nullable=False, default=True)
 
     def __repr__(self):

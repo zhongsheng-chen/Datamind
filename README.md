@@ -1206,6 +1206,7 @@ with db_manager.session_scope() as session:
 ## 6. migrations/ - 数据库迁移
 
 ```bash
+alembic revision --autogenerate -m "init schema"
 alembic upgrade head
 alembic current
 ```
