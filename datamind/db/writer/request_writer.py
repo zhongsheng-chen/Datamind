@@ -25,35 +25,35 @@ class RequestWriter(BaseWriter):
         self,
         *,
         request_id: str,
-        user_id: str = None,
         model_id: str,
         payload: dict = None,
         source: str = None,
-        ip: str = None,
         latency_ms: float = None,
+        user: str = None,
+        ip: str = None,
     ) -> Request:
         """写入请求记录
 
         参数：
             request_id: 请求唯一标识
-            user_id: 用户标识
             model_id: 目标模型ID
             payload: 请求输入
-            source: 请求来源（api/batch/stream）
+            source: 请求来源
+            latency_ms: 处理耗时（毫秒）
+            user: 用户
             ip: 客户端IP
-            latency_ms: 处理耗时
 
         返回：
             请求对象
         """
         obj = Request(
             request_id=request_id,
-            user_id=user_id,
             model_id=model_id,
             payload=payload,
             source=source,
-            ip=ip,
             latency_ms=latency_ms,
+            user=user,
+            ip=ip,
         )
         self.add(obj)
         return obj

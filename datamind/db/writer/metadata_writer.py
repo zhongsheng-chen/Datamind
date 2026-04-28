@@ -41,9 +41,9 @@ class MetadataWriter(BaseWriter):
         参数：
             model_id: 模型唯一标识
             name: 模型名称
-            model_type: 模型类型（logistic_regression/xgboost/lightgbm）
-            task_type: 任务类型（classification/scoring）
-            framework: 框架（sklearn/xgboost/lightgbm）
+            model_type: 模型类型
+            task_type: 任务类型
+            framework: 框架
             description: 模型描述
             input_schema: 输入Schema
             output_schema: 输出Schema

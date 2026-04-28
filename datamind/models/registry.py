@@ -50,7 +50,7 @@ from datamind.storage import get_storage
 from datamind.models.artifact import ModelArtifact
 from datamind.models.backend import BentoBackend
 from datamind.db.core.uow import UnitOfWork
-from datamind.audit import audit_context
+from datamind.context.scope import context_scope
 
 logger = get_logger(__name__)
 
@@ -208,13 +208,13 @@ class ModelRegistry:
         )
 
     def retire(
-        self,
-        *,
-        model_id: str,
-        version: str,
-        reason: str = None,
-        user_id: str = None,
-        ip: str = None,
+            self,
+            *,
+            model_id: str,
+            version: str,
+            reason: str = None,
+            user: str = None,
+            ip: str = None,
     ) -> Dict[str, Any]:
         """模型下线
 
@@ -222,46 +222,49 @@ class ModelRegistry:
             model_id: 模型ID
             version: 版本号
             reason: 下线原因（可选）
+            user: 操作用户（可选）
+            ip: 操作IP（可选）
 
         返回：
             包含 model_id、version、status 的字典
         """
-        logger.info(
-            "模型下线",
-            model_id=model_id,
-            version=version,
-            reason=reason,
-        )
-
-        with UnitOfWork() as uow:
-            # 审计记录
-            uow.audit().write(
-                action="model.retire",
-                target_type="deployment",
-                target_id=f"{model_id}:{version}",
-                after={
-                    "status": "retired",
-                    "reason": reason,
-                },
-            )
-
-            # 关闭部署
-            uow.deployment().write(
+        with context_scope(user=user, ip=ip):
+            logger.info(
+                "模型下线",
                 model_id=model_id,
                 version=version,
-                status="inactive",
-                traffic_ratio=0.0,
-                description="retired",
+                reason=reason,
             )
 
-        logger.info(
-            "模型已下线",
-            model_id=model_id,
-            version=version,
-        )
+            with UnitOfWork() as uow:
+                # 审计记录
+                uow.audit().write(
+                    action="model.retire",
+                    target_type="deployment",
+                    target_id=f"{model_id}:{version}",
+                    after={
+                        "status": "retired",
+                        "reason": reason,
+                    },
+                )
 
-        return {
-            "model_id": model_id,
-            "version": version,
-            "status": "retired",
-        }
+                # 关闭部署
+                uow.deployment().write(
+                    model_id=model_id,
+                    version=version,
+                    status="inactive",
+                    traffic_ratio=0.0,
+                    description="retired",
+                )
+
+            logger.info(
+                "模型已下线",
+                model_id=model_id,
+                version=version,
+            )
+
+            return {
+                "model_id": model_id,
+                "version": version,
+                "status": "retired",
+            }

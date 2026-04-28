@@ -15,35 +15,36 @@ class Request(Base, IdMixin, TimestampMixin):
 
     属性：
         request_id: 请求唯一标识
-        user_id: 用户标识（可选）
         model_id: 目标模型ID
-        payload: 请求输入（特征/参数）
-        source: 请求来源（api/batch/stream）
-        ip: 客户端IP地址
+        payload: 请求输入
+        source: 请求来源
         latency_ms: 处理耗时（毫秒）
+        user: 用户
+        ip: 客户端IP
     """
 
     __tablename__ = "requests"
 
     __table_args__ = (
         Index("idx_requests_request_id", "request_id"),
-        Index("idx_requests_user_id", "user_id"),
         Index("idx_requests_model_id", "model_id"),
         Index("idx_requests_created_at", "created_at"),
         Index("idx_requests_source", "source"),
+        Index("idx_requests_user", "user"),
     )
 
     request_id = Column(String(64), nullable=False, unique=True)
-    user_id = Column(String(64), nullable=True)
 
     model_id = Column(String(64), nullable=False)
 
     payload = Column(JSON, nullable=True)
 
     source = Column(String(50), nullable=True)
-    ip = Column(String(64), nullable=True)
 
     latency_ms = Column(Float, nullable=True)
 
+    user = Column(String(64), nullable=True)
+    ip = Column(String(64), nullable=True)
+
     def __repr__(self):
-        return f"<Request(request_id='{self.request_id}', model_id='{self.model_id}', source='{self.source}')>"
+        return f"<Request(request_id='{self.request_id}', source='{self.source}')>"

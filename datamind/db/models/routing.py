@@ -34,7 +34,7 @@ class Routing(Base, IdMixin, TimestampMixin):
 
     config = Column(JSON, nullable=True)
 
-    enabled = Column(Boolean, nullable=False, default="true")
+    enabled = Column(Boolean, nullable=False, default=True)
 
     def __repr__(self):
         return f"<Routing(model_id='{self.model_id}', strategy='{self.strategy}', enabled='{self.enabled}')>"

@@ -6,16 +6,16 @@
 
 核心功能：
   - set_context: 设置上下文
-  - get_context: 获取当前上下文
+  - get_context: 获取上下文
   - clear_context: 清除上下文
-  - update_context: 更新上下文（覆盖已有字段）
+  - update_context: 更新上下文
 
 使用示例：
   from datamind.context.core import set_context, get_context, update_context
 
   set_context(trace_id="trace-123", request_id="req-456")
   ctx = get_context()
-  update_context(user="admin", ip="192.168.1.100")
+  update_context(user="admin")
 """
 
 from structlog.contextvars import (
@@ -28,10 +28,14 @@ from structlog.contextvars import (
 def set_context(**kwargs):
     """设置上下文
 
+    清除所有现有上下文，然后设置新上下文。
+
     参数：
         **kwargs: 上下文字段
     """
-    bind_contextvars(**kwargs)
+    clear_contextvars()
+    if kwargs:
+        bind_contextvars(**kwargs)
 
 
 def get_context():
@@ -49,9 +53,11 @@ def clear_context():
 
 
 def update_context(**kwargs):
-    """更新上下文（覆盖已有字段）
+    """更新上下文
+
+    追加或覆盖指定字段，不影响其他字段。
 
     参数：
-        **kwargs: 需要更新/覆盖的字段
+        **kwargs: 需要更新/追加的字段
     """
     bind_contextvars(**kwargs)

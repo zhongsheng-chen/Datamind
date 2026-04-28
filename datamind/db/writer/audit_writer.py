@@ -7,7 +7,7 @@
 使用示例：
     writer = AuditWriter(session)
     writer.write(
-        user_id="admin",
+        user="system",
         action="deployment.deploy",
         target_type="deployment",
         target_id="dep_001",
@@ -27,7 +27,7 @@ class AuditWriter(BaseWriter):
     def write(
         self,
         *,
-        user_id: str = None,
+        user: str = None,
         ip: str = None,
         action: str,
         target_type: str,
@@ -35,12 +35,11 @@ class AuditWriter(BaseWriter):
         before: dict = None,
         after: dict = None,
         context: dict = None,
-        occurred_at: datetime = None,
     ) -> Audit:
         """写入审计日志
 
         参数：
-            user_id: 操作者ID
+            user: 操作者
             ip: 操作者IP
             action: 操作类型（resource.verb 格式）
             target_type: 目标类型
@@ -48,13 +47,12 @@ class AuditWriter(BaseWriter):
             before: 变更前数据
             after: 变更后数据
             context: 操作上下文
-            occurred_at: 操作时间
 
         返回：
             审计日志对象
         """
         obj = Audit(
-            user_id=user_id,
+            user=user,
             ip=ip,
             action=action,
             target_type=target_type,
@@ -62,7 +60,6 @@ class AuditWriter(BaseWriter):
             before=before,
             after=after,
             context=context,
-            occurred_at=occurred_at or datetime.utcnow(),
         )
         self.add(obj)
         return obj

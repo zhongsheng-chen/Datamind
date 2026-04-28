@@ -28,38 +28,35 @@ class AssignmentWriter(BaseWriter):
         self,
         *,
         request_id: str,
-        user_id: str = None,
         model_id: str,
         version: str,
+        user: str = None,
         source: str,
         strategy: str = None,
         context: dict = None,
-        routed_at: datetime = None,
     ) -> Assignment:
         """写入分配记录
 
         参数：
             request_id: 请求ID
-            user_id: 用户ID
             model_id: 被分配的模型ID
             version: 被分配的版本
-            source: 分配来源（routing/experiment/deployment）
+            user: 用户
+            source: 分配来源
             strategy: 分配策略
             context: 分配上下文
-            routed_at: 分配时间
 
         返回：
             分配记录对象
         """
         obj = Assignment(
             request_id=request_id,
-            user_id=user_id,
             model_id=model_id,
             version=version,
+            user=user,
             source=source,
             strategy=strategy,
             context=context,
-            routed_at=routed_at or datetime.utcnow(),
         )
         self.add(obj)
         return obj

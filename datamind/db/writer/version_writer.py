@@ -28,6 +28,7 @@ class VersionWriter(BaseWriter):
         *,
         model_id: str,
         version: str,
+        framework: str,
         bento_tag: str,
         model_path: str,
         params: dict = None,
@@ -40,6 +41,7 @@ class VersionWriter(BaseWriter):
         参数：
             model_id: 所属模型ID
             version: 版本号
+            framework: 框架
             bento_tag: BentoML 标签
             model_path: 模型文件存储路径
             params: 模型参数
@@ -53,6 +55,7 @@ class VersionWriter(BaseWriter):
         obj = Version(
             model_id=model_id,
             version=version,
+            framework=framework,
             bento_tag=bento_tag,
             model_path=model_path,
             params=params,

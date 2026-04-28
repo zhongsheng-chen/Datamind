@@ -11,7 +11,7 @@
         model_id="scorecard_v1",
         name="模型对比实验",
         config={"strategy": "WEIGHTED", "variants": [...]},
-        created_by="admin"
+        created_by="system"
     )
 """
 
@@ -44,7 +44,7 @@ class ExperimentWriter(BaseWriter):
             model_id: 模型ID
             name: 实验名称
             description: 实验描述
-            status: 实验状态（running/paused/completed）
+            status: 实验状态
             config: 实验配置
             effective_from: 生效开始时间
             effective_to: 生效结束时间

@@ -2,97 +2,132 @@
 
 """审计装饰器
 
-自动为函数添加审计能力，支持从参数、session 或上下文获取 audit_recorder。
+提供函数级别审计能力，自动记录操作行为并注入上下文信息。
+
+核心功能：
+  - audit: 审计装饰器，函数执行后自动记录审计日志
 
 使用示例：
-    @audit_action("deployment.deploy", "deployment", target_id_getter=lambda r: r.id)
-    def deploy_model(session, deployment_data):
-        writer = DeploymentWriter(session)
-        return writer.write(**deployment_data)
+
+  from datamind.audit.decorator import audit
+
+
+  # 模型注册
+  @audit(
+      action="model.register",
+      target_type="model",
+      target_id_from="model_id",
+  )
+  def register(model_id: str, name: str):
+      ...
+
+
+  # 模型下线
+  @audit(
+      action="model.retire",
+      target_type="model",
+      target_id_from="model_id",
+  )
+  def retire(model_id: str, version: str, reason: str):
+      ...
+
+
+  # 自定义 target_id
+  @audit(
+      action="deployment.create",
+      target_type="deployment",
+      target_id_func=lambda p: f"{p['model_id']}-{p['version']}"
+  )
+  def deploy(model_id: str, version: str):
+      ...
 """
 
 from functools import wraps
-from typing import Optional, Callable, Any
+from inspect import signature
+from typing import Optional, Callable
+
+from datamind.db.core.uow import UnitOfWork
+from datamind.audit.recorder import AuditRecorder
 
 
-def _safe_dict(obj):
-    """安全提取对象的字典表示，排除私有属性"""
-    if obj is None:
-        return None
-
-    if isinstance(obj, (str, int, float, bool)):
-        return obj
-
-    if isinstance(obj, dict):
-        return {k: _safe_dict(v) for k, v in obj.items()}
-
-    if isinstance(obj, (list, tuple)):
-        return [_safe_dict(v) for v in obj]
-
-    if hasattr(obj, "__dict__"):
-        return {
-            k: _safe_dict(v)
-            for k, v in obj.__dict__.items()
-            if not k.startswith("_")
-        }
-
-    return str(obj)
-
-
-def audit_action(
+def audit(
+    *,
     action: str,
     target_type: str,
-    target_id_getter: Optional[Callable[[Any], str]] = None,
+    target_id_from: Optional[str] = None,
+    target_id_func: Optional[Callable] = None,
 ):
     """审计装饰器
 
     参数：
-        action: 操作类型（resource.verb 格式）
+        action: 操作类型（resource.verb）
         target_type: 目标类型
-        target_id_getter: 从函数返回值中提取 target_id 的函数
+        target_id_from: 从函数参数中提取 target_id
+        target_id_func: 自定义 target_id 生成函数
     """
+
     def decorator(func):
+        sig = signature(func)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
-            audit_recorder = kwargs.pop("audit_recorder", None)
+            # 绑定参数
+            bound = sig.bind_partial(*args, **kwargs)
+            bound.apply_defaults()
 
-            if audit_recorder is None:
-                session = args[0] if args else None
-                audit_recorder = getattr(session, "audit_recorder", None)
+            params = {
+                k: v for k, v in bound.arguments.items()
+                if k != "self"
+            }
+
+            # 生成 target_id
+            if target_id_func:
+                target_id = target_id_func(params)
+            elif target_id_from:
+                target_id = params.get(target_id_from)
+            else:
+                target_id = None
 
             try:
                 result = func(*args, **kwargs)
 
-                if audit_recorder:
-                    target_id = (
-                        target_id_getter(result)
-                        if target_id_getter
-                        else getattr(result, "id", None)
-                    )
+                # 成功审计
+                with UnitOfWork() as uow:
+                    recorder = AuditRecorder(uow.audit())
 
-                    audit_recorder.record(
+                    recorder.record(
                         action=action,
                         target_type=target_type,
                         target_id=target_id,
-                        after=_safe_dict(result),
-                        context={"status": "success"},
+                        after={
+                            "result": result,
+                        },
+                        context={
+                            "params": params,
+                        },
                     )
 
                 return result
 
             except Exception as e:
-                if audit_recorder:
-                    audit_recorder.record(
+                # 异常审计
+                with UnitOfWork() as uow:
+                    recorder = AuditRecorder(uow.audit())
+
+                    recorder.record(
                         action=action,
                         target_type=target_type,
-                        target_id=None,
-                        context={
-                            "status": "error",
+                        target_id=target_id,
+                        after={
                             "error": str(e),
+                        },
+                        context={
+                            "params": params,
                         },
                     )
 
                 raise
 
         return wrapper
+
     return decorator

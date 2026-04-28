@@ -19,6 +19,7 @@ class Deployment(Base, IdMixin, TimestampMixin):
     属性：
         model_id: 所属模型ID
         version: 部署的版本号
+        framework: 框架
         status: 部署状态（active/inactive）
         traffic_ratio: 流量占比（0.0 ~ 1.0）
         effective_from: 生效开始时间
@@ -32,6 +33,7 @@ class Deployment(Base, IdMixin, TimestampMixin):
     __table_args__ = (
         Index("idx_deployments_model_id", "model_id"),
         Index("idx_deployments_version", "model_id", "version"),
+        Index("idx_deployments_framework", "framework"),
         Index("idx_deployments_status", "status"),
         Index("idx_deployments_effective_time", "model_id", "effective_from", "effective_to"),
         Index("uk_deployments_model_id_version", "model_id", "version", unique=True),
@@ -39,7 +41,9 @@ class Deployment(Base, IdMixin, TimestampMixin):
     )
 
     model_id = Column(String(64), nullable=False)
+
     version = Column(String(50), nullable=False)
+    framework = Column(String(50), nullable=False)
 
     status = Column(String(20), nullable=False, default="active")
 
@@ -52,11 +56,4 @@ class Deployment(Base, IdMixin, TimestampMixin):
     description = Column(String(255))
 
     def __repr__(self):
-        return (
-            f"<Deployment("
-            f"model_id='{self.model_id}', "
-            f"version='{self.version}', "
-            f"status='{self.status}', "
-            f"traffic={self.traffic_ratio}"
-            f")>"
-        )
+        return f"<Deployment(model_id='{self.model_id}', version='{self.version}', status='{self.status}'>"

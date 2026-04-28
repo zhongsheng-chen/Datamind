@@ -26,13 +26,13 @@ class RoutingWriter(BaseWriter):
         model_id: str,
         strategy: str,
         config: dict,
-        enabled: str = "true",
+        enabled: bool = True,
     ) -> Routing:
         """写入路由规则
 
         参数：
             model_id: 模型ID
-            strategy: 路由策略（RANDOM/CONSISTENT/BUCKET/ROUND_ROBIN/WEIGHTED）
+            strategy: 路由策略
             config: 策略配置
             enabled: 是否启用
 

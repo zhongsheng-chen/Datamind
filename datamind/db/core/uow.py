@@ -2,7 +2,7 @@
 
 """工作单元
 
-统一事务管理器，确保一个请求中的所有数据库操作在同一个事务中完成。
+统一事务管理器，确保一个请求中的所有数据库操作在同一事务中完成。
 
 核心功能：
   - UnitOfWork: 工作单元，管理事务生命周期
@@ -10,9 +10,6 @@
 
 使用示例：
   from datamind.db.core.uow import UnitOfWork
-  from datamind.db.core.context import set_context
-
-  set_context(user_id="admin", trace_id="trace-001")
 
   with UnitOfWork() as uow:
       req = uow.request().write(
@@ -21,37 +18,69 @@
           payload={"x": 1}
       )
       uow.audit().write(
-          action="request",
+          action="request.create",
           target_type="request",
           target_id=req.id
       )
 """
 
-from dataclasses import dataclass
+from typing import Optional
+from sqlalchemy.orm import Session
 
-from datamind.db.core.session import get_session
+from datamind.db.core.session import SessionManager
 
 
-@dataclass
 class UnitOfWork:
-    """统一事务管理器（工作单元）"""
+    """统一事务管理器"""
 
-    session = None
+    def __init__(self, session: Optional[Session] = None, session_manager: SessionManager = None):
+        self._session = session
+        self._session_manager = session_manager
+        self._committed = False
+        self._closed = False
 
-    def __post_init__(self):
-        self.session = get_session()
+    @property
+    def session(self) -> Session:
+        if self._session is None:
+            if self._session_manager is None:
+                from datamind.db.core.session import get_session_manager
+                self._session_manager = get_session_manager()
+            self._session = self._session_manager.get_session()
+        return self._session
 
     def __enter__(self):
+        _ = self.session
         return self
 
     def __exit__(self, exc_type, exc, tb):
         try:
-            if exc:
-                self.session.rollback()
+            if exc_type:
+                self.rollback()
             else:
-                self.session.commit()
+                self.commit()
         finally:
-            self.session.close()
+            self.close()
+
+    def commit(self):
+        if self._closed:
+            return
+        if self._session and not self._committed:
+            self._session.commit()
+            self._committed = True
+
+    def rollback(self):
+        if self._session and not self._closed:
+            self._session.rollback()
+
+    def flush(self):
+        if self._session:
+            self._session.flush()
+
+    def close(self):
+        if self._session and not self._closed:
+            self._session.close()
+            self._closed = True
+            self._session = None
 
     def audit(self):
         """获取审计日志写入器"""

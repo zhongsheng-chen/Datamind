@@ -15,9 +15,9 @@ class Assignment(Base, IdMixin, TimestampMixin):
 
     属性：
         request_id: 请求唯一标识
-        user_id: 用户标识（可选，用于用户级追踪）
         model_id: 被分配到的模型ID
         version: 被分配到的模型版本
+        user: 用户
         source: 分配来源（routing/experiment/deployment）
         strategy: 分配策略（random/hash/weighted）
         context: 分配上下文（实验ID、分组、权重等）
@@ -29,18 +29,18 @@ class Assignment(Base, IdMixin, TimestampMixin):
     __table_args__ = (
         Index("idx_assignments_model_id", "model_id"),
         Index("idx_assignments_request_id", "request_id"),
-        Index("idx_assignments_user_id", "user_id"),
         Index("idx_assignments_model_version", "model_id", "version"),
         Index("idx_assignments_created_at", "created_at"),
         Index("idx_assignments_source", "source"),
+        Index("idx_assignments_user", "user"),
     )
 
     request_id = Column(String(64), nullable=False)
-    user_id = Column(String(64), nullable=True)
-
     model_id = Column(String(64), nullable=False)
+
     version = Column(String(50), nullable=False)
 
+    user = Column(String(64), nullable=True)
     source = Column(String(20), nullable=False)
 
     strategy = Column(String(20), nullable=True)
@@ -49,12 +49,5 @@ class Assignment(Base, IdMixin, TimestampMixin):
 
     routed_at = Column(DateTime, nullable=False)
 
-
     def __repr__(self):
-        return (
-            f"<Assignment("
-            f"request_id='{self.request_id}', "
-            f"model_id='{self.model_id}', "
-            f"version='{self.version}'"
-            f")>"
-        )
+        return f"<Assignment(request_id='{self.request_id}', model_id='{self.model_id}', version='{self.version}')>"

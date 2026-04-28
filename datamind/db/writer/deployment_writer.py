@@ -11,7 +11,7 @@
         version="1.0.0",
         status="active",
         traffic_ratio=1.0,
-        deployed_by="admin"
+        deployed_by="system"
     )
 """
 
@@ -30,6 +30,7 @@ class DeploymentWriter(BaseWriter):
         *,
         model_id: str,
         version: str,
+        framework: str,
         status: str = "active",
         traffic_ratio: float = 1.0,
         effective_from: datetime = None,
@@ -42,7 +43,8 @@ class DeploymentWriter(BaseWriter):
         参数：
             model_id: 模型ID
             version: 模型版本
-            status: 部署状态（active/inactive/canary）
+            framework: 框架
+            status: 部署状态
             traffic_ratio: 流量占比
             effective_from: 生效开始时间
             effective_to: 生效结束时间
@@ -55,6 +57,7 @@ class DeploymentWriter(BaseWriter):
         obj = Deployment(
             model_id=model_id,
             version=version,
+            framework=framework,
             status=status,
             traffic_ratio=traffic_ratio,
             effective_from=effective_from,
