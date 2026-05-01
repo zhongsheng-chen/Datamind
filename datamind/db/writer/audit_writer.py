@@ -7,6 +7,11 @@
 核心功能：
   - write: 写入审计日志
 
+注意：
+    本写入器继承 BaseWriter，事务由 session_scope 管理。
+    异常发生时审计日志会被回滚，不会写入数据库。
+    如需在异常情况下写入审计，请使用 datamind.audit.writer。
+
 使用示例：
   from datamind.db.writer.audit_writer import AuditWriter
 
@@ -62,13 +67,16 @@ class AuditWriter(BaseWriter):
             ip: 操作者 IP 地址
             status: 操作状态
             error: 错误信息
-            before: 变更前数据，JSON 格式
-            after: 变更后数据，JSON 格式
-            context: 操作上下文，JSON 格式
+            before: 变更前数据
+            after: 变更后数据
+            context: 操作上下文
             occurred_at: 操作发生时间
 
         返回：
             审计日志对象
+
+        注意：
+            事务由 session_scope 管理，异常发生时审计日志会被回滚。
         """
         obj = Audit(
             action=action,

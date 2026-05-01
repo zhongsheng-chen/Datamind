@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 42f6925ba0c6
+Revision ID: 4eaa902c00d0
 Revises: 
-Create Date: 2026-04-30 10:53:14.827984+00:00
+Create Date: 2026-05-01 09:51:19.568250+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = '42f6925ba0c6'
+revision = '4eaa902c00d0'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -50,6 +50,7 @@ def upgrade() -> None:
     sa.Column('operation', sa.String(length=64), nullable=False),
     sa.Column('target_type', sa.String(length=64), nullable=False),
     sa.Column('target_id', sa.String(length=64), nullable=False),
+    sa.Column('source', sa.String(length=16), server_default='system', nullable=False),
     sa.Column('trace_id', sa.String(length=64), nullable=True),
     sa.Column('request_id', sa.String(length=64), nullable=True),
     sa.Column('user', sa.String(length=64), nullable=True),
@@ -67,6 +68,7 @@ def upgrade() -> None:
     )
     op.create_index('idx_audit_failed_occurred_at', 'audit', ['occurred_at'], unique=False, postgresql_where=sa.text("status = 'failed'"))
     op.create_index('idx_audit_occurred_at', 'audit', ['occurred_at'], unique=False)
+    op.create_index('idx_audit_source_occurred_at', 'audit', ['source', 'occurred_at'], unique=False)
     op.create_index('idx_audit_target_id_occurred_at', 'audit', ['target_type', 'target_id', 'occurred_at'], unique=False)
     op.create_index('idx_audit_target_type_occurred_at', 'audit', ['target_type', 'occurred_at'], unique=False)
     op.create_index('idx_audit_trace_id_occurred_at', 'audit', ['trace_id', 'occurred_at'], unique=False, postgresql_where=sa.text('trace_id IS NOT NULL'))
@@ -241,6 +243,7 @@ def downgrade() -> None:
     op.drop_index('idx_audit_trace_id_occurred_at', table_name='audit', postgresql_where=sa.text('trace_id IS NOT NULL'))
     op.drop_index('idx_audit_target_type_occurred_at', table_name='audit')
     op.drop_index('idx_audit_target_id_occurred_at', table_name='audit')
+    op.drop_index('idx_audit_source_occurred_at', table_name='audit')
     op.drop_index('idx_audit_occurred_at', table_name='audit')
     op.drop_index('idx_audit_failed_occurred_at', table_name='audit', postgresql_where=sa.text("status = 'failed'"))
     op.drop_table('audit')

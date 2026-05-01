@@ -13,14 +13,14 @@
   run_migrations()
 """
 
+import structlog
 from alembic.config import Config
 from alembic import command
 from alembic.util.exc import CommandError
 
 from datamind.db.core.url import get_db_url
-from datamind.logging import get_logger
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def run_migrations(target: str = "head") -> None:
