@@ -14,17 +14,33 @@
       result = await session.execute(...)
 """
 
+from typing import Optional
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from datamind.db.core.engine import get_engine
 
 
-SessionFactory: async_sessionmaker[AsyncSession] = async_sessionmaker(
-    bind=get_engine(),
-    autoflush=False,
-    expire_on_commit=False,
-)
+_SessionFactory: Optional[async_sessionmaker[AsyncSession]] = None
+
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """获取 SessionFactory（单例延迟初始化）"""
+    global _SessionFactory
+
+    if _SessionFactory is None:
+        engine = get_engine()
+
+        if engine is None:
+            raise RuntimeError("数据库 engine 未初始化")
+
+        _SessionFactory = async_sessionmaker(
+            bind=engine,
+            autoflush=False,
+            expire_on_commit=False,
+        )
+
+    return _SessionFactory
+
 
 
 @asynccontextmanager
@@ -37,6 +53,7 @@ async def session_scope():
         async with session_scope() as session:
             result = await session.execute(...)
     """
+    SessionFactory = get_session_factory()
     session: AsyncSession = SessionFactory()
 
     try:

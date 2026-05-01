@@ -5,7 +5,8 @@
 记录进入系统的原始请求信息，用于请求追踪和性能分析。
 """
 
-from sqlalchemy import Column, String, Index, JSON, Float
+from sqlalchemy import Column, String, Index, Float
+from sqlalchemy.dialects.postgresql import JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -16,7 +17,7 @@ class Request(Base, IdMixin, TimestampMixin):
     属性：
         request_id: 请求唯一标识
         model_id: 目标模型 ID
-        payload: 请求输入，JSON 格式
+        payload: 请求负载，JSON 格式
         source: 请求来源，如 api / batch / stream
         latency_ms: 处理耗时，单位毫秒
         user: 用户标识
@@ -36,7 +37,7 @@ class Request(Base, IdMixin, TimestampMixin):
     request_id = Column(String(64), nullable=False, unique=True)
     model_id = Column(String(64), nullable=False)
 
-    payload = Column(JSON, nullable=True)
+    payload = Column(JSONB, nullable=True)
 
     source = Column(String(50), nullable=True)
 

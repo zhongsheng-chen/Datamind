@@ -44,11 +44,11 @@ class Version(Base, IdMixin, TimestampMixin):
 
     model_path = Column(String(255), nullable=False)
 
-    params = Column(JSONB)
-    metrics = Column(JSONB)
+    params = Column(JSONB, nullable=True)
+    metrics = Column(JSONB, nullable=True)
 
-    description = Column(Text)
-    created_by = Column(String(50))
+    description = Column(Text, nullable=True)
+    created_by = Column(String(50), nullable=True)
 
     def __repr__(self):
         return f"<Version(model_id='{self.model_id}', version='{self.version}')>"

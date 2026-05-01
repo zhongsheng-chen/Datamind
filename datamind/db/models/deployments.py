@@ -6,7 +6,7 @@
 """
 
 from sqlalchemy import CheckConstraint
-from sqlalchemy import Column, String, Float, Index, DateTime
+from sqlalchemy import Column, String, Float, Index, DateTime, text
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -42,14 +42,14 @@ class Deployment(Base, IdMixin, TimestampMixin):
     version = Column(String(50), nullable=False)
     framework = Column(String(50), nullable=False)
 
-    status = Column(String(20), nullable=False, default="active")
-    traffic_ratio = Column(Float, nullable=False, default=1.0)
+    status = Column(String(20), nullable=False, server_default=text("'active'"))
+    traffic_ratio = Column(Float, nullable=False, server_default=text("1.0"))
 
-    effective_from = Column(DateTime, nullable=True)
-    effective_to = Column(DateTime, nullable=True)
+    effective_from = Column(DateTime(timezone=True), nullable=True)
+    effective_to = Column(DateTime(timezone=True), nullable=True)
 
-    deployed_by = Column(String(50))
-    description = Column(String(255))
+    deployed_by = Column(String(50), nullable=True)
+    description = Column(String(255), nullable=True)
 
     def __repr__(self):
         return f"<Deployment(model_id='{self.model_id}', version='{self.version}', status='{self.status}')>"

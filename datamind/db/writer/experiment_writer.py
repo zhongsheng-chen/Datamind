@@ -2,11 +2,12 @@
 
 """实验写入器
 
-记录 AB 实验或灰度策略的配置信息。
+记录 A/B 实验或灰度策略的配置信息。
 
 使用示例：
     writer = ExperimentWriter(session)
-    writer.write(
+
+    await writer.write(
         experiment_id="exp_001",
         model_id="mdl_001",
         name="模型对比实验",
@@ -24,7 +25,7 @@ from datamind.db.writer.base_writer import BaseWriter
 class ExperimentWriter(BaseWriter):
     """实验写入器"""
 
-    def write(
+    async def write(
         self,
         *,
         experiment_id: str,
@@ -64,5 +65,7 @@ class ExperimentWriter(BaseWriter):
             effective_to=effective_to,
             created_by=created_by,
         )
+
         self.add(obj)
+
         return obj

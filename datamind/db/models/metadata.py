@@ -5,8 +5,8 @@
 存储模型的元数据信息，包括模型标识、类型、Schema 和状态等。
 """
 
-from sqlalchemy import Column, String, Text, Index
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, Index, text
+from sqlalchemy.dialects.postgresql import TEXT, JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -41,19 +41,19 @@ class Metadata(Base, IdMixin, TimestampMixin):
 
     model_id = Column(String(64), nullable=False, unique=True)
     name = Column(String(100), nullable=False, unique=True)
-    description = Column(Text)
+    description = Column(TEXT, nullable=True)
 
     model_type = Column(String(50), nullable=False)
     task_type = Column(String(50), nullable=False)
     framework = Column(String(50), nullable=False)
 
-    input_schema = Column(JSONB)
-    output_schema = Column(JSONB)
+    input_schema = Column(JSONB, nullable=True)
+    output_schema = Column(JSONB, nullable=True)
 
-    status = Column(String(20), nullable=False, default="active")
+    status = Column(String(20), nullable=False, server_default=text("'active'"))
 
-    created_by = Column(String(50))
-    updated_by = Column(String(50))
+    created_by = Column(String(50), nullable=True)
+    updated_by = Column(String(50), nullable=True)
 
     def __repr__(self):
         return f"<Metadata(name='{self.name}', model_id='{self.model_id}', model_type='{self.model_type}')>"

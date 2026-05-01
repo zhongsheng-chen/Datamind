@@ -2,11 +2,12 @@
 
 """模型元数据写入器
 
-记录模型的基本定义信息，每个模型仅创建一次。
+记录模型的元数据定义信息。
 
 使用示例：
     writer = MetadataWriter(session)
-    writer.create(
+
+    await writer.create(
         model_id="mdl_001",
         name="信用评分卡",
         model_type="logistic_regression",
@@ -23,7 +24,7 @@ from datamind.db.writer.base_writer import BaseWriter
 class MetadataWriter(BaseWriter):
     """模型元数据写入器"""
 
-    def create(
+    async def create(
         self,
         *,
         model_id: str,
@@ -43,10 +44,10 @@ class MetadataWriter(BaseWriter):
             name: 模型名称
             model_type: 模型类型
             task_type: 任务类型
-            framework: 框架
+            framework: 模型框架
             description: 模型描述
-            input_schema: 输入Schema
-            output_schema: 输出Schema
+            input_schema: 输入 Schema
+            output_schema: 输出 Schema
             created_by: 创建人
 
         返回：
@@ -63,5 +64,7 @@ class MetadataWriter(BaseWriter):
             output_schema=output_schema,
             created_by=created_by,
         )
+
         self.add(obj)
+
         return obj

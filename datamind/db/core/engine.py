@@ -12,14 +12,14 @@
   engine = get_engine()
 """
 
+import structlog
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from datamind.config import get_settings
-from datamind.logging import get_logger
 from datamind.db.core.url import get_db_url
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 _engine: AsyncEngine | None = None
 

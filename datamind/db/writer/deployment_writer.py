@@ -6,9 +6,11 @@
 
 使用示例：
     writer = DeploymentWriter(session)
-    writer.write(
+
+    await writer.write(
         model_id="mdl_001",
         version="1.0.0",
+        framework="sklearn",
         status="active",
         traffic_ratio=1.0,
         deployed_by="system"
@@ -22,10 +24,9 @@ from datamind.db.writer.base_writer import BaseWriter
 
 
 class DeploymentWriter(BaseWriter):
-    """部署写入器
-    """
+    """部署写入器"""
 
-    def write(
+    async def write(
         self,
         *,
         model_id: str,
@@ -43,7 +44,7 @@ class DeploymentWriter(BaseWriter):
         参数：
             model_id: 模型ID
             version: 模型版本
-            framework: 框架
+            framework: 模型框架
             status: 部署状态
             traffic_ratio: 流量占比
             effective_from: 生效开始时间
@@ -65,5 +66,7 @@ class DeploymentWriter(BaseWriter):
             deployed_by=deployed_by,
             description=description,
         )
+
         self.add(obj)
+
         return obj

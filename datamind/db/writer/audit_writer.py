@@ -4,20 +4,20 @@
 
 写入系统控制平面的操作事件。
 
-核心功能：
-  - write: 写入审计日志
-
 使用示例：
-  from datamind.db.writer.audit_writer import AuditWriter
+    from datamind.db.writer.audit_writer import AuditWriter
 
-  writer = AuditWriter(session)
-  await writer.write(
-      action="model.register",
-      target_type="model",
-      target_id="mdl_001",
-      user="admin",
-      after={"name": "scorecard"}
-  )
+    writer = AuditWriter(session)
+
+    await writer.write(
+        action="model.register",
+        resource="model",
+        operation="register",
+        target_type="model",
+        target_id="mdl_001",
+        user="admin",
+        after={"name": "scorecard"}
+    )
 """
 
 from datetime import datetime, timezone
@@ -62,9 +62,9 @@ class AuditWriter(BaseWriter):
             ip: 操作者 IP 地址
             status: 操作状态
             error: 错误信息
-            before: 变更前数据，JSON 格式
-            after: 变更后数据，JSON 格式
-            context: 操作上下文，JSON 格式
+            before: 变更前数据
+            after: 变更后数据
+            context: 操作上下文
             occurred_at: 操作发生时间
 
         返回：
@@ -87,5 +87,7 @@ class AuditWriter(BaseWriter):
             context=context,
             occurred_at=occurred_at or datetime.now(timezone.utc),
         )
+
         self.add(obj)
+
         return obj

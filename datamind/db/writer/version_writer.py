@@ -6,9 +6,11 @@
 
 使用示例：
     writer = VersionWriter(session)
-    writer.create(
+
+    await writer.create(
         model_id="mdl_001",
         version="1.0.0",
+        framework="sklearn",
         bento_tag="scorecard:abc123",
         model_path="s3://models/mdl_001/1.0.0/model.pkl",
         params={"C": 1.0, "max_iter": 100},
@@ -23,7 +25,7 @@ from datamind.db.writer.base_writer import BaseWriter
 class VersionWriter(BaseWriter):
     """模型版本写入器"""
 
-    def create(
+    async def create(
         self,
         *,
         model_id: str,
@@ -41,7 +43,7 @@ class VersionWriter(BaseWriter):
         参数：
             model_id: 所属模型ID
             version: 版本号
-            framework: 框架
+            framework: 模型框架
             bento_tag: BentoML 标签
             model_path: 模型文件存储路径
             params: 模型参数
@@ -63,5 +65,7 @@ class VersionWriter(BaseWriter):
             description=description,
             created_by=created_by,
         )
+
         self.add(obj)
+
         return obj

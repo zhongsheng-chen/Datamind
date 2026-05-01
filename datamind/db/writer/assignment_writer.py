@@ -6,7 +6,8 @@
 
 使用示例：
     writer = AssignmentWriter(session)
-    writer.write(
+
+    await writer.write(
         request_id="req-001",
         model_id="mdl_001",
         version="2.0.0",
@@ -15,6 +16,8 @@
     )
 """
 
+from datetime import datetime, timezone
+
 from datamind.db.models.assignments import Assignment
 from datamind.db.writer.base_writer import BaseWriter
 
@@ -22,16 +25,17 @@ from datamind.db.writer.base_writer import BaseWriter
 class AssignmentWriter(BaseWriter):
     """分配记录写入器"""
 
-    def write(
+    async def write(
         self,
         *,
         request_id: str,
         model_id: str,
         version: str,
-        user: str = None,
         source: str,
         strategy: str = None,
         context: dict = None,
+        user: str = None,
+        routed_at: datetime = None,
     ) -> Assignment:
         """写入分配记录
 
@@ -39,10 +43,11 @@ class AssignmentWriter(BaseWriter):
             request_id: 请求ID
             model_id: 被分配的模型ID
             version: 被分配的版本
-            user: 用户
             source: 分配来源
             strategy: 分配策略
             context: 分配上下文
+            user: 用户
+            routed_at: 路由分配时间
 
         返回：
             分配记录对象
@@ -51,10 +56,13 @@ class AssignmentWriter(BaseWriter):
             request_id=request_id,
             model_id=model_id,
             version=version,
-            user=user,
             source=source,
             strategy=strategy,
             context=context,
+            user=user,
+            routed_at=routed_at or datetime.now(timezone.utc),
         )
+
         self.add(obj)
+
         return obj

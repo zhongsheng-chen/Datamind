@@ -6,7 +6,8 @@
 
 使用示例：
     writer = RequestWriter(session)
-    writer.write(
+
+    await writer.write(
         request_id="req-001",
         model_id="mdl_001",
         payload={"features": {"age": 35}},
@@ -21,7 +22,7 @@ from datamind.db.writer.base_writer import BaseWriter
 class RequestWriter(BaseWriter):
     """请求写入器"""
 
-    def write(
+    async def write(
         self,
         *,
         request_id: str,
@@ -37,7 +38,7 @@ class RequestWriter(BaseWriter):
         参数：
             request_id: 请求唯一标识
             model_id: 目标模型ID
-            payload: 请求输入
+            payload: 请求负载
             source: 请求来源
             latency_ms: 处理耗时（毫秒）
             user: 用户
@@ -55,5 +56,7 @@ class RequestWriter(BaseWriter):
             user=user,
             ip=ip,
         )
+
         self.add(obj)
+
         return obj

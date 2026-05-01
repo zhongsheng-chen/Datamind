@@ -1,4 +1,4 @@
-# datamind/core/common/exceptions.py
+# datamind/core/common/errors.py
 
 """通用异常定义
 

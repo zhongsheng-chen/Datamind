@@ -5,7 +5,9 @@
 记录每个请求被路由到的模型版本及分配原因，用于 A/B 测试和灰度发布的流量追踪。
 """
 
-from sqlalchemy import Column, String, DateTime, Index, JSON
+from sqlalchemy.sql import func
+from sqlalchemy import Column, String, DateTime, Index
+from sqlalchemy.dialects.postgresql import JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -43,9 +45,9 @@ class Assignment(Base, IdMixin, TimestampMixin):
     source = Column(String(20), nullable=False)
     strategy = Column(String(20), nullable=True)
 
-    context = Column(JSON, nullable=True)
+    context = Column(JSONB, nullable=True)
 
-    routed_at = Column(DateTime, nullable=False)
+    routed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     def __repr__(self):
         return f"<Assignment(request_id='{self.request_id}', model_id='{self.model_id}', version='{self.version}')>"
