@@ -2,93 +2,71 @@
 
 """工作单元
 
-统一事务管理器，确保一个请求中的所有数据库操作在同一个事务中完成。
+统一事务管理器，确保一个请求中的所有数据库操作
+在同一个事务中完成。
 
 核心功能：
   - UnitOfWork: 工作单元，管理事务生命周期
-  - 提供所有 writer 的统一入口
 
 使用示例：
   from datamind.db.core.uow import UnitOfWork
-  from datamind.db.core.context import set_context
 
-  set_context(user_id="admin", trace_id="trace-001")
+  async with UnitOfWork() as uow:
+      session = uow.session
 
-  with UnitOfWork() as uow:
-      req = uow.request().write(
-          request_id="r1",
-          model_id="m1",
-          payload={"x": 1}
-      )
-      uow.audit().write(
-          action="request",
-          target_type="request",
-          target_id=req.id
-      )
+      # 执行业务数据库操作
+      # await repo.create(...)
+
+      await uow.commit()
 """
 
-from dataclasses import dataclass
+from typing import Optional
 
-from datamind.db.core.session import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from datamind.db.core.session import get_session_factory
 
 
-@dataclass
 class UnitOfWork:
-    """统一事务管理器（工作单元）"""
+    """工作单元"""
 
-    session = None
+    def __init__(self):
+        self._session: Optional[AsyncSession] = None
 
-    def __post_init__(self):
-        self.session = get_session()
+    @property
+    def session(self) -> AsyncSession:
+        """获取当前会话"""
+        return self._session
 
-    def __enter__(self):
+    async def __aenter__(self):
+        """进入事务上下文"""
+        SessionFactory = get_session_factory()
+
+        self._session = SessionFactory()
+
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """退出事务上下文"""
         try:
-            if exc:
-                self.session.rollback()
-            else:
-                self.session.commit()
+            if exc_type:
+                await self.rollback()
+
         finally:
-            self.session.close()
+            await self.close()
 
-    def audit(self):
-        """获取审计日志写入器"""
-        from datamind.db.writer.audit_writer import AuditWriter
-        return AuditWriter(self.session)
+    async def commit(self):
+        """提交事务"""
+        await self._session.commit()
 
-    def request(self):
-        """获取请求记录写入器"""
-        from datamind.db.writer.request_writer import RequestWriter
-        return RequestWriter(self.session)
+    async def rollback(self):
+        """回滚事务"""
+        await self._session.rollback()
 
-    def assignment(self):
-        """获取分配记录写入器"""
-        from datamind.db.writer.assignment_writer import AssignmentWriter
-        return AssignmentWriter(self.session)
+    async def flush(self):
+        """刷新会话"""
+        await self._session.flush()
 
-    def routing(self):
-        """获取路由规则写入器"""
-        from datamind.db.writer.routing_writer import RoutingWriter
-        return RoutingWriter(self.session)
-
-    def deployment(self):
-        """获取部署记录写入器"""
-        from datamind.db.writer.deployment_writer import DeploymentWriter
-        return DeploymentWriter(self.session)
-
-    def experiment(self):
-        """获取实验记录写入器"""
-        from datamind.db.writer.experiment_writer import ExperimentWriter
-        return ExperimentWriter(self.session)
-
-    def metadata(self):
-        """获取模型元数据写入器"""
-        from datamind.db.writer.metadata_writer import MetadataWriter
-        return MetadataWriter(self.session)
-
-    def version(self):
-        """获取模型版本写入器"""
-        from datamind.db.writer.version_writer import VersionWriter
-        return VersionWriter(self.session)
+    async def close(self):
+        """关闭会话"""
+        await self._session.close()

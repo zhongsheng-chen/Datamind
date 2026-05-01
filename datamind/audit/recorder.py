@@ -2,79 +2,116 @@
 
 """审计记录器
 
-统一封装审计日志写入，自动注入上下文信息。
+统一封装审计事件记录，自动注入上下文信息并分发到队列。
+
+核心功能：
+  - AuditRecorder: 审计记录器，自动注入上下文信息
 
 使用示例：
-    recorder = AuditRecorder(session)
-    recorder.record(
-        action="deployment.deploy",
-        target_type="deployment",
-        target_id="dep_001",
-        after={"status": "active"}
-    )
+  from datamind.audit.recorder import AuditRecorder
+
+  recorder = AuditRecorder()
+  await recorder.record(
+      action="model.register",
+      target_type="model",
+      target_id="mdl_001",
+      after={"name": "scorecard"}
+  )
 """
 
-from typing import Dict, Optional, Any
-from datetime import datetime
+import structlog
+from typing import Optional, Dict
 
-from datamind.db.writer.audit_writer import AuditWriter
-from datamind.audit.context import get_context
+from datamind.context import get_context
+from datamind.context.keys import TRACE_ID, REQUEST_ID, SOURCE, USER, IP
+from datamind.audit.event import AuditEvent
+from datamind.audit.dispatcher import dispatch
+from datamind.audit.errors import AuditDispatchError
 
+logger = structlog.get_logger(__name__)
 
 class AuditRecorder:
     """审计记录器"""
 
-    def __init__(self, session):
-        """初始化记录器
+    def __init__(self):
+        self._context = get_context
 
-        参数：
-            session: 数据库会话
-        """
-        self.writer = AuditWriter(session)
-
-    def record(
+    async def record(
         self,
         *,
         action: str,
         target_type: str,
         target_id: str,
+        status: str = "success",
+        error: Optional[str] = None,
         before: Optional[Dict] = None,
         after: Optional[Dict] = None,
         context: Optional[Dict] = None,
-        occurred_at: Optional[datetime] = None,
-        return_record: bool = False,
-    ) -> Optional[Any]:
+    ):
         """记录审计事件
 
         参数：
-            action: 操作类型（resource.verb 格式）
+            action: 操作类型，格式为 resource.operation
             target_type: 目标类型
             target_id: 目标ID
-            before: 变更前数据（模型对象或字典）
-            after: 变更后数据（模型对象或字典）
-            context: 操作上下文（会与全局上下文合并）
-            occurred_at: 操作时间
-            return_record: 是否返回审计记录对象
-
-        返回：
-            审计记录对象（return_record=True 时）或 None
+            status: 操作状态
+            error: 错误信息
+            before: 变更前数据
+            after: 变更后数据
+            context: 操作上下文
         """
-        # 获取全局审计上下文
-        audit_ctx = get_context()
 
-        # 合并上下文
-        final_context = {**audit_ctx, **(context or {})}
+        ctx = dict(self._context())
 
-        record = self.writer.write(
-            user_id=final_context.get("user_id"),
-            ip=final_context.get("ip"),
+        if context:
+            ctx.update(context)
+
+        trace_id = ctx.get(TRACE_ID)
+        request_id = ctx.get(REQUEST_ID)
+        source = ctx.get(SOURCE)
+        user = ctx.get(USER)
+        ip = ctx.get(IP)
+
+        if "." in action:
+            resource, operation = action.split(".", 1)
+        else:
+            resource, operation = action, ""
+
+        event = AuditEvent(
             action=action,
+            resource=resource,
+            operation=operation,
             target_type=target_type,
             target_id=target_id,
+            status=status,
+            error=error,
+            trace_id=trace_id,
+            request_id=request_id,
+            source=source,
+            user=user,
+            ip=ip,
             before=before,
             after=after,
-            context=final_context,
-            occurred_at=occurred_at,
+            context=ctx,
         )
 
-        return record if return_record else None
+        logger.debug(
+            "审计事件创建",
+            action=action,
+            target_id=target_id,
+            status=status,
+        )
+
+        try:
+            await dispatch(event)
+        except AuditDispatchError:
+            raise
+        except Exception as e:
+            logger.error(
+                "审计事件分发失败",
+                error=str(e),
+                action=action,
+                target_id=target_id,
+                trace_id=trace_id,
+                exc_info=True,
+            )

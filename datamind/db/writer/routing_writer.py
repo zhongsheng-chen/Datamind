@@ -2,12 +2,13 @@
 
 """路由规则写入器
 
-定义模型版本的流量分配规则，支持多种路由策略。
+用于管理模型版本的流量分发规则，支持多种路由策略。
 
 使用示例：
     writer = RoutingWriter(session)
-    writer.write(
-        model_id="scorecard_v1",
+
+    await writer.write(
+        model_id="mdl_001",
         strategy="WEIGHTED",
         config={"versions": {"1.0.0": 80, "2.0.0": 20}}
     )
@@ -20,19 +21,19 @@ from datamind.db.writer.base_writer import BaseWriter
 class RoutingWriter(BaseWriter):
     """路由规则写入器"""
 
-    def write(
+    async def write(
         self,
         *,
         model_id: str,
         strategy: str,
         config: dict,
-        enabled: str = "true",
+        enabled: bool = True,
     ) -> Routing:
         """写入路由规则
 
         参数：
             model_id: 模型ID
-            strategy: 路由策略（RANDOM/CONSISTENT/BUCKET/ROUND_ROBIN/WEIGHTED）
+            strategy: 路由策略
             config: 策略配置
             enabled: 是否启用
 
@@ -45,5 +46,7 @@ class RoutingWriter(BaseWriter):
             config=config,
             enabled=enabled,
         )
+
         self.add(obj)
+
         return obj

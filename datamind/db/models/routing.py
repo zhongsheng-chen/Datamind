@@ -5,7 +5,8 @@
 定义模型版本的流量分配规则，支持多种路由策略。
 """
 
-from sqlalchemy import Column, String, Boolean, JSON, Index
+from sqlalchemy import Column, String, Boolean, Index, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -14,10 +15,10 @@ class Routing(Base, IdMixin, TimestampMixin):
     """模型路由表
 
     属性：
-        model_id: 所属模型ID
-        strategy: 路由策略（RANDOM/CONSISTENT/BUCKET/ROUND_ROBIN/WEIGHTED）
-        config: 策略配置（权重、桶范围等）
-        enabled: 是否启用（true/false）
+        model_id: 所属模型 ID
+        strategy: 路由策略，可选值：random / consistent / bucket / round_robin / weighted
+        config: 策略配置，JSON 格式，如权重、桶范围等
+        enabled: 是否启用
     """
 
     __tablename__ = "routing"
@@ -29,12 +30,9 @@ class Routing(Base, IdMixin, TimestampMixin):
     )
 
     model_id = Column(String(64), nullable=False)
-
     strategy = Column(String(20), nullable=False)
-
-    config = Column(JSON, nullable=True)
-
-    enabled = Column(Boolean, nullable=False, default="true")
+    config = Column(JSONB, nullable=True)
+    enabled = Column(Boolean, nullable=False, server_default=text("true"))
 
     def __repr__(self):
         return f"<Routing(model_id='{self.model_id}', strategy='{self.strategy}', enabled='{self.enabled}')>"

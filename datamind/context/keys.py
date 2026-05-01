@@ -7,6 +7,7 @@
 核心功能：
   - TRACE_ID: 链路追踪ID
   - REQUEST_ID: 请求ID
+  - SOURCE: 来源类型
   - USER: 操作用户
   - IP: 客户端IP地址
   - ALL_KEYS: 所有键的集合（用于校验和调试）
@@ -20,17 +21,19 @@
   }
 
   # 校验
-  missing = ALL_KEYS - set(context.keys())
+  missing = set(ALL_KEYS.keys()) - set(context.keys())
 """
 
 TRACE_ID = "trace_id"
 REQUEST_ID = "request_id"
+SOURCE = "source"
 USER = "user"
 IP = "ip"
 
 ALL_KEYS = {
     TRACE_ID: None,
     REQUEST_ID: None,
+    SOURCE: None,
     USER: None,
     IP: None,
 }

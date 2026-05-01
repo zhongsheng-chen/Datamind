@@ -2,10 +2,12 @@
 
 """请求分配表
 
-记录每个请求被路由到的模型版本及分配原因，用于 A/B 测试和灰度发布的审计追踪。
+记录每个请求被路由到的模型版本及分配原因，用于 A/B 测试和灰度发布的流量追踪。
 """
 
-from sqlalchemy import Column, String, DateTime, Index, JSON
+from sqlalchemy.sql import func
+from sqlalchemy import Column, String, DateTime, Index
+from sqlalchemy.dialects.postgresql import JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -15,12 +17,12 @@ class Assignment(Base, IdMixin, TimestampMixin):
 
     属性：
         request_id: 请求唯一标识
-        user_id: 用户标识（可选，用于用户级追踪）
-        model_id: 被分配到的模型ID
+        model_id: 被分配到的模型 ID
         version: 被分配到的模型版本
-        source: 分配来源（routing/experiment/deployment）
-        strategy: 分配策略（random/hash/weighted）
-        context: 分配上下文（实验ID、分组、权重等）
+        user: 用户标识，用于用户级追踪
+        source: 分配来源，可选值：routing / experiment / deployment
+        strategy: 分配策略，可选值：random / hash / weighted
+        context: 分配上下文，如实验 ID、分组、权重等
         routed_at: 路由分配时间
     """
 
@@ -29,32 +31,23 @@ class Assignment(Base, IdMixin, TimestampMixin):
     __table_args__ = (
         Index("idx_assignments_model_id", "model_id"),
         Index("idx_assignments_request_id", "request_id"),
-        Index("idx_assignments_user_id", "user_id"),
         Index("idx_assignments_model_version", "model_id", "version"),
         Index("idx_assignments_created_at", "created_at"),
         Index("idx_assignments_source", "source"),
+        Index("idx_assignments_user", "user"),
     )
 
     request_id = Column(String(64), nullable=False)
-    user_id = Column(String(64), nullable=True)
-
     model_id = Column(String(64), nullable=False)
     version = Column(String(50), nullable=False)
 
+    user = Column(String(64), nullable=True)
     source = Column(String(20), nullable=False)
-
     strategy = Column(String(20), nullable=True)
 
-    context = Column(JSON, nullable=True)
+    context = Column(JSONB, nullable=True)
 
-    routed_at = Column(DateTime, nullable=False)
-
+    routed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     def __repr__(self):
-        return (
-            f"<Assignment("
-            f"request_id='{self.request_id}', "
-            f"model_id='{self.model_id}', "
-            f"version='{self.version}'"
-            f")>"
-        )
+        return f"<Assignment(request_id='{self.request_id}', model_id='{self.model_id}', version='{self.version}')>"

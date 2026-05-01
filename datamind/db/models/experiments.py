@@ -5,7 +5,8 @@
 定义模型版本之间的 AB 实验或灰度策略配置。
 """
 
-from sqlalchemy import Column, String, DateTime, Index, JSON
+from sqlalchemy import Column, String, DateTime, Index, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -15,11 +16,11 @@ class Experiment(Base, IdMixin, TimestampMixin):
 
     属性：
         experiment_id: 实验唯一标识
-        model_id: 所属模型ID
+        model_id: 所属模型 ID
         name: 实验名称
         description: 实验描述
-        status: 实验状态（running/paused/completed）
-        config: 实验配置（策略、变体、权重等）
+        status: 实验状态，可选值：running / paused / completed
+        config: 实验配置，JSON 格式，包含策略、变体、权重等
         effective_from: 生效开始时间
         effective_to: 生效结束时间
         created_by: 创建人
@@ -40,12 +41,12 @@ class Experiment(Base, IdMixin, TimestampMixin):
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
 
-    status = Column(String(20), nullable=False, default="running")
+    status = Column(String(20), nullable=False, server_default=text("'running'"))
 
-    config = Column(JSON, nullable=True)
+    config = Column(JSONB, nullable=True)
 
-    effective_from = Column(DateTime, nullable=True)
-    effective_to = Column(DateTime, nullable=True)
+    effective_from = Column(DateTime(timezone=True), nullable=True)
+    effective_to = Column(DateTime(timezone=True), nullable=True)
 
     created_by = Column(String(50), nullable=True)
 

@@ -9,7 +9,7 @@
   - TimestampMixin: 创建时间和更新时间
 """
 
-from sqlalchemy import Column, DateTime, BigInteger, Identity
+from sqlalchemy import Column, DateTime, BigInteger
 from sqlalchemy.sql import func
 
 

@@ -2,7 +2,7 @@
 
 from datamind.db.core.session import session_scope
 
-from datamind.audit.context import set_context, get_context, clear_context
+from datamind.context import set_context, get_context, clear_context
 from datamind.audit.recorder import AuditRecorder
 
 
@@ -45,7 +45,6 @@ def main():
                 "source": "audit_demo",
                 "reason": "initial create"
             },
-            return_record=True
         )
 
         print("✔ audit1 written:", audit1)
@@ -66,7 +65,6 @@ def main():
                 "field": "status",
                 "change": "active -> inactive"
             },
-            return_record=True,
         )
 
         print("✔ audit2 written:", audit2)
@@ -86,7 +84,6 @@ def main():
             context={
                 "env": "prod"
             },
-            return_record=True
         )
 
         print("✔ audit3 written:", audit3)
