@@ -17,13 +17,13 @@
 """
 
 import time
+import structlog
 import functools
 
-from datamind.logging import get_logger
 from datamind.context import get_context
 
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 def observe_storage(op: str):
     """存储操作可观测性装饰器

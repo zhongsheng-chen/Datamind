@@ -15,12 +15,12 @@
 """
 
 import time
+import structlog
 from sqlalchemy import text
 
 from datamind.db.core.engine import get_engine
-from datamind.logging import get_logger
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def health_check() -> dict:
