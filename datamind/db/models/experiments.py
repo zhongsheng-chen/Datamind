@@ -12,19 +12,7 @@ from datamind.db.core import Base, IdMixin, TimestampMixin
 
 
 class Experiment(Base, IdMixin, TimestampMixin):
-    """实验表
-
-    属性：
-        experiment_id: 实验唯一标识
-        model_id: 所属模型 ID
-        name: 实验名称
-        description: 实验描述
-        status: 实验状态，可选值：running / paused / completed
-        config: 实验配置，JSON 格式，包含策略、变体、权重等
-        effective_from: 生效开始时间
-        effective_to: 生效结束时间
-        created_by: 创建人
-    """
+    """实验表"""
 
     __tablename__ = "experiments"
 
@@ -36,19 +24,48 @@ class Experiment(Base, IdMixin, TimestampMixin):
         Index("idx_experiments_model_id_status", "model_id", "status"),
     )
 
-    experiment_id = Column(String(64), nullable=False, unique=True)
-    model_id = Column(String(64), nullable=False)
-    name = Column(String(100), nullable=False)
-    description = Column(String(255), nullable=True)
-
-    status = Column(String(20), nullable=False, server_default=text("'running'"))
-
-    config = Column(JSONB, nullable=True)
-
-    effective_from = Column(DateTime(timezone=True), nullable=True)
-    effective_to = Column(DateTime(timezone=True), nullable=True)
-
-    created_by = Column(String(50), nullable=True)
+    experiment_id = Column(
+        String(64), nullable=False, unique=True,
+        comment="实验唯一标识"
+    )
+    model_id = Column(
+        String(64), nullable=False,
+        comment="所属模型 ID"
+    )
+    name = Column(
+        String(100), nullable=False,
+        comment="实验名称"
+    )
+    description = Column(
+        String(255), nullable=True,
+        comment="实验描述"
+    )
+    status = Column(
+        String(20), nullable=False, server_default=text("'running'"),
+        comment="实验状态，可选值：running / paused / completed"
+    )
+    config = Column(
+        JSONB, nullable=True,
+        comment="实验配置，JSON 格式，包含策略、变体、权重等"
+    )
+    effective_from = Column(
+        DateTime(timezone=True), nullable=True,
+        comment="生效开始时间"
+    )
+    effective_to = Column(
+        DateTime(timezone=True), nullable=True,
+        comment="生效结束时间"
+    )
+    created_by = Column(
+        String(50), nullable=True,
+        comment="创建人"
+    )
 
     def __repr__(self):
-        return f"<Experiment(experiment_id='{self.experiment_id}', name='{self.name}', status='{self.status}')>"
+        return (
+            f"<Experiment("
+            f"experiment_id='{self.experiment_id}', "
+            f"name='{self.name}', "
+            f"status='{self.status}'"
+            f")>"
+        )

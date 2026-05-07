@@ -13,26 +13,7 @@ from datamind.db.core import Base, IdMixin, TimestampMixin
 
 
 class Audit(Base, IdMixin, TimestampMixin):
-    """审计日志表
-
-    属性：
-        action: 操作类型，格式为 resource.operation，如 model.register
-        resource: 资源类型，可选值：model / deployment / experiment
-        operation: 操作名称，如 register / create / delete / update
-        target_type: 目标类型，可选值：model / version / deployment / experiment
-        target_id: 目标 ID
-        source: 来源类型，可选值：http / system / worker / cron
-        trace_id: 链路追踪 ID
-        request_id: 请求 ID
-        user: 操作者
-        ip: 操作者 IP 地址（HTTP 请求时记录，system/worker 时为 None）
-        status: 操作状态，可选值：success / failed
-        error: 错误信息
-        before: 变更前数据，JSON 格式
-        after: 变更后数据，JSON 格式
-        context: 操作上下文，JSON 格式
-        occurred_at: 操作发生时间
-    """
+    """审计日志表"""
 
     __tablename__ = "audit"
 
@@ -46,29 +27,77 @@ class Audit(Base, IdMixin, TimestampMixin):
         Index("idx_audit_occurred_at", "occurred_at"),
     )
 
-    action = Column(String(64), nullable=False)
-    resource = Column(String(64), nullable=False)
-    operation = Column(String(64), nullable=False)
-
-    target_type = Column(String(64), nullable=False)
-    target_id = Column(String(64), nullable=False)
-
-    source = Column(String(16), nullable=False, server_default=text("'system'"))
-
-    trace_id = Column(String(64), nullable=True, index=True)
-    request_id = Column(String(64), nullable=True, index=True)
-
-    user = Column(String(64), nullable=True)
-    ip = Column(String(64), nullable=True)
-
-    status = Column(String(16), nullable=False, server_default=text("'success'"))
-    error = Column(TEXT, nullable=True)
-
-    before = Column(JSONB, nullable=True)
-    after = Column(JSONB, nullable=True)
-    context = Column(JSONB, nullable=True)
-
-    occurred_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    action = Column(
+        String(64), nullable=False,
+        comment="操作类型，格式为 resource.operation，如 model.register"
+    )
+    resource = Column(
+        String(64), nullable=False,
+        comment="资源类型，可选值：model / deployment / experiment"
+    )
+    operation = Column(
+        String(64), nullable=False,
+        comment="操作名称，如 register / create / delete / update"
+    )
+    target_type = Column(
+        String(64), nullable=False,
+        comment="目标类型，可选值：model / version / deployment / experiment"
+    )
+    target_id = Column(
+        String(64), nullable=False,
+        comment="目标 ID"
+    )
+    source = Column(
+        String(16), nullable=False, server_default=text("'system'"),
+        comment="来源类型，可选值：http / system"
+    )
+    trace_id = Column(
+        String(64), nullable=True, index=True,
+        comment="链路追踪 ID"
+    )
+    request_id = Column(
+        String(64), nullable=True, index=True,
+        comment="请求 ID"
+    )
+    user = Column(
+        String(64), nullable=True,
+        comment="操作者"
+    )
+    ip = Column(
+        String(64), nullable=True,
+        comment="操作者 IP 地址"
+    )
+    status = Column(
+        String(16), nullable=False, server_default=text("'success'"),
+        comment="操作状态，可选值：success / failed"
+    )
+    error = Column(
+        TEXT, nullable=True,
+        comment="错误信息"
+    )
+    before = Column(
+        JSONB, nullable=True,
+        comment="变更前数据，JSON 格式"
+    )
+    after = Column(
+        JSONB, nullable=True,
+        comment="变更后数据，JSON 格式"
+    )
+    context = Column(
+        JSONB, nullable=True,
+        comment="操作上下文，JSON 格式"
+    )
+    occurred_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(),
+        comment="操作发生时间"
+    )
 
     def __repr__(self):
-        return f"<Audit(action='{self.action}', target_type='{self.target_type}', target_id='{self.target_id}', source='{self.source}')>"
+        return (
+            f"<Audit("
+            f"action='{self.action}', "
+            f"target_type='{self.target_type}', "
+            f"target_id='{self.target_id}', "
+            f"source='{self.source}'"
+            f")>"
+        )

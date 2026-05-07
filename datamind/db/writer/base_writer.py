@@ -24,22 +24,27 @@
           return metadata
 """
 
-from dataclasses import dataclass
 from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@dataclass
 class BaseWriter:
     """写入器基类
 
     属性：
-        session: 数据库会话
+        session: 数据库会话（AsyncSession）
     """
 
-    _session: AsyncSession
+    def __init__(self, session: AsyncSession):
+        """
+        初始化写入器
+
+        参数：
+            session: 异步数据库会话对象，用于执行数据库操作
+        """
+        self._session = session
 
     def add(self, obj: Any) -> None:
         """添加单个对象"""
@@ -49,9 +54,9 @@ class BaseWriter:
         """添加多个对象"""
         self._session.add_all(objs)
 
-    async def delete(self, obj: Any) -> None:
+    def delete(self, obj: Any) -> None:
         """删除对象"""
-        await self._session.delete(obj)
+        self._session.delete(obj)
 
     async def flush(self) -> None:
         """刷新会话"""

@@ -16,7 +16,7 @@
 
   # 注册模型
   result = registry.register(
-      name="scorecard",
+      name="demo_scorecard",
       version="1.0.0",
       framework="sklearn",
       model_type="logistic_regression",
@@ -47,8 +47,8 @@ from typing import Any, Optional, Dict
 
 from datamind.logging import get_logger
 from datamind.storage import get_storage
-from datamind.models.artifact import ModelArtifact
 from datamind.models.backend import BentoBackend
+from datamind.models.builder import ModelBuilder
 from datamind.db.core.uow import UnitOfWork
 from datamind.context.scope import context_scope
 
@@ -136,7 +136,7 @@ class ModelRegistry:
         )
 
         # 反序列化模型对象
-        model = ModelArtifact.load(framework, data)
+        model = ModelBuilder.build(framework, data)
 
         # 注册到 BentoML
         bento_model = self.backend.save(

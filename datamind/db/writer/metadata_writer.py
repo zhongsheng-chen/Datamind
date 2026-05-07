@@ -8,8 +8,8 @@
     writer = MetadataWriter(session)
 
     await writer.create(
-        model_id="mdl_001",
-        name="信用评分卡",
+        model_id="mdl_a1b2c3d4",
+        name="demo_scorecard",
         model_type="logistic_regression",
         task_type="scoring",
         framework="sklearn",
