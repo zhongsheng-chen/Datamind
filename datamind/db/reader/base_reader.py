@@ -12,7 +12,7 @@
 
   class MetadataReader(BaseReader):
 
-      async def get_by_model_id(self, model_id: str):
+      async def get_model(self, model_id: str):
           stmt = select(Metadata).where(
               Metadata.model_id == model_id
           )
@@ -21,16 +21,26 @@
           return result.scalar_one_or_none()
 """
 
-from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@dataclass
 class BaseReader:
     """读取器基类
 
     属性：
-        session: 数据库会话
+        session: 数据库会话（AsyncSession）
     """
 
-    session: AsyncSession
+    def __init__(self, session: AsyncSession):
+        """
+        初始化读取器
+
+        参数：
+            session: 异步数据库会话对象，用于执行查询
+        """
+        self._session = session
+
+    @property
+    def session(self) -> AsyncSession:
+        """获取数据库会话"""
+        return self._session
