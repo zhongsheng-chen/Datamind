@@ -12,19 +12,7 @@ from datamind.db.core import Base, IdMixin, TimestampMixin
 
 
 class Version(Base, IdMixin, TimestampMixin):
-    """模型版本表
-
-    属性：
-        model_id: 所属模型 ID
-        version: 版本号
-        framework: 模型框架，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow
-        bento_tag: BentoML 标签，格式为 模型名:版本
-        model_path: 模型文件存储路径
-        params: 模型参数，JSON 格式
-        metrics: 模型评估指标，JSON 格式
-        description: 版本说明
-        created_by: 创建人
-    """
+    """模型版本表"""
 
     __tablename__ = "versions"
 
@@ -36,19 +24,47 @@ class Version(Base, IdMixin, TimestampMixin):
         Index("uk_versions_model_id_version", "model_id", "version", unique=True),
     )
 
-    model_id = Column(String(64), nullable=False)
-    version = Column(String(50), nullable=False)
-    framework = Column(String(50), nullable=False)
-
-    bento_tag = Column(String(100), nullable=False)
-
-    model_path = Column(String(255), nullable=False)
-
-    params = Column(JSONB, nullable=True)
-    metrics = Column(JSONB, nullable=True)
-
-    description = Column(Text, nullable=True)
-    created_by = Column(String(50), nullable=True)
+    model_id = Column(
+        String(64), nullable=False,
+        comment="所属模型 ID"
+    )
+    version = Column(
+        String(50), nullable=False,
+        comment="版本号"
+    )
+    framework = Column(
+        String(50), nullable=False,
+        comment="模型框架，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow"
+    )
+    bento_tag = Column(
+        String(100), nullable=False,
+        comment="BentoML 标签，格式为 模型名:版本"
+    )
+    model_path = Column(
+        String(255), nullable=False,
+        comment="模型文件存储路径"
+    )
+    params = Column(
+        JSONB, nullable=True,
+        comment="模型参数，JSON 格式"
+    )
+    metrics = Column(
+        JSONB, nullable=True,
+        comment="模型评估指标，JSON 格式"
+    )
+    description = Column(
+        Text, nullable=True,
+        comment="版本说明"
+    )
+    created_by = Column(
+        String(50), nullable=True,
+        comment="创建人"
+    )
 
     def __repr__(self):
-        return f"<Version(model_id='{self.model_id}', version='{self.version}')>"
+        return (
+            f"<Version("
+            f"model_id='{self.model_id}', "
+            f"version='{self.version}'"
+            f")>"
+        )

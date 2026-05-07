@@ -12,21 +12,7 @@ from datamind.db.core import Base, IdMixin, TimestampMixin
 
 
 class Metadata(Base, IdMixin, TimestampMixin):
-    """模型元数据表
-
-    属性：
-        model_id: 模型唯一标识
-        name: 模型名称
-        description: 模型描述
-        model_type: 模型类型，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost
-        task_type: 任务类型，可选值：classification / scoring
-        framework: 框架，可选值：sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow
-        input_schema: 输入 Schema，JSON 格式
-        output_schema: 输出 Schema，JSON 格式
-        status: 状态，可选值：active / inactive / deprecated / archived
-        created_by: 创建人
-        updated_by: 更新人
-    """
+    """模型元数据表"""
 
     __tablename__ = "metadata"
 
@@ -39,21 +25,56 @@ class Metadata(Base, IdMixin, TimestampMixin):
         Index("idx_metadata_created_at", "created_at"),
     )
 
-    model_id = Column(String(64), nullable=False, unique=True)
-    name = Column(String(100), nullable=False, unique=True)
-    description = Column(TEXT, nullable=True)
-
-    model_type = Column(String(50), nullable=False)
-    task_type = Column(String(50), nullable=False)
-    framework = Column(String(50), nullable=False)
-
-    input_schema = Column(JSONB, nullable=True)
-    output_schema = Column(JSONB, nullable=True)
-
-    status = Column(String(20), nullable=False, server_default=text("'active'"))
-
-    created_by = Column(String(50), nullable=True)
-    updated_by = Column(String(50), nullable=True)
+    model_id = Column(
+        String(64), nullable=False, unique=True,
+        comment="模型唯一标识"
+    )
+    name = Column(
+        String(100), nullable=False, unique=True,
+        comment="模型名称"
+    )
+    description = Column(
+        TEXT, nullable=True,
+        comment="模型描述"
+    )
+    model_type = Column(
+        String(50), nullable=False,
+        comment="模型类型，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost"
+    )
+    task_type = Column(
+        String(50), nullable=False,
+        comment="任务类型，可选值：classification / scoring"
+    )
+    framework = Column(
+        String(50), nullable=False,
+        comment="框架，可选值：sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow"
+    )
+    input_schema = Column(
+        JSONB, nullable=True,
+        comment="输入 Schema，JSON 格式"
+    )
+    output_schema = Column(
+        JSONB, nullable=True,
+        comment="输出 Schema，JSON 格式"
+    )
+    status = Column(
+        String(20), nullable=False, server_default=text("'active'"),
+        comment="状态，可选值：active / inactive / deprecated / archived"
+    )
+    created_by = Column(
+        String(50), nullable=True,
+        comment="创建人"
+    )
+    updated_by = Column(
+        String(50), nullable=True,
+        comment="更新人"
+    )
 
     def __repr__(self):
-        return f"<Metadata(name='{self.name}', model_id='{self.model_id}', model_type='{self.model_type}')>"
+        return (
+            f"<Metadata("
+            f"name='{self.name}', "
+            f"model_id='{self.model_id}', "
+            f"model_type='{self.model_type}'"
+            f")>"
+        )

@@ -12,17 +12,7 @@ from datamind.db.core import Base, IdMixin, TimestampMixin
 
 
 class Request(Base, IdMixin, TimestampMixin):
-    """请求表
-
-    属性：
-        request_id: 请求唯一标识
-        model_id: 目标模型 ID
-        payload: 请求负载，JSON 格式
-        source: 请求来源，如 api / batch / stream
-        latency_ms: 处理耗时，单位毫秒
-        user: 用户标识
-        ip: 客户端 IP 地址
-    """
+    """请求表"""
 
     __tablename__ = "requests"
 
@@ -34,17 +24,39 @@ class Request(Base, IdMixin, TimestampMixin):
         Index("idx_requests_user", "user"),
     )
 
-    request_id = Column(String(64), nullable=False, unique=True)
-    model_id = Column(String(64), nullable=False)
-
-    payload = Column(JSONB, nullable=True)
-
-    source = Column(String(50), nullable=True)
-
-    latency_ms = Column(Float, nullable=True)
-
-    user = Column(String(64), nullable=True)
-    ip = Column(String(64), nullable=True)
+    request_id = Column(
+        String(64), nullable=False, unique=True,
+        comment="请求唯一标识"
+    )
+    model_id = Column(
+        String(64), nullable=False,
+        comment="目标模型 ID"
+    )
+    payload = Column(
+        JSONB, nullable=True,
+        comment="请求负载，JSON 格式"
+    )
+    source = Column(
+        String(50), nullable=True,
+        comment="请求来源，如 api"
+    )
+    latency_ms = Column(
+        Float, nullable=True,
+        comment="处理耗时，单位毫秒"
+    )
+    user = Column(
+        String(64), nullable=True,
+        comment="用户标识"
+    )
+    ip = Column(
+        String(64), nullable=True,
+        comment="客户端 IP 地址"
+    )
 
     def __repr__(self):
-        return f"<Request(request_id='{self.request_id}', source='{self.source}')>"
+        return (
+            f"<Request("
+            f"request_id='{self.request_id}', "
+            f"source='{self.source}'"
+            f")>"
+        )

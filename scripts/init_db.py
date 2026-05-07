@@ -11,10 +11,11 @@
   python scripts/init_db.py
 """
 
-from datamind.logging import get_logger
+import structlog
+
 from datamind.db import run_migrations
 
-logger = get_logger("init_db")
+logger = structlog.get_logger(__name__)
 
 
 def init_database():
