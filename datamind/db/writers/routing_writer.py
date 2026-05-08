@@ -8,14 +8,14 @@
     writer = RoutingWriter(session)
 
     await writer.write(
-        model_id="mdl_001",
+        model_id="mdl_a1b2c3d4",
         strategy="WEIGHTED",
         config={"versions": {"1.0.0": 80, "2.0.0": 20}}
     )
 """
 
 from datamind.db.models.routing import Routing
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class RoutingWriter(BaseWriter):

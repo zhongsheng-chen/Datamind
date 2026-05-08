@@ -14,7 +14,7 @@
 from sqlalchemy import select
 
 from datamind.db.models.requests import Request
-from datamind.db.reader.base_reader import BaseReader
+from datamind.db.readers.base_reader import BaseReader
 
 
 class RequestReader(BaseReader):

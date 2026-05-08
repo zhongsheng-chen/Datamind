@@ -14,7 +14,7 @@
 from sqlalchemy import select
 
 from datamind.db.models.metadata import Metadata
-from datamind.db.reader.base_reader import BaseReader
+from datamind.db.readers.base_reader import BaseReader
 
 
 class MetadataReader(BaseReader):

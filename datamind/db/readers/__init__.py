@@ -18,18 +18,18 @@
   from datamind.db.reader import MetadataReader, VersionReader
 
   reader = MetadataReader(session)
-  metadata = await reader.get_model("demo_scorecard")
+  metadata = await reader.get_model("scorecard")
 """
 
-from datamind.db.reader.base_reader import BaseReader
-from datamind.db.reader.audit_reader import AuditReader
-from datamind.db.reader.request_reader import RequestReader
-from datamind.db.reader.assignment_reader import AssignmentReader
-from datamind.db.reader.routing_reader import RoutingReader
-from datamind.db.reader.deployment_reader import DeploymentReader
-from datamind.db.reader.experiment_reader import ExperimentReader
-from datamind.db.reader.metadata_reader import MetadataReader
-from datamind.db.reader.version_reader import VersionReader
+from datamind.db.readers.base_reader import BaseReader
+from datamind.db.readers.audit_reader import AuditReader
+from datamind.db.readers.request_reader import RequestReader
+from datamind.db.readers.assignment_reader import AssignmentReader
+from datamind.db.readers.routing_reader import RoutingReader
+from datamind.db.readers.deployment_reader import DeploymentReader
+from datamind.db.readers.experiment_reader import ExperimentReader
+from datamind.db.readers.metadata_reader import MetadataReader
+from datamind.db.readers.version_reader import VersionReader
 
 __all__ = [
     "BaseReader",

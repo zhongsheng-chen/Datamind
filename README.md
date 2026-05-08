@@ -2100,3 +2100,501 @@ tar -czf datamind.tar.gz .
 
 
 参考：https://blog.51cto.com/u_16099215/9695963
+
+datamind/models/
+├── registry.py          # ⭐ 对外唯一入口（register / load / retire）
+├── backend.py           # ⭐ BentoML 封装层
+│
+├── artifact/            # ⭐ 模型反序列化系统（核心）
+│   ├── __init__.py
+│   ├── loader.py       # dispatch：framework -> handler
+│   ├── registry.py     # handler 注册表
+│   ├── io.py           # bytes <-> temp file 工具
+│   └── handlers/
+│       ├── sklearn.py
+│       ├── xgboost.py
+│       ├── lightgbm.py
+│       ├── torch.py
+│       ├── tensorflow.py
+│       ├── onnx.py
+│       └── catboost.py
+│
+└── types.py            # （可选）模型元数据/枚举
+
+datamind/models/builder.py
+
+
+datamind/models/
+├── __init__.py
+├── register.py
+├── loader.py
+├── retire.py
+├── builder.py
+├── backend.py
+└── artifact/
+    ├── __init__.py
+    ├── loader.py
+    ├── register.py
+    ├── io.py
+    └── handlers/
+
+datamind/models/
+├── register.py     -> ModelRegister
+├── loader.py       -> ModelLoader
+├── retire.py       -> ModelRetirer
+├── builder.py      -> ModelBuilder
+├── backend.py      -> BentoBackend
+└── artifact/
+
+datamind/models/
+├── __init__.py
+│
+├── register.py        # 模型注册
+├── loader.py          # 模型加载
+├── deploy.py          # 上线
+├── undeploy.py        # 下线
+├── lifecycle.py       # deprecate/disable/archive
+│
+├── builder.py         # 构建 artifact
+├── backend.py         # backend 抽象
+│
+├── enums.py           # 状态枚举
+├── exceptions.py
+│
+└── artifact/
+    ├── __init__.py
+    ├── loader.py
+    ├── register.py
+    ├── io.py
+    └── handlers/
+
+datamind/models/artifact/register.py
+
+给出datamind/models/retire.py
+
+给出datamind/models/loader.py
+
+# 元数据表 status
+## 1. active
+
+正常模型。
+
+**允许：**
+
+- 注册新版本 ✅
+- 上线 deployment ✅
+- 创建实验 ✅
+- 配路由 ✅
+
+**比如：**
+
+当前主力模型。
+
+---
+
+## 2. deprecated
+
+已废弃（不推荐继续使用），但还没真正停用。
+
+这是最有价值的过渡状态。
+
+**允许：**
+
+- 已有 deployment 继续运行 ✅
+- 查询、推理 ✅
+
+**禁止（建议）：**
+
+- 新 deployment ❌
+- 新实验 ❌
+- 新流量切换 ❌
+
+**可选（看业务）：**
+
+- 注册新版本，一般也不建议 ❌
+
+**典型场景：**
+
+你有 `scorecard-v1`，准备迁移到 `scorecard-v2`，  
+`v1` 还在线，但已经不建议继续使用。
+
+这时候：
+
+```python
+metadata.status = "deprecated"
+```
+
+非常自然。
+
+---
+
+## 3. inactive
+
+停用。
+
+**表示：**
+
+模型已经停止业务使用。
+
+**要求：**
+
+通常所有 deployment 都已经下线。
+
+**禁止：**
+
+- 上线 ❌
+- 注册新版本 ❌
+- 实验 ❌
+
+**允许：**
+
+- 查询历史记录 ✅
+- 审计 ✅
+
+---
+
+## 4. archived
+
+归档。
+
+**表示：**
+
+生命周期彻底结束。
+
+**特点：**
+
+只读。
+
+# 元数据表 status
+| 状态 | 是否可推理 | 是否允许新上线 | 语义 |
+|------|------------|---------------|------|
+| active | 是 | 是 | 正常使用 |
+| deprecated | 是（可能还在线） | 否 | 已废弃，建议迁移 |
+| inactive | 否 | 否 | 已停用 |
+| archived | 否 | 否 | 已归档 |
+
+
+# 模型状态设计
+
+## 一、Metadata（模型资产状态）
+
+表示：
+
+模型在控制平面是否允许继续参与生命周期操作。
+
+### 建议保留
+
+- `active`
+- `deprecated`
+- `inactive`
+- `archived`
+
+### 语义
+
+| 状态 | 含义 |
+|------|------|
+| `active` | 正常模型，可继续运营 |
+| `deprecated` | 已废弃，不建议新增使用 |
+| `inactive` | 已停用，禁止运营 |
+| `archived` | 已归档，只读 |
+
+---
+
+## 二、Deployment（运行状态）
+
+表示：
+
+某个版本是否在线服务。
+
+### 保持简单
+
+- `active`
+- `inactive`
+
+---
+
+# 三、核心状态约束（最重要）
+
+不是所有组合都合法。
+
+---
+
+## 规则 1：模型注册（Register）
+
+### 动作
+
+```python
+ModelRegister.register(...)
+```
+
+### 结果
+
+```python
+metadata.status = "active"
+```
+
+初始没有 deployment：
+
+```python
+deployment = None
+```
+
+即：
+
+```text
+register
+↓
+metadata = active
+```
+
+---
+
+## 规则 2：模型上线（Deploy）
+
+### 动作
+
+```python
+ModelDeploy.deploy(...)
+```
+
+### 前置条件
+
+必须：
+
+```python
+metadata.status == "active"
+```
+
+否则禁止：
+
+- `deprecated` → 禁止上线
+- `inactive` → 禁止上线
+- `archived` → 禁止上线
+
+### 成功后
+
+```python
+deployment.status = "active"
+```
+
+### 状态约束
+
+| metadata | 能否 deploy |
+|------|------|
+| `active` | ✅ |
+| `deprecated` | ❌ |
+| `inactive` | ❌ |
+| `archived` | ❌ |
+
+---
+
+## 规则 3：模型下线（Undeploy）
+
+### 动作
+
+```python
+ModelUndeploy.undeploy(...)
+```
+
+### 前置条件
+
+```python
+deployment.status == "active"
+```
+
+### 结果
+
+```python
+deployment.status = "inactive"
+```
+
+**不会影响 metadata。**
+
+即：
+
+```text
+metadata = active
+deployment = active
+
+↓ undeploy
+
+metadata = active
+deployment = inactive
+```
+
+---
+
+## 规则 4：模型废弃（Deprecate）
+
+### 动作
+
+```python
+ModelDeprecate.deprecate(...)
+```
+
+### 状态迁移
+
+```text
+active → deprecated
+```
+
+### 结果
+
+```python
+metadata.status = "deprecated"
+```
+
+已有 deployment：
+
+可以继续运行：
+
+```python
+deployment.status = "active"
+```
+
+但是：
+
+禁止新增 deployment。
+
+### 状态约束
+
+| metadata | deployment |
+|------|------|
+| `deprecated` | `active`（允许已有） |
+| `deprecated` | 新建 `active`（禁止） |
+
+这是灰度迁移最常见场景。
+
+---
+
+## 规则 5：模型停用（Disable）
+
+### 动作
+
+```python
+ModelDisable.disable(...)
+```
+
+### 前置条件
+
+必须所有 deployment 都已下线：
+
+```python
+all(deployment.status == "inactive")
+```
+
+否则报错。
+
+### 允许状态迁移
+
+```text
+active → inactive
+deprecated → inactive
+```
+
+### 结果
+
+```python
+metadata.status = "inactive"
+```
+
+此后：
+
+禁止上线。
+
+---
+
+## 规则 6：模型归档（Archive）
+
+### 动作
+
+```python
+ModelArchive.archive(...)
+```
+
+### 前置条件
+
+必须：
+
+```python
+metadata.status == "inactive"
+```
+
+### 结果
+
+```python
+metadata.status = "archived"
+```
+
+归档后完全只读。
+
+---
+
+# 四、完整状态图
+
+## Metadata State
+
+```text
+active
+  │
+  ├── deploy → Deployment.active
+  │
+  ├── deprecate
+  ▼
+deprecated
+  │
+  ▼
+inactive
+  │
+  ▼
+archived
+```
+
+## Deployment State
+
+```text
+inactive ↔ active
+```
+
+但有全局约束：
+
+只有：
+
+```python
+metadata.status == "active"
+```
+
+deployment 才允许：
+
+```text
+inactive → active
+```
+
+也就是：
+
+> 模型上线，只有当 `metadata.status = active` 时，`deployment.status` 才能为 `active`
+
+---
+
+# 五、最终合法组合
+
+## 允许
+
+| metadata | deployment |
+|------|------|
+| `active` | `active` ✅ |
+| `active` | `inactive` ✅ |
+| `deprecated` | `active` ✅（历史部署） |
+| `deprecated` | `inactive` ✅ |
+| `inactive` | `inactive` ✅ |
+| `archived` | `inactive` ✅ |
+
+---
+
+## 禁止
+
+| metadata | deployment |
+|------|------|
+| `inactive` | `active` ❌ |
+| `archived` | `active` ❌ |
+| `deprecated` | 新建 `active` ❌ |

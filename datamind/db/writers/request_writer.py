@@ -8,15 +8,15 @@
     writer = RequestWriter(session)
 
     await writer.write(
-        request_id="req-001",
-        model_id="mdl_001",
+        request_id="req_a1b2c3d4",
+        model_id="mdl_a1b2c3d4",
         payload={"features": {"age": 35}},
         latency_ms=125.5
     )
 """
 
 from datamind.db.models.requests import Request
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class RequestWriter(BaseWriter):

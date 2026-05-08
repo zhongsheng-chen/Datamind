@@ -8,8 +8,8 @@
     writer = AssignmentWriter(session)
 
     await writer.write(
-        request_id="req-001",
-        model_id="mdl_001",
+        request_id="req_a1b2c3d4",
+        model_id="mdl_a1b2c3d4",
         version="2.0.0",
         source="experiment",
         context={"experiment_id": "exp_001", "group": "B"},
@@ -19,7 +19,7 @@
 from datetime import datetime, timezone
 
 from datamind.db.models.assignments import Assignment
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class AssignmentWriter(BaseWriter):

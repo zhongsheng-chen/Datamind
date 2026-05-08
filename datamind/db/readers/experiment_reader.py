@@ -13,7 +13,7 @@
 from sqlalchemy import select
 
 from datamind.db.models.experiments import Experiment
-from datamind.db.reader.base_reader import BaseReader
+from datamind.db.readers.base_reader import BaseReader
 
 
 class ExperimentReader(BaseReader):

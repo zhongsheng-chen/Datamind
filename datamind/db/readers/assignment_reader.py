@@ -14,7 +14,7 @@
 from sqlalchemy import select
 
 from datamind.db.models.assignments import Assignment
-from datamind.db.reader.base_reader import BaseReader
+from datamind.db.readers.base_reader import BaseReader
 
 
 class AssignmentReader(BaseReader):
