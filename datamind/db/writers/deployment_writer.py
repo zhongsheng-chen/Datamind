@@ -8,7 +8,7 @@
     writer = DeploymentWriter(session)
 
     await writer.write(
-        model_id="mdl_001",
+        model_id="mdl_a1b2c3d4",
         version="1.0.0",
         framework="sklearn",
         status="active",
@@ -20,7 +20,7 @@
 from datetime import datetime
 
 from datamind.db.models.deployments import Deployment
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class DeploymentWriter(BaseWriter):

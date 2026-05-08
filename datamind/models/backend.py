@@ -14,14 +14,14 @@
   backend = BentoBackend()
 
   backend.save(
-      name="my_model",
+      name="scorecard",
       framework="sklearn",
       model=model
   )
 
   loaded_model = backend.load(
       framework="sklearn",
-      tag="my_model:latest"
+      tag="scorecard:latest"
   )
 """
 
@@ -69,7 +69,7 @@ class BentoBackend:
 
         参数：
             name: 模型名称
-            framework: 模型框架（sklearn/xgboost/lightgbm 等）
+            framework: 模型框架
             model: 模型实例
 
         返回：

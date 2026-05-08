@@ -8,18 +8,18 @@
     writer = VersionWriter(session)
 
     await writer.create(
-        model_id="mdl_001",
+        model_id="mdl_a1b2c3d4",
         version="1.0.0",
         framework="sklearn",
-        bento_tag="scorecard:abc123",
-        model_path="s3://models/mdl_001/1.0.0/model.pkl",
+        bento_tag="scorecard:abc123def",
+        model_path="s3://models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
         params={"C": 1.0, "max_iter": 100},
         metrics={"accuracy": 0.85, "auc": 0.92}
     )
 """
 
 from datamind.db.models.versions import Version
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class VersionWriter(BaseWriter):

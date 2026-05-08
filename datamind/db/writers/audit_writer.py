@@ -14,7 +14,7 @@
         resource="model",
         operation="register",
         target_type="model",
-        target_id="mdl_001",
+        target_id="mdl_a1b2c3d4",
         user="admin",
         after={"name": "scorecard"}
     )
@@ -23,7 +23,7 @@
 from datetime import datetime, timezone
 
 from datamind.db.models.audit import Audit
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class AuditWriter(BaseWriter):

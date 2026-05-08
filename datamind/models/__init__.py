@@ -1,4 +1,4 @@
-from datamind.models.registry import ModelRegistry
+from datamind.models.register import ModelRegistry
 from datamind.models.loader import ModelLoader
 
 __all__ = [

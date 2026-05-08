@@ -19,7 +19,7 @@
 
   writer = MetadataWriter(session)
   metadata = writer.create(
-      model_id="scorecard_v1",
+      model_id="mdl_a1b2c3d4",
       name="信用评分卡",
       model_type="logistic_regression",
       task_type="scoring",
@@ -27,15 +27,15 @@
   )
 """
 
-from datamind.db.writer.base_writer import BaseWriter
-from datamind.db.writer.audit_writer import AuditWriter
-from datamind.db.writer.request_writer import RequestWriter
-from datamind.db.writer.assignment_writer import AssignmentWriter
-from datamind.db.writer.routing_writer import RoutingWriter
-from datamind.db.writer.deployment_writer import DeploymentWriter
-from datamind.db.writer.experiment_writer import ExperimentWriter
-from datamind.db.writer.metadata_writer import MetadataWriter
-from datamind.db.writer.version_writer import VersionWriter
+from datamind.db.writers.base_writer import BaseWriter
+from datamind.db.writers.audit_writer import AuditWriter
+from datamind.db.writers.request_writer import RequestWriter
+from datamind.db.writers.assignment_writer import AssignmentWriter
+from datamind.db.writers.routing_writer import RoutingWriter
+from datamind.db.writers.deployment_writer import DeploymentWriter
+from datamind.db.writers.experiment_writer import ExperimentWriter
+from datamind.db.writers.metadata_writer import MetadataWriter
+from datamind.db.writers.version_writer import VersionWriter
 
 __all__ = [
     "BaseWriter",

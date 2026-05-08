@@ -14,7 +14,7 @@
 from sqlalchemy import select
 
 from datamind.db.models.audit import Audit
-from datamind.db.reader.base_reader import BaseReader
+from datamind.db.readers.base_reader import BaseReader
 
 
 class AuditReader(BaseReader):

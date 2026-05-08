@@ -9,7 +9,7 @@
 
     await writer.create(
         model_id="mdl_a1b2c3d4",
-        name="demo_scorecard",
+        name="scorecard",
         model_type="logistic_regression",
         task_type="scoring",
         framework="sklearn",
@@ -18,7 +18,7 @@
 """
 
 from datamind.db.models.metadata import Metadata
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class MetadataWriter(BaseWriter):
@@ -35,6 +35,7 @@ class MetadataWriter(BaseWriter):
         description: str = None,
         input_schema: dict = None,
         output_schema: dict = None,
+        status: str = "active",
         created_by: str = None,
     ) -> Metadata:
         """创建模型元数据
@@ -48,6 +49,7 @@ class MetadataWriter(BaseWriter):
             description: 模型描述
             input_schema: 输入 Schema
             output_schema: 输出 Schema
+            status: 状态
             created_by: 创建人
 
         返回：
@@ -62,6 +64,7 @@ class MetadataWriter(BaseWriter):
             description=description,
             input_schema=input_schema,
             output_schema=output_schema,
+            status=status,
             created_by=created_by,
         )
 

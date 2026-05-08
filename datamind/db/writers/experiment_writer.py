@@ -8,8 +8,8 @@
     writer = ExperimentWriter(session)
 
     await writer.write(
-        experiment_id="exp_001",
-        model_id="mdl_001",
+        experiment_id="exp_a1b2c3d4",
+        model_id="mdl_a1b2c3d4",
         name="模型对比实验",
         config={"strategy": "WEIGHTED", "variants": [...]},
         created_by="system"
@@ -19,7 +19,7 @@
 from datetime import datetime
 
 from datamind.db.models.experiments import Experiment
-from datamind.db.writer.base_writer import BaseWriter
+from datamind.db.writers.base_writer import BaseWriter
 
 
 class ExperimentWriter(BaseWriter):

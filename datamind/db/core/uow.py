@@ -18,7 +18,6 @@
 """
 
 from typing import Optional
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datamind.db.core.session import get_session_factory
