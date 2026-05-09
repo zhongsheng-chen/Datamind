@@ -2,7 +2,7 @@
 
 """模型注册器
 
-负责模型的注册流程，整合存储、反序列化、BentoML 注册和元数据持久化。
+负责模型的注册，完成模型产物加载、存储和注册。
 
 核心功能：
   - ModelRegister.register: 注册模型
@@ -26,16 +26,22 @@
 
 import os
 import hashlib
+import structlog
 from pathlib import Path
 from typing import Optional, Dict
 
 from datamind.storage import get_storage
+from datamind.storage.resolver import StorageResolver
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.writers import MetadataWriter, VersionWriter
+from datamind.db.readers import MetadataReader, VersionReader
 from datamind.models.backend import BentoBackend
 from datamind.models.artifact import ModelArtifactLoader
+from datamind.models.guard import ModelGuard
 from datamind.models.enums import MetadataStatus
-from datamind.models.errors import ArtifactError
+from datamind.models.errors import ArtifactError, ModelAlreadyExistsError
+
+logger = structlog.get_logger(__name__)
 
 
 class ModelRegister:
@@ -71,92 +77,147 @@ class ModelRegister:
         params: Optional[Dict] = None,
         metrics: Optional[Dict] = None,
         created_by: Optional[str] = None,
+        force: bool = False,
     ) -> Dict[str, str]:
-        """注册模型
+        """注册模型"""
 
-        参数：
-            name: 模型名称
-            version: 模型版本号
-            framework: 模型框架
-            model_type: 模型类型
-            task_type: 任务类型（classification/scoring）
-            model_path: 本地模型文件路径
-            description: 模型描述（可选）
-            params: 模型参数（可选）
-            metrics: 评估指标（可选）
-            created_by: 创建人（可选）
+        model_id = self._generate_model_id(name)
 
-        返回：
-            包含 model_id、version、storage_key、bento_tag 的字典
+        logger.info(
+            "开始注册模型",
+            model_id=model_id,
+            name=name,
+            version=version,
+        )
 
-        异常：
-            ArtifactError: 模型文件读取或加载失败
-        """
         path = Path(model_path)
-
         if not path.exists():
             raise ArtifactError(f"模型文件不存在: {model_path}")
 
-        model_id = self._generate_model_id(name)
         filename = os.path.basename(model_path)
 
-        # 读取模型文件
-        try:
-            data = path.read_bytes()
-        except Exception as e:
-            raise ArtifactError(f"模型文件读取失败: {model_path}") from e
-
-        # 写入存储层
-        storage_key = self.storage.save(
-            model_id=model_id,
-            version=version,
-            filename=filename,
-            data=data,
-        )
-
-        # 加载模型产物
-        try:
-            model = ModelArtifactLoader.load(
-                data=data,
-                framework=framework,
-            )
-        except Exception as e:
-            raise ArtifactError("模型加载失败") from e
-
-        # 注册到 BentoML
-        bento_model = self.backend.save(
-            name=name,
-            framework=framework,
-            model=model,
-            labels={
-                "model_id": model_id,
-                "model_type": model_type,
-                "task_type": task_type,
-                "version": version,
-            },
-        )
-
-        bento_tag = str(bento_model.tag)
-
-        # 写入数据库
         async with UnitOfWork() as uow:
             session = uow.session
 
+            metadata_reader = MetadataReader(session)
+            version_reader = VersionReader(session)
             metadata_writer = MetadataWriter(session)
             version_writer = VersionWriter(session)
 
-            await metadata_writer.create(
+            # 检查模型元数据
+            existing_metadata = await metadata_reader.get_model(model_id)
+
+            if existing_metadata:
+                logger.debug(
+                    "模型元数据已存在",
+                    model_id=model_id,
+                    status=existing_metadata.status,
+                )
+
+                current = MetadataStatus(existing_metadata.status)
+
+                if current != MetadataStatus.ACTIVE:
+                    ModelGuard.validate_metadata_transition(
+                        current=current,
+                        target=MetadataStatus.ACTIVE,
+                    )
+
+            # 检查版本是否存在
+            latest_version = await version_reader.get_latest_version(model_id)
+
+            if latest_version and latest_version.version == version:
+                if not force:
+                    raise ModelAlreadyExistsError(
+                        f"模型版本已存在: {name}:{version}"
+                    )
+
+                logger.warning(
+                    "检测到重复版本，执行强制覆盖",
+                    model_id=model_id,
+                    version=version,
+                )
+
+            # 读取模型文件
+            logger.debug("开始读取模型文件", model_path=model_path)
+
+            try:
+                data = path.read_bytes()
+                logger.debug("模型文件读取成功")
+            except Exception as e:
+                raise ArtifactError(f"模型文件读取失败: {model_path}") from e
+
+            # 上传模型文件
+            storage_key = self.storage.save(
                 model_id=model_id,
-                name=name,
-                description=description,
-                model_type=model_type,
-                task_type=task_type,
-                framework=framework,
-                status=MetadataStatus.ACTIVE,
-                created_by=created_by,
+                version=version,
+                filename=filename,
+                data=data,
             )
 
-            await version_writer.create(
+            storage_location = StorageResolver().resolve(storage_key)
+
+            logger.debug(
+                "模型文件上传成功",
+                storage_key=storage_key,
+                storage_location=storage_location,
+            )
+
+            # 加载模型
+            try:
+                model = ModelArtifactLoader.load(
+                    data=data,
+                    framework=framework,
+                )
+            except Exception as e:
+                raise ArtifactError("模型文件加载失败") from e
+
+            logger.debug(
+                "模型文件加载成功",
+                framework=framework,
+            )
+
+            # 注册 BentoML
+            bento_model = self.backend.save(
+                name=name,
+                framework=framework,
+                model=model,
+                labels={
+                    "model_id": model_id,
+                    "model_type": model_type,
+                    "task_type": task_type,
+                    "version": version,
+                },
+            )
+
+            bento_tag = str(bento_model.tag)
+
+            logger.debug(
+                "模型注册到 BentoML 成功",
+                bento_tag=bento_tag,
+            )
+
+            # 创建或更新模型元数据
+            if not existing_metadata:
+                await metadata_writer.create(
+                    model_id=model_id,
+                    name=name,
+                    description=description,
+                    model_type=model_type,
+                    task_type=task_type,
+                    framework=framework,
+                    status=MetadataStatus.ACTIVE,
+                    created_by=created_by,
+                )
+
+            elif current != MetadataStatus.ACTIVE:
+                await metadata_writer.update(
+                    existing_metadata,
+                    status=MetadataStatus.ACTIVE,
+                    updated_by=created_by,
+                )
+
+            # 创建版本记录
+            await version_writer.upsert(
                 model_id=model_id,
                 version=version,
                 framework=framework,
@@ -168,9 +229,22 @@ class ModelRegister:
                 created_by=created_by,
             )
 
+            logger.debug(
+                "模型版本创建成功",
+                model_id=model_id,
+                version=version,
+            )
+
+        logger.info(
+            "模型注册完成",
+            model_id=model_id,
+            version=version,
+        )
+
         return {
             "model_id": model_id,
             "version": version,
             "storage_key": storage_key,
+            "storage_location": storage_location,
             "bento_tag": bento_tag,
         }

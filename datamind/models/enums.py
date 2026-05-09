@@ -15,10 +15,15 @@
       allow_deploy()
 """
 
-from enum import StrEnum
+from enum import Enum
 
 
-class MetadataStatus(StrEnum):
+class BaseEnum(str, Enum):
+    """字符串枚举基类"""
+    pass
+
+
+class MetadataStatus(BaseEnum):
     """模型元数据生命周期状态"""
 
     ACTIVE = "active"
@@ -27,7 +32,7 @@ class MetadataStatus(StrEnum):
     ARCHIVED = "archived"
 
 
-class DeploymentStatus(StrEnum):
+class DeploymentStatus(BaseEnum):
     """模型部署运行状态"""
 
     ACTIVE = "active"

@@ -45,7 +45,7 @@ def observe_storage(op: str):
             try:
                 result = func(self, *args, **kwargs)
 
-                logger.info(
+                logger.debug(
                     "存储操作成功",
                     operation=op,
                     status="success",

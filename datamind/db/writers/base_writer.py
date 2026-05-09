@@ -54,9 +54,9 @@ class BaseWriter:
         """添加多个对象"""
         self._session.add_all(objs)
 
-    def delete(self, obj: Any) -> None:
+    async def delete(self, obj: Any) -> None:
         """删除对象"""
-        self._session.delete(obj)
+        await self._session.delete(obj)
 
     async def flush(self) -> None:
         """刷新会话"""

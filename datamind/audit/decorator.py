@@ -32,7 +32,7 @@ def audit(
     action: str,
     target_type: str,
     target_id_from: Optional[str] = None,
-    target_id_func: Optional[Callable[[dict], str]] = None,
+    target_id_func: Optional[Callable] = None,
     before_func: Optional[Callable[[dict], dict]] = None,
     after_func: Optional[Callable[[dict, object], dict]] = None,
 ):
@@ -42,7 +42,7 @@ def audit(
         action: 操作类型，格式为 resource.operation
         target_type: 目标类型
         target_id_from: 从函数参数中提取 target_id 的参数名
-        target_id_func: 自定义 target_id 生成函数，接收参数字典返回 target_id
+        target_id_func: 自定义 target_id 生成函数，接收参数字典和返回值
         before_func: 自定义 before 提取函数，接收参数字典返回变更前数据
         after_func: 自定义 after 提取函数，接收参数字典和函数返回值，返回变更后数据
 
@@ -53,7 +53,9 @@ def audit(
         sig = signature(func)
 
         if not iscoroutinefunction(func):
-            raise TypeError(f"装饰器仅支持 async 函数：{func.__name__}")
+            raise TypeError(
+                f"装饰器仅支持 async 函数：{func.__name__}"
+            )
 
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -65,29 +67,51 @@ def audit(
                 if k != "self"
             }
 
-            if target_id_func:
-                target_id = target_id_func(params)
-            elif target_id_from:
-                target_id = params.get(target_id_from)
-            else:
-                target_id = None
-
-            if not target_id:
-                raise AuditValidationError(
-                    f"缺少 target_id，无法从参数中解析目标ID（参数：{', '.join(params.keys())}）"
-                )
-
-            before = before_func(params) if before_func else None
+            before = (
+                before_func(params)
+                if before_func else None
+            )
 
             recorder = AuditRecorder()
 
+            # 优先从参数中解析
+            if target_id_from:
+                target_id = params.get(
+                    target_id_from
+                )
+            else:
+                target_id = None
+
             try:
-                result = await func(*args, **kwargs)
+                result = await func(
+                    *args,
+                    **kwargs,
+                )
+
+                # 如果参数中没有，再从返回值动态解析
+                if (
+                    not target_id
+                    and target_id_func
+                ):
+                    target_id = target_id_func(
+                        params,
+                        result,
+                    )
+
+                if not target_id:
+                    raise AuditValidationError(
+                        f"缺少 target_id，无法从参数中解析目标ID（参数：{', '.join(params.keys())}）"
+                    )
 
                 if after_func:
-                    after = after_func(params, result)
+                    after = after_func(
+                        params,
+                        result,
+                    )
                 else:
-                    after = {"result": result}
+                    after = {
+                        "result": result
+                    }
 
                 await recorder.record(
                     action=action,
@@ -97,7 +121,9 @@ def audit(
                     error=None,
                     before=before,
                     after=after,
-                    context={"params": params},
+                    context={
+                        "params": params
+                    },
                 )
 
                 return result
@@ -111,7 +137,9 @@ def audit(
                     error=str(e),
                     before=before,
                     after=None,
-                    context={"params": params},
+                    context={
+                        "params": params
+                    },
                 )
 
                 raise
