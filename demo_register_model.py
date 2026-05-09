@@ -1,18 +1,24 @@
-# examples/register_model.py
-
 """模型注册示例"""
 
 import asyncio
 
+from datamind.config import get_settings
+from datamind.audit import audit
+from datamind.logging import setup_logging
 from datamind.context.scope import context_scope
 from datamind.models.register import ModelRegister
 
 
-async def main():
-    """主函数"""
-    register = ModelRegister()
+register = ModelRegister()
 
-    result = await register.register(
+
+@audit(
+    action="model.register",
+    target_type="model",
+    target_id_func=lambda params, result: result["model_id"],
+)
+async def register_model():
+    return await register.register(
         name="scorecard",
         version="4.1.10",
         framework="sklearn",
@@ -21,7 +27,7 @@ async def main():
         model_path="datamind/demo/scorecard.pkl",
         description="信用评分卡模型",
         params={
-            "solver": "lbfgs",
+            "solver": "lbfgs-ne",
             "max_iter": 1000,
         },
         metrics={
@@ -32,6 +38,13 @@ async def main():
         force=True,
     )
 
+
+async def main():
+    settings = get_settings()
+    setup_logging(settings.logging)
+
+    result = await register_model()
+
     print("模型注册成功：")
     print(f"模型ID: {result['model_id']}")
     print(f"版本号: {result['version']}")
@@ -41,10 +54,10 @@ async def main():
 
 if __name__ == "__main__":
     with context_scope(
-            user="admin",
-            ip="127.0.0.1",
-            trace_id="trace-001",
-            request_id="req-001",
-            source="http",
+        user="admin",
+        ip="127.0.0.1",
+        trace_id="trace-001",
+        request_id="req-001",
+        source="http",
     ):
-      asyncio.run(main())
+        asyncio.run(main())

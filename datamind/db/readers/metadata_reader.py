@@ -4,11 +4,19 @@
 
 提供模型元数据的查询能力。
 
-使用示例：
-    reader = MetadataReader(session)
+核心功能：
+  - get_model: 获取模型信息
+  - list_active_models: 获取所有活跃模型
+  - list_models: 获取模型列表（支持过滤条件）
 
-    model = await reader.get_model("mdl_a1b2c3d4")
-    models = await reader.list_active_models()
+使用示例：
+  from datamind.db.reader.metadata_reader import MetadataReader
+
+  reader = MetadataReader(session)
+
+  model = await reader.get_model("mdl_a1b2c3d4")
+  models = await reader.list_active_models()
+  models = await reader.list_models(status="active")
 """
 
 from sqlalchemy import select
@@ -41,4 +49,24 @@ class MetadataReader(BaseReader):
         """
         stmt = select(Metadata).where(Metadata.status == "active")
         result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_models(self, **filters) -> list[Metadata]:
+        """获取模型列表
+
+        参数：
+            **filters: 模型字段过滤条件，支持 status、model_type、framework 等字段
+
+        返回：
+            模型列表，按创建时间倒序排列
+        """
+        stmt = select(Metadata)
+
+        if filters:
+            stmt = stmt.filter_by(**filters)
+
+        stmt = stmt.order_by(Metadata.created_at.desc())
+
+        result = await self.session.execute(stmt)
+
         return list(result.scalars().all())

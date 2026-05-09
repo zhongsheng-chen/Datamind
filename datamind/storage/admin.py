@@ -11,11 +11,16 @@
   - exists: 检查模型文件是否存在
   - list: 列出模型的所有文件
 
-特性：
-  - 唯一业务入口：只处理 model_id 级别逻辑
-  - 策略委托：所有 key 操作委托给 StorageKeyStrategy
-  - IO委托：存储操作委托给 backend
-  - 输入校验：委托给 strategy 进行参数校验
+使用示例：
+  from datamind.storage import get_storage
+
+  storage = get_storage()
+  storage_key = storage.save(
+      model_id="scorecard",
+      version="1.0.0",
+      filename="model.pkl",
+      data=data,
+  )
 """
 
 from datamind.config.storage import StorageConfig

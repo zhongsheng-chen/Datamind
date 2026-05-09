@@ -1,7 +1,7 @@
 # main.py
 from datamind.config import get_settings
 from datamind.logging import setup_logging, get_logger
-from datamind.models import ModelRegistry
+from datamind.models import ModelRegister
 from datamind.db.core.uow import UnitOfWork
 
 
@@ -14,7 +14,7 @@ def main():
     logger.info("开始注册模型")
 
     # 2. 创建 registry
-    registry = ModelRegistry()
+    registry = ModelRegister()
 
     # 3. 使用 UoW 注册模型
     with UnitOfWork() as uow:
