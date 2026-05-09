@@ -2,7 +2,7 @@
 
 """模型注册器
 
-负责模型的注册流程，整合存储、反序列化、BentoML 注册和元数据持久化。
+负责模型的注册，完成模型产物加载、存储和注册。
 
 核心功能：
   - ModelRegister.register: 注册模型
@@ -37,11 +37,9 @@ from datamind.db.writers import MetadataWriter, VersionWriter
 from datamind.db.readers import MetadataReader, VersionReader
 from datamind.models.backend import BentoBackend
 from datamind.models.artifact import ModelArtifactLoader
+from datamind.models.guard import ModelGuard
 from datamind.models.enums import MetadataStatus
-from datamind.models.errors import (
-    ArtifactError,
-    ModelAlreadyExistsError,
-)
+from datamind.models.errors import ArtifactError, ModelAlreadyExistsError
 
 logger = structlog.get_logger(__name__)
 
@@ -84,6 +82,7 @@ class ModelRegister:
         params: Optional[Dict] = None,
         metrics: Optional[Dict] = None,
         created_by: Optional[str] = None,
+        force: bool = False,
     ) -> Dict[str, str]:
         """注册模型
 
@@ -98,13 +97,14 @@ class ModelRegister:
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             created_by: 创建人（可选）
+            force: 是否强制覆盖已存在版本
 
         返回：
             包含 model_id、version、storage_key、bento_tag 的字典
 
         异常：
             ArtifactError: 模型产物处理错误
-            ModelAlreadyExistsError: 模型版本已存在
+            ModelAlreadyExistsError: 模型已存在
         """
         model_id = self._generate_model_id(name)
 
@@ -115,9 +115,7 @@ class ModelRegister:
             version=version,
         )
 
-        # 校验模型文件是否存在
         path = Path(model_path)
-
         if not path.exists():
             raise ArtifactError(f"模型文件不存在: {model_path}")
 
@@ -128,14 +126,11 @@ class ModelRegister:
 
             metadata_reader = MetadataReader(session)
             version_reader = VersionReader(session)
-
             metadata_writer = MetadataWriter(session)
             version_writer = VersionWriter(session)
 
-            # 查询模型元数据
-            existing_metadata = await metadata_reader.get_model(
-                model_id
-            )
+            # 检查模型元数据是否已存在
+            existing_metadata = await metadata_reader.get_model(model_id)
 
             if existing_metadata:
                 logger.debug(
@@ -144,37 +139,41 @@ class ModelRegister:
                     status=existing_metadata.status,
                 )
 
-            # 检查版本是否已存在
-            latest_version = await version_reader.get_latest_version(
-                model_id
-            )
+                current = MetadataStatus(existing_metadata.status)
 
-            if latest_version:
-                logger.debug(
-                    "当前最新模型版本",
-                    model_id=model_id,
-                    latest_version=latest_version.version,
-                )
+                if current != MetadataStatus.ACTIVE:
+                    ModelGuard.validate_metadata_transition(
+                        current=current,
+                        target=MetadataStatus.ACTIVE,
+                    )
 
-                if latest_version.version == version:
+            # 检查版本是否存在
+            latest_version = await version_reader.get_latest_version(model_id)
+
+            if latest_version and latest_version.version == version:
+                if not force:
                     raise ModelAlreadyExistsError(
                         f"模型版本已存在: {name}:{version}"
                     )
 
-            # 读取本地模型文件
-            logger.debug(
-                "开始读取模型文件",
-                model_path=model_path,
-            )
+                logger.warning(
+                    "检测到重复版本，执行强制覆盖",
+                    model_id=model_id,
+                    version=version,
+                )
+
+                # 注意：强制覆盖，删除旧版本
+                await version_writer.delete(latest_version)
+                await version_writer.flush()
+
+            # 读取模型文件
+            logger.debug("开始读取模型文件", model_path=model_path)
 
             try:
                 data = path.read_bytes()
+                logger.debug("模型文件读取成功")
             except Exception as e:
-                raise ArtifactError(
-                    f"模型文件读取失败: {model_path}"
-                ) from e
-
-            logger.debug("模型文件读取成功")
+                raise ArtifactError(f"模型文件读取失败: {model_path}") from e
 
             # 上传模型文件
             storage_key = self.storage.save(
@@ -196,16 +195,14 @@ class ModelRegister:
                     framework=framework,
                 )
             except Exception as e:
-                raise ArtifactError(
-                    "模型文件加载失败"
-                ) from e
+                raise ArtifactError("模型文件加载失败") from e
 
             logger.debug(
                 "模型文件加载成功",
                 framework=framework,
             )
 
-            # 注册到 BentoML
+            # 注册 BentoML
             bento_model = self.backend.save(
                 name=name,
                 framework=framework,
@@ -218,16 +215,14 @@ class ModelRegister:
                 },
             )
 
-            bento_tag = str(
-                bento_model.tag
-            )
+            bento_tag = str(bento_model.tag)
 
             logger.debug(
                 "模型注册到 BentoML 成功",
                 bento_tag=bento_tag,
             )
 
-            # 首次注册才创建 metadata
+            # 创建或更新模型元数据
             if not existing_metadata:
                 await metadata_writer.create(
                     model_id=model_id,
@@ -240,14 +235,11 @@ class ModelRegister:
                     created_by=created_by,
                 )
 
-                logger.debug(
-                    "模型元数据创建成功",
-                    model_id=model_id,
-                )
-            else:
-                logger.debug(
-                    "模型元数据已存在，跳过创建",
-                    model_id=model_id,
+            elif current != MetadataStatus.ACTIVE:
+                await metadata_writer.update(
+                    existing_metadata,
+                    status=MetadataStatus.ACTIVE,
+                    updated_by=created_by,
                 )
 
             # 创建版本记录

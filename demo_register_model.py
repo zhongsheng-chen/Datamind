@@ -4,6 +4,7 @@
 
 import asyncio
 
+from datamind.context.scope import context_scope
 from datamind.models.register import ModelRegister
 
 
@@ -13,7 +14,7 @@ async def main():
 
     result = await register.register(
         name="scorecard",
-        version="4.0.0",
+        version="4.1.10",
         framework="sklearn",
         model_type="logistic_regression",
         task_type="scoring",
@@ -21,13 +22,14 @@ async def main():
         description="信用评分卡模型",
         params={
             "solver": "lbfgs",
-            "max_iter": 100,
+            "max_iter": 1000,
         },
         metrics={
             "auc": 0.89,
             "ks": 0.42,
         },
         created_by="admin",
+        force=True,
     )
 
     print("模型注册成功：")
@@ -38,4 +40,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    with context_scope(
+            user="admin",
+            ip="127.0.0.1",
+            trace_id="trace-001",
+            request_id="req-001",
+            source="http",
+    ):
+      asyncio.run(main())

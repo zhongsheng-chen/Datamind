@@ -69,3 +69,24 @@ class VersionWriter(BaseWriter):
         self.add(obj)
 
         return obj
+
+    async def update(
+        self,
+        obj: Version,
+        **fields,
+    ) -> Version:
+        """更新模型版本
+
+        参数：
+            obj: 模型版本对象
+            **fields: 待更新字段
+
+        返回：
+            更新后的模型版本对象
+        """
+        for key, value in fields.items():
+            setattr(obj, key, value)
+
+        await self.flush()
+
+        return obj

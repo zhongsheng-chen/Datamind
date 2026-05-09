@@ -34,7 +34,7 @@ def create_engine() -> AsyncEngine:
     db = settings.database
     url = get_db_url()
 
-    logger.info("创建数据库引擎...")
+    logger.info("创建数据库引擎")
     logger.debug(
         "数据库连接池配置",
         pool_size=db.pool_size,
