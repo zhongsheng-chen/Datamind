@@ -71,3 +71,24 @@ class MetadataWriter(BaseWriter):
         self.add(obj)
 
         return obj
+
+    async def update(
+        self,
+        obj: Metadata,
+        **fields,
+    ) -> Metadata:
+        """更新模型元数据
+
+        参数：
+            obj: 模型元数据对象
+            **fields: 待更新字段
+
+        返回：
+            更新后的模型元数据对象
+        """
+        for key, value in fields.items():
+            setattr(obj, key, value)
+
+        await self.flush()
+
+        return obj

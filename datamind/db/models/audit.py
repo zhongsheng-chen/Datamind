@@ -33,7 +33,7 @@ class Audit(Base, IdMixin, TimestampMixin):
     )
     resource = Column(
         String(64), nullable=False,
-        comment="资源类型，可选值：model / deployment / experiment"
+        comment="资源类型，可选值：model / version / deployment / experiment"
     )
     operation = Column(
         String(64), nullable=False,
