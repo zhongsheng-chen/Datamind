@@ -48,12 +48,20 @@ class CLIContext:
         返回：
             CLIContext 实例
         """
-        # 配置日志级别
-        logging_config = (
-            self.settings.logging
-            if self.verbose
-            else self.settings.logging.model_copy(update={"level": "ERROR"})
-        )
+        # 配置日志
+        base_config = self.settings.logging
+
+        if self.verbose:
+            logging_config = base_config.model_copy(update={
+                "enable_console": True,
+                "enable_file": True,
+            })
+        else:
+            logging_config = base_config.model_copy(update={
+                "enable_console": False,
+                "enable_file": True,
+            })
+
         setup_logging(logging_config)
 
         # 启动审计 Worker
