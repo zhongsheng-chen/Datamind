@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 3387a3b82c6a
+Revision ID: 24e89b1adbcc
 Revises: 
-Create Date: 2026-05-07 06:18:20.827420+00:00
+Create Date: 2026-05-10 16:00:27.423123+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = '3387a3b82c6a'
+revision = '24e89b1adbcc'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -46,7 +46,7 @@ def upgrade() -> None:
     op.create_index('idx_assignments_user', 'assignments', ['user'], unique=False)
     op.create_table('audit',
     sa.Column('action', sa.String(length=64), nullable=False, comment='操作类型，格式为 resource.operation，如 model.register'),
-    sa.Column('resource', sa.String(length=64), nullable=False, comment='资源类型，可选值：model / deployment / experiment'),
+    sa.Column('resource', sa.String(length=64), nullable=False, comment='资源类型，可选值：model / version / deployment / experiment'),
     sa.Column('operation', sa.String(length=64), nullable=False, comment='操作名称，如 register / create / delete / update'),
     sa.Column('target_type', sa.String(length=64), nullable=False, comment='目标类型，可选值：model / version / deployment / experiment'),
     sa.Column('target_id', sa.String(length=64), nullable=False, comment='目标 ID'),
@@ -181,6 +181,7 @@ def upgrade() -> None:
     sa.Column('framework', sa.String(length=50), nullable=False, comment='模型框架，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow'),
     sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，格式为 模型名:版本'),
     sa.Column('model_path', sa.String(length=255), nullable=False, comment='模型文件存储路径'),
+    sa.Column('storage_key', sa.String(length=255), nullable=False, comment='存储键，模型文件在存储空间中的唯一标识'),
     sa.Column('params', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='模型参数，JSON 格式'),
     sa.Column('metrics', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='模型评估指标，JSON 格式'),
     sa.Column('description', sa.Text(), nullable=True, comment='版本说明'),

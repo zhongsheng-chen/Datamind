@@ -9,6 +9,7 @@
 
     latest = await reader.get_latest_version("mdl_a1b2c3d4")
     version = await reader.get_version("mdl_a1b2c3d4", "1.0.0")
+    versions = await reader.list_versions("mdl_a1b2c3d4")
 """
 
 from sqlalchemy import select
@@ -58,3 +59,20 @@ class VersionReader(BaseReader):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_versions(self, model_id: str) -> list[Version]:
+        """列出模型的所有版本列表
+
+        参数：
+            model_id: 模型 ID
+
+        返回：
+            版本列表，按创建时间倒序排列
+        """
+        stmt = (
+            select(Version)
+            .where(Version.model_id == model_id)
+            .order_by(Version.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

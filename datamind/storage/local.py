@@ -71,7 +71,7 @@ class LocalStorageBackend(BaseStorageBackend):
             key: 存储键
 
         返回：
-            文件二进制内容
+            二进制数据
 
         异常：
             StorageNotFoundError: 文件不存在

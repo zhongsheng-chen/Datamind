@@ -9,7 +9,7 @@
   - list: 列出模型
 
 使用示例：
-  # 注册模型（普通模式）
+  # 注册模型
   python -m datamind.cli.main model register \
       --name scorecard \
       --version 1.0.0 \
@@ -19,33 +19,6 @@
       --model-path datamind/demo/scorecard.pkl \
       --description "信用评分卡模型" \
       --created-by admin
-
-  # 注册模型（强制覆盖，开启调试日志）
-  python -m datamind.cli.main model register \
-      --name scorecard \
-      --version 1.0.0 \
-      --framework sklearn \
-      --model-type logistic_regression \
-      --task-type scoring \
-      --model-path datamind/demo/scorecard.pkl \
-      --description "信用评分卡模型" \
-      --created-by admin \
-      --force \
-      --verbose
-
-  # 列出模型（过滤条件）
-  python -m datamind.cli.main model list \
-      --framework sklearn \
-      --model-type logistic_regression
-
-  # 列出模型（开启调试日志）
-  python -m datamind.cli.main model list \
-      --framework sklearn \
-      --model-type logistic_regression \
-      --verbose
-
-  # 列出所有活跃模型
-  python -m datamind.cli.main model list --status active
 """
 
 import asyncio
@@ -110,7 +83,7 @@ def register_model(
     console.print(f"[cyan]{'MODEL ID':<12}[/cyan] : {result['model_id']}")
     console.print(f"[cyan]{'VERSION':<12}[/cyan] : {result['version']}")
     console.print(f"[cyan]{'BENTO TAG':<12}[/cyan] : {result['bento_tag']}")
-    console.print(f"[cyan]{'MODEL PATH':<12}[/cyan] : {result['storage_location']}")
+    console.print(f"[cyan]{'MODEL PATH':<12}[/cyan] : {result['model_path']}")
 
 
 @app.command("list")
@@ -139,6 +112,13 @@ def list_models(
             reader = MetadataReader(uow.session)
             models = await reader.list_models(**filters)
 
+            # 默认排序
+            models = sorted(
+                models,
+                key=lambda x: x.updated_at or x.created_at,
+                reverse=True
+            )
+
             if not models:
                 console.print("[yellow]暂无匹配模型[/yellow]")
                 return
@@ -156,6 +136,9 @@ def list_models(
             table.add_column("NAME")
             table.add_column("STATUS")
             table.add_column("FRAMEWORK")
+            table.add_column("TASK TYPE")
+            table.add_column("CREATED AT")
+            table.add_column("UPDATED AT")
 
             for m in models:
                 table.add_row(
@@ -163,6 +146,9 @@ def list_models(
                     m.name,
                     m.status,
                     m.framework,
+                    m.task_type,
+                    m.created_at.strftime("%Y-%m-%d %H:%M:%S") if m.created_at else "-",
+                    m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else "-",
                 )
 
             console.print(table)
@@ -172,3 +158,75 @@ def list_models(
             return await _run()
 
     asyncio.run(runner())
+
+# @app.command("delete")
+# def delete_model(
+#     model_id: str = typer.Option(..., "--model-id", help="模型ID"),
+#     version: str = typer.Option(None, "--version", help="版本号（可选）"),
+#     force: bool = typer.Option(False, "--force", help="强制删除"),
+#     verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
+# ):
+#     """删除模型（带审计）"""
+#
+#     # =========================
+#     # audit（删除操作）
+#     # =========================
+#     @audit(
+#         action="model.delete",
+#         target_type="model",
+#         target_id_func=lambda p, r: p["model_id"],
+#     )
+#     async def _run():
+#         from datamind.models.deleter import ModelDeleter
+#
+#         deleter = ModelDeleter()
+#
+#         return await deleter.delete(
+#             model_id=model_id,
+#             version=version,
+#             force=force,
+#         )
+#
+#     # =========================
+#     # CLI runtime
+#     # =========================
+#     async def runner():
+#         async with cli_context(verbose=verbose, enable_audit=True):
+#             return await _run()
+#
+#     result = asyncio.run(runner())
+#
+#     # =========================
+#     # 输出
+#     # =========================
+#     console.print("\n[red]模型删除成功[/red]\n")
+#     console.print(f"[cyan]{'MODEL ID':<12}[/cyan] : {result['model_id']}")
+#     console.print(f"[cyan]{'STATUS':<12}[/cyan] : {result.get('status', 'deleted')}")
+#
+#     if version:
+#         console.print(f"[cyan]{'VERSION':<12}[/cyan] : {version}")
+# ####
+# @app.command("delete")
+# def delete_model(
+#     model_id: str = typer.Option(..., "--model-id", help="模型ID"),
+#     version: str = typer.Option(None, "--version", help="版本（不填则删除全部）"),
+#     verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
+# ):
+#     """删除模型（hard delete）"""
+#
+#     from datamind.models.deleter import ModelDeleter
+#
+#     async def _run():
+#         deleter = ModelDeleter()
+#         return await deleter.delete_model(model_id, version=version)
+#
+#     async def runner():
+#         async with cli_context(verbose=verbose):
+#             return await _run()
+#
+#     result = asyncio.run(runner())
+#
+#     if result.get("deleted"):
+#         console.print("[green]模型删除成功[/green]")
+#     else:
+#         console.print("[yellow]删除失败或不存在[/yellow]")

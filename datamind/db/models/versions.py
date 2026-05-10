@@ -44,6 +44,10 @@ class Version(Base, IdMixin, TimestampMixin):
         String(255), nullable=False,
         comment="模型文件存储路径"
     )
+    storage_key = Column(
+        String(255), nullable=False,
+        comment="存储键，模型文件在存储空间中的唯一标识"
+    )
     params = Column(
         JSONB, nullable=True,
         comment="模型参数，JSON 格式"

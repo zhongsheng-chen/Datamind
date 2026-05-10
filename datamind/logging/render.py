@@ -25,10 +25,10 @@ def text_renderer():
     """文本格式日志渲染器
 
     格式：
-        time | level | [trace_id] | [request_id] | [user] | [ip] | event | kv
+        time | level | [trace_id] | [request_id] | [source] |[user] | [ip] | event | kv
 
     说明：
-        - trace_id / request_id / user / ip：存在时才输出（key=value）
+        - trace_id / request_id / source / user / ip：存在时才输出（key=value）
         - event：主日志内容
         - kv：额外字段（key=value，逗号分隔）
 
@@ -44,7 +44,7 @@ def text_renderer():
         for key in ALL_KEYS:
             value = event_dict.pop(key, None)
             if value:
-                cols.append(str(value))
+                cols.append(f"{key}={value}")
 
         cols.append(event_dict.pop("event", ""))
 

@@ -233,7 +233,8 @@ class ModelRegister:
                 version=version,
                 framework=framework,
                 bento_tag=bento_tag,
-                model_path=storage_key,
+                model_path=storage_location,
+                storage_key=storage_key,
                 params=params,
                 metrics=metrics,
                 description=description,
@@ -249,5 +250,5 @@ class ModelRegister:
             "version": version,
             "bento_tag": bento_tag,
             "storage_key": storage_key,
-            "storage_location": storage_location,
+            "model_path": storage_location,
         }

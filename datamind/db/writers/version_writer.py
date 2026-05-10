@@ -13,6 +13,7 @@
         framework="sklearn",
         bento_tag="scorecard:abc123def",
         model_path="s3://models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
+        storage_key="models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
         params={"C": 1.0, "max_iter": 100},
         metrics={"accuracy": 0.85, "auc": 0.92}
     )
@@ -35,6 +36,7 @@ class VersionWriter(BaseWriter):
         framework: str,
         bento_tag: str,
         model_path: str,
+        storage_key: str,
         params: dict = None,
         metrics: dict = None,
         description: str = None,
@@ -48,6 +50,7 @@ class VersionWriter(BaseWriter):
             framework: 模型框架
             bento_tag: BentoML 标签
             model_path: 模型文件存储路径
+            storage_key: 存储键
             params: 模型参数
             metrics: 模型评估指标
             description: 版本说明
@@ -62,6 +65,7 @@ class VersionWriter(BaseWriter):
             framework=framework,
             bento_tag=bento_tag,
             model_path=model_path,
+            storage_key=storage_key,
             params=params,
             metrics=metrics,
             description=description,
@@ -101,6 +105,7 @@ class VersionWriter(BaseWriter):
         framework: str,
         bento_tag: str,
         model_path: str,
+        storage_key: str,
         params: dict = None,
         metrics: dict = None,
         description: str = None,
@@ -114,6 +119,7 @@ class VersionWriter(BaseWriter):
             framework=framework,
             bento_tag=bento_tag,
             model_path=model_path,
+            storage_key=storage_key,
             params=params,
             metrics=metrics,
             description=description,
@@ -127,6 +133,7 @@ class VersionWriter(BaseWriter):
                 "framework": framework,
                 "bento_tag": bento_tag,
                 "model_path": model_path,
+                "storage_key": storage_key,
                 "params": params,
                 "metrics": metrics,
                 "description": description,
