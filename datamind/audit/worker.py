@@ -125,8 +125,6 @@ async def audit_worker():
 
     queue = get_queue()
 
-    logger.info("审计 Worker 已启动")
-
     while not _shutdown_event.is_set():
         try:
             event = await asyncio.wait_for(queue.get(), timeout=1.0)

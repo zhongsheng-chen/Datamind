@@ -18,10 +18,13 @@ from alembic.config import Config
 from alembic import command
 from alembic.util.exc import CommandError
 
+from datamind import PROJECT_ROOT
 from datamind.db.core.url import get_db_url
 
 logger = structlog.get_logger(__name__)
 
+ALEMBIC_INI = PROJECT_ROOT / "alembic.ini"
+MIGRATIONS = PROJECT_ROOT / "migrations"
 
 def run_migrations(target: str = "head") -> None:
     """执行 Alembic 迁移
@@ -32,9 +35,10 @@ def run_migrations(target: str = "head") -> None:
     try:
         logger.info("开始执行数据库迁移", target=target)
 
-        cfg = Config("alembic.ini")
+        cfg = Config(str(ALEMBIC_INI))
 
         cfg.set_main_option("sqlalchemy.url", get_db_url())
+        cfg.set_main_option("script_location", str(MIGRATIONS))
 
         command.upgrade(cfg, target)
 

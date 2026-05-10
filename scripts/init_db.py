@@ -2,7 +2,7 @@
 
 """数据库初始化脚本
 
-执行数据库迁移。
+负责执行数据库迁移，初始化数据库表结构。
 
 核心功能：
   - init_database: 执行数据库迁移
@@ -13,22 +13,28 @@
 
 import structlog
 
-from datamind.db import run_migrations
+from datamind.db.migration import run_migrations
 
 logger = structlog.get_logger(__name__)
 
 
 def init_database():
-    """初始化数据库
+    """执行数据库迁移
 
-    执行 Alembic 迁移。
+    参数：
+        logger: 日志实例
     """
+    logger.info("开始初始化数据库")
+
+    run_migrations()
+
+    logger.info("数据库初始化完成")
+
+
+def main():
+    """脚本入口函数"""
     try:
-        logger.info("开始初始化数据库")
-
-        run_migrations()
-
-        logger.info("数据库初始化完成")
+        init_database()
 
     except Exception as e:
         logger.error(
@@ -40,4 +46,4 @@ def init_database():
 
 
 if __name__ == "__main__":
-    init_database()
+    main()

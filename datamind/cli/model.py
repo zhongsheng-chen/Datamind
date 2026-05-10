@@ -9,6 +9,7 @@
   - list: 列出模型
 
 使用示例：
+  # 注册模型（普通模式）
   python -m datamind.cli.main model register \
       --name scorecard \
       --version 1.0.0 \
@@ -18,6 +19,33 @@
       --model-path datamind/demo/scorecard.pkl \
       --description "信用评分卡模型" \
       --created-by admin
+
+  # 注册模型（强制覆盖，开启调试日志）
+  python -m datamind.cli.main model register \
+      --name scorecard \
+      --version 1.0.0 \
+      --framework sklearn \
+      --model-type logistic_regression \
+      --task-type scoring \
+      --model-path datamind/demo/scorecard.pkl \
+      --description "信用评分卡模型" \
+      --created-by admin \
+      --force \
+      --verbose
+
+  # 列出模型（过滤条件）
+  python -m datamind.cli.main model list \
+      --framework sklearn \
+      --model-type logistic_regression
+
+  # 列出模型（开启调试日志）
+  python -m datamind.cli.main model list \
+      --framework sklearn \
+      --model-type logistic_regression \
+      --verbose
+
+  # 列出所有活跃模型
+  python -m datamind.cli.main model list --status active
 """
 
 import asyncio
@@ -27,13 +55,13 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
+from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.readers import MetadataReader
 from datamind.models.register import ModelRegister
 
 app = typer.Typer(help="模型管理")
-
 console = Console()
 
 
@@ -51,10 +79,16 @@ def register_model(
     verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
 ):
     """注册模型"""
+
+    @audit(
+        action="model.register",
+        target_type="model",
+        target_id_func=lambda p, r: r["model_id"],
+    )
     async def _run():
         register = ModelRegister()
 
-        result = await register.register(
+        return await register.register(
             name=name,
             version=version,
             framework=framework,
@@ -66,15 +100,17 @@ def register_model(
             force=force,
         )
 
-        console.print("[green]模型注册成功[/green]\n")
+    async def runner():
+        async with cli_context(verbose=verbose, enable_audit=True):
+            return await _run()
 
-        console.print(f"[cyan]{'MODEL ID':<12}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'VERSION':<12}[/cyan] : {result['version']}")
-        console.print(f"[cyan]{'BENTO TAG':<12}[/cyan] : {result['bento_tag']}")
-        console.print(f"[cyan]{'LOCATION':<12}[/cyan] : {result['storage_location']}")
+    result = asyncio.run(runner())
 
-    with cli_context(verbose=verbose):
-        asyncio.run(_run())
+    console.print("\n[green]模型注册成功[/green]\n")
+    console.print(f"[cyan]{'MODEL ID':<12}[/cyan] : {result['model_id']}")
+    console.print(f"[cyan]{'VERSION':<12}[/cyan] : {result['version']}")
+    console.print(f"[cyan]{'BENTO TAG':<12}[/cyan] : {result['bento_tag']}")
+    console.print(f"[cyan]{'MODEL PATH':<12}[/cyan] : {result['storage_location']}")
 
 
 @app.command("list")
@@ -87,6 +123,7 @@ def list_models(
     verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
 ):
     """列出模型"""
+
     async def _run():
         filters = {
             "name": name,
@@ -100,7 +137,6 @@ def list_models(
 
         async with UnitOfWork() as uow:
             reader = MetadataReader(uow.session)
-
             models = await reader.list_models(**filters)
 
             if not models:
@@ -121,15 +157,18 @@ def list_models(
             table.add_column("STATUS")
             table.add_column("FRAMEWORK")
 
-            for model in models:
+            for m in models:
                 table.add_row(
-                    model.model_id,
-                    model.name,
-                    model.status,
-                    model.framework,
+                    m.model_id,
+                    m.name,
+                    m.status,
+                    m.framework,
                 )
 
             console.print(table)
 
-    with cli_context(verbose=verbose):
-        asyncio.run(_run())
+    async def runner():
+        async with cli_context(verbose=verbose, enable_audit=False):
+            return await _run()
+
+    asyncio.run(runner())
