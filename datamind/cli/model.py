@@ -1,18 +1,40 @@
 # datamind/cli/model.py
 
-"""模型管理 CLI"""
+"""模型管理 CLI
+
+提供模型的注册和查询功能。
+
+核心功能：
+  - register: 注册模型
+  - list: 列出模型
+
+使用示例：
+  python -m datamind.cli.main model register \
+      --name scorecard \
+      --version 1.0.0 \
+      --framework sklearn \
+      --model-type logistic_regression \
+      --task-type scoring \
+      --model-path datamind/demo/scorecard.pkl \
+      --description "信用评分卡模型" \
+      --created-by admin
+"""
 
 import asyncio
 import typer
+
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.readers import MetadataReader
 from datamind.models.register import ModelRegister
 
-app = typer.Typer(
-    help="模型管理"
-)
+app = typer.Typer(help="模型管理")
+
+console = Console()
 
 
 @app.command("register")
@@ -23,24 +45,12 @@ def register_model(
     model_type: str = typer.Option(..., "--model-type", help="模型类型"),
     task_type: str = typer.Option(..., "--task-type", help="任务类型"),
     model_path: str = typer.Option(..., "--model-path", help="模型文件路径"),
-    description: str = typer.Option(
-        None,
-        "--description",
-        help="模型描述",
-    ),
-    created_by: str = typer.Option(
-        "system",
-        "--created-by",
-        help="创建人",
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        help="强制覆盖已有版本",
-    ),
+    description: str = typer.Option(None, "--description", help="模型描述"),
+    created_by: str = typer.Option("system", "--created-by", help="创建人"),
+    force: bool = typer.Option(False, "--force", help="强制覆盖已有版本"),
+    verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
 ):
     """注册模型"""
-
     async def _run():
         register = ModelRegister()
 
@@ -56,45 +66,27 @@ def register_model(
             force=force,
         )
 
-        print("模型注册成功：")
-        print(f"模型ID: {result['model_id']}")
-        print(f"版本号: {result['version']}")
-        print(f"存储路径: {result['storage_key']}")
-        print(f"Bento标签: {result['bento_tag']}")
+        console.print("[green]模型注册成功[/green]\n")
 
-    with cli_context():
+        console.print(f"[cyan]{'MODEL ID':<12}[/cyan] : {result['model_id']}")
+        console.print(f"[cyan]{'VERSION':<12}[/cyan] : {result['version']}")
+        console.print(f"[cyan]{'BENTO TAG':<12}[/cyan] : {result['bento_tag']}")
+        console.print(f"[cyan]{'LOCATION':<12}[/cyan] : {result['storage_location']}")
+
+    with cli_context(verbose=verbose):
         asyncio.run(_run())
+
 
 @app.command("list")
 def list_models(
-    name: str = typer.Option(
-        None,
-        "--name",
-        help="模型名称",
-    ),
-    status: str = typer.Option(
-        None,
-        "--status",
-        help="模型状态",
-    ),
-    framework: str = typer.Option(
-        None,
-        "--framework",
-        help="模型框架",
-    ),
-    model_type: str = typer.Option(
-        None,
-        "--model-type",
-        help="模型类型",
-    ),
-    task_type: str = typer.Option(
-        None,
-        "--task-type",
-        help="任务类型",
-    ),
+    name: str = typer.Option(None, "--name", help="模型名称"),
+    status: str = typer.Option(None, "--status", help="模型状态"),
+    framework: str = typer.Option(None, "--framework", help="模型框架"),
+    model_type: str = typer.Option(None, "--model-type", help="模型类型"),
+    task_type: str = typer.Option(None, "--task-type", help="任务类型"),
+    verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
 ):
-    """查询模型列表"""
-
+    """列出模型"""
     async def _run():
         filters = {
             "name": name,
@@ -104,37 +96,40 @@ def list_models(
             "task_type": task_type,
         }
 
-        filters = {
-            key: value
-            for key, value in filters.items()
-            if value is not None
-        }
+        filters = {k: v for k, v in filters.items() if v is not None}
 
         async with UnitOfWork() as uow:
             reader = MetadataReader(uow.session)
 
-            models = await reader.list_models(
-                **filters,
-            )
+            models = await reader.list_models(**filters)
 
             if not models:
-                print("暂无模型")
+                console.print("[yellow]暂无匹配模型[/yellow]")
                 return
 
-            print(
-                f"{'MODEL ID':<20}"
-                f"{'NAME':<20}"
-                f"{'STATUS':<15}"
-                f"{'FRAMEWORK':<15}"
+            console.print(f"[dim]共找到 {len(models)} 个模型[/dim]\n")
+
+            table = Table(
+                box=box.ASCII,
+                header_style="bold cyan",
+                show_lines=False,
+                pad_edge=False,
             )
 
+            table.add_column("MODEL ID")
+            table.add_column("NAME")
+            table.add_column("STATUS")
+            table.add_column("FRAMEWORK")
+
             for model in models:
-                print(
-                    f"{model.model_id:<20}"
-                    f"{model.name:<20}"
-                    f"{model.status:<15}"
-                    f"{model.framework:<15}"
+                table.add_row(
+                    model.model_id,
+                    model.name,
+                    model.status,
+                    model.framework,
                 )
 
-    with cli_context():
+            console.print(table)
+
+    with cli_context(verbose=verbose):
         asyncio.run(_run())

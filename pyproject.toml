@@ -1,2 +1,32 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "datamind"
+version = "0.1.0"
+description = "Datamind 模型部署平台"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    "typer>=0.12.0",
+    "bentoml>=1.0.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+]
+
+
+[project.scripts]
+datamind = "datamind.cli.main:app"
+
+
+[tool.setuptools.packages.find]
+include = ["datamind*"]
+
+
 [tool.pytest.ini_options]
 pythonpath = ["."]

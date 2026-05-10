@@ -101,3 +101,4 @@ cryptography>=41.0.0
 aiohttp>=3.9.0
 aiofiles>=23.2.0
 uliweb-alembic
+rich

@@ -79,8 +79,28 @@ class ModelRegister:
         created_by: Optional[str] = None,
         force: bool = False,
     ) -> Dict[str, str]:
-        """注册模型"""
+        """注册模型
 
+        参数：
+            name: 模型名称
+            version: 模型版本号
+            framework: 模型框架
+            model_type: 模型类型
+            task_type: 任务类型
+            model_path: 本地模型文件路径
+            description: 模型描述（可选）
+            params: 模型参数（可选）
+            metrics: 评估指标（可选）
+            created_by: 创建人（可选）
+            force: 是否强制覆盖已有版本（可选）
+
+        返回：
+            包含 model_id、version、storage_key、storage_location、bento_tag 的字典
+
+        异常：
+            ArtifactError: 模型产物处理错误
+            ModelAlreadyExistsError: 模型已存在
+        """
         model_id = self._generate_model_id(name)
 
         logger.info(
@@ -127,9 +147,7 @@ class ModelRegister:
 
             if latest_version and latest_version.version == version:
                 if not force:
-                    raise ModelAlreadyExistsError(
-                        f"模型版本已存在: {name}:{version}"
-                    )
+                    raise ModelAlreadyExistsError(f"模型版本已存在: {name}:{version}")
 
                 logger.warning(
                     "检测到重复版本，执行强制覆盖",
@@ -171,12 +189,9 @@ class ModelRegister:
             except Exception as e:
                 raise ArtifactError("模型文件加载失败") from e
 
-            logger.debug(
-                "模型文件加载成功",
-                framework=framework,
-            )
+            logger.debug("模型文件加载成功", framework=framework)
 
-            # 注册 BentoML
+            # 注册到 BentoML
             bento_model = self.backend.save(
                 name=name,
                 framework=framework,
@@ -191,10 +206,7 @@ class ModelRegister:
 
             bento_tag = str(bento_model.tag)
 
-            logger.debug(
-                "模型注册到 BentoML 成功",
-                bento_tag=bento_tag,
-            )
+            logger.debug("模型注册到 BentoML 成功", bento_tag=bento_tag)
 
             # 创建或更新模型元数据
             if not existing_metadata:
@@ -208,7 +220,6 @@ class ModelRegister:
                     status=MetadataStatus.ACTIVE,
                     created_by=created_by,
                 )
-
             elif current != MetadataStatus.ACTIVE:
                 await metadata_writer.update(
                     existing_metadata,
@@ -229,22 +240,14 @@ class ModelRegister:
                 created_by=created_by,
             )
 
-            logger.debug(
-                "模型版本创建成功",
-                model_id=model_id,
-                version=version,
-            )
+            logger.debug("模型版本创建成功", model_id=model_id, version=version)
 
-        logger.info(
-            "模型注册完成",
-            model_id=model_id,
-            version=version,
-        )
+        logger.info("模型注册完成", model_id=model_id, version=version)
 
         return {
             "model_id": model_id,
             "version": version,
+            "bento_tag": bento_tag,
             "storage_key": storage_key,
             "storage_location": storage_location,
-            "bento_tag": bento_tag,
         }

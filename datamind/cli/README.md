@@ -11,22 +11,28 @@ pip install typer
 ### 注册模型
 ```bash
 python -m datamind.cli.main model register \
-  --name scorecard \
-  --version 4.1.10 \
-  --framework sklearn \
-  --model-type logistic_regression \
-  --task-type scoring \
-  --model-path datamind/demo/scorecard.pkl \
-  --description "信用评分卡模型" \
-  --created-by admin \
-  --force
+    --name scorecard \
+    --version 1.0.0 \
+    --framework sklearn \
+    --model-type logistic_regression \
+    --task-type scoring \
+    --model-path datamind/demo/scorecard.pkl \
+    --description "信用评分卡模型" \
+    --created-by admin \
+    --force
 ```
 
 ### 列出模型
 ```bash
 python -m datamind.cli.main model list \
   --framework sklearn \
-  --model-type logistic_regression
+  --model-type logistic_regression \
+  --verbose
+```
+
+## 删除所有 bentoml 模型
+```bash
+bentoml models list | awk 'NR>2 {print $1}' | xargs -r bentoml models delete -y
 ```
 
 

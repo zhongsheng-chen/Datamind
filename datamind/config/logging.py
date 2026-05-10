@@ -41,8 +41,8 @@
   - DATAMIND_LOG_MAX_BYTES: 轮转大小阈值，默认 104857600
   - DATAMIND_LOG_BACKUP_COUNT: 备份数量，默认 30
   - DATAMIND_LOG_RETENTION_DAYS: 保留天数，默认 90
-  - DATAMIND_LOG_CONSOLE: 是否输出到控制台，默认 true
-  - DATAMIND_LOG_FILE: 是否输出到文件，默认 true
+  - DATAMIND_LOG_ENABLE_CONSOLE: 是否输出到控制台，默认 true
+  - DATAMIND_LOG_ENABLE_FILE: 是否输出到文件，默认 true
   - DATAMIND_LOG_ENABLE_ASYNC: 是否启用异步日志，默认 false
   - DATAMIND_LOG_SAMPLE_RATE: 采样率，默认 1.0
   - DATAMIND_LOG_MASK_SENSITIVE: 是否脱敏，默认 true
