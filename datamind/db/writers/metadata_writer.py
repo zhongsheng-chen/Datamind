@@ -37,20 +37,22 @@ class MetadataWriter(BaseWriter):
         output_schema: dict = None,
         status: str = "active",
         created_by: str = None,
+        updated_by: str = None,
     ) -> Metadata:
         """创建模型元数据
 
         参数：
-            model_id: 模型唯一标识
+            model_id: 模型 ID
             name: 模型名称
             model_type: 模型类型
             task_type: 任务类型
-            framework: 模型框架
+            framework: 框架类型
             description: 模型描述
             input_schema: 输入 Schema
             output_schema: 输出 Schema
             status: 状态
             created_by: 创建人
+            updated_by: 更新人
 
         返回：
             模型元数据对象
@@ -66,6 +68,7 @@ class MetadataWriter(BaseWriter):
             output_schema=output_schema,
             status=status,
             created_by=created_by,
+            updated_by=updated_by,
         )
 
         self.add(obj)

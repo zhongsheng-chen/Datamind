@@ -26,7 +26,7 @@ class Request(Base, IdMixin, TimestampMixin):
 
     request_id = Column(
         String(64), nullable=False, unique=True,
-        comment="请求唯一标识"
+        comment="请求 ID，请求的唯一标识"
     )
     model_id = Column(
         String(64), nullable=False,

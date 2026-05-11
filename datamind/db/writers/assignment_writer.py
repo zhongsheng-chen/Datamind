@@ -8,11 +8,19 @@
     writer = AssignmentWriter(session)
 
     await writer.write(
+        assignment_id="asn_a1b2c3d4",
         request_id="req_a1b2c3d4",
         model_id="mdl_a1b2c3d4",
-        version="2.0.0",
+        version="ver_a1b2c3d4",
+        deployment_id="dep_a1b2c3d4",
+        experiment_id="exp_a1b2c3d4",
+        customer_id="cus_a1b2c3d4",
         source="experiment",
-        context={"experiment_id": "exp_001", "group": "B"},
+        strategy="consistent",
+        bucket="89",
+        group="treatment",
+        weight=0.1,
+        context={"experiment_id": "exp_a1b2c3d4", "group": "treatment"}
     )
 """
 
@@ -28,38 +36,56 @@ class AssignmentWriter(BaseWriter):
     async def write(
         self,
         *,
+        assignment_id: str,
         request_id: str,
         model_id: str,
-        version: str,
+        version_id: str,
+        deployment_id: str,
+        experiment_id: str,
+        customer_id: str,
         source: str,
         strategy: str = None,
+        bucket: str = None,
+        group: str = None,
+        weight: float = None,
         context: dict = None,
-        user: str = None,
         routed_at: datetime = None,
     ) -> Assignment:
         """写入分配记录
 
         参数：
-            request_id: 请求ID
-            model_id: 被分配的模型ID
-            version: 被分配的版本
-            source: 分配来源
-            strategy: 分配策略
+            assignment_id: 分配 ID
+            request_id: 请求 ID
+            model_id: 被分配的模型 ID
+            version_id: 被分配的版本 ID
+            deployment_id: 命中的部署 ID
+            experiment_id: 命中的实验 ID
+            customer_id: 请求主体标识
+            source: 路由来源
+            strategy: 流量分配策略
+            bucket: 分桶标识
+            group: 实验分组
+            weight: 分配权重
             context: 分配上下文
-            user: 用户
             routed_at: 路由分配时间
 
         返回：
             分配记录对象
         """
         obj = Assignment(
+            assignment_id=assignment_id,
             request_id=request_id,
             model_id=model_id,
-            version=version,
+            version_id=version_id,
+            deployment_id=deployment_id,
+            experiment_id=experiment_id,
+            customer_id=customer_id,
             source=source,
             strategy=strategy,
+            bucket=bucket,
+            group=group,
+            weight=weight,
             context=context,
-            user=user,
             routed_at=routed_at or datetime.now(timezone.utc),
         )
 

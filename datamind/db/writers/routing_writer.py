@@ -24,23 +24,29 @@ class RoutingWriter(BaseWriter):
     async def write(
         self,
         *,
+        routing_id: str,
         model_id: str,
         strategy: str,
         config: dict,
+        name: str = None,
         enabled: bool = True,
     ) -> Routing:
         """写入路由规则
 
         参数：
-            model_id: 模型ID
+            routing_id: 路由 ID
+            model_id: 模型 ID
             strategy: 路由策略
             config: 策略配置
+            name: 路由名称
             enabled: 是否启用
 
         返回：
             路由规则对象
         """
         obj = Routing(
+            routing_id=routing_id,
+            name=name,
             model_id=model_id,
             strategy=strategy,
             config=config,

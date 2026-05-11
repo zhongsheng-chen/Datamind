@@ -8,9 +8,11 @@
     writer = VersionWriter(session)
 
     await writer.create(
+        version_id="ver_a1b2c3d4"
         model_id="mdl_a1b2c3d4",
         version="1.0.0",
         framework="sklearn",
+        status="active"
         bento_tag="scorecard:abc123def",
         model_path="s3://models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
         storage_key="models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
@@ -19,6 +21,7 @@
     )
 """
 
+from datetime import datetime
 from sqlalchemy.dialects.postgresql import insert
 
 from datamind.db.models.versions import Version
@@ -31,9 +34,11 @@ class VersionWriter(BaseWriter):
     async def create(
         self,
         *,
+        version_id: str,
         model_id: str,
         version: str,
         framework: str,
+        status: str,
         bento_tag: str,
         model_path: str,
         storage_key: str,
@@ -41,13 +46,19 @@ class VersionWriter(BaseWriter):
         metrics: dict = None,
         description: str = None,
         created_by: str = None,
+        deleted_at: datetime = None,
+        deleted_by: str = None,
+        archived_at: datetime = None,
+        archived_by: str = None,
     ) -> Version:
         """创建模型版本
 
         参数：
-            model_id: 所属模型ID
+            version_id: 版本 ID
+            model_id: 模型 ID
             version: 版本号
-            framework: 模型框架
+            framework: 框架类型
+            status: 状态
             bento_tag: BentoML 标签
             model_path: 模型文件存储路径
             storage_key: 存储键
@@ -55,14 +66,19 @@ class VersionWriter(BaseWriter):
             metrics: 模型评估指标
             description: 版本说明
             created_by: 创建人
+            deleted_by: 删除人
+            deleted_at: 归档时间
+            deleted_at: 归档人
 
         返回：
             模型版本对象
         """
         obj = Version(
+            version_id=version_id,
             model_id=model_id,
             version=version,
             framework=framework,
+            status=status,
             bento_tag=bento_tag,
             model_path=model_path,
             storage_key=storage_key,
@@ -70,6 +86,10 @@ class VersionWriter(BaseWriter):
             metrics=metrics,
             description=description,
             created_by=created_by,
+            deleted_at=deleted_at,
+            deleted_by=deleted_by,
+            archived_at=archived_at,
+            archived_by=archived_by,
         )
 
         self.add(obj)
@@ -100,6 +120,7 @@ class VersionWriter(BaseWriter):
     async def upsert(
         self,
         *,
+        version_id: str,
         model_id: str,
         version: str,
         framework: str,
@@ -110,10 +131,15 @@ class VersionWriter(BaseWriter):
         metrics: dict = None,
         description: str = None,
         created_by: str = None,
+        deleted_at: datetime = None,
+        deleted_by: str = None,
+        archived_at: datetime = None,
+        archived_by: str = None,
     ) -> None:
         """插入或更新版本"""
 
         stmt = insert(Version).values(
+            version_id=version_id,
             model_id=model_id,
             version=version,
             framework=framework,
@@ -124,12 +150,18 @@ class VersionWriter(BaseWriter):
             metrics=metrics,
             description=description,
             created_by=created_by,
+            deleted_at=deleted_at,
+            deleted_by=deleted_by,
+            archived_at=archived_at,
+            archived_by=archived_by,
         )
 
         # 冲突更新
         stmt = stmt.on_conflict_do_update(
-            index_elements=["model_id", "version"],
+            index_elements=["version_id"],
             set_={
+                "model_id": model_id,
+                "version": version,
                 "framework": framework,
                 "bento_tag": bento_tag,
                 "model_path": model_path,

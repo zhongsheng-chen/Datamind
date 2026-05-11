@@ -17,6 +17,7 @@ import structlog
 from datetime import datetime, timezone
 from typing import Optional
 
+from datamind.utils.generator import generate_id
 from datamind.db.core.session import get_session_factory
 from datamind.db.models.audit import Audit
 
@@ -40,7 +41,18 @@ class AuditWriter:
         session = SessionFactory()
 
         try:
+
+            audit_id = generate_id(
+                prefix="aud",
+                keys=(
+                    event.trace_id,
+                    event.request_id,
+                    event.action,
+                ),
+            )
+
             obj = Audit(
+                audit_id=audit_id,
                 action=event.action,
                 resource=event.resource,
                 operation=event.operation,

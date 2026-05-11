@@ -10,6 +10,7 @@
     writer = AuditWriter(session)
 
     await writer.write(
+        audit_id="aud_a1b2c3d4",
         action="model.register",
         resource="model",
         operation="register",
@@ -18,6 +19,10 @@
         user="admin",
         after={"name": "scorecard"}
     )
+
+注意：
+  datamind.db.writer.audit_writer 仅为保持 db.writer 模块结构一致而保留，
+  审计记录由 datamind.audit.writer 统一写入。
 """
 
 from datetime import datetime, timezone
@@ -32,11 +37,13 @@ class AuditWriter(BaseWriter):
     async def write(
         self,
         *,
+        audit_id: str,
         action: str,
         resource: str,
         operation: str,
         target_type: str,
         target_id: str,
+        source: str,
         trace_id: str = None,
         request_id: str = None,
         user: str = None,
@@ -51,15 +58,17 @@ class AuditWriter(BaseWriter):
         """写入审计日志
 
         参数：
+            audit_id: 审计 ID
             action: 操作类型，格式为 resource.operation
             resource: 资源类型
             operation: 操作名称
             target_type: 目标类型
             target_id: 目标 ID
+            source: 来源类型
             trace_id: 链路追踪 ID
             request_id: 请求 ID
             user: 操作者
-            ip: 操作者 IP 地址
+            ip: 操作者 IP
             status: 操作状态
             error: 错误信息
             before: 变更前数据
@@ -71,11 +80,13 @@ class AuditWriter(BaseWriter):
             审计日志对象
         """
         obj = Audit(
+            audit_id=audit_id,
             action=action,
             resource=resource,
             operation=operation,
             target_type=target_type,
             target_id=target_id,
+            source=source,
             trace_id=trace_id,
             request_id=request_id,
             user=user,

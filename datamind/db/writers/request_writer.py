@@ -36,13 +36,13 @@ class RequestWriter(BaseWriter):
         """写入请求记录
 
         参数：
-            request_id: 请求唯一标识
-            model_id: 目标模型ID
+            request_id: 请求 ID
+            model_id: 目标模型 ID
             payload: 请求负载
             source: 请求来源
-            latency_ms: 处理耗时（毫秒）
+            latency_ms: 处理耗时，单位毫秒
             user: 用户
-            ip: 客户端IP
+            ip: 客户端 IP
 
         返回：
             请求对象

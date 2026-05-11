@@ -25,11 +25,11 @@
 """
 
 import os
-import hashlib
 import structlog
 from pathlib import Path
 from typing import Optional, Dict
 
+from datamind.utils.generator import generate_id
 from datamind.storage import get_storage
 from datamind.storage.resolver import StorageResolver
 from datamind.db.core.uow import UnitOfWork
@@ -50,19 +50,6 @@ class ModelRegister:
     def __init__(self):
         self.storage = get_storage()
         self.backend = BentoBackend()
-
-    @staticmethod
-    def _generate_model_id(name: str) -> str:
-        """生成模型ID
-
-        参数：
-            name: 模型名称
-
-        返回：
-            模型ID，格式：mdl_{8位MD5哈希}
-        """
-        digest = hashlib.md5(name.encode()).hexdigest()[:8]
-        return f"mdl_{digest}"
 
     async def register(
         self,
@@ -92,6 +79,7 @@ class ModelRegister:
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             created_by: 创建人（可选）
+            updated_by: 更新人（可选）
             force: 是否强制覆盖已有版本（可选）
 
         返回：
@@ -101,11 +89,23 @@ class ModelRegister:
             ArtifactError: 模型产物处理错误
             ModelAlreadyExistsError: 模型已存在
         """
-        model_id = self._generate_model_id(name)
+        model_id = generate_id(
+            prefix="mdl",
+            keys=(name,),
+        )
+
+        version_id = generate_id(
+            prefix="ver",
+            keys=(
+                model_id,
+                version,
+            ),
+        )
 
         logger.info(
             "开始注册模型",
             model_id=model_id,
+            version_id=version_id,
             name=name,
             version=version,
         )
@@ -121,11 +121,13 @@ class ModelRegister:
 
             metadata_reader = MetadataReader(session)
             version_reader = VersionReader(session)
+
             metadata_writer = MetadataWriter(session)
             version_writer = VersionWriter(session)
 
             # 检查模型元数据
-            existing_metadata = await metadata_reader.get_model(model_id)
+            existing_metadata = await metadata_reader.get_model(model_id=model_id)
+            current = None
 
             if existing_metadata:
                 logger.debug(
@@ -143,12 +145,12 @@ class ModelRegister:
                     )
 
             # 检查版本是否存在
-            latest_version = await version_reader.get_latest_version(model_id)
+            existing_version = await version_reader.get_version(version_id=version_id)
 
-            if latest_version and latest_version.version == version:
-                if not force:
-                    raise ModelAlreadyExistsError(f"模型版本已存在: {name}:{version}")
+            if existing_version and not force:
+                raise ModelAlreadyExistsError(f"模型版本已存在: {name}:{version}")
 
+            if existing_version and force:
                 logger.warning(
                     "检测到重复版本，执行强制覆盖",
                     model_id=model_id,
@@ -160,9 +162,10 @@ class ModelRegister:
 
             try:
                 data = path.read_bytes()
-                logger.debug("模型文件读取成功")
             except Exception as e:
                 raise ArtifactError(f"模型文件读取失败: {model_path}") from e
+
+            logger.debug("模型文件读取成功")
 
             # 上传模型文件
             storage_key = self.storage.save(
@@ -198,6 +201,7 @@ class ModelRegister:
                 model=model,
                 labels={
                     "model_id": model_id,
+                    "version_id": version_id,
                     "model_type": model_type,
                     "task_type": task_type,
                     "version": version,
@@ -213,10 +217,10 @@ class ModelRegister:
                 await metadata_writer.create(
                     model_id=model_id,
                     name=name,
-                    description=description,
                     model_type=model_type,
                     task_type=task_type,
                     framework=framework,
+                    description=description,
                     status=MetadataStatus.ACTIVE,
                     created_by=created_by,
                 )
@@ -227,8 +231,9 @@ class ModelRegister:
                     updated_by=created_by,
                 )
 
-            # 创建版本记录
+            # 创建或更新版本记录
             await version_writer.upsert(
+                version_id=version_id,
                 model_id=model_id,
                 version=version,
                 framework=framework,
@@ -241,12 +246,23 @@ class ModelRegister:
                 created_by=created_by,
             )
 
-            logger.debug("模型版本创建成功", model_id=model_id, version=version)
+            logger.debug(
+                "模型版本创建成功",
+                model_id=model_id,
+                version_id=version_id,
+                version=version,
+            )
 
-        logger.info("模型注册完成", model_id=model_id, version=version)
+        logger.info(
+            "模型注册完成",
+            model_id=model_id,
+            version_id=version_id,
+            version=version,
+        )
 
         return {
             "model_id": model_id,
+            "version_id": version_id,
             "version": version,
             "bento_tag": bento_tag,
             "storage_key": storage_key,

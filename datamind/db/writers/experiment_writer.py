@@ -10,8 +10,9 @@
     await writer.write(
         experiment_id="exp_a1b2c3d4",
         model_id="mdl_a1b2c3d4",
-        name="模型对比实验",
-        config={"strategy": "WEIGHTED", "variants": [...]},
+        name="实验",
+        description="实验描述"
+        config={"strategy": "consistent", "variants": [...]},
         created_by="system"
     )
 """
@@ -30,7 +31,7 @@ class ExperimentWriter(BaseWriter):
         *,
         experiment_id: str,
         model_id: str,
-        name: str,
+        name: str = None,
         description: str = None,
         status: str = "running",
         config: dict = None,
@@ -41,8 +42,8 @@ class ExperimentWriter(BaseWriter):
         """写入实验记录
 
         参数：
-            experiment_id: 实验唯一标识
-            model_id: 模型ID
+            experiment_id: 实验 ID
+            model_id: 模型 ID
             name: 实验名称
             description: 实验描述
             status: 实验状态
