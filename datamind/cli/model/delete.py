@@ -21,7 +21,7 @@ import typer
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.readers import MetadataReader
+from datamind.db.repositories import MetadataRepository
 from datamind.db.models import Metadata, Version
 
 from sqlalchemy import delete as sa_delete, update
@@ -50,15 +50,15 @@ def delete_model(
                 raise typer.Exit(0)
 
         async with UnitOfWork() as uow:
-            reader = MetadataReader(uow.session)
+            repo = MetadataRepository(uow.session)
 
             # 优先按 ID 查询
             if model_id:
-                model = await reader.get_model(model_id=model_id)
+                model = await repo.get_model(model_id=model_id)
 
             # 按名称查询
             else:
-                model = await reader.get_model(name=name)
+                model = await repo.get_model(name=name)
 
             if not model:
                 typer.echo("模型不存在")

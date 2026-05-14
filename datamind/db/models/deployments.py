@@ -73,7 +73,11 @@ class Deployment(Base, IdMixin, TimestampMixin):
     )
     deployed_by = Column(
         String(50), nullable=True,
-        comment="部署操作人"
+        comment="部署人"
+    )
+    updated_by = Column(
+        String(50), nullable=True,
+        comment="更新人"
     )
     description = Column(
         Text, nullable=True,

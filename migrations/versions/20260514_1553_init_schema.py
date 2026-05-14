@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 90b6e43ae278
+Revision ID: 29fc050371f5
 Revises: 
-Create Date: 2026-05-12 15:13:24.907195+00:00
+Create Date: 2026-05-14 15:53:57.766420+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = '90b6e43ae278'
+revision = '29fc050371f5'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -97,7 +97,8 @@ def upgrade() -> None:
     sa.Column('traffic_ratio', sa.Float(), server_default=sa.text('1.0'), nullable=False, comment='流量占比，取值范围 0.0 ~ 1.0'),
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
-    sa.Column('deployed_by', sa.String(length=50), nullable=True, comment='部署操作人'),
+    sa.Column('deployed_by', sa.String(length=50), nullable=True, comment='部署人'),
+    sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('description', sa.Text(), nullable=True, comment='部署说明'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
@@ -121,6 +122,7 @@ def upgrade() -> None:
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
+    sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -182,6 +184,8 @@ def upgrade() -> None:
     sa.Column('strategy', sa.String(length=20), nullable=False, comment='版本选择策略，可选值：random / consistent / bucket / weighted'),
     sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='策略配置参数，JSON 格式'),
     sa.Column('enabled', sa.Boolean(), server_default=sa.text('true'), nullable=False, comment='是否启用'),
+    sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
+    sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -204,6 +208,7 @@ def upgrade() -> None:
     sa.Column('metrics', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='模型评估指标，JSON 格式'),
     sa.Column('description', sa.Text(), nullable=True, comment='版本说明'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
+    sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='删除时间'),
     sa.Column('deleted_by', sa.String(length=50), nullable=True, comment='删除人'),
     sa.Column('archived_at', sa.DateTime(timezone=True), nullable=True, comment='归档时间'),

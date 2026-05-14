@@ -33,8 +33,8 @@ from datamind.utils.generator import generate_id
 from datamind.storage import get_storage
 from datamind.storage.resolver import StorageResolver
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.writers import MetadataWriter, VersionWriter
-from datamind.db.readers import MetadataReader, VersionReader
+from datamind.db.repositories import MetadataRepository, VersionRepository
+from datamind.db.repositories import MetadataPatch
 from datamind.models.backend import BentoBackend
 from datamind.models.artifact import ModelArtifactLoader
 from datamind.models.guard import ModelGuard
@@ -89,18 +89,8 @@ class ModelRegister:
             ArtifactError: 模型产物处理错误
             ModelAlreadyExistsError: 模型已存在
         """
-        model_id = generate_id(
-            prefix="mdl",
-            keys=(name,),
-        )
-
-        version_id = generate_id(
-            prefix="ver",
-            keys=(
-                model_id,
-                version,
-            ),
-        )
+        model_id = generate_id(prefix="mdl", keys=(name,))
+        version_id = generate_id(prefix="ver", keys=(model_id, version))
 
         logger.info(
             "开始注册模型",
@@ -119,14 +109,11 @@ class ModelRegister:
         async with UnitOfWork() as uow:
             session = uow.session
 
-            metadata_reader = MetadataReader(session)
-            version_reader = VersionReader(session)
-
-            metadata_writer = MetadataWriter(session)
-            version_writer = VersionWriter(session)
+            metadata_repo = MetadataRepository(session)
+            version_repo = VersionRepository(session)
 
             # 检查模型元数据
-            existing_metadata = await metadata_reader.get_model(model_id=model_id)
+            existing_metadata = await metadata_repo.get_model(model_id=model_id)
             current = None
 
             if existing_metadata:
@@ -145,7 +132,7 @@ class ModelRegister:
                     )
 
             # 检查版本是否存在
-            existing_version = await version_reader.get_version(version_id=version_id)
+            existing_version = await version_repo.get_version(version_id=version_id)
 
             if existing_version and not force:
                 raise ModelAlreadyExistsError(f"模型版本已存在: {name}:{version}")
@@ -214,7 +201,7 @@ class ModelRegister:
 
             # 创建或更新模型元数据
             if not existing_metadata:
-                await metadata_writer.create(
+                metadata_repo.create_model(
                     model_id=model_id,
                     name=name,
                     model_type=model_type,
@@ -225,14 +212,13 @@ class ModelRegister:
                     created_by=created_by,
                 )
             elif current != MetadataStatus.ACTIVE:
-                await metadata_writer.update(
+                metadata_repo.activate_model(
                     existing_metadata,
-                    status=MetadataStatus.ACTIVE,
                     updated_by=created_by,
                 )
 
             # 创建或更新版本记录
-            await version_writer.upsert(
+            await version_repo.upsert_version(
                 version_id=version_id,
                 model_id=model_id,
                 version=version,

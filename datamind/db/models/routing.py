@@ -47,6 +47,14 @@ class Routing(Base, IdMixin, TimestampMixin):
         Boolean, nullable=False, server_default=text("true"),
         comment="是否启用"
     )
+    created_by = Column(
+        String(50), nullable=True,
+        comment="创建人"
+    )
+    updated_by = Column(
+        String(50), nullable=True,
+        comment="更新人"
+    )
 
     def __repr__(self):
         return (

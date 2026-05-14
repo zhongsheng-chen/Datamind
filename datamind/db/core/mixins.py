@@ -9,14 +9,16 @@
   - TimestampMixin: 创建时间和更新时间
 """
 
-from sqlalchemy import Column, DateTime, BigInteger
+from datetime import datetime
+from sqlalchemy import DateTime, BigInteger
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 
 class IdMixin:
     """自增主键混入类"""
 
-    id = Column(
+    id: Mapped[int] = mapped_column(
         BigInteger,
         primary_key=True,
         autoincrement=True,
@@ -27,13 +29,13 @@ class IdMixin:
 class TimestampMixin:
     """时间戳混入类"""
 
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
         comment="创建时间"
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),

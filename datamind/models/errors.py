@@ -9,6 +9,7 @@
   - ModelNotFoundError: 模型不存在
   - ModelAlreadyExistsError: 模型已存在
   - InvalidModelStateError: 非法模型状态
+  - InvalidExperimentStateError: 非法实验状态
   - DeploymentError: 模型部署异常
   - InvalidDeploymentStateError: 非法部署状态
   - BackendError: 模型后端错误
@@ -41,6 +42,11 @@ class ModelAlreadyExistsError(ModelError):
 
 class InvalidModelStateError(ModelError):
     """非法模型状态"""
+    pass
+
+
+class InvalidExperimentStateError(ModelError):
+    """非法实验状态"""
     pass
 
 

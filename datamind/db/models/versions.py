@@ -73,6 +73,10 @@ class Version(Base, IdMixin, TimestampMixin):
         String(50), nullable=True,
         comment="创建人"
     )
+    updated_by = Column(
+        String(50), nullable=True,
+        comment="更新人"
+    )
     deleted_at = Column(
         DateTime(timezone=True), nullable=True,
         comment="删除时间"

@@ -28,6 +28,7 @@ class ModelDeleter:
 
     def __init__(self):
         self.storage = get_storage()
+        self.bento = get_bento()
 
     async def delete(
         self,

@@ -24,7 +24,7 @@ from rich import box
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.readers import MetadataReader
+from datamind.db.repositories import MetadataRepository
 
 app = typer.Typer(help="列出模型命令")
 console = Console()
@@ -64,9 +64,9 @@ def list_models(
             filters["exclude_status"] = "archived"
 
         async with UnitOfWork() as uow:
-            reader = MetadataReader(uow.session)
+            repo = MetadataRepository(uow.session)
 
-            models = await reader.list_models(
+            models = await repo.list_models(
                 limit=limit,
                 offset=offset,
                 **filters

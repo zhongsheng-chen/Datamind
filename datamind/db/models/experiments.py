@@ -61,6 +61,10 @@ class Experiment(Base, IdMixin, TimestampMixin):
         String(50), nullable=True,
         comment="创建人"
     )
+    updated_by = Column(
+        String(50), nullable=True,
+        comment="更新人"
+    )
 
     def __repr__(self):
         return (

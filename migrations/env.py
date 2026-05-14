@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from datamind.config import get_settings
 from datamind.db.core import Base
+from datamind.db.core.url import get_db_url
 
 config = context.config
 
@@ -41,27 +42,7 @@ target_metadata = Base.metadata
 
 settings = get_settings()
 
-
-def get_url() -> str:
-    """获取数据库连接 URL
-
-    返回：
-        数据库连接字符串
-
-    异常：
-        ValueError: 未配置数据库 URL
-    """
-    url = settings.database.url
-
-    if not url:
-        raise ValueError(
-            "未配置数据库连接 URL，请设置环境变量 DATAMIND_DATABASE_URL"
-        )
-
-    return url
-
-
-config.set_main_option("sqlalchemy.url", get_url())
+config.set_main_option("sqlalchemy.url", get_db_url())
 
 
 def run_migrations_offline() -> None:

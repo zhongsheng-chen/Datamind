@@ -24,7 +24,7 @@ from rich.table import Table
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.readers import MetadataReader
+from datamind.db.repositories import MetadataRepository
 
 app = typer.Typer(help="查看模型详情命令")
 console = Console()
@@ -43,15 +43,15 @@ def show_model(
             raise typer.BadParameter("必须提供 <name> 或 --model-id")
 
         async with UnitOfWork() as uow:
-            reader = MetadataReader(uow.session)
+            repo = MetadataRepository(uow.session)
 
             # 优先按 ID 查询
             if model_id:
-                model = await reader.get_model(model_id=model_id)
+                model = await repo.get_model(model_id=model_id)
 
             # 按名称查询
             else:
-                model = await reader.get_model(name=name)
+                model = await repo.get_model(name=name)
 
             if not model:
                 console.print("[yellow]模型不存在[/yellow]")
