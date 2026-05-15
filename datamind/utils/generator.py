@@ -8,7 +8,7 @@
   - generate_id: 基于前缀和键值生成唯一 ID
 
 使用示例：
-  from datamind.utils.id import generate_id
+  from datamind.utils.generator import generate_id
 
   # 生成模型 ID
   model_id = generate_id(

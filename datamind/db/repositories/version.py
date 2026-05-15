@@ -10,10 +10,9 @@
   - list_versions: 获取版本列表
   - create_version: 创建版本
   - update_version: 更新版本
-  - upsert_version: 插入或更新版本
   - archive_version: 归档版本
   - activate_version: 激活版本
-  - deprecate_version: 标记版本废弃
+  - deprecate_version: 废弃版本
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -37,7 +36,6 @@
 from datetime import datetime, timezone
 from dataclasses import dataclass, fields
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
 from datamind.db.models.versions import Version
 from datamind.db.repositories.base import BaseRepository
@@ -132,14 +130,13 @@ class VersionRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_version(
+    def create_version(
         self,
         *,
         version_id: str,
         model_id: str,
         version: str,
         framework: str,
-        status: str,
         bento_tag: str,
         model_path: str,
         storage_key: str,
@@ -155,7 +152,6 @@ class VersionRepository(BaseRepository):
             model_id: 模型 ID
             version: 版本号
             framework: 框架类型
-            status: 版本状态
             bento_tag: BentoML 标签
             model_path: 模型路径
             storage_key: 存储键
@@ -172,7 +168,6 @@ class VersionRepository(BaseRepository):
             model_id=model_id,
             version=version,
             framework=framework,
-            status=status,
             bento_tag=bento_tag,
             model_path=model_path,
             storage_key=storage_key,
@@ -219,72 +214,6 @@ class VersionRepository(BaseRepository):
         version.updated_at = datetime.now(timezone.utc)
 
         return version
-
-    async def upsert_version(
-        self,
-        *,
-        version_id: str,
-        model_id: str,
-        version: str,
-        framework: str,
-        status: VersionStatus,
-        bento_tag: str,
-        model_path: str,
-        storage_key: str,
-        params: dict | None = None,
-        metrics: dict | None = None,
-        description: str | None = None,
-        created_by: str | None = None,
-    ) -> None:
-        """插入或更新版本
-
-        参数：
-            version_id: 版本 ID
-            model_id: 模型 ID
-            version: 版本号
-            framework: 框架类型
-            status: 版本状态
-            bento_tag: BentoML 标签
-            model_path: 模型路径
-            storage_key: 存储键
-            params: 模型参数（可选）
-            metrics: 评估指标（可选）
-            description: 版本描述（可选）
-            created_by: 创建人（可选）
-        """
-        stmt = insert(Version).values(
-            version_id=version_id,
-            model_id=model_id,
-            version=version,
-            framework=framework,
-            status=status,
-            bento_tag=bento_tag,
-            model_path=model_path,
-            storage_key=storage_key,
-            params=params,
-            metrics=metrics,
-            description=description,
-            created_by=created_by,
-        )
-
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["version_id"],
-            set_={
-                "model_id": model_id,
-                "version": version,
-                "framework": framework,
-                "status": status,
-                "bento_tag": bento_tag,
-                "model_path": model_path,
-                "storage_key": storage_key,
-                "params": params,
-                "metrics": metrics,
-                "description": description,
-                "created_by": created_by,
-            },
-        )
-
-        await self.session.execute(stmt)
 
     def archive_version(
         self,

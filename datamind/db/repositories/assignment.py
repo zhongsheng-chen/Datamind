@@ -96,7 +96,7 @@ class AssignmentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_assignment(
+    def create_assignment(
         self,
         *,
         assignment_id: str,

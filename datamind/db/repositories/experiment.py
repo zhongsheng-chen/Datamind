@@ -111,14 +111,13 @@ class ExperimentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_experiment(
+    def create_experiment(
         self,
         *,
         experiment_id: str,
         model_id: str,
         name: str | None = None,
         description: str | None = None,
-        status: str = "running",
         config: dict | None = None,
         effective_from: datetime | None = None,
         effective_to: datetime | None = None,
@@ -145,7 +144,6 @@ class ExperimentRepository(BaseRepository):
             model_id=model_id,
             name=name,
             description=description,
-            status=status,
             config=config,
             effective_from=effective_from,
             effective_to=effective_to,

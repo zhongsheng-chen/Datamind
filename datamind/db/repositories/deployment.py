@@ -63,8 +63,8 @@ class DeploymentPatch:
     rollout_type: str | None = None
     variant: str | None = None
     traffic_ratio: float | None = None
-    effective_from: object | None = None
-    effective_to: object | None = None
+    effective_from: datetime | None = None
+    effective_to: datetime | None = None
     deployed_by: str | None = None
     description: str | None = None
 
@@ -117,20 +117,19 @@ class DeploymentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_deployment(
+    def create_deployment(
         self,
         *,
         deployment_id: str,
         model_id: str,
         version_id: str,
         framework: str,
-        status: str = "active",
         environment: str = "production",
         rollout_type: str = "full",
         variant: str = "primary",
         traffic_ratio: float = 1.0,
-        effective_from: object | None = None,
-        effective_to: object | None = None,
+        effective_from: datetime | None = None,
+        effective_to: datetime | None = None,
         deployed_by: str | None = None,
         description: str | None = None,
     ) -> Deployment:
@@ -141,7 +140,6 @@ class DeploymentRepository(BaseRepository):
             model_id: 模型 ID
             version_id: 版本 ID
             framework: 框架类型
-            status: 部署状态
             environment: 部署环境
             rollout_type: 发布类型
             variant: 变体标识
@@ -159,7 +157,6 @@ class DeploymentRepository(BaseRepository):
             model_id=model_id,
             version_id=version_id,
             framework=framework,
-            status=status,
             environment=environment,
             rollout_type=rollout_type,
             variant=variant,

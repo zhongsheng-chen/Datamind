@@ -42,8 +42,8 @@ class Version(Base, IdMixin, TimestampMixin):
         comment="框架类型，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow"
     )
     status = Column(
-        String(20), nullable=False, server_default=text("'active'"),
-        comment="状态，可选值：active / deprecated / archived"
+        String(20), nullable=False, server_default=text("'inactive'"),
+        comment="状态，可选值：active / inactive / deprecated / archived"
     )
     bento_tag = Column(
         String(100), nullable=False,

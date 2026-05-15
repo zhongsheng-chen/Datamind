@@ -96,6 +96,72 @@ datamind routing show <model>
 datamind experiment list <model>
 datamind assignment list <model>
 
+如果你下一步要统一 CLI 文档，我可以帮你把：
+
+model list
+model show
+model delete
+model version list / show / delete
+model register
+
+全部统一成同一份 CLI spec（可以直接放 README 或 docs）。
+
+
+## 注册模型
+### model register 命令
+#### 命令格式
+```bash
+datamind model register <name>
+  --version <version>
+  --model-path <path>
+  --framework <framework>
+  --model-type <model-type>
+  --task-type <task-type>
+  [--description <text>]
+  [--owner <owner>]
+  [--force]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<name>` | 模型名称（业务唯一标识，例如 scorecard） |
+| `--version <version>` | 模型版本号，例如 1.0.0 |
+| `--model-path <path>` | 模型文件路径（本地或存储路径） |
+| `--framework <framework>` | 模型框架，例如 sklearn、xgboost、lightgbm、catboost、torch、tensorflow |
+| `--model-type <model-type>` | 模型类型，例如 logistic_regression、random_forest、xgboost |
+| `--task-type <task-type>` | 任务类型，例如 classification、scoring、regression |
+| `--description <text>` | 模型描述信息 |
+| `--owner <user>` | 创建人 / 负责人 |
+| `--force` | 是否强制覆盖已有版本（存在则更新） |
+| `--format <format>` | 输出格式，table 或 json，默认 table |
+| `--verbose` | 是否输出调试日志 |
+
+#### 使用示例
+```bash
+# 注册
+datamind model register scorecard \
+  --version 1.0.0 \
+  --model-path ./models/scorecard.pkl \
+  --framework sklearn \
+  --model-type logistic_regression \
+  --task-type scoring \
+  --description "信用评分卡模型" \
+  --owner admin
+
+# 强制覆盖已存在版本
+datamind model register scorecard \
+  --version 1.0.0 \
+  --model-path ./models/scorecard.pkl \
+  --framework sklearn \
+  --model-type logistic_regression \
+  --task-type scoring \
+  --force
+```
+
 ## 列出模型
 ### model list 命令
 #### 命令格式
@@ -168,12 +234,24 @@ datamind model delete (<name> | --model-id <model-id>)
   [--yes]
 ```
 
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<name>` | 模型名称（与 `--model-id` 二选一） |
+| `--model-id` | 模型 ID |
+| `--version` | 版本号（与 `--version-id` 二选一） |
+| `--version-id` | 版本 ID |
+| `--purge` | 是否执行物理删除（默认执行归档删除） |
+| `--yes` | 跳过交互确认 |
+| `--verbose` | 显示调试日志 |
+
 #### 使用示例
 ```bash
 # 删除模型（所有版本）
 datamind model delete scorecard
 
-# 删除版本
+# 删除指定版本
 datamind model delete scorecard --version 1.0.0
 
 # 按模型 ID 删除（机器友好接口，不推荐用户使用）
@@ -185,7 +263,7 @@ datamind model delete --version-id ver_a1b2c3d4
 # 强制物理删除，交互确认（推荐生产）
 datamind model delete scorecard --version 1.0.0 --purge
 
-# 跳过确认
+# 强制删除模型，跳过确认
 datamind model delete scorecard --version 1.0.0 --purge --yes
 ```
 

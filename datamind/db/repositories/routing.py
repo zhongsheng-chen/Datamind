@@ -90,7 +90,7 @@ class RoutingRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_routing_policy(
+    def create_routing_policy(
         self,
         *,
         routing_id: str,

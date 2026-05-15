@@ -7,12 +7,12 @@
 核心功能：
   - get_model: 获取单个模型（支持 model_id 或 name）
   - list_active_models: 获取活跃模型列表
-  - list_models: 获取模型列表（支持过滤、分页）
+  - list_models: 获取模型列表
   - create_model: 创建模型
-  - update_model: 更新模型元数据
+  - update_model: 更新模型
   - archive_model: 归档模型
   - activate_model: 激活模型
-  - deprecate_model: 标记模型废弃
+  - deprecate_model: 废弃模型
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -119,7 +119,7 @@ class MetadataRepository(BaseRepository):
     async def list_models(
         self,
         *,
-        exclude_status: MetadataStatus | None = None,
+        exclude_status: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
         **filters,
@@ -168,7 +168,6 @@ class MetadataRepository(BaseRepository):
         description: str | None = None,
         input_schema: dict | None = None,
         output_schema: dict | None = None,
-        status: MetadataStatus = MetadataStatus.ACTIVE,
         created_by: str | None = None,
         updated_by: str | None = None,
     ) -> Metadata:
@@ -199,7 +198,6 @@ class MetadataRepository(BaseRepository):
             description=description,
             input_schema=input_schema,
             output_schema=output_schema,
-            status=status,
             created_by=created_by,
             updated_by=updated_by,
         )

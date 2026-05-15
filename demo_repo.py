@@ -36,7 +36,7 @@ async def runner():
         repo = VersionRepository(uow.session)
 
         # 创建版本
-        version = await repo.create_version(
+        version = repo.create_version(
             version_id="ver_test",
             model_id="mdl_test",
             version="1.0.0",
@@ -51,8 +51,6 @@ async def runner():
         old_updated_at = version.updated_at
         print(f"创建时 updated_at: {old_updated_at}")
 
-        # 等待1秒确保时间会变化
-        await asyncio.sleep(1)
 
         # 更新版本
         patch = VersionPatch(description="新描述")

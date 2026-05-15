@@ -59,7 +59,7 @@ class Metadata(Base, IdMixin, TimestampMixin):
         comment="输出 Schema，JSON 格式"
     )
     status = Column(
-        String(20), nullable=False, server_default=text("'active'"),
+        String(20), nullable=False, server_default=text("'inactive'"),
         comment="状态，可选值：active / inactive / deprecated / archived"
     )
     created_by = Column(

@@ -81,7 +81,7 @@ class RequestRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_request(
+    def create_request(
         self,
         *,
         request_id: str,

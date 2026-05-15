@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 29fc050371f5
+Revision ID: c0fac46cf547
 Revises: 
-Create Date: 2026-05-14 15:53:57.766420+00:00
+Create Date: 2026-05-15 07:20:15.601332+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = '29fc050371f5'
+revision = 'c0fac46cf547'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -143,7 +143,7 @@ def upgrade() -> None:
     sa.Column('description', sa.TEXT(), nullable=True, comment='模型描述'),
     sa.Column('input_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输入 Schema，JSON 格式'),
     sa.Column('output_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输出 Schema，JSON 格式'),
-    sa.Column('status', sa.String(length=20), server_default=sa.text("'active'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
@@ -200,7 +200,7 @@ def upgrade() -> None:
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('version', sa.String(length=50), nullable=False, comment='版本号'),
     sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow'),
-    sa.Column('status', sa.String(length=20), server_default=sa.text("'active'"), nullable=False, comment='状态，可选值：active / deprecated / archived'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
     sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，格式为 模型名:版本'),
     sa.Column('model_path', sa.String(length=255), nullable=False, comment='模型文件存储路径'),
     sa.Column('storage_key', sa.String(length=255), nullable=False, comment='存储键，模型文件在存储空间中的唯一标识'),

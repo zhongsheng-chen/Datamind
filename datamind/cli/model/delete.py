@@ -16,32 +16,39 @@
 """
 
 import asyncio
-
 import typer
+from rich.console import Console
 
+from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.db.core.uow import UnitOfWork
-from datamind.db.repositories import MetadataRepository
-from datamind.db.models import Metadata, Version
-
-from sqlalchemy import delete as sa_delete, update
+from datamind.models.deleter import ModelDeleter
 
 app = typer.Typer(help="删除模型命令")
+console = Console()
 
 
 @app.command("delete")
 def delete_model(
     name: str = typer.Argument(None, help="模型名称（与 --model-id 二选一）"),
-    model_id: str = typer.Option(None, "--model-id", help="模型ID"),
+    model_id: str = typer.Option(None, "--model-id", help="模型 ID"),
     version: str = typer.Option(None, "--version", help="版本号（可选）"),
+    version_id: str = typer.Option(None, "--version-id", help="版本 ID（可选）"),
     purge: bool = typer.Option(False, "--purge", help="是否执行硬删除"),
     yes: bool = typer.Option(False, "--yes", help="跳过确认"),
     verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
 ):
     """删除模型"""
 
+    @audit(
+        action="model.delete",
+        target_type="model",
+        target_id_func=lambda p, r: (
+                r.get("version_id")
+                if r.get("action") == "delete_version"
+                else r.get("model_id")
+        ),
+    )
     async def _run():
-
         if not name and not model_id:
             raise typer.BadParameter("必须提供 <name> 或 --model-id")
 
@@ -49,73 +56,25 @@ def delete_model(
             if not typer.confirm("确认执行删除操作？"):
                 raise typer.Exit(0)
 
-        async with UnitOfWork() as uow:
-            repo = MetadataRepository(uow.session)
+        deleter = ModelDeleter()
 
-            # 优先按 ID 查询
-            if model_id:
-                model = await repo.get_model(model_id=model_id)
+        result = await deleter.delete(
+            name=name,
+            model_id=model_id,
+            version=version,
+            version_id=version_id,
+            purge=purge,
+        )
 
-            # 按名称查询
-            else:
-                model = await repo.get_model(name=name)
+        if version:
+            console.print(f"版本 {result['version']} 删除完成")
+        else:
+            console.print(f"模型 {result['name']} 删除完成")
 
-            if not model:
-                typer.echo("模型不存在")
-                raise typer.Exit(1)
-
-            if version:
-
-                if purge:
-                    await uow.session.execute(
-                        sa_delete(Version).where(
-                            Version.model_id == model.model_id,
-                            Version.version == version,
-                        )
-                    )
-                else:
-                    await uow.session.execute(
-                        update(Version)
-                        .where(
-                            Version.model_id == model.model_id,
-                            Version.version == version,
-                        )
-                        .values(status="archived")
-                    )
-
-                typer.echo(f"版本 {version} 删除完成")
-                return
-
-            if purge:
-
-                await uow.session.execute(
-                    sa_delete(Version).where(
-                        Version.model_id == model.model_id
-                    )
-                )
-
-                await uow.session.execute(
-                    sa_delete(Metadata).where(
-                        Metadata.model_id == model.model_id
-                    )
-                )
-
-                typer.echo(f"模型 {model.name} 已硬删除")
-                return
-
-            await uow.session.execute(
-                update(Metadata)
-                .where(Metadata.model_id == model.model_id)
-                .values(status="archived")
-            )
-
-            typer.echo(f"模型 {model.name} 已归档")
+        return result
 
     async def runner():
-        async with cli_context(
-            verbose=verbose,
-            enable_audit=True,
-        ):
+        async with cli_context(verbose=verbose, enable_audit=True):
             await _run()
 
     asyncio.run(runner())

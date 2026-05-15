@@ -35,7 +35,6 @@
 """
 
 from datetime import datetime, timezone
-
 from sqlalchemy import select
 
 from datamind.db.models.audit import Audit
@@ -103,7 +102,7 @@ class AuditRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_audit(
+    def create_audit(
         self,
         *,
         audit_id: str,

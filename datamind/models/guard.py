@@ -75,6 +75,10 @@ class ModelGuard:
     _VERSION_TRANSITIONS = {
         VersionStatus.ACTIVE: {
             VersionStatus.DEPRECATED,
+            VersionStatus.INACTIVE,
+        },
+        VersionStatus.INACTIVE: {
+            VersionStatus.ACTIVE,
             VersionStatus.ARCHIVED,
         },
         VersionStatus.DEPRECATED: {

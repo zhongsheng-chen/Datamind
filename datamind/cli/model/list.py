@@ -25,6 +25,7 @@ from rich import box
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.repositories import MetadataRepository
+from datamind.utils.datetime import format_datetime, format_iso_utc
 
 app = typer.Typer(help="列出模型命令")
 console = Console()
@@ -84,9 +85,9 @@ def list_models(
                         "model_type": m.model_type,
                         "task_type": m.task_type,
                         "created_by": m.created_by,
-                        "created_at": m.created_at.isoformat() if m.created_at else None,
+                        "created_at": format_iso_utc(m.created_at),
                         "updated_by": m.updated_by,
-                        "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+                        "updated_at": format_iso_utc(m.updated_at),
                     })
 
                 console.print_json(
@@ -114,7 +115,7 @@ def list_models(
             table.add_column("MODEL ID")
             table.add_column("STATUS")
             table.add_column("FRAMEWORK")
-            table.add_column("UPDATED")
+            table.add_column("UPDATED AT")
 
             for m in models:
                 table.add_row(
@@ -122,7 +123,7 @@ def list_models(
                     m.model_id,
                     m.status,
                     m.framework,
-                    m.updated_at.strftime("%Y-%m-%d %H:%M:%S") if m.updated_at else "-"
+                    format_datetime(m.updated_at)
                 )
 
             console.print(table)

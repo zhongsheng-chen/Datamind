@@ -33,12 +33,11 @@ from datamind.utils.generator import generate_id
 from datamind.storage import get_storage
 from datamind.storage.resolver import StorageResolver
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.repositories import MetadataRepository, VersionRepository
-from datamind.db.repositories import MetadataPatch
+from datamind.db.repositories import MetadataRepository, MetadataPatch, VersionRepository, VersionPatch
 from datamind.models.backend import BentoBackend
 from datamind.models.artifact import ModelArtifactLoader
 from datamind.models.guard import ModelGuard
-from datamind.models.enums import MetadataStatus
+from datamind.models.enums import MetadataStatus, VersionStatus
 from datamind.models.errors import ArtifactError, ModelAlreadyExistsError
 
 logger = structlog.get_logger(__name__)
@@ -112,9 +111,8 @@ class ModelRegister:
             metadata_repo = MetadataRepository(session)
             version_repo = VersionRepository(session)
 
-            # 检查模型元数据
+            # 检查元数据
             existing_metadata = await metadata_repo.get_model(model_id=model_id)
-            current = None
 
             if existing_metadata:
                 logger.debug(
@@ -125,13 +123,13 @@ class ModelRegister:
 
                 current = MetadataStatus(existing_metadata.status)
 
-                if current != MetadataStatus.ACTIVE:
+                if current != MetadataStatus.ARCHIVED:
                     ModelGuard.validate_metadata_transition(
                         current=current,
-                        target=MetadataStatus.ACTIVE,
+                        target=MetadataStatus.ARCHIVED,
                     )
 
-            # 检查版本是否存在
+            # 检查版本
             existing_version = await version_repo.get_version(version_id=version_id)
 
             if existing_version and not force:
@@ -143,6 +141,14 @@ class ModelRegister:
                     model_id=model_id,
                     version=version,
                 )
+
+                current = VersionStatus(existing_version.status)
+
+                if current != VersionStatus.ARCHIVED:
+                    ModelGuard.validate_version_transition(
+                        current=current,
+                        target=VersionStatus.ARCHIVED,
+                    )
 
             # 读取模型文件
             logger.debug("开始读取模型文件", model_path=model_path)
@@ -199,7 +205,7 @@ class ModelRegister:
 
             logger.debug("模型注册到 BentoML 成功", bento_tag=bento_tag)
 
-            # 创建或更新模型元数据
+            # 创建或更新元数据
             if not existing_metadata:
                 metadata_repo.create_model(
                     model_id=model_id,
@@ -208,36 +214,78 @@ class ModelRegister:
                     task_type=task_type,
                     framework=framework,
                     description=description,
-                    status=MetadataStatus.ACTIVE,
                     created_by=created_by,
                 )
-            elif current != MetadataStatus.ACTIVE:
-                metadata_repo.activate_model(
+
+                logger.debug(
+                    "模型元数据创建成功",
+                    model_id=model_id,
+                    name=name,
+                )
+
+            else:
+                metadata_repo.update_model(
                     existing_metadata,
+                    patch=MetadataPatch(
+                        name=name,
+                        model_type=model_type,
+                        task_type=task_type,
+                        framework=framework,
+                        description=description,
+                        updated_by=created_by,
+                    ),
+                )
+
+                logger.debug(
+                    "模型元数据更新成功",
+                    model_id=model_id,
+                    name=name,
+                )
+
+            # 创建或更新版本
+            if not existing_version:
+                version_repo.create_version(
+                    version_id=version_id,
+                    model_id=model_id,
+                    version=version,
+                    framework=framework,
+                    bento_tag=bento_tag,
+                    model_path=storage_location,
+                    storage_key=storage_key,
+                    params=params,
+                    metrics=metrics,
+                    description=description,
+                    created_by=created_by,
+                )
+
+                logger.debug(
+                    "模型版本创建成功",
+                    model_id=model_id,
+                    version_id=version_id,
+                    version=version,
+                )
+
+            else:
+                version_repo.update_version(
+                    existing_version,
+                    patch=VersionPatch(
+                        framework=framework,
+                        bento_tag=bento_tag,
+                        model_path=storage_location,
+                        storage_key=storage_key,
+                        params=params,
+                        metrics=metrics,
+                        description=description,
+                    ),
                     updated_by=created_by,
                 )
 
-            # 创建或更新版本记录
-            await version_repo.upsert_version(
-                version_id=version_id,
-                model_id=model_id,
-                version=version,
-                framework=framework,
-                bento_tag=bento_tag,
-                model_path=storage_location,
-                storage_key=storage_key,
-                params=params,
-                metrics=metrics,
-                description=description,
-                created_by=created_by,
-            )
-
-            logger.debug(
-                "模型版本创建成功",
-                model_id=model_id,
-                version_id=version_id,
-                version=version,
-            )
+                logger.debug(
+                    "模型版本更新成功",
+                    model_id=model_id,
+                    version_id=version_id,
+                    version=version,
+                )
 
         logger.info(
             "模型注册完成",
@@ -249,6 +297,7 @@ class ModelRegister:
         return {
             "model_id": model_id,
             "version_id": version_id,
+            "name": name,
             "version": version,
             "bento_tag": bento_tag,
             "storage_key": storage_key,

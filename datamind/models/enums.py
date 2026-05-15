@@ -50,6 +50,7 @@ class VersionStatus(BaseEnum):
 
     ACTIVE = "active"
     DEPRECATED = "deprecated"
+    INACTIVE = "inactive"
     ARCHIVED = "archived"
 
 
