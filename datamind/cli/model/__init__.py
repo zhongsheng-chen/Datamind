@@ -17,22 +17,13 @@ from datamind.cli.model.register import app as register_app
 from datamind.cli.model.list import app as list_app
 from datamind.cli.model.show import app as show_app
 from datamind.cli.model.delete import app as delete_app
-# from datamind.cli.model.version import app as version_app
 
 
 app = typer.Typer(
     help="模型管理"
 )
 
-# 一级命令
 app.add_typer(register_app)
 app.add_typer(list_app)
 app.add_typer(show_app)
 app.add_typer(delete_app)
-
-#
-# # 二级命令：model version ...
-# app.add_typer(
-#     version_app,
-#     name="version"
-# )
