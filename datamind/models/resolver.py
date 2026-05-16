@@ -9,22 +9,21 @@
   - resolve_version: 解析版本（支持 version_id 或 version）
 
 使用示例：
+  from datamind.db.repositories import MetadataRepository, VersionRepository
   from datamind.models.resolver import ModelResolver
 
-  resolver = ModelResolver()
+  resolver = ModelResolver(metadata_repo, version_repo)
 
   # 解析模型
-  model = await resolver.resolve_model(session, model_id="mdl_a1b2c3d4")
-  model = await resolver.resolve_model(session, name="scorecard")
+  model = await resolver.resolve_model(model_id="mdl_a1b2c3d4")
+  model = await resolver.resolve_model(name="scorecard")
 
   # 解析版本
   version = await resolver.resolve_version(
-      session,
       model_id="mdl_a1b2c3d4",
       version_id="ver_a1b2c3d4",
   )
   version = await resolver.resolve_version(
-      session,
       model_id="mdl_a1b2c3d4",
       version="1.0.0",
   )
@@ -37,9 +36,18 @@ from datamind.models.errors import ModelNotFoundError, VersionNotFoundError
 class ModelResolver:
     """模型解析器"""
 
+    def __init__(self, metadata_repo: MetadataRepository, version_repo: VersionRepository):
+        """初始化模型解析器
+
+        参数：
+            metadata_repo: 模型元数据仓储
+            version_repo: 模型版本仓储
+        """
+        self.metadata_repo = metadata_repo
+        self.version_repo = version_repo
+
     async def resolve_model(
         self,
-        session,
         *,
         model_id: str | None = None,
         name: str | None = None,
@@ -47,7 +55,6 @@ class ModelResolver:
         """解析模型
 
         参数：
-            session: 数据库会话
             model_id: 模型 ID（可选）
             name: 模型名称（可选）
 
@@ -57,23 +64,23 @@ class ModelResolver:
         异常：
             ModelNotFoundError: 模型不存在
         """
-        repo = MetadataRepository(session)
+        model = None
 
+        # 优先 model_id
         if model_id:
-            model = await repo.get_model(model_id=model_id)
-        elif name:
-            model = await repo.get_model(name=name)
-        else:
-            model = None
+            model = await self.metadata_repo.get_model(model_id=model_id)
+
+        # 兜底：按 name 查询
+        if not model and name:
+            model = await self.metadata_repo.get_model(name=name)
 
         if not model:
-            raise ModelNotFoundError("模型不存在")
+            raise ModelNotFoundError(f"模型不存在 (model_id={model_id}, name={name})")
 
         return model
 
     async def resolve_version(
         self,
-        session,
         *,
         model_id: str,
         version_id: str | None = None,
@@ -82,32 +89,32 @@ class ModelResolver:
         """解析版本
 
         参数：
-            session: 数据库会话
             model_id: 模型 ID
             version_id: 版本 ID（可选）
             version: 版本号（可选）
 
         返回：
-            版本对象，如果都未提供则返回 None
+            版本对象
 
         异常：
             VersionNotFoundError: 版本不存在
         """
-        repo = VersionRepository(session)
-
+        # 优先 version_id
         if version_id:
-            v = await repo.get_version(version_id)
+            v = await self.version_repo.get_version(version_id)
             if not v:
-                raise VersionNotFoundError(version_id)
+                raise VersionNotFoundError(f"版本不存在: {version_id}")
             return v
 
+        # 兜底：按 version 查询
         if version:
-            versions = await repo.list_versions(model_id)
+            versions = await self.version_repo.list_versions(model_id)
             v = next((x for x in versions if x.version == version), None)
 
             if not v:
-                raise VersionNotFoundError(version)
-
+                raise VersionNotFoundError(
+                    f"版本不存在: model_id={model_id}, version={version}"
+                )
             return v
 
         return None

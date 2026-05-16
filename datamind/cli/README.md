@@ -206,6 +206,7 @@ datamind model list --limit 20 --offset 0
 #### 命令格式
 ```bash
 datamind model show (<name> | --model-id <model-id>)
+  [--version <version> | --version-id <version-id>]
   [--format <table|json>]
   [--verbose]
 ```
@@ -214,8 +215,10 @@ datamind model show (<name> | --model-id <model-id>)
 
 | 参数 | 说明 |
 |------|------|
-| `<name>` | 模型名称（人类友好，推荐） |
-| `--model-id <model-id>` | 模型 ID（机器友好接口） |
+| `<name>` | 模型名称（与 `--model-id` 二选一） |
+| `--model-id <model-id>` | 模型 ID |
+| `--version <version>` | 版本号（与 `--version-id` 二选一） |
+| `--version-id <version-id>` | 版本 ID |
 | `--format <table\|json>` | 输出格式，默认 `table` |
 | `--verbose` | 显示调试日志 |
 
@@ -232,6 +235,7 @@ datamind model delete (<name> | --model-id <model-id>)
   [--version <version> | --version-id <version-id>]
   [--purge]
   [--yes]
+  [--verbose]
 ```
 
 #### 参数说明
@@ -239,9 +243,9 @@ datamind model delete (<name> | --model-id <model-id>)
 | 参数 | 说明 |
 |------|------|
 | `<name>` | 模型名称（与 `--model-id` 二选一） |
-| `--model-id` | 模型 ID |
-| `--version` | 版本号（与 `--version-id` 二选一） |
-| `--version-id` | 版本 ID |
+| `--model-id <model-id>` | 模型 ID |
+| `--version <version>` | 版本号（与 `--version-id` 二选一） |
+| `--version-id <version-id>` | 版本 ID |
 | `--purge` | 是否执行物理删除（默认执行归档删除） |
 | `--yes` | 跳过交互确认 |
 | `--verbose` | 显示调试日志 |

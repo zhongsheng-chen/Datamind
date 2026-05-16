@@ -27,13 +27,12 @@
   # 按 ID 删除
   result = await deleter.delete(model_id="mdl_a1b2c3d4")
 """
-from typing import Any
-
 import structlog
 import bentoml
+from typing import Any
 
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.repositories import VersionRepository
+from datamind.db.repositories import MetadataRepository, VersionRepository
 from datamind.models.enums import MetadataStatus, VersionStatus
 from datamind.models.errors import ModelNotFoundError
 from datamind.models.resolver import ModelResolver
@@ -47,7 +46,6 @@ class ModelDeleter:
 
     def __init__(self):
         self.storage = get_storage()
-        self.resolver = ModelResolver()
 
     async def delete(
         self,
@@ -76,8 +74,15 @@ class ModelDeleter:
         async with UnitOfWork() as uow:
             session = uow.session
 
-            metadata = await self.resolver.resolve_model(
-                session,
+            metadata_repo = MetadataRepository(session)
+            version_repo = VersionRepository(session)
+
+            resolver = ModelResolver(
+                metadata_repo=metadata_repo,
+                version_repo=version_repo,
+            )
+
+            metadata = await resolver.resolve_model(
                 model_id=model_id,
                 name=name,
             )
@@ -85,8 +90,7 @@ class ModelDeleter:
             if not metadata:
                 raise ModelNotFoundError("模型不存在")
 
-            target_version = await self.resolver.resolve_version(
-                session,
+            target_version = await resolver.resolve_version(
                 model_id=metadata.model_id,
                 version_id=version_id,
                 version=version,
@@ -99,6 +103,18 @@ class ModelDeleter:
                     version_id=target_version.version_id,
                     purge=purge,
                 )
+
+                if target_version.status == VersionStatus.ARCHIVED:
+                    logger.warning("版本已归档，无需重复删除", version_id=target_version.version_id)
+
+                    return {
+                        "model_id": metadata.model_id,
+                        "name": metadata.name,
+                        "version_id": target_version.version_id,
+                        "version": target_version.version,
+                        "action": "delete_version",
+                        "purge": purge,
+                    }
 
                 if purge:
                     self._purge_version(target_version)
@@ -119,6 +135,16 @@ class ModelDeleter:
                 model_id=metadata.model_id,
                 purge=purge,
             )
+
+            if metadata.status == MetadataStatus.ARCHIVED:
+                logger.warning("模型已归档，无需重复删除", model_id=metadata.model_id)
+
+                return {
+                    "model_id": metadata.model_id,
+                    "name": metadata.name,
+                    "action": "delete_model",
+                    "purge": purge,
+                }
 
             if purge:
                 await self._purge_all_versions(session, metadata.model_id)
@@ -141,18 +167,26 @@ class ModelDeleter:
         """
         # 删除存储文件
         if version.storage_key:
-            self.storage.delete_by_key(
-                key=version.storage_key,
-                strict=True
-            )
-            logger.info("已删除存储文件", storage_key=version.storage_key)
+            try:
+                self.storage.delete_by_key(
+                    key=version.storage_key,
+                    strict=True,
+                )
+                logger.info("已删除存储文件", storage_key=version.storage_key)
+            except Exception as e:
+                logger.error("存储文件删除失败（中断操作）", error=str(e))
+                raise
 
         # 删除 BentoML 模型
-        for m in bentoml.models.list():
-            if str(m.tag) == version.bento_tag:
-                bentoml.models.delete(m.tag)
-                logger.info("已删除BentoML模型", tag=str(m.tag))
-                break
+        try:
+            for m in bentoml.models.list():
+                if str(m.tag) == version.bento_tag:
+                    bentoml.models.delete(m.tag)
+                    logger.info("已删除 BentoML 模型", tag=str(m.tag))
+                    break
+        except Exception as e:
+            logger.error("BentoML 模型删除失败（中断操作）", error=str(e))
+            raise
 
     async def _purge_all_versions(self, session, model_id: str) -> None:
         """硬删除模型的所有版本

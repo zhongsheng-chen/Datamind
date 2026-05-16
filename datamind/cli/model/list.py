@@ -17,7 +17,7 @@
 import asyncio
 import json
 import typer
-
+import structlog
 from rich.console import Console
 from rich.table import Table
 from rich import box
@@ -29,6 +29,8 @@ from datamind.utils.datetime import format_datetime, format_iso_utc
 
 app = typer.Typer(help="列出模型命令")
 console = Console()
+
+logger = structlog.get_logger(__name__)
 
 
 @app.command("list")
@@ -64,6 +66,14 @@ def list_models(
         if not include_archived and "status" not in filters:
             filters["exclude_status"] = "archived"
 
+        logger.info(
+            "开始列出模型",
+            filters=filters,
+            limit=limit,
+            offset=offset,
+            include_archived=include_archived,
+        )
+
         async with UnitOfWork() as uow:
             repo = MetadataRepository(uow.session)
 
@@ -71,6 +81,11 @@ def list_models(
                 limit=limit,
                 offset=offset,
                 **filters
+            )
+
+            logger.debug(
+                "模型列表查询成功",
+                count=len(models),
             )
 
             if output == "json":
@@ -90,6 +105,12 @@ def list_models(
                         "updated_at": format_iso_utc(m.updated_at),
                     })
 
+                logger.info(
+                    "模型列表输出完成",
+                    count=len(models),
+                    output=output,
+                )
+
                 console.print_json(
                     json.dumps(
                         result,
@@ -102,6 +123,11 @@ def list_models(
             console.print(f"[dim]共找到 {len(models)} 个模型[/dim]\n")
 
             if not models:
+                logger.info(
+                    "模型列表输出完成",
+                    count=0,
+                    output=output,
+                )
                 return
 
             table = Table(
@@ -125,6 +151,12 @@ def list_models(
                     m.framework,
                     format_datetime(m.updated_at)
                 )
+
+            logger.info(
+                "模型列表输出完成",
+                count=len(models),
+                output=output,
+            )
 
             console.print(table)
 
