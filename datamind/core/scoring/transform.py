@@ -24,13 +24,13 @@
   >>> woe_vector = transformer.to_woe_vector(meta)
 """
 
+import structlog
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
 from datamind.core.scoring.binning import Bin
-from datamind.core.logging import get_logger
 
-_logger = get_logger(__name__)
+_logger = structlog.get_logger(__name__)
 
 
 class MissingStrategy(Enum):

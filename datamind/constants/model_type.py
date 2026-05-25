@@ -16,6 +16,7 @@
   elif model_type == ModelType.xgboost:
       return run_xgboost(model)
 """
+from typing import FrozenSet
 
 
 class ModelType:
@@ -33,7 +34,7 @@ class ModelType:
     lightgbm: str = "lightgbm"
 
 
-SUPPORTED_MODEL_TYPES = frozenset({
+SUPPORTED_MODEL_TYPES: FrozenSet[str] = frozenset({
     ModelType.logistic_regression,
     ModelType.decision_tree,
     ModelType.random_forest,

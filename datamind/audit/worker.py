@@ -168,7 +168,7 @@ async def audit_worker():
         finally:
             queue.task_done()
 
-    logger.info("审计 Worker 已停止")
+    logger.debug("审计 Worker 已停止")
 
 
 async def start_audit_worker():
@@ -181,7 +181,7 @@ async def start_audit_worker():
 
     _shutdown_event.clear()
     _worker_task = asyncio.create_task(audit_worker())
-    logger.info("审计 Worker 启动成功")
+    logger.debug("审计 Worker 启动成功")
 
 
 async def stop_audit_worker():

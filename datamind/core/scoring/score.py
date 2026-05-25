@@ -37,14 +37,14 @@
     - 批量优化：NumPy 向量化实现，性能提升 10~100 倍
 """
 
+import structlog
 import numpy as np
 from typing import List, Tuple
 from math import log, exp
 
-from datamind.core.logging import get_logger
 from datamind.config.scorecard_config import ScorecardConstants
 
-_logger = get_logger(__name__)
+_logger = structlog.get_logger(__name__)
 
 
 class Score:

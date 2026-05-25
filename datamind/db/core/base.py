@@ -6,7 +6,7 @@
 """
 
 from sqlalchemy import MetaData
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
 # 命名约定
 naming_convention = {
@@ -20,4 +20,7 @@ naming_convention = {
 # 元数据配置
 metadata = MetaData(naming_convention=naming_convention)
 
-Base = declarative_base(metadata=metadata)
+class Base(DeclarativeBase):
+    """SQLAlchemy 声明式基类"""
+
+    metadata = metadata

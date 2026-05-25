@@ -14,6 +14,10 @@
   - delete: 删除模型文件
   - exists: 检查模型文件是否存在
   - list: 列出模型的所有文件
+  - save_by_key: 通过存储键保存文件
+  - load_by_key: 通过存储键加载文件
+  - delete_by_key: 通过存储键删除文件
+  - exists_by_key: 通过存储键检查文件是否存在
 
 使用示例：
   from datamind.storage import get_storage
@@ -29,7 +33,7 @@
   )
 
   # 基于存储键
-  storage.delete(key=storage_key)
+  storage.delete_by_key(storage_key)
 """
 
 from datamind.config.storage import StorageConfig
@@ -151,6 +155,7 @@ class StorageAdmin:
         model_id: str | None = None,
         version: str | None = None,
         filename: str | None = None,
+        strict: bool = False,
     ) -> bool:
         """删除模型文件
 
@@ -159,9 +164,13 @@ class StorageAdmin:
             model_id: 模型ID（可选）
             version: 模型版本号（可选）
             filename: 文件名（可选）
+            strict: 是否严格模式，开启时文件不存在则抛出异常
 
         返回：
             删除成功返回 True
+
+        异常：
+            FileNotFoundError: strict 模式下文件不存在时抛出
         """
         resolved_key = self._resolve_key(
             key=key,
@@ -169,6 +178,10 @@ class StorageAdmin:
             version=version,
             filename=filename,
         )
+
+        exists = self.backend.object_exists(resolved_key)
+        if strict and not exists:
+            raise FileNotFoundError(f"文件不存在: {resolved_key}")
 
         self.backend.delete_object(resolved_key)
         return True
@@ -215,3 +228,64 @@ class StorageAdmin:
         prefix = self._strategy.model_prefix(model_id)
         keys = self.backend.list_objects(prefix)
         return [self._strategy.extract_filename(k) for k in keys]
+
+    # ==================== 基于存储键的操作 ====================
+
+    @observe_storage("save_by_key")
+    def save_by_key(self, key: str, data: bytes) -> str:
+        """通过存储键保存文件
+
+        参数：
+            key: 存储键
+            data: 二进制数据
+
+        返回：
+            存储键
+        """
+        self.backend.put_object(key, data)
+        return key
+
+    @observe_storage("load_by_key")
+    def load_by_key(self, key: str) -> bytes:
+        """通过存储键加载文件
+
+        参数：
+            key: 存储键
+
+        返回：
+            二进制数据
+        """
+        return self.backend.get_object(key)
+
+    @observe_storage("delete_by_key")
+    def delete_by_key(self, key: str, strict: bool = False) -> bool:
+        """通过存储键删除文件
+
+        参数：
+            key: 存储键
+            strict: 是否严格模式，开启时文件不存在则抛出异常
+
+        返回：
+            删除成功返回 True
+
+        异常：
+            FileNotFoundError: strict 模式下文件不存在时抛出
+        """
+        exists = self.backend.object_exists(key)
+        if strict and not exists:
+            raise FileNotFoundError(f"文件不存在: {key}")
+
+        self.backend.delete_object(key)
+        return True
+
+    @observe_storage("exists_by_key")
+    def exists_by_key(self, key: str) -> bool:
+        """通过存储键检查文件是否存在
+
+        参数：
+            key: 存储键
+
+        返回：
+            是否存在
+        """
+        return self.backend.object_exists(key)

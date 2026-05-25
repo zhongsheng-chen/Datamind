@@ -19,14 +19,14 @@
   - 统一评分：can_handle 与 keywords 统一打分，避免低优先级适配器抢跑
 """
 
+import structlog
 import threading
 from typing import List, Optional, Type, Dict, Any, Callable
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.common.frameworks import get_supported_frameworks as get_frameworks_list
-from datamind.core.logging import get_logger
 
-_logger = get_logger(__name__)
+_logger = structlog.get_logger(__name__)
 
 
 # ==================== 注册表 ====================

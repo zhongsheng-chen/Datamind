@@ -5,6 +5,7 @@
 集中管理 Datamind 平台的所有常量定义。
 
 常量分类：
+  - data_type: 数据类型常量
   - storage_type: 存储类型常量
   - framework: 模型框架常量
   - model_type: 模型类型常量
@@ -19,6 +20,7 @@
 
 使用示例：
   from datamind.constants import (
+      DataType, SUPPORTED_DATA_TYPES,
       StorageType, SUPPORTED_STORAGE_TYPES,
       Framework, SUPPORTED_FRAMEWORKS,
       ModelType, SUPPORTED_MODEL_TYPES,
@@ -35,6 +37,7 @@
 """
 
 from datamind.constants.storage_type import StorageType, SUPPORTED_STORAGE_TYPES
+from datamind.constants.data_type import DataType, SUPPORTED_DATA_TYPES
 from datamind.constants.framework import Framework, SUPPORTED_FRAMEWORKS
 from datamind.constants.model_type import ModelType, SUPPORTED_MODEL_TYPES
 from datamind.constants.model_stage import ModelStage, SUPPORTED_MODEL_STAGES
@@ -42,11 +45,15 @@ from datamind.constants.environment import Environment, SUPPORTED_ENVIRONMENTS
 from datamind.constants.ab_strategy import ABStrategy, SUPPORTED_AB_STRATEGIES
 from datamind.constants.logging_level import LogLevel, SUPPORTED_LOG_LEVELS
 from datamind.constants.logging_format import LogFormat, SUPPORTED_LOG_FORMATS
-from datamind.constants.logging_rotation import RotationType, SUPPORTED_ROTATION_TYPES, RotationWhen, SUPPORTED_ROTATION_WHEN
+from datamind.constants.logging_rotation import (
+    RotationType, RotationWhen, SUPPORTED_ROTATION_TYPES, SUPPORTED_ROTATION_WHEN
+)
 from datamind.constants.size import KB, MB, GB
 from datamind.constants.header import Header
 
 __all__ = [
+    "DataType",
+    "SUPPORTED_DATA_TYPES",
     "StorageType",
     "SUPPORTED_STORAGE_TYPES",
     "Framework",

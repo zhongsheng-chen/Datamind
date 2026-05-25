@@ -52,7 +52,7 @@ def text_renderer():
 
         if event_dict:
             msg += " | " + ", ".join(
-                f"{k}={v}" for k, v in sorted(event_dict.items())
+                f"{k}={v}" for k, v in event_dict.items()
             )
 
         return msg

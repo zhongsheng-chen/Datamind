@@ -19,14 +19,14 @@
   - 输入输出自动识别：自动获取模型的输入输出名称
 """
 
+import structlog
 import numpy as np
 from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
-from datamind.core.logging import get_logger
 
-_logger = get_logger(__name__)
+_logger = structlog.get_logger(__name__)
 
 
 class ONNXAdapter(BaseModelAdapter):

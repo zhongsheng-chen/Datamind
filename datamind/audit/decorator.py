@@ -109,9 +109,7 @@ def audit(
                         result,
                     )
                 else:
-                    after = {
-                        "result": result
-                    }
+                    after = result
 
                 await recorder.record(
                     action=action,

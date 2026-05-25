@@ -18,14 +18,14 @@
   - 批量预测优化：重写 predict_proba_batch 使用 batch 参数提升性能
 """
 
+import structlog
 import numpy as np
 from typing import Dict, List, Optional, Any
 
 from datamind.core.scoring.adapters.base import BaseModelAdapter
 from datamind.core.scoring.capability import ScorecardCapability
-from datamind.core.logging import get_logger
 
-_logger = get_logger(__name__)
+_logger = structlog.get_logger(__name__)
 
 
 class TensorFlowAdapter(BaseModelAdapter):

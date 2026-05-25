@@ -16,6 +16,7 @@
   elif storage_type == StorageType.minio:
       use_minio_backend()
 """
+from typing import FrozenSet
 
 
 class StorageType:
@@ -25,7 +26,7 @@ class StorageType:
     minio: str = "minio"
 
 
-SUPPORTED_STORAGE_TYPES = frozenset({
+SUPPORTED_STORAGE_TYPES: FrozenSet[str] = frozenset({
     StorageType.local,
     StorageType.minio,
 })

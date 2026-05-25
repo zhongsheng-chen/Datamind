@@ -17,20 +17,11 @@
 
   storage = get_storage()
 
-  # 保存模型文件
+  # 基于模型信息保存
   storage.save("mdl_a1b2c3d4", "1.0.0", "scorecard.pkl", data)
 
-  # 加载模型文件
-  data = storage.load("mdl_a1b2c3d4", "1.0.0", "scorecard.pkl")
-
-  # 检查模型文件是否存在
-  exists = storage.exists("mdl_a1b2c3d4", "1.0.0", "scorecard.pkl")
-
-  # 列出模型的所有文件
-  files = storage.list("mdl_a1b2c3d4")
-
-  # 删除模型文件
-  storage.delete("mdl_a1b2c3d4", "1.0.0", "scorecard.pkl")
+  # 基于存储键保存
+  storage.save_by_key(storage_key, data)
 """
 
 from functools import lru_cache
@@ -147,6 +138,52 @@ class Storage:
             文件名列表
         """
         return self._admin.list(model_id)
+
+    def save_by_key(self, key: str, data: bytes) -> str:
+        """通过存储键保存文件
+
+        参数：
+            key: 存储键
+            data: 二进制数据
+
+        返回：
+            存储键
+        """
+        return self._admin.save_by_key(key, data)
+
+    def load_by_key(self, key: str) -> bytes:
+        """通过存储键加载文件
+
+        参数：
+            key: 存储键
+
+        返回：
+            二进制数据
+        """
+        return self._admin.load_by_key(key)
+
+    def delete_by_key(self, key: str, strict: bool = False) -> bool:
+        """通过存储键删除文件
+
+        参数：
+            key: 存储键
+            strict: 是否严格模式，开启时文件不存在则抛出异常
+
+        返回：
+            删除成功返回 True
+        """
+        return self._admin.delete_by_key(key, strict)
+
+    def exists_by_key(self, key: str) -> bool:
+        """通过存储键检查文件是否存在
+
+        参数：
+            key: 存储键
+
+        返回：
+            是否存在
+        """
+        return self._admin.exists_by_key(key)
 
 
 @lru_cache
