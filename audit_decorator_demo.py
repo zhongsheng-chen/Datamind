@@ -47,7 +47,7 @@ async def retire(model_id: str, version: str, reason: str):
 @audit(
     action="deployment.create",
     target_type="deployment",
-    target_id_func=lambda p: f"{p['model_id']}-{p['version']}",
+    target_id_func=lambda params, result: f"{params['model_id']}-{params['version']}",
 )
 async def deploy(model_id: str, version: str):
     return {

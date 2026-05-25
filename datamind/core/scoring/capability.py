@@ -91,6 +91,7 @@ class ScorecardCapability(IntFlag):
         NONE: 无能力
         SCORECARD_WOE: WOE 转换
         SCORECARD_LOGIT: 对数几率
+        SCORECARD_PROBABILITY: 违约概率
         SCORECARD_FEATURE_SCORE: 特征分数
         SCORECARD_SCORE: 评分卡分数
         SCORECARD_EXPORT: 评分卡导出
@@ -99,6 +100,7 @@ class ScorecardCapability(IntFlag):
 
     SCORECARD_WOE = auto()
     SCORECARD_LOGIT = auto()
+    SCORECARD_PROBABILITY = auto()
     SCORECARD_FEATURE_SCORE = auto()
     SCORECARD_SCORE = auto()
     SCORECARD_EXPORT = auto()
@@ -128,11 +130,15 @@ _SCORECARD_CAPABILITY_DEPENDENCIES: Dict[ScorecardCapability, Set[ScorecardCapab
     ScorecardCapability.SCORECARD_LOGIT: {
         ScorecardCapability.SCORECARD_WOE
     },
+    ScorecardCapability.SCORECARD_PROBABILITY: {
+        ScorecardCapability.SCORECARD_LOGIT
+    },
     ScorecardCapability.SCORECARD_FEATURE_SCORE: {
         ScorecardCapability.SCORECARD_LOGIT
     },
     ScorecardCapability.SCORECARD_SCORE: {
-        ScorecardCapability.SCORECARD_FEATURE_SCORE
+        ScorecardCapability.SCORECARD_FEATURE_SCORE,
+        ScorecardCapability.SCORECARD_PROBABILITY,
     },
     ScorecardCapability.SCORECARD_EXPORT: {
         ScorecardCapability.SCORECARD_SCORE
@@ -167,6 +173,7 @@ _MODEL_CAPABILITY_DESCRIPTIONS: Dict[ModelCapability, str] = {
 _SCORECARD_CAPABILITY_NAMES: Dict[ScorecardCapability, str] = {
     ScorecardCapability.SCORECARD_WOE: "SCORECARD_WOE",
     ScorecardCapability.SCORECARD_LOGIT: "SCORECARD_LOGIT",
+    ScorecardCapability.SCORECARD_PROBABILITY: "SCORECARD_PROBABILITY",
     ScorecardCapability.SCORECARD_FEATURE_SCORE: "SCORECARD_FEATURE_SCORE",
     ScorecardCapability.SCORECARD_SCORE: "SCORECARD_SCORE",
     ScorecardCapability.SCORECARD_EXPORT: "SCORECARD_EXPORT",
@@ -175,6 +182,7 @@ _SCORECARD_CAPABILITY_NAMES: Dict[ScorecardCapability, str] = {
 _SCORECARD_CAPABILITY_DESCRIPTIONS: Dict[ScorecardCapability, str] = {
     ScorecardCapability.SCORECARD_WOE: "WOE 转换",
     ScorecardCapability.SCORECARD_LOGIT: "对数几率",
+    ScorecardCapability.SCORECARD_PROBABILITY: "违约概率",
     ScorecardCapability.SCORECARD_FEATURE_SCORE: "特征分数",
     ScorecardCapability.SCORECARD_SCORE: "评分卡分数",
     ScorecardCapability.SCORECARD_EXPORT: "评分卡导出",

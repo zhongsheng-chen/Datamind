@@ -10,14 +10,13 @@
 
 使用示例：
   from datamind.db.core.uow import UnitOfWork
-  from datamind.db.writers import MetadataWriter
+  from datamind.db.repositories import MetadataRepository
 
   async with UnitOfWork() as uow:
-      writer = MetadataWriter(uow.session)
-      await writer.create(...)
+      repo = MetadataRepository(uow.session)
+      await repo.create_model(...)
 """
 
-from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datamind.db.core.session import get_session_factory
@@ -32,7 +31,8 @@ class UnitOfWork:
 
     def __init__(self):
         """初始化工作单元"""
-        self._session: Optional[AsyncSession] = None
+        self._session: AsyncSession | None = None
+        self._rollback_only: bool = False
 
     @property
     def session(self) -> AsyncSession:
@@ -42,20 +42,27 @@ class UnitOfWork:
 
         return self._session
 
-    async def __aenter__(self):
+    def mark_rollback(self) -> None:
+        """标记事务必须回滚"""
+        self._rollback_only = True
+
+    async def __aenter__(self) -> "UnitOfWork":
         """进入事务上下文"""
-        session_factory = get_session_factory()
-        self._session = session_factory()
+        self._rollback_only = False
+
+        SessionFactory = get_session_factory()
+        self._session = SessionFactory()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
         """退出事务上下文"""
+        session = self.session
 
         try:
-            if exc_type is not None:
-                await self._session.rollback()
+            if exc_type is not None or self._rollback_only:
+                await session.rollback()
             else:
-                await self._session.commit()
+                await session.commit()
 
         finally:
             await self.close()
@@ -63,6 +70,7 @@ class UnitOfWork:
 
         return False
 
-    async def close(self):
+    async def close(self) -> None:
         """关闭会话"""
-        await self._session.close()
+        if self._session is not None:
+            await self._session.close()

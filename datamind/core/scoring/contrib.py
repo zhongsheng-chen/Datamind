@@ -20,13 +20,13 @@
   - 容错处理：过滤 NaN/Inf 值
 """
 
+import structlog
 from typing import Dict, List, Tuple
 import numpy as np
 
 from datamind.core.scoring.score import Score
-from datamind.core.logging import get_logger
 
-_logger = get_logger(__name__)
+_logger = structlog.get_logger(__name__)
 
 
 class ContributionConverter:

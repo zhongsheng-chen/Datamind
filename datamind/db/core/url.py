@@ -29,6 +29,6 @@ def get_db_url() -> str:
     db = settings.database
 
     if not db.url:
-        raise RuntimeError("DATABASE_URL 未配置")
+        raise RuntimeError("未配置数据库连接 URL，请设置环境变量 DATAMIND_DATABASE_URL")
 
     return db.url

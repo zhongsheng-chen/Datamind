@@ -2600,3 +2600,19 @@ inactive → active
 | `inactive` | `active` ❌ |
 | `archived` | `active` ❌ |
 | `deprecated` | 新建 `active` ❌ |
+
+
+datamind register
+datamind deploy
+datamind rollback
+datamind list
+datamind inspect
+
+datamind model register
+datamind model list
+datamind model delete
+
+datamind model register ...
+datamind model list
+datamind model delete ...
+datamind version list ...

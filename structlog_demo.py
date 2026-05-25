@@ -1,5 +1,7 @@
 # audit_decorator_demo.py
 
+import structlog
+
 from datamind.config import get_settings
 from datamind.logging import setup_logging, get_logger
 from datamind.context import context_scope
@@ -9,7 +11,7 @@ settings = get_settings()
 setup_logging(settings.logging)
 
 # 获取 logger
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # 记录日志（无上下文）
 logger.info("服务启动")
