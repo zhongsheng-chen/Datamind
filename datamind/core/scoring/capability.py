@@ -46,7 +46,7 @@
 """
 
 from enum import IntFlag, auto
-from typing import List, Dict, Set, Any
+from typing import Any
 
 
 class ModelCapability(IntFlag):
@@ -91,7 +91,7 @@ class ScorecardCapability(IntFlag):
         NONE: 无能力
         SCORECARD_WOE: WOE 转换
         SCORECARD_LOGIT: 对数几率
-        SCORECARD_PROBABILITY: 违约概率
+        SCORECARD_FEATURE_LOGIT: 特征对数几率
         SCORECARD_FEATURE_SCORE: 特征分数
         SCORECARD_SCORE: 评分卡分数
         SCORECARD_EXPORT: 评分卡导出
@@ -100,7 +100,7 @@ class ScorecardCapability(IntFlag):
 
     SCORECARD_WOE = auto()
     SCORECARD_LOGIT = auto()
-    SCORECARD_PROBABILITY = auto()
+    SCORECARD_FEATURE_LOGIT = auto()
     SCORECARD_FEATURE_SCORE = auto()
     SCORECARD_SCORE = auto()
     SCORECARD_EXPORT = auto()
@@ -108,7 +108,7 @@ class ScorecardCapability(IntFlag):
 
 # ==================== 模型能力依赖关系 ====================
 
-_MODEL_CAPABILITY_DEPENDENCIES: Dict[ModelCapability, Set[ModelCapability]] = {
+_MODEL_CAPABILITY_DEPENDENCIES: dict[ModelCapability, set[ModelCapability]] = {
     ModelCapability.PREDICT_LOG_ODDS: {
         ModelCapability.PREDICT_PROBA
     },
@@ -126,11 +126,11 @@ _MODEL_CAPABILITY_DEPENDENCIES: Dict[ModelCapability, Set[ModelCapability]] = {
 
 # ==================== 评分卡能力依赖关系 ====================
 
-_SCORECARD_CAPABILITY_DEPENDENCIES: Dict[ScorecardCapability, Set[ScorecardCapability]] = {
+_SCORECARD_CAPABILITY_DEPENDENCIES: dict[ScorecardCapability, set[ScorecardCapability]] = {
     ScorecardCapability.SCORECARD_LOGIT: {
         ScorecardCapability.SCORECARD_WOE
     },
-    ScorecardCapability.SCORECARD_PROBABILITY: {
+    ScorecardCapability.SCORECARD_FEATURE_LOGIT: {
         ScorecardCapability.SCORECARD_LOGIT
     },
     ScorecardCapability.SCORECARD_FEATURE_SCORE: {
@@ -138,7 +138,6 @@ _SCORECARD_CAPABILITY_DEPENDENCIES: Dict[ScorecardCapability, Set[ScorecardCapab
     },
     ScorecardCapability.SCORECARD_SCORE: {
         ScorecardCapability.SCORECARD_FEATURE_SCORE,
-        ScorecardCapability.SCORECARD_PROBABILITY,
     },
     ScorecardCapability.SCORECARD_EXPORT: {
         ScorecardCapability.SCORECARD_SCORE
@@ -148,7 +147,7 @@ _SCORECARD_CAPABILITY_DEPENDENCIES: Dict[ScorecardCapability, Set[ScorecardCapab
 
 # ==================== 能力名称和描述映射 ====================
 
-_MODEL_CAPABILITY_NAMES: Dict[ModelCapability, str] = {
+_MODEL_CAPABILITY_NAMES: dict[ModelCapability, str] = {
     ModelCapability.PREDICT_PROBA: "PREDICT_PROBA",
     ModelCapability.PREDICT_CLASS: "PREDICT_CLASS",
     ModelCapability.PREDICT_LOG_ODDS: "PREDICT_LOG_ODDS",
@@ -159,7 +158,7 @@ _MODEL_CAPABILITY_NAMES: Dict[ModelCapability, str] = {
     ModelCapability.BATCH_PREDICT: "BATCH_PREDICT",
 }
 
-_MODEL_CAPABILITY_DESCRIPTIONS: Dict[ModelCapability, str] = {
+_MODEL_CAPABILITY_DESCRIPTIONS: dict[ModelCapability, str] = {
     ModelCapability.PREDICT_PROBA: "违约概率",
     ModelCapability.PREDICT_CLASS: "分类标签",
     ModelCapability.PREDICT_LOG_ODDS: "原始对数几率",
@@ -170,26 +169,26 @@ _MODEL_CAPABILITY_DESCRIPTIONS: Dict[ModelCapability, str] = {
     ModelCapability.BATCH_PREDICT: "批量预测",
 }
 
-_SCORECARD_CAPABILITY_NAMES: Dict[ScorecardCapability, str] = {
+_SCORECARD_CAPABILITY_NAMES: dict[ScorecardCapability, str] = {
     ScorecardCapability.SCORECARD_WOE: "SCORECARD_WOE",
     ScorecardCapability.SCORECARD_LOGIT: "SCORECARD_LOGIT",
-    ScorecardCapability.SCORECARD_PROBABILITY: "SCORECARD_PROBABILITY",
+    ScorecardCapability.SCORECARD_FEATURE_LOGIT: "SCORECARD_FEATURE_LOGIT",
     ScorecardCapability.SCORECARD_FEATURE_SCORE: "SCORECARD_FEATURE_SCORE",
     ScorecardCapability.SCORECARD_SCORE: "SCORECARD_SCORE",
     ScorecardCapability.SCORECARD_EXPORT: "SCORECARD_EXPORT",
 }
 
-_SCORECARD_CAPABILITY_DESCRIPTIONS: Dict[ScorecardCapability, str] = {
+_SCORECARD_CAPABILITY_DESCRIPTIONS: dict[ScorecardCapability, str] = {
     ScorecardCapability.SCORECARD_WOE: "WOE 转换",
     ScorecardCapability.SCORECARD_LOGIT: "对数几率",
-    ScorecardCapability.SCORECARD_PROBABILITY: "违约概率",
+    ScorecardCapability.SCORECARD_FEATURE_LOGIT: "特征对数几率",
     ScorecardCapability.SCORECARD_FEATURE_SCORE: "特征分数",
     ScorecardCapability.SCORECARD_SCORE: "评分卡分数",
     ScorecardCapability.SCORECARD_EXPORT: "评分卡导出",
 }
 
 # 所有模型能力的列表
-ALL_MODEL_CAPABILITIES: List[ModelCapability] = [
+ALL_MODEL_CAPABILITIES: list[ModelCapability] = [
     ModelCapability.PREDICT_PROBA,
     ModelCapability.PREDICT_CLASS,
     ModelCapability.PREDICT_LOG_ODDS,
@@ -201,16 +200,17 @@ ALL_MODEL_CAPABILITIES: List[ModelCapability] = [
 ]
 
 # 所有评分卡能力的列表
-ALL_SCORECARD_CAPABILITIES: List[ScorecardCapability] = [
+ALL_SCORECARD_CAPABILITIES: list[ScorecardCapability] = [
     ScorecardCapability.SCORECARD_WOE,
     ScorecardCapability.SCORECARD_LOGIT,
+    ScorecardCapability.SCORECARD_FEATURE_LOGIT,
     ScorecardCapability.SCORECARD_FEATURE_SCORE,
     ScorecardCapability.SCORECARD_SCORE,
     ScorecardCapability.SCORECARD_EXPORT,
 ]
 
 # 必需能力
-_REQUIRED_MODEL_CAPABILITIES: Set[ModelCapability] = {
+_REQUIRED_MODEL_CAPABILITIES: set[ModelCapability] = {
     ModelCapability.PREDICT_PROBA,
 }
 
@@ -273,7 +273,7 @@ def expand_scorecard_capabilities(caps: ScorecardCapability) -> ScorecardCapabil
     return result
 
 
-def infer_model_capabilities(adapter) -> ModelCapability:
+def infer_model_capabilities(adapter: object) -> ModelCapability:
     """
     根据适配器声明推断模型能力集
 
@@ -342,7 +342,7 @@ def infer_model_capabilities(adapter) -> ModelCapability:
     return caps
 
 
-def infer_scorecard_capabilities(engine) -> ScorecardCapability:
+def infer_scorecard_capabilities(engine: object) -> ScorecardCapability:
     """
     根据评分卡引擎推断评分卡能力集
 
@@ -355,23 +355,27 @@ def infer_scorecard_capabilities(engine) -> ScorecardCapability:
     caps = ScorecardCapability.NONE
 
     # WOE 转换能力
-    if hasattr(engine, "woe_transform") or hasattr(engine, "woe"):
+    if callable(getattr(engine, "woe_transform", None)):
         caps |= ScorecardCapability.SCORECARD_WOE
 
-    # 对数几率输出能力
-    if hasattr(engine, "decision_function") or hasattr(engine, "logit"):
+    # 对数几率能力
+    if callable(getattr(engine, "predict_logit", None)):
         caps |= ScorecardCapability.SCORECARD_LOGIT
 
+    # 特征 logit 贡献能力
+    if callable(getattr(engine, "get_feature_logit", None)):
+        caps |= ScorecardCapability.SCORECARD_FEATURE_LOGIT
+
     # 特征分数能力
-    if hasattr(engine, "get_feature_score") or hasattr(engine, "feature_score"):
+    if callable(getattr(engine, "get_feature_score", None)):
         caps |= ScorecardCapability.SCORECARD_FEATURE_SCORE
 
-    # 评分卡分数输出能力
-    if hasattr(engine, "score"):
+    # 评分输出能力
+    if callable(getattr(engine, "predict_score", None)):
         caps |= ScorecardCapability.SCORECARD_SCORE
 
-    # 评分卡导出能力
-    if hasattr(engine, "export"):
+    # 导出能力
+    if callable(getattr(engine, "export", None)):
         caps |= ScorecardCapability.SCORECARD_EXPORT
 
     # 自动补全依赖关系
@@ -380,7 +384,7 @@ def infer_scorecard_capabilities(engine) -> ScorecardCapability:
     return caps
 
 
-def validate_model_capabilities(caps: ModelCapability) -> List[str]:
+def validate_model_capabilities(caps: ModelCapability) -> list[str]:
     """
     验证模型能力集的有效性
 
@@ -390,7 +394,7 @@ def validate_model_capabilities(caps: ModelCapability) -> List[str]:
     返回:
         错误信息列表，空列表表示验证通过
     """
-    errors = []
+    errors: list[str] = []
 
     # 检查必需能力
     for required in _REQUIRED_MODEL_CAPABILITIES:
@@ -414,7 +418,7 @@ def validate_model_capabilities(caps: ModelCapability) -> List[str]:
     return errors
 
 
-def validate_scorecard_capabilities(caps: ScorecardCapability) -> List[str]:
+def validate_scorecard_capabilities(caps: ScorecardCapability) -> list[str]:
     """
     验证评分卡能力集的有效性
 
@@ -424,7 +428,7 @@ def validate_scorecard_capabilities(caps: ScorecardCapability) -> List[str]:
     返回:
         错误信息列表，空列表表示验证通过
     """
-    errors = []
+    errors: list[str] = []
 
     for cap, deps in _SCORECARD_CAPABILITY_DEPENDENCIES.items():
         if caps & cap:
@@ -474,7 +478,7 @@ def has_any_scorecard_capability(caps: ScorecardCapability, capabilities: Scorec
     return bool(caps & capabilities)
 
 
-def combine_model_capabilities(capabilities: List[ModelCapability]) -> ModelCapability:
+def combine_model_capabilities(capabilities: list[ModelCapability]) -> ModelCapability:
     """组合多个模型能力"""
     result = ModelCapability.NONE
     for cap in capabilities:
@@ -482,7 +486,7 @@ def combine_model_capabilities(capabilities: List[ModelCapability]) -> ModelCapa
     return result
 
 
-def combine_scorecard_capabilities(capabilities: List[ScorecardCapability]) -> ScorecardCapability:
+def combine_scorecard_capabilities(capabilities: list[ScorecardCapability]) -> ScorecardCapability:
     """组合多个评分卡能力"""
     result = ScorecardCapability.NONE
     for cap in capabilities:
@@ -492,27 +496,27 @@ def combine_scorecard_capabilities(capabilities: List[ScorecardCapability]) -> S
 
 # ==================== 序列化和展示函数 ====================
 
-def get_model_capability_list(caps: ModelCapability) -> List[str]:
+def get_model_capability_list(caps: ModelCapability) -> list[str]:
     """获取模型能力名称列表"""
-    result: List[str] = []
+    result: list[str] = []
     for cap in ALL_MODEL_CAPABILITIES:
         if caps & cap:
             result.append(_MODEL_CAPABILITY_NAMES[cap])
     return result
 
 
-def get_scorecard_capability_list(caps: ScorecardCapability) -> List[str]:
+def get_scorecard_capability_list(caps: ScorecardCapability) -> list[str]:
     """获取评分卡能力名称列表"""
-    result: List[str] = []
+    result: list[str] = []
     for cap in ALL_SCORECARD_CAPABILITIES:
         if caps & cap:
             result.append(_SCORECARD_CAPABILITY_NAMES[cap])
     return result
 
 
-def get_model_capability_descriptions(caps: ModelCapability) -> List[Dict[str, str]]:
+def get_model_capability_descriptions(caps: ModelCapability) -> list[dict[str, str]]:
     """获取模型能力描述列表"""
-    result: List[Dict[str, str]] = []
+    result: list[dict[str, str]] = []
     for cap in ALL_MODEL_CAPABILITIES:
         if caps & cap:
             result.append({
@@ -522,9 +526,9 @@ def get_model_capability_descriptions(caps: ModelCapability) -> List[Dict[str, s
     return result
 
 
-def get_scorecard_capability_descriptions(caps: ScorecardCapability) -> List[Dict[str, str]]:
+def get_scorecard_capability_descriptions(caps: ScorecardCapability) -> list[dict[str, str]]:
     """获取评分卡能力描述列表"""
-    result: List[Dict[str, str]] = []
+    result: list[dict[str, str]] = []
     for cap in ALL_SCORECARD_CAPABILITIES:
         if caps & cap:
             result.append({
@@ -534,7 +538,7 @@ def get_scorecard_capability_descriptions(caps: ScorecardCapability) -> List[Dic
     return result
 
 
-def get_model_capability_summary(caps: ModelCapability) -> Dict[str, Any]:
+def get_model_capability_summary(caps: ModelCapability) -> dict[str, Any]:
     """获取模型能力摘要"""
     return {
         "names": get_model_capability_list(caps),
@@ -543,7 +547,7 @@ def get_model_capability_summary(caps: ModelCapability) -> Dict[str, Any]:
     }
 
 
-def get_scorecard_capability_summary(caps: ScorecardCapability) -> Dict[str, Any]:
+def get_scorecard_capability_summary(caps: ScorecardCapability) -> dict[str, Any]:
     """获取评分卡能力摘要"""
     return {
         "names": get_scorecard_capability_list(caps),

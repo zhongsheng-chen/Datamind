@@ -7,6 +7,7 @@
 只跑模型，不管模型规则。
 模型ID应该是Datamind后台维护的识别模型的唯一主键。不应该作为模型注册参数。
 模型元数据保存在数据库,金融场景要能审计，要有完善的日志系统。
+只对LR才有评分能力呀，其他的decision_tree / random_forest / xgboost / lightgbm / catboost，应该没有评分能力
 我已经有了常量组件，配置组件，日志组件，审计组件，存储组件，数据库组件。
 
 我已经有了配置组件，日志组件，AB测试组件，存储组件，数据库组件，评分组件，模型组件，服务组件。
@@ -2616,3 +2617,24 @@ datamind model register ...
 datamind model list
 datamind model delete ...
 datamind version list ...
+
+
+## 能力矩阵
+
+| 能力 | logistic_regression | decision_tree | random_forest | xgboost | lightgbm | catboost |
+|------|---------------------|----------------|----------------|----------|-----------|-----------|
+| PREDICT_PROBA | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| PREDICT_CLASS | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| PREDICT_LOG_ODDS | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| SHAP | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SHAP_TREE | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SHAP_KERNEL | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| FEATURE_IMPORTANCE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| BATCH_PREDICT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SCORECARD_WOE | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SCORECARD_LOGIT | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SCORECARD_FEATURE_LOGIT | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SCORECARD_FEATURE_SCORE | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SCORECARD_SCORE | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SCORECARD_EXPORT | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+

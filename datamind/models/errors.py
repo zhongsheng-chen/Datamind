@@ -23,7 +23,6 @@
   raise VersionNotFoundError("版本不存在")
 """
 
-
 class ModelError(Exception):
     """模型基础异常"""
 

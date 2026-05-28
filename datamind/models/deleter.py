@@ -27,6 +27,7 @@
   # 按 ID 删除
   result = await deleter.delete(model_id="mdl_a1b2c3d4")
 """
+
 import structlog
 import bentoml
 from typing import Any

@@ -25,8 +25,8 @@
   )
 """
 
-from typing import Any
 import bentoml
+from typing import Any
 
 
 FRAMEWORK_TO_BENTOML = {

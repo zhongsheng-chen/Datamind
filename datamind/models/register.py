@@ -27,7 +27,6 @@
 import os
 import structlog
 from pathlib import Path
-from typing import Optional, Dict
 
 from datamind.utils.generator import generate_id
 from datamind.storage import get_storage
@@ -46,7 +45,7 @@ logger = structlog.get_logger(__name__)
 class ModelRegister:
     """模型注册器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage = get_storage()
         self.backend = BentoBackend()
 
@@ -59,12 +58,12 @@ class ModelRegister:
         model_type: str,
         task_type: str,
         model_path: str,
-        description: Optional[str] = None,
-        params: Optional[Dict] = None,
-        metrics: Optional[Dict] = None,
-        created_by: Optional[str] = None,
+        description: str | None = None,
+        params: dict | None = None,
+        metrics: dict | None = None,
+        created_by: str | None = None,
         force: bool = False,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """注册模型
 
         参数：
@@ -78,7 +77,6 @@ class ModelRegister:
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             created_by: 创建人（可选）
-            updated_by: 更新人（可选）
             force: 是否强制覆盖已有版本（可选）
 
         返回：
