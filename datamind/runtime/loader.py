@@ -1,4 +1,4 @@
-# datamind/models/loader.py
+# datamind/runtime/loader.py
 
 """模型加载组件
 
@@ -8,7 +8,7 @@
   - load: 根据 framework 和 tag 加载模型
 
 使用示例：
-  from datamind.models.loader import ModelLoader
+  from datamind.runtime.loader import ModelLoader
 
   loader = ModelLoader()
 
@@ -20,7 +20,7 @@
 
 from typing import Any
 
-from datamind.models.backend import BentoBackend
+from datamind.runtime.backend import BentoBackend
 
 
 class ModelLoader:

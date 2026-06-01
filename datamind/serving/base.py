@@ -36,7 +36,7 @@ from datamind.core.logging.bootstrap import (
     flush_bootstrap_logs,
     bootstrap_warning
 )
-from datamind.core.scoring.adapters import get_adapter
+from datamind.core.model import get_adapter
 from datamind.core.scoring.binning import Bin
 from datamind.core.scoring.engine import ScoringEngine
 from datamind.core.scoring.transform import WOETransformer

@@ -24,7 +24,7 @@ from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.models.register import ModelRegister
+from datamind.services.register import ModelRegister
 
 app = typer.Typer(help="注册模型命令")
 console = Console()

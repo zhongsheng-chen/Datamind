@@ -17,7 +17,7 @@ from datamind.core import (
     domain,
     experiment,
     logging,
-    scoring,
+    model,
 )
 
 __version__ = "1.0.0"

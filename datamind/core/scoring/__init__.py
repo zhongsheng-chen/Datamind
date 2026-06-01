@@ -36,7 +36,7 @@ from datamind.core.scoring.score import (
 from datamind.core.scoring.transform import WOETransformer, MissingStrategy
 from datamind.core.scoring.binning import Bin
 
-from datamind.core.scoring.capability import (
+from datamind.core.capability import (
     ScorecardCapability,
     infer_capabilities,
     has_capability,
@@ -50,7 +50,7 @@ from datamind.core.scoring.capability import (
     get_capability_descriptions,
 )
 
-from datamind.core.scoring.adapters import (
+from datamind.core.model.adapters import (
     BaseModelAdapter,
     get_adapter,
     is_supported,

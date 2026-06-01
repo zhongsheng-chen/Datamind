@@ -12,6 +12,7 @@
   - InvalidModelStateError: 非法模型状态
   - InvalidExperimentStateError: 非法实验状态
   - DeploymentError: 模型部署异常
+  - DeploymentNotFoundError: 部署不存在
   - InvalidDeploymentStateError: 非法部署状态
   - BackendError: 模型后端错误
   - ArtifactError: 模型产物处理错误
@@ -60,6 +61,9 @@ class DeploymentError(ModelError):
     """模型部署异常"""
     pass
 
+class DeploymentNotFoundError(DeploymentError):
+    """部署不存在"""
+    pass
 
 class InvalidDeploymentStateError(ModelError):
     """非法部署状态"""

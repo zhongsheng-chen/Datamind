@@ -1,4 +1,4 @@
-# datamind/models/backend.py
+# datamind/runtime/backend.py
 
 """BentoML 模型后端
 
@@ -9,7 +9,7 @@
   - load: 从 BentoML Model Store 加载模型
 
 使用示例：
-  from datamind.models.backend import BentoBackend
+  from datamind.runtime.backend import BentoBackend
 
   backend = BentoBackend()
 

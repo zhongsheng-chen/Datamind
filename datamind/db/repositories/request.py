@@ -36,7 +36,10 @@ from datamind.db.repositories.base import BaseRepository
 class RequestRepository(BaseRepository):
     """请求仓储"""
 
-    async def get_request(self, request_id: str) -> Request | None:
+    async def get_request(
+        self,
+        request_id: str,
+    ) -> Request | None:
         """获取请求记录
 
         参数：
@@ -49,7 +52,10 @@ class RequestRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_recent_requests(self, limit: int = 100) -> list[Request]:
+    async def list_recent_requests(
+        self,
+        limit: int = 100,
+    ) -> list[Request]:
         """获取最近请求列表
 
         参数：
@@ -62,7 +68,11 @@ class RequestRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_model_requests(self, model_id: str, limit: int = 100) -> list[Request]:
+    async def list_model_requests(
+        self,
+        model_id: str,
+        limit: int = 100,
+    ) -> list[Request]:
         """获取模型请求列表
 
         参数：

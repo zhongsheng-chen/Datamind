@@ -56,7 +56,6 @@ class MetadataPatch:
         description: 模型描述
         input_schema: 输入 Schema
         output_schema: 输出 Schema
-        updated_by: 更新人
     """
     name: str | None = None
     model_type: str | None = None
@@ -65,7 +64,6 @@ class MetadataPatch:
     description: str | None = None
     input_schema: dict | None = None
     output_schema: dict | None = None
-    updated_by: str | None = None
 
 
 class MetadataRepository(BaseRepository):
@@ -102,7 +100,9 @@ class MetadataRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_active_models(self) -> list[Metadata]:
+    async def list_active_models(
+        self,
+    ) -> list[Metadata]:
         """获取活跃模型列表
 
         返回：
@@ -206,19 +206,25 @@ class MetadataRepository(BaseRepository):
         return obj
 
     def update_model(
-        self, metadata: Metadata,
+        self,
+        metadata: Metadata,
         patch: MetadataPatch,
         *,
-        updated_by: str | None = None
+        updated_by: str | None = None,
     ) -> Metadata:
         """更新模型元数据
 
         参数：
             model: 模型对象
             patch: 更新内容
+            updated_by: 更新人（可选）
 
         返回：
             更新后的模型对象
+
+        注意：
+            - status 字段不允许通过 patch 修改，会被直接忽略
+            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(MetadataPatch):
             field_name = field.name
@@ -244,7 +250,7 @@ class MetadataRepository(BaseRepository):
         self,
         metadata: Metadata,
         *,
-        updated_by: str | None = None
+        updated_by: str | None = None,
     ) -> Metadata:
         """归档模型
 
@@ -266,7 +272,7 @@ class MetadataRepository(BaseRepository):
         self,
         metadata: Metadata,
         *,
-        updated_by: str | None = None
+        updated_by: str | None = None,
     ) -> Metadata:
         """激活模型
 
@@ -288,7 +294,7 @@ class MetadataRepository(BaseRepository):
         self,
         metadata: Metadata,
         *,
-        updated_by: str | None = None
+        updated_by: str | None = None,
     ) -> Metadata:
         """标记模型废弃
 

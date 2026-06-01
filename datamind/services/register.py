@@ -1,4 +1,4 @@
-# datamind/models/register.py
+# datamind/services/register.py
 
 """模型注册器
 
@@ -8,7 +8,7 @@
   - ModelRegister.register: 注册模型
 
 使用示例：
-  from datamind.models.register import ModelRegister
+  from datamind.services.register import ModelRegister
 
   register = ModelRegister()
 
@@ -20,7 +20,7 @@
       task_type="scoring",
       model_path="./models/scorecard.pkl",
       description="信用评分卡模型",
-      created_by="admin"
+      created_by="system"
   )
 """
 
@@ -33,7 +33,7 @@ from datamind.storage import get_storage
 from datamind.storage.resolver import StorageResolver
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.repositories import MetadataRepository, MetadataPatch, VersionRepository, VersionPatch
-from datamind.models.backend import BentoBackend
+from datamind.runtime.backend import BentoBackend
 from datamind.models.artifact import ModelArtifactLoader
 from datamind.models.guard import ModelGuard
 from datamind.models.enums import MetadataStatus, VersionStatus

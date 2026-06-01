@@ -4,7 +4,7 @@
 模型部署工具考虑用bentoml实现，支持模型注册、注销，支持模型文件热更换，支持模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。
 支持模型类型：模型类型：decision_tree|random_forest|xgboost|lightgbm|logistic_regression。
 能支持AB test.能跑评分卡任务也能跑分类任务，并提供API服务。对于评分卡模型，应该返回模型总评分和模型的特征分.不要直接输出决策结果。决策交给下游的内评系统
-只跑模型，不管模型规则。
+只跑模型，不管模型规则。能实现跑不同模型能按任务类型配置运行参数，比如评分任务能配置PDO参数，分类任务能配置阈值参数
 模型ID应该是Datamind后台维护的识别模型的唯一主键。不应该作为模型注册参数。
 模型元数据保存在数据库,金融场景要能审计，要有完善的日志系统。
 只对LR才有评分能力呀，其他的decision_tree / random_forest / xgboost / lightgbm / catboost，应该没有评分能力
@@ -13,6 +13,49 @@
 我已经有了配置组件，日志组件，AB测试组件，存储组件，数据库组件，评分组件，模型组件，服务组件。
 
 对要对model / version / deployment / experiment进行审计
+```text
+datamind/core/
+
+├── capability.py
+│
+├── model/
+│   └── adapters/
+│
+├── inference/
+│   ├── __init__.py
+│   └── inference.py
+│
+└── scoring/
+    ├── __init__.py
+    ├── transformer.py
+    ├── scorer.py
+    ├── contrib.py
+    └── scorecard.py
+```
+
+```text
+datamind/
+├── models/
+│   ├── artifact/
+│   ├── enums.py
+│   ├── errors.py
+│   ├── guard.py
+│   └── resolver.py
+│
+├── services/
+│   ├── register.py
+│   ├── deployer.py
+│   └── deleter.py
+│
+└── runtime/
+    ├── backend.py
+    ├── loader.py
+    ├── router.py
+    └── serving/
+        ├── classifier_service.py
+        └── scoring_service.py
+```
+
 ```text
 datamind/
 │
@@ -2638,3 +2681,203 @@ datamind version list ...
 | SCORECARD_SCORE | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | SCORECARD_EXPORT | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
+
+
+# 常用树模型预测接口对照表
+
+| 框架 | 模型类 | 预测类别 | 预测概率 |
+|--------|--------|----------|----------|
+| Scikit-Learn | `DecisionTreeClassifier` | `predict()` | `predict_proba()` |
+| Scikit-Learn | `RandomForestClassifier` | `predict()` | `predict_proba()` |
+| XGBoost | `Booster` / `XGBClassifier` | `predict(output_margin=False)` | `predict()` |
+| LightGBM | `Booster` | `predict(type="class")` | `predict(type="response")` |
+| CatBoost | `CatBoostClassifier` | `predict()` | `predict_proba()` |
+
+
+
+
+## 全量发布（Full）
+
+100% 流量由单个模型处理。
+
+| deployment_id | rollout_type | deployment_group | role     | traffic_ratio |
+|---------------|-------------|------------------|----------|---------------|
+| dep_v1 | full | prod | champion | 1.0 |
+
+---
+
+## 灰度发布（Canary）
+
+老版本与新版本共同提供服务。
+
+示例：
+
+- v1：90%
+- v2：10%
+
+| deployment_id | rollout_type | deployment_group | role       | traffic_ratio |
+|---------------|-------------|------------------|------------|---------------|
+| dep_v1 | canary | prod | champion   | 0.9 |
+| dep_v2 | canary | prod | challenger | 0.1 |
+
+说明：
+
+- 同一个 `deployment_group`
+- `traffic_ratio` 之和应等于 `1.0`
+- 路由器按流量比例分发请求
+
+---
+
+## 影子发布（Shadow）
+
+线上流量复制给新模型。
+
+用户只看到主模型结果，影子模型仅用于验证。
+
+| deployment_id | rollout_type | deployment_group | role | traffic_ratio |
+|---------------|-------------|------------------|------|---------------|
+| dep_v1 | shadow | prod | champion | 1.0 |
+| dep_v2 | shadow | prod | shadow | NULL |
+
+说明：
+
+- `champion` 接收正式流量并返回结果
+- `shadow` 接收镜像流量但不返回结果
+- `shadow` 不参与流量分配，因此 `traffic_ratio = NULL`
+
+---
+
+## A/B Test（AB测试）
+
+多个模型同时对外服务。
+
+示例：
+
+- A模型：50%
+- B模型：50%
+
+| deployment_id | rollout_type | deployment_group | role       | traffic_ratio |
+|---------------|-------------|------------------|------------|---------------|
+| dep_a | ab | exp_001 | champion   | 0.5 |
+| dep_b | ab | exp_001 | challenger | 0.5 |
+
+说明：
+
+- 同一个 `deployment_group`
+- `traffic_ratio` 之和应等于 `1.0`
+- 通常基于用户 ID 哈希进行稳定分流
+
+---
+
+## 字段说明
+
+### rollout_type
+
+发布模式：
+
+```text
+full
+canary
+shadow
+ab
+```
+
+### deployment_group
+
+部署分组。
+
+表示多个 Deployment 属于同一套流量策略。
+
+示例：
+
+```text
+prod
+exp_001
+exp_002
+```
+
+### role
+
+部署角色：
+
+```text
+champion
+challenger
+shadow
+```
+
+### traffic_ratio
+
+流量占比：
+
+- Full：固定为 `1.0`
+- Canary：多个 Deployment 之和为 `1.0`
+- AB：多个 Deployment 之和为 `1.0`
+- Shadow：为 `NULL`
+
+
+{
+  "task": {
+    "classification": {
+      "threshold": 0.5,
+      "calibration": "isotonic"
+    },
+    "scoring": {
+      "pdo": 50,
+      "base_score": 600,
+      "base_odds": 20
+    }
+  }
+}
+
+
+{
+  "classification": {
+    "threshold": 0.5
+  },
+    "scoring": {
+      "pdo": 50,
+      "base_score": 600,
+      "base_odds": 20
+    }
+}
+
+
+# 流量分配
+
+## 设计
+```text
+一个 Deployment
+可以被多个 Routing Rule 引用
+
+一个 Routing Rule
+只指向一个 Deployment
+
+Model
+ └── Deployment
+      ├── dep_v1
+      ├── dep_v2
+      └── dep_v3
+
+Routing Rule
+      ├── rule_01 -> dep_v1
+      ├── rule_02 -> dep_v2
+      ├── rule_03 -> dep_v3
+      └── rule_04 -> dep_v1
+```
+
+分组规则：<model_id>_<environment>_<type>_<timestamp>
+或者：
+full     -> rollout_group = NULL
+canary   -> rollout_group = generate_id("rgp")
+shadow   -> rollout_group = generate_id("rgp")
+
+if not 0 <= traffic_ratio <= 1:
+    raise ValueError(
+        f"流量占比必须在 0~1 之间，当前值: {traffic_ratio}"
+    )
+
+if rollout_type in {"canary", "shadow"} and not rollout_group:
+    raise InvalidRoutingConfigError(
+        f"发布类型 '{rollout_type}' 必须指定发布分组"
+    )

@@ -28,9 +28,7 @@
           status="active",
           environment="production",
           rollout_type="full",
-          variant="primary",
-          traffic_ratio=1.0,
-          deployed_by="system"
+          deployed_by="admin"
       )
 """
 
@@ -51,28 +49,31 @@ class DeploymentPatch:
         framework: 框架类型
         environment: 部署环境
         rollout_type: 发布类型
-        variant: 变体标识
-        traffic_ratio: 流量占比
+        role: 部署角色
         effective_from: 生效开始时间
         effective_to: 生效结束时间
-        deployed_by: 部署人
+        config: 运行时配置
         description: 部署描述
+        endpoint: 推理服务地址
     """
     framework: str | None = None
     environment: str | None = None
     rollout_type: str | None = None
-    variant: str | None = None
-    traffic_ratio: float | None = None
+    role: str | None = None
     effective_from: datetime | None = None
     effective_to: datetime | None = None
-    deployed_by: str | None = None
+    config: dict | None = None
     description: str | None = None
+    endpoint: str | None = None
 
 
 class DeploymentRepository(BaseRepository):
     """部署仓储"""
 
-    async def get_deployment(self, deployment_id: str) -> Deployment | None:
+    async def get_deployment(
+        self,
+        deployment_id: str,
+    ) -> Deployment | None:
         """获取部署记录
 
         参数：
@@ -85,35 +86,38 @@ class DeploymentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_active_deployments(self, model_id: str) -> list[Deployment]:
+    async def list_active_deployments(
+            self,
+            model_id: str,
+            *,
+            version_id: str | None = None,
+            environment: str | None = None,
+    ) -> list[Deployment]:
         """获取活跃部署记录列表
 
         参数：
             model_id: 模型 ID
+            version_id: 版本 ID（可选）
+            environment: 部署环境（可选）
 
         返回：
-            活跃部署记录列表
+            活跃部署记录列表，按创建时间倒序排列
         """
-        stmt = select(Deployment).where(
-            Deployment.model_id == model_id,
-            Deployment.status == DeploymentStatus.ACTIVE,
+        stmt = (
+            select(Deployment)
+            .where(
+                Deployment.model_id == model_id,
+                Deployment.status == DeploymentStatus.ACTIVE,
+            )
+            .order_by(Deployment.created_at.desc())
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
-    async def list_traffic_deployments(self, model_id: str) -> list[Deployment]:
-        """获取有流量的部署记录列表
+        if version_id:
+            stmt = stmt.where(Deployment.version_id == version_id)
 
-        参数：
-            model_id: 模型 ID
+        if environment:
+            stmt = stmt.where(Deployment.environment == environment)
 
-        返回：
-            有流量的部署记录列表
-        """
-        stmt = select(Deployment).where(
-            Deployment.model_id == model_id,
-            Deployment.traffic_ratio > 0,
-        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -126,12 +130,13 @@ class DeploymentRepository(BaseRepository):
         framework: str,
         environment: str = "production",
         rollout_type: str = "full",
-        variant: str = "primary",
-        traffic_ratio: float = 1.0,
+        role: str = "champion",
         effective_from: datetime | None = None,
         effective_to: datetime | None = None,
-        deployed_by: str | None = None,
+        config: dict | None = None,
         description: str | None = None,
+        endpoint: str | None = None,
+        deployed_by: str | None = None,
     ) -> Deployment:
         """创建部署
 
@@ -142,12 +147,13 @@ class DeploymentRepository(BaseRepository):
             framework: 框架类型
             environment: 部署环境
             rollout_type: 发布类型
-            variant: 变体标识
-            traffic_ratio: 流量占比
+            role: 部署角色（可选）
             effective_from: 生效开始时间（可选）
             effective_to: 生效结束时间（可选）
-            deployed_by: 部署人（可选）
+            config: 运行时配置（可选）
             description: 部署描述（可选）
+            endpoint: 推理服务地址（可选）
+            deployed_by: 部署人（可选）
 
         返回：
             创建后的部署记录对象
@@ -159,26 +165,38 @@ class DeploymentRepository(BaseRepository):
             framework=framework,
             environment=environment,
             rollout_type=rollout_type,
-            variant=variant,
-            traffic_ratio=traffic_ratio,
+            role=role,
             effective_from=effective_from,
             effective_to=effective_to,
-            deployed_by=deployed_by,
+            config=config,
             description=description,
+            endpoint=endpoint,
+            deployed_by=deployed_by,
         )
 
         self.add(obj)
         return obj
 
-    def update_deployment(self, deployment: Deployment, patch: DeploymentPatch) -> Deployment:
+    def update_deployment(
+        self,
+        deployment: Deployment,
+        patch: DeploymentPatch,
+        *,
+        updated_by: str | None = None,
+    ) -> Deployment:
         """更新部署
 
         参数：
             deployment: 部署记录对象
             patch: 更新内容
+            updated_by: 更新人（可选）
 
         返回：
             更新后的部署记录对象
+
+        注意：
+            - status 字段不允许通过 patch 修改，会被直接忽略
+            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(DeploymentPatch):
             field_name = field.name
@@ -193,11 +211,19 @@ class DeploymentRepository(BaseRepository):
 
             setattr(deployment, field_name, value)
 
+        if updated_by is not None:
+            deployment.updated_by = updated_by
+
         deployment.updated_at = datetime.now(timezone.utc)
 
         return deployment
 
-    def activate_deployment(self, deployment: Deployment, *, updated_by: str | None = None) -> Deployment:
+    def activate_deployment(
+        self,
+        deployment: Deployment,
+        *,
+        updated_by: str | None = None,
+    ) -> Deployment:
         """启用部署
 
         参数：
@@ -208,12 +234,20 @@ class DeploymentRepository(BaseRepository):
         """
         deployment.status = DeploymentStatus.ACTIVE
 
+        if deployment.effective_from is None:
+            deployment.effective_from = datetime.now(timezone.utc)
+
         if updated_by:
             deployment.updated_by = updated_by
 
         return deployment
 
-    def deactivate_deployment(self, deployment: Deployment, *, updated_by: str | None = None) -> Deployment:
+    def deactivate_deployment(
+        self,
+        deployment: Deployment,
+        *,
+        updated_by: str | None = None,
+    ) -> Deployment:
         """停用部署
 
         参数：
@@ -223,7 +257,9 @@ class DeploymentRepository(BaseRepository):
             停用后的部署记录对象
         """
         deployment.status = DeploymentStatus.INACTIVE
-        deployment.traffic_ratio = 0.0
+
+        if deployment.effective_to is None:
+            deployment.effective_to = datetime.now(timezone.utc)
 
         if updated_by:
             deployment.updated_by = updated_by

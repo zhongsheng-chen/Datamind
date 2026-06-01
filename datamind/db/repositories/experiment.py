@@ -65,7 +65,10 @@ class ExperimentPatch:
 class ExperimentRepository(BaseRepository):
     """实验仓储"""
 
-    async def get_experiment(self, experiment_id: str) -> Experiment | None:
+    async def get_experiment(
+        self,
+        experiment_id: str,
+    ) -> Experiment | None:
         """获取实验
 
         参数：
@@ -78,7 +81,10 @@ class ExperimentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_running_experiments(self, model_id: str) -> list[Experiment]:
+    async def list_running_experiments(
+        self,
+        model_id: str,
+    ) -> list[Experiment]:
         """获取运行中的实验
 
         参数：
@@ -94,7 +100,10 @@ class ExperimentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_experiments(self, model_id: str) -> list[Experiment]:
+    async def list_experiments(
+        self,
+        model_id: str,
+    ) -> list[Experiment]:
         """列出所有实验
 
         参数：
@@ -153,15 +162,26 @@ class ExperimentRepository(BaseRepository):
         self.add(obj)
         return obj
 
-    def update_experiment(self, experiment: Experiment, patch: ExperimentPatch) -> Experiment:
+    def update_experiment(
+        self,
+        experiment: Experiment,
+        patch: ExperimentPatch,
+        *,
+        updated_by: str | None = None,
+    ) -> Experiment:
         """更新实验
 
         参数：
             experiment: 实验对象
             patch: 更新内容
+            updated_by: 更新人（可选）
 
         返回：
             更新后的实验对象
+
+        注意：
+            - status 字段不允许通过 patch 修改，会被直接忽略
+            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(ExperimentPatch):
             field_name = field.name
@@ -180,7 +200,11 @@ class ExperimentRepository(BaseRepository):
 
         return experiment
 
-    def stop_experiment(self, experiment: Experiment, updated_by: str | None = None) -> Experiment:
+    def stop_experiment(
+        self,
+        experiment: Experiment,
+        updated_by: str | None = None,
+    ) -> Experiment:
         """停止实验
 
         参数：
@@ -197,7 +221,11 @@ class ExperimentRepository(BaseRepository):
 
         return experiment
 
-    def pause_experiment(self, experiment: Experiment, updated_by: str | None = None) -> Experiment:
+    def pause_experiment(
+        self,
+        experiment: Experiment,
+        updated_by: str | None = None,
+    ) -> Experiment:
         """暂停实验
 
         参数：
@@ -214,7 +242,11 @@ class ExperimentRepository(BaseRepository):
 
         return experiment
 
-    def complete_experiment(self, experiment: Experiment, updated_by: str | None = None) -> Experiment:
+    def complete_experiment(
+        self,
+        experiment: Experiment,
+        updated_by: str | None = None,
+    ) -> Experiment:
         """完成实验
 
         参数：
@@ -231,7 +263,11 @@ class ExperimentRepository(BaseRepository):
 
         return experiment
 
-    def archive_experiment(self, experiment: Experiment, updated_by: str | None = None) -> Experiment:
+    def archive_experiment(
+        self,
+        experiment: Experiment,
+        updated_by: str | None = None,
+    ) -> Experiment:
         """归档实验
 
         参数：

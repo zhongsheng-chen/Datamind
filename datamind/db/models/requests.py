@@ -25,31 +25,39 @@ class Request(Base, IdMixin, TimestampMixin):
     )
 
     request_id = Column(
-        String(64), nullable=False, unique=True,
+        String(64),
+        nullable=False,
+        unique=True,
         comment="请求 ID，请求的唯一标识"
     )
     model_id = Column(
-        String(64), nullable=False,
+        String(64),
+        nullable=False,
         comment="目标模型 ID"
     )
     payload = Column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="请求负载，JSON 格式"
     )
     source = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="请求来源，如 api"
     )
     latency_ms = Column(
-        Float, nullable=True,
+        Float,
+        nullable=True,
         comment="处理耗时，单位毫秒"
     )
     user = Column(
-        String(64), nullable=True,
+        String(64),
+        nullable=True,
         comment="用户标识"
     )
     ip = Column(
-        String(64), nullable=True,
+        String(64),
+        nullable=True,
         comment="客户端 IP 地址"
     )
 

@@ -27,47 +27,59 @@ class Metadata(Base, IdMixin, TimestampMixin):
     )
 
     model_id = Column(
-        String(64), nullable=False,
+        String(64),
+        nullable=False,
         comment="模型 ID，模型的唯一标识"
     )
     name = Column(
-        String(100), nullable=False,
+        String(100),
+        nullable=False,
         comment="模型名称，全局唯一业务标识"
     )
     model_type = Column(
-        String(50), nullable=False,
+        String(50),
+        nullable=False,
         comment="模型类型，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost"
     )
     task_type = Column(
-        String(50), nullable=False,
+        String(50),
+        nullable=False,
         comment="任务类型，可选值：classification / scoring"
     )
     framework = Column(
-        String(50), nullable=False,
-        comment="框架类型，可选值：sklearn / xgboost / lightgbm / catboost / onnx"
+        String(50),
+        nullable=False,
+        comment="框架类型，可选值：sklearn / xgboost / lightgbm / catboost"
     )
     description = Column(
-        TEXT, nullable=True,
+        TEXT,
+        nullable=True,
         comment="模型描述"
     )
     input_schema = Column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="输入 Schema，JSON 格式"
     )
     output_schema = Column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="输出 Schema，JSON 格式"
     )
     status = Column(
-        String(20), nullable=False, server_default=text("'inactive'"),
+        String(20),
+        nullable=False,
+        server_default=text("'inactive'"),
         comment="状态，可选值：active / inactive / deprecated / archived"
     )
     created_by = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="创建人"
     )
     updated_by = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="更新人"
     )
 

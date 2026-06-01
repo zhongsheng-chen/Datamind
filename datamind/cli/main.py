@@ -6,6 +6,7 @@
 
 核心功能：
   - model: 模型管理子命令
+  - deploy: 部署管理子命令
 
 使用示例：
   python -m datamind.cli.main model register \
@@ -24,6 +25,7 @@ from importlib.metadata import version
 
 from datamind._build import BUILD_COMMIT
 from datamind.cli.model import app as model_app
+from datamind.cli.deploy import app as deploy_app
 
 
 def version_callback(value: bool) -> None:
@@ -66,6 +68,7 @@ def main(
 
 # 注册子命令
 app.add_typer(model_app, name="model")
+app.add_typer(deploy_app, name="deploy")
 
 
 if __name__ == "__main__":

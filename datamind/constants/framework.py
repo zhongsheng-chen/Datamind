@@ -23,9 +23,6 @@ class Framework:
     xgboost: str = "xgboost"
     lightgbm: str = "lightgbm"
     catboost: str = "catboost"
-    torch: str = "torch"
-    tensorflow: str = "tensorflow"
-    onnx: str = "onnx"
 
 
 SUPPORTED_FRAMEWORKS = frozenset({
@@ -33,7 +30,4 @@ SUPPORTED_FRAMEWORKS = frozenset({
     Framework.xgboost,
     Framework.lightgbm,
     Framework.catboost,
-    Framework.torch,
-    Framework.tensorflow,
-    Framework.onnx,
 })

@@ -1,4 +1,4 @@
-# datamind/models/deleter.py
+# datamind/services/deleter.py
 
 """模型删除器
 
@@ -8,7 +8,7 @@
   - delete: 删除模型或版本（支持软删除和硬删除）
 
 使用示例：
-  from datamind.models.deleter import ModelDeleter
+  from datamind.services.deleter import ModelDeleter
 
   deleter = ModelDeleter()
 
@@ -64,7 +64,7 @@ class ModelDeleter:
             name: 模型名称（可选）
             version: 版本号（可选）
             version_id: 版本 ID（可选）
-            purge: 是否硬删除，False 为软删除（归档）
+            purge: 是否硬删除，False 为软删除
 
         返回：
             删除结果字典
