@@ -62,7 +62,6 @@ class VersionPatch:
         deleted_by: 删除人
         archived_at: 归档时间
         archived_by: 归档人
-        updated_by: 更新人
     """
     version: str | None = None
     framework: str | None = None
@@ -76,13 +75,15 @@ class VersionPatch:
     deleted_by: str | None = None
     archived_at: str | None = None
     archived_by: str | None = None
-    updated_by: str | None = None
 
 
 class VersionRepository(BaseRepository):
     """模型版本访问器"""
 
-    async def get_version(self, version_id: str) -> Version | None:
+    async def get_version(
+        self,
+        version_id: str,
+    ) -> Version | None:
         """获取指定版本
 
         参数：
@@ -95,7 +96,10 @@ class VersionRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_latest_version(self, model_id: str) -> Version | None:
+    async def get_latest_version(
+        self,
+        model_id: str,
+    ) -> Version | None:
         """获取最新版本
 
         参数：
@@ -113,7 +117,10 @@ class VersionRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_versions(self, model_id: str) -> list[Version]:
+    async def list_versions(
+        self,
+        model_id: str,
+    ) -> list[Version]:
         """获取版本列表
 
         参数：
@@ -185,15 +192,21 @@ class VersionRepository(BaseRepository):
         version: Version,
         patch: VersionPatch,
         *,
-        updated_by: str | None = None) -> Version:
+        updated_by: str | None = None,
+    ) -> Version:
         """更新版本
 
         参数：
             version: 版本对象
             patch: 更新内容
+            updated_by: 更新人（可选）
 
         返回：
             更新后的版本对象
+
+        注意：
+            - status 字段不允许通过 patch 修改，会被直接忽略
+            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(VersionPatch):
             field_name = field.name
@@ -219,7 +232,7 @@ class VersionRepository(BaseRepository):
         self,
         version: Version,
         *,
-        archived_by: str | None = None
+        archived_by: str | None = None,
     ) -> Version:
         """归档版本
 
@@ -241,7 +254,7 @@ class VersionRepository(BaseRepository):
         self,
         version: Version,
         *,
-        updated_by: str | None = None
+        updated_by: str | None = None,
     ) -> Version:
         """激活版本
 
@@ -262,7 +275,8 @@ class VersionRepository(BaseRepository):
     def deprecate_version(
         self,
         version: Version,
-        updated_by: str | None = None
+        *,
+        updated_by: str | None = None,
     ) -> Version:
         """标记版本废弃
 

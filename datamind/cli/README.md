@@ -202,6 +202,7 @@ datamind model list --status active
 datamind model list --limit 20 --offset 0
 ```
 
+## 查看模型详情命令
 ### model show 命令
 #### 命令格式
 ```bash
@@ -270,6 +271,267 @@ datamind model delete scorecard --version 1.0.0 --purge
 # 强制删除模型，跳过确认
 datamind model delete scorecard --version 1.0.0 --purge --yes
 ```
+
+## 部署模型
+### deploy list 命令
+#### 命令格式
+```bash
+datamind deploy list
+  [<name> | --model-id <model-id>]
+  [--environment <environment>]
+  [--rollout <full|canary|shadow>]
+  [--status <status>]
+  [--version <version> | --version-id <version-id>]
+  [--limit <n>]
+  [--offset <n>]
+  [--format <table|json>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<name>` | 模型名称（与 `--model-id` 二选一） |
+| `--model-id <model-id>` | 模型 ID |
+| `--environment <environment>` | 部署环境，例如 `production`、`staging`、`development`、`testing` |
+| `--rollout <full\|canary\|shadow>` | 发布方式过滤 |
+| `--status <status>` | 部署状态，例如 `active`、`inactive` |
+| `--version <version>` | 模型版本号（与 `--version-id` 二选一） |
+| `--version-id <version-id>` | 模型版本 ID |
+| `--limit <n>` | 返回记录数限制，默认 `20` |
+| `--offset <n>` | 分页偏移量 |
+| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+```bash
+datamind deploy list
+datamind deploy list --verbose
+datamind deploy list fraud_model
+datamind deploy list fraud_model --version v1.0.0
+datamind deploy list --model-id mdl_a1b2c3d4
+datamind deploy list --environment production
+datamind deploy list --rollout canary
+datamind deploy list --status active
+datamind deploy list --format json
+datamind deploy list --limit 50 --offset 100
+```
+
+### deploy show 命令
+#### 命令格式
+```bash
+datamind deploy show <deployment-id>
+  [--format <table|json>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<deployment-id>` | 部署 ID |
+| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--verbose` | 显示调试日志 |
+
+
+#### 使用示例
+```bash
+datamind deploy show dep_a1b2c3d4
+datamind deploy show dep_123456 --format json
+datamind deploy show dep_123456 --verbose
+```
+
+### deploy create 命令
+#### 命令格式
+```bash
+datamind deploy create (<name> | --model-id <model-id>)
+  --version <version> | --version-id <version-id>
+  --environment <env>
+  --rollout <full|canary|shadow>
+  --strategy <fail|replace|upsert>
+  --config '<json>'
+  [--description <text>]
+  [--owner <user>]
+  [--format <table|json>]
+  [--verbose]
+```
+
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<name>` | 模型名称（与 `--model-id` 二选一） |
+| `--model-id <model-id>` | 模型 ID |
+| `--version <version>` | 模型版本号（与 `--version-id` 二选一） |
+| `--version-id <version-id>` | 版本 ID |
+| `--environment <env>` | 部署环境，例如 `production` / `staging` / `development` / `testing` |
+| `--rollout <full\|canary\|shadow>` | 发布策略：full（全量发布）、canary（灰度发布）、shadow（影子发布） |
+| `--strategy <fail\|replace\|upsert>` | 冲突处理策略：fail（默认）、replace（替换旧 deployment）、upsert（存在则更新） |
+| `--config <json>` | 运行时配置（按 task_type 生效，如 scoring / classification 参数） |
+| `--description <text>` | 部署描述信息 |
+| `--owner <user>` | 创建人 / 负责人 |
+| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--verbose` | 是否输出调试日志 |
+
+
+#### config 示例
+##### 评分任务
+```json
+{
+  "pdo": 50,
+  "base_score": 600
+}
+```
+
+##### 分类任务
+```json
+{
+  "threshold": 0.5
+}
+```
+
+
+#### 使用示例
+```bash
+# 创建全量部署
+datamind deploy create scorecard \
+  --version 1.0.0 \
+  --environment production \
+  --rollout full \
+  --config '{
+    "pdo": 50,
+    "base_score": 600
+  }' \
+  --description "创建全量发布版本 1.0.0" \
+  --owner admin
+
+# 创建灰度部署
+datamind deploy create scorecard \
+  --version 1.0.0 \
+  --environment production \
+  --rollout canary \
+  --config '{
+    "threshold": 0.5
+  }' \
+  --description "创建灰度发布版本 1.0.0" \
+  --owner admin
+
+# 创建影子部署
+datamind deploy create scorecard \
+  --version 1.0.0 \
+  --environment production \
+  --rollout shadow \
+  --config '{
+    "pdo": 50,
+    "base_score": 600
+  }' \
+  --description "创建影子发布版本 1.0.0" \
+  --owner admin
+```
+
+### deploy enable 命令
+#### 命令格式
+```bash
+datamind deploy enable <deployment-id>
+  [--verbose]
+```
+#### 参数说明
+| 参数 | 说明 |
+|------|------|
+| `<deployment-id>` | 部署 ID |
+| `--verbose` | 显示调试日志 |
+
+
+#### 使用示例
+```bash
+
+# 启用部署
+datamind deploy enable dep_a1b2c3d4
+
+# 显示调试日志
+datamind deploy enable dep_a1b2c3d4 --verbose
+```
+
+### deploy disable 命令
+#### 命令格式
+```bash
+datamind deploy disable <deployment-id>
+  [--verbose]
+```
+#### 参数说明
+| 参数 | 说明 |
+|------|------|
+| `<deployment-id>` | 部署 ID |
+| `--verbose` | 显示调试日志 |
+
+
+#### 使用示例
+```bash
+
+# 禁用部署
+datamind deploy disable dep_a1b2c3d4
+
+# 显示调试日志
+datamind deploy disable dep_a1b2c3d4 --verbose
+```
+
+
+
+
+deploy create
+deploy enable
+deploy disable
+deploy list
+deploy show
+
+route create
+route update
+route delete
+route list
+route show
+route enable
+route disable
+
+
+
+datamind deploy traffic <deployment-id>
+  --ratio <0-1>
+
+datamind deploy canary
+  --model-id <model-id>
+  --version <version>
+  --ratio <ratio>
+  [--environment <env>]
+
+datamind deploy rollback
+  --deployment-id <deployment-id>
+  [--to-version <version> | --to-version-id <version-id>]
+
+布升级（promote）
+datamind deploy promote <deployment-id>
+
+👉 canary → primary
+
+
+
+## 命令模板
+### command template 命令
+#### 命令格式
+```bash
+```
+#### 参数说明
+
+#### 使用示例
+```bash
+```
+
+
+
+
+
+
 
 ## 列出版本
 ### model version list 命令

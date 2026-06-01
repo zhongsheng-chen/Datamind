@@ -21,7 +21,7 @@ from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.models.deleter import ModelDeleter
+from datamind.services.deleter import ModelDeleter
 
 app = typer.Typer(help="删除模型命令")
 console = Console()

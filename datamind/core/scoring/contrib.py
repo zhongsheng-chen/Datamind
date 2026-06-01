@@ -1,363 +1,183 @@
 # datamind/core/scoring/contrib.py
 
-"""特征贡献转换器
+"""特征贡献分解器
 
-将 logit 空间的特征贡献转换为 score 空间，并提供排序和拆分功能。
+仅支持 Logistic Regression 模型。
 
 核心功能：
-  - logit_to_score: 单条 logit 贡献转 score 贡献
-  - logit_to_score_batch: 批量 logit 贡献转 score 贡献
-  - top_features: 获取 Top K 特征（用于 Reason Code）
-  - top_features_by_impact: 分别获取正向和负向的 Top K 特征
-  - split_positive_negative: 拆分正负贡献
-  - contribution_summary: 获取贡献汇总统计
+    - explain: 特征贡献分解
+    - explain_batch: 批量特征贡献分解
 
-特性：
-  - 解耦设计：不依赖 Explainer，只依赖 Score
-  - 统一转换：factor × logit_contrib，与 Score 模块完全一致
-  - 批量支持：支持单条和批量转换
-  - 性能优化：预缓存 factor 和 offset
-  - 容错处理：过滤 NaN/Inf 值
+说明：
+    Logistic Regression 在线性空间中的表达为：
+
+        logit = Σ(w_i * x_i) + b
+
+    通过 PDO（Points to Double Odds）刻度映射到评分空间：
+
+        score = offset - factor * logit
+
+    展开后得到可加性分解形式：
+
+        score = intercept_score + Σ feature_score_i
+
+    其中各部分定义为：
+
+        intercept_score = offset - factor * b
+        feature_score_i = -factor * w_i * x_i
+
+使用示例：
+    from datamind.core.inference import Inference
+    from datamind.core.scoring.contrib import LRContrib
+
+    inference = Inference(model=model, feature_names=feature_names)
+    contrib = LRContrib(inference)
+
+    # 特征贡献分解
+    result = contrib.explain({"age": 30, "income": 50000})
+
+    # 批量特征贡献分解
+    results = contrib.explain_batch([
+        {"age": 30, "income": 50000},
+        {"age": 40, "income": 80000},
+    ])
 """
 
 import structlog
-from typing import Dict, List, Tuple
 import numpy as np
 
-from datamind.core.scoring.score import Score
+from typing import Any
 
-_logger = structlog.get_logger(__name__)
+from datamind.core.inference import Inference
+from datamind.core.scoring.transformer import ScoreTransformer
+
+logger = structlog.get_logger(__name__)
 
 
-class ContributionConverter:
-    """特征贡献转换器
+class LRContrib:
+    """逻辑回归特征贡献分解器
 
-    将 logit 空间的贡献值转换为评分空间，并提供排序和拆分功能。
-
-    核心公式：
-        score_contribution = factor × logit_contribution
-
-    其中 factor 是 Score 类的评分因子（pdo / ln(2)）。
+    属性：
+        inference: 推理器
+        transformer: 评分转换器
+        coef: 模型系数
+        intercept: 模型截距
+        factor: 评分因子
+        offset: 评分偏移
     """
 
-    def __init__(self, score: Score):
+    def __init__(
+        self,
+        inference: Inference,
+        transformer: ScoreTransformer | None = None,
+    ):
+        """初始化逻辑回归特征贡献分解器
+
+        参数：
+            inference: 推理器
+            transformer: 评分转换器，为 None 时使用默认配置
+
+        异常：
+            NotImplementedError: 模型不具有 coef_ 属性
         """
-        初始化转换器
+        self.inference = inference
+        self.transformer = transformer or ScoreTransformer()
 
-        参数:
-            score: Score 实例（包含 factor / offset）
-        """
-        self.score = score
+        model = inference.adapter.model
 
-        # 提前缓存，提高性能
-        self.factor = score.factor
-        self.offset = score.offset
+        if not hasattr(model, "coef_"):
+            raise NotImplementedError("LRContrib 仅支持具有 coef_ 的线性模型")
 
-        _logger.debug(
-            "ContributionConverter 初始化: factor=%.6f, offset=%.6f",
-            self.factor,
-            self.offset
+        self.coef = np.asarray(model.coef_).reshape(-1)
+
+        self.intercept = float(getattr(model, "intercept_", 0.0))
+
+        self.factor = self.transformer.factor
+        self.offset = self.transformer.offset
+
+        logger.debug(
+            "初始化逻辑回归特征贡献分解器 | 特征数=%d",
+            len(self.coef),
         )
 
-    # ==================== 核心转换 ====================
+    def _explain_one(self, x: np.ndarray) -> dict[str, float]:
+        """单样本特征贡献分解（内部方法）
 
-    def logit_to_score(self, contribution: Dict[str, float]) -> Dict[str, float]:
+        参数：
+            x: 输入特征数组，形状为 (n_features,)
+
+        返回：
+            dict[str, float]: 评分拆解结果，包含 intercept_score、feature_score、total_score 和各特征贡献
         """
-        将 logit 贡献转换为 score 贡献
+        contributions: dict[str, float] = {}
+        feature_score: float = 0.0
 
-        参数:
-            contribution: 特征对 logit 的贡献字典，格式 {"feature_name": logit_contribution}
+        feature_names = self.inference.adapter.feature_names
 
-        返回:
-            特征对评分的贡献字典，格式 {"feature_name": score_contribution}
+        for i, (xi, wi) in enumerate(zip(x, self.coef)):
+            xi_val = (
+                0.0
+                if xi is None or (isinstance(xi, float) and np.isnan(xi))
+                else float(xi)
+            )
+
+            contrib_score = -self.factor * float(wi) * xi_val
+
+            if feature_names and i < len(feature_names):
+                feature_key = feature_names[i]
+            else:
+                feature_key = f"特征{i}"
+
+            contributions[feature_key] = contrib_score
+            feature_score += contrib_score
+
+        intercept_score = self.offset - self.factor * self.intercept
+
+        total_score = intercept_score + feature_score
+
+        return {
+            "intercept_score": intercept_score,
+            "feature_score": feature_score,
+            "total_score": total_score,
+            **contributions,
+        }
+
+    def explain(self, X: Any) -> dict[str, float]:
+        """单样本特征贡献分解
+
+        参数：
+            X: 输入数据，支持单条字典或 numpy 数组
+
+        返回：
+            dict[str, float]: 评分拆解结果
         """
-        if not contribution:
-            return {}
+        x = self.inference.transform(X)[0]
 
-        result = {}
+        result = self._explain_one(x)
 
-        for k, v in contribution.items():
-            try:
-                if np.isfinite(v):
-                    result[k] = float(self.factor * v)
-            except Exception as e:
-                _logger.debug("转换特征 %s 失败: %s", k, e)
-                continue
+        logger.debug(
+            "特征贡献分解完成 | 总评分=%s",
+            result["total_score"],
+        )
 
         return result
 
-    def logit_to_score_batch(
-        self,
-        contributions: List[Dict[str, float]]
-    ) -> List[Dict[str, float]]:
+    def explain_batch(self, X: Any) -> list[dict[str, float]]:
+        """批量特征贡献分解
+
+        参数：
+            X: 输入数据，支持字典列表或 numpy 数组
+
+        返回：
+            list[dict[str, float]]: 批量评分拆解结果
         """
-        批量将 logit 贡献转换为 score 贡献
+        X_arr = self.inference.transform_batch(X)
 
-        参数:
-            contributions: logit 贡献字典列表
+        results = [self._explain_one(row) for row in X_arr]
 
-        返回:
-            score 贡献字典列表
-        """
-        if not contributions:
-            return []
-
-        return [self.logit_to_score(c) for c in contributions]
-
-    def score_to_logit(self, contribution: Dict[str, float]) -> Dict[str, float]:
-        """
-        将 score 贡献转换为 logit 贡献（反向转换）
-
-        参数:
-            contribution: 特征对评分的贡献字典
-
-        返回:
-            特征对 logit 的贡献字典
-        """
-        if not contribution:
-            return {}
-
-        result = {}
-
-        for k, v in contribution.items():
-            try:
-                if np.isfinite(v):
-                    result[k] = float(v / self.factor)
-            except Exception as e:
-                _logger.debug("反向转换特征 %s 失败: %s", k, e)
-                continue
-
-        return result
-
-    def score_to_logit_batch(
-        self,
-        contributions: List[Dict[str, float]]
-    ) -> List[Dict[str, float]]:
-        """
-        批量将 score 贡献转换为 logit 贡献
-
-        参数:
-            contributions: score 贡献字典列表
-
-        返回:
-            logit 贡献字典列表
-        """
-        if not contributions:
-            return []
-
-        return [self.score_to_logit(c) for c in contributions]
-
-    # ==================== 排序 / Reason Code ====================
-
-    @staticmethod
-    def top_features(
-        contribution: Dict[str, float],
-        top_k: int = 5,
-        reverse: bool = True
-    ) -> List[Tuple[str, float]]:
-        """
-        获取 Top K 特征（用于 Reason Code）
-
-        参数:
-            contribution: 贡献字典（可以是 logit 或 score 空间，建议用 score）
-            top_k: 返回前 K 个特征
-            reverse: True 表示按绝对值降序（影响最大优先），False 表示升序
-
-        返回:
-            特征名和贡献值的元组列表，格式 [(feature, contribution), ...]
-        """
-        if not contribution:
-            return []
-
-        items = sorted(
-            contribution.items(),
-            key=lambda x: abs(x[1]),
-            reverse=reverse
+        logger.debug(
+            "批量特征贡献分解完成 | 样本数=%d",
+            len(results),
         )
 
-        return items[:top_k]
-
-    @staticmethod
-    def top_features_by_impact(
-        contribution: Dict[str, float],
-        top_k: int = 5
-    ) -> Dict[str, List[Tuple[str, float]]]:
-        """
-        分别获取正向和负向的 Top K 特征
-
-        参数:
-            contribution: 贡献字典（建议用 score 空间）
-            top_k: 每类返回前 K 个
-
-        返回:
-            {
-                "positive": [(feature, contribution), ...],
-                "negative": [(feature, contribution), ...]
-            }
-        """
-        if not contribution:
-            return {"positive": [], "negative": []}
-
-        positive = [(k, v) for k, v in contribution.items() if v > 0]
-        negative = [(k, v) for k, v in contribution.items() if v < 0]
-
-        positive_sorted = sorted(positive, key=lambda x: x[1], reverse=True)[:top_k]
-        negative_sorted = sorted(negative, key=lambda x: abs(x[1]), reverse=True)[:top_k]
-
-        return {
-            "positive": positive_sorted,
-            "negative": negative_sorted
-        }
-
-    @staticmethod
-    def split_positive_negative(
-        contribution: Dict[str, float]
-    ) -> Dict[str, Dict[str, float]]:
-        """
-        拆分正负贡献（用于风控解释）
-
-        参数:
-            contribution: 贡献字典（建议用 score 空间）
-
-        返回:
-            {
-                "positive": {"feature": contribution, ...},
-                "negative": {"feature": contribution, ...}
-            }
-        """
-        positive = {}
-        negative = {}
-
-        for k, v in contribution.items():
-            if v > 0:
-                positive[k] = v
-            elif v < 0:
-                negative[k] = v
-
-        return {
-            "positive": positive,
-            "negative": negative
-        }
-
-    # ==================== 统计汇总 ====================
-
-    @staticmethod
-    def total_contribution(contribution: Dict[str, float]) -> float:
-        """
-        计算总贡献（验证用）
-
-        对于 score 空间的贡献，总和应等于 final_score - offset
-
-        参数:
-            contribution: 贡献字典
-
-        返回:
-            总贡献值
-        """
-        return sum(contribution.values())
-
-    @staticmethod
-    def contribution_summary(contribution: Dict[str, float]) -> Dict[str, float]:
-        """
-        获取贡献汇总统计
-
-        参数:
-            contribution: 贡献字典
-
-        返回:
-            {
-                "total": 总贡献,
-                "positive_sum": 正向贡献总和,
-                "negative_sum": 负向贡献总和,
-                "max_positive": 最大正向贡献,
-                "max_negative": 最大负向贡献（绝对值）
-            }
-        """
-        if not contribution:
-            return {
-                "total": 0.0,
-                "positive_sum": 0.0,
-                "negative_sum": 0.0,
-                "max_positive": 0.0,
-                "max_negative": 0.0
-            }
-
-        values = list(contribution.values())
-        positive_sum = sum(v for v in values if v > 0)
-        negative_sum = sum(v for v in values if v < 0)
-
-        return {
-            "total": sum(values),
-            "positive_sum": positive_sum,
-            "negative_sum": negative_sum,
-            "max_positive": max(values) if values else 0.0,
-            "max_negative": min(values) if values else 0.0
-        }
-
-    # ==================== 辅助方法 ====================
-
-    def get_factor(self) -> float:
-        """获取评分因子 B"""
-        return self.factor
-
-    def get_offset(self) -> float:
-        """获取评分偏移 A"""
-        return self.offset
-
-    def __repr__(self) -> str:
-        return (
-            f"ContributionConverter(factor={self.factor:.6f}, offset={self.offset:.6f})"
-        )
-
-
-# ==================== 便捷函数 ====================
-
-def logit_to_score(
-    contribution: Dict[str, float],
-    pdo: float = 50,
-    base_score: float = 600,
-    base_odds: float = 20
-) -> Dict[str, float]:
-    """
-    将 logit 贡献转换为 score 贡献（便捷函数）
-
-    参数:
-        contribution: logit 贡献字典
-        pdo: 分数翻倍点
-        base_score: 基准分数
-        base_odds: 基准 odds
-
-    返回:
-        score 贡献字典
-    """
-    from datamind.core.scoring.score import Score
-
-    score = Score(pdo=pdo, base_score=base_score, base_odds=base_odds)
-    converter = ContributionConverter(score)
-    return converter.logit_to_score(contribution)
-
-
-def top_features(
-    contribution: Dict[str, float],
-    top_k: int = 5
-) -> List[Tuple[str, float]]:
-    """
-    获取 Top K 特征（便捷函数）
-
-    参数:
-        contribution: 贡献字典（score 空间）
-        top_k: 返回前 K 个
-
-    返回:
-        特征名和贡献值的元组列表
-    """
-    if not contribution:
-        return []
-
-    items = sorted(
-        contribution.items(),
-        key=lambda x: abs(x[1]),
-        reverse=True
-    )
-
-    return items[:top_k]
+        return results

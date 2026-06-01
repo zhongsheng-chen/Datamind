@@ -26,71 +26,89 @@ class Version(Base, IdMixin, TimestampMixin):
     )
 
     version_id = Column(
-        String(64), nullable=False,
+        String(64),
+        nullable=False,
         comment="版本 ID，模型版本的唯一标识"
     )
     model_id = Column(
-        String(64), nullable=False,
+        String(64),
+        nullable=False,
         comment="模型 ID"
     )
     version = Column(
-        String(50), nullable=False,
+        String(50),
+        nullable=False,
         comment="版本号"
     )
     framework = Column(
-        String(50), nullable=False,
-        comment="框架类型，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow"
+        String(50),
+        nullable=False,
+        comment="框架类型，如 sklearn / xgboost / lightgbm / catboost"
     )
     status = Column(
-        String(20), nullable=False, server_default=text("'inactive'"),
+        String(20),
+        nullable=False,
+        server_default=text("'inactive'"),
         comment="状态，可选值：active / inactive / deprecated / archived"
     )
     bento_tag = Column(
-        String(100), nullable=False,
+        String(100),
+        nullable=False,
         comment="BentoML 标签，格式为 模型名:版本"
     )
     model_path = Column(
-        String(255), nullable=False,
+        String(255),
+        nullable=False,
         comment="模型文件存储路径"
     )
     storage_key = Column(
-        String(255), nullable=False,
+        String(255),
+        nullable=False,
         comment="存储键，模型文件在存储空间中的唯一标识"
     )
     params = Column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="模型参数，JSON 格式"
     )
     metrics = Column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="模型评估指标，JSON 格式"
     )
     description = Column(
-        Text, nullable=True,
+        Text,
+        nullable=True,
         comment="版本说明"
     )
     created_by = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="创建人"
     )
     updated_by = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="更新人"
     )
     deleted_at = Column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
         comment="删除时间"
     )
     deleted_by = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="删除人"
     )
     archived_at = Column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
         comment="归档时间"
     )
     archived_by = Column(
-        String(50), nullable=True,
+        String(50),
+        nullable=True,
         comment="归档人"
     )
 

@@ -6,7 +6,7 @@ from datamind.config import get_settings
 from datamind.audit import audit
 from datamind.logging import setup_logging
 from datamind.context.scope import context_scope
-from datamind.models.register import ModelRegister
+from datamind.services.register import ModelRegister
 
 
 register = ModelRegister()

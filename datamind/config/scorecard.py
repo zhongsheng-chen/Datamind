@@ -14,7 +14,7 @@
 环境变量：
   - DATAMIND_SCORECARD_BASE_SCORE: 基准分，默认 600.0
   - DATAMIND_SCORECARD_BASE_ODDS: 基准好坏比，默认 50.0
-  - DATAMIND_SCORECARD_PDO: 翻倍分，默认 50.0
+  - DATAMIND_SCORECARD_PDO: 翻倍分，默认 20.0
   - DATAMIND_SCORECARD_MIN_SCORE: 评分下限，默认 0
   - DATAMIND_SCORECARD_MAX_SCORE: 评分上限，默认 1000
 """
@@ -35,7 +35,7 @@ class ScorecardConfig(BaseSettings):
 
     base_score: float = 600.0
     base_odds: float = 50.0
-    pdo: float = 50.0
+    pdo: float = 20.0
     min_score: float = 0
     max_score: float = 1000
 

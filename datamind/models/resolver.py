@@ -117,4 +117,6 @@ class ModelResolver:
                 )
             return v
 
-        return None
+        raise VersionNotFoundError(
+            f"必须提供 version 或 version_id (model_id={model_id})"
+        )

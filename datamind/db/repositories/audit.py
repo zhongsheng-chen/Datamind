@@ -44,7 +44,11 @@ from datamind.db.repositories.base import BaseRepository
 class AuditRepository(BaseRepository):
     """审计日志访问器"""
 
-    async def list_entity_history(self, target_type: str, target_id: str) -> list[Audit]:
+    async def list_entity_history(
+        self,
+        target_type: str,
+        target_id: str,
+    ) -> list[Audit]:
         """获取某个实体的变更历史
 
         参数：
@@ -65,7 +69,10 @@ class AuditRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_failed_operations(self, limit: int = 100) -> list[Audit]:
+    async def list_failed_operations(
+        self,
+        limit: int = 100,
+    ) -> list[Audit]:
         """获取失败操作记录
 
         参数：
@@ -83,7 +90,11 @@ class AuditRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_user_actions(self, user: str, limit: int = 100) -> list[Audit]:
+    async def list_user_actions(
+        self,
+        user: str,
+        limit: int = 100,
+    ) -> list[Audit]:
         """获取用户操作记录
 
         参数：

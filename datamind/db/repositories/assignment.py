@@ -45,7 +45,10 @@ from datamind.db.repositories.base import BaseRepository
 class AssignmentRepository(BaseRepository):
     """分配记录访问器"""
 
-    async def get_assignment(self, request_id: str) -> Assignment | None:
+    async def get_assignment(
+        self,
+        request_id: str,
+    ) -> Assignment | None:
         """获取请求的分配结果
 
         参数：
@@ -58,7 +61,11 @@ class AssignmentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_model_assignments(self, model_id: str, limit: int = 100) -> list[Assignment]:
+    async def list_model_assignments(
+        self,
+        model_id: str,
+        limit: int = 100,
+    ) -> list[Assignment]:
         """获取模型分配记录
 
         参数：
@@ -77,7 +84,11 @@ class AssignmentRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_experiment_assignments(self, experiment_id: str, limit: int = 100) -> list[Assignment]:
+    async def list_experiment_assignments(
+        self,
+        experiment_id: str,
+        limit: int = 100,
+    ) -> list[Assignment]:
         """获取实验分配记录
 
         参数：
