@@ -2881,3 +2881,34 @@ if rollout_type in {"canary", "shadow"} and not rollout_group:
     raise InvalidRoutingConfigError(
         f"发布类型 '{rollout_type}' 必须指定发布分组"
     )
+
+
+## 创建部署
+
+$config = '{\"pdo\": 50, \"base_score\": 600}'
+
+python -m datamind.cli.main deploy create scorecard `
+  --version 1.0.0 `
+  --environment production `
+  --rollout full `
+  --config $config `
+  --description "创建部署" `
+  --owner admin
+
+
+## 分流
+Deploy（已完成）
+   ↓
+AB Experiment System（必须先做）
+   ↓
+Router（依赖 AB 结果）
+   ↓
+Traffic Split / Shadow / Canary
+
+
+
+核心模块：
+
+✔ experiment.py
+✔ assignment.py
+✔ policy.py

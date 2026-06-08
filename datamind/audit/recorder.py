@@ -23,7 +23,7 @@ import structlog
 from typing import Optional, Dict
 
 from datamind.context import get_context
-from datamind.context.keys import TRACE_ID, REQUEST_ID, SOURCE, USER, IP
+from datamind.context.keys import TRACE_ID, REQUEST_ID, SOURCE, USER, IP, HOSTNAME
 from datamind.audit.event import AuditEvent
 from datamind.audit.dispatcher import dispatch
 from datamind.audit.errors import AuditDispatchError
@@ -71,6 +71,7 @@ class AuditRecorder:
         source = ctx.get(SOURCE)
         user = ctx.get(USER)
         ip = ctx.get(IP)
+        hostname = ctx.get(HOSTNAME)
 
         if "." in action:
             resource, operation = action.split(".", 1)
@@ -90,6 +91,7 @@ class AuditRecorder:
             source=source,
             user=user,
             ip=ip,
+            hostname=hostname,
             before=before,
             after=after,
             context=ctx,

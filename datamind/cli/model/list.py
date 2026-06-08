@@ -35,22 +35,59 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_models(
-    status: str = typer.Option(None, "--status", help="状态"),
-    framework: str = typer.Option(None, "--framework", help="框架类型"),
-    model_type: str = typer.Option(None, "--model-type", help="模型类型"),
-    task_type: str = typer.Option(None, "--task-type", help="任务类型"),
-    owner: str = typer.Option(None, "--owner", help="创建人"),
-    output: str = typer.Option("table", "--format", help="输出格式：table/json"),
-    limit: int = typer.Option(10, "--limit", help="返回数量"),
-    offset: int = typer.Option(0, "--offset", help="分页偏移"),
+    status: str | None = typer.Option(
+        None,
+        "--status",
+        help="状态"
+    ),
+    framework: str | None = typer.Option(
+        None,
+        "--framework",
+        help="框架类型"
+    ),
+    model_type: str | None = typer.Option(
+        None,
+        "--model-type",
+        help="模型类型"
+    ),
+    task_type: str | None = typer.Option(
+        None,
+        "--task-type",
+        help="任务类型"
+    ),
+    owner: str | None = typer.Option(
+        None,
+        "--owner",
+        help="创建人"
+    ),
+    output: str = typer.Option(
+        "table",
+        "--format",
+        help="输出格式：table/json"
+    ),
+    limit: int = typer.Option(
+        10,
+        "--limit",
+        help="返回数量"
+    ),
+    offset: int = typer.Option(
+        0,
+        "--offset",
+        help="分页偏移"
+    ),
     include_archived: bool = typer.Option(
         False,
         "--include-archived",
         help="包含已归档的模型"
     ),
-    verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="显示调试日志"
+    ),
 ):
     """列出模型"""
+
     async def _run():
         filters = {
             "status": status,
@@ -161,7 +198,10 @@ def list_models(
             console.print(table)
 
     async def runner():
-        async with cli_context(verbose=verbose, enable_audit=False):
+        async with cli_context(
+                verbose=verbose,
+                enable_audit=False,
+        ):
             await _run()
 
     asyncio.run(runner())

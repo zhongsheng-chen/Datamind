@@ -98,7 +98,12 @@ class Audit(Base, IdMixin, TimestampMixin):
     ip = Column(
         String(64),
         nullable=True,
-        comment="操作者 IP"
+        comment="客户端 IP 地址"
+    )
+    hostname = Column(
+        String(128),
+        nullable=True,
+        comment="客户端主机名称"
     )
     status = Column(
         String(16),

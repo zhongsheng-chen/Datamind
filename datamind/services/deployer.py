@@ -46,9 +46,10 @@
 """
 
 import structlog
-from typing import Any
 
 from datamind.utils.generator import generate_random_id
+from datamind.config.classification import ClassificationConfig
+from datamind.config.scorecard import ScorecardConfig
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     MetadataRepository,
@@ -63,18 +64,11 @@ from datamind.models.errors import (
     InvalidDeploymentStateError,
 )
 
-from datamind.config.classification import ClassificationConfig
-from datamind.config.scorecard import ScorecardConfig
-
 logger = structlog.get_logger(__name__)
 
 
 class ModelDeployer:
     """模型部署器"""
-
-    def __init__(self) -> None:
-        """初始化模型部署器"""
-        self.logger = logger
 
     async def create_deployment(
         self,
@@ -90,7 +84,7 @@ class ModelDeployer:
         description: str | None = None,
         endpoint: str | None = None,
         deployed_by: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, str]:
         """创建部署
 
         参数：
@@ -112,67 +106,75 @@ class ModelDeployer:
         deployment_id = generate_random_id(prefix="dep")
 
         async with UnitOfWork() as uow:
-            metadata_repo = MetadataRepository(uow.session)
-            version_repo = VersionRepository(uow.session)
-            deployment_repo = DeploymentRepository(uow.session)
+            try:
+                metadata_repo = MetadataRepository(uow.session)
+                version_repo = VersionRepository(uow.session)
+                deployment_repo = DeploymentRepository(uow.session)
 
-            resolver = ModelResolver(
-                metadata_repo=metadata_repo,
-                version_repo=version_repo,
-            )
+                resolver = ModelResolver(
+                    metadata_repo=metadata_repo,
+                    version_repo=version_repo,
+                )
 
-            model = await resolver.resolve_model(
-                model_id=model_id,
-                name=name,
-            )
+                model = await resolver.resolve_model(
+                    model_id=model_id,
+                    name=name,
+                )
 
-            ver = await resolver.resolve_version(
-                model_id=model.model_id,
-                version_id=version_id,
-                version=version,
-            )
+                ver = await resolver.resolve_version(
+                    model_id=model.model_id,
+                    version_id=version_id,
+                    version=version,
+                )
 
-            self._validate_config(
-                task_type=model.task_type,
-                config=config,
-            )
+                self._validate_config(
+                    task_type=model.task_type,
+                    config=config,
+                )
 
-            deployment = deployment_repo.create_deployment(
-                deployment_id=deployment_id,
-                model_id=model.model_id,
-                version_id=ver.version_id,
-                framework=model.framework,
-                environment=environment,
-                rollout_type=rollout_type,
-                role=role,
-                config=config,
-                description=description,
-                endpoint=endpoint,
-                deployed_by=deployed_by,
-            )
+                deployment = deployment_repo.create_deployment(
+                    deployment_id=deployment_id,
+                    model_id=model.model_id,
+                    version_id=ver.version_id,
+                    framework=model.framework,
+                    environment=environment,
+                    rollout_type=rollout_type,
+                    role=role,
+                    config=config,
+                    description=description,
+                    endpoint=endpoint,
+                    deployed_by=deployed_by,
+                )
 
-            self.logger.info(
-                "创建部署成功",
-                deployment_id=deployment_id,
-                model_id=model.model_id,
-                version_id=ver.version_id,
-            )
+                logger.info(
+                    "创建部署成功",
+                    deployment_id=deployment_id,
+                    model_id=model.model_id,
+                    version_id=ver.version_id,
+                )
 
-            return {
-                "deployment_id": deployment.deployment_id,
-                "model_id": deployment.model_id,
-                "version_id": deployment.version_id,
-                "status": deployment.status,
-            }
+                return {
+                    "deployment_id": deployment.deployment_id,
+                    "model_id": deployment.model_id,
+                    "version_id": deployment.version_id,
+                    "environment": deployment.environment,
+                    "rollout_type": deployment.rollout_type,
+                    "role": deployment.role,
+                    "status": deployment.status,
+                }
 
-        return None
+            except Exception as e:
+                logger.exception("创建部署失败")
+                raise RuntimeError(f"创建部署失败：{e}") from e
+
+        raise RuntimeError("创建部署失败：事务未正常完成")
 
     async def enable_deployment(
         self,
         *,
         deployment_id: str,
         updated_by: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, str]:
         """启用部署
 
         参数：
@@ -203,24 +205,27 @@ class ModelDeployer:
                 updated_by=updated_by,
             )
 
-            self.logger.info(
+            logger.info(
                 "启用部署成功",
                 deployment_id=deployment_id,
             )
 
             return {
                 "deployment_id": deployment_id,
+                "model_id": deployment.model_id,
+                "version_id": deployment.version_id,
+                "environment": deployment.environment,
                 "status": deployment.status,
             }
 
-        return None
+        raise RuntimeError("启用部署失败：事务未正常完成")
 
     async def disable_deployment(
         self,
         *,
         deployment_id: str,
         updated_by: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, str]:
         """禁用部署
 
         参数：
@@ -251,17 +256,20 @@ class ModelDeployer:
                 updated_by=updated_by,
             )
 
-            self.logger.info(
+            logger.info(
                 "禁用部署成功",
                 deployment_id=deployment_id,
             )
 
             return {
                 "deployment_id": deployment_id,
+                "model_id": deployment.model_id,
+                "version_id": deployment.version_id,
+                "environment": deployment.environment,
                 "status": deployment.status,
             }
 
-        return None
+        raise RuntimeError("禁用部署失败：事务未正常完成")
 
     def _validate_config(
         self,

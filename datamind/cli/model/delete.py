@@ -8,11 +8,7 @@
   - delete_model: 删除模型
 
 使用示例：
-  python -m datamind.cli.main model delete scorecard
-  python -m datamind.cli.main model delete scorecard --version 1.0.0
-  python -m datamind.cli.main model delete scorecard --version 1.0.0 --purge
-  python -m datamind.cli.main model delete --model-id mdl_a1b2c3d4
-  python -m datamind.cli.main model delete scorecard --yes
+  python -m datamind.cli.main model delete scorecard --version 1.0.0 --yes
 """
 
 import asyncio
@@ -29,13 +25,45 @@ console = Console()
 
 @app.command("delete")
 def delete_model(
-    name: str = typer.Argument(None, help="模型名称（与 --model-id 二选一）"),
-    model_id: str = typer.Option(None, "--model-id", help="模型 ID"),
-    version: str = typer.Option(None, "--version", help="版本号（可选）"),
-    version_id: str = typer.Option(None, "--version-id", help="版本 ID（可选）"),
-    purge: bool = typer.Option(False, "--purge", help="是否执行硬删除"),
-    yes: bool = typer.Option(False, "--yes", help="跳过确认"),
-    verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
+    name: str | None = typer.Argument(
+        None,
+        help="模型名称"
+    ),
+    model_id: str | None = typer.Option(
+        None,
+        "--model-id",
+        help="模型 ID"
+    ),
+    version: str | None = typer.Option(
+        None,
+        "--version",
+        help="版本号（可选）"
+    ),
+    version_id: str | None = typer.Option(
+        None,
+        "--version-id",
+        help="版本 ID（可选）"
+    ),
+    operator: str = typer.Option(
+        "system",
+        "--operator",
+        help="操作人"
+    ),
+    purge: bool = typer.Option(
+        False,
+        "--purge",
+        help="是否执行硬删除"
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        help="跳过确认"
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="显示调试日志"
+    ),
 ):
     """删除模型"""
 
@@ -80,7 +108,12 @@ def delete_model(
         return result
 
     async def runner():
-        async with cli_context(verbose=verbose, enable_audit=True):
+        async with cli_context(
+                user=operator,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
+        ):
             await _run()
 
     asyncio.run(runner())

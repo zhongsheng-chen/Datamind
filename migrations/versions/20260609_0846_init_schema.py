@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: c0fac46cf547
+Revision ID: 49c6fa8d7c5b
 Revises: 
-Create Date: 2026-05-15 07:20:15.601332+00:00
+Create Date: 2026-06-09 08:46:13.949834+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'c0fac46cf547'
+revision = '49c6fa8d7c5b'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -64,7 +64,8 @@ def upgrade() -> None:
     sa.Column('trace_id', sa.String(length=64), nullable=True, comment='链路追踪 ID'),
     sa.Column('request_id', sa.String(length=64), nullable=True, comment='请求 ID，用于关联触发当前审计事件的请求'),
     sa.Column('user', sa.String(length=64), server_default='system', nullable=True, comment='操作者'),
-    sa.Column('ip', sa.String(length=64), nullable=True, comment='操作者 IP'),
+    sa.Column('ip', sa.String(length=64), nullable=True, comment='客户端 IP 地址'),
+    sa.Column('hostname', sa.String(length=128), nullable=True, comment='客户端主机名称'),
     sa.Column('status', sa.String(length=16), server_default=sa.text("'success'"), nullable=False, comment='操作状态，可选值：success / failed'),
     sa.Column('error', sa.TEXT(), nullable=True, comment='错误信息'),
     sa.Column('before', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='变更前数据，JSON 格式'),
@@ -89,28 +90,28 @@ def upgrade() -> None:
     sa.Column('deployment_id', sa.String(length=64), nullable=False, comment='部署 ID，部署实例的唯一标识'),
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('version_id', sa.String(length=64), nullable=False, comment='版本 ID'),
-    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，表示当前部署实例运行的模型框架，可选值 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow'),
-    sa.Column('status', sa.String(length=20), server_default=sa.text("'active'"), nullable=False, comment='部署状态，可选值：active / inactive'),
+    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，表示当前部署实例运行的模型框架，可选值 sklearn / xgboost / lightgbm / catboost'),
     sa.Column('environment', sa.String(length=20), server_default=sa.text("'production'"), nullable=False, comment='部署环境，可选值：production / staging / development / testing'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='部署状态，可选值：active / inactive'),
     sa.Column('rollout_type', sa.String(length=20), server_default=sa.text("'full'"), nullable=False, comment='发布类型，仅用于标识发布方式，可选值：full / canary / shadow'),
-    sa.Column('variant', sa.String(length=20), server_default=sa.text("'primary'"), nullable=False, comment='部署角色：primary / canary'),
-    sa.Column('traffic_ratio', sa.Float(), server_default=sa.text('1.0'), nullable=False, comment='流量占比，取值范围 0.0 ~ 1.0'),
+    sa.Column('role', sa.String(length=20), server_default=sa.text("'champion'"), nullable=False, comment='部署角色：champion / challenger / shadow'),
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
+    sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='运行时配置，JSON 格式'),
+    sa.Column('description', sa.Text(), nullable=True, comment='部署说明'),
+    sa.Column('endpoint', sa.String(length=500), nullable=True, comment='推理服务地址'),
     sa.Column('deployed_by', sa.String(length=50), nullable=True, comment='部署人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
-    sa.Column('description', sa.Text(), nullable=True, comment='部署说明'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
-    sa.CheckConstraint('traffic_ratio >= 0 AND traffic_ratio <= 1', name=op.f('ck_deployments_ck_traffic_ratio_range')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_deployments'))
     )
     op.create_index('idx_deployments_effective_time', 'deployments', ['model_id', 'effective_from', 'effective_to'], unique=False)
-    op.create_index('idx_deployments_environment_variant_status', 'deployments', ['environment', 'variant', 'status'], unique=False)
     op.create_index('idx_deployments_framework', 'deployments', ['framework'], unique=False)
     op.create_index('idx_deployments_model_id', 'deployments', ['model_id'], unique=False)
-    op.create_index('idx_deployments_model_version', 'deployments', ['model_id', 'version_id'], unique=False)
+    op.create_index('idx_deployments_model_id_environment_status', 'deployments', ['model_id', 'environment', 'status'], unique=False)
+    op.create_index('idx_deployments_model_id_version_id', 'deployments', ['model_id', 'version_id'], unique=False)
     op.create_index('uk_deployments_deployment_id', 'deployments', ['deployment_id'], unique=True)
     op.create_table('experiments',
     sa.Column('experiment_id', sa.String(length=64), nullable=False, comment='实验 ID，实验的唯一标识'),
@@ -139,7 +140,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=100), nullable=False, comment='模型名称，全局唯一业务标识'),
     sa.Column('model_type', sa.String(length=50), nullable=False, comment='模型类型，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost'),
     sa.Column('task_type', sa.String(length=50), nullable=False, comment='任务类型，可选值：classification / scoring'),
-    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值：sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow'),
+    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值：sklearn / xgboost / lightgbm / catboost'),
     sa.Column('description', sa.TEXT(), nullable=True, comment='模型描述'),
     sa.Column('input_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输入 Schema，JSON 格式'),
     sa.Column('output_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输出 Schema，JSON 格式'),
@@ -179,27 +180,32 @@ def upgrade() -> None:
     op.create_index('idx_requests_user', 'requests', ['user'], unique=False)
     op.create_table('routing',
     sa.Column('routing_id', sa.String(length=64), nullable=False, comment='路由 ID，路由的唯一标志'),
-    sa.Column('name', sa.String(length=100), nullable=True, comment='路由名称'),
-    sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
-    sa.Column('strategy', sa.String(length=20), nullable=False, comment='版本选择策略，可选值：random / consistent / bucket / weighted'),
-    sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='策略配置参数，JSON 格式'),
+    sa.Column('deployment_id', sa.String(length=64), nullable=False, comment='部署 ID'),
+    sa.Column('rollout_type', sa.String(length=20), server_default=sa.text("'full'"), nullable=False, comment='发布类型，仅用于标识发布方式，可选值：full / canary / shadow'),
+    sa.Column('rollout_group', sa.String(length=64), nullable=True, comment='发布分组'),
+    sa.Column('environment', sa.String(length=20), server_default=sa.text("'production'"), nullable=False, comment='路由环境'),
     sa.Column('enabled', sa.Boolean(), server_default=sa.text('true'), nullable=False, comment='是否启用'),
+    sa.Column('traffic_ratio', sa.Float(), server_default=sa.text('0'), nullable=False, comment='流量占比，取值范围 0.0 ~ 1.0'),
+    sa.Column('rules', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='路由规则配置，JSON 格式'),
+    sa.Column('description', sa.Text(), nullable=True, comment='路由说明'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint('traffic_ratio >= 0 AND traffic_ratio <= 1', name=op.f('ck_routing_ck_traffic_ratio_range')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_routing'))
     )
-    op.create_index('idx_routing_enabled', 'routing', ['enabled'], unique=False)
-    op.create_index('idx_routing_model_id', 'routing', ['model_id'], unique=False)
-    op.create_index('idx_routing_routing_id', 'routing', ['routing_id'], unique=True)
-    op.create_index('idx_routing_strategy', 'routing', ['strategy'], unique=False)
+    op.create_index('idx_routing_deployment_id', 'routing', ['deployment_id'], unique=False)
+    op.create_index('idx_routing_environment_enabled', 'routing', ['environment', 'enabled'], unique=False)
+    op.create_index('idx_routing_rollout_group_enabled', 'routing', ['rollout_group', 'enabled'], unique=False)
+    op.create_index('idx_routing_rollout_type_enabled', 'routing', ['rollout_type', 'enabled'], unique=False)
+    op.create_index('uk_routing_routing_id', 'routing', ['routing_id'], unique=True)
     op.create_table('versions',
     sa.Column('version_id', sa.String(length=64), nullable=False, comment='版本 ID，模型版本的唯一标识'),
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('version', sa.String(length=50), nullable=False, comment='版本号'),
-    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，如 sklearn / xgboost / lightgbm / catboost / torch / onnx / tensorflow'),
+    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，如 sklearn / xgboost / lightgbm / catboost'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
     sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，格式为 模型名:版本'),
     sa.Column('model_path', sa.String(length=255), nullable=False, comment='模型文件存储路径'),
@@ -237,10 +243,11 @@ def downgrade() -> None:
     op.drop_index('idx_versions_framework', table_name='versions')
     op.drop_index('idx_versions_created_at', table_name='versions')
     op.drop_table('versions')
-    op.drop_index('idx_routing_strategy', table_name='routing')
-    op.drop_index('idx_routing_routing_id', table_name='routing')
-    op.drop_index('idx_routing_model_id', table_name='routing')
-    op.drop_index('idx_routing_enabled', table_name='routing')
+    op.drop_index('uk_routing_routing_id', table_name='routing')
+    op.drop_index('idx_routing_rollout_type_enabled', table_name='routing')
+    op.drop_index('idx_routing_rollout_group_enabled', table_name='routing')
+    op.drop_index('idx_routing_environment_enabled', table_name='routing')
+    op.drop_index('idx_routing_deployment_id', table_name='routing')
     op.drop_table('routing')
     op.drop_index('idx_requests_user', table_name='requests')
     op.drop_index('idx_requests_source', table_name='requests')
@@ -264,10 +271,10 @@ def downgrade() -> None:
     op.drop_index('idx_experiments_created_at', table_name='experiments')
     op.drop_table('experiments')
     op.drop_index('uk_deployments_deployment_id', table_name='deployments')
-    op.drop_index('idx_deployments_model_version', table_name='deployments')
+    op.drop_index('idx_deployments_model_id_version_id', table_name='deployments')
+    op.drop_index('idx_deployments_model_id_environment_status', table_name='deployments')
     op.drop_index('idx_deployments_model_id', table_name='deployments')
     op.drop_index('idx_deployments_framework', table_name='deployments')
-    op.drop_index('idx_deployments_environment_variant_status', table_name='deployments')
     op.drop_index('idx_deployments_effective_time', table_name='deployments')
     op.drop_table('deployments')
     op.drop_index('uk_audit_audit_id', table_name='audit')

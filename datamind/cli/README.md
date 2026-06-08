@@ -135,7 +135,7 @@ datamind model register <name>
 | `--model-type <model-type>` | 模型类型，例如 logistic_regression、random_forest、xgboost |
 | `--task-type <task-type>` | 任务类型，例如 classification、scoring、regression |
 | `--description <text>` | 模型描述信息 |
-| `--owner <user>` | 创建人 / 负责人 |
+| `--owner <user>` | 创建人，默认 `system`  |
 | `--force` | 是否强制覆盖已有版本（存在则更新） |
 | `--format <format>` | 输出格式，table 或 json，默认 table |
 | `--verbose` | 是否输出调试日志 |
@@ -234,6 +234,7 @@ datamind model show scorecard
 ```bash
 datamind model delete (<name> | --model-id <model-id>)
   [--version <version> | --version-id <version-id>]
+  [--operator <user>]
   [--purge]
   [--yes]
   [--verbose]
@@ -247,6 +248,7 @@ datamind model delete (<name> | --model-id <model-id>)
 | `--model-id <model-id>` | 模型 ID |
 | `--version <version>` | 版本号（与 `--version-id` 二选一） |
 | `--version-id <version-id>` | 版本 ID |
+| `--operator <user>` | 操作人，默认 `system` |
 | `--purge` | 是否执行物理删除（默认执行归档删除） |
 | `--yes` | 跳过交互确认 |
 | `--verbose` | 显示调试日志 |
@@ -273,17 +275,22 @@ datamind model delete scorecard --version 1.0.0 --purge --yes
 ```
 
 ## 部署模型
+
 ### deploy list 命令
+
 #### 命令格式
+
 ```bash
 datamind deploy list
-  [<name> | --model-id <model-id>]
+  [--framework <framework>]
   [--environment <environment>]
-  [--rollout <full|canary|shadow>]
+  [--rollout-type <full|canary|shadow>]
+  [--role <champion|challenger>]
   [--status <status>]
-  [--version <version> | --version-id <version-id>]
-  [--limit <n>]
-  [--offset <n>]
+  [--deployed-by <user>]
+  [--exclude-status <status>]
+  [--limit <number>]
+  [--offset <number>]
   [--format <table|json>]
   [--verbose]
 ```
@@ -305,6 +312,7 @@ datamind deploy list
 | `--verbose` | 显示调试日志 |
 
 #### 使用示例
+
 ```bash
 datamind deploy list
 datamind deploy list --verbose
@@ -319,7 +327,9 @@ datamind deploy list --limit 50 --offset 100
 ```
 
 ### deploy show 命令
+
 #### 命令格式
+
 ```bash
 datamind deploy show <deployment-id>
   [--format <table|json>]
@@ -336,6 +346,7 @@ datamind deploy show <deployment-id>
 
 
 #### 使用示例
+
 ```bash
 datamind deploy show dep_a1b2c3d4
 datamind deploy show dep_123456 --format json
@@ -343,7 +354,9 @@ datamind deploy show dep_123456 --verbose
 ```
 
 ### deploy create 命令
+
 #### 命令格式
+
 ```bash
 datamind deploy create (<name> | --model-id <model-id>)
   --version <version> | --version-id <version-id>
@@ -377,6 +390,7 @@ datamind deploy create (<name> | --model-id <model-id>)
 
 
 #### config 示例
+
 ##### 评分任务
 ```json
 {
@@ -394,6 +408,7 @@ datamind deploy create (<name> | --model-id <model-id>)
 
 
 #### 使用示例
+
 ```bash
 # 创建全量部署
 datamind deploy create scorecard \
@@ -432,19 +447,28 @@ datamind deploy create scorecard \
 ```
 
 ### deploy enable 命令
+
 #### 命令格式
+
 ```bash
 datamind deploy enable <deployment-id>
+  [--operator <user>]
+  [--format <table|json>]
   [--verbose]
 ```
+
 #### 参数说明
+
 | 参数 | 说明 |
 |------|------|
 | `<deployment-id>` | 部署 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <table\|json>` | 输出格式，默认 `table` |
 | `--verbose` | 显示调试日志 |
 
 
 #### 使用示例
+
 ```bash
 
 # 启用部署
@@ -455,19 +479,28 @@ datamind deploy enable dep_a1b2c3d4 --verbose
 ```
 
 ### deploy disable 命令
+
 #### 命令格式
+
 ```bash
 datamind deploy disable <deployment-id>
+  [--operator <user>]
+  [--format <table|json>]
   [--verbose]
 ```
+
 #### 参数说明
+
 | 参数 | 说明 |
 |------|------|
 | `<deployment-id>` | 部署 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <table\|json>` | 输出格式，默认 `table` |
 | `--verbose` | 显示调试日志 |
 
 
 #### 使用示例
+
 ```bash
 
 # 禁用部署
@@ -476,7 +509,6 @@ datamind deploy disable dep_a1b2c3d4
 # 显示调试日志
 datamind deploy disable dep_a1b2c3d4 --verbose
 ```
-
 
 
 
@@ -534,38 +566,50 @@ datamind deploy promote <deployment-id>
 
 
 ## 列出版本
+
 ### model version list 命令
+
 #### 命令格式
+
 ```bash
 datamind model version list <name>
 ```
 
 #### 使用示例
+
 ```bash
 datamind model version list scorecard
 datamind model version list mdl_a1b2c3d4
 ```
 
 ### model version show 命令
+
 #### 命令格式
+
 ```bash
 datamind model version show <version-id>
 ```
 
 #### 使用示例
+
 ```bash
 datamind model version show ver_a1b2c3d4
 ```
 
 ## 删除版本
+
 ### model version delete 命令
+
 #### 命令格式
+
 ```bash
 datamind model version delete <version-id>
   [--purge]
   [--yes]
 ```
+
 #### 使用示例
+
 ```bash
 # 软删除（推荐默认）
 datamind model version delete ver_a1b2c3d4
@@ -588,6 +632,7 @@ datamind
  ├── experiment
  └── routing
 ```
+
 ```text
 datamind/cli/
 ├── __init__.py

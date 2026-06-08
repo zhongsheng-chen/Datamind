@@ -38,12 +38,35 @@ logger = structlog.get_logger(__name__)
 
 @app.command("show")
 def show_model(
-    name: str = typer.Argument(None, help="模型名称（与 --model-id 二选一）"),
-    model_id: str = typer.Option(None, "--model-id", help="模型 ID"),
-    version: str = typer.Option(None, "--version", help="版本号"),
-    version_id: str = typer.Option(None, "--version-id", help="版本 ID"),
-    output: str = typer.Option("table", "--format", help="输出格式：table/json"),
-    verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
+    name: str | None = typer.Argument(
+        None,
+        help="模型名称"
+    ),
+    model_id: str | None = typer.Option(
+        None,
+        "--model-id",
+        help="模型 ID"
+    ),
+    version: str | None = typer.Option(
+        None,
+        "--version",
+        help="版本号"
+    ),
+    version_id: str | None = typer.Option(
+        None,
+        "--version-id",
+        help="版本 ID"
+    ),
+    output: str = typer.Option(
+        "table",
+        "--format",
+        help="输出格式：table/json"
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="显示调试日志"
+    ),
 ):
     """查看模型详情"""
     async def _run():
@@ -120,7 +143,6 @@ def show_model(
                     version_count=len(versions),
                 )
 
-            # JSON 输出
             if output == "json":
                 result: dict[str, Any] = {
                     "model": {
@@ -171,10 +193,15 @@ def show_model(
                     model_id=model.model_id,
                 )
 
-                console.print_json(json.dumps(result, ensure_ascii=False, indent=2))
+                console.print_json(
+                    json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        indent=2
+                    )
+                )
                 return
 
-            # Table 输出
             table = Table(
                 box=box.ASCII,
                 show_header=False,
@@ -185,6 +212,7 @@ def show_model(
             table.add_column(style="cyan")
             table.add_column()
 
+            print(f"model.created_at:{model.created_at}")
             table.add_row("NAME", model.name)
             table.add_row("MODEL ID", model.model_id)
             table.add_row("STATUS", model.status)
@@ -260,7 +288,10 @@ def show_model(
             )
 
     async def runner():
-        async with cli_context(verbose=verbose, enable_audit=False):
+        async with cli_context(
+                verbose=verbose,
+                enable_audit=False,
+        ):
             await _run()
 
     asyncio.run(runner())

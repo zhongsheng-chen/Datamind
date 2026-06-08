@@ -130,8 +130,13 @@ class MetadataRepository(BaseRepository):
             exclude_status: 排除指定状态
             limit: 返回数量限制
             offset: 分页偏移
-            **filters: 过滤条件，支持 status、framework、model_type、task_type、created_by
-
+            **filters: 过滤条件
+                支持字段：
+                    model_type
+                    task_type
+                    framework
+                    status
+                    created_by
         返回：
             模型列表，按更新时间倒序排列
         """
