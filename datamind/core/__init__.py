@@ -1,30 +1,43 @@
-# Datamind/datamind/core/__init__.py
+# datamind/core/__init__.py
 
 """核心模块
 
-包含数据库、领域模型、机器学习、日志、实验等核心功能，是 Datamind 系统的核心业务层。
+提供 Datamind 的核心功能，包括模型适配、推理和评分。
 
-模块组成：
-  - db: 数据库模块，涵盖连接管理、会话管理、模型定义
-  - domain: 领域模型模块，涵盖枚举定义、兼容性验证
-  - ml: 机器学习模块，涵盖模型注册、加载、推理
-  - logging: 日志模块，涵盖日志管理、链路追踪、上下文管理
-  - experiment: 实验模块，涵盖A/B测试管理
+核心功能：
+    - model.adapters: 模型适配器，支持多种机器学习框架
+    - inference: 统一推理接口
+    - scoring: 评分卡相关功能
+
+使用示例：
+    from datamind.core import Inference, Scorer, ScoreTransformer
+
+    # 创建推理实例
+    inference = Inference(
+        model=model,
+        feature_names=["age", "income", "credit_score"],
+        data_types={"age": "numerical", "income": "numerical"},
+    )
+
+    # 预测概率
+    prob = inference.predict({"age": 30, "income": 50000})
+
+    # 创建评分器
+    scorer = Scorer(inference)
+    score = scorer.score({"age": 30, "income": 50000})
 """
 
-from datamind.core import (
-    db,
-    domain,
-    experiment,
-    logging,
-    model,
-)
+from datamind.core.inference import Inference
+from datamind.core.scoring import Scorer, ScoreTransformer, LRContrib
+from datamind.core.scoring.base import BaseScorer
+from datamind.core.capability import ModelCapability, ScorecardCapability
 
-__version__ = "1.0.0"
 __all__ = [
-    'db',
-    'domain',
-    'experiment',
-    'logging',
-    'scoring',
+    "Inference",
+    "BaseScorer",
+    "LRContrib",
+    "Scorer",
+    "ScoreTransformer",
+    "ModelCapability",
+    "ScorecardCapability",
 ]

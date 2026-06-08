@@ -63,6 +63,7 @@ class AuditWriter:
                 source=event.source,
                 user=event.user,
                 ip=event.ip,
+                hostname=event.hostname,
                 status=event.status,
                 error=event.error,
                 before=event.before,

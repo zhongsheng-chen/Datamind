@@ -49,6 +49,7 @@ async def dispatch(event: AuditEvent):
             source=event.source,
             user=event.user,
             ip=event.ip,
+            hostname=event.hostname,
         )
 
     except Exception as e:

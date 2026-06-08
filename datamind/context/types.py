@@ -13,8 +13,10 @@
   ctx: Context = {
       "trace_id": "trace-123",
       "request_id": "req-456",
+      "source": "api",
       "user": "admin",
       "ip": "192.168.1.100",
+      "hostname": "host",
   }
 """
 
@@ -25,12 +27,16 @@ class Context(TypedDict, total=False):
     """上下文字典类型
 
     属性：
-        trace_id: 链路追踪ID
-        request_id: 请求ID
+        trace_id: 链路追踪 ID
+        request_id: 请求 ID
+        source: 请求 ID
         user: 操作用户
-        ip: 客户端IP地址
+        ip: 客户端 IP 地址
+        hostname: 客户端名称
     """
     trace_id: str
     request_id: str
+    source: str
     user: str
     ip: str
+    hostname: str

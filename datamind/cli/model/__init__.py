@@ -2,7 +2,7 @@
 
 """模型管理命令
 
-提供模型及模型版本的管理能力。
+提供模型及模型版本的管理功能。
 
 命令组：
   - list: 列出模型
@@ -20,7 +20,7 @@ from datamind.cli.model.delete import app as delete_app
 
 
 app = typer.Typer(
-    help="模型管理"
+    help="模型管理命令"
 )
 
 app.add_typer(register_app)

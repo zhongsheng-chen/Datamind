@@ -43,7 +43,6 @@ def get_timezone() -> ZoneInfo:
     tz_name = os.getenv("TZ", "UTC")
     return ZoneInfo(tz_name)
 
-
 def to_utc(dt: datetime | None) -> datetime | None:
     """转换为 UTC 时间
 
@@ -60,7 +59,6 @@ def to_utc(dt: datetime | None) -> datetime | None:
         return dt.replace(tzinfo=timezone.utc)
 
     return dt.astimezone(timezone.utc)
-
 
 def to_local(dt: datetime | None) -> datetime | None:
     """转换为本地时间
@@ -81,7 +79,6 @@ def to_local(dt: datetime | None) -> datetime | None:
 
     return dt.astimezone(tz)
 
-
 def format_datetime(dt: datetime | None, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
     """格式化日期时间
 
@@ -96,7 +93,6 @@ def format_datetime(dt: datetime | None, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
         return "-"
 
     return to_local(dt).strftime(fmt)
-
 
 def format_iso_utc(dt: datetime | None) -> str | None:
     """格式化为 ISO 8601 UTC 时间（毫秒精度）

@@ -18,11 +18,12 @@
       target_id="mdl_001",
       status="success",
       error=None,
-      trace_id="trace-123",
-      request_id="req-456",
-      source="system",
+      trace_id="trace_123",
+      request_id="req_123",
+      source="http",
       user="admin",
       ip="192.168.1.100",
+      hostname="client"
       before=None,
       after={"name": "scorecard"},
       context={}
@@ -50,7 +51,8 @@ class AuditEvent:
         request_id: 请求ID
         source: 来源类型
         user: 操作用户
-        ip: 客户端IP
+        ip: 客户端 IP 地址
+        hostname: 客户端主机名称
         before: 变更前数据
         after: 变更后数据
         context: 操作上下文
@@ -69,6 +71,7 @@ class AuditEvent:
     source: Optional[str]
     user: Optional[str]
     ip: Optional[str]
+    hostname: Optional[str]
 
     before: Optional[Dict]
     after: Optional[Dict]

@@ -229,9 +229,8 @@ class ModelRegister:
                         model_type=model_type,
                         task_type=task_type,
                         framework=framework,
-                        # description=description,
-                        updated_by=created_by,
                     ),
+                    updated_by=created_by,
                 )
 
                 logger.debug(

@@ -6,8 +6,8 @@
 
 核心功能：
   - get_deployment: 获取部署记录
+  - list_deployments: 获取所有部署记录列表
   - list_active_deployments: 获取活跃部署记录列表
-  - list_traffic_deployments: 获取有流量的部署记录列表
   - create_deployment: 创建部署
   - update_deployment: 更新部署
   - activate_deployment: 启用部署
@@ -85,6 +85,56 @@ class DeploymentRepository(BaseRepository):
         stmt = select(Deployment).where(Deployment.deployment_id == deployment_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_deployments(
+            self,
+            *,
+            exclude_status: str | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
+    ) -> list[Deployment]:
+        """获取所有部署列表
+
+        参数：
+            exclude_status: 排除指定状态
+            limit: 返回数量限制
+            offset: 分页偏移
+            **filters: 过滤条件
+                支持字段：
+                    model_id
+                    version_id
+                    framework
+                    environment
+                    rollout_type
+                    role
+                    status
+                    deployed_by
+
+        返回：
+            部署列表，按创建时间倒序排列
+        """
+        stmt = select(Deployment)
+
+        if filters:
+            stmt = stmt.filter_by(**filters)
+
+        if exclude_status:
+            stmt = stmt.where(Deployment.status != exclude_status)
+
+        stmt = stmt.order_by(
+            Deployment.created_at.desc()
+        )
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        result = await self.session.execute(stmt)
+
+        return list(result.scalars().all())
 
     async def list_active_deployments(
             self,
@@ -164,6 +214,7 @@ class DeploymentRepository(BaseRepository):
             version_id=version_id,
             framework=framework,
             environment=environment,
+            status=DeploymentStatus.INACTIVE,
             rollout_type=rollout_type,
             role=role,
             effective_from=effective_from,
