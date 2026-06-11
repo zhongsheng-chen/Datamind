@@ -5,14 +5,13 @@
 提供模型元数据的查询与更新能力。
 
 核心功能：
-  - get_model: 获取单个模型（支持 model_id 或 name）
+  - get_model: 获取单个模型
   - list_active_models: 获取活跃模型列表
   - list_models: 获取模型列表
   - create_model: 创建模型
   - update_model: 更新模型
   - archive_model: 归档模型
   - activate_model: 激活模型
-  - deprecate_model: 废弃模型
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -46,7 +45,7 @@ class MetadataPatch:
     """模型元数据更新结构
 
     注意：
-        不允许通过 patch 修改 status（由生命周期方法控制）
+        不允许通过 patch 修改 status，由生命周期方法控制
 
     属性：
         name: 模型名称
@@ -54,16 +53,20 @@ class MetadataPatch:
         task_type: 任务类型
         framework: 框架类型
         description: 模型描述
-        input_schema: 输入 Schema
-        output_schema: 输出 Schema
+        deleted_at: 删除时间
+        deleted_by: 删除人
+        archived_at: 归档时间
+        archived_by: 归档人
     """
     name: str | None = None
     model_type: str | None = None
     task_type: str | None = None
     framework: str | None = None
     description: str | None = None
-    input_schema: dict | None = None
-    output_schema: dict | None = None
+    deleted_at: datetime | None = None
+    deleted_by: str | None = None
+    archived_at: datetime | None = None
+    archived_by: str | None = None
 
 
 class MetadataRepository(BaseRepository):
@@ -82,7 +85,7 @@ class MetadataRepository(BaseRepository):
             name: 模型名称（可选）
 
         返回：
-            模型对象，不存在时返回 None
+            模型元数据对象，不存在时返回 None
 
         异常：
             ValueError: model_id 和 name 同时提供或同时未提供
@@ -98,6 +101,7 @@ class MetadataRepository(BaseRepository):
             stmt = stmt.where(Metadata.name == name)
 
         result = await self.session.execute(stmt)
+
         return result.scalar_one_or_none()
 
     async def list_active_models(
@@ -114,6 +118,7 @@ class MetadataRepository(BaseRepository):
             .order_by(Metadata.updated_at.desc())
         )
         result = await self.session.execute(stmt)
+
         return list(result.scalars().all())
 
     async def list_models(
@@ -137,6 +142,7 @@ class MetadataRepository(BaseRepository):
                     framework
                     status
                     created_by
+
         返回：
             模型列表，按更新时间倒序排列
         """
@@ -160,6 +166,7 @@ class MetadataRepository(BaseRepository):
             stmt = stmt.limit(limit)
 
         result = await self.session.execute(stmt)
+
         return list(result.scalars().all())
 
     def create_model(
@@ -171,8 +178,6 @@ class MetadataRepository(BaseRepository):
         task_type: str,
         framework: str,
         description: str | None = None,
-        input_schema: dict | None = None,
-        output_schema: dict | None = None,
         created_by: str | None = None,
         updated_by: str | None = None,
     ) -> Metadata:
@@ -185,14 +190,11 @@ class MetadataRepository(BaseRepository):
             task_type: 任务类型
             framework: 框架类型
             description: 模型描述（可选）
-            input_schema: 输入 Schema（可选）
-            output_schema: 输出 Schema（可选）
-            status: 模型状态（默认 ACTIVE）
             created_by: 创建人（可选）
             updated_by: 更新人（可选）
 
         返回：
-            创建后的模型对象
+            创建后的模型元数据对象
         """
         obj = Metadata(
             model_id=model_id,
@@ -201,13 +203,12 @@ class MetadataRepository(BaseRepository):
             task_type=task_type,
             framework=framework,
             description=description,
-            input_schema=input_schema,
-            output_schema=output_schema,
             created_by=created_by,
             updated_by=updated_by,
         )
 
         self.add(obj)
+
         return obj
 
     def update_model(
@@ -220,34 +221,23 @@ class MetadataRepository(BaseRepository):
         """更新模型元数据
 
         参数：
-            model: 模型对象
+            metadata: 模型元数据对象
             patch: 更新内容
             updated_by: 更新人（可选）
 
         返回：
-            更新后的模型对象
-
-        注意：
-            - status 字段不允许通过 patch 修改，会被直接忽略
-            - patch 中为 None 的字段不会覆盖原值
+            更新后的模型元数据对象
         """
         for field in fields(MetadataPatch):
-            field_name = field.name
-
-            if field_name == "status":
-                continue
-
-            value = getattr(patch, field_name)
+            value = getattr(patch, field.name)
 
             if value is None:
                 continue
 
-            setattr(metadata, field_name, value)
+            setattr(metadata, field.name, value)
 
         if updated_by is not None:
             metadata.updated_by = updated_by
-
-        metadata.updated_at = datetime.now(timezone.utc)
 
         return metadata
 
@@ -260,16 +250,18 @@ class MetadataRepository(BaseRepository):
         """归档模型
 
         参数：
-            model: 模型对象
+            metadata: 模型元数据对象
             updated_by: 更新人（可选）
 
         返回：
-            归档后的模型对象
+            归档后的模型元数据对象
         """
         metadata.status = MetadataStatus.ARCHIVED
+        metadata.archived_at = datetime.now(timezone.utc)
 
         if updated_by:
             metadata.updated_by = updated_by
+            metadata.archived_by = updated_by
 
         return metadata
 
@@ -282,35 +274,13 @@ class MetadataRepository(BaseRepository):
         """激活模型
 
         参数：
-            metadata: 模型对象
+            metadata: 模型元数据对象
             updated_by: 更新人（可选）
 
         返回：
-            激活后的模型对象
+            激活后的模型元数据对象
         """
         metadata.status = MetadataStatus.ACTIVE
-
-        if updated_by:
-            metadata.updated_by = updated_by
-
-        return metadata
-
-    def deprecate_model(
-        self,
-        metadata: Metadata,
-        *,
-        updated_by: str | None = None,
-    ) -> Metadata:
-        """标记模型废弃
-
-        参数：
-            metadata: 模型对象
-            updated_by: 更新人（可选）
-
-        返回：
-            废弃后的模型对象
-        """
-        metadata.status = MetadataStatus.DEPRECATED
 
         if updated_by:
             metadata.updated_by = updated_by

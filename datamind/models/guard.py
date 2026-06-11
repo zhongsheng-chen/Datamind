@@ -19,6 +19,7 @@
       ExperimentStatus,
   )
 
+  # 状态迁移校验
   ModelGuard.validate_metadata_transition(
       current=MetadataStatus.ACTIVE,
       target=MetadataStatus.DEPRECATED,
@@ -38,6 +39,16 @@
   ModelGuard.validate_experiment_transition(
       current=ExperimentStatus.RUNNING,
       target=ExperimentStatus.PAUSED,
+  )
+
+  # 模型是否允许部署
+  ModelGuard.validate_model_deployable(
+      status=MetadataStatus.ACTIVE,
+  )
+
+  # 版本是否允许部署
+  ModelGuard.validate_version_deployable(
+      status=VersionStatus.ACTIVE,
   )
 """
 
@@ -218,4 +229,116 @@ class ModelGuard:
         if target not in allowed:
             raise InvalidExperimentStateError(
                 f"非法实验状态迁移: {current.value} -> {target.value}"
+            )
+
+    @classmethod
+    def validate_model_deployable(
+        cls,
+        status: MetadataStatus,
+    ) -> None:
+        """校验模型是否允许部署
+
+        参数：
+            status: 模型状态
+
+        异常：
+            InvalidModelStateError: 不允许部署
+        """
+        if status == MetadataStatus.ACTIVE:
+            return
+
+        if status == MetadataStatus.INACTIVE:
+            raise InvalidModelStateError("模型未激活，不允许部署")
+
+        if status == MetadataStatus.DEPRECATED:
+            raise InvalidModelStateError("模型已废弃，不允许部署")
+
+        if status == MetadataStatus.ARCHIVED:
+            raise InvalidModelStateError("模型已归档，不允许部署")
+
+    @classmethod
+    def validate_version_deployable(
+        cls,
+        status: VersionStatus,
+    ) -> None:
+        """校验版本是否允许部署
+
+        参数：
+            status: 版本状态
+
+        异常：
+            InvalidModelStateError: 不允许部署
+        """
+        if status == VersionStatus.ACTIVE:
+            return
+
+        if status == VersionStatus.INACTIVE:
+            raise InvalidModelStateError("版本未激活，不允许部署")
+
+        if status == VersionStatus.DEPRECATED:
+            raise InvalidModelStateError("版本已废弃，不允许部署")
+
+        if status == VersionStatus.ARCHIVED:
+            raise InvalidModelStateError("版本已归档，不允许部署")
+
+    @classmethod
+    def validate_enable_deployment(
+        cls,
+        *,
+        current: DeploymentStatus,
+        metadata_status: MetadataStatus,
+    ) -> None:
+        """校验是否允许启用部署
+
+        参数：
+            current: 当前部署状态
+            metadata_status: 模型元数据状态
+
+        异常：
+            InvalidDeploymentStateError: 不允许启用部署
+        """
+        if current == DeploymentStatus.ACTIVE:
+            return
+
+        if metadata_status != MetadataStatus.ACTIVE:
+            raise InvalidDeploymentStateError(
+                f"当前模型状态为 {metadata_status.value}，不允许启用部署"
+            )
+
+        allowed = cls._DEPLOYMENT_TRANSITIONS.get(current, set())
+
+        if DeploymentStatus.ACTIVE not in allowed:
+            raise InvalidDeploymentStateError(
+                f"非法部署状态迁移: {current.value} -> ACTIVE"
+            )
+
+    @classmethod
+    def validate_disable_deployment(
+        cls,
+        *,
+        current: DeploymentStatus,
+        metadata_status: MetadataStatus,
+    ) -> None:
+        """校验是否允许禁用部署
+
+        参数：
+            current: 当前部署状态
+            metadata_status: 模型元数据状态
+
+        异常：
+            InvalidDeploymentStateError: 不允许禁用部署
+        """
+        if current == DeploymentStatus.INACTIVE:
+            return
+
+        if metadata_status != MetadataStatus.ACTIVE:
+            raise InvalidDeploymentStateError(
+                f"当前模型状态为 {metadata_status.value}，不允许禁用部署"
+            )
+
+        allowed = cls._DEPLOYMENT_TRANSITIONS.get(current, set())
+
+        if DeploymentStatus.INACTIVE not in allowed:
+            raise InvalidDeploymentStateError(
+                f"非法部署状态迁移: {current.value} -> INACTIVE"
             )

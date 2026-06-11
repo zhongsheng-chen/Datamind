@@ -110,6 +110,7 @@ model register
 ## 注册模型
 ### model register 命令
 #### 命令格式
+
 ```bash
 datamind model register <name>
   --version <version>
@@ -117,11 +118,13 @@ datamind model register <name>
   --framework <framework>
   --model-type <model-type>
   --task-type <task-type>
-  [--description <text>]
-  [--owner <owner>]
-  [--force]
-  [--format <format>]
-  [--verbose]
+  --input-schema-file <file>
+  --output-schema-file <file>
+  --description <description>
+  --owner <owner>
+  --force
+  --format <format>
+  --verbose
 ```
 
 #### 参数说明
@@ -131,13 +134,15 @@ datamind model register <name>
 | `<name>` | 模型名称（业务唯一标识，例如 scorecard） |
 | `--version <version>` | 模型版本号，例如 1.0.0 |
 | `--model-path <path>` | 模型文件路径（本地或存储路径） |
-| `--framework <framework>` | 模型框架，例如 sklearn、xgboost、lightgbm、catboost、torch、tensorflow |
+| `--framework <framework>` | 模型框架，例如 `sklearn`、`xgboost`、`lightgbm`、`catboost` |
 | `--model-type <model-type>` | 模型类型，例如 logistic_regression、random_forest、xgboost |
-| `--task-type <task-type>` | 任务类型，例如 classification、scoring、regression |
-| `--description <text>` | 模型描述信息 |
-| `--owner <user>` | 创建人，默认 `system`  |
+| `--task-type <task-type>` | 任务类型，例如 `classification`、`scoring` |
+| `--input-schema-file <file>` | 输入 Schema 文件（JSON）|
+| `--output-schema-file <file>` | 输出 Schema 文件（JSON）|
+| `--description <description>` | 模型描述 |
+| `--owner <owner>` | 创建人/注册人，默认 `system` |
 | `--force` | 是否强制覆盖已有版本（存在则更新） |
-| `--format <format>` | 输出格式，table 或 json，默认 table |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
 | `--verbose` | 是否输出调试日志 |
 
 #### 使用示例
@@ -164,7 +169,9 @@ datamind model register scorecard \
 
 ## 列出模型
 ### model list 命令
+
 #### 命令格式
+
 ```bash
 datamind model list
   [--status <status>]
@@ -181,20 +188,21 @@ datamind model list
 
 #### 参数说明
 
-| 参数 | 说明                                        |
-|------|-------------------------------------------|
+| 参数 | 说明 |
+|------|------|
 | `--status <status>` | 按模型状态过滤，例如 `active`、`inactive`、`archived` |
-| `--framework <framework>` | 按模型框架过滤，例如 `sklearn`、`xgboost`、`pytorch`  |
-| `--model-type <model-type>` | 按模型类型过滤，例如 `batch`、`online`               |
-| `--task-type <task-type>` | 按任务类型过滤，例如 `classification`、`scoring`     |
-| `--owner <owner>` | 按创建人过滤                                    |
-| `--format <format>` | 输出格式，例如 `table` 或 `json`，默认 `table`       |
-| `--limit <n>` | 返回记录数量限制，用于分页，默认从起始位置返回指定数量               |
-| `--offset <n>` | 分页偏移量，跳过前 `n` 条记录后开始返回                    |
-| `--include-archived` | 包含已归档的模型，默认不显示                            |
-| `--verbose` | 显示调试日志                                    |
+| `--framework <framework>` | 按模型框架过滤，例如 `sklearn`、`xgboost`、`pytorch` |
+| `--model-type <model-type>` | 按模型类型过滤，例如 `batch`、`online` |
+| `--task-type <task-type>` | 按任务类型过滤，例如 `classification`、`scoring` |
+| `--owner <owner>` | 按创建人过滤 |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--limit <n>` | 返回记录数量限制，用于分页，默认从起始位置返回指定数量 |
+| `--offset <n>` | 分页偏移量，跳过前 `n` 条记录后开始返回 |
+| `--include-archived` | 包含已归档的模型，默认不显示 |
+| `--verbose` | 显示调试日志 |
 
 #### 使用示例
+
 ```bash
 datamind model list
 datamind model list --include-archived
@@ -204,11 +212,13 @@ datamind model list --limit 20 --offset 0
 
 ## 查看模型详情命令
 ### model show 命令
+
 #### 命令格式
+
 ```bash
 datamind model show (<name> | --model-id <model-id>)
   [--version <version> | --version-id <version-id>]
-  [--format <table|json>]
+  [--format <format>]
   [--verbose]
 ```
 
@@ -220,17 +230,82 @@ datamind model show (<name> | --model-id <model-id>)
 | `--model-id <model-id>` | 模型 ID |
 | `--version <version>` | 版本号（与 `--version-id` 二选一） |
 | `--version-id <version-id>` | 版本 ID |
-| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
 | `--verbose` | 显示调试日志 |
 
 #### 使用示例
+
 ```bash
 datamind model show scorecard
 ```
 
+## 激活模型命令
+### model activate 命令
+
+#### 命令格式
+
+```bash
+datamind model activate (<name> | --model-id <model-id>)
+  [--version <version> | --version-id <version-id>]
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<name>` | 模型名称（与 `--model-id` 二选一） |
+| `--model-id <model-id>` | 模型 ID |
+| `--version <version>` | 版本号（与 `--version-id` 二选一） |
+| `--version-id <version-id>` | 版本 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+datamind model activate scorecard --version 1.0.0 --operator admin
+```
+
+## 停用模型命令
+### model deactivate 命令
+
+#### 命令格式
+
+```bash
+datamind model deactivate (<name> | --model-id <model-id>)
+  [--version <version> | --version-id <version-id>]
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<name>` | 模型名称（与 `--model-id` 二选一） |
+| `--model-id <model-id>` | 模型 ID |
+| `--version <version>` | 版本号（与 `--version-id` 二选一） |
+| `--version-id <version-id>` | 版本 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+datamind model deactivate scorecard --version 1.0.0 --operator admin
+```
+
 ## 删除模型
 ### model delete 命令
+
 #### 命令格式
+
 ```bash
 datamind model delete (<name> | --model-id <model-id>)
   [--version <version> | --version-id <version-id>]
@@ -254,7 +329,8 @@ datamind model delete (<name> | --model-id <model-id>)
 | `--verbose` | 显示调试日志 |
 
 #### 使用示例
-```bash
+
+```bash id="model_delete_examples"
 # 删除模型（所有版本）
 datamind model delete scorecard
 
@@ -267,10 +343,7 @@ datamind model delete --model-id mdl_a1b2c3d4
 # 按版本 ID 删除（机器友好接口，不推荐用户使用）
 datamind model delete --version-id ver_a1b2c3d4
 
-# 强制物理删除，交互确认（推荐生产）
-datamind model delete scorecard --version 1.0.0 --purge
-
-# 强制删除模型，跳过确认
+# 强制物理删除，跳过确认
 datamind model delete scorecard --version 1.0.0 --purge --yes
 ```
 
@@ -291,7 +364,7 @@ datamind deploy list
   [--exclude-status <status>]
   [--limit <number>]
   [--offset <number>]
-  [--format <table|json>]
+  [--format <format>]
   [--verbose]
 ```
 
@@ -299,28 +372,28 @@ datamind deploy list
 
 | 参数 | 说明 |
 |------|------|
-| `<name>` | 模型名称（与 `--model-id` 二选一） |
-| `--model-id <model-id>` | 模型 ID |
+| `--framework <framework>` | 模型框架过滤，例如 `sklearn`、`xgboost`、`lightgbm` |
 | `--environment <environment>` | 部署环境，例如 `production`、`staging`、`development`、`testing` |
-| `--rollout <full\|canary\|shadow>` | 发布方式过滤 |
+| `--rollout-type <full|canary|shadow>` | 发布方式过滤 |
+| `--role <champion|challenger>` | 部署角色过滤 |
 | `--status <status>` | 部署状态，例如 `active`、`inactive` |
-| `--version <version>` | 模型版本号（与 `--version-id` 二选一） |
-| `--version-id <version-id>` | 模型版本 ID |
-| `--limit <n>` | 返回记录数限制，默认 `20` |
-| `--offset <n>` | 分页偏移量 |
-| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--deployed-by <user>` | 按部署人过滤 |
+| `--exclude-status <status>` | 排除指定状态 |
+| `--limit <number>` | 返回记录数限制，默认 `20` |
+| `--offset <number>` | 分页偏移量 |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
 | `--verbose` | 显示调试日志 |
 
 #### 使用示例
 
-```bash
+```bash id="deploy_list_examples"
 datamind deploy list
 datamind deploy list --verbose
 datamind deploy list fraud_model
 datamind deploy list fraud_model --version v1.0.0
 datamind deploy list --model-id mdl_a1b2c3d4
 datamind deploy list --environment production
-datamind deploy list --rollout canary
+datamind deploy list --rollout-type canary
 datamind deploy list --status active
 datamind deploy list --format json
 datamind deploy list --limit 50 --offset 100
@@ -332,7 +405,7 @@ datamind deploy list --limit 50 --offset 100
 
 ```bash
 datamind deploy show <deployment-id>
-  [--format <table|json>]
+  [--format <text|json>]
   [--verbose]
 ```
 
@@ -341,13 +414,12 @@ datamind deploy show <deployment-id>
 | 参数 | 说明 |
 |------|------|
 | `<deployment-id>` | 部署 ID |
-| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--format <text|json>` | 输出格式，默认 `text` |
 | `--verbose` | 显示调试日志 |
-
 
 #### 使用示例
 
-```bash
+```bash id="deploy_show_examples"
 datamind deploy show dep_a1b2c3d4
 datamind deploy show dep_123456 --format json
 datamind deploy show dep_123456 --verbose
@@ -360,16 +432,14 @@ datamind deploy show dep_123456 --verbose
 ```bash
 datamind deploy create (<name> | --model-id <model-id>)
   --version <version> | --version-id <version-id>
-  --environment <env>
-  --rollout <full|canary|shadow>
-  --strategy <fail|replace|upsert>
-  --config '<json>'
+  --environment <environment>
+  --rollout <rollout>
+  --config-file <file>
   [--description <text>]
   [--owner <user>]
-  [--format <table|json>]
+  [--format <format>]
   [--verbose]
 ```
-
 
 #### 参数说明
 
@@ -379,15 +449,25 @@ datamind deploy create (<name> | --model-id <model-id>)
 | `--model-id <model-id>` | 模型 ID |
 | `--version <version>` | 模型版本号（与 `--version-id` 二选一） |
 | `--version-id <version-id>` | 版本 ID |
-| `--environment <env>` | 部署环境，例如 `production` / `staging` / `development` / `testing` |
-| `--rollout <full\|canary\|shadow>` | 发布策略：full（全量发布）、canary（灰度发布）、shadow（影子发布） |
-| `--strategy <fail\|replace\|upsert>` | 冲突处理策略：fail（默认）、replace（替换旧 deployment）、upsert（存在则更新） |
-| `--config <json>` | 运行时配置（按 task_type 生效，如 scoring / classification 参数） |
+| `--environment <environment>` | 部署环境，例如 `production` / `staging` / `development` / `testing` |
+| `--rollout <rollout>` | 发布策略，例如`full`（全量发布） / `canary`（灰度发布） / `shadow`（影子发布） |
+| `--config-file <file>` | 运行时配置文件（JSON） |
 | `--description <text>` | 部署描述信息 |
 | `--owner <user>` | 创建人 / 负责人 |
-| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
 | `--verbose` | 是否输出调试日志 |
 
+#### 使用示例
+
+```bash id="deploy_create_file_examples"
+datamind deploy create scorecard \
+  --version 1.0.0 \
+  --environment production \
+  --rollout full \
+  --config-file config.json \
+  --description "信用评分模型生产部署" \
+  --owner admin
+```
 
 #### config 示例
 
@@ -453,7 +533,7 @@ datamind deploy create scorecard \
 ```bash
 datamind deploy enable <deployment-id>
   [--operator <user>]
-  [--format <table|json>]
+  [--format <text|json>]
   [--verbose]
 ```
 
@@ -463,7 +543,7 @@ datamind deploy enable <deployment-id>
 |------|------|
 | `<deployment-id>` | 部署 ID |
 | `--operator <user>` | 操作人，默认 `system` |
-| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--format <text\|json>` | 输出格式，默认 `text` |
 | `--verbose` | 显示调试日志 |
 
 
@@ -485,7 +565,7 @@ datamind deploy enable dep_a1b2c3d4 --verbose
 ```bash
 datamind deploy disable <deployment-id>
   [--operator <user>]
-  [--format <table|json>]
+  [--format <text|json>]
   [--verbose]
 ```
 
@@ -495,7 +575,7 @@ datamind deploy disable <deployment-id>
 |------|------|
 | `<deployment-id>` | 部署 ID |
 | `--operator <user>` | 操作人，默认 `system` |
-| `--format <table\|json>` | 输出格式，默认 `table` |
+| `--format <text|json>` | 输出格式，默认 `text` |
 | `--verbose` | 显示调试日志 |
 
 

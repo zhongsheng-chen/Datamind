@@ -5,8 +5,8 @@
 记录模型版本在不同环境中的部署信息，用于生成部署实例。
 """
 
-from sqlalchemy import Column, String, Text, DateTime, Index, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, DateTime, Index, text
+from sqlalchemy.dialects.postgresql import TEXT, JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -86,14 +86,9 @@ class Deployment(Base, IdMixin, TimestampMixin):
         comment="运行时配置，JSON 格式"
     )
     description = Column(
-        Text,
+        TEXT,
         nullable=True,
         comment="部署说明"
-    )
-    endpoint = Column(
-        String(500),
-        nullable=True,
-        comment="推理服务地址"
     )
     deployed_by = Column(
         String(50),

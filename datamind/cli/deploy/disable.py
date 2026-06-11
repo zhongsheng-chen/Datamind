@@ -42,7 +42,7 @@ def disable_deployment(
     output: str = typer.Option(
         "text",
         "--format",
-        help="输出格式：table/json"
+        help="输出格式：text/json"
     ),
     verbose: bool = typer.Option(
         False,

@@ -5,8 +5,8 @@
 存储模型的元数据信息，包含模型标识、类型、框架和状态等基础信息。
 """
 
-from sqlalchemy import Column, String, Index, text
-from sqlalchemy.dialects.postgresql import TEXT, JSONB
+from sqlalchemy import Column, String, Index, DateTime, text
+from sqlalchemy.dialects.postgresql import TEXT
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -56,21 +56,11 @@ class Metadata(Base, IdMixin, TimestampMixin):
         nullable=True,
         comment="模型描述"
     )
-    input_schema = Column(
-        JSONB,
-        nullable=True,
-        comment="输入 Schema，JSON 格式"
-    )
-    output_schema = Column(
-        JSONB,
-        nullable=True,
-        comment="输出 Schema，JSON 格式"
-    )
     status = Column(
         String(20),
         nullable=False,
         server_default=text("'inactive'"),
-        comment="状态，可选值：active / inactive / deprecated / archived"
+        comment="状态，可选值：active / inactive / archived"
     )
     created_by = Column(
         String(50),
@@ -81,6 +71,26 @@ class Metadata(Base, IdMixin, TimestampMixin):
         String(50),
         nullable=True,
         comment="更新人"
+    )
+    deleted_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="删除时间"
+    )
+    deleted_by = Column(
+        String(50),
+        nullable=True,
+        comment="删除人"
+    )
+    archived_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="归档时间"
+    )
+    archived_by = Column(
+        String(50),
+        nullable=True,
+        comment="归档人"
     )
 
     def __repr__(self):

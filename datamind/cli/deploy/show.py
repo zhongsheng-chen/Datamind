@@ -40,7 +40,7 @@ def show_deployment(
     output: str = typer.Option(
         "table",
         "--format",
-        help="输出格式：table/json"
+        help="输出格式：text/json"
     ),
     verbose: bool = typer.Option(
         False,

@@ -12,7 +12,7 @@
     --version 1.0.0 \
     --environment production \
     --rollout full \
-    --config '{"pdo": 50, "base_score": 600}' \
+    --config-file config.json \
     --owner admin
 """
 
@@ -34,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 @app.command("create")
 def create_deployment(
-    model: str | None = typer.Argument(
+    name: str | None = typer.Argument(
         None,
         help="模型名称"
     ),
@@ -68,10 +68,10 @@ def create_deployment(
         "--role",
         help="部署角色"
     ),
-    config: str | None = typer.Option(
+    config_file: str | None = typer.Option(
         None,
-        "--config",
-        help="运行时配置"
+        "--config-file",
+        help="运行时配置文件(JSON)"
     ),
     description: str | None = typer.Option(
         None,
@@ -86,7 +86,7 @@ def create_deployment(
     output: str = typer.Option(
         "text",
         "--format",
-        help="输出格式：table/json"
+        help="输出格式：text/json"
     ),
     verbose: bool = typer.Option(
         False,
@@ -102,41 +102,57 @@ def create_deployment(
         target_id_func=lambda p, r: r["deployment_id"],
     )
     async def _run():
+        if not (name or model_id):
+            raise typer.BadParameter("必须提供 <name> 或 --model-id")
+
+        if name and model_id:
+            raise typer.BadParameter("<name> 与 --model-id 只能指定一个")
+
+        if version and version_id:
+            raise typer.BadParameter("--version 与 --version-id 只能指定一个")
+
         logger.info(
             "开始创建部署",
-            model=model,
+            name=name,
             model_id=model_id,
             version=version,
             version_id=version_id,
             environment=environment,
             rollout=rollout,
             role=role,
+            config_file=config_file,
         )
 
-        deployer = ModelDeployer()
-
         cfg = None
-        if config:
+
+        if config_file:
             logger.debug(
-                "解析部署配置",
-                config=config,
+                "读取部署配置文件",
+                config_file=config_file,
             )
 
             try:
-                cfg = json.loads(config)
+                with open(config_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
 
                 logger.debug(
-                    "部署配置解析成功",
+                    "部署配置文件解析成功",
                     config=cfg,
                 )
 
-            except json.JSONDecodeError as e:
-                console.print(f"[red]config JSON 解析失败: {e}[/red]")
+            except FileNotFoundError:
+                console.print(f"[red]配置文件不存在: {config_file}[/red]")
                 raise typer.Exit(1)
 
+            except json.JSONDecodeError as e:
+                console.print(f"[red]config-file JSON 解析失败: {e}[/red]")
+                raise typer.Exit(1)
+
+        deployer = ModelDeployer()
+
         result = await deployer.create_deployment(
+            name=name,
             model_id=model_id,
-            name=model,
             version=version,
             version_id=version_id,
             environment=environment,
@@ -171,10 +187,10 @@ def create_deployment(
 
     async def runner():
         async with cli_context(
-                user=owner,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
+            user=owner,
+            source="cli",
+            verbose=verbose,
+            enable_audit=True,
         ):
             await _run()
 

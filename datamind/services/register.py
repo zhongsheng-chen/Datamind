@@ -18,14 +18,16 @@
       framework="sklearn",
       model_type="logistic_regression",
       task_type="scoring",
-      model_path="./models/scorecard.pkl",
+      model_path="scorecard.pkl",
       description="信用评分卡模型",
       created_by="system"
   )
 """
 
 import os
+import json
 import structlog
+from typing import Any
 from pathlib import Path
 
 from datamind.utils.generator import generate_id
@@ -34,10 +36,10 @@ from datamind.storage.resolver import StorageResolver
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.repositories import MetadataRepository, MetadataPatch, VersionRepository, VersionPatch
 from datamind.runtime.backend import BentoBackend
+from datamind.models.schema import SchemaExtractor
 from datamind.models.artifact import ModelArtifactLoader
-from datamind.models.guard import ModelGuard
 from datamind.models.enums import MetadataStatus, VersionStatus
-from datamind.models.errors import ArtifactError, ModelAlreadyExistsError
+from datamind.models.errors import ArtifactError, ModelAlreadyExistsError, InvalidModelStateError
 
 logger = structlog.get_logger(__name__)
 
@@ -59,11 +61,13 @@ class ModelRegister:
         task_type: str,
         model_path: str,
         description: str | None = None,
+        input_schema: dict | None = None,
+        output_schema: dict | None = None,
         params: dict | None = None,
         metrics: dict | None = None,
         created_by: str | None = None,
         force: bool = False,
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         """注册模型
 
         参数：
@@ -74,17 +78,29 @@ class ModelRegister:
             task_type: 任务类型
             model_path: 本地模型文件路径
             description: 模型描述（可选）
+            input_schema: 输入 Schema（可选）
+            output_schema: 输出 Schema（可选）
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             created_by: 创建人（可选）
             force: 是否强制覆盖已有版本（可选）
 
         返回：
-            包含 model_id、version、storage_key、storage_location、bento_tag 的字典
+            注册信息字典，包含：
+                - name
+                - model_id
+                - version
+                - version_id
+                - bento_tag
+                - model_key
+                - model_path
+                - input_schema_key
+                - output_schema_key
 
         异常：
             ArtifactError: 模型产物处理错误
-            ModelAlreadyExistsError: 模型已存在
+            ModelAlreadyExistsError: 模型版本已存在
+            InvalidModelStateError: 模型或版本状态不允许注册
         """
         model_id = generate_id(prefix="mdl", keys=(name,))
         version_id = generate_id(prefix="ver", keys=(model_id, version))
@@ -119,12 +135,11 @@ class ModelRegister:
                     status=existing_metadata.status,
                 )
 
-                current = MetadataStatus(existing_metadata.status)
+                current_metadata_status = MetadataStatus(existing_metadata.status)
 
-                if current != MetadataStatus.ARCHIVED:
-                    ModelGuard.validate_metadata_transition(
-                        current=current,
-                        target=MetadataStatus.ARCHIVED,
+                if current_metadata_status == MetadataStatus.ARCHIVED:
+                    raise InvalidModelStateError(
+                        f"模型已归档，不允许直接注册新版本: {name}"
                     )
 
             # 检查版本
@@ -137,15 +152,16 @@ class ModelRegister:
                 logger.warning(
                     "检测到重复版本，执行强制覆盖",
                     model_id=model_id,
+                    version_id=version_id,
                     version=version,
+                    status=existing_version.status,
                 )
 
-                current = VersionStatus(existing_version.status)
+                current_version_status = VersionStatus(existing_version.status)
 
-                if current != VersionStatus.ARCHIVED:
-                    ModelGuard.validate_version_transition(
-                        current=current,
-                        target=VersionStatus.ARCHIVED,
+                if current_version_status == VersionStatus.ARCHIVED:
+                    raise InvalidModelStateError(
+                        f"模型版本已归档，不允许覆盖: {name}:{version}"
                     )
 
             # 读取模型文件
@@ -159,19 +175,19 @@ class ModelRegister:
             logger.debug("模型文件读取成功")
 
             # 上传模型文件
-            storage_key = self.storage.save(
+            model_key = self.storage.save(
                 model_id=model_id,
                 version=version,
                 filename=filename,
                 data=data,
             )
 
-            storage_location = StorageResolver().resolve(storage_key)
+            resolved_model_path = StorageResolver().resolve(model_key)
 
             logger.debug(
                 "模型文件上传成功",
-                storage_key=storage_key,
-                storage_location=storage_location,
+                model_key=model_key,
+                model_path=resolved_model_path,
             )
 
             # 加载模型
@@ -185,6 +201,52 @@ class ModelRegister:
 
             logger.debug("模型文件加载成功", framework=framework)
 
+            # 提取 Schema
+            schema = SchemaExtractor.extract(
+                model=model,
+                framework=framework,
+            )
+
+            if schema is None:
+                logger.warning(
+                    "无法自动提取模型 Schema",
+                    framework=framework,
+                    model_id=model_id,
+                )
+
+            input_schema = input_schema or schema
+
+            logger.debug(
+                "模型 Schema 提取完成",
+                schema=input_schema,
+            )
+
+            input_schema_key = None
+            if input_schema is not None:
+                input_schema_key = self.storage.save(
+                    model_id=model_id,
+                    version=version,
+                    filename="input_schema.json",
+                    data=json.dumps(
+                        input_schema,
+                        ensure_ascii=False,
+                        indent=2,
+                    ).encode("utf-8"),
+                )
+
+            output_schema_key = None
+            if output_schema is not None:
+                output_schema_key = self.storage.save(
+                    model_id=model_id,
+                    version=version,
+                    filename="output_schema.json",
+                    data=json.dumps(
+                        output_schema,
+                        ensure_ascii=False,
+                        indent=2,
+                    ).encode("utf-8"),
+                )
+
             # 注册到 BentoML
             bento_model = self.backend.save(
                 name=name,
@@ -195,6 +257,7 @@ class ModelRegister:
                     "version_id": version_id,
                     "model_type": model_type,
                     "task_type": task_type,
+                    "framework": framework,
                     "version": version,
                 },
             )
@@ -247,8 +310,12 @@ class ModelRegister:
                     version=version,
                     framework=framework,
                     bento_tag=bento_tag,
-                    model_path=storage_location,
-                    storage_key=storage_key,
+                    model_path=resolved_model_path,
+                    model_key=model_key,
+                    input_schema=input_schema,
+                    output_schema=output_schema,
+                    input_schema_key=input_schema_key,
+                    output_schema_key=output_schema_key,
                     params=params,
                     metrics=metrics,
                     description=description,
@@ -268,8 +335,12 @@ class ModelRegister:
                     patch=VersionPatch(
                         framework=framework,
                         bento_tag=bento_tag,
-                        model_path=storage_location,
-                        storage_key=storage_key,
+                        model_path=resolved_model_path,
+                        model_key=model_key,
+                        input_schema=input_schema,
+                        output_schema=output_schema,
+                        input_schema_key=input_schema_key,
+                        output_schema_key=output_schema_key,
                         params=params,
                         metrics=metrics,
                         description=description,
@@ -292,11 +363,13 @@ class ModelRegister:
         )
 
         return {
-            "model_id": model_id,
-            "version_id": version_id,
             "name": name,
+            "model_id": model_id,
             "version": version,
+            "version_id": version_id,
             "bento_tag": bento_tag,
-            "storage_key": storage_key,
-            "model_path": storage_location,
+            "model_key": model_key,
+            "model_path": resolved_model_path,
+            "input_schema_key": input_schema_key,
+            "output_schema_key": output_schema_key,
         }

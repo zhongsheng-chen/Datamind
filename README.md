@@ -2912,3 +2912,52 @@ Traffic Split / Shadow / Canary
 ✔ experiment.py
 ✔ assignment.py
 ✔ policy.py
+
+
+deploy：只负责“部署记录（metadata）”
+runtime：只负责“真实模型服务（BentoML / serving）”
+service CLI：负责“把模型真正发布成可访问 endpoint 的服务”
+router/ab test：负责流量调度
+
+
+
+routing/
+├── router.py
+├── strategies/
+│   ├── full.py
+│   ├── canary.py
+│   ├── shadow.py
+│   └── abtest.py
+
+datamind/runtime/
+
+├── backend.py
+├── loader.py
+
+├── gateway.py
+├── router.py
+
+├── registry.py
+
+├── serving/
+│   ├── scoring_service.py
+│   └── classifier_service.py
+
+
+                    Datamind Gateway
+                           │
+                           ▼
+                     RuntimeRouter
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+      Full Route      Canary Route     Shadow Route
+          │                │                │
+          ▼                ▼                ▼
+      Deployment      Deployment      Deployment
+          │
+          ▼
+      ModelLoader
+          │
+          ▼
+       Scorer

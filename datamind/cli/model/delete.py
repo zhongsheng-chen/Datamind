@@ -98,9 +98,10 @@ def delete_model(
             version=version,
             version_id=version_id,
             purge=purge,
+            operator=operator,
         )
 
-        if version:
+        if result["action"] == "delete_version":
             console.print(f"版本 {result['version']} 删除完成")
         else:
             console.print(f"模型 {result['name']} 删除完成")

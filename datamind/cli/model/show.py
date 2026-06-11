@@ -8,9 +8,6 @@
   - show_model: 查看模型详情
 
 使用示例：
-  python -m datamind.cli.main model show scorecard
-  python -m datamind.cli.main model show --model-id mdl_a1b2c3d4
-  python -m datamind.cli.main model show scorecard --format json
   python -m datamind.cli.main model show scorecard --version 1.0.0
 """
 
@@ -60,7 +57,7 @@ def show_model(
     output: str = typer.Option(
         "table",
         "--format",
-        help="输出格式：table/json"
+        help="输出格式：text/json"
     ),
     verbose: bool = typer.Option(
         False,
@@ -168,7 +165,7 @@ def show_model(
                         "framework": target_version.framework,
                         "description": target_version.description,
                         "bento_tag": target_version.bento_tag,
-                        "storage_key": target_version.storage_key,
+                        "model_key": target_version.model_key,
                         "model_path": target_version.model_path,
                         "updated_at": format_iso_utc(target_version.updated_at),
                     }
@@ -181,7 +178,7 @@ def show_model(
                             "framework": v.framework,
                             "description": v.description,
                             "bento_tag": v.bento_tag,
-                            "storage_key": v.storage_key,
+                            "model_key": v.model_key,
                             "model_path": v.model_path,
                             "updated_at": format_iso_utc(v.updated_at),
                         }
@@ -212,7 +209,6 @@ def show_model(
             table.add_column(style="cyan")
             table.add_column()
 
-            print(f"model.created_at:{model.created_at}")
             table.add_row("NAME", model.name)
             table.add_row("MODEL ID", model.model_id)
             table.add_row("STATUS", model.status)
@@ -248,7 +244,7 @@ def show_model(
                 version_table.add_row("FRAMEWORK", target_version.framework)
                 version_table.add_row("DESCRIPTION", target_version.description or "-")
                 version_table.add_row("BENTO TAG", target_version.bento_tag)
-                version_table.add_row("STORAGE KEY", target_version.storage_key or "-")
+                version_table.add_row("MODEL KEY", target_version.model_key or "-")
                 version_table.add_row("MODEL PATH", target_version.model_path or "-")
 
                 console.print(version_table)

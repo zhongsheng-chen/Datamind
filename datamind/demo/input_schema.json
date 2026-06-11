@@ -1,0 +1,18 @@
+{
+  "feature_names": [
+    "age",
+    "income",
+    "gender",
+    "province",
+    "education"
+  ],
+  "data_types": {
+    "age": "numeric",
+    "income": "numeric",
+    "gender": "numeric",
+    "province": "numeric",
+    "education": "numeric"
+  },
+  "inferred": false,
+  "source": "manual"
+}

@@ -78,7 +78,7 @@ def list_deployments(
     output: str = typer.Option(
         "table",
         "--format",
-        help="输出格式：table/json"
+        help="输出格式：text/json"
     ),
     verbose: bool = typer.Option(
         False,

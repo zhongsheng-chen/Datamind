@@ -22,14 +22,14 @@
       repo = VersionRepository(uow.session)
 
       version = await repo.create_version(
-          version_id="ver_xxx",
-          model_id="mdl_xxx",
+          version_id="ver_a1b2c3d4",
+          model_id="mdl_a1b2c3d4",
           version="1.0.0",
           framework="sklearn",
           status="active",
-          bento_tag="scorecard:abc",
-          model_path="s3://xxx",
-          storage_key="models/xxx"
+          bento_tag="scorecard:abcdefgh",
+          model_path="s3://datamind/models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
+          model_key="models/mdl_a1b2c3d4/1.0.0/scorecard.pkl"
       )
 """
 
@@ -47,14 +47,18 @@ class VersionPatch:
     """模型版本更新结构
 
     注意：
-        不允许通过 patch 修改 status（由生命周期方法控制）
+        不允许通过 patch 修改 status，由生命周期方法控制
 
     属性：
         version: 版本号
         framework: 框架类型
+        input_schema: 输入 Schema
+        output_schema: 输出 Schema
         bento_tag: BentoML 标签
         model_path: 模型路径
-        storage_key: 存储键
+        model_key: 模型文件存储键
+        input_schema_key: 输入 Schema 文件存储键
+        output_schema_key: 输出 Schema 文件存储键
         params: 模型参数
         metrics: 评估指标
         description: 版本描述
@@ -65,15 +69,19 @@ class VersionPatch:
     """
     version: str | None = None
     framework: str | None = None
+    input_schema: dict | None = None
+    output_schema: dict | None = None
     bento_tag: str | None = None
     model_path: str | None = None
-    storage_key: str | None = None
+    model_key: str | None = None
+    input_schema_key: str | None = None
+    output_schema_key: str | None = None
     params: dict | None = None
     metrics: dict | None = None
     description: str | None = None
-    deleted_at: str | None = None
+    deleted_at: datetime | None = None
     deleted_by: str | None = None
-    archived_at: str | None = None
+    archived_at: datetime | None = None
     archived_by: str | None = None
 
 
@@ -94,6 +102,7 @@ class VersionRepository(BaseRepository):
         """
         stmt = select(Version).where(Version.version_id == version_id)
         result = await self.session.execute(stmt)
+
         return result.scalar_one_or_none()
 
     async def get_latest_version(
@@ -115,6 +124,7 @@ class VersionRepository(BaseRepository):
             .limit(1)
         )
         result = await self.session.execute(stmt)
+
         return result.scalar_one_or_none()
 
     async def list_versions(
@@ -135,6 +145,7 @@ class VersionRepository(BaseRepository):
             .order_by(Version.created_at.desc())
         )
         result = await self.session.execute(stmt)
+
         return list(result.scalars().all())
 
     def create_version(
@@ -146,7 +157,11 @@ class VersionRepository(BaseRepository):
         framework: str,
         bento_tag: str,
         model_path: str,
-        storage_key: str,
+        model_key: str,
+        input_schema: dict | None = None,
+        output_schema: dict | None = None,
+        input_schema_key: str | None = None,
+        output_schema_key: str | None = None,
         params: dict | None = None,
         metrics: dict | None = None,
         description: str | None = None,
@@ -161,7 +176,11 @@ class VersionRepository(BaseRepository):
             framework: 框架类型
             bento_tag: BentoML 标签
             model_path: 模型路径
-            storage_key: 存储键
+            model_key: 模型文件存储键
+            input_schema: 输入 Schema（可选）
+            output_schema: 输出 Schema（可选）
+            input_schema_key: 输入 Schema 文件存储键（可选）
+            output_schema_key: 输出 Schema 文件存储键（可选）
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             description: 版本描述（可选）
@@ -175,9 +194,13 @@ class VersionRepository(BaseRepository):
             model_id=model_id,
             version=version,
             framework=framework,
+            input_schema=input_schema,
+            output_schema=output_schema,
             bento_tag=bento_tag,
             model_path=model_path,
-            storage_key=storage_key,
+            model_key=model_key,
+            input_schema_key=input_schema_key,
+            output_schema_key=output_schema_key,
             params=params,
             metrics=metrics,
             description=description,
@@ -185,6 +208,7 @@ class VersionRepository(BaseRepository):
         )
 
         self.add(obj)
+
         return obj
 
     def update_version(
@@ -209,22 +233,15 @@ class VersionRepository(BaseRepository):
             - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(VersionPatch):
-            field_name = field.name
-
-            if field_name == "status":
-                continue
-
-            value = getattr(patch, field_name)
+            value = getattr(patch, field.name)
 
             if value is None:
                 continue
 
-            setattr(version, field_name, value)
+            setattr(version, field.name, value)
 
-        if updated_by:
+        if updated_by is not None:
             version.updated_by = updated_by
-
-        version.updated_at = datetime.now(timezone.utc)
 
         return version
 
@@ -232,21 +249,23 @@ class VersionRepository(BaseRepository):
         self,
         version: Version,
         *,
-        archived_by: str | None = None,
+        updated_by: str | None = None,
     ) -> Version:
         """归档版本
 
         参数：
             version: 版本对象
-            archived_by: 归档人（可选）
+            updated_by: 更新人（可选）
 
         返回：
             归档后的版本对象
         """
         version.status = VersionStatus.ARCHIVED
+        version.archived_at = datetime.now(timezone.utc)
 
-        if archived_by:
-            version.archived_by = archived_by
+        if updated_by:
+            version.updated_by = updated_by
+            version.archived_by = updated_by
 
         return version
 

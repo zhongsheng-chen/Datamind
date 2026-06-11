@@ -45,6 +45,9 @@ from datamind.models.enums import DeploymentStatus
 class DeploymentPatch:
     """部署更新结构
 
+    注意：
+        不允许通过 patch 修改 status，由生命周期方法控制
+
     属性：
         framework: 框架类型
         environment: 部署环境
@@ -54,7 +57,6 @@ class DeploymentPatch:
         effective_to: 生效结束时间
         config: 运行时配置
         description: 部署描述
-        endpoint: 推理服务地址
     """
     framework: str | None = None
     environment: str | None = None
@@ -64,7 +66,6 @@ class DeploymentPatch:
     effective_to: datetime | None = None
     config: dict | None = None
     description: str | None = None
-    endpoint: str | None = None
 
 
 class DeploymentRepository(BaseRepository):
@@ -84,6 +85,7 @@ class DeploymentRepository(BaseRepository):
         """
         stmt = select(Deployment).where(Deployment.deployment_id == deployment_id)
         result = await self.session.execute(stmt)
+
         return result.scalar_one_or_none()
 
     async def list_deployments(
@@ -169,6 +171,7 @@ class DeploymentRepository(BaseRepository):
             stmt = stmt.where(Deployment.environment == environment)
 
         result = await self.session.execute(stmt)
+
         return list(result.scalars().all())
 
     def create_deployment(
@@ -185,7 +188,6 @@ class DeploymentRepository(BaseRepository):
         effective_to: datetime | None = None,
         config: dict | None = None,
         description: str | None = None,
-        endpoint: str | None = None,
         deployed_by: str | None = None,
     ) -> Deployment:
         """创建部署
@@ -202,7 +204,6 @@ class DeploymentRepository(BaseRepository):
             effective_to: 生效结束时间（可选）
             config: 运行时配置（可选）
             description: 部署描述（可选）
-            endpoint: 推理服务地址（可选）
             deployed_by: 部署人（可选）
 
         返回：
@@ -221,11 +222,11 @@ class DeploymentRepository(BaseRepository):
             effective_to=effective_to,
             config=config,
             description=description,
-            endpoint=endpoint,
             deployed_by=deployed_by,
         )
 
         self.add(obj)
+
         return obj
 
     def update_deployment(
@@ -244,28 +245,17 @@ class DeploymentRepository(BaseRepository):
 
         返回：
             更新后的部署记录对象
-
-        注意：
-            - status 字段不允许通过 patch 修改，会被直接忽略
-            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(DeploymentPatch):
-            field_name = field.name
-
-            if field_name == "status":
-                continue
-
-            value = getattr(patch, field_name)
+            value = getattr(patch, field.name)
 
             if value is None:
                 continue
 
-            setattr(deployment, field_name, value)
+            setattr(deployment, field.name, value)
 
         if updated_by is not None:
             deployment.updated_by = updated_by
-
-        deployment.updated_at = datetime.now(timezone.utc)
 
         return deployment
 

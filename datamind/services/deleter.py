@@ -31,9 +31,15 @@
 import structlog
 import bentoml
 from typing import Any
+from datetime import datetime, timezone
 
 from datamind.db.core.uow import UnitOfWork
-from datamind.db.repositories import MetadataRepository, VersionRepository
+from datamind.db.repositories import (
+    MetadataPatch,
+    MetadataRepository,
+    VersionPatch,
+    VersionRepository,
+)
 from datamind.models.enums import MetadataStatus, VersionStatus
 from datamind.models.errors import ModelNotFoundError
 from datamind.models.resolver import ModelResolver
@@ -56,7 +62,8 @@ class ModelDeleter:
         version: str | None = None,
         version_id: str | None = None,
         purge: bool = False,
-    ) -> dict[str, str | bool | Any] | None:
+        operator: str | None = None,
+    ) -> dict[str, Any]:
         """删除模型或版本
 
         参数：
@@ -65,6 +72,7 @@ class ModelDeleter:
             version: 版本号（可选）
             version_id: 版本 ID（可选）
             purge: 是否硬删除，False 为软删除
+            operator: 操作人（可选）
 
         返回：
             删除结果字典
@@ -72,6 +80,8 @@ class ModelDeleter:
         异常：
             ModelNotFoundError: 模型不存在
         """
+        now = datetime.now(timezone.utc)
+
         async with UnitOfWork() as uow:
             session = uow.session
 
@@ -91,36 +101,40 @@ class ModelDeleter:
             if not metadata:
                 raise ModelNotFoundError("模型不存在")
 
-            target_version = await resolver.resolve_version(
-                model_id=metadata.model_id,
-                version_id=version_id,
-                version=version,
-            )
+            if version_id or version:
+                target_version = await resolver.resolve_version(
+                    model_id=metadata.model_id,
+                    version_id=version_id,
+                    version=version,
+                )
 
-            if target_version:
+                if not target_version:
+                    raise ModelNotFoundError("模型版本不存在")
+
                 logger.info(
-                    "删除版本",
+                    "删除模型版本",
                     model_id=metadata.model_id,
                     version_id=target_version.version_id,
                     purge=purge,
                 )
 
-                if target_version.status == VersionStatus.ARCHIVED:
-                    logger.warning("版本已归档，无需重复删除", version_id=target_version.version_id)
-
-                    return {
-                        "model_id": metadata.model_id,
-                        "name": metadata.name,
-                        "version_id": target_version.version_id,
-                        "version": target_version.version,
-                        "action": "delete_version",
-                        "purge": purge,
-                    }
-
                 if purge:
                     self._purge_version(target_version)
 
-                target_version.status = VersionStatus.ARCHIVED
+                version_repo.update_version(
+                    target_version,
+                    patch=VersionPatch(
+                        deleted_at=now,
+                        deleted_by=operator,
+                    ),
+                    updated_by=operator,
+                )
+
+                if target_version.status != VersionStatus.ARCHIVED:
+                    version_repo.archive_version(
+                        target_version,
+                        updated_by=operator,
+                    )
 
                 return {
                     "model_id": metadata.model_id,
@@ -137,59 +151,108 @@ class ModelDeleter:
                 purge=purge,
             )
 
-            if metadata.status == MetadataStatus.ARCHIVED:
-                logger.warning("模型已归档，无需重复删除", model_id=metadata.model_id)
+            version_count = await self._purge_all_versions(
+                session,
+                metadata.model_id,
+                purge=purge,
+                deleted_at=now,
+                operator=operator,
+            )
 
-                return {
-                    "model_id": metadata.model_id,
-                    "name": metadata.name,
-                    "action": "delete_model",
-                    "purge": purge,
-                }
+            metadata_repo.update_model(
+                metadata,
+                patch=MetadataPatch(
+                    deleted_at=now,
+                    deleted_by=operator,
+                ),
+                updated_by=operator,
+            )
 
-            if purge:
-                await self._purge_all_versions(session, metadata.model_id)
-
-            metadata.status = MetadataStatus.ARCHIVED
+            if metadata.status != MetadataStatus.ARCHIVED:
+                metadata_repo.archive_model(
+                    metadata,
+                    updated_by=operator,
+                )
 
             return {
                 "model_id": metadata.model_id,
                 "name": metadata.name,
+                "version_count": version_count,
                 "action": "delete_model",
                 "purge": purge,
             }
-        return None
 
-    def _purge_version(self, version) -> None:
+        raise RuntimeError("删除操作失败")
+
+    def _purge_version(
+            self,
+            version,
+    ) -> None:
         """硬删除版本
 
         参数：
             version: 版本对象
         """
         # 删除存储文件
-        if version.storage_key:
+        for key in (
+            version.model_key,
+            version.input_schema_key,
+            version.output_schema_key,
+        ):
+            if not key:
+                continue
+
             try:
                 self.storage.delete_by_key(
-                    key=version.storage_key,
+                    key=key,
                     strict=True,
                 )
-                logger.info("已删除存储文件", storage_key=version.storage_key)
+
+                logger.info(
+                    "已删除存储文件",
+                    key=key,
+                )
+
             except Exception as e:
-                logger.error("存储文件删除失败（中断操作）", error=str(e))
+                logger.error(
+                    "删除存储文件失败",
+                    key=key,
+                    error=str(e),
+                )
                 raise
 
         # 删除 BentoML 模型
+        if not version.bento_tag:
+            return
+
         try:
-            for m in bentoml.models.list():
-                if str(m.tag) == version.bento_tag:
-                    bentoml.models.delete(m.tag)
-                    logger.info("已删除 BentoML 模型", tag=str(m.tag))
+            for model in bentoml.models.list():
+                if str(model.tag) == version.bento_tag:
+                    bentoml.models.delete(model.tag)
+
+                    logger.info(
+                        "已删除 BentoML 模型",
+                        tag=version.bento_tag,
+                    )
                     break
+
         except Exception as e:
-            logger.error("BentoML 模型删除失败（中断操作）", error=str(e))
+            logger.error(
+                "删除 BentoML 模型失败",
+                tag=version.bento_tag,
+                error=str(e),
+            )
             raise
 
-    async def _purge_all_versions(self, session, model_id: str) -> None:
+    async def _purge_all_versions(
+        self,
+        session,
+        model_id: str,
+        *,
+        purge: bool,
+        deleted_at: datetime,
+        operator: str | None = None,
+    ) -> int:
         """硬删除模型的所有版本
 
         参数：
@@ -199,6 +262,23 @@ class ModelDeleter:
         repo = VersionRepository(session)
         versions = await repo.list_versions(model_id)
 
-        for v in versions:
-            self._purge_version(v)
-            v.status = VersionStatus.ARCHIVED
+        for version in versions:
+            if purge:
+                self._purge_version(version)
+
+            repo.update_version(
+                version,
+                patch=VersionPatch(
+                    deleted_at=deleted_at,
+                    deleted_by=operator,
+                ),
+                updated_by=operator,
+            )
+
+            if version.status != VersionStatus.ARCHIVED:
+                repo.archive_version(
+                    version,
+                    updated_by=operator,
+                )
+
+        return len(versions)

@@ -9,9 +9,6 @@
 
 使用示例：
   python -m datamind.cli.main model list
-  python -m datamind.cli.main model list --status active --framework sklearn
-  python -m datamind.cli.main model list --format json --limit 10
-  python -m datamind.cli.main model list --include-archived --verbose
 """
 
 import asyncio
@@ -63,7 +60,7 @@ def list_models(
     output: str = typer.Option(
         "table",
         "--format",
-        help="输出格式：table/json"
+        help="输出格式：text/json"
     ),
     limit: int = typer.Option(
         10,

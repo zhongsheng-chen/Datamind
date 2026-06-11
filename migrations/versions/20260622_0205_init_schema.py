@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 49c6fa8d7c5b
+Revision ID: a66c81f46069
 Revises: 
-Create Date: 2026-06-09 08:46:13.949834+00:00
+Create Date: 2026-06-22 02:05:35.870588+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = '49c6fa8d7c5b'
+revision = 'a66c81f46069'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -98,8 +98,7 @@ def upgrade() -> None:
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
     sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='运行时配置，JSON 格式'),
-    sa.Column('description', sa.Text(), nullable=True, comment='部署说明'),
-    sa.Column('endpoint', sa.String(length=500), nullable=True, comment='推理服务地址'),
+    sa.Column('description', sa.TEXT(), nullable=True, comment='部署说明'),
     sa.Column('deployed_by', sa.String(length=50), nullable=True, comment='部署人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
@@ -117,7 +116,7 @@ def upgrade() -> None:
     sa.Column('experiment_id', sa.String(length=64), nullable=False, comment='实验 ID，实验的唯一标识'),
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('name', sa.String(length=100), nullable=True, comment='实验名称'),
-    sa.Column('description', sa.Text(), nullable=True, comment='实验描述'),
+    sa.Column('description', sa.TEXT(), nullable=True, comment='实验描述'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'draft'"), nullable=False, comment='实验状态，可选值：draft / running / paused / stopped / completed'),
     sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='实验配置，JSON 格式。包含流量分配策略、实验变体及权重配置等，仅用于跟踪和调试'),
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
@@ -142,11 +141,13 @@ def upgrade() -> None:
     sa.Column('task_type', sa.String(length=50), nullable=False, comment='任务类型，可选值：classification / scoring'),
     sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值：sklearn / xgboost / lightgbm / catboost'),
     sa.Column('description', sa.TEXT(), nullable=True, comment='模型描述'),
-    sa.Column('input_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输入 Schema，JSON 格式'),
-    sa.Column('output_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输出 Schema，JSON 格式'),
-    sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / archived'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='删除时间'),
+    sa.Column('deleted_by', sa.String(length=50), nullable=True, comment='删除人'),
+    sa.Column('archived_at', sa.DateTime(timezone=True), nullable=True, comment='归档时间'),
+    sa.Column('archived_by', sa.String(length=50), nullable=True, comment='归档人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -187,7 +188,7 @@ def upgrade() -> None:
     sa.Column('enabled', sa.Boolean(), server_default=sa.text('true'), nullable=False, comment='是否启用'),
     sa.Column('traffic_ratio', sa.Float(), server_default=sa.text('0'), nullable=False, comment='流量占比，取值范围 0.0 ~ 1.0'),
     sa.Column('rules', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='路由规则配置，JSON 格式'),
-    sa.Column('description', sa.Text(), nullable=True, comment='路由说明'),
+    sa.Column('description', sa.TEXT(), nullable=True, comment='路由说明'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
@@ -206,13 +207,17 @@ def upgrade() -> None:
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('version', sa.String(length=50), nullable=False, comment='版本号'),
     sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，如 sklearn / xgboost / lightgbm / catboost'),
+    sa.Column('input_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输入 Schema，JSON 格式'),
+    sa.Column('output_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输出 Schema，JSON 格式'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
     sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，格式为 模型名:版本'),
     sa.Column('model_path', sa.String(length=255), nullable=False, comment='模型文件存储路径'),
-    sa.Column('storage_key', sa.String(length=255), nullable=False, comment='存储键，模型文件在存储空间中的唯一标识'),
+    sa.Column('model_key', sa.String(length=255), nullable=False, comment='模型文件存储键'),
+    sa.Column('input_schema_key', sa.String(length=255), nullable=True, comment='输入 Schema 文件存储键'),
+    sa.Column('output_schema_key', sa.String(length=255), nullable=True, comment='输出 Schema 文件存储键'),
     sa.Column('params', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='模型参数，JSON 格式'),
     sa.Column('metrics', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='模型评估指标，JSON 格式'),
-    sa.Column('description', sa.Text(), nullable=True, comment='版本说明'),
+    sa.Column('description', sa.TEXT(), nullable=True, comment='版本说明'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='删除时间'),
