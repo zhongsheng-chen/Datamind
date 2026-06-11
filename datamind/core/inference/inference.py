@@ -18,7 +18,7 @@
     inference = Inference(
         model=model,
         feature_names=["age", "income"],
-        data_types={"age": "numerical", "income": "numerical"},
+        data_types={"age": "numerical", "income": "numerical"}
     )
 
     # 单条预测

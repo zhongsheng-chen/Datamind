@@ -29,7 +29,8 @@
           target_id="mdl_a1b2c3d4",
           source="http",
           user="admin",
-          ip="127.0.0.1",
+          ip="192.168.1.100",
+          hostname="client",
           after={"name": "scorecard"}
       )
 """
@@ -127,6 +128,7 @@ class AuditRepository(BaseRepository):
         request_id: str | None = None,
         user: str | None = None,
         ip: str | None = None,
+        hostname: str | None = None,
         status: str = "success",
         error: str | None = None,
         before: dict | None = None,
@@ -147,7 +149,8 @@ class AuditRepository(BaseRepository):
             trace_id: 链路追踪 ID（可选）
             request_id: 请求 ID（可选）
             user: 操作用户（可选）
-            ip: 客户端IP（可选）
+            ip: 客户端 IP 地址（可选）
+            hostname: 客户端主机名称（可选）
             status: 操作状态
             error: 错误信息（可选）
             before: 变更前数据（可选）
@@ -170,6 +173,7 @@ class AuditRepository(BaseRepository):
             request_id=request_id,
             user=user,
             ip=ip,
+            hostname=hostname,
             status=status,
             error=error,
             before=before,

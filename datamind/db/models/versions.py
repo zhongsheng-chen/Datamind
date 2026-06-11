@@ -5,8 +5,8 @@
 存储模型版本信息，包含模型产物及其运行框架与状态信息。
 """
 
-from sqlalchemy import Column, String, Text, DateTime, Index, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, DateTime, Index, text
+from sqlalchemy.dialects.postgresql import TEXT, JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -45,6 +45,16 @@ class Version(Base, IdMixin, TimestampMixin):
         nullable=False,
         comment="框架类型，如 sklearn / xgboost / lightgbm / catboost"
     )
+    input_schema = Column(
+        JSONB,
+        nullable=True,
+        comment="输入 Schema，JSON 格式"
+    )
+    output_schema = Column(
+        JSONB,
+        nullable=True,
+        comment="输出 Schema，JSON 格式"
+    )
     status = Column(
         String(20),
         nullable=False,
@@ -61,10 +71,20 @@ class Version(Base, IdMixin, TimestampMixin):
         nullable=False,
         comment="模型文件存储路径"
     )
-    storage_key = Column(
+    model_key = Column(
         String(255),
         nullable=False,
-        comment="存储键，模型文件在存储空间中的唯一标识"
+        comment="模型文件存储键"
+    )
+    input_schema_key = Column(
+        String(255),
+        nullable=True,
+        comment="输入 Schema 文件存储键"
+    )
+    output_schema_key = Column(
+        String(255),
+        nullable=True,
+        comment="输出 Schema 文件存储键"
     )
     params = Column(
         JSONB,
@@ -77,7 +97,7 @@ class Version(Base, IdMixin, TimestampMixin):
         comment="模型评估指标，JSON 格式"
     )
     description = Column(
-        Text,
+        TEXT,
         nullable=True,
         comment="版本说明"
     )

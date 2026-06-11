@@ -34,10 +34,6 @@ FRAMEWORK_TO_BENTOML = {
     "xgboost": bentoml.xgboost,
     "lightgbm": bentoml.lightgbm,
     "catboost": bentoml.catboost,
-    "torch": bentoml.pytorch,
-    "pytorch": bentoml.pytorch,
-    "tensorflow": bentoml.tensorflow,
-    "onnx": bentoml.onnx,
 }
 
 

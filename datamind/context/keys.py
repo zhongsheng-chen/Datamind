@@ -5,19 +5,32 @@
 定义请求上下文中使用的标准字段名。
 
 核心功能：
-  - TRACE_ID: 链路追踪ID
-  - REQUEST_ID: 请求ID
-  - SOURCE: 来源类型
+  - TRACE_ID: 链路追踪 ID
+  - REQUEST_ID: 请求 ID
+  - SOURCE: 请求来源
   - USER: 操作用户
-  - IP: 客户端IP地址
+  - IP: 客户端 IP 地址
+  - HOSTNAME: 客户端主机名称
   - ALL_KEYS: 所有键的集合（用于校验和调试）
 
 使用示例：
-  from datamind.context.keys import TRACE_ID, REQUEST_ID, ALL_KEYS
+    from datamind.context.keys import (
+      TRACE_ID,
+      REQUEST_ID,
+      SOURCE,
+      USER,
+      IP,
+      HOSTNAME,
+      ALL_KEYS,
+  )
 
   context = {
-      TRACE_ID: "trace-123",
-      REQUEST_ID: "req-456",
+      TRACE_ID: "trace_123",
+      REQUEST_ID: "req_123",
+      SOURCE: "http",
+      USER: "admin",
+      IP: "192.168.1.100",
+      HOSTNAME: "client",
   }
 
   # 校验
@@ -29,6 +42,7 @@ REQUEST_ID = "request_id"
 SOURCE = "source"
 USER = "user"
 IP = "ip"
+HOSTNAME = "hostname"
 
 ALL_KEYS = {
     TRACE_ID: None,
@@ -36,4 +50,5 @@ ALL_KEYS = {
     SOURCE: None,
     USER: None,
     IP: None,
+    HOSTNAME: None,
 }

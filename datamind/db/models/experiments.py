@@ -5,8 +5,8 @@
 定义模型版本之间的可复现对比实验，用于在一致流量条件下进行模型效果验证。
 """
 
-from sqlalchemy import Column, String, Text, DateTime, Index, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, DateTime, Index, text
+from sqlalchemy.dialects.postgresql import TEXT, JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -41,7 +41,7 @@ class Experiment(Base, IdMixin, TimestampMixin):
         comment="实验名称"
     )
     description = Column(
-        Text,
+        TEXT,
         nullable=True,
         comment="实验描述"
     )

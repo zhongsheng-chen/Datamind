@@ -48,6 +48,9 @@ from datamind.models.enums import ExperimentStatus
 class ExperimentPatch:
     """实验更新结构
 
+    注意：
+        不允许通过 patch 修改 status，由生命周期方法控制
+
     属性：
         name: 实验名称
         description: 实验描述
@@ -178,25 +181,17 @@ class ExperimentRepository(BaseRepository):
 
         返回：
             更新后的实验对象
-
-        注意：
-            - status 字段不允许通过 patch 修改，会被直接忽略
-            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(ExperimentPatch):
-            field_name = field.name
-
-            if field_name == "status":
-                continue
-
-            value = getattr(patch, field_name)
+            value = getattr(patch, field.name)
 
             if value is None:
                 continue
 
-            setattr(experiment, field_name, value)
+            setattr(experiment, field.name, value)
 
-        experiment.updated_at = datetime.now(timezone.utc)
+        if updated_by is not None:
+            experiment.updated_by = updated_by
 
         return experiment
 

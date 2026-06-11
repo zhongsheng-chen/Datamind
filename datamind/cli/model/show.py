@@ -8,9 +8,6 @@
   - show_model: 查看模型详情
 
 使用示例：
-  python -m datamind.cli.main model show scorecard
-  python -m datamind.cli.main model show --model-id mdl_a1b2c3d4
-  python -m datamind.cli.main model show scorecard --format json
   python -m datamind.cli.main model show scorecard --version 1.0.0
 """
 
@@ -38,12 +35,35 @@ logger = structlog.get_logger(__name__)
 
 @app.command("show")
 def show_model(
-    name: str = typer.Argument(None, help="模型名称（与 --model-id 二选一）"),
-    model_id: str = typer.Option(None, "--model-id", help="模型 ID"),
-    version: str = typer.Option(None, "--version", help="版本号"),
-    version_id: str = typer.Option(None, "--version-id", help="版本 ID"),
-    output: str = typer.Option("table", "--format", help="输出格式：table/json"),
-    verbose: bool = typer.Option(False, "--verbose", help="显示调试日志"),
+    name: str | None = typer.Argument(
+        None,
+        help="模型名称"
+    ),
+    model_id: str | None = typer.Option(
+        None,
+        "--model-id",
+        help="模型 ID"
+    ),
+    version: str | None = typer.Option(
+        None,
+        "--version",
+        help="版本号"
+    ),
+    version_id: str | None = typer.Option(
+        None,
+        "--version-id",
+        help="版本 ID"
+    ),
+    output: str = typer.Option(
+        "table",
+        "--format",
+        help="输出格式：text/json"
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="显示调试日志"
+    ),
 ):
     """查看模型详情"""
     async def _run():
@@ -120,7 +140,6 @@ def show_model(
                     version_count=len(versions),
                 )
 
-            # JSON 输出
             if output == "json":
                 result: dict[str, Any] = {
                     "model": {
@@ -146,7 +165,7 @@ def show_model(
                         "framework": target_version.framework,
                         "description": target_version.description,
                         "bento_tag": target_version.bento_tag,
-                        "storage_key": target_version.storage_key,
+                        "model_key": target_version.model_key,
                         "model_path": target_version.model_path,
                         "updated_at": format_iso_utc(target_version.updated_at),
                     }
@@ -159,7 +178,7 @@ def show_model(
                             "framework": v.framework,
                             "description": v.description,
                             "bento_tag": v.bento_tag,
-                            "storage_key": v.storage_key,
+                            "model_key": v.model_key,
                             "model_path": v.model_path,
                             "updated_at": format_iso_utc(v.updated_at),
                         }
@@ -171,10 +190,15 @@ def show_model(
                     model_id=model.model_id,
                 )
 
-                console.print_json(json.dumps(result, ensure_ascii=False, indent=2))
+                console.print_json(
+                    json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        indent=2
+                    )
+                )
                 return
 
-            # Table 输出
             table = Table(
                 box=box.ASCII,
                 show_header=False,
@@ -220,7 +244,7 @@ def show_model(
                 version_table.add_row("FRAMEWORK", target_version.framework)
                 version_table.add_row("DESCRIPTION", target_version.description or "-")
                 version_table.add_row("BENTO TAG", target_version.bento_tag)
-                version_table.add_row("STORAGE KEY", target_version.storage_key or "-")
+                version_table.add_row("MODEL KEY", target_version.model_key or "-")
                 version_table.add_row("MODEL PATH", target_version.model_path or "-")
 
                 console.print(version_table)
@@ -260,7 +284,10 @@ def show_model(
             )
 
     async def runner():
-        async with cli_context(verbose=verbose, enable_audit=False):
+        async with cli_context(
+                verbose=verbose,
+                enable_audit=False,
+        ):
             await _run()
 
     asyncio.run(runner())

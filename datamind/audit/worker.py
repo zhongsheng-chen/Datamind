@@ -76,6 +76,7 @@ async def _write(event) -> None:
                 source=event.source,
                 user=event.user,
                 ip=event.ip,
+                hostname=event.hostname,
             )
             return
 
@@ -95,6 +96,7 @@ async def _write(event) -> None:
                     source=event.source,
                     user=event.user,
                     ip=event.ip,
+                    hostname=event.hostname,
                     exc_info=True,
                 )
                 return
@@ -114,6 +116,7 @@ async def _write(event) -> None:
                 source=event.source,
                 user=event.user,
                 ip=event.ip,
+                hostname=event.hostname,
             )
 
             await asyncio.sleep(delay)
@@ -150,6 +153,7 @@ async def audit_worker():
                 source=event.source,
                 user=event.user,
                 ip=event.ip,
+                hostname=event.hostname,
             )
 
         except asyncio.TimeoutError:

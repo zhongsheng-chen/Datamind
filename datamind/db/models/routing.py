@@ -6,8 +6,8 @@
 """
 
 from sqlalchemy import CheckConstraint
-from sqlalchemy import Column, String, Text, Float, Boolean, Index, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, Float, Boolean, Index, text
+from sqlalchemy.dialects.postgresql import TEXT, JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -74,7 +74,7 @@ class Routing(Base, IdMixin, TimestampMixin):
         comment="路由规则配置，JSON 格式"
     )
     description = Column(
-        Text,
+        TEXT,
         nullable=True,
         comment="路由说明"
     )
