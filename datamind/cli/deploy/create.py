@@ -111,6 +111,9 @@ def create_deployment(
         if version and version_id:
             raise typer.BadParameter("--version 与 --version-id 只能指定一个")
 
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
+
         logger.info(
             "开始创建部署",
             name=name,

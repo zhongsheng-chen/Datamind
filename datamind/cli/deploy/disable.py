@@ -13,7 +13,6 @@
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich.console import Console
@@ -58,6 +57,9 @@ def disable_deployment(
         target_id_func=lambda p, r: r["deployment_id"],
     )
     async def _run():
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
+
         logger.info(
             "开始禁用部署",
             deployment_id=deployment_id,

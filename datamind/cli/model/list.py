@@ -58,7 +58,7 @@ def list_models(
         help="创建人"
     ),
     output: str = typer.Option(
-        "table",
+        "text",
         "--format",
         help="输出格式：text/json"
     ),
@@ -86,6 +86,15 @@ def list_models(
     """列出模型"""
 
     async def _run():
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
+
+        if limit <= 0:
+            raise typer.BadParameter("--limit 必须大于 0")
+
+        if offset < 0:
+            raise typer.BadParameter("--offset 不能小于 0")
+
         filters = {
             "status": status,
             "framework": framework,
@@ -183,7 +192,7 @@ def list_models(
                     m.model_id,
                     m.status,
                     m.framework,
-                    format_datetime(m.updated_at)
+                    format_datetime(m.updated_at),
                 )
 
             logger.info(

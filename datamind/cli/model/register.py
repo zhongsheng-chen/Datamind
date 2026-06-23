@@ -107,6 +107,9 @@ def register_model(
         target_id_func=lambda p, r: r["model_id"],
     )
     async def _run():
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
+
         input_schema = None
 
         if input_schema_file:

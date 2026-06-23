@@ -9,9 +9,6 @@
 
 使用示例：
   python -m datamind.cli.main deploy list
-  python -m datamind.cli.main deploy list --environment production --framework sklearn
-  python -m datamind.cli.main deploy list --role champion --rollout full
-  python -m datamind.cli.main deploy list --format json --limit 10
 """
 
 import asyncio
@@ -62,7 +59,7 @@ def list_deployments(
     ),
     deployed_by: str | None = typer.Option(
         None,
-        "--deployed_by",
+        "--deployed-by",
         help="部署人"
     ),
     limit: int = typer.Option(
@@ -76,7 +73,7 @@ def list_deployments(
         help="分页偏移"
     ),
     output: str = typer.Option(
-        "table",
+        "text",
         "--format",
         help="输出格式：text/json"
     ),
@@ -89,6 +86,14 @@ def list_deployments(
     """列出部署"""
 
     async def _run():
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
+
+        if limit <= 0:
+            raise typer.BadParameter("--limit 必须大于 0")
+
+        if offset < 0:
+            raise typer.BadParameter("--offset 不能小于 0")
 
         filters = {
             "framework": framework,
@@ -130,6 +135,7 @@ def list_deployments(
                     "rollout_type": d.rollout_type,
                     "role": d.role,
                     "status": d.status,
+                    "deployed_by": d.deployed_by,
                     "created_at": format_iso_utc(d.created_at),
                     "updated_at": format_iso_utc(d.updated_at),
                 })
@@ -145,7 +151,7 @@ def list_deployments(
             logger.info(
                 "部署列表输出完成",
                 count=len(deployments),
-                output="json",
+                output=output,
             )
             return
 
@@ -193,7 +199,7 @@ def list_deployments(
         logger.info(
             "部署列表输出完成",
             count=len(deployments),
-            output="table",
+            output=output,
         )
 
     async def runner():
