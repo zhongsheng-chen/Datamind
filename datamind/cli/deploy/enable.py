@@ -9,12 +9,10 @@
 
 使用示例：
   python -m datamind.cli.main deploy enable dep_a1b2c3d4
-  python -m datamind.cli.main deploy enable dep_a1b2c3d4 --operator admin
-  python -m datamind.cli.main deploy enable dep_a1b2c3d4 --format json --verbose
 """
 
 import asyncio
-
+import json
 import typer
 import structlog
 from rich.console import Console
@@ -59,6 +57,9 @@ def enable_deployment(
         target_id_func=lambda p, r: r["deployment_id"],
     )
     async def _run():
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
+
         logger.info(
             "开始启用部署",
             deployment_id=deployment_id,
@@ -70,8 +71,6 @@ def enable_deployment(
             deployment_id=deployment_id,
             updated_by=operator,
         )
-
-        import json
 
         if output == "json":
             console.print_json(

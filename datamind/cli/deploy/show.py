@@ -9,7 +9,6 @@
 
 使用示例：
   python -m datamind.cli.main deploy show dep_a1b2c3d4
-  python -m datamind.cli.main deploy show dep_a1b2c3d4 --format json
 """
 
 import asyncio
@@ -17,8 +16,6 @@ import json
 import typer
 import structlog
 from rich.console import Console
-from rich.table import Table
-from rich import box
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
@@ -38,7 +35,7 @@ def show_deployment(
         help="部署 ID"
     ),
     output: str = typer.Option(
-        "table",
+        "text",
         "--format",
         help="输出格式：text/json"
     ),
@@ -51,6 +48,8 @@ def show_deployment(
     """查看部署详情"""
 
     async def _run():
+        if output not in ("text", "json"):
+            raise typer.BadParameter("--format 只支持 text 或 json")
 
         logger.info(
             "开始查询部署详情",
@@ -64,7 +63,7 @@ def show_deployment(
 
         if not deployment:
             console.print(f"[red]未找到部署: {deployment_id}[/red]")
-            return None
+            raise typer.Exit(1)
 
         if output == "json":
             result = {
@@ -77,7 +76,6 @@ def show_deployment(
                 "role": deployment.role,
                 "status": deployment.status,
                 "config": deployment.config,
-                "endpoint": deployment.endpoint,
                 "description": deployment.description,
                 "deployed_by": deployment.deployed_by,
                 "effective_from": format_iso_utc(deployment.effective_from),
@@ -98,57 +96,48 @@ def show_deployment(
             logger.info(
                 "部署详情输出完成",
                 deployment_id=deployment_id,
-                output="json",
+                output=output,
             )
             return result
 
-        console.print("\n[green]部署详情[/green]\n")
+        console.print("[green]部署详情[/green]\n")
 
-        table = Table(
-            box=box.ASCII,
-            show_header=False,
-            pad_edge=False,
-        )
-
-        def add_row(key: str, value: str):
-            table.add_row(f"[cyan]{key}[/cyan]", str(value))
-
-        add_row("DEPLOYMENT ID", deployment.deployment_id)
-        add_row("MODEL ID", deployment.model_id)
-        add_row("VERSION ID", deployment.version_id)
-        add_row("FRAMEWORK", deployment.framework)
-        add_row("ENVIRONMENT", deployment.environment)
-        add_row("ROLLOUT TYPE", deployment.rollout_type)
-        add_row("ROLE", deployment.role)
-        add_row("STATUS", deployment.status)
+        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {deployment.deployment_id}")
+        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {deployment.model_id}")
+        console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {deployment.version_id}")
+        console.print(f"[cyan]{'FRAMEWORK':<16}[/cyan] : {deployment.framework}")
+        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {deployment.environment}")
+        console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {deployment.rollout_type}")
+        console.print(f"[cyan]{'ROLE':<16}[/cyan] : {deployment.role}")
+        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {deployment.status}")
 
         if deployment.config:
-            add_row("CONFIG", json.dumps(deployment.config, ensure_ascii=False))
+            console.print(
+                f"[cyan]{'CONFIG':<16}[/cyan] : "
+                f"{json.dumps(deployment.config, ensure_ascii=False)}"
+            )
 
-        if deployment.endpoint:
-            add_row("ENDPOINT", deployment.endpoint)
-
-        if deployment.description:
-            add_row("DESCRIPTION", deployment.description)
-
-        if deployment.deployed_by:
-            add_row("DEPLOYED BY", deployment.deployed_by)
-
-        add_row("CREATED AT", format_datetime(deployment.created_at))
-        add_row("UPDATED AT", format_datetime(deployment.updated_at))
+        console.print(f"[cyan]{'DESCRIPTION':<16}[/cyan] : {deployment.description or '-'}")
+        console.print(f"[cyan]{'DEPLOYED BY':<16}[/cyan] : {deployment.deployed_by or '-'}")
+        console.print(f"[cyan]{'CREATED AT':<16}[/cyan] : {format_datetime(deployment.created_at)}")
+        console.print(f"[cyan]{'UPDATED AT':<16}[/cyan] : {format_datetime(deployment.updated_at)}")
 
         if deployment.effective_from:
-            add_row("EFFECTIVE FROM", format_datetime(deployment.effective_from))
+            console.print(
+                f"[cyan]{'EFFECTIVE FROM':<16}[/cyan] : "
+                f"{format_datetime(deployment.effective_from)}"
+            )
 
         if deployment.effective_to:
-            add_row("EFFECTIVE TO", format_datetime(deployment.effective_to))
-
-        console.print(table)
+            console.print(
+                f"[cyan]{'EFFECTIVE TO':<16}[/cyan] : "
+                f"{format_datetime(deployment.effective_to)}"
+            )
 
         logger.info(
             "部署详情输出完成",
             deployment_id=deployment_id,
-            output="table",
+            output=output,
         )
 
         return deployment
