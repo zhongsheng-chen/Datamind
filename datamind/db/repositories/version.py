@@ -1,6 +1,6 @@
 # datamind/db/repositories/version.py
 
-"""模型版本访问器
+"""模型版本仓储
 
 提供模型版本的查询、创建、更新与写入能力。
 
@@ -21,12 +21,11 @@
   async with UnitOfWork() as uow:
       repo = VersionRepository(uow.session)
 
-      version = await repo.create_version(
+      version = repo.create_version(
           version_id="ver_a1b2c3d4",
           model_id="mdl_a1b2c3d4",
           version="1.0.0",
           framework="sklearn",
-          status="active",
           bento_tag="scorecard:abcdefgh",
           model_path="s3://datamind/models/mdl_a1b2c3d4/1.0.0/scorecard.pkl",
           model_key="models/mdl_a1b2c3d4/1.0.0/scorecard.pkl"
@@ -86,7 +85,7 @@ class VersionPatch:
 
 
 class VersionRepository(BaseRepository):
-    """模型版本访问器"""
+    """模型版本仓储"""
 
     async def get_version(
         self,
@@ -129,21 +128,45 @@ class VersionRepository(BaseRepository):
 
     async def list_versions(
         self,
-        model_id: str,
+        *,
+        exclude_status: VersionStatus | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        **filters,
     ) -> list[Version]:
         """获取版本列表
 
         参数：
-            model_id: 模型 ID
+            exclude_status: 排除指定状态
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
+            **filters: 过滤条件
+                支持字段：
+                    model_id
+                    version
+                    framework
+                    status
+                    created_by
 
         返回：
             版本列表，按创建时间倒序排列
         """
-        stmt = (
-            select(Version)
-            .where(Version.model_id == model_id)
-            .order_by(Version.created_at.desc())
-        )
+        stmt = select(Version)
+
+        if filters:
+            stmt = stmt.filter_by(**filters)
+
+        if exclude_status is not None:
+            stmt = stmt.where(Version.status != exclude_status)
+
+        stmt = stmt.order_by(Version.created_at.desc())
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
         result = await self.session.execute(stmt)
 
         return list(result.scalars().all())
@@ -227,10 +250,6 @@ class VersionRepository(BaseRepository):
 
         返回：
             更新后的版本对象
-
-        注意：
-            - status 字段不允许通过 patch 修改，会被直接忽略
-            - patch 中为 None 的字段不会覆盖原值
         """
         for field in fields(VersionPatch):
             value = getattr(patch, field.name)

@@ -1,13 +1,13 @@
 # datamind/db/repositories/metadata.py
 
-"""模型元数据访问器
+"""模型元数据仓储
 
 提供模型元数据的查询与更新能力。
 
 核心功能：
   - get_model: 获取单个模型
-  - list_active_models: 获取活跃模型列表
   - list_models: 获取模型列表
+  - list_active_models: 获取活跃模型列表
   - create_model: 创建模型
   - update_model: 更新模型
   - archive_model: 归档模型
@@ -20,7 +20,7 @@
   async with UnitOfWork() as uow:
       repo = MetadataRepository(uow.session)
 
-      model = await repo.create_model(
+      model = repo.create_model(
           model_id="mdl_a1b2c3d4",
           name="scorecard",
           model_type="logistic_regression",
@@ -70,7 +70,7 @@ class MetadataPatch:
 
 
 class MetadataRepository(BaseRepository):
-    """模型元数据访问器"""
+    """模型元数据仓储"""
 
     async def get_model(
         self,
@@ -103,23 +103,6 @@ class MetadataRepository(BaseRepository):
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
-
-    async def list_active_models(
-        self,
-    ) -> list[Metadata]:
-        """获取活跃模型列表
-
-        返回：
-            活跃模型列表，按更新时间倒序排列
-        """
-        stmt = (
-            select(Metadata)
-            .where(Metadata.status == MetadataStatus.ACTIVE)
-            .order_by(Metadata.updated_at.desc())
-        )
-        result = await self.session.execute(stmt)
-
-        return list(result.scalars().all())
 
     async def list_models(
         self,
@@ -168,6 +151,31 @@ class MetadataRepository(BaseRepository):
         result = await self.session.execute(stmt)
 
         return list(result.scalars().all())
+
+    async def list_active_models(
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+    ) -> list[Metadata]:
+        """获取活跃模型列表
+
+        参数：
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
+
+        返回：
+            活跃模型列表，按更新时间倒序排列
+        """
+        filters = {
+            "status": MetadataStatus.ACTIVE,
+        }
+
+        return await self.list_models(
+            limit=limit,
+            offset=offset,
+            **filters,
+        )
 
     def create_model(
         self,

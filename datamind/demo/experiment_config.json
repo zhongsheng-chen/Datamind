@@ -1,0 +1,19 @@
+{
+  "assignment_key": "customer_id",
+  "traffic_ratio": 0.2,
+  "strategy": "stable_hash",
+  "variants": [
+    {
+      "name": "control",
+      "deployment_id": "dep_champion",
+      "weight": 0.5,
+      "is_control": true
+    },
+    {
+      "name": "treatment",
+      "deployment_id": "dep_challenger",
+      "weight": 0.5,
+      "is_control": false
+    }
+  ]
+}

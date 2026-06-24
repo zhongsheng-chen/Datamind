@@ -6,6 +6,7 @@
 
 核心功能：
   - get_request: 获取请求记录
+  - list_requests: 获取请求记录列表
   - list_recent_requests: 获取最近请求列表
   - list_model_requests: 获取模型请求列表
   - create_request: 创建请求记录
@@ -17,10 +18,11 @@
   async with UnitOfWork() as uow:
       repo = RequestRepository(uow.session)
 
-      request = await repo.create_request(
+      request = repo.create_request(
           request_id="req_a1b2c3d4",
           model_id="mdl_a1b2c3d4",
           payload={"features": {"age": 35}},
+          source="api",
           latency_ms=125.5,
           user="tom",
           ip="127.0.0.1"
@@ -50,46 +52,94 @@ class RequestRepository(BaseRepository):
         """
         stmt = select(Request).where(Request.request_id == request_id)
         result = await self.session.execute(stmt)
+
         return result.scalar_one_or_none()
 
-    async def list_recent_requests(
+    async def list_requests(
         self,
-        limit: int = 100,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+        **filters,
     ) -> list[Request]:
-        """获取最近请求列表
+        """获取请求记录列表
 
         参数：
-            limit: 返回数量限制
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
+            **filters: 过滤条件
+                支持字段：
+                    model_id
+                    source
+                    user
+                    ip
 
         返回：
             请求记录列表，按创建时间倒序排列
         """
-        stmt = select(Request).order_by(Request.created_at.desc()).limit(limit)
+        stmt = select(Request)
+
+        if filters:
+            stmt = stmt.filter_by(**filters)
+
+        stmt = stmt.order_by(Request.created_at.desc())
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
         result = await self.session.execute(stmt)
+
         return list(result.scalars().all())
+
+    async def list_recent_requests(
+        self,
+        *,
+        limit: int | None = 100,
+        offset: int | None = None,
+    ) -> list[Request]:
+        """获取最近请求列表
+
+        参数：
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
+
+        返回：
+            请求记录列表，按创建时间倒序排列
+        """
+        return await self.list_requests(
+            limit=limit,
+            offset=offset,
+        )
 
     async def list_model_requests(
         self,
         model_id: str,
-        limit: int = 100,
+        *,
+        limit: int | None = 100,
+        offset: int | None = None,
     ) -> list[Request]:
         """获取模型请求列表
 
         参数：
             model_id: 模型 ID
-            limit: 返回数量限制
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
 
         返回：
             请求记录列表，按创建时间倒序排列
         """
-        stmt = (
-            select(Request)
-            .where(Request.model_id == model_id)
-            .order_by(Request.created_at.desc())
-            .limit(limit)
+        filters = {
+            "model_id": model_id,
+        }
+
+        return await self.list_requests(
+            limit=limit,
+            offset=offset,
+            **filters,
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     def create_request(
         self,
@@ -127,4 +177,5 @@ class RequestRepository(BaseRepository):
         )
 
         self.add(obj)
+
         return obj

@@ -2961,3 +2961,56 @@ datamind/runtime/
           │
           ▼
        Scorer
+
+datamind/ab_test/      负责实验管理、分桶、记录、统计分析
+datamind/runtime/      负责在线服务、模型加载、路由调用
+
+
+
+## 实验配置
+
+```json
+{
+  "assignment_key": "customer_id",
+  "traffic_ratio": 0.2,
+  "strategy": "stable_hash",
+  "variants": [
+    {
+      "name": "control",
+      "deployment_id": "dep_champion",
+      "weight": 0.5,
+      "is_control": true
+    },
+    {
+      "name": "treatment",
+      "deployment_id": "dep_challenger",
+      "weight": 0.5,
+      "is_control": false
+    }
+  ]
+}
+```
+
+
+| 表名            | 含义                                     | 是否建议                     |
+| ------------- | -------------------------------------- | ------------------------ |
+| `requests`    | 原始请求表，记录输入 payload、来源、耗时、用户、IP         | 保留                       |
+| `assignments` | 实验固定进组表，记录某个主体固定进入哪个实验组                | 改成这个用途                   |
+| `decisions`   | 请求级路由/决策结果表，记录每次请求实际命中了哪个部署、版本、实验组     | 用它替换现在的请求级 `assignments` |
+| `variants`    | 实验分组表，control / treatment / challenger | 新增                       |
+| `outcomes`    | 结果回流表，通过、转化、逾期、坏账                      | 新增                       |
+
+experiments
+  实验主表：定义实验、状态、配置、生效时间
+
+variants
+  实验分组表：control / treatment / challenger，每组对应一个 deployment_id 和 weight
+
+enrollments
+  固定进组表：同一个 experiment_id + subject_key 固定命中同一个 variant
+
+assignments
+  请求分配记录表：每次请求实际命中了哪个部署、哪个实验、哪个分组
+
+outcomes
+  结果回流表：通过、转化、逾期、坏账等后验结果
