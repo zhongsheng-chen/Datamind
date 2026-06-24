@@ -60,7 +60,7 @@ class Metadata(Base, IdMixin, TimestampMixin):
         String(20),
         nullable=False,
         server_default=text("'inactive'"),
-        comment="状态，可选值：active / inactive / archived"
+        comment="状态，可选值：active / deprecated / inactive / archived"
     )
     created_by = Column(
         String(50),

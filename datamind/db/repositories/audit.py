@@ -1,10 +1,11 @@
 # datamind/db/repositories/audit.py
 
-"""审计日志访问器
+"""审计日志仓储
 
 用于查询与写入系统操作记录，支持变更追踪与问题回溯。
 
 核心功能：
+  - list_audits: 获取审计日志列表
   - list_entity_history: 获取实体变更历史
   - list_failed_operations: 获取失败操作记录
   - list_user_actions: 获取用户操作记录
@@ -20,7 +21,7 @@
   async with UnitOfWork() as uow:
       repo = AuditRepository(uow.session)
 
-      audit = await repo.create_audit(
+      audit = repo.create_audit(
           audit_id="aud_a1b2c3d4",
           action="model.register",
           resource="model",
@@ -43,7 +44,59 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class AuditRepository(BaseRepository):
-    """审计日志访问器"""
+    """审计日志仓储"""
+
+    async def list_audits(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+        order_desc: bool = True,
+        **filters,
+    ) -> list[Audit]:
+        """获取审计日志列表
+
+        参数：
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
+            order_desc: 是否按发生时间倒序排列
+            **filters: 过滤条件
+                支持字段：
+                    action
+                    resource
+                    operation
+                    target_type
+                    target_id
+                    source
+                    trace_id
+                    request_id
+                    user
+                    ip
+                    hostname
+                    status
+
+        返回：
+            审计记录列表，按发生时间排序
+        """
+        stmt = select(Audit)
+
+        if filters:
+            stmt = stmt.filter_by(**filters)
+
+        if order_desc:
+            stmt = stmt.order_by(Audit.occurred_at.desc())
+        else:
+            stmt = stmt.order_by(Audit.occurred_at.asc())
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        result = await self.session.execute(stmt)
+
+        return list(result.scalars().all())
 
     async def list_entity_history(
         self,
@@ -59,60 +112,67 @@ class AuditRepository(BaseRepository):
         返回：
             审计记录列表，按发生时间升序排列
         """
-        stmt = (
-            select(Audit)
-            .where(
-                Audit.target_type == target_type,
-                Audit.target_id == target_id,
-            )
-            .order_by(Audit.occurred_at.asc())
+        filters = {
+            "target_type": target_type,
+            "target_id": target_id,
+        }
+
+        return await self.list_audits(
+            order_desc=False,
+            **filters,
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     async def list_failed_operations(
         self,
-        limit: int = 100,
+        *,
+        limit: int | None = 100,
+        offset: int | None = None,
     ) -> list[Audit]:
         """获取失败操作记录
 
         参数：
-            limit: 返回数量限制
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
 
         返回：
             失败操作记录列表，按发生时间倒序排列
         """
-        stmt = (
-            select(Audit)
-            .where(Audit.status == "failed")
-            .order_by(Audit.occurred_at.desc())
-            .limit(limit)
+        filters = {
+            "status": "failed",
+        }
+
+        return await self.list_audits(
+            limit=limit,
+            offset=offset,
+            **filters,
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     async def list_user_actions(
         self,
         user: str,
-        limit: int = 100,
+        *,
+        limit: int | None = 100,
+        offset: int | None = None,
     ) -> list[Audit]:
         """获取用户操作记录
 
         参数：
             user: 用户名
-            limit: 返回数量限制
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
 
         返回：
             用户操作记录列表，按发生时间倒序排列
         """
-        stmt = (
-            select(Audit)
-            .where(Audit.user == user)
-            .order_by(Audit.occurred_at.desc())
-            .limit(limit)
+        filters = {
+            "user": user,
+        }
+
+        return await self.list_audits(
+            limit=limit,
+            offset=offset,
+            **filters,
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     def create_audit(
         self,
@@ -183,4 +243,5 @@ class AuditRepository(BaseRepository):
         )
 
         self.add(obj)
+
         return obj

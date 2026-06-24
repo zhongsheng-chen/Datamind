@@ -49,12 +49,12 @@ class Experiment(Base, IdMixin, TimestampMixin):
         String(20),
         nullable=False,
         server_default=text("'draft'"),
-        comment="实验状态，可选值：draft / running / paused / stopped / completed"
+        comment="实验状态，可选值：draft / running / paused / stopped / completed / archived"
     )
     config = Column(
         JSONB,
         nullable=True,
-        comment="实验配置，JSON 格式。包含流量分配策略、实验变体及权重配置等，仅用于跟踪和调试"
+        comment="实验配置，JSON 格式。包含实验曝光比例、分桶字段、策略参数等信息"
     )
     effective_from = Column(
         DateTime(timezone=True),

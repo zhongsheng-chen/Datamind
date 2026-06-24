@@ -1,113 +1,92 @@
 # datamind/db/models/assignments.py
 
-"""请求分配表
+"""实验分配表
 
-记录每个请求分配到的模型版本及决策过程，用于 A/B 测试与灰度发布的执行结果记录。
+记录实验主体与实验分组之间的固定分配关系，
+用于保证同一个主体在同一个实验中稳定命中同一个分组。
 """
 
 from sqlalchemy.sql import func
 from sqlalchemy import Column, String, Float, DateTime, Index
+
 from sqlalchemy.dialects.postgresql import JSONB
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
 
 class Assignment(Base, IdMixin, TimestampMixin):
-    """请求分配记录表"""
+    """实验分配表"""
 
     __tablename__ = "assignments"
 
     __table_args__ = (
-        Index("idx_assignments_model_id", "model_id"),
-        Index("idx_assignments_version_id", "version_id"),
-        Index("idx_assignments_deployment_id", "deployment_id"),
         Index("idx_assignments_experiment_id", "experiment_id"),
-        Index("idx_assignments_customer_id", "customer_id"),
+        Index("idx_assignments_variant_id", "variant_id"),
+        Index("idx_assignments_subject_key", "subject_key"),
         Index("idx_assignments_created_at", "created_at"),
-        Index("idx_assignments_source", "source"),
+        Index("idx_assignments_assigned_at", "assigned_at"),
         Index("uk_assignments_assignment_id", "assignment_id", unique=True),
-        Index("uk_assignments_request_id", "request_id", unique=True),
+        Index("uk_assignments_experiment_subject", "experiment_id", "subject_key", unique=True),
     )
 
     assignment_id = Column(
         String(64),
         nullable=False,
-        comment="分配 ID，分配的唯一标识"
-    )
-    request_id = Column(
-        String(64),
-        nullable=False,
-        comment="请求 ID"
-    )
-    model_id = Column(
-        String(64),
-        nullable=False,
-        comment="被分配到的模型 ID"
-    )
-    version_id = Column(
-        String(50),
-        nullable=False,
-        comment="被分配的版本 ID"
-    )
-    deployment_id = Column(
-        String(64),
-        nullable=True,
-        comment="命中的部署 ID"
+        comment="分配 ID，实验分配记录的唯一标识"
     )
     experiment_id = Column(
         String(64),
-        nullable=True,
-        comment="命中的实验 ID"
+        nullable=False,
+        comment="实验 ID"
     )
-    customer_id = Column(
+    variant_id = Column(
         String(64),
         nullable=False,
-        comment="请求主体标识"
+        comment="实验分组 ID"
     )
-    source = Column(
-        String(20),
+    subject_key = Column(
+        String(128),
         nullable=False,
-        comment="路由来源，可选值：experiment / deployment / routing"
+        comment="分桶主体标识，例如客户号、订单号、申请单号"
+    )
+    subject_type = Column(
+        String(32),
+        nullable=True,
+        comment="分桶主体类型，例如 customer / order / application"
     )
     strategy = Column(
         String(20),
-        nullable=True,
-        comment="流量分配策略，可选值：random / consistent / bucket / weighted"
+        nullable=False,
+        comment="分配策略，可选值：hash / manual"
     )
     bucket = Column(
         String(32),
         nullable=True,
         comment="分桶标识"
     )
-    group = Column(
-        String(32),
-        nullable=True,
-        comment="实验分组，如 control / treatment"
-    )
     weight = Column(
         Float,
         nullable=True,
-        comment="分配权重，表示当前请求在该实验分组中的概率权重"
+        comment="命中分组的权重"
     )
     context = Column(
         JSONB,
         nullable=True,
-        comment="分配上下文，JSON 格式。包含所有分配过程的信息，仅用于跟踪和调试"
+        comment="分配上下文，JSON 格式。包含实验曝光比例、分组名称、分桶过程等信息"
     )
-    routed_at = Column(
+    assigned_at = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
-        comment="路由分配时间，表示请求被分配到目标模型版本的实际时间"
+        comment="分配时间，表示主体首次固定进入实验分组的时间"
     )
 
     def __repr__(self):
         return (
             f"<Assignment("
             f"assignment_id='{self.assignment_id}', "
-            f"request_id='{self.request_id}', "
-            f"deployment_id='{self.deployment_id}', "
-            f"model_id='{self.model_id}', "
-            f"version_id='{self.version_id}'"
+            f"experiment_id='{self.experiment_id}', "
+            f"variant_id='{self.variant_id}', "
+            f"subject_key='{self.subject_key}'"
             f")>"
         )

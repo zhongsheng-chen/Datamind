@@ -6,11 +6,15 @@
 
 核心功能：
   - get_experiment: 获取实验
+  - list_experiments: 获取实验列表
   - list_running_experiments: 获取运行中实验列表
-  - list_experiments: 列出所有实验列表
   - create_experiment: 创建实验
   - update_experiment: 更新实验
+  - start_experiment: 启动实验
   - stop_experiment: 停止实验
+  - pause_experiment: 暂停实验
+  - complete_experiment: 完成实验
+  - archive_experiment: 归档实验
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -19,23 +23,21 @@
   async with UnitOfWork() as uow:
       repo = ExperimentRepository(uow.session)
 
-      experiment = await repo.create_experiment(
+      experiment = repo.create_experiment(
           experiment_id="exp_a1b2c3d4",
           model_id="mdl_a1b2c3d4",
           name="评分卡A/B测试实验",
           description="测试新策略",
           config={
               "strategy": "consistent",
-              "variants": [
-                  {"name": "control", "weight": 0.5},
-                  {"name": "treatment", "weight": 0.5},
-              ],
+              "traffic_ratio": 1.0,
+              "bucket_key": "customer_id",
           },
           created_by="system"
       )
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from dataclasses import dataclass, fields
 from sqlalchemy import select
 
@@ -82,46 +84,75 @@ class ExperimentRepository(BaseRepository):
         """
         stmt = select(Experiment).where(Experiment.experiment_id == experiment_id)
         result = await self.session.execute(stmt)
+
         return result.scalar_one_or_none()
+
+    async def list_experiments(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+        **filters,
+    ) -> list[Experiment]:
+        """获取实验列表
+
+        参数：
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
+            **filters: 过滤条件
+                支持字段：
+                    model_id
+                    name
+                    status
+                    created_by
+
+        返回：
+            实验列表，按创建时间倒序排列
+        """
+        stmt = select(Experiment)
+
+        if filters:
+            stmt = stmt.filter_by(**filters)
+
+        stmt = stmt.order_by(Experiment.created_at.desc())
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        result = await self.session.execute(stmt)
+
+        return list(result.scalars().all())
 
     async def list_running_experiments(
         self,
         model_id: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> list[Experiment]:
         """获取运行中的实验
 
         参数：
             model_id: 模型 ID
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
 
         返回：
-            运行中的实验列表
+            运行中的实验列表，按创建时间倒序排列
         """
-        stmt = select(Experiment).where(
-            Experiment.model_id == model_id,
-            Experiment.status == "running",
+        filters = {
+            "model_id": model_id,
+            "status": ExperimentStatus.RUNNING,
+        }
+
+        return await self.list_experiments(
+            limit=limit,
+            offset=offset,
+            **filters,
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def list_experiments(
-        self,
-        model_id: str,
-    ) -> list[Experiment]:
-        """列出所有实验
-
-        参数：
-            model_id: 模型 ID
-
-        返回：
-            实验列表，按创建时间倒序排列
-        """
-        stmt = (
-            select(Experiment)
-            .where(Experiment.model_id == model_id)
-            .order_by(Experiment.created_at.desc())
-        )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     def create_experiment(
         self,
@@ -142,7 +173,6 @@ class ExperimentRepository(BaseRepository):
             model_id: 模型 ID
             name: 实验名称（可选）
             description: 实验描述（可选）
-            status: 实验状态
             config: 实验配置（可选）
             effective_from: 生效开始时间（可选）
             effective_to: 生效结束时间（可选）
@@ -163,6 +193,7 @@ class ExperimentRepository(BaseRepository):
         )
 
         self.add(obj)
+
         return obj
 
     def update_experiment(
@@ -195,9 +226,32 @@ class ExperimentRepository(BaseRepository):
 
         return experiment
 
+    def start_experiment(
+        self,
+        experiment: Experiment,
+        *,
+        updated_by: str | None = None,
+    ) -> Experiment:
+        """启动实验
+
+        参数：
+            experiment: 实验对象
+            updated_by: 更新人（可选）
+
+        返回：
+            启动后的实验对象
+        """
+        experiment.status = ExperimentStatus.RUNNING
+
+        if updated_by:
+            experiment.updated_by = updated_by
+
+        return experiment
+
     def stop_experiment(
         self,
         experiment: Experiment,
+        *,
         updated_by: str | None = None,
     ) -> Experiment:
         """停止实验
@@ -219,6 +273,7 @@ class ExperimentRepository(BaseRepository):
     def pause_experiment(
         self,
         experiment: Experiment,
+        *,
         updated_by: str | None = None,
     ) -> Experiment:
         """暂停实验
@@ -240,6 +295,7 @@ class ExperimentRepository(BaseRepository):
     def complete_experiment(
         self,
         experiment: Experiment,
+        *,
         updated_by: str | None = None,
     ) -> Experiment:
         """完成实验
@@ -261,6 +317,7 @@ class ExperimentRepository(BaseRepository):
     def archive_experiment(
         self,
         experiment: Experiment,
+        *,
         updated_by: str | None = None,
     ) -> Experiment:
         """归档实验

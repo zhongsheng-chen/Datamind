@@ -6,7 +6,7 @@
 
 核心功能：
   - get_deployment: 获取部署记录
-  - list_deployments: 获取所有部署记录列表
+  - list_deployments: 获取部署记录列表
   - list_active_deployments: 获取活跃部署记录列表
   - create_deployment: 创建部署
   - update_deployment: 更新部署
@@ -20,12 +20,11 @@
   async with UnitOfWork() as uow:
       repo = DeploymentRepository(uow.session)
 
-      deployment = await repo.create_deployment(
+      deployment = repo.create_deployment(
           deployment_id="dep_a1b2c3d4",
           model_id="mdl_a1b2c3d4",
           version_id="ver_a1b2c3d4",
           framework="sklearn",
-          status="active",
           environment="production",
           rollout_type="full",
           deployed_by="admin"
@@ -89,19 +88,19 @@ class DeploymentRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_deployments(
-            self,
-            *,
-            exclude_status: str | None = None,
-            limit: int | None = None,
-            offset: int | None = None,
-            **filters,
+        self,
+        *,
+        exclude_status: DeploymentStatus | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        **filters,
     ) -> list[Deployment]:
-        """获取所有部署列表
+        """获取部署记录列表
 
         参数：
-            exclude_status: 排除指定状态
-            limit: 返回数量限制
-            offset: 分页偏移
+            exclude_status: 排除指定状态（可选）
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
             **filters: 过滤条件
                 支持字段：
                     model_id
@@ -114,19 +113,17 @@ class DeploymentRepository(BaseRepository):
                     deployed_by
 
         返回：
-            部署列表，按创建时间倒序排列
+            部署记录列表，按创建时间倒序排列
         """
         stmt = select(Deployment)
 
         if filters:
             stmt = stmt.filter_by(**filters)
 
-        if exclude_status:
+        if exclude_status is not None:
             stmt = stmt.where(Deployment.status != exclude_status)
 
-        stmt = stmt.order_by(
-            Deployment.created_at.desc()
-        )
+        stmt = stmt.order_by(Deployment.created_at.desc())
 
         if offset is not None:
             stmt = stmt.offset(offset)
@@ -139,11 +136,13 @@ class DeploymentRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_active_deployments(
-            self,
-            model_id: str,
-            *,
-            version_id: str | None = None,
-            environment: str | None = None,
+        self,
+        model_id: str,
+        *,
+        version_id: str | None = None,
+        environment: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> list[Deployment]:
         """获取活跃部署记录列表
 
@@ -151,28 +150,28 @@ class DeploymentRepository(BaseRepository):
             model_id: 模型 ID
             version_id: 版本 ID（可选）
             environment: 部署环境（可选）
+            limit: 返回数量限制（可选）
+            offset: 分页偏移（可选）
 
         返回：
             活跃部署记录列表，按创建时间倒序排列
         """
-        stmt = (
-            select(Deployment)
-            .where(
-                Deployment.model_id == model_id,
-                Deployment.status == DeploymentStatus.ACTIVE,
-            )
-            .order_by(Deployment.created_at.desc())
+        filters = {
+            "model_id": model_id,
+            "status": DeploymentStatus.ACTIVE,
+        }
+
+        if version_id is not None:
+            filters["version_id"] = version_id
+
+        if environment is not None:
+            filters["environment"] = environment
+
+        return await self.list_deployments(
+            limit=limit,
+            offset=offset,
+            **filters,
         )
-
-        if version_id:
-            stmt = stmt.where(Deployment.version_id == version_id)
-
-        if environment:
-            stmt = stmt.where(Deployment.environment == environment)
-
-        result = await self.session.execute(stmt)
-
-        return list(result.scalars().all())
 
     def create_deployment(
         self,
@@ -199,7 +198,7 @@ class DeploymentRepository(BaseRepository):
             framework: 框架类型
             environment: 部署环境
             rollout_type: 发布类型
-            role: 部署角色（可选）
+            role: 部署角色
             effective_from: 生效开始时间（可选）
             effective_to: 生效结束时间（可选）
             config: 运行时配置（可选）
@@ -269,6 +268,7 @@ class DeploymentRepository(BaseRepository):
 
         参数：
             deployment: 部署记录对象
+            updated_by: 更新人（可选）
 
         返回：
             启用后的部署记录对象
@@ -293,6 +293,7 @@ class DeploymentRepository(BaseRepository):
 
         参数：
             deployment: 部署记录对象
+            updated_by: 更新人（可选）
 
         返回：
             停用后的部署记录对象

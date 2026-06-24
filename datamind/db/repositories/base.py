@@ -1,8 +1,8 @@
 # datamind/db/repositories/base.py
 
-"""数据库访问基类
+"""数据库仓储基类
 
-提供统一的数据访问能力，由 UnitOfWork 统一管理事务。
+提供统一的数据仓储能力，由 UnitOfWork 统一管理事务。
 
 核心功能：
   - add: 添加单个对象
@@ -22,14 +22,13 @@
       await repo.flush()
 """
 
-from collections.abc import Iterable
 from typing import Any
-
+from collections.abc import Iterable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class BaseRepository:
-    """数据库访问基类
+    """数据库仓储基类
 
     属性：
         session: 数据库会话对象
@@ -37,7 +36,7 @@ class BaseRepository:
 
     def __init__(self, session: AsyncSession):
         """
-        初始化数据库访问基类
+        初始化数据库仓储基类
 
         参数：
             session: 异步数据库会话对象，用于执行数据库操作

@@ -10,6 +10,9 @@
   - VersionStatus: 模型版本生命周期状态
   - DeploymentStatus: 模型部署运行状态
   - ExperimentStatus: 实验生命周期状态
+  - ExperimentVariantStatus: 实验分组状态
+  - AssignmentStrategy: 实验分桶策略
+  - DecisionStrategy: 请求决策策略
 
 使用示例：
   from datamind.models.enums import (
@@ -64,8 +67,34 @@ class DeploymentStatus(BaseEnum):
 class ExperimentStatus(BaseEnum):
     """实验生命周期状态"""
 
+    DRAFT = "draft"
     RUNNING = "running"
     PAUSED = "paused"
     STOPPED = "stopped"
     COMPLETED = "completed"
     ARCHIVED = "archived"
+
+
+class ExperimentVariantStatus(BaseEnum):
+    """实验分组状态"""
+
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ARCHIVED = "archived"
+
+
+class AssignmentStrategy(BaseEnum):
+    """实验分桶策略"""
+
+    HASH = "hash"
+    MANUAL = "manual"
+
+
+class DecisionStrategy(BaseEnum):
+    """请求决策策略"""
+
+    EXPERIMENT = "experiment"
+    ROUTING = "routing"
+    DEPLOYMENT = "deployment"
+    SHADOW = "shadow"
+    MANUAL = "manual"
