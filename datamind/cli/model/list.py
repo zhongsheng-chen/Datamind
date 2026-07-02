@@ -35,27 +35,27 @@ def list_models(
     status: str | None = typer.Option(
         None,
         "--status",
-        help="状态"
+        help="按模型状态过滤，例如 active/inactive/archived"
     ),
     framework: str | None = typer.Option(
         None,
         "--framework",
-        help="框架类型"
+        help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
     ),
     model_type: str | None = typer.Option(
         None,
         "--model-type",
-        help="模型类型"
+        help="按模型类型过滤，例如 logistic_regression/random_forest/xgboost"
     ),
     task_type: str | None = typer.Option(
         None,
         "--task-type",
-        help="任务类型"
+        help="按任务类型过滤，例如 classification/scoring"
     ),
     owner: str | None = typer.Option(
         None,
         "--owner",
-        help="创建人"
+        help="按创建人过滤"
     ),
     output: str = typer.Option(
         "text",
@@ -65,17 +65,17 @@ def list_models(
     limit: int = typer.Option(
         10,
         "--limit",
-        help="返回数量"
+        help="返回记录数量限制"
     ),
     offset: int = typer.Option(
         0,
         "--offset",
-        help="分页偏移"
+        help="分页偏移量"
     ),
     include_archived: bool = typer.Option(
         False,
         "--include-archived",
-        help="包含已归档的模型"
+        help="包含已归档的模型，默认不显示"
     ),
     verbose: bool = typer.Option(
         False,
@@ -95,23 +95,33 @@ def list_models(
         if offset < 0:
             raise typer.BadParameter("--offset 不能小于 0")
 
-        filters = {
-            "status": status,
-            "framework": framework,
-            "model_type": model_type,
-            "task_type": task_type,
-            "created_by": owner,
-        }
+        filters = {}
 
-        filters = {k: v for k, v in filters.items() if v is not None}
+        if status is not None:
+            filters["status"] = status
 
-        # 默认隐藏 archived
-        if not include_archived and "status" not in filters:
-            filters["exclude_status"] = "archived"
+        if framework is not None:
+            filters["framework"] = framework
+
+        if model_type is not None:
+            filters["model_type"] = model_type
+
+        if task_type is not None:
+            filters["task_type"] = task_type
+
+        if owner is not None:
+            filters["created_by"] = owner
+
+        exclude_status = None
+
+        # 默认隐藏 archived；如果用户显式传了 --status，则尊重用户过滤条件
+        if not include_archived and status is None:
+            exclude_status = "archived"
 
         logger.info(
             "开始列出模型",
             filters=filters,
+            exclude_status=exclude_status,
             limit=limit,
             offset=offset,
             include_archived=include_archived,
@@ -121,6 +131,7 @@ def list_models(
             repo = MetadataRepository(uow.session)
 
             models = await repo.list_models(
+                exclude_status=exclude_status,
                 limit=limit,
                 offset=offset,
                 **filters
@@ -158,7 +169,8 @@ def list_models(
                     json.dumps(
                         result,
                         ensure_ascii=False,
-                        indent=2
+                        indent=2,
+                        default=str,
                     )
                 )
                 return
@@ -184,6 +196,8 @@ def list_models(
             table.add_column("MODEL ID")
             table.add_column("STATUS")
             table.add_column("FRAMEWORK")
+            table.add_column("MODEL TYPE")
+            table.add_column("TASK TYPE")
             table.add_column("UPDATED AT")
 
             for m in models:
@@ -192,6 +206,8 @@ def list_models(
                     m.model_id,
                     m.status,
                     m.framework,
+                    m.model_type,
+                    m.task_type,
                     format_datetime(m.updated_at),
                 )
 
@@ -205,8 +221,8 @@ def list_models(
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+            verbose=verbose,
+            enable_audit=False,
         ):
             await _run()
 

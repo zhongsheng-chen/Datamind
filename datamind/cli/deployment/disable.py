@@ -1,14 +1,14 @@
-# datamind/cli/deploy/enable.py
+# datamind/cli/deployment/disable.py
 
-"""启用部署命令
+"""禁用部署命令
 
-提供部署启用功能。
+提供部署禁用功能。
 
 核心功能：
-  - enable_deployment: 启用部署
+  - disable_deployment: 禁用部署
 
 使用示例：
-  python -m datamind.cli.main deploy enable dep_a1b2c3d4
+  python -m datamind.cli.main deployment disable dep_a1b2c3d4
 """
 
 import asyncio
@@ -21,14 +21,14 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.services.deployer import ModelDeployer
 
-app = typer.Typer(help="启用部署命令")
+app = typer.Typer(help="禁用部署命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
 
 
-@app.command("enable")
-def enable_deployment(
+@app.command("disable")
+def disable_deployment(
     deployment_id: str = typer.Argument(
         ...,
         help="部署 ID"
@@ -49,10 +49,10 @@ def enable_deployment(
         help="是否输出调试日志"
     ),
 ):
-    """启用部署"""
+    """禁用部署"""
 
     @audit(
-        action="deploy.enable",
+        action="deploy.disable",
         target_type="deployment",
         target_id_func=lambda p, r: r["deployment_id"],
     )
@@ -61,13 +61,13 @@ def enable_deployment(
             raise typer.BadParameter("--format 只支持 text 或 json")
 
         logger.info(
-            "开始启用部署",
+            "开始禁用部署",
             deployment_id=deployment_id,
         )
 
         deployer = ModelDeployer()
 
-        result = await deployer.enable_deployment(
+        result = await deployer.disable_deployment(
             deployment_id=deployment_id,
             updated_by=operator,
         )
@@ -82,7 +82,7 @@ def enable_deployment(
             )
             return result
 
-        console.print("[green]部署启用成功[/green]\n")
+        console.print("[green]部署禁用成功[/green]\n")
 
         console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
         console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
@@ -94,10 +94,10 @@ def enable_deployment(
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
+            user=operator,
+            source="cli",
+            verbose=verbose,
+            enable_audit=True,
         ):
             await _run()
 

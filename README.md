@@ -2138,6 +2138,7 @@ tree -a -I "__pycache__|.git|*.pyc"
 ```bash
 pip install code-merger
 merge -e py -f merged_output.md
+merge -e py -f merged_output.md -s .venv __pycache__ .git .idea .pytest_cache
 ```
 或者一键：
 ```bash

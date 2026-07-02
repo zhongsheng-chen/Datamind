@@ -1,4 +1,4 @@
-# datamind/cli/deploy/_init_.py
+# datamind/cli/deployment/_init_.py
 
 """部署管理命令
 
@@ -14,11 +14,11 @@
 
 import typer
 
-from datamind.cli.deploy.create import app as create_app
-from datamind.cli.deploy.enable import app as enable_app
-from datamind.cli.deploy.disable import app as disable_app
-from datamind.cli.deploy.list import app as list_app
-from datamind.cli.deploy.show import app as show_app
+from datamind.cli.deployment.create import app as create_app
+from datamind.cli.deployment.enable import app as enable_app
+from datamind.cli.deployment.disable import app as disable_app
+from datamind.cli.deployment.list import app as list_app
+from datamind.cli.deployment.show import app as show_app
 
 app = typer.Typer(
     help="部署管理命令"

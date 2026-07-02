@@ -1,4 +1,4 @@
-# datamind/cli/deploy/show.py
+# datamind/cli/deployment/show.py
 
 """部署详情命令
 
@@ -8,7 +8,7 @@
   - show_deployment: 查看部署详情
 
 使用示例：
-  python -m datamind.cli.main deploy show dep_a1b2c3d4
+  python -m datamind.cli.main deployment show dep_a1b2c3d4
 """
 
 import asyncio

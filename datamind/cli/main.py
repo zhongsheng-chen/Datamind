@@ -6,18 +6,9 @@
 
 核心功能：
   - model: 模型管理子命令
-  - deploy: 部署管理子命令
-
-使用示例：
-  python -m datamind.cli.main model register \
-      --name scorecard \
-      --version 1.0.0 \
-      --framework sklearn \
-      --model-type logistic_regression \
-      --task-type scoring \
-      --model-path ./models/scorecard.pkl
-
-  python -m datamind.cli.main model list --status active
+  - deployment: 部署管理子命令
+  - experiment: 实验管理子命令
+  - service: 服务管理子命令
 """
 
 import typer
@@ -25,7 +16,9 @@ from importlib.metadata import version
 
 from datamind._build import BUILD_COMMIT
 from datamind.cli.model import app as model_app
-from datamind.cli.deploy import app as deploy_app
+from datamind.cli.deployment import app as deployment_app
+from datamind.cli.experiment import app as experiment_app
+from datamind.cli.service import app as service_app
 
 
 def version_callback(value: bool) -> None:
@@ -68,7 +61,9 @@ def main(
 
 # 注册子命令
 app.add_typer(model_app, name="model")
-app.add_typer(deploy_app, name="deploy")
+app.add_typer(deployment_app, name="deployment")
+app.add_typer(experiment_app, name="experiment")
+app.add_typer(service_app, name="service")
 
 
 if __name__ == "__main__":

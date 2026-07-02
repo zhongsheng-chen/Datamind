@@ -10,6 +10,7 @@
   - AuditRepository: 审计日志仓储
   - DecisionRepository: 请求决策仓储
   - DeploymentRepository: 部署仓储
+  - RuntimeRepository: 模型运行仓储
   - ExperimentRepository: 实验仓储
   - MetadataRepository: 模型元数据仓储
   - OutcomeRepository: 实验结果仓储
@@ -24,6 +25,7 @@ from datamind.db.repositories.audit import AuditRepository
 from datamind.db.repositories.base import BaseRepository
 from datamind.db.repositories.decision import DecisionRepository
 from datamind.db.repositories.deployment import DeploymentPatch, DeploymentRepository
+from datamind.db.repositories.runtime import RuntimePatch, RuntimeRepository
 from datamind.db.repositories.experiment import ExperimentPatch, ExperimentRepository
 from datamind.db.repositories.metadata import MetadataPatch, MetadataRepository
 from datamind.db.repositories.outcome import OutcomePatch, OutcomeRepository
@@ -39,6 +41,8 @@ __all__ = [
     "DecisionRepository",
     "DeploymentPatch",
     "DeploymentRepository",
+    "RuntimePatch",
+    "RuntimeRepository",
     "ExperimentPatch",
     "ExperimentRepository",
     "MetadataPatch",

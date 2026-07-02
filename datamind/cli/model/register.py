@@ -170,6 +170,7 @@ def register_model(
                     result,
                     ensure_ascii=False,
                     indent=2,
+                    default=str,
                 )
             )
             return result
