@@ -18,28 +18,28 @@
   python -m datamind.cli.main experiment create \
     --model-id mdl_a1b2c3d4 \
     --name scorecard_ab_test \
-    --effective-from 2026-06-25T09:00:00+08:00 \
-    --effective-to 2026-07-25T18:00:00+08:00
+    --effective-from 2026-07-01T09:00:00+08:00 \
+    --effective-to 2026-07-31T23:59:59+08:00
 
 说明：
   - effective_from 默认当前 UTC 时间
   - effective_to 默认 None，表示不限制结束时间
   - effective_from / effective_to 使用 ISO 日期时间格式
+  - bucket_key 表示分桶主体字段，用于从请求数据中提取 subject_key
 """
 
 import asyncio
 import json
-from datetime import datetime, timezone
-
 import typer
 import structlog
+from datetime import datetime, timezone
 from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import ExperimentRepository
-from datamind.utils.datetime import parse_datetime, format_iso_utc
+from datamind.db.repositories import ExperimentRepository, MetadataRepository
+from datamind.utils.datetime import parse_datetime, format_datetime, format_iso_utc
 from datamind.utils.generator import generate_random_id
 
 app = typer.Typer(help="创建实验命令")
@@ -66,9 +66,9 @@ def create_experiment(
         help="实验流量比例，范围 0~1"
     ),
     bucket_key: str = typer.Option(
-        "subject_key",
+        "customer_id",
         "--bucket-key",
-        help="分桶字段，例如 subject_key / customer_id / order_id"
+        help="分桶主体字段，例如 customer_id / order_id / apply_id"
     ),
     config: str | None = typer.Option(
         None,
@@ -88,12 +88,12 @@ def create_experiment(
     effective_from: str | None = typer.Option(
         None,
         "--effective-from",
-        help="生效开始时间，ISO 格式，例如 2026-06-25T09:00:00+08:00；默认当前时间"
+        help="生效开始时间，ISO 格式，例如 2026-07-01T09:00:00+08:00；默认当前时间"
     ),
     effective_to: str | None = typer.Option(
         None,
         "--effective-to",
-        help="生效结束时间，ISO 格式，例如 2026-07-25T18:00:00+08:00；默认不限制结束时间"
+        help="生效结束时间，ISO 格式，例如 2026-07-31T23:59:59+08:00；默认不限制结束时间"
     ),
     output: str = typer.Option(
         "text",
@@ -132,7 +132,7 @@ def create_experiment(
             if not isinstance(experiment_config, dict):
                 raise typer.BadParameter("--config 必须是 JSON 对象")
 
-        experiment_config.setdefault("strategy", "stable_hash")
+        experiment_config.setdefault("strategy", "hash")
         experiment_config["traffic_ratio"] = traffic_ratio
         experiment_config["bucket_key"] = bucket_key
 
@@ -163,9 +163,18 @@ def create_experiment(
         )
 
         async with UnitOfWork() as uow:
-            repo = ExperimentRepository(uow.session)
+            model_repo = MetadataRepository(uow.session)
+            experiment_repo = ExperimentRepository(uow.session)
 
-            experiment = repo.create_experiment(
+            model = await model_repo.get_model(
+                model_id=model_id,
+            )
+
+            if model is None:
+                console.print(f"[red]模型不存在: {model_id}[/red]")
+                raise typer.Exit(1)
+
+            experiment = experiment_repo.create_experiment(
                 experiment_id=generate_random_id(prefix="exp"),
                 model_id=model_id,
                 name=name,
@@ -176,7 +185,10 @@ def create_experiment(
                 created_by=owner,
             )
 
-            await repo.flush()
+            await experiment_repo.flush()
+
+            effective_from_text = format_datetime(experiment.effective_from)
+            effective_to_text = format_datetime(experiment.effective_to)
 
             result = {
                 "experiment_id": experiment.experiment_id,
@@ -210,8 +222,8 @@ def create_experiment(
         console.print(f"[cyan]{'STATUS':<18}[/cyan] : {result['status']}")
         console.print(f"[cyan]{'TRAFFIC RATIO':<18}[/cyan] : {traffic_ratio}")
         console.print(f"[cyan]{'BUCKET KEY':<18}[/cyan] : {bucket_key}")
-        console.print(f"[cyan]{'EFFECTIVE FROM':<18}[/cyan] : {result['effective_from']}")
-        console.print(f"[cyan]{'EFFECTIVE TO':<18}[/cyan] : {result['effective_to'] or '-'}")
+        console.print(f"[cyan]{'EFFECTIVE FROM':<18}[/cyan] : {effective_from_text}")
+        console.print(f"[cyan]{'EFFECTIVE TO':<18}[/cyan] : {effective_to_text}")
         console.print(f"[cyan]{'CREATED BY':<18}[/cyan] : {result['created_by'] or '-'}")
 
         return result

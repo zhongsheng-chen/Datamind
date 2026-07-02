@@ -13,7 +13,6 @@
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich.console import Console
@@ -81,8 +80,6 @@ def deactivate_variant(
                 variant,
                 updated_by=operator,
             )
-
-            await repo.flush()
 
             result = {
                 "variant_id": variant.variant_id,

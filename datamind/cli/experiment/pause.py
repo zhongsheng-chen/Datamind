@@ -13,7 +13,6 @@
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich.console import Console
@@ -81,8 +80,6 @@ def pause_experiment(
                 experiment,
                 updated_by=operator,
             )
-
-            await repo.flush()
 
             result = {
                 "experiment_id": experiment.experiment_id,

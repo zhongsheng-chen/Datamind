@@ -11,6 +11,7 @@
   - Assignment: 实验分配表
   - Routing: 路由规则表
   - Deployment: 模型部署表
+  - Runtime: 模型运行表
   - Experiment: 实验表
   - Variant: 实验分组表
   - Outcome: 实验结果表
@@ -18,7 +19,7 @@
   - Version: 模型版本表
 
 使用示例：
-  from datamind.db.models import Metadata, Version, Experiment, Variant
+  from datamind.db.models import Metadata, Version, Deployment, Runtime
 """
 
 from datamind.db.models.audit import Audit
@@ -27,6 +28,7 @@ from datamind.db.models.decisions import Decision
 from datamind.db.models.assignments import Assignment
 from datamind.db.models.routing import Routing
 from datamind.db.models.deployments import Deployment
+from datamind.db.models.runtimes import Runtime
 from datamind.db.models.experiments import Experiment
 from datamind.db.models.variants import Variant
 from datamind.db.models.outcomes import Outcome
@@ -40,6 +42,7 @@ __all__ = [
     "Assignment",
     "Routing",
     "Deployment",
+    "Runtime",
     "Experiment",
     "Variant",
     "Outcome",

@@ -13,7 +13,6 @@
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich import box
@@ -137,7 +136,7 @@ def show_experiment(
             )
 
         console.print()
-        console.print(f"[green]实验分组：{len(variants)} 个[/green]\n")
+        console.print(f"[green]实验共包含 {len(variants)} 个分组[/green]\n")
 
         if variants:
             table = Table(

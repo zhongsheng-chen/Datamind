@@ -13,10 +13,9 @@
 
 import asyncio
 import json
-from typing import Any
-
 import typer
 import structlog
+from typing import Any
 from rich import box
 from rich.console import Console
 from rich.table import Table

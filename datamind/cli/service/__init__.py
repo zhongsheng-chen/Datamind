@@ -20,7 +20,7 @@ from datamind.cli.service.restart import app as restart_app
 from datamind.cli.service.list import app as list_app
 from datamind.cli.service.show import app as show_app
 
-app = Typer(help="服务管理命令组")
+app = Typer(help="服务管理命令")
 
 app.add_typer(start_app)
 app.add_typer(stop_app)

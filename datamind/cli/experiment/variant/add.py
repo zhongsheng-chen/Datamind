@@ -18,7 +18,6 @@
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich.console import Console
@@ -26,7 +25,11 @@ from rich.console import Console
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import ExperimentRepository, VariantRepository
+from datamind.db.repositories import (
+    DeploymentRepository,
+    ExperimentRepository,
+    VariantRepository,
+)
 from datamind.models.enums import ExperimentVariantStatus
 from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
@@ -126,12 +129,27 @@ def add_variant(
 
         async with UnitOfWork() as uow:
             experiment_repo = ExperimentRepository(uow.session)
+            deployment_repo = DeploymentRepository(uow.session)
             variant_repo = VariantRepository(uow.session)
 
             experiment = await experiment_repo.get_experiment(experiment_id)
 
             if experiment is None:
                 console.print(f"[red]实验不存在: {experiment_id}[/red]")
+                raise typer.Exit(1)
+
+            deployment = await deployment_repo.get_deployment(deployment_id)
+
+            if deployment is None:
+                console.print(f"[red]部署不存在: {deployment_id}[/red]")
+                raise typer.Exit(1)
+
+            if deployment.model_id != experiment.model_id:
+                console.print(
+                    "[red]部署所属模型与实验模型不一致[/red]\n"
+                    f"实验模型 ID: {experiment.model_id}\n"
+                    f"部署模型 ID: {deployment.model_id}"
+                )
                 raise typer.Exit(1)
 
             variant = variant_repo.create_variant(

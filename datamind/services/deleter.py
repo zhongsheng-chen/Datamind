@@ -260,7 +260,7 @@ class ModelDeleter:
             model_id: 模型 ID
         """
         repo = VersionRepository(session)
-        versions = await repo.list_versions(model_id)
+        versions = await repo.list_versions(model_id=model_id)
 
         for version in versions:
             if purge:

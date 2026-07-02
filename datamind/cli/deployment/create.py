@@ -1,4 +1,4 @@
-# datamind/cli/deploy/create.py
+# datamind/cli/deployment/create.py
 
 """创建部署命令
 
@@ -8,7 +8,7 @@
   - create_deployment: 创建部署
 
 使用示例：
-  python -m datamind.cli.main deploy create scorecard \
+  python -m datamind.cli.main deployment create scorecard \
     --version 1.0.0 \
     --environment production \
     --rollout full \

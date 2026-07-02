@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: e5d3a0c9418e
+Revision ID: fc21176249a6
 Revises: 
-Create Date: 2026-06-25 01:11:32.158665+00:00
+Create Date: 2026-07-03 07:06:53.174792+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'e5d3a0c9418e'
+revision = 'fc21176249a6'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -263,6 +263,36 @@ def upgrade() -> None:
     op.create_index('idx_routing_rollout_group_enabled', 'routing', ['rollout_group', 'enabled'], unique=False)
     op.create_index('idx_routing_rollout_type_enabled', 'routing', ['rollout_type', 'enabled'], unique=False)
     op.create_index('uk_routing_routing_id', 'routing', ['routing_id'], unique=True)
+    op.create_table('runtimes',
+    sa.Column('runtime_id', sa.String(length=64), nullable=False, comment='运行 ID，运行记录的唯一标识'),
+    sa.Column('deployment_id', sa.String(length=64), nullable=False, comment='部署 ID'),
+    sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
+    sa.Column('version_id', sa.String(length=64), nullable=False, comment='版本 ID'),
+    sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值 sklearn / xgboost / lightgbm / catboost'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'unloaded'"), nullable=False, comment='运行状态，可选值：loading / loaded / unloaded / failed'),
+    sa.Column('worker_id', sa.String(length=64), server_default=sa.text("'default'"), nullable=False, comment='运行 Worker 标识，单机模式默认 default'),
+    sa.Column('loaded_at', sa.DateTime(timezone=True), nullable=True, comment='加载时间'),
+    sa.Column('unloaded_at', sa.DateTime(timezone=True), nullable=True, comment='卸载时间'),
+    sa.Column('started_by', sa.String(length=50), nullable=True, comment='加载操作人'),
+    sa.Column('stopped_by', sa.String(length=50), nullable=True, comment='卸载操作人'),
+    sa.Column('last_heartbeat_at', sa.DateTime(timezone=True), nullable=True, comment='最后心跳时间'),
+    sa.Column('error', sa.TEXT(), nullable=True, comment='运行错误信息'),
+    sa.Column('context', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='运行上下文，JSON 格式。可记录模型路径、加载耗时、运行参数等信息'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_runtimes'))
+    )
+    op.create_index('idx_runtimes_deployment_id', 'runtimes', ['deployment_id'], unique=False)
+    op.create_index('idx_runtimes_framework', 'runtimes', ['framework'], unique=False)
+    op.create_index('idx_runtimes_last_heartbeat_at', 'runtimes', ['last_heartbeat_at'], unique=False)
+    op.create_index('idx_runtimes_loaded_at', 'runtimes', ['loaded_at'], unique=False)
+    op.create_index('idx_runtimes_model_id', 'runtimes', ['model_id'], unique=False)
+    op.create_index('idx_runtimes_status', 'runtimes', ['status'], unique=False)
+    op.create_index('idx_runtimes_version_id', 'runtimes', ['version_id'], unique=False)
+    op.create_index('idx_runtimes_worker_id', 'runtimes', ['worker_id'], unique=False)
+    op.create_index('uk_runtimes_deployment_worker', 'runtimes', ['deployment_id', 'worker_id'], unique=True)
+    op.create_index('uk_runtimes_runtime_id', 'runtimes', ['runtime_id'], unique=True)
     op.create_table('variants',
     sa.Column('variant_id', sa.String(length=64), nullable=False, comment='实验分组 ID，实验分组的唯一标识'),
     sa.Column('experiment_id', sa.String(length=64), nullable=False, comment='实验 ID'),
@@ -342,6 +372,17 @@ def downgrade() -> None:
     op.drop_index('idx_variants_deployment_id', table_name='variants')
     op.drop_index('idx_variants_created_at', table_name='variants')
     op.drop_table('variants')
+    op.drop_index('uk_runtimes_runtime_id', table_name='runtimes')
+    op.drop_index('uk_runtimes_deployment_worker', table_name='runtimes')
+    op.drop_index('idx_runtimes_worker_id', table_name='runtimes')
+    op.drop_index('idx_runtimes_version_id', table_name='runtimes')
+    op.drop_index('idx_runtimes_status', table_name='runtimes')
+    op.drop_index('idx_runtimes_model_id', table_name='runtimes')
+    op.drop_index('idx_runtimes_loaded_at', table_name='runtimes')
+    op.drop_index('idx_runtimes_last_heartbeat_at', table_name='runtimes')
+    op.drop_index('idx_runtimes_framework', table_name='runtimes')
+    op.drop_index('idx_runtimes_deployment_id', table_name='runtimes')
+    op.drop_table('runtimes')
     op.drop_index('uk_routing_routing_id', table_name='routing')
     op.drop_index('idx_routing_rollout_type_enabled', table_name='routing')
     op.drop_index('idx_routing_rollout_group_enabled', table_name='routing')

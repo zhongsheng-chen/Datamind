@@ -2,18 +2,17 @@
 
 """列出实验分组命令
 
-提供实验分组列表查询功能。
+提供实验分组列表查询功能，支持过滤、分页和多种输出格式。
 
 核心功能：
   - list_variants: 列出实验分组
 
 使用示例：
-  python -m datamind.cli.main experiment variant list exp_a1b2c3d4
+  python -m datamind.cli.main experiment variant list
 """
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich import box
@@ -33,14 +32,39 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_variants(
-    experiment_id: str = typer.Argument(
-        ...,
-        help="实验 ID"
+    experiment_id: str | None = typer.Argument(
+        None,
+        help="按实验 ID 过滤"
+    ),
+    deployment_id: str | None = typer.Option(
+        None,
+        "--deployment-id",
+        help="按部署 ID 过滤"
     ),
     status: str | None = typer.Option(
         None,
         "--status",
-        help="实验分组状态：active/inactive/archived"
+        help="按实验分组状态过滤，例如 active/inactive/archived"
+    ),
+    is_control: bool | None = typer.Option(
+        None,
+        "--control/--non-control",
+        help="按是否对照组过滤"
+    ),
+    created_by: str | None = typer.Option(
+        None,
+        "--created-by",
+        help="按创建人过滤"
+    ),
+    limit: int = typer.Option(
+        10,
+        "--limit",
+        help="返回记录数量限制"
+    ),
+    offset: int = typer.Option(
+        0,
+        "--offset",
+        help="分页偏移量"
     ),
     output: str = typer.Option(
         "text",
@@ -59,18 +83,43 @@ def list_variants(
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
+        if limit <= 0:
+            raise typer.BadParameter("--limit 必须大于 0")
+
+        if offset < 0:
+            raise typer.BadParameter("--offset 不能小于 0")
+
+        filters = {}
+
+        if experiment_id is not None:
+            filters["experiment_id"] = experiment_id
+
+        if deployment_id is not None:
+            filters["deployment_id"] = deployment_id
+
+        if status is not None:
+            filters["status"] = status
+
+        if is_control is not None:
+            filters["is_control"] = is_control
+
+        if created_by is not None:
+            filters["created_by"] = created_by
+
         logger.info(
             "开始列出实验分组",
-            experiment_id=experiment_id,
-            status=status,
+            filters=filters,
+            limit=limit,
+            offset=offset,
         )
 
         async with UnitOfWork() as uow:
             repo = VariantRepository(uow.session)
 
             variants = await repo.list_variants(
-                experiment_id=experiment_id,
-                status=status,
+                limit=limit,
+                offset=offset,
+                **filters,
             )
 
         if output == "json":
@@ -116,6 +165,7 @@ def list_variants(
         )
 
         table.add_column("VARIANT ID")
+        table.add_column("EXPERIMENT ID")
         table.add_column("NAME")
         table.add_column("DEPLOYMENT ID")
         table.add_column("WEIGHT")
@@ -126,6 +176,7 @@ def list_variants(
         for item in variants:
             table.add_row(
                 item.variant_id,
+                item.experiment_id,
                 item.name,
                 item.deployment_id,
                 str(item.weight),

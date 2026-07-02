@@ -61,8 +61,8 @@ datamind model show
 datamind version list
 datamind version rollback
 
-datamind deploy create
-datamind deploy stop
+datamind deployment create
+datamind deployment stop
 
 datamind routing ...
 datamind experiment ...
@@ -349,12 +349,12 @@ datamind model delete scorecard --version 1.0.0 --purge --yes
 
 ## 部署模型
 
-### deploy list 命令
+### deployment list 命令
 
 #### 命令格式
 
 ```bash
-datamind deploy list
+datamind deployment list
   [--framework <framework>]
   [--environment <environment>]
   [--rollout-type <full|canary|shadow>]
@@ -386,25 +386,25 @@ datamind deploy list
 
 #### 使用示例
 
-```bash id="deploy_list_examples"
-datamind deploy list
-datamind deploy list --verbose
-datamind deploy list fraud_model
-datamind deploy list fraud_model --version v1.0.0
-datamind deploy list --model-id mdl_a1b2c3d4
-datamind deploy list --environment production
-datamind deploy list --rollout-type canary
-datamind deploy list --status active
-datamind deploy list --format json
-datamind deploy list --limit 50 --offset 100
+```bash id="deployment_list_examples"
+datamind deployment list
+datamind deployment list --verbose
+datamind deployment list fraud_model
+datamind deployment list fraud_model --version v1.0.0
+datamind deployment list --model-id mdl_a1b2c3d4
+datamind deployment list --environment production
+datamind deployment list --rollout-type canary
+datamind deployment list --status active
+datamind deployment list --format json
+datamind deployment list --limit 50 --offset 100
 ```
 
-### deploy show 命令
+### deployment show 命令
 
 #### 命令格式
 
 ```bash
-datamind deploy show <deployment-id>
+datamind deployment show <deployment-id>
   [--format <text|json>]
   [--verbose]
 ```
@@ -419,18 +419,18 @@ datamind deploy show <deployment-id>
 
 #### 使用示例
 
-```bash id="deploy_show_examples"
-datamind deploy show dep_a1b2c3d4
-datamind deploy show dep_123456 --format json
-datamind deploy show dep_123456 --verbose
+```bash id="deployment_show_examples"
+datamind deployment show dep_a1b2c3d4
+datamind deployment show dep_123456 --format json
+datamind deployment show dep_123456 --verbose
 ```
 
-### deploy create 命令
+### deployment create 命令
 
 #### 命令格式
 
 ```bash
-datamind deploy create (<name> | --model-id <model-id>)
+datamind deployment create (<name> | --model-id <model-id>)
   --version <version> | --version-id <version-id>
   --environment <environment>
   --rollout <rollout>
@@ -459,8 +459,8 @@ datamind deploy create (<name> | --model-id <model-id>)
 
 #### 使用示例
 
-```bash id="deploy_create_file_examples"
-datamind deploy create scorecard \
+```bash id="deployment_create_file_examples"
+datamind deployment create scorecard \
   --version 1.0.0 \
   --environment production \
   --rollout full \
@@ -491,7 +491,7 @@ datamind deploy create scorecard \
 
 ```bash
 # 创建全量部署
-datamind deploy create scorecard \
+datamind deployment create scorecard \
   --version 1.0.0 \
   --environment production \
   --rollout full \
@@ -503,7 +503,7 @@ datamind deploy create scorecard \
   --owner admin
 
 # 创建灰度部署
-datamind deploy create scorecard \
+datamind deployment create scorecard \
   --version 1.0.0 \
   --environment production \
   --rollout canary \
@@ -514,7 +514,7 @@ datamind deploy create scorecard \
   --owner admin
 
 # 创建影子部署
-datamind deploy create scorecard \
+datamind deployment create scorecard \
   --version 1.0.0 \
   --environment production \
   --rollout shadow \
@@ -526,12 +526,12 @@ datamind deploy create scorecard \
   --owner admin
 ```
 
-### deploy enable 命令
+### deployment enable 命令
 
 #### 命令格式
 
 ```bash
-datamind deploy enable <deployment-id>
+datamind deployment enable <deployment-id>
   [--operator <user>]
   [--format <text|json>]
   [--verbose]
@@ -552,18 +552,18 @@ datamind deploy enable <deployment-id>
 ```bash
 
 # 启用部署
-datamind deploy enable dep_a1b2c3d4
+datamind deployment enable dep_a1b2c3d4
 
 # 显示调试日志
-datamind deploy enable dep_a1b2c3d4 --verbose
+datamind deployment enable dep_a1b2c3d4 --verbose
 ```
 
-### deploy disable 命令
+### deployment disable 命令
 
 #### 命令格式
 
 ```bash
-datamind deploy disable <deployment-id>
+datamind deployment disable <deployment-id>
   [--operator <user>]
   [--format <text|json>]
   [--verbose]
@@ -584,19 +584,672 @@ datamind deploy disable <deployment-id>
 ```bash
 
 # 禁用部署
-datamind deploy disable dep_a1b2c3d4
+datamind deployment disable dep_a1b2c3d4
 
 # 显示调试日志
-datamind deploy disable dep_a1b2c3d4 --verbose
+datamind deployment disable dep_a1b2c3d4 --verbose
 ```
 
+## 创建实验
+### experiment create 命令
 
+#### 命令格式
 
-deploy create
-deploy enable
-deploy disable
-deploy list
-deploy show
+```bash
+datamind experiment create
+  --model-id <model-id>
+  [--name <name>]
+  [--traffic-ratio <ratio>]
+  [--bucket-key <key>]
+  [--config <json>]
+  [--description <description>]
+  [--owner <owner>]
+  [--effective-from <datetime>]
+  [--effective-to <datetime>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `--model-id <model-id>` | 模型 ID |
+| `--name <name>` | 实验名称，例如 `scorecard_ab_test` |
+| `--traffic-ratio <ratio>` | 实验流量比例，范围 `0~1`，默认 `1.0` |
+| `--bucket-key <key>` | 分桶主体字段，例如 `customer_id`、`order_id`、`apply_id`，默认 `customer_id` |
+| `--config <json>` | 实验配置 JSON 字符串 |
+| `--description <description>` | 实验描述 |
+| `--owner <owner>` | 创建人，默认 `system` |
+| `--effective-from <datetime>` | 生效开始时间，ISO 格式，例如 `2026-07-01T09:00:00+08:00`；默认当前时间 |
+| `--effective-to <datetime>` | 生效结束时间，ISO 格式，例如 `2026-07-31T23:59:59+08:00`；默认不限制结束时间 |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 补充说明
+
+| 配置项 | 说明 |
+|------|------|
+| `bucket_key` | 表示分桶主体字段，用于从请求数据中提取 `subject_key` |
+| `effective_from` | 默认当前 UTC 时间；CLI 文本输出时显示为本地时间 |
+| `effective_to` | 默认 `None`，表示不限制结束时间 |
+| `strategy` | 默认写入实验配置为 `hash` |
+
+#### 使用示例
+
+```bash
+# 创建实验
+datamind experiment create \
+  --model-id mdl_a1b2c3d4 \
+  --name scorecard_ab_test \
+  --traffic-ratio 0.5 \
+  --bucket-key customer_id \
+  --owner admin
+
+# 创建指定生效时间的实验
+datamind experiment create \
+  --model-id mdl_a1b2c3d4 \
+  --name scorecard_ab_test \
+  --traffic-ratio 0.5 \
+  --bucket-key customer_id \
+  --effective-from 2026-07-01T09:00:00+08:00 \
+  --effective-to 2026-07-31T23:59:59+08:00 \
+  --owner admin
+
+# 使用 JSON 配置创建实验
+datamind experiment create \
+  --model-id mdl_a1b2c3d4 \
+  --name scorecard_ab_test \
+  --config '{"strategy":"hash","remark":"scorecard ab test"}' \
+  --owner admin
+```
+
+## 列出实验
+### experiment list 命令
+
+#### 命令格式
+
+```bash
+datamind experiment list
+  [--model-id <model-id>]
+  [--status <status>]
+  [--created-by <user>]
+  [--limit <n>]
+  [--offset <n>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `--model-id <model-id>` | 按模型 ID 过滤 |
+| `--status <status>` | 按实验状态过滤，例如 `draft`、`running`、`paused`、`stopped`、`completed`、`archived` |
+| `--created-by <user>` | 按创建人过滤 |
+| `--limit <n>` | 返回记录数量限制，默认 `10` |
+| `--offset <n>` | 分页偏移量，默认 `0` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 列出全部实验
+datamind experiment list
+
+# 列出指定模型下的实验
+datamind experiment list --model-id mdl_a1b2c3d4
+
+# 按实验状态过滤
+datamind experiment list --status running
+
+# 按创建人过滤
+datamind experiment list --created-by admin
+
+# 分页查询
+datamind experiment list --limit 20 --offset 0
+
+# JSON 格式输出
+datamind experiment list --format json
+```
+
+## 查看实验详情
+### experiment show 命令
+
+#### 命令格式
+
+```bash
+datamind experiment show <experiment-id>
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 查看实验详情
+datamind experiment show exp_a1b2c3d4
+
+# JSON 格式输出
+datamind experiment show exp_a1b2c3d4 --format json
+```
+
+## 启动实验
+### experiment start 命令
+
+#### 命令格式
+
+```bash
+datamind experiment start <experiment-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 启动实验
+datamind experiment start exp_a1b2c3d4 --operator admin
+```
+
+## 暂停实验
+### experiment pause 命令
+
+#### 命令格式
+
+```bash
+datamind experiment pause <experiment-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 暂停实验
+datamind experiment pause exp_a1b2c3d4 --operator admin
+```
+
+## 停止实验
+### experiment stop 命令
+
+#### 命令格式
+
+```bash
+datamind experiment stop <experiment-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 停止实验
+datamind experiment stop exp_a1b2c3d4 --operator admin
+```
+
+## 完成实验
+### experiment complete 命令
+
+#### 命令格式
+
+```bash
+datamind experiment complete <experiment-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 标记实验完成
+datamind experiment complete exp_a1b2c3d4 --operator admin
+```
+
+## 归档实验
+### experiment archive 命令
+
+#### 命令格式
+
+```bash
+datamind experiment archive <experiment-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 归档实验
+datamind experiment archive exp_a1b2c3d4 --operator admin
+```
+
+## 实验状态说明
+
+| 命令 | 状态 | 说明 |
+|------|------|------|
+| `experiment start` | `running` | 启动实验，开始分配实验流量 |
+| `experiment pause` | `paused` | 临时暂停实验，后续可以再次启动 |
+| `experiment stop` | `stopped` | 停止实验，通常表示实验异常中止或不再继续 |
+| `experiment complete` | `completed` | 标记实验正常完成，通常用于达到观察周期或样本量后 |
+| `experiment archive` | `archived` | 归档实验，作为历史记录保留 |
+
+#### 推荐生命周期
+
+```text
+draft -> running -> completed -> archived
+draft -> running -> paused -> running -> completed -> archived
+draft -> running -> stopped -> archived
+```
+
+## 分析实验
+### experiment analyze 命令
+
+#### 命令格式
+
+```bash
+datamind experiment analyze <experiment-id>
+  [--baseline-variant-id <variant-id>]
+  [--limit <n>]
+  [--offset <n>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--baseline-variant-id <variant-id>` | 基准分组 ID，用于计算其他分组相对基准分组的 lift |
+| `--limit <n>` | 实验结果数量限制，用于分页 |
+| `--offset <n>` | 分页偏移量，跳过前 `n` 条记录后开始返回 |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 分析实验
+datamind experiment analyze exp_a1b2c3d4
+
+# 指定对照组进行分析
+datamind experiment analyze exp_a1b2c3d4 \
+  --baseline-variant-id var_control
+
+# 分页分析实验结果
+datamind experiment analyze exp_a1b2c3d4 \
+  --baseline-variant-id var_control \
+  --limit 1000 \
+  --offset 0
+```
+
+## 添加实验分组
+### experiment variant add 命令
+
+#### 命令格式
+
+```bash
+datamind experiment variant add <experiment-id>
+  --name <name>
+  --deployment-id <deployment-id>
+  --weight <weight>
+  [--control]
+  [--config <json>]
+  [--description <description>]
+  [--owner <owner>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 实验 ID |
+| `--name <name>` | 实验分组名称，例如 `control`、`treatment` |
+| `--deployment-id <deployment-id>` | 分组关联的部署 ID |
+| `--weight <weight>` | 分组权重，范围 `0~1` |
+| `--control` | 是否为对照组 |
+| `--config <json>` | 分组配置 JSON 字符串 |
+| `--description <description>` | 分组描述 |
+| `--owner <owner>` | 创建人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 添加对照组
+datamind experiment variant add exp_a1b2c3d4 \
+  --name control \
+  --deployment-id dep_control \
+  --weight 0.5 \
+  --control \
+  --owner admin
+
+# 添加实验组
+datamind experiment variant add exp_a1b2c3d4 \
+  --name treatment \
+  --deployment-id dep_treatment \
+  --weight 0.5 \
+  --owner admin
+
+# 添加带配置的实验组
+datamind experiment variant add exp_a1b2c3d4 \
+  --name treatment \
+  --deployment-id dep_treatment \
+  --weight 0.5 \
+  --config '{"model_role":"challenger"}' \
+  --owner admin
+```
+
+## 列出实验分组
+### experiment variant list 命令
+
+#### 命令格式
+
+```bash
+datamind experiment variant list [<experiment-id>]
+  [--deployment-id <deployment-id>]
+  [--status <status>]
+  [--control | --non-control]
+  [--created-by <user>]
+  [--limit <n>]
+  [--offset <n>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<experiment-id>` | 按实验 ID 过滤，可选 |
+| `--deployment-id <deployment-id>` | 按部署 ID 过滤 |
+| `--status <status>` | 按实验分组状态过滤，例如 `active`、`inactive`、`archived` |
+| `--control` | 只查看对照组 |
+| `--non-control` | 只查看非对照组 |
+| `--created-by <user>` | 按创建人过滤 |
+| `--limit <n>` | 返回记录数量限制，默认 `10` |
+| `--offset <n>` | 分页偏移量，默认 `0` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 列出所有实验分组
+datamind experiment variant list
+
+# 列出实验下所有分组
+datamind experiment variant list exp_a1b2c3d4
+
+# 只查看启用状态的分组
+datamind experiment variant list exp_a1b2c3d4 --status active
+
+# 按部署 ID 查询分组
+datamind experiment variant list --deployment-id dep_a1b2c3d4
+
+# 只查看对照组
+datamind experiment variant list --control
+
+# 只查看非对照组
+datamind experiment variant list --non-control
+
+# 按创建人过滤
+datamind experiment variant list --created-by admin
+
+# 分页查询
+datamind experiment variant list --limit 20 --offset 0
+```
+
+## 查看实验分组详情
+### experiment variant show 命令
+
+#### 命令格式
+
+```bash
+datamind experiment variant show <variant-id>
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<variant-id>` | 实验分组 ID |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 查看实验分组详情
+datamind experiment variant show var_a1b2c3d4
+
+# JSON 格式输出
+datamind experiment variant show var_a1b2c3d4 --format json
+```
+
+## 启用实验分组
+### experiment variant activate 命令
+
+#### 命令格式
+
+```bash
+datamind experiment variant activate <variant-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<variant-id>` | 实验分组 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 启用实验分组
+datamind experiment variant activate var_a1b2c3d4 --operator admin
+```
+
+## 停用实验分组
+### experiment variant deactivate 命令
+
+#### 命令格式
+
+```bash
+datamind experiment variant deactivate <variant-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<variant-id>` | 实验分组 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 停用实验分组
+datamind experiment variant deactivate var_a1b2c3d4 --operator admin
+```
+
+## 归档实验分组
+### experiment variant archive 命令
+
+#### 命令格式
+
+```bash
+datamind experiment variant archive <variant-id>
+  [--operator <user>]
+  [--format <format>]
+  [--verbose]
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `<variant-id>` | 实验分组 ID |
+| `--operator <user>` | 操作人，默认 `system` |
+| `--format <format>` | 输出格式，例如 `text` 或 `json`，默认 `text` |
+| `--verbose` | 显示调试日志 |
+
+#### 使用示例
+
+```bash
+# 归档实验分组
+datamind experiment variant archive var_a1b2c3d4 --operator admin
+```
+
+## 常见操作流程
+
+### 创建并启动一个 A/B 实验
+
+```bash
+# 1. 创建实验
+datamind experiment create \
+  --model-id mdl_a1b2c3d4 \
+  --name scorecard_ab_test \
+  --traffic-ratio 0.5 \
+  --bucket-key customer_id \
+  --owner admin
+
+# 2. 添加对照组
+datamind experiment variant add exp_a1b2c3d4 \
+  --name control \
+  --deployment-id dep_control \
+  --weight 0.5 \
+  --control \
+  --owner admin
+
+# 3. 添加实验组
+datamind experiment variant add exp_a1b2c3d4 \
+  --name treatment \
+  --deployment-id dep_treatment \
+  --weight 0.5 \
+  --owner admin
+
+# 4. 查看实验详情
+datamind experiment show exp_a1b2c3d4
+
+# 5. 启动实验
+datamind experiment start exp_a1b2c3d4 --operator admin
+```
+
+### 暂停并恢复实验
+
+```bash
+# 1. 暂停实验
+datamind experiment pause exp_a1b2c3d4 --operator admin
+
+# 2. 恢复实验
+datamind experiment start exp_a1b2c3d4 --operator admin
+```
+
+### 分析并完成实验
+
+```bash
+# 1. 分析实验效果
+datamind experiment analyze exp_a1b2c3d4 \
+  --baseline-variant-id var_control
+
+# 2. 标记实验完成
+datamind experiment complete exp_a1b2c3d4 --operator admin
+
+# 3. 归档实验
+datamind experiment archive exp_a1b2c3d4 --operator admin
+```
+
+### 异常中止实验
+
+```bash
+# 1. 停止实验
+datamind experiment stop exp_a1b2c3d4 --operator admin
+
+# 2. 归档实验
+datamind experiment archive exp_a1b2c3d4 --operator admin
+```
+
+deployment create
+deployment enable
+deployment disable
+deployment list
+deployment show
 
 route create
 route update
@@ -608,21 +1261,21 @@ route disable
 
 
 
-datamind deploy traffic <deployment-id>
+datamind deployment traffic <deployment-id>
   --ratio <0-1>
 
-datamind deploy canary
+datamind deployment canary
   --model-id <model-id>
   --version <version>
   --ratio <ratio>
   [--environment <env>]
 
-datamind deploy rollback
+datamind deployment rollback
   --deployment-id <deployment-id>
   [--to-version <version> | --to-version-id <version-id>]
 
 布升级（promote）
-datamind deploy promote <deployment-id>
+datamind deployment promote <deployment-id>
 
 👉 canary → primary
 

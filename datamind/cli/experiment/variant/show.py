@@ -13,7 +13,6 @@
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich.console import Console

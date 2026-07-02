@@ -108,7 +108,7 @@ class ModelResolver:
 
         # 兜底：按 version 查询
         if version:
-            versions = await self.version_repo.list_versions(model_id)
+            versions = await self.version_repo.list_versions(model_id=model_id)
             v = next((x for x in versions if x.version == version), None)
 
             if not v:

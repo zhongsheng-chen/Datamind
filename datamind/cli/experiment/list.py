@@ -8,12 +8,11 @@
   - list_experiments: 列出实验
 
 使用示例：
-  python -m datamind.cli.main experiment list --model-id mdl_a1b2c3d4
+  python -m datamind.cli.main experiment list
 """
 
 import asyncio
 import json
-
 import typer
 import structlog
 from rich import box
@@ -33,10 +32,30 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_experiments(
-    model_id: str = typer.Option(
-        ...,
+    model_id: str | None = typer.Option(
+        None,
         "--model-id",
-        help="模型 ID"
+        help="按模型 ID 过滤"
+    ),
+    status: str | None = typer.Option(
+        None,
+        "--status",
+        help="按实验状态过滤，例如 draft/running/paused/stopped/completed/archived"
+    ),
+    created_by: str | None = typer.Option(
+        None,
+        "--created-by",
+        help="按创建人过滤"
+    ),
+    limit: int | None = typer.Option(
+        None,
+        "--limit",
+        help="返回记录数量限制"
+    ),
+    offset: int | None = typer.Option(
+        None,
+        "--offset",
+        help="分页偏移量"
     ),
     output: str = typer.Option(
         "text",
@@ -55,16 +74,33 @@ def list_experiments(
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
+        filters = {}
+
+        if model_id is not None:
+            filters["model_id"] = model_id
+
+        if status is not None:
+            filters["status"] = status
+
+        if created_by is not None:
+            filters["created_by"] = created_by
+
         logger.info(
             "开始列出实验",
             model_id=model_id,
+            status=status,
+            created_by=created_by,
+            limit=limit,
+            offset=offset,
         )
 
         async with UnitOfWork() as uow:
             repo = ExperimentRepository(uow.session)
 
             experiments = await repo.list_experiments(
-                model_id=model_id,
+                limit=limit,
+                offset=offset,
+                **filters,
             )
 
         if output == "json":
@@ -113,13 +149,16 @@ def list_experiments(
         table.add_column("NAME")
         table.add_column("STATUS")
         table.add_column("TRAFFIC")
+        table.add_column("BUCKET KEY")
         table.add_column("UPDATED AT")
 
         for exp in experiments:
             traffic_ratio = "-"
+            bucket_key = "-"
 
             if isinstance(exp.config, dict):
                 traffic_ratio = str(exp.config.get("traffic_ratio", "-"))
+                bucket_key = str(exp.config.get("bucket_key", "-"))
 
             table.add_row(
                 exp.experiment_id,
@@ -127,6 +166,7 @@ def list_experiments(
                 exp.name or "-",
                 exp.status,
                 traffic_ratio,
+                bucket_key,
                 format_datetime(exp.updated_at),
             )
 

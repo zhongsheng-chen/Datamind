@@ -1,7 +1,7 @@
 {
   "assignment_key": "customer_id",
   "traffic_ratio": 0.2,
-  "strategy": "stable_hash",
+  "strategy": "hash",
   "variants": [
     {
       "name": "control",

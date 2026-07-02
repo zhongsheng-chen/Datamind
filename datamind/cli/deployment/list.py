@@ -1,4 +1,4 @@
-# datamind/cli/deploy/list.py
+# datamind/cli/deployment/list.py
 
 """列出部署命令
 
@@ -8,11 +8,12 @@
   - list_deployments: 列出部署
 
 使用示例：
-  python -m datamind.cli.main deploy list
+  python -m datamind.cli.main deployment list
 """
 
 import asyncio
 import json
+
 import typer
 import structlog
 from rich.console import Console
@@ -32,45 +33,55 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_deployments(
+    model_id: str | None = typer.Option(
+        None,
+        "--model-id",
+        help="按模型 ID 过滤"
+    ),
+    version_id: str | None = typer.Option(
+        None,
+        "--version-id",
+        help="按版本 ID 过滤"
+    ),
     framework: str | None = typer.Option(
         None,
         "--framework",
-        help="框架类型"
+        help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
     ),
     environment: str | None = typer.Option(
         None,
         "--environment",
-        help="部署环境"
+        help="按部署环境过滤，例如 production/staging/development/testing"
     ),
     rollout: str | None = typer.Option(
         None,
         "--rollout",
-        help="发布方式（full / canary / shadow）"
+        help="按发布方式过滤，例如 full/canary/shadow"
     ),
     role: str | None = typer.Option(
         None,
         "--role",
-        help="部署角色（champion / challenger）"
+        help="按部署角色过滤，例如 champion/challenger"
     ),
     status: str | None = typer.Option(
         None,
         "--status",
-        help="部署状态"
+        help="按部署状态过滤，例如 active/inactive"
     ),
     deployed_by: str | None = typer.Option(
         None,
         "--deployed-by",
-        help="部署人"
+        help="按部署人过滤"
     ),
     limit: int = typer.Option(
         10,
         "--limit",
-        help="返回数量"
+        help="返回记录数量限制"
     ),
     offset: int = typer.Option(
         0,
         "--offset",
-        help="分页偏移"
+        help="分页偏移量"
     ),
     output: str = typer.Option(
         "text",
@@ -80,7 +91,7 @@ def list_deployments(
     verbose: bool = typer.Option(
         False,
         "--verbose",
-        help="是否输出调试日志"
+        help="显示调试日志"
     ),
 ):
     """列出部署"""
@@ -95,16 +106,31 @@ def list_deployments(
         if offset < 0:
             raise typer.BadParameter("--offset 不能小于 0")
 
-        filters = {
-            "framework": framework,
-            "environment": environment,
-            "rollout_type": rollout,
-            "role": role,
-            "status": status,
-            "deployed_by": deployed_by,
-        }
+        filters = {}
 
-        filters = {k: v for k, v in filters.items() if v is not None}
+        if model_id is not None:
+            filters["model_id"] = model_id
+
+        if version_id is not None:
+            filters["version_id"] = version_id
+
+        if framework is not None:
+            filters["framework"] = framework
+
+        if environment is not None:
+            filters["environment"] = environment
+
+        if rollout is not None:
+            filters["rollout_type"] = rollout
+
+        if role is not None:
+            filters["role"] = role
+
+        if status is not None:
+            filters["status"] = status
+
+        if deployed_by is not None:
+            filters["deployed_by"] = deployed_by
 
         logger.info(
             "开始列出部署",
@@ -145,6 +171,7 @@ def list_deployments(
                     result,
                     ensure_ascii=False,
                     indent=2,
+                    default=str,
                 )
             )
 
