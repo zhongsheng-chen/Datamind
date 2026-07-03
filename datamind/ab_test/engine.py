@@ -34,6 +34,22 @@
       if assignment is not None:
           deployment_id = assignment.deployment_id
           variant_id = assignment.variant_id
+
+  async with UnitOfWork() as uow:
+      engine = ABTestEngine(
+          experiment_repo=ExperimentRepository(uow.session),
+          variant_repo=VariantRepository(uow.session),
+          assignment_repo=AssignmentRepository(uow.session)
+      )
+
+      assignment = await engine.assign(
+          model_id="mdl_a1b2c3d4",
+          payload={
+              "customer_id": "customer_10001",
+              "age": 35,
+          },
+          subject_type="customer"
+      )
 """
 
 from dataclasses import dataclass
@@ -46,7 +62,11 @@ from datamind.db.models.variants import Variant
 from datamind.db.repositories.assignment import AssignmentRepository
 from datamind.db.repositories.experiment import ExperimentRepository
 from datamind.db.repositories.variant import VariantRepository
-from datamind.models.enums import AssignmentStrategy, ExperimentVariantStatus
+from datamind.models.enums import (
+    AssignmentStrategy,
+    DecisionStrategy,
+    ExperimentVariantStatus,
+)
 from datamind.utils.datetime import to_utc
 from datamind.utils.generator import generate_random_id
 
@@ -122,8 +142,9 @@ class ABTestEngine:
         self,
         *,
         model_id: str,
-        subject_key: str,
+        subject_key: str | None = None,
         subject_type: str | None = None,
+        payload: dict | None = None,
         now: datetime | None = None,
         flush: bool = False,
     ) -> ABTestResult | None:
@@ -131,8 +152,11 @@ class ABTestEngine:
 
         参数：
             model_id: 模型 ID
-            subject_key: 分桶主体标识，例如客户号、订单号、申请单号
+            subject_key: 分桶主体标识，例如客户号、订单号、申请单号。
+                如果传入该参数，则优先使用该值。
             subject_type: 分桶主体类型（可选）
+            payload: 请求负载。未传 subject_key 时，会根据实验配置中的 bucket_key
+                从 payload 中提取分桶主体标识。
             now: 当前时间（可选）
             flush: 是否立即 flush 到数据库，默认 False
 
@@ -145,7 +169,7 @@ class ABTestEngine:
         if not model_id:
             raise ValueError("模型 ID 不能为空")
 
-        if not subject_key:
+        if subject_key is None and payload is None:
             raise ValueError("分桶主体不能为空")
 
         current_time = to_utc(now or datetime.now(timezone.utc))
@@ -158,9 +182,20 @@ class ABTestEngine:
             if not self._is_effective(experiment, current_time):
                 continue
 
+            config = self._get_config(experiment)
+
+            actual_subject_key = self._resolve_subject_key(
+                subject_key=subject_key,
+                payload=payload,
+                bucket_key=config.get("bucket_key"),
+            )
+
+            if actual_subject_key is None:
+                continue
+
             assignment = await self.assignment_repo.get_subject_assignment(
                 experiment_id=experiment.experiment_id,
-                subject_key=subject_key,
+                subject_key=actual_subject_key,
             )
 
             if assignment is not None:
@@ -183,7 +218,7 @@ class ABTestEngine:
 
             assignment_result = self.assigner.assign(
                 experiment_id=experiment.experiment_id,
-                subject_key=subject_key,
+                subject_key=actual_subject_key,
                 traffic_ratio=traffic_ratio,
                 variants=variants,
             )
@@ -191,16 +226,23 @@ class ABTestEngine:
             if assignment_result is None:
                 continue
 
+            assignment_context = dict(assignment_result.context)
+            assignment_context.update(
+                {
+                    "bucket_key": config.get("bucket_key"),
+                }
+            )
+
             assignment = self.assignment_repo.create_assignment(
                 assignment_id=generate_random_id(prefix="asn"),
                 experiment_id=experiment.experiment_id,
                 variant_id=assignment_result.variant.variant_id,
-                subject_key=subject_key,
+                subject_key=actual_subject_key,
                 subject_type=subject_type,
                 strategy=AssignmentStrategy.HASH,
                 bucket=assignment_result.bucket,
                 weight=float(assignment_result.variant.weight),
-                context=assignment_result.context,
+                context=assignment_context,
                 assigned_at=current_time,
             )
 
@@ -264,7 +306,7 @@ class ABTestEngine:
             assignment_id=assignment.assignment_id,
             subject_key=assignment.subject_key,
             subject_type=subject_type or assignment.subject_type,
-            source="experiment",
+            source=DecisionStrategy.EXPERIMENT,
             strategy=AssignmentStrategy.HASH,
             bucket=assignment.bucket,
             group=variant.name,
@@ -296,7 +338,7 @@ class ABTestEngine:
         """
         variant = assignment_result.variant
 
-        context = dict(assignment_result.context)
+        context = dict(assignment.context or assignment_result.context)
         context.update(
             {
                 "source": "new_assignment",
@@ -319,7 +361,7 @@ class ABTestEngine:
             assignment_id=assignment.assignment_id,
             subject_key=assignment.subject_key,
             subject_type=subject_type,
-            source="experiment",
+            source=DecisionStrategy.EXPERIMENT,
             strategy=AssignmentStrategy.HASH,
             bucket=assignment_result.bucket,
             group=variant.name,
@@ -330,8 +372,8 @@ class ABTestEngine:
             context=context,
         )
 
-    @staticmethod
-    def _get_traffic_ratio(experiment: Experiment) -> float:
+    @classmethod
+    def _get_traffic_ratio(cls, experiment: Experiment) -> float:
         """获取实验曝光比例
 
         参数：
@@ -343,10 +385,7 @@ class ABTestEngine:
         异常：
             ValueError: 实验配置非法
         """
-        config = experiment.config or {}
-
-        if not isinstance(config, dict):
-            raise ValueError("实验配置 config 必须是 JSON 对象")
+        config = cls._get_config(experiment)
 
         traffic_ratio = float(config.get("traffic_ratio", 1.0))
 
@@ -357,6 +396,59 @@ class ABTestEngine:
             raise ValueError("实验曝光比例不能大于 1")
 
         return traffic_ratio
+
+    @staticmethod
+    def _get_config(experiment: Experiment) -> dict:
+        """获取实验配置
+
+        参数：
+            experiment: 实验对象
+
+        返回：
+            实验配置字典
+
+        异常：
+            ValueError: 实验配置非法
+        """
+        config = experiment.config or {}
+
+        if not isinstance(config, dict):
+            raise ValueError("实验配置 config 必须是 JSON 对象")
+
+        return config
+
+    @staticmethod
+    def _resolve_subject_key(
+        *,
+        subject_key: str | None,
+        payload: dict | None,
+        bucket_key: str | None,
+    ) -> str | None:
+        """解析分桶主体标识
+
+        参数：
+            subject_key: 外部直接传入的分桶主体标识
+            payload: 请求负载
+            bucket_key: 实验配置中的分桶主体字段
+
+        返回：
+            分桶主体标识；无法解析时返回 None
+        """
+        if subject_key:
+            return subject_key
+
+        if not payload:
+            return None
+
+        if not bucket_key:
+            return None
+
+        value = payload.get(bucket_key)
+
+        if value is None:
+            return None
+
+        return str(value)
 
     @staticmethod
     def _is_effective(
