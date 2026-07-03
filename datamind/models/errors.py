@@ -2,7 +2,7 @@
 
 """模型错误定义
 
-统一定义模型注册、部署、加载过程中的业务异常类型。
+统一定义模型注册、部署、加载、运行过程中的业务异常类型。
 
 核心功能：
   - ModelError: 模型基础异常
@@ -14,15 +14,22 @@
   - DeploymentError: 模型部署异常
   - DeploymentNotFoundError: 部署不存在
   - InvalidDeploymentStateError: 非法部署状态
+  - RuntimeRouteError: 运行时路由异常
   - BackendError: 模型后端错误
   - ArtifactError: 模型产物处理错误
 
 使用示例：
-  from datamind.models.errors import ModelNotFoundError, VersionNotFoundError
+  from datamind.models.errors import (
+      ModelNotFoundError,
+      VersionNotFoundError,
+      RuntimeRouteError,
+  )
 
   raise ModelNotFoundError("模型不存在")
   raise VersionNotFoundError("版本不存在")
+  raise RuntimeRouteError("没有可用部署")
 """
+
 
 class ModelError(Exception):
     """模型基础异常"""
@@ -61,12 +68,19 @@ class DeploymentError(ModelError):
     """模型部署异常"""
     pass
 
+
 class DeploymentNotFoundError(DeploymentError):
     """部署不存在"""
     pass
 
-class InvalidDeploymentStateError(ModelError):
+
+class InvalidDeploymentStateError(DeploymentError):
     """非法部署状态"""
+    pass
+
+
+class RuntimeRouteError(ModelError):
+    """运行时路由异常"""
     pass
 
 
