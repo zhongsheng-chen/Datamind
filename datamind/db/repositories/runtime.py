@@ -30,7 +30,7 @@
           model_id="mdl_a1b2c3d4",
           version_id="ver_a1b2c3d4",
           framework="sklearn",
-          started_by="admin",
+          started_by="admin"
       )
 """
 
@@ -382,6 +382,7 @@ class RuntimeRepository(BaseRepository):
         runtime: Runtime,
         *,
         error: str,
+        started_by: str | None = None,
         context: dict | None = None,
     ) -> Runtime:
         """标记运行记录为失败
@@ -389,6 +390,7 @@ class RuntimeRepository(BaseRepository):
         参数：
             runtime: 运行记录对象
             error: 错误信息
+            started_by: 加载操作人（可选）
             context: 运行上下文（可选）
 
         返回：
@@ -396,6 +398,9 @@ class RuntimeRepository(BaseRepository):
         """
         runtime.status = "failed"
         runtime.error = error
+
+        if started_by:
+            runtime.started_by = started_by
 
         if context is not None:
             runtime.context = context

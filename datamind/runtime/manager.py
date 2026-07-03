@@ -1,169 +1,605 @@
 # datamind/runtime/manager.py
 
-"""Runtime 管理器
+"""运行时管理器
 
-负责模型运行时生命周期管理，包括：
-  - 将模型发布为可服务的 BentoML service
-  - 启动服务（local / process）
-  - 停止服务
-  - 获取服务 endpoint
-  - 绑定 deployment 与 runtime 服务
+编排模型运行生命周期，负责加载、注册、卸载和查询运行时模型。
 
 核心功能：
-  - build_service: 构建服务
-  - start_service: 启动服务
-  - stop_service: 停止服务
-  - get_endpoint: 获取服务地址
-  - deploy_model: 一键发布模型为可访问服务
+  - start: 加载指定部署对应的模型
+  - stop: 卸载指定部署对应的模型
+  - restart: 重启指定部署对应的模型
+  - status: 查看指定部署的运行状态
+  - get: 获取已加载运行时模型
+  - get_model: 获取已加载模型对象
+  - exists: 判断部署是否已加载
 
-注意：
-  RuntimeManager 不管理“部署记录（deploy）”
-  只管理“真实运行服务（runtime）”
+使用示例：
+  from datamind.runtime.manager import RuntimeManager
+
+  manager = RuntimeManager()
+
+  runtime_model = await manager.start(
+      deployment_id="dep_a1b2c3d4",
+      operator="admin",
+  )
+
+  model = manager.get_model("dep_a1b2c3d4")
+
+  await manager.stop(
+      deployment_id="dep_a1b2c3d4",
+      operator="admin",
+  )
 """
 
-import subprocess
-import socket
-import time
 import structlog
 from typing import Any
 
+from datamind.db.core import UnitOfWork
+from datamind.db.repositories import (
+    DeploymentRepository,
+    RuntimeRepository,
+    VersionRepository,
+)
+from datamind.models.enums import DeploymentStatus
+from datamind.models.errors import (
+    BackendError,
+    DeploymentNotFoundError,
+    InvalidDeploymentStateError,
+    RuntimeRouteError,
+    VersionNotFoundError,
+)
 from datamind.runtime.loader import ModelLoader
-from datamind.runtime.backend import BentoBackend
+from datamind.runtime.registry import RuntimeModel, RuntimeRegistry
+from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
 
+DEFAULT_WORKER_ID = "default"
+
 
 class RuntimeManager:
-    """模型运行时管理器"""
+    """运行时管理器"""
 
-    def __init__(self) -> None:
-        self.loader = ModelLoader()
-        self.backend = BentoBackend()
-
-    # -------------------------
-    # endpoint 生成（关键点）
-    # -------------------------
-    def _allocate_port(self) -> int:
-        """分配可用端口"""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("0.0.0.0", 0))
-            return s.getsockname()[1]
-
-    def _build_endpoint(self, host: str, port: int) -> str:
-        """构建 endpoint"""
-        return f"http://{host}:{port}"
-
-    # -------------------------
-    # 服务构建（核心）
-    # -------------------------
-    def build_service(
+    def __init__(
         self,
         *,
-        framework: str,
-        tag: str,
-    ) -> Any:
-        """加载模型服务实例"""
-        model = self.loader.load(
-            framework=framework,
-            tag=tag,
-        )
+        loader: ModelLoader | None = None,
+        registry: RuntimeRegistry | None = None,
+        worker_id: str = DEFAULT_WORKER_ID,
+    ):
+        """初始化运行时管理器
 
-        logger.info(
-            "模型加载成功",
-            framework=framework,
-            tag=tag,
-        )
+        参数：
+            loader: 模型加载器，默认使用 ModelLoader
+            registry: 运行时模型注册表，默认使用 RuntimeRegistry
+            worker_id: 运行 Worker 标识，单机模式默认 default
+        """
+        self.loader = loader or ModelLoader()
+        self.registry = registry or RuntimeRegistry()
+        self.worker_id = worker_id
 
-        return model
-
-    # -------------------------
-    # 启动服务（本地运行）
-    # -------------------------
-    def start_service(
+    async def start(
         self,
+        deployment_id: str,
         *,
-        framework: str,
-        tag: str,
-        host: str = "127.0.0.1",
-        port: int | None = None,
-    ) -> dict[str, Any]:
-        """启动服务"""
+        operator: str = "system",
+        force: bool = False,
+    ) -> RuntimeModel:
+        """加载指定部署对应的模型
 
-        if port is None:
-            port = self._allocate_port()
+        参数：
+            deployment_id: 部署 ID
+            operator: 操作人
+            force: 是否强制重新加载。为 True 时，如果模型已加载，会先卸载再重新加载
 
-        model = self.build_service(
-            framework=framework,
-            tag=tag,
-        )
+        返回：
+            运行时模型对象
 
-        # ⚠️ 这里是关键：你目前没有真正 server runner
-        # 先用 subprocess 模拟 BentoML serve
-        proc = subprocess.Popen(
-            [
-                "bentoml",
-                "serve",
-                "--port",
-                str(port),
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        异常：
+            DeploymentNotFoundError: 部署不存在
+            VersionNotFoundError: 版本不存在
+            InvalidDeploymentStateError: 部署状态不可加载
+            BackendError: 模型加载失败
+            RuntimeRouteError: 参数为空
+        """
+        self._validate_required("deployment_id", deployment_id)
 
-        # 给服务一点启动时间
-        time.sleep(2)
+        if self.registry.exists(deployment_id):
+            if not force:
+                runtime_model = self.registry.get(deployment_id)
 
-        endpoint = self._build_endpoint(host, port)
+                if runtime_model is not None:
+                    logger.info(
+                        "部署已加载，直接返回运行时模型",
+                        deployment_id=deployment_id,
+                    )
+                    return runtime_model
+
+            await self.stop(
+                deployment_id,
+                operator=operator,
+            )
 
         logger.info(
-            "服务启动成功",
-            endpoint=endpoint,
-            framework=framework,
-            tag=tag,
+            "开始加载运行时模型",
+            deployment_id=deployment_id,
+            operator=operator,
+            worker_id=self.worker_id,
         )
 
-        return {
-            "endpoint": endpoint,
-            "process_id": proc.pid,
-            "framework": framework,
-            "tag": tag,
-        }
+        runtime_id = ""
+        model_id = ""
+        version_id = ""
+        framework = ""
+        bento_tag = ""
+        model_path = None
+        model_key = None
+        environment = ""
+        rollout_type = ""
+        role = None
+        runtime_context: dict[str, Any] = {}
 
-    # -------------------------
-    # 停止服务
-    # -------------------------
-    def stop_service(self, *, process_id: int) -> None:
-        """停止服务"""
+        async with UnitOfWork() as uow:
+            deployment_repo = DeploymentRepository(uow.session)
+            version_repo = VersionRepository(uow.session)
+            runtime_repo = RuntimeRepository(uow.session)
+
+            deployment = await deployment_repo.get_deployment(
+                deployment_id,
+            )
+
+            if deployment is None:
+                raise DeploymentNotFoundError(f"部署不存在: {deployment_id}")
+
+            if deployment.status != DeploymentStatus.ACTIVE:
+                raise InvalidDeploymentStateError(
+                    f"部署不是启用状态，不能加载: {deployment_id}"
+                )
+
+            version = await version_repo.get_version(
+                deployment.version_id,
+            )
+
+            if version is None:
+                raise VersionNotFoundError(f"版本不存在: {deployment.version_id}")
+
+            if not version.bento_tag:
+                raise VersionNotFoundError(
+                    f"版本缺少 BentoML 标签: {deployment.version_id}"
+                )
+
+            runtime = await self._get_or_create_runtime(
+                runtime_repo=runtime_repo,
+                deployment_id=deployment.deployment_id,
+                model_id=deployment.model_id,
+                version_id=deployment.version_id,
+                framework=deployment.framework,
+                operator=operator,
+            )
+
+            runtime_id = runtime.runtime_id
+            model_id = deployment.model_id
+            version_id = deployment.version_id
+            framework = deployment.framework
+            bento_tag = version.bento_tag
+            model_path = version.model_path
+            model_key = version.model_key
+            environment = deployment.environment
+            rollout_type = deployment.rollout_type
+            role = deployment.role
+
+            runtime_context = {
+                "worker_id": self.worker_id,
+                "bento_tag": bento_tag,
+                "model_path": model_path,
+                "model_key": model_key,
+            }
+
+            runtime_repo.mark_loading(
+                runtime,
+                started_by=operator,
+                context=runtime_context,
+            )
+
+        runtime_model: RuntimeModel | None = None
+        load_error: Exception | None = None
+
         try:
-            subprocess.Popen(["kill", "-9", str(process_id)])
-            logger.info("服务已停止", process_id=process_id)
+            model = self.loader.load(
+                framework=framework,
+                tag=bento_tag,
+            )
+
+            runtime_model = self.registry.register(
+                deployment_id=deployment_id,
+                model_id=model_id,
+                version_id=version_id,
+                framework=framework,
+                model=model,
+                metadata={
+                    "runtime_id": runtime_id,
+                    "worker_id": self.worker_id,
+                    "bento_tag": bento_tag,
+                    "model_path": model_path,
+                    "model_key": model_key,
+                    "environment": environment,
+                    "rollout_type": rollout_type,
+                    "role": role,
+                },
+            )
+
+            async with UnitOfWork() as uow:
+                runtime_repo = RuntimeRepository(uow.session)
+
+                runtime = await runtime_repo.get_deployment_runtime(
+                    deployment_id=deployment_id,
+                    worker_id=self.worker_id,
+                )
+
+                if runtime is not None:
+                    runtime_repo.mark_loaded(
+                        runtime,
+                        started_by=operator,
+                        context=runtime_context,
+                    )
+
+            logger.info(
+                "运行时模型加载成功",
+                deployment_id=deployment_id,
+                model_id=model_id,
+                version_id=version_id,
+                bento_tag=bento_tag,
+            )
+
         except Exception as e:
-            logger.error("停止服务失败", error=str(e))
-            raise RuntimeError(f"停止服务失败: {e}") from e
+            load_error = e
 
-    # -------------------------
-    # 一键发布（核心 API）
-    # -------------------------
-    def deploy_model(
+            self.registry.unregister(
+                deployment_id,
+            )
+
+            async with UnitOfWork() as uow:
+                runtime_repo = RuntimeRepository(uow.session)
+
+                runtime = await runtime_repo.get_deployment_runtime(
+                    deployment_id=deployment_id,
+                    worker_id=self.worker_id,
+                )
+
+                if runtime is not None:
+                    runtime_repo.mark_failed(
+                        runtime,
+                        error=str(e),
+                        started_by=operator,
+                        context=runtime_context,
+                    )
+
+            logger.exception(
+                "运行时模型加载失败",
+                deployment_id=deployment_id,
+                version_id=version_id,
+                bento_tag=bento_tag,
+            )
+
+        if load_error is not None:
+            raise BackendError(f"模型加载失败: {deployment_id}") from load_error
+
+        if runtime_model is None:
+            raise BackendError(f"模型加载失败: {deployment_id}")
+
+        return runtime_model
+
+    async def stop(
         self,
+        deployment_id: str,
         *,
-        framework: str,
-        name: str,
-        version: str,
-        host: str = "127.0.0.1",
-    ) -> dict[str, Any]:
-        """发布模型为 runtime 服务"""
+        operator: str = "system",
+    ) -> RuntimeModel | None:
+        """卸载指定部署对应的模型
 
-        tag = f"{name}:{version}"
+        参数：
+            deployment_id: 部署 ID
+            operator: 操作人
 
-        result = self.start_service(
-            framework=framework,
-            tag=tag,
-            host=host,
+        返回：
+            被卸载的运行时模型对象；未加载时返回 None
+
+        异常：
+            RuntimeRouteError: 参数为空
+        """
+        self._validate_required("deployment_id", deployment_id)
+
+        logger.info(
+            "开始卸载运行时模型",
+            deployment_id=deployment_id,
+            operator=operator,
+            worker_id=self.worker_id,
         )
 
+        runtime_model = self.registry.unregister(
+            deployment_id,
+        )
+
+        async with UnitOfWork() as uow:
+            runtime_repo = RuntimeRepository(uow.session)
+
+            runtime = await runtime_repo.get_deployment_runtime(
+                deployment_id=deployment_id,
+                worker_id=self.worker_id,
+            )
+
+            if runtime is not None:
+                runtime_repo.mark_unloaded(
+                    runtime,
+                    stopped_by=operator,
+                    context={
+                        "worker_id": self.worker_id,
+                    },
+                )
+
+        logger.info(
+            "运行时模型卸载完成",
+            deployment_id=deployment_id,
+            unloaded=runtime_model is not None,
+        )
+
+        return runtime_model
+
+    async def restart(
+        self,
+        deployment_id: str,
+        *,
+        operator: str = "system",
+    ) -> RuntimeModel:
+        """重启指定部署对应的模型
+
+        参数：
+            deployment_id: 部署 ID
+            operator: 操作人
+
+        返回：
+            重新加载后的运行时模型对象
+        """
+        await self.stop(
+            deployment_id,
+            operator=operator,
+        )
+
+        return await self.start(
+            deployment_id,
+            operator=operator,
+            force=True,
+        )
+
+    async def status(
+        self,
+        deployment_id: str,
+    ) -> dict:
+        """查看指定部署的运行状态
+
+        参数：
+            deployment_id: 部署 ID
+
+        返回：
+            运行状态字典
+
+        异常：
+            RuntimeRouteError: 参数为空
+        """
+        self._validate_required("deployment_id", deployment_id)
+
+        runtime_model = self.registry.get(
+            deployment_id,
+            touch=False,
+        )
+
+        runtime_info = None
+
+        async with UnitOfWork() as uow:
+            runtime_repo = RuntimeRepository(uow.session)
+
+            runtime = await runtime_repo.get_deployment_runtime(
+                deployment_id=deployment_id,
+                worker_id=self.worker_id,
+            )
+
+            if runtime is not None:
+                runtime_info = {
+                    "runtime_id": runtime.runtime_id,
+                    "deployment_id": runtime.deployment_id,
+                    "model_id": runtime.model_id,
+                    "version_id": runtime.version_id,
+                    "framework": runtime.framework,
+                    "status": runtime.status,
+                    "worker_id": runtime.worker_id,
+                    "loaded_at": runtime.loaded_at.isoformat() if runtime.loaded_at else None,
+                    "unloaded_at": runtime.unloaded_at.isoformat() if runtime.unloaded_at else None,
+                    "last_heartbeat_at": (
+                        runtime.last_heartbeat_at.isoformat()
+                        if runtime.last_heartbeat_at
+                        else None
+                    ),
+                    "error": runtime.error,
+                    "context": runtime.context,
+                }
+
         return {
-            "endpoint": result["endpoint"],
-            "process_id": result["process_id"],
-            "tag": tag,
+            "deployment_id": deployment_id,
+            "worker_id": self.worker_id,
+            "loaded_in_memory": runtime_model is not None,
+            "memory": runtime_model.to_dict() if runtime_model is not None else None,
+            "runtime": runtime_info,
         }
+
+    def get(
+        self,
+        deployment_id: str,
+        *,
+        touch: bool = True,
+    ) -> RuntimeModel | None:
+        """获取运行时模型
+
+        参数：
+            deployment_id: 部署 ID
+            touch: 是否记录访问时间和访问次数，默认 True
+
+        返回：
+            运行时模型对象；不存在时返回 None
+        """
+        return self.registry.get(
+            deployment_id,
+            touch=touch,
+        )
+
+    def get_model(
+        self,
+        deployment_id: str,
+        *,
+        touch: bool = True,
+    ) -> Any | None:
+        """获取已加载模型对象
+
+        参数：
+            deployment_id: 部署 ID
+            touch: 是否记录访问时间和访问次数，默认 True
+
+        返回：
+            已加载模型对象；不存在时返回 None
+        """
+        return self.registry.get_model(
+            deployment_id,
+            touch=touch,
+        )
+
+    def exists(
+        self,
+        deployment_id: str,
+    ) -> bool:
+        """判断部署是否已加载
+
+        参数：
+            deployment_id: 部署 ID
+
+        返回：
+            是否已加载
+        """
+        return self.registry.exists(
+            deployment_id,
+        )
+
+    def all(
+        self,
+    ) -> list[RuntimeModel]:
+        """获取所有已加载模型
+
+        返回：
+            运行时模型对象列表
+        """
+        return self.registry.all()
+
+    def to_dicts(
+        self,
+    ) -> list[dict]:
+        """获取所有已加载模型的字典信息
+
+        返回：
+            运行时模型字典列表
+        """
+        return self.registry.to_dicts()
+
+    def count(
+        self,
+    ) -> int:
+        """获取已加载模型数量
+
+        返回：
+            已加载模型数量
+        """
+        return self.registry.count()
+
+    def clear(
+        self,
+    ) -> None:
+        """清空内存注册表"""
+        self.registry.clear()
+
+    async def ensure_loaded(
+        self,
+        deployment_id: str,
+        *,
+        operator: str = "system",
+    ) -> RuntimeModel:
+        """确保指定部署已经加载
+
+        参数：
+            deployment_id: 部署 ID
+            operator: 操作人
+
+        返回：
+            运行时模型对象
+        """
+        runtime_model = self.registry.get(
+            deployment_id,
+        )
+
+        if runtime_model is not None:
+            return runtime_model
+
+        return await self.start(
+            deployment_id,
+            operator=operator,
+        )
+
+    async def _get_or_create_runtime(
+        self,
+        *,
+        runtime_repo: RuntimeRepository,
+        deployment_id: str,
+        model_id: str,
+        version_id: str,
+        framework: str,
+        operator: str,
+    ):
+        """获取或创建运行记录"""
+        runtime = await runtime_repo.get_deployment_runtime(
+            deployment_id=deployment_id,
+            worker_id=self.worker_id,
+        )
+
+        if runtime is not None:
+            runtime.model_id = model_id
+            runtime.version_id = version_id
+            runtime.framework = framework
+            runtime.started_by = operator
+
+            return runtime
+
+        return runtime_repo.create_runtime(
+            runtime_id=generate_random_id(prefix="rtm"),
+            deployment_id=deployment_id,
+            model_id=model_id,
+            version_id=version_id,
+            framework=framework,
+            worker_id=self.worker_id,
+            started_by=operator,
+            context={
+                "worker_id": self.worker_id,
+            },
+        )
+
+    @staticmethod
+    def _validate_required(
+        name: str,
+        value: str,
+    ) -> None:
+        """校验必填字符串参数
+
+        参数：
+            name: 参数名称
+            value: 参数值
+
+        异常：
+            RuntimeRouteError: 参数为空
+        """
+        if not value:
+            raise RuntimeRouteError(f"{name} 不能为空")
