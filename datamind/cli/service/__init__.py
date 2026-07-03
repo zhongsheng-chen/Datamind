@@ -12,7 +12,7 @@
   - show: 查看服务详情
 """
 
-from typer import Typer
+import typer
 
 from datamind.cli.service.start import app as start_app
 from datamind.cli.service.stop import app as stop_app
@@ -20,7 +20,9 @@ from datamind.cli.service.restart import app as restart_app
 from datamind.cli.service.list import app as list_app
 from datamind.cli.service.show import app as show_app
 
-app = Typer(help="服务管理命令")
+app = typer.Typer(
+    help="服务管理命令"
+)
 
 app.add_typer(start_app)
 app.add_typer(stop_app)
