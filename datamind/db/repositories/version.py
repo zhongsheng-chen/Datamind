@@ -32,8 +32,9 @@
       )
 """
 
-from datetime import datetime, timezone
 from dataclasses import dataclass, fields
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.versions import Version
@@ -66,6 +67,7 @@ class VersionPatch:
         archived_at: 归档时间
         archived_by: 归档人
     """
+
     version: str | None = None
     framework: str | None = None
     input_schema: dict | None = None

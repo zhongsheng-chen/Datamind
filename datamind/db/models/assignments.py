@@ -20,13 +20,36 @@ class Assignment(Base, IdMixin, TimestampMixin):
     __tablename__ = "assignments"
 
     __table_args__ = (
-        Index("idx_assignments_experiment_id", "experiment_id"),
-        Index("idx_assignments_variant_id", "variant_id"),
-        Index("idx_assignments_subject_key", "subject_key"),
-        Index("idx_assignments_created_at", "created_at"),
-        Index("idx_assignments_assigned_at", "assigned_at"),
-        Index("uk_assignments_assignment_id", "assignment_id", unique=True),
-        Index("uk_assignments_experiment_subject", "experiment_id", "subject_key", unique=True),
+        Index(
+            "idx_assignments_experiment_id",
+            "experiment_id"
+        ),
+        Index(
+            "idx_assignments_variant_id",
+            "variant_id"
+        ),
+        Index(
+            "idx_assignments_subject_key",
+            "subject_key"
+        ),
+        Index(
+            "idx_assignments_created_at",
+            "created_at"
+        ),
+        Index(
+            "idx_assignments_assigned_at",
+            "assigned_at"
+        ),
+        Index(
+            "uk_assignments_assignment_id",
+            "assignment_id",
+            unique=True
+        ),
+        Index(
+            "uk_assignments_experiment_subject",
+            "experiment_id",
+            "subject_key",
+            unique=True),
     )
 
     assignment_id = Column(

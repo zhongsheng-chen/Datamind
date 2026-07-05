@@ -33,6 +33,7 @@
 """
 
 from dataclasses import dataclass, fields
+
 from sqlalchemy import select
 
 from datamind.db.models.variants import Variant
@@ -55,6 +56,7 @@ class VariantPatch:
         config: 实验分组配置
         description: 实验分组说明
     """
+
     name: str | None = None
     deployment_id: str | None = None
     weight: float | None = None

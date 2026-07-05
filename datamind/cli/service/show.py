@@ -1,11 +1,11 @@
 # datamind/cli/service/show.py
 
-"""查看服务命令
+"""查看服务状态命令
 
-提供模型运行时服务详情查看功能。
+提供指定部署的运行状态查询功能。
 
 核心功能：
-  - show_service: 查看模型服务详情
+  - show_service: 查看部署服务运行状态
 
 使用示例：
   python -m datamind.cli.main service show dep_a1b2c3d4
@@ -13,15 +13,16 @@
 
 import asyncio
 import json
+
 import typer
 import structlog
 from rich.console import Console
+from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.models.errors import RuntimeRouteError
-from datamind.runtime.manager import RuntimeManager
+from datamind.services import RuntimeController
 
-app = typer.Typer(help="查看服务命令")
+app = typer.Typer(help="查看服务状态命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
@@ -44,30 +45,24 @@ def show_service(
         help="显示调试日志"
     ),
 ):
-    """查看服务详情"""
+    """查看部署服务运行状态"""
 
     async def _run():
         if output not in ("text", "json"):
-            raise typer.BadParameter("--format 只支持 text 或 json")
+            raise typer.BadParameter(
+                "--format 只支持 text 或 json"
+            )
 
         logger.info(
-            "开始查看模型服务详情",
+            "开始查询部署服务状态",
             deployment_id=deployment_id,
         )
 
-        manager = RuntimeManager()
+        controller = RuntimeController()
 
-        try:
-            result = await manager.status(
-                deployment_id=deployment_id,
-            )
-        except RuntimeRouteError as e:
-            message = getattr(e, "message", str(e))
-            console.print(f"[red]{message}[/red]")
-            raise typer.Exit(1)
-
-        runtime = result.get("runtime") or {}
-        memory = result.get("memory") or {}
+        result = await controller.get_status(
+            deployment_id=deployment_id,
+        )
 
         if output == "json":
             console.print_json(
@@ -78,28 +73,131 @@ def show_service(
                     default=str,
                 )
             )
-            return result
+            return
 
-        console.print("[green]模型服务详情[/green]\n")
+        deployment = result["deployment"]
+        control = result["control"]
+        runtimes = result["runtimes"]
 
-        console.print(f"[cyan]{'DEPLOYMENT ID':<20}[/cyan] : {result.get('deployment_id') or '-'}")
-        console.print(f"[cyan]{'WORKER':<20}[/cyan] : {result.get('worker_id') or '-'}")
-        console.print(f"[cyan]{'LOADED IN MEMORY':<20}[/cyan] : {result.get('loaded_in_memory')}")
-        console.print(f"[cyan]{'RUNTIME ID':<20}[/cyan] : {runtime.get('runtime_id') or '-'}")
-        console.print(f"[cyan]{'STATUS':<20}[/cyan] : {runtime.get('status') or '-'}")
-        console.print(f"[cyan]{'MODEL ID':<20}[/cyan] : {runtime.get('model_id') or '-'}")
-        console.print(f"[cyan]{'VERSION ID':<20}[/cyan] : {runtime.get('version_id') or '-'}")
-        console.print(f"[cyan]{'FRAMEWORK':<20}[/cyan] : {runtime.get('framework') or '-'}")
-        console.print(f"[cyan]{'LOADED AT':<20}[/cyan] : {runtime.get('loaded_at') or '-'}")
-        console.print(f"[cyan]{'UNLOADED AT':<20}[/cyan] : {runtime.get('unloaded_at') or '-'}")
-        console.print(f"[cyan]{'HEARTBEAT AT':<20}[/cyan] : {runtime.get('last_heartbeat_at') or '-'}")
-        console.print(f"[cyan]{'ERROR':<20}[/cyan] : {runtime.get('error') or '-'}")
+        console.print(
+            "[bold cyan]Deployment[/bold cyan]\n"
+        )
 
-        if memory:
-            console.print(f"[cyan]{'ACCESS COUNT':<20}[/cyan] : {memory.get('access_count') or 0}")
-            console.print(f"[cyan]{'LAST USED AT':<20}[/cyan] : {memory.get('last_used_at') or '-'}")
+        console.print(
+            f"[cyan]{'DEPLOYMENT ID':<18}[/cyan] : "
+            f"{deployment['deployment_id']}"
+        )
+        console.print(
+            f"[cyan]{'MODEL ID':<18}[/cyan] : "
+            f"{deployment['model_id']}"
+        )
+        console.print(
+            f"[cyan]{'VERSION ID':<18}[/cyan] : "
+            f"{deployment['version_id']}"
+        )
+        console.print(
+            f"[cyan]{'FRAMEWORK':<18}[/cyan] : "
+            f"{deployment['framework']}"
+        )
+        console.print(
+            f"[cyan]{'ENVIRONMENT':<18}[/cyan] : "
+            f"{deployment['environment']}"
+        )
+        console.print(
+            f"[cyan]{'ROLLOUT TYPE':<18}[/cyan] : "
+            f"{deployment['rollout_type']}"
+        )
+        console.print(
+            f"[cyan]{'ROLE':<18}[/cyan] : "
+            f"{deployment['role']}"
+        )
+        console.print(
+            f"[cyan]{'STATUS':<18}[/cyan] : "
+            f"{deployment['status']}"
+        )
 
-        return result
+        console.print()
+
+        console.print(
+            "[bold cyan]Control[/bold cyan]\n"
+        )
+
+        if control is None:
+            console.print(
+                "[yellow]暂无运行控制记录[/yellow]"
+            )
+
+        else:
+            console.print(
+                f"[cyan]{'CONTROL ID':<18}[/cyan] : "
+                f"{control['control_id']}"
+            )
+            console.print(
+                f"[cyan]{'DESIRED STATUS':<18}[/cyan] : "
+                f"{control['desired_status']}"
+            )
+            console.print(
+                f"[cyan]{'GENERATION':<18}[/cyan] : "
+                f"{control['generation']}"
+            )
+            console.print(
+                f"[cyan]{'CREATED BY':<18}[/cyan] : "
+                f"{control['created_by']}"
+            )
+            console.print(
+                f"[cyan]{'UPDATED BY':<18}[/cyan] : "
+                f"{control['updated_by']}"
+            )
+            console.print(
+                f"[cyan]{'UPDATED AT':<18}[/cyan] : "
+                f"{control['updated_at']}"
+            )
+
+        console.print()
+
+        console.print(
+            "[bold cyan]Runtimes[/bold cyan]\n"
+        )
+
+        if not runtimes:
+            console.print(
+                "[yellow]暂无 Worker 运行记录[/yellow]"
+            )
+            return
+
+        table = Table()
+
+        table.add_column(
+            "RUNTIME ID",
+            style="cyan",
+        )
+        table.add_column(
+            "WORKER ID",
+        )
+        table.add_column(
+            "STATUS",
+        )
+        table.add_column(
+            "LOADED AT",
+        )
+        table.add_column(
+            "HEARTBEAT",
+        )
+        table.add_column(
+            "ERROR",
+        )
+
+        for runtime in runtimes:
+            table.add_row(
+                str(runtime["runtime_id"]),
+                str(runtime["worker_id"]),
+                str(runtime["status"]),
+                str(runtime["loaded_at"] or ""),
+                str(runtime["last_heartbeat_at"] or ""),
+                str(runtime["error"] or ""),
+            )
+
+        console.print(table)
 
     async def runner():
         async with cli_context(

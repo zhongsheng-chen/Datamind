@@ -36,6 +36,7 @@
 """
 
 from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.assignments import Assignment

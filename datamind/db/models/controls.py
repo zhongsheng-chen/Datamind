@@ -1,0 +1,95 @@
+# datamind/db/models/controls.py
+
+"""模型运行控制表
+
+记录部署模型在 Serving 集群中的期望运行状态，
+用于协调多个 Worker 的模型加载、卸载和重新加载。
+"""
+
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Column, String, Integer, Index, text
+
+from datamind.db.core import Base, IdMixin, TimestampMixin
+
+
+class Control(Base, IdMixin, TimestampMixin):
+    """模型运行控制表"""
+
+    __tablename__ = "controls"
+
+    __table_args__ = (
+        Index(
+            "idx_controls_deployment_id",
+            "deployment_id",
+        ),
+        Index(
+            "idx_controls_desired_status",
+            "desired_status",
+        ),
+        Index(
+            "idx_controls_updated_at",
+            "updated_at",
+        ),
+        Index(
+            "uk_controls_control_id",
+            "control_id",
+            unique=True,
+        ),
+        Index(
+            "uk_controls_deployment_id",
+            "deployment_id",
+            unique=True,
+        ),
+        CheckConstraint(
+            "generation >= 1",
+            name="generation_positive",
+        ),
+    )
+
+    control_id = Column(
+        String(64),
+        nullable=False,
+        comment="控制 ID，运行控制记录的唯一标识",
+    )
+
+    deployment_id = Column(
+        String(64),
+        nullable=False,
+        comment="部署 ID，每个部署仅对应一条运行控制记录",
+    )
+
+    desired_status = Column(
+        String(20),
+        nullable=False,
+        server_default=text("'unloaded'"),
+        comment="期望运行状态，可选值：loaded / unloaded",
+    )
+
+    generation = Column(
+        Integer,
+        nullable=False,
+        server_default=text("1"),
+        comment="控制版本号，每次状态变更或重新加载时递增",
+    )
+
+    created_by = Column(
+        String(50),
+        nullable=True,
+        comment="创建人",
+    )
+
+    updated_by = Column(
+        String(50),
+        nullable=True,
+        comment="最近更新人",
+    )
+
+    def __repr__(self):
+        return (
+            f"<Control("
+            f"control_id='{self.control_id}', "
+            f"deployment_id='{self.deployment_id}', "
+            f"desired_status='{self.desired_status}', "
+            f"generation={self.generation}"
+            f")>"
+        )

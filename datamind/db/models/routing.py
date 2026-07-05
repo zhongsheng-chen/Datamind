@@ -18,11 +18,30 @@ class Routing(Base, IdMixin, TimestampMixin):
     __tablename__ = "routing"
 
     __table_args__ = (
-        Index("idx_routing_deployment_id", "deployment_id"),
-        Index("idx_routing_rollout_type_enabled", "rollout_type", "enabled"),
-        Index("idx_routing_rollout_group_enabled", "rollout_group", "enabled"),
-        Index("idx_routing_environment_enabled", "environment", "enabled"),
-        Index("uk_routing_routing_id", "routing_id", unique=True),
+        Index(
+            "idx_routing_deployment_id",
+            "deployment_id"
+        ),
+        Index(
+            "idx_routing_rollout_type_enabled",
+            "rollout_type",
+            "enabled"
+        ),
+        Index(
+            "idx_routing_rollout_group_enabled",
+            "rollout_group",
+            "enabled"
+        ),
+        Index(
+            "idx_routing_environment_enabled",
+            "environment",
+            "enabled"
+        ),
+        Index(
+            "uk_routing_routing_id",
+            "routing_id",
+            unique=True
+        ),
         CheckConstraint(
             "traffic_ratio >= 0 AND traffic_ratio <= 1",
             name="ck_traffic_ratio_range"

@@ -19,16 +19,48 @@ class Decision(Base, IdMixin, TimestampMixin):
     __tablename__ = "decisions"
 
     __table_args__ = (
-        Index("idx_decisions_model_id", "model_id"),
-        Index("idx_decisions_version_id", "version_id"),
-        Index("idx_decisions_deployment_id", "deployment_id"),
-        Index("idx_decisions_experiment_id", "experiment_id"),
-        Index("idx_decisions_variant_id", "variant_id"),
-        Index("idx_decisions_customer_id", "customer_id"),
-        Index("idx_decisions_created_at", "created_at"),
-        Index("idx_decisions_source", "source"),
-        Index("uk_decisions_decision_id", "decision_id", unique=True),
-        Index("uk_decisions_request_id", "request_id", unique=True),
+        Index(
+            "idx_decisions_model_id",
+            "model_id"
+        ),
+        Index(
+            "idx_decisions_version_id",
+            "version_id"
+        ),
+        Index(
+            "idx_decisions_deployment_id",
+            "deployment_id"
+        ),
+        Index(
+            "idx_decisions_experiment_id",
+            "experiment_id"
+        ),
+        Index(
+            "idx_decisions_variant_id",
+            "variant_id"
+        ),
+        Index(
+            "idx_decisions_customer_id",
+            "customer_id"
+        ),
+        Index(
+            "idx_decisions_created_at",
+            "created_at"
+        ),
+        Index(
+            "idx_decisions_source",
+            "source"
+        ),
+        Index(
+            "uk_decisions_decision_id",
+            "decision_id",
+            unique=True
+        ),
+        Index(
+            "uk_decisions_request_id",
+            "request_id",
+            unique=True
+        ),
     )
 
     decision_id = Column(

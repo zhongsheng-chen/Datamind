@@ -19,16 +19,49 @@ class Runtime(Base, IdMixin, TimestampMixin):
     __tablename__ = "runtimes"
 
     __table_args__ = (
-        Index("idx_runtimes_deployment_id", "deployment_id"),
-        Index("idx_runtimes_model_id", "model_id"),
-        Index("idx_runtimes_version_id", "version_id"),
-        Index("idx_runtimes_framework", "framework"),
-        Index("idx_runtimes_status", "status"),
-        Index("idx_runtimes_worker_id", "worker_id"),
-        Index("idx_runtimes_loaded_at", "loaded_at"),
-        Index("idx_runtimes_last_heartbeat_at", "last_heartbeat_at"),
-        Index("uk_runtimes_runtime_id", "runtime_id", unique=True),
-        Index("uk_runtimes_deployment_worker", "deployment_id", "worker_id", unique=True),
+        Index(
+            "idx_runtimes_deployment_id",
+            "deployment_id"
+        ),
+        Index(
+            "idx_runtimes_model_id",
+            "model_id"
+        ),
+        Index(
+            "idx_runtimes_version_id",
+            "version_id"
+        ),
+        Index(
+            "idx_runtimes_framework",
+            "framework"
+        ),
+        Index(
+            "idx_runtimes_status",
+            "status"
+        ),
+        Index(
+            "idx_runtimes_worker_id",
+            "worker_id"
+        ),
+        Index(
+            "idx_runtimes_loaded_at",
+            "loaded_at"
+        ),
+        Index(
+            "idx_runtimes_last_heartbeat_at",
+            "last_heartbeat_at"
+        ),
+        Index(
+            "uk_runtimes_runtime_id",
+            "runtime_id",
+            unique=True
+        ),
+        Index(
+            "uk_runtimes_deployment_worker",
+            "deployment_id",
+            "worker_id",
+            unique=True
+        ),
     )
 
     runtime_id = Column(

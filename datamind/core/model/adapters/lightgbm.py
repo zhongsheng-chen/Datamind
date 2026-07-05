@@ -2,14 +2,34 @@
 
 """LightGBM 模型适配器
 
-为 LightGBM 模型提供统一接口适配。
+为 LightGBM 二分类模型提供统一接口适配。
+
+核心功能：
+  - predict_proba: 预测违约概率
+  - decision_function: 获取原始 Logit 值
+  - predict_proba_batch: 批量预测违约概率
+  - decision_function_batch: 批量获取 Logit 值
+  - get_feature_importance: 获取特征重要性
+  - _detect_capabilities: 动态检测当前模型实例能力
+
+能力检测规则：
+  - PREDICT_PROBA:
+      模型实现 predict_proba 方法
+  - PREDICT_LOG_ODDS:
+      模型实现 predict 方法，并支持 raw_score=True
+  - FEATURE_IMPORTANCE:
+      模型具有 booster_，且 booster_ 支持 feature_importance
+  - BATCH_PREDICT:
+      模型支持概率预测或 Logit 预测
 """
 
-import structlog
-import numpy as np
+from collections.abc import Iterable
 
-from datamind.core.model.adapters.base import BaseModelAdapter
+import numpy as np
+import structlog
+
 from datamind.core.capability import ModelCapability
+from datamind.core.model.adapters.base import BaseModelAdapter
 
 logger = structlog.get_logger(__name__)
 
@@ -17,23 +37,14 @@ logger = structlog.get_logger(__name__)
 class LightGBMAdapter(BaseModelAdapter):
     """LightGBM 模型适配器
 
-    能力声明：
-        - FEATURE_IMPORTANCE: 特征重要性
-        - PREDICT_LOG_ODDS: 原始对数几率
-        - SHAP: SHAP 解释
+    根据当前模型实例动态检测模型能力。
     """
 
-    SUPPORTED_CAPABILITIES = (
-        ModelCapability.FEATURE_IMPORTANCE
-        | ModelCapability.PREDICT_LOG_ODDS
-        | ModelCapability.SHAP
-    )
-
     def __init__(
-            self,
-            model,
-            feature_names=None,
-            data_types=None,
+        self,
+        model,
+        feature_names=None,
+        data_types=None,
     ):
         """初始化适配器
 
@@ -50,193 +61,448 @@ class LightGBMAdapter(BaseModelAdapter):
 
         self._validate_model()
 
-    def _validate_model(self):
+    def _detect_capabilities(
+        self,
+    ) -> ModelCapability:
+        """检测当前 LightGBM 模型实例能力
+
+        返回：
+            模型能力位掩码
+        """
+        capabilities = ModelCapability.NONE
+
+        supports_proba = callable(
+            getattr(
+                self.model,
+                "predict_proba",
+                None,
+            )
+        )
+
+        supports_predict = callable(
+            getattr(
+                self.model,
+                "predict",
+                None,
+            )
+        )
+
+        booster = getattr(
+            self.model,
+            "booster_",
+            None,
+        )
+
+        supports_importance = (
+            booster is not None
+            and callable(
+                getattr(
+                    booster,
+                    "feature_importance",
+                    None,
+                )
+            )
+        )
+
+        if supports_proba:
+            capabilities |= (
+                ModelCapability.PREDICT_PROBA
+            )
+
+        if supports_predict:
+            capabilities |= (
+                ModelCapability.PREDICT_LOG_ODDS
+            )
+
+        if supports_proba or supports_predict:
+            capabilities |= (
+                ModelCapability.BATCH_PREDICT
+            )
+
+        if supports_importance:
+            capabilities |= (
+                ModelCapability.FEATURE_IMPORTANCE
+            )
+
+        return capabilities
+
+    def _validate_model(
+        self,
+    ) -> None:
         """校验模型
 
+        当前仅支持二分类模型。
+
+        如果模型具有 n_classes_ 属性，则检查类别数量。
+
         异常：
-            ValueError: Datamind 仅支持二分类模型
+            ValueError: 模型类别数量不是 2
         """
-        if hasattr(self.model, "n_classes_"):
-            class_count = self.model.n_classes_
+        if not hasattr(
+            self.model,
+            "n_classes_",
+        ):
+            return
 
-            if class_count != 2:
-                raise ValueError(
-                    f"{self.__class__.__name__}: Datamind 仅支持二分类模型，当前类别数={class_count}"
-                )
+        class_count = self.model.n_classes_
 
-            logger.debug("模型校验通过 | 类别数=%d", class_count)
+        if class_count != 2:
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "仅支持二分类模型，"
+                f"当前类别数={class_count}"
+            )
 
-    def predict_proba(self, X: np.ndarray) -> float:
+        logger.debug(
+            "LightGBM 模型校验通过",
+            adapter=self.__class__.__name__,
+            class_count=class_count,
+        )
+
+    def predict_proba(
+        self,
+        X: np.ndarray,
+    ) -> float:
         """预测违约概率
 
         参数：
             X: 输入特征数组，形状为 (1, n_features)
 
         返回：
-            违约概率 (0-1)
+            正类概率，范围 0 到 1
 
         异常：
-            NotImplementedError: 模型不支持 predict_proba 方法
-            NotImplementedError: 暂不支持多分类
+            NotImplementedError: 模型不支持概率预测
+            NotImplementedError: 模型不是二分类模型
         """
+        self.require_capability(
+            ModelCapability.PREDICT_PROBA
+        )
+
         X = self._ensure_2d(X)
 
-        if not hasattr(self.model, "predict_proba"):
+        probabilities = np.asarray(
+            self.model.predict_proba(X)
+        )
+
+        if (
+            probabilities.ndim != 2
+            or probabilities.shape[1] != 2
+        ):
             raise NotImplementedError(
-                f"{self.__class__.__name__}: 模型不支持 predict_proba 方法"
+                f"{self.__class__.__name__}: "
+                "仅支持二分类概率预测，"
+                f"当前输出 shape={probabilities.shape}"
             )
 
-        proba = self.model.predict_proba(X)
+        result = float(
+            probabilities[0, 1]
+        )
 
-        if proba.shape[1] != 2:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: 暂不支持多分类，当前类别数={proba.shape[1]}"
-            )
+        logger.debug(
+            "LightGBM 概率预测成功",
+            probability=result,
+        )
 
-        result = float(proba[0, 1])
-
-        logger.debug("预测概率成功 | 概率=%s", result)
         return result
 
-    def decision_function(self, X: np.ndarray) -> float:
-        """获取原始 logit 值
+    def decision_function(
+        self,
+        X: np.ndarray,
+    ) -> float:
+        """获取原始 Logit 值
 
-        LightGBM 使用 predict(raw_score=True) 获取原始 margin。
+        LightGBM 使用 predict(raw_score=True)
+        获取未经概率转换的原始 margin。
 
         参数：
             X: 输入特征数组，形状为 (1, n_features)
 
         返回：
-            logit 值
+            Logit 值
 
         异常：
-            NotImplementedError: 暂不支持多分类
+            NotImplementedError: 模型不支持 Logit 输出
+            NotImplementedError: 模型返回多分类结果
         """
-        X = self._ensure_2d(X)
-        raw_score = self.model.predict(X, raw_score=True)
+        self.require_capability(
+            ModelCapability.PREDICT_LOG_ODDS
+        )
 
-        if np.ndim(raw_score) != 1:
+        X = self._ensure_2d(X)
+
+        raw_scores = np.asarray(
+            self.model.predict(
+                X,
+                raw_score=True,
+            )
+        )
+
+        if raw_scores.ndim != 1:
             raise NotImplementedError(
-                f"{self.__class__.__name__}: 暂不支持多分类 raw_score"
+                f"{self.__class__.__name__}: "
+                "暂不支持多分类 Raw Score，"
+                f"当前输出 shape={raw_scores.shape}"
             )
 
-        result = float(raw_score[0])
+        result = float(
+            raw_scores[0]
+        )
 
-        logger.debug("获取 logit 成功 | logit=%s", result)
+        logger.debug(
+            "LightGBM Logit 预测成功",
+            logit=result,
+        )
+
         return result
 
-    def predict_proba_batch(self, X: np.ndarray) -> list[float]:
+    def predict_proba_batch(
+        self,
+        X: np.ndarray,
+    ) -> list[float]:
         """批量预测违约概率
 
         参数：
             X: 输入特征数组，形状为 (n_samples, n_features)
 
         返回：
-            概率列表，长度 n_samples
+            正类概率列表
 
         异常：
-            NotImplementedError: 模型不支持 predict_proba 方法
-            NotImplementedError: 暂不支持多分类
+            NotImplementedError: 模型不支持概率预测
+            NotImplementedError: 模型不是二分类模型
         """
+        self.require_capability(
+            ModelCapability.PREDICT_PROBA
+        )
+
+        self.require_capability(
+            ModelCapability.BATCH_PREDICT
+        )
+
         X = self._ensure_2d(X)
 
-        if not hasattr(self.model, "predict_proba"):
+        probabilities = np.asarray(
+            self.model.predict_proba(X)
+        )
+
+        if (
+            probabilities.ndim != 2
+            or probabilities.shape[1] != 2
+        ):
             raise NotImplementedError(
-                f"{self.__class__.__name__}: 模型不支持 predict_proba 方法"
+                f"{self.__class__.__name__}: "
+                "仅支持二分类概率预测，"
+                f"当前输出 shape={probabilities.shape}"
             )
 
-        probs = self.model.predict_proba(X)
+        result = [
+            float(probability)
+            for probability in probabilities[:, 1]
+        ]
 
-        if probs.shape[1] != 2:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: 暂不支持多分类，当前类别数={probs.shape[1]}"
-            )
+        logger.debug(
+            "LightGBM 批量概率预测成功",
+            sample_count=len(result),
+        )
 
-        result = [float(p[1]) for p in probs]
-
-        logger.debug("批量预测概率成功 | 样本数=%d", len(result))
         return result
 
-    def decision_function_batch(self, X: np.ndarray) -> list[float]:
-        """批量获取原始 logit 值
+    def decision_function_batch(
+        self,
+        X: np.ndarray,
+    ) -> list[float]:
+        """批量获取原始 Logit 值
+
+        使用 predict(raw_score=True)
+        获取批量原始 margin。
 
         参数：
             X: 输入特征数组，形状为 (n_samples, n_features)
 
         返回：
-            logit 值列表
+            Logit 值列表
 
         异常：
-            NotImplementedError: 暂不支持多分类
+            NotImplementedError: 模型不支持 Logit 输出
+            NotImplementedError: 模型返回多分类结果
         """
-        X = self._ensure_2d(X)
-        raw_scores = self.model.predict(X, raw_score=True)
+        self.require_capability(
+            ModelCapability.PREDICT_LOG_ODDS
+        )
 
-        if np.ndim(raw_scores) != 1:
+        self.require_capability(
+            ModelCapability.BATCH_PREDICT
+        )
+
+        X = self._ensure_2d(X)
+
+        raw_scores = np.asarray(
+            self.model.predict(
+                X,
+                raw_score=True,
+            )
+        )
+
+        if raw_scores.ndim != 1:
             raise NotImplementedError(
-                f"{self.__class__.__name__}: 暂不支持多分类 raw_score"
+                f"{self.__class__.__name__}: "
+                "暂不支持多分类 Raw Score，"
+                f"当前输出 shape={raw_scores.shape}"
             )
 
-        result = [float(x) for x in raw_scores]
+        result = [
+            float(raw_score)
+            for raw_score in raw_scores
+        ]
 
-        logger.debug("批量获取 logit 成功 | 样本数=%d", len(result))
+        logger.debug(
+            "LightGBM 批量 Logit 预测成功",
+            sample_count=len(result),
+        )
+
         return result
 
-    def get_feature_importance(self) -> dict[str, float]:
+    def get_feature_importance(
+        self,
+    ) -> dict[str, float]:
         """获取特征重要性
 
-        使用 gain 作为重要性度量。
+        使用 LightGBM Booster 的 gain 作为重要性指标。
 
         返回：
             特征重要性字典
 
         异常：
-            NotImplementedError: 模型不支持特征重要性
+            NotImplementedError: 当前模型不支持特征重要性
         """
-        self.require_capability(ModelCapability.FEATURE_IMPORTANCE)
+        self.require_capability(
+            ModelCapability.FEATURE_IMPORTANCE
+        )
 
-        if not hasattr(self.model, "booster_"):
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: 模型不支持特征重要性"
+        booster = self.model.booster_
+
+        importance = np.asarray(
+            booster.feature_importance(
+                importance_type="gain",
             )
+        )
 
-        imp = self.model.booster_.feature_importance(importance_type="gain")
+        feature_name_method = getattr(
+            booster,
+            "feature_name",
+            None,
+        )
 
-        logger.debug("获取特征重要性 | 来源=LightGBM gain")
+        booster_feature_names = (
+            feature_name_method()
+            if callable(feature_name_method)
+            else None
+        )
 
-        if not self.feature_names:
-            result = {
-                f"f{i}": float(v)
-                for i, v in enumerate(imp)
-            }
-        else:
-            result = {
-                name: float(v)
-                for name, v in zip(self.feature_names, imp)
-            }
+        logger.debug(
+            "获取 LightGBM 特征重要性",
+            source="gain",
+        )
 
-        logger.debug("特征重要性计算完成 | 特征数=%d", len(result))
+        names = self._resolve_feature_names(
+            booster_feature_names=booster_feature_names,
+            importance_count=len(importance),
+        )
+
+        result = {
+            name: float(value)
+            for name, value in zip(
+                names,
+                importance,
+            )
+        }
+
+        logger.debug(
+            "LightGBM 特征重要性计算完成",
+            feature_count=len(result),
+        )
+
         return result
 
+    def _resolve_feature_names(
+        self,
+        *,
+        booster_feature_names,
+        importance_count: int,
+    ) -> list[str]:
+        """解析特征名称
+
+        优先级：
+          - 显式传入的 feature_names
+          - LightGBM Booster 自带特征名称
+          - f0、f1、f2 等默认名称
+
+        参数：
+            booster_feature_names:
+                Booster 特征名称
+            importance_count:
+                特征重要性数量
+
+        返回：
+            特征名称列表
+        """
+        if self.feature_names:
+            return [
+                str(name)
+                for name in self.feature_names
+            ]
+
+        if (
+            not isinstance(
+                booster_feature_names,
+                str,
+            )
+            and isinstance(
+                booster_feature_names,
+                Iterable,
+            )
+        ):
+            names = [
+                str(name)
+                for name in booster_feature_names
+            ]
+
+            if names:
+                return names
+
+        return [
+            f"f{index}"
+            for index in range(
+                importance_count
+            )
+        ]
+
     @staticmethod
-    def _ensure_2d(X: np.ndarray) -> np.ndarray:
-        """确保输入为 2D 数组
+    def _ensure_2d(
+        X: np.ndarray,
+    ) -> np.ndarray:
+        """确保输入为二维数组
 
         参数：
             X: 输入数组
 
         返回：
-            2D 数组，形状为 (1, n_features) 或 (n_samples, n_features)
+            二维数组
 
         异常：
-            ValueError: 数组维度不支持
+            ValueError: 输入不是一维或二维数组
         """
         if X.ndim == 1:
-            return X.reshape(1, -1)
+            return X.reshape(
+                1,
+                -1,
+            )
 
         if X.ndim != 2:
             raise ValueError(
-                f"仅支持 1D / 2D numpy 输入，当前 ndim={X.ndim}"
+                "仅支持 1D / 2D numpy 输入，"
+                f"当前 ndim={X.ndim}"
             )
 
         return X

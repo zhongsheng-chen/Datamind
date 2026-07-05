@@ -41,8 +41,9 @@
       )
 """
 
-from datetime import datetime, timezone
 from dataclasses import dataclass, fields
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.outcomes import Outcome
@@ -70,6 +71,7 @@ class OutcomePatch:
         context: 结果上下文
         outcome_time: 结果发生时间
     """
+
     experiment_id: str | None = None
     variant_id: str | None = None
     assignment_id: str | None = None

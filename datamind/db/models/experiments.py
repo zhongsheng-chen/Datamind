@@ -17,12 +17,34 @@ class Experiment(Base, IdMixin, TimestampMixin):
     __tablename__ = "experiments"
 
     __table_args__ = (
-        Index("idx_experiments_model_id", "model_id"),
-        Index("idx_experiments_status", "status"),
-        Index("idx_experiments_created_at", "created_at"),
-        Index("idx_experiments_effective_time", "model_id", "effective_from", "effective_to"),
-        Index("idx_experiments_model_id_status", "model_id", "status"),
-        Index("uk_experiments_experiment_id", "experiment_id", unique=True),
+        Index(
+            "idx_experiments_model_id",
+            "model_id"
+        ),
+        Index(
+            "idx_experiments_status",
+            "status"
+        ),
+        Index(
+            "idx_experiments_created_at",
+            "created_at"
+        ),
+        Index(
+            "idx_experiments_effective_time",
+            "model_id",
+            "effective_from",
+            "effective_to"
+        ),
+        Index(
+            "idx_experiments_model_id_status",
+            "model_id",
+            "status"
+        ),
+        Index(
+            "uk_experiments_experiment_id",
+            "experiment_id",
+            unique=True
+        ),
     )
 
     experiment_id = Column(

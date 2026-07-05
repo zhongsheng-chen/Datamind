@@ -132,10 +132,10 @@ class RuntimeRouter:
         self,
         *,
         model_id: str,
+        environment: str,
         subject_key: str | None = None,
         subject_type: str | None = None,
         payload: dict | None = None,
-        environment: str = "production",
         deployment_id: str | None = None,
         now: datetime | None = None,
     ) -> RouteResult:
@@ -143,12 +143,12 @@ class RuntimeRouter:
 
         参数：
             model_id: 模型 ID
+            environment: 部署环境
             subject_key: 分桶主体标识，例如客户号、订单号、申请单号。
                 如果传入该参数，则 A/B 实验优先使用该值。
             subject_type: 分桶主体类型，例如 customer / order / application
             payload: 请求负载。未传 subject_key 时，A/B 实验会根据实验配置中的
                 bucket_key 从 payload 中提取分桶主体标识。
-            environment: 部署环境，默认 production
             deployment_id: 指定部署 ID。传入时直接校验并命中该部署
             now: 当前时间，默认 UTC 当前时间
 

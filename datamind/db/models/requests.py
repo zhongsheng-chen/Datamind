@@ -17,11 +17,26 @@ class Request(Base, IdMixin, TimestampMixin):
     __tablename__ = "requests"
 
     __table_args__ = (
-        Index("idx_requests_request_id", "request_id"),
-        Index("idx_requests_model_id", "model_id"),
-        Index("idx_requests_created_at", "created_at"),
-        Index("idx_requests_source", "source"),
-        Index("idx_requests_user", "user"),
+        Index(
+            "idx_requests_request_id",
+            "request_id"
+        ),
+        Index(
+            "idx_requests_model_id",
+            "model_id"
+        ),
+        Index(
+            "idx_requests_created_at",
+            "created_at"
+        ),
+        Index(
+            "idx_requests_source",
+            "source"
+        ),
+        Index(
+            "idx_requests_user",
+            "user"
+        ),
     )
 
     request_id = Column(

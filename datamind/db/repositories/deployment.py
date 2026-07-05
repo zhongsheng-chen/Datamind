@@ -31,8 +31,9 @@
       )
 """
 
-from datetime import datetime, timezone
 from dataclasses import dataclass, fields
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.deployments import Deployment
@@ -57,6 +58,7 @@ class DeploymentPatch:
         config: 运行时配置
         description: 部署描述
     """
+
     framework: str | None = None
     environment: str | None = None
     rollout_type: str | None = None
@@ -82,7 +84,9 @@ class DeploymentRepository(BaseRepository):
         返回：
             部署记录对象，不存在时返回 None
         """
-        stmt = select(Deployment).where(Deployment.deployment_id == deployment_id)
+        stmt = select(Deployment).where(
+            Deployment.deployment_id == deployment_id
+        )
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
@@ -121,9 +125,13 @@ class DeploymentRepository(BaseRepository):
             stmt = stmt.filter_by(**filters)
 
         if exclude_status is not None:
-            stmt = stmt.where(Deployment.status != exclude_status)
+            stmt = stmt.where(
+                Deployment.status != exclude_status
+            )
 
-        stmt = stmt.order_by(Deployment.created_at.desc())
+        stmt = stmt.order_by(
+            Deployment.created_at.desc()
+        )
 
         if offset is not None:
             stmt = stmt.offset(offset)
@@ -180,7 +188,7 @@ class DeploymentRepository(BaseRepository):
         model_id: str,
         version_id: str,
         framework: str,
-        environment: str = "production",
+        environment: str,
         rollout_type: str = "full",
         role: str = "champion",
         effective_from: datetime | None = None,
@@ -197,8 +205,8 @@ class DeploymentRepository(BaseRepository):
             version_id: 版本 ID
             framework: 框架类型
             environment: 部署环境
-            rollout_type: 发布类型
-            role: 部署角色
+            rollout_type: 发布类型（可选）
+            role: 部署角色（可选）
             effective_from: 生效开始时间（可选）
             effective_to: 生效结束时间（可选）
             config: 运行时配置（可选）

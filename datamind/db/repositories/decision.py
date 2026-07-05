@@ -44,6 +44,7 @@
 """
 
 from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.decisions import Decision
