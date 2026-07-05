@@ -17,13 +17,36 @@ class Metadata(Base, IdMixin, TimestampMixin):
     __tablename__ = "metadata"
 
     __table_args__ = (
-        Index("idx_metadata_status", "status"),
-        Index("idx_metadata_framework", "framework"),
-        Index("idx_metadata_model_type", "model_type"),
-        Index("idx_metadata_task_type", "task_type"),
-        Index("idx_metadata_created_at", "created_at"),
-        Index("uk_metadata_model_id", "model_id", unique=True),
-        Index("uk_metadata_name", "name", unique=True),
+        Index(
+            "idx_metadata_status",
+            "status"
+        ),
+        Index(
+            "idx_metadata_framework",
+            "framework"
+        ),
+        Index(
+            "idx_metadata_model_type",
+            "model_type"
+        ),
+        Index(
+            "idx_metadata_task_type",
+            "task_type"
+        ),
+        Index(
+            "idx_metadata_created_at",
+            "created_at"
+        ),
+        Index(
+            "uk_metadata_model_id",
+            "model_id",
+            unique=True
+        ),
+        Index(
+            "uk_metadata_name",
+            "name",
+            unique=True
+        ),
     )
 
     model_id = Column(

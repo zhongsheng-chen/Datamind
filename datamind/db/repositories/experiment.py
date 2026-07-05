@@ -37,8 +37,9 @@
       )
 """
 
-from datetime import datetime
 from dataclasses import dataclass, fields
+from datetime import datetime
+
 from sqlalchemy import select
 
 from datamind.db.models.experiments import Experiment
@@ -60,6 +61,7 @@ class ExperimentPatch:
         effective_from: 生效开始时间
         effective_to: 生效结束时间
     """
+
     name: str | None = None
     description: str | None = None
     config: dict | None = None

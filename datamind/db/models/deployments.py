@@ -17,12 +17,35 @@ class Deployment(Base, IdMixin, TimestampMixin):
     __tablename__ = "deployments"
 
     __table_args__ = (
-        Index("idx_deployments_model_id", "model_id"),
-        Index("idx_deployments_framework", "framework"),
-        Index("idx_deployments_model_id_version_id", "model_id", "version_id"),
-        Index("idx_deployments_model_id_environment_status", "model_id", "environment", "status"),
-        Index("idx_deployments_effective_time", "model_id", "effective_from", "effective_to"),
-        Index("uk_deployments_deployment_id", "deployment_id", unique=True),
+        Index(
+            "idx_deployments_model_id",
+            "model_id"
+        ),
+        Index(
+            "idx_deployments_framework",
+            "framework"
+        ),
+        Index(
+            "idx_deployments_model_id_version_id",
+            "model_id", "version_id"
+        ),
+        Index(
+            "idx_deployments_model_id_environment_status",
+            "model_id",
+            "environment",
+            "status"
+        ),
+        Index(
+            "idx_deployments_effective_time",
+            "model_id",
+            "effective_from",
+            "effective_to"
+        ),
+        Index(
+            "uk_deployments_deployment_id",
+            "deployment_id",
+            unique=True
+        ),
     )
 
     deployment_id = Column(

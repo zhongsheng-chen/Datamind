@@ -19,13 +19,38 @@ class Variant(Base, IdMixin, TimestampMixin):
     __tablename__ = "variants"
 
     __table_args__ = (
-        Index("idx_variants_experiment_id", "experiment_id"),
-        Index("idx_variants_deployment_id", "deployment_id"),
-        Index("idx_variants_status", "status"),
-        Index("idx_variants_created_at", "created_at"),
-        Index("idx_variants_experiment_status", "experiment_id", "status"),
-        Index("uk_variants_variant_id", "variant_id", unique=True),
-        Index("uk_variants_experiment_name", "experiment_id", "name", unique=True),
+        Index(
+            "idx_variants_experiment_id",
+            "experiment_id"
+        ),
+        Index(
+            "idx_variants_deployment_id",
+            "deployment_id"
+        ),
+        Index(
+            "idx_variants_status",
+            "status"
+        ),
+        Index(
+            "idx_variants_created_at",
+            "created_at"
+        ),
+        Index(
+            "idx_variants_experiment_status",
+            "experiment_id",
+            "status"
+        ),
+        Index(
+            "uk_variants_variant_id",
+            "variant_id",
+            unique=True
+        ),
+        Index(
+            "uk_variants_experiment_name",
+            "experiment_id",
+            "name",
+            unique=True
+        ),
         CheckConstraint(
             "weight >= 0 AND weight <= 1",
             name="ck_weight_range"

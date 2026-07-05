@@ -19,15 +19,43 @@ class Outcome(Base, IdMixin, TimestampMixin):
     __tablename__ = "outcomes"
 
     __table_args__ = (
-        Index("idx_outcomes_experiment_id", "experiment_id"),
-        Index("idx_outcomes_variant_id", "variant_id"),
-        Index("idx_outcomes_assignment_id", "assignment_id"),
-        Index("idx_outcomes_decision_id", "decision_id"),
-        Index("idx_outcomes_request_id", "request_id"),
-        Index("idx_outcomes_subject_key", "subject_key"),
-        Index("idx_outcomes_outcome_time", "outcome_time"),
-        Index("idx_outcomes_created_at", "created_at"),
-        Index("uk_outcomes_outcome_id", "outcome_id", unique=True),
+        Index(
+            "idx_outcomes_experiment_id",
+            "experiment_id"
+        ),
+        Index(
+            "idx_outcomes_variant_id",
+            "variant_id"
+        ),
+        Index(
+            "idx_outcomes_assignment_id",
+            "assignment_id"
+        ),
+        Index(
+            "idx_outcomes_decision_id",
+            "decision_id"
+        ),
+        Index(
+            "idx_outcomes_request_id",
+            "request_id"
+        ),
+        Index(
+            "idx_outcomes_subject_key",
+            "subject_key"
+        ),
+        Index(
+            "idx_outcomes_outcome_time",
+            "outcome_time"
+        ),
+        Index(
+            "idx_outcomes_created_at",
+            "created_at"
+        ),
+        Index(
+            "uk_outcomes_outcome_id",
+            "outcome_id",
+            unique=True
+        ),
     )
 
     outcome_id = Column(

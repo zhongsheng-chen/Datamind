@@ -22,8 +22,9 @@
       await repo.flush()
 """
 
-from typing import Any
 from collections.abc import Iterable
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

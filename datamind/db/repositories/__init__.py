@@ -8,6 +8,7 @@
   - BaseRepository: 数据库仓储基类
   - AssignmentRepository: 实验分配仓储
   - AuditRepository: 审计日志仓储
+  - ControlRepository: 模型运行控制仓储
   - DecisionRepository: 请求决策仓储
   - DeploymentRepository: 部署仓储
   - RuntimeRepository: 模型运行仓储
@@ -23,21 +24,47 @@
 from datamind.db.repositories.assignment import AssignmentRepository
 from datamind.db.repositories.audit import AuditRepository
 from datamind.db.repositories.base import BaseRepository
+from datamind.db.repositories.control import ControlRepository
 from datamind.db.repositories.decision import DecisionRepository
-from datamind.db.repositories.deployment import DeploymentPatch, DeploymentRepository
-from datamind.db.repositories.runtime import RuntimePatch, RuntimeRepository
-from datamind.db.repositories.experiment import ExperimentPatch, ExperimentRepository
-from datamind.db.repositories.metadata import MetadataPatch, MetadataRepository
-from datamind.db.repositories.outcome import OutcomePatch, OutcomeRepository
+from datamind.db.repositories.deployment import (
+    DeploymentPatch,
+    DeploymentRepository,
+)
+from datamind.db.repositories.runtime import (
+    RuntimePatch,
+    RuntimeRepository,
+)
+from datamind.db.repositories.experiment import (
+    ExperimentPatch,
+    ExperimentRepository,
+)
+from datamind.db.repositories.metadata import (
+    MetadataPatch,
+    MetadataRepository,
+)
+from datamind.db.repositories.outcome import (
+    OutcomePatch,
+    OutcomeRepository,
+)
 from datamind.db.repositories.request import RequestRepository
-from datamind.db.repositories.routing import RoutingPatch, RoutingRepository
-from datamind.db.repositories.variant import VariantPatch, VariantRepository
-from datamind.db.repositories.version import VersionPatch, VersionRepository
+from datamind.db.repositories.routing import (
+    RoutingPatch,
+    RoutingRepository,
+)
+from datamind.db.repositories.variant import (
+    VariantPatch,
+    VariantRepository,
+)
+from datamind.db.repositories.version import (
+    VersionPatch,
+    VersionRepository,
+)
 
 __all__ = [
     "BaseRepository",
     "AssignmentRepository",
     "AuditRepository",
+    "ControlRepository",
     "DecisionRepository",
     "DeploymentPatch",
     "DeploymentRepository",

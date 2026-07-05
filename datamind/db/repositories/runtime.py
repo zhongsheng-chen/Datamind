@@ -34,8 +34,9 @@
       )
 """
 
-from datetime import datetime, timezone
 from dataclasses import dataclass, fields
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.runtimes import Runtime
@@ -56,6 +57,7 @@ class RuntimePatch:
         error: 错误信息
         context: 运行上下文
     """
+
     framework: str | None = None
     worker_id: str | None = None
     error: str | None = None

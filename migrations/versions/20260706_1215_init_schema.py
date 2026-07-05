@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: fc21176249a6
+Revision ID: c8f331d23157
 Revises: 
-Create Date: 2026-07-03 07:06:53.174792+00:00
+Create Date: 2026-07-06 12:15:29.176581+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'fc21176249a6'
+revision = 'c8f331d23157'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -80,6 +80,24 @@ def upgrade() -> None:
     op.create_index('idx_audit_trace_id_occurred_at', 'audit', ['trace_id', 'occurred_at'], unique=False, postgresql_where=sa.text('trace_id IS NOT NULL'))
     op.create_index('idx_audit_user_occurred_at', 'audit', ['user', 'occurred_at'], unique=False)
     op.create_index('uk_audit_audit_id', 'audit', ['audit_id'], unique=True)
+    op.create_table('controls',
+    sa.Column('control_id', sa.String(length=64), nullable=False, comment='控制 ID，运行控制记录的唯一标识'),
+    sa.Column('deployment_id', sa.String(length=64), nullable=False, comment='部署 ID，每个部署仅对应一条运行控制记录'),
+    sa.Column('desired_status', sa.String(length=20), server_default=sa.text("'unloaded'"), nullable=False, comment='期望运行状态，可选值：loaded / unloaded'),
+    sa.Column('generation', sa.Integer(), server_default=sa.text('1'), nullable=False, comment='控制版本号，每次状态变更或重新加载时递增'),
+    sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
+    sa.Column('updated_by', sa.String(length=50), nullable=True, comment='最近更新人'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint('generation >= 1', name=op.f('ck_controls_generation_positive')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_controls'))
+    )
+    op.create_index('idx_controls_deployment_id', 'controls', ['deployment_id'], unique=False)
+    op.create_index('idx_controls_desired_status', 'controls', ['desired_status'], unique=False)
+    op.create_index('idx_controls_updated_at', 'controls', ['updated_at'], unique=False)
+    op.create_index('uk_controls_control_id', 'controls', ['control_id'], unique=True)
+    op.create_index('uk_controls_deployment_id', 'controls', ['deployment_id'], unique=True)
     op.create_table('decisions',
     sa.Column('decision_id', sa.String(length=64), nullable=False, comment='决策 ID，决策记录的唯一标识'),
     sa.Column('request_id', sa.String(length=64), nullable=False, comment='请求 ID'),
@@ -438,6 +456,12 @@ def downgrade() -> None:
     op.drop_index('idx_decisions_customer_id', table_name='decisions')
     op.drop_index('idx_decisions_created_at', table_name='decisions')
     op.drop_table('decisions')
+    op.drop_index('uk_controls_deployment_id', table_name='controls')
+    op.drop_index('uk_controls_control_id', table_name='controls')
+    op.drop_index('idx_controls_updated_at', table_name='controls')
+    op.drop_index('idx_controls_desired_status', table_name='controls')
+    op.drop_index('idx_controls_deployment_id', table_name='controls')
+    op.drop_table('controls')
     op.drop_index('uk_audit_audit_id', table_name='audit')
     op.drop_index('idx_audit_user_occurred_at', table_name='audit')
     op.drop_index('idx_audit_trace_id_occurred_at', table_name='audit', postgresql_where=sa.text('trace_id IS NOT NULL'))

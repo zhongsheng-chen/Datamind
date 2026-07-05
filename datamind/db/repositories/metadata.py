@@ -31,8 +31,9 @@
 
 """
 
-from datetime import datetime, timezone
 from dataclasses import dataclass, fields
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from datamind.db.models.metadata import Metadata
@@ -58,6 +59,7 @@ class MetadataPatch:
         archived_at: 归档时间
         archived_by: 归档人
     """
+
     name: str | None = None
     model_type: str | None = None
     task_type: str | None = None

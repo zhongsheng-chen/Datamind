@@ -17,12 +17,32 @@ class Version(Base, IdMixin, TimestampMixin):
     __tablename__ = "versions"
 
     __table_args__ = (
-        Index("idx_versions_model_id", "model_id"),
-        Index("idx_versions_framework", "framework"),
-        Index("idx_versions_status", "status"),
-        Index("idx_versions_created_at", "created_at"),
-        Index("uk_versions_model_id_version", "model_id", "version", unique=True),
-        Index("uk_versions_version_id", "version_id", unique=True),
+        Index(
+            "idx_versions_model_id",
+            "model_id"
+        ),
+        Index(
+            "idx_versions_framework",
+            "framework"
+        ),
+        Index(
+            "idx_versions_status",
+            "status"
+        ),
+        Index(
+            "idx_versions_created_at",
+            "created_at"
+        ),
+        Index(
+            "uk_versions_model_id_version",
+            "model_id", "version",
+            unique=True
+        ),
+        Index(
+            "uk_versions_version_id",
+            "version_id",
+            unique=True
+        ),
     )
 
     version_id = Column(

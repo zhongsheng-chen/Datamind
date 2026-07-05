@@ -18,7 +18,12 @@ class Audit(Base, IdMixin, TimestampMixin):
     __tablename__ = "audit"
 
     __table_args__ = (
-        Index("idx_audit_target_id_occurred_at", "target_type", "target_id", "occurred_at"),
+        Index(
+            "idx_audit_target_id_occurred_at",
+            "target_type",
+            "target_id",
+            "occurred_at"
+        ),
         Index(
             "idx_audit_trace_id_occurred_at",
             "trace_id",
@@ -31,16 +36,35 @@ class Audit(Base, IdMixin, TimestampMixin):
             "occurred_at",
             postgresql_where=text("request_id IS NOT NULL")
         ),
-        Index("idx_audit_user_occurred_at", "user", "occurred_at"),
-        Index("idx_audit_target_type_occurred_at", "target_type", "occurred_at"),
+        Index(
+            "idx_audit_user_occurred_at",
+            "user",
+            "occurred_at"
+        ),
+        Index(
+            "idx_audit_target_type_occurred_at",
+            "target_type",
+            "occurred_at"
+        ),
         Index(
             "idx_audit_failed_occurred_at",
             "occurred_at",
             postgresql_where=text("status = 'failed'")
         ),
-        Index("idx_audit_source_occurred_at", "source", "occurred_at"),
-        Index("idx_audit_occurred_at", "occurred_at"),
-        Index("uk_audit_audit_id", "audit_id", unique=True),
+        Index(
+            "idx_audit_source_occurred_at",
+            "source",
+            "occurred_at"
+        ),
+        Index(
+            "idx_audit_occurred_at",
+            "occurred_at"
+        ),
+        Index(
+            "uk_audit_audit_id",
+            "audit_id",
+            unique=True
+        ),
     )
 
     audit_id = Column(

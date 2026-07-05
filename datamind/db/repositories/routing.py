@@ -23,9 +23,9 @@
       routing = repo.create_routing(
           routing_id="rtn_a1b2c3d4",
           deployment_id="dep_a1b2c3d4",
+          environment="production",
           rollout_type="canary",
           rollout_group="group",
-          environment="production",
           traffic_ratio=0.1,
           rules={
               "bucket_key": "user_id",
@@ -37,6 +37,7 @@
 """
 
 from dataclasses import dataclass, fields
+
 from sqlalchemy import select
 
 from datamind.db.models.routing import Routing
@@ -58,6 +59,7 @@ class RoutingPatch:
         rules: 路由规则配置
         description: 描述
     """
+
     rollout_type: str | None = None
     rollout_group: str | None = None
     environment: str | None = None
@@ -81,7 +83,9 @@ class RoutingRepository(BaseRepository):
         返回：
             路由对象，不存在返回 None
         """
-        stmt = select(Routing).where(Routing.routing_id == routing_id)
+        stmt = select(Routing).where(
+            Routing.routing_id == routing_id
+        )
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
@@ -170,9 +174,9 @@ class RoutingRepository(BaseRepository):
         *,
         routing_id: str,
         deployment_id: str,
+        environment: str,
         rollout_type: str = "full",
         rollout_group: str | None = None,
-        environment: str = "production",
         traffic_ratio: float = 0.0,
         enabled: bool = True,
         rules: dict | None = None,
@@ -184,11 +188,11 @@ class RoutingRepository(BaseRepository):
         参数：
             routing_id: 路由 ID
             deployment_id: 部署 ID
-            rollout_type: 发布类型
-            rollout_group: 发布分组
             environment: 路由环境
-            traffic_ratio: 流量占比
-            enabled: 是否启用
+            rollout_type: 发布类型（可选）
+            rollout_group: 发布分组（可选）
+            traffic_ratio: 流量占比（可选）
+            enabled: 是否启用（可选）
             rules: 路由规则配置（可选）
             description: 描述（可选）
             created_by: 创建人（可选）
@@ -200,14 +204,16 @@ class RoutingRepository(BaseRepository):
             ValueError: traffic_ratio 不在 0 到 1 之间
         """
         if traffic_ratio < 0 or traffic_ratio > 1:
-            raise ValueError("路由 traffic_ratio 必须在 0 到 1 之间")
+            raise ValueError(
+                "路由 traffic_ratio 必须在 0 到 1 之间"
+            )
 
         obj = Routing(
             routing_id=routing_id,
             deployment_id=deployment_id,
+            environment=environment,
             rollout_type=rollout_type,
             rollout_group=rollout_group,
-            environment=environment,
             traffic_ratio=traffic_ratio,
             enabled=enabled,
             rules=rules,
@@ -241,7 +247,9 @@ class RoutingRepository(BaseRepository):
         """
         if patch.traffic_ratio is not None:
             if patch.traffic_ratio < 0 or patch.traffic_ratio > 1:
-                raise ValueError("路由 traffic_ratio 必须在 0 到 1 之间")
+                raise ValueError(
+                    "路由 traffic_ratio 必须在 0 到 1 之间"
+                )
 
         for field in fields(RoutingPatch):
             value = getattr(patch, field.name)
