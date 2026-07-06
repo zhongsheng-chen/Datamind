@@ -30,10 +30,11 @@
 """
 
 import hashlib
-import structlog
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+
+import structlog
 
 from datamind.ab_test.engine import ABTestEngine, ABTestResult
 from datamind.db.core import UnitOfWork
@@ -129,15 +130,15 @@ class RuntimeRouter:
     """运行时路由器"""
 
     async def resolve(
-        self,
-        *,
-        model_id: str,
-        environment: str,
-        subject_key: str | None = None,
-        subject_type: str | None = None,
-        payload: dict | None = None,
-        deployment_id: str | None = None,
-        now: datetime | None = None,
+            self,
+            *,
+            model_id: str,
+            environment: str,
+            subject_key: str | None = None,
+            subject_type: str | None = None,
+            payload: dict | None = None,
+            deployment_id: str | None = None,
+            now: datetime | None = None,
     ) -> RouteResult:
         """解析请求路由
 
@@ -224,13 +225,13 @@ class RuntimeRouter:
         )
 
     async def _resolve_manual_deployment(
-        self,
-        *,
-        deployment_repo: DeploymentRepository,
-        deployment_id: str,
-        model_id: str,
-        environment: str,
-        now: datetime,
+            self,
+            *,
+            deployment_repo: DeploymentRepository,
+            deployment_id: str,
+            model_id: str,
+            environment: str,
+            now: datetime,
     ) -> RouteResult:
         """解析指定部署路由"""
         deployment = await deployment_repo.get_deployment(
@@ -247,9 +248,9 @@ class RuntimeRouter:
             )
 
         if not self._is_routable_deployment(
-            deployment,
-            environment=environment,
-            now=now,
+                deployment,
+                environment=environment,
+                now=now,
         ):
             raise RuntimeRouteError(f"部署不可用: {deployment_id}")
 
@@ -263,16 +264,16 @@ class RuntimeRouter:
         )
 
     async def _resolve_ab_test(
-        self,
-        *,
-        uow: UnitOfWork,
-        deployment_repo: DeploymentRepository,
-        model_id: str,
-        subject_key: str | None,
-        subject_type: str | None,
-        payload: dict | None,
-        environment: str,
-        now: datetime,
+            self,
+            *,
+            uow: UnitOfWork,
+            deployment_repo: DeploymentRepository,
+            model_id: str,
+            subject_key: str | None,
+            subject_type: str | None,
+            payload: dict | None,
+            environment: str,
+            now: datetime,
     ) -> RouteResult | None:
         """解析 A/B 实验路由"""
         engine = ABTestEngine(
@@ -290,12 +291,12 @@ class RuntimeRouter:
                 now=now,
                 flush=False,
             )
-        except ValueError as e:
+        except ValueError as exc:
             logger.warning(
                 "A/B 实验分配失败，跳过实验路由",
                 model_id=model_id,
                 subject_key=subject_key,
-                error=str(e),
+                error=str(exc),
             )
             return None
 
@@ -327,9 +328,9 @@ class RuntimeRouter:
             return None
 
         if not self._is_routable_deployment(
-            deployment,
-            environment=environment,
-            now=now,
+                deployment,
+                environment=environment,
+                now=now,
         ):
             logger.warning(
                 "实验命中的部署不可用，跳过实验路由",
@@ -348,15 +349,15 @@ class RuntimeRouter:
         )
 
     async def _resolve_routing(
-        self,
-        *,
-        deployment_repo: DeploymentRepository,
-        routing_repo: RoutingRepository,
-        model_id: str,
-        subject_key: str | None,
-        payload: dict | None,
-        environment: str,
-        now: datetime,
+            self,
+            *,
+            deployment_repo: DeploymentRepository,
+            routing_repo: RoutingRepository,
+            model_id: str,
+            subject_key: str | None,
+            payload: dict | None,
+            environment: str,
+            now: datetime,
     ) -> RouteResult | None:
         """解析 routing 表路由"""
         routings = await routing_repo.list_enabled_routings(
@@ -380,9 +381,9 @@ class RuntimeRouter:
                 continue
 
             if not self._is_routable_deployment(
-                deployment,
-                environment=environment,
-                now=now,
+                    deployment,
+                    environment=environment,
+                    now=now,
             ):
                 continue
 
@@ -465,12 +466,12 @@ class RuntimeRouter:
         )
 
     async def _resolve_default_deployment(
-        self,
-        *,
-        deployment_repo: DeploymentRepository,
-        model_id: str,
-        environment: str,
-        now: datetime,
+            self,
+            *,
+            deployment_repo: DeploymentRepository,
+            model_id: str,
+            environment: str,
+            now: datetime,
     ) -> RouteResult | None:
         """解析默认部署路由"""
         deployments = await deployment_repo.list_active_deployments(
@@ -510,10 +511,10 @@ class RuntimeRouter:
         )
 
     def _build_ab_test_result(
-        self,
-        *,
-        result: ABTestResult,
-        deployment: Deployment,
+            self,
+            *,
+            result: ABTestResult,
+            deployment: Deployment,
     ) -> RouteResult:
         """构造 A/B 实验路由结果"""
         return RouteResult(
@@ -542,15 +543,15 @@ class RuntimeRouter:
         )
 
     def _build_deployment_result(
-        self,
-        *,
-        deployment: Deployment,
-        source: str,
-        strategy: str,
-        routing_id: str | None = None,
-        bucket: str | None = None,
-        weight: float | None = None,
-        context: dict | None = None,
+            self,
+            *,
+            deployment: Deployment,
+            source: str,
+            strategy: str,
+            routing_id: str | None = None,
+            bucket: str | None = None,
+            weight: float | None = None,
+            context: dict | None = None,
     ) -> RouteResult:
         """构造部署路由结果"""
         return RouteResult(
@@ -573,8 +574,8 @@ class RuntimeRouter:
         )
 
     def _payload_key(
-        self,
-        payload: dict | None,
+            self,
+            payload: dict | None,
     ) -> str | None:
         """从 payload 中取一个稳定路由键
 
@@ -586,11 +587,11 @@ class RuntimeRouter:
             return None
 
         for key in (
-            "subject_key",
-            "customer_id",
-            "order_id",
-            "apply_id",
-            "application_id",
+                "subject_key",
+                "customer_id",
+                "order_id",
+                "apply_id",
+                "application_id",
         ):
             value = payload.get(key)
 
@@ -600,11 +601,11 @@ class RuntimeRouter:
         return None
 
     def _is_routable_deployment(
-        self,
-        deployment: Deployment,
-        *,
-        environment: str,
-        now: datetime,
+            self,
+            deployment: Deployment,
+            *,
+            environment: str,
+            now: datetime,
     ) -> bool:
         """判断部署是否可路由"""
         if deployment.status != DeploymentStatus.ACTIVE:
@@ -616,10 +617,10 @@ class RuntimeRouter:
         return self._is_effective(deployment, now=now)
 
     def _is_effective(
-        self,
-        obj,
-        *,
-        now: datetime,
+            self,
+            obj,
+            *,
+            now: datetime,
     ) -> bool:
         """判断对象是否处于生效时间范围"""
         current_time = to_utc(now)
@@ -642,7 +643,7 @@ class RuntimeRouter:
 
     @staticmethod
     def _hash_ratio(
-        *parts: str,
+            *parts: str,
     ) -> tuple[float, str]:
         """计算稳定哈希比例
 
@@ -663,9 +664,9 @@ class RuntimeRouter:
 
     @staticmethod
     def _safe_float(
-        value,
-        *,
-        default: float,
+            value,
+            *,
+            default: float,
     ) -> float:
         """安全转换 float"""
         if value is None:
@@ -678,9 +679,9 @@ class RuntimeRouter:
 
     @staticmethod
     def _clamp(
-        value: float,
-        min_value: float,
-        max_value: float,
+            value: float,
+            min_value: float,
+            max_value: float,
     ) -> float:
         """限制数值范围"""
         return max(min_value, min(max_value, value))

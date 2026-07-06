@@ -30,9 +30,10 @@
 
 import asyncio
 import json
-import typer
-import structlog
 from datetime import datetime, timezone
+
+import structlog
+import typer
 from rich.console import Console
 
 from datamind.audit import audit
@@ -50,61 +51,61 @@ logger = structlog.get_logger(__name__)
 
 @app.command("create")
 def create_experiment(
-    model_id: str = typer.Option(
-        ...,
-        "--model-id",
-        help="模型 ID"
-    ),
-    name: str | None = typer.Option(
-        None,
-        "--name",
-        help="实验名称"
-    ),
-    traffic_ratio: float = typer.Option(
-        1.0,
-        "--traffic-ratio",
-        help="实验流量比例，范围 0~1"
-    ),
-    bucket_key: str = typer.Option(
-        "customer_id",
-        "--bucket-key",
-        help="分桶主体字段，例如 customer_id / order_id / apply_id"
-    ),
-    config: str | None = typer.Option(
-        None,
-        "--config",
-        help="实验配置 JSON 字符串"
-    ),
-    description: str | None = typer.Option(
-        None,
-        "--description",
-        help="实验描述"
-    ),
-    owner: str = typer.Option(
-        "system",
-        "--owner",
-        help="创建人"
-    ),
-    effective_from: str | None = typer.Option(
-        None,
-        "--effective-from",
-        help="生效开始时间，ISO 格式，例如 2026-07-01T09:00:00+08:00；默认当前时间"
-    ),
-    effective_to: str | None = typer.Option(
-        None,
-        "--effective-to",
-        help="生效结束时间，ISO 格式，例如 2026-07-31T23:59:59+08:00；默认不限制结束时间"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        model_id: str = typer.Option(
+            ...,
+            "--model-id",
+            help="模型 ID"
+        ),
+        name: str | None = typer.Option(
+            None,
+            "--name",
+            help="实验名称"
+        ),
+        traffic_ratio: float = typer.Option(
+            1.0,
+            "--traffic-ratio",
+            help="实验流量比例，范围 0~1"
+        ),
+        bucket_key: str = typer.Option(
+            "customer_id",
+            "--bucket-key",
+            help="分桶主体字段，例如 customer_id / order_id / apply_id"
+        ),
+        config: str | None = typer.Option(
+            None,
+            "--config",
+            help="实验配置 JSON 字符串"
+        ),
+        description: str | None = typer.Option(
+            None,
+            "--description",
+            help="实验描述"
+        ),
+        owner: str = typer.Option(
+            "system",
+            "--owner",
+            help="创建人"
+        ),
+        effective_from: str | None = typer.Option(
+            None,
+            "--effective-from",
+            help="生效开始时间，ISO 格式，例如 2026-07-01T09:00:00+08:00；默认当前时间"
+        ),
+        effective_to: str | None = typer.Option(
+            None,
+            "--effective-to",
+            help="生效结束时间，ISO 格式，例如 2026-07-31T23:59:59+08:00；默认不限制结束时间"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """创建实验"""
 
@@ -125,8 +126,8 @@ def create_experiment(
         if config:
             try:
                 experiment_config = json.loads(config)
-            except json.JSONDecodeError as e:
-                console.print(f"[red]config JSON 解析失败: {e}[/red]")
+            except json.JSONDecodeError as exc:
+                console.print(f"[red]config JSON 解析失败: {exc}[/red]")
                 raise typer.Exit(1)
 
             if not isinstance(experiment_config, dict):
@@ -147,8 +148,8 @@ def create_experiment(
             effective_from_value = datetime.now(timezone.utc)
 
         if (
-            effective_to_value is not None
-            and effective_to_value <= effective_from_value
+                effective_to_value is not None
+                and effective_to_value <= effective_from_value
         ):
             raise typer.BadParameter("--effective-to 必须晚于 --effective-from")
 
@@ -175,7 +176,9 @@ def create_experiment(
                 raise typer.Exit(1)
 
             experiment = experiment_repo.create_experiment(
-                experiment_id=generate_random_id(prefix="exp"),
+                experiment_id=generate_random_id(
+                    prefix="exp"
+                ),
                 model_id=model_id,
                 name=name,
                 description=description,
@@ -230,10 +233,10 @@ def create_experiment(
 
     async def runner():
         async with cli_context(
-            user=owner,
-            source="cli",
-            verbose=verbose,
-            enable_audit=True,
+                user=owner,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
         ):
             await _run()
 

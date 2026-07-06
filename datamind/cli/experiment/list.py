@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -32,41 +33,41 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_experiments(
-    model_id: str | None = typer.Option(
-        None,
-        "--model-id",
-        help="按模型 ID 过滤"
-    ),
-    status: str | None = typer.Option(
-        None,
-        "--status",
-        help="按实验状态过滤，例如 draft/running/paused/stopped/completed/archived"
-    ),
-    created_by: str | None = typer.Option(
-        None,
-        "--created-by",
-        help="按创建人过滤"
-    ),
-    limit: int | None = typer.Option(
-        None,
-        "--limit",
-        help="返回记录数量限制"
-    ),
-    offset: int | None = typer.Option(
-        None,
-        "--offset",
-        help="分页偏移量"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        model_id: str | None = typer.Option(
+            None,
+            "--model-id",
+            help="按模型 ID 过滤"
+        ),
+        status: str | None = typer.Option(
+            None,
+            "--status",
+            help="按实验状态过滤，例如 draft/running/paused/stopped/completed/archived"
+        ),
+        created_by: str | None = typer.Option(
+            None,
+            "--created-by",
+            help="按创建人过滤"
+        ),
+        limit: int | None = typer.Option(
+            None,
+            "--limit",
+            help="返回记录数量限制"
+        ),
+        offset: int | None = typer.Option(
+            None,
+            "--offset",
+            help="分页偏移量"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """列出实验"""
 
@@ -176,8 +177,8 @@ def list_experiments(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

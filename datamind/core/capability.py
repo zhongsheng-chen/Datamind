@@ -190,7 +190,6 @@ _MODEL_CAPABILITY_DESCRIPTIONS: dict[
         "批量推理",
 }
 
-
 _SCORECARD_CAPABILITY_DESCRIPTIONS: dict[
     ScorecardCapability,
     str,
@@ -216,8 +215,8 @@ _SCORECARD_CAPABILITY_DESCRIPTIONS: dict[
 
 
 def has_model_capability(
-    capabilities: ModelCapability,
-    capability: ModelCapability,
+        capabilities: ModelCapability,
+        capability: ModelCapability,
 ) -> bool:
     """检查模型是否包含指定能力
 
@@ -234,8 +233,8 @@ def has_model_capability(
 
 
 def has_scorecard_capability(
-    capabilities: ScorecardCapability,
-    capability: ScorecardCapability,
+        capabilities: ScorecardCapability,
+        capability: ScorecardCapability,
 ) -> bool:
     """检查评分组件是否包含指定能力
 
@@ -252,8 +251,8 @@ def has_scorecard_capability(
 
 
 def has_all_model_capabilities(
-    capabilities: ModelCapability,
-    required: ModelCapability,
+        capabilities: ModelCapability,
+        required: ModelCapability,
 ) -> bool:
     """检查模型是否包含全部指定能力
 
@@ -265,13 +264,13 @@ def has_all_model_capabilities(
         包含全部能力返回 True，否则返回 False
     """
     return (
-        capabilities & required
+            capabilities & required
     ) == required
 
 
 def has_all_scorecard_capabilities(
-    capabilities: ScorecardCapability,
-    required: ScorecardCapability,
+        capabilities: ScorecardCapability,
+        required: ScorecardCapability,
 ) -> bool:
     """检查评分组件是否包含全部指定能力
 
@@ -283,13 +282,13 @@ def has_all_scorecard_capabilities(
         包含全部能力返回 True，否则返回 False
     """
     return (
-        capabilities & required
+            capabilities & required
     ) == required
 
 
 def has_any_model_capability(
-    capabilities: ModelCapability,
-    candidates: ModelCapability,
+        capabilities: ModelCapability,
+        candidates: ModelCapability,
 ) -> bool:
     """检查模型是否包含任意指定能力
 
@@ -306,8 +305,8 @@ def has_any_model_capability(
 
 
 def has_any_scorecard_capability(
-    capabilities: ScorecardCapability,
-    candidates: ScorecardCapability,
+        capabilities: ScorecardCapability,
+        candidates: ScorecardCapability,
 ) -> bool:
     """检查评分组件是否包含任意指定能力
 
@@ -324,7 +323,7 @@ def has_any_scorecard_capability(
 
 
 def combine_model_capabilities(
-    capabilities: list[ModelCapability],
+        capabilities: list[ModelCapability],
 ) -> ModelCapability:
     """组合多个模型能力
 
@@ -343,7 +342,7 @@ def combine_model_capabilities(
 
 
 def combine_scorecard_capabilities(
-    capabilities: list[ScorecardCapability],
+        capabilities: list[ScorecardCapability],
 ) -> ScorecardCapability:
     """组合多个评分能力
 
@@ -362,7 +361,7 @@ def combine_scorecard_capabilities(
 
 
 def get_model_capability_list(
-    capabilities: ModelCapability,
+        capabilities: ModelCapability,
 ) -> list[str]:
     """获取模型能力名称列表
 
@@ -387,7 +386,7 @@ def get_model_capability_list(
 
 
 def get_scorecard_capability_list(
-    capabilities: ScorecardCapability,
+        capabilities: ScorecardCapability,
 ) -> list[str]:
     """获取评分能力名称列表
 
@@ -412,7 +411,7 @@ def get_scorecard_capability_list(
 
 
 def get_model_capability_descriptions(
-    capabilities: ModelCapability,
+        capabilities: ModelCapability,
 ) -> list[dict[str, str]]:
     """获取模型能力描述列表
 
@@ -443,7 +442,7 @@ def get_model_capability_descriptions(
 
 
 def get_scorecard_capability_descriptions(
-    capabilities: ScorecardCapability,
+        capabilities: ScorecardCapability,
 ) -> list[dict[str, str]]:
     """获取评分能力描述列表
 
@@ -474,7 +473,7 @@ def get_scorecard_capability_descriptions(
 
 
 def get_model_capability_summary(
-    capabilities: ModelCapability,
+        capabilities: ModelCapability,
 ) -> dict[str, Any]:
     """获取模型能力摘要
 
@@ -502,7 +501,7 @@ def get_model_capability_summary(
 
 
 def get_scorecard_capability_summary(
-    capabilities: ScorecardCapability,
+        capabilities: ScorecardCapability,
 ) -> dict[str, Any]:
     """获取评分能力摘要
 

@@ -59,7 +59,6 @@ class RoutingPatch:
         rules: 路由规则配置
         description: 描述
     """
-
     rollout_type: str | None = None
     rollout_group: str | None = None
     environment: str | None = None
@@ -72,8 +71,8 @@ class RoutingRepository(BaseRepository):
     """路由仓储"""
 
     async def get_routing(
-        self,
-        routing_id: str,
+            self,
+            routing_id: str,
     ) -> Routing | None:
         """获取路由规则
 
@@ -91,11 +90,11 @@ class RoutingRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_routings(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Routing]:
         """获取路由规则列表
 
@@ -135,12 +134,12 @@ class RoutingRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_enabled_routings(
-        self,
-        *,
-        deployment_id: str | None = None,
-        environment: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            *,
+            deployment_id: str | None = None,
+            environment: str | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Routing]:
         """获取启用的路由规则
 
@@ -170,18 +169,18 @@ class RoutingRepository(BaseRepository):
         )
 
     def create_routing(
-        self,
-        *,
-        routing_id: str,
-        deployment_id: str,
-        environment: str,
-        rollout_type: str = "full",
-        rollout_group: str | None = None,
-        traffic_ratio: float = 0.0,
-        enabled: bool = True,
-        rules: dict | None = None,
-        description: str | None = None,
-        created_by: str | None = None,
+            self,
+            *,
+            routing_id: str,
+            deployment_id: str,
+            environment: str,
+            rollout_type: str = "full",
+            rollout_group: str | None = None,
+            traffic_ratio: float = 0.0,
+            enabled: bool = True,
+            rules: dict | None = None,
+            description: str | None = None,
+            created_by: str | None = None,
     ) -> Routing:
         """创建路由规则
 
@@ -226,11 +225,11 @@ class RoutingRepository(BaseRepository):
         return obj
 
     def update_routing(
-        self,
-        routing: Routing,
-        patch: RoutingPatch,
-        *,
-        updated_by: str | None = None,
+            self,
+            routing: Routing,
+            patch: RoutingPatch,
+            *,
+            updated_by: str | None = None,
     ) -> Routing:
         """更新路由规则
 
@@ -265,10 +264,10 @@ class RoutingRepository(BaseRepository):
         return routing
 
     def enable_routing(
-        self,
-        routing: Routing,
-        *,
-        updated_by: str | None = None,
+            self,
+            routing: Routing,
+            *,
+            updated_by: str | None = None,
     ) -> Routing:
         """启用路由规则
 
@@ -287,10 +286,10 @@ class RoutingRepository(BaseRepository):
         return routing
 
     def disable_routing(
-        self,
-        routing: Routing,
-        *,
-        updated_by: str | None = None,
+            self,
+            routing: Routing,
+            *,
+            updated_by: str | None = None,
     ) -> Routing:
         """禁用路由规则
 

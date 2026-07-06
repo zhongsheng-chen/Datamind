@@ -56,7 +56,6 @@ class VariantPatch:
         config: 实验分组配置
         description: 实验分组说明
     """
-
     name: str | None = None
     deployment_id: str | None = None
     weight: float | None = None
@@ -69,8 +68,8 @@ class VariantRepository(BaseRepository):
     """实验分组仓储"""
 
     async def get_variant(
-        self,
-        variant_id: str,
+            self,
+            variant_id: str,
     ) -> Variant | None:
         """获取实验分组
 
@@ -157,8 +156,8 @@ class VariantRepository(BaseRepository):
         )
 
     async def get_control_variant(
-        self,
-        experiment_id: str,
+            self,
+            experiment_id: str,
     ) -> Variant | None:
         """获取实验对照组
 
@@ -183,18 +182,18 @@ class VariantRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     def create_variant(
-        self,
-        *,
-        variant_id: str,
-        experiment_id: str,
-        name: str,
-        deployment_id: str,
-        weight: float,
-        is_control: bool = False,
-        status: ExperimentVariantStatus = ExperimentVariantStatus.ACTIVE,
-        config: dict | None = None,
-        description: str | None = None,
-        created_by: str | None = None,
+            self,
+            *,
+            variant_id: str,
+            experiment_id: str,
+            name: str,
+            deployment_id: str,
+            weight: float,
+            is_control: bool = False,
+            status: ExperimentVariantStatus = ExperimentVariantStatus.ACTIVE,
+            config: dict | None = None,
+            description: str | None = None,
+            created_by: str | None = None,
     ) -> Variant:
         """创建实验分组
 
@@ -237,11 +236,11 @@ class VariantRepository(BaseRepository):
         return obj
 
     def update_variant(
-        self,
-        variant: Variant,
-        patch: VariantPatch,
-        *,
-        updated_by: str | None = None,
+            self,
+            variant: Variant,
+            patch: VariantPatch,
+            *,
+            updated_by: str | None = None,
     ) -> Variant:
         """更新实验分组
 
@@ -274,10 +273,10 @@ class VariantRepository(BaseRepository):
         return variant
 
     def activate_variant(
-        self,
-        variant: Variant,
-        *,
-        updated_by: str | None = None,
+            self,
+            variant: Variant,
+            *,
+            updated_by: str | None = None,
     ) -> Variant:
         """启用实验分组
 
@@ -296,10 +295,10 @@ class VariantRepository(BaseRepository):
         return variant
 
     def deactivate_variant(
-        self,
-        variant: Variant,
-        *,
-        updated_by: str | None = None,
+            self,
+            variant: Variant,
+            *,
+            updated_by: str | None = None,
     ) -> Variant:
         """停用实验分组
 
@@ -318,10 +317,10 @@ class VariantRepository(BaseRepository):
         return variant
 
     def archive_variant(
-        self,
-        variant: Variant,
-        *,
-        updated_by: str | None = None,
+            self,
+            variant: Variant,
+            *,
+            updated_by: str | None = None,
     ) -> Variant:
         """归档实验分组
 

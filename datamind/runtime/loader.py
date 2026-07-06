@@ -30,10 +30,10 @@ class ModelLoader:
         self.backend = BentoBackend()
 
     def load(
-        self,
-        *,
-        framework: str,
-        tag: str,
+            self,
+            *,
+            framework: str,
+            tag: str,
     ) -> Any:
         """加载模型
 

@@ -27,12 +27,18 @@
     - controls 表中的期望运行状态
     - runtimes 表中的 Worker 实际运行状态
 
+  每个 RuntimeReconciler 只读取当前
+  Service environment 对应的 Control。
+
   load / unload / reload API
-  不直接操作当前 Worker 的模型内存，
-  而是更新 controls 表。
+  只允许操作当前 Service environment
+  对应的 Deployment。
+
+  通过环境校验后，
+  再由 RuntimeController 更新 controls 表。
 
   各 Worker 的 RuntimeReconciler
-  定期读取 controls 表并执行：
+  定期读取当前环境的 controls 表记录并执行：
     - start
     - stop
     - restart
@@ -59,31 +65,24 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.config import get_settings
 from datamind.db.core import UnitOfWork
-from datamind.db.models.controls import Control
-from datamind.db.models.runtimes import Runtime
-from datamind.db.repositories import (
-    ControlRepository,
-    DeploymentRepository,
-    RuntimeRepository,
-)
-from datamind.models.enums import (
-    DeploymentStatus,
-    RuntimeControlStatus,
-)
+from datamind.db.repositories import DeploymentRepository
+from datamind.logging import setup_logging
 from datamind.models.errors import (
     BackendError,
-    DeploymentNotFoundError,
-    InvalidDeploymentStateError,
     RuntimeRouteError,
 )
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
 from datamind.runtime.router import RuntimeRouter
+from datamind.runtime.server.errors import (
+    ServiceDeploymentNotFoundError,
+    ServiceEnvironmentMismatchError,
+)
 from datamind.runtime.serving.base import BaseRuntimeService
 from datamind.runtime.serving.factory import (
     RuntimeServiceFactory,
 )
-from datamind.utils.generator import generate_random_id
+from datamind.services import RuntimeController
 
 logger = structlog.get_logger(__name__)
 
@@ -100,8 +99,8 @@ def _build_worker_id() -> str:
         Worker ID
     """
     hostname = (
-        socket.gethostname().strip()
-        or "worker"
+            socket.gethostname().strip()
+            or "worker"
     )
 
     worker_id = (
@@ -190,9 +189,15 @@ class DatamindRuntimeService:
     """Datamind 多 Worker 运行时模型服务"""
 
     def __init__(
-        self,
+            self,
     ):
         """初始化当前 Worker 服务状态"""
+        settings = get_settings()
+
+        setup_logging(
+            settings.logging
+        )
+
         worker_id = _build_worker_id()
 
         self.manager = RuntimeManager(
@@ -201,8 +206,13 @@ class DatamindRuntimeService:
 
         self.router = RuntimeRouter()
 
+        self.controller = RuntimeController()
+
         self.reconciler = RuntimeReconciler(
             manager=self.manager,
+            environment=(
+                service_config.environment
+            ),
             interval_seconds=(
                 service_config.reconcile_interval
             ),
@@ -221,6 +231,9 @@ class DatamindRuntimeService:
         logger.info(
             "运行时 Worker 初始化完成",
             worker_id=worker_id,
+            environment=(
+                service_config.environment
+            ),
             service_workers=(
                 service_config.workers
             ),
@@ -234,12 +247,12 @@ class DatamindRuntimeService:
 
     @bentoml.on_startup
     async def startup(
-        self,
+            self,
     ) -> None:
         """启动当前 Worker
 
         启动流程：
-          - 执行首次状态协调
+          - 执行当前环境首次状态协调
           - 启动后台协调循环
         """
         result = (
@@ -251,12 +264,15 @@ class DatamindRuntimeService:
         logger.info(
             "运行时 Worker 启动完成",
             worker_id=self.manager.worker_id,
+            environment=(
+                service_config.environment
+            ),
             **result.to_dict(),
         )
 
     @bentoml.on_shutdown
     async def shutdown(
-        self,
+            self,
     ) -> None:
         """关闭当前 Worker
 
@@ -280,14 +296,17 @@ class DatamindRuntimeService:
                 )
 
             except (
-                BackendError,
-                RuntimeRouteError,
-                SQLAlchemyError,
-                RuntimeError,
+                    BackendError,
+                    RuntimeRouteError,
+                    SQLAlchemyError,
+                    RuntimeError,
             ) as exc:
                 logger.exception(
                     "Worker 关闭时卸载模型失败",
                     worker_id=self.manager.worker_id,
+                    environment=(
+                        service_config.environment
+                    ),
                     deployment_id=deployment_id,
                     error=str(exc),
                 )
@@ -297,13 +316,16 @@ class DatamindRuntimeService:
         logger.info(
             "运行时 Worker 已关闭",
             worker_id=self.manager.worker_id,
+            environment=(
+                service_config.environment
+            ),
         )
 
     @bentoml.api(
         route="/health",
     )
     def health(
-        self,
+            self,
     ) -> dict[str, Any]:
         """服务健康检查
 
@@ -313,6 +335,9 @@ class DatamindRuntimeService:
         return {
             "status": "ok",
             "worker_id": self.manager.worker_id,
+            "environment": (
+                service_config.environment
+            ),
             "reconciler_running": (
                 self.reconciler.is_running
             ),
@@ -331,12 +356,16 @@ class DatamindRuntimeService:
         route="/admin/load",
     )
     async def load(
-        self,
-        request: ControlRequest,
+            self,
+            request: ControlRequest,
     ) -> dict[str, Any]:
         """设置部署期望状态为 loaded
 
-        该操作只更新共享 controls 表。
+        只允许操作当前 Service environment
+        对应的 Deployment。
+
+        环境校验通过后，
+        由 RuntimeController 更新共享 controls 表。
 
         各 Worker 由 RuntimeReconciler
         独立完成模型加载。
@@ -347,36 +376,26 @@ class DatamindRuntimeService:
         返回：
             控制请求受理结果
         """
-        control = (
-            await self._set_loaded_control(
-                deployment_id=(
-                    request.deployment_id
-                ),
-                operator=request.operator,
-            )
+        await self._validate_service_environment(
+            deployment_id=request.deployment_id,
         )
 
-        logger.info(
-            "提交模型加载控制请求",
+        return await self.controller.load(
             deployment_id=request.deployment_id,
             operator=request.operator,
-            generation=control["generation"],
         )
-
-        return {
-            "action": "load",
-            "accepted": True,
-            "control": control,
-        }
 
     @bentoml.api(
         route="/admin/unload",
     )
     async def unload(
-        self,
-        request: ControlRequest,
+            self,
+            request: ControlRequest,
     ) -> dict[str, Any]:
         """设置部署期望状态为 unloaded
+
+        只允许操作当前 Service environment
+        对应的 Deployment。
 
         参数：
             request: 运行控制请求
@@ -384,39 +403,29 @@ class DatamindRuntimeService:
         返回：
             控制请求受理结果
         """
-        control = (
-            await self._set_unloaded_control(
-                deployment_id=(
-                    request.deployment_id
-                ),
-                operator=request.operator,
-            )
+        await self._validate_service_environment(
+            deployment_id=request.deployment_id,
         )
 
-        logger.info(
-            "提交模型卸载控制请求",
+        return await self.controller.unload(
             deployment_id=request.deployment_id,
             operator=request.operator,
-            generation=control["generation"],
         )
-
-        return {
-            "action": "unload",
-            "accepted": True,
-            "control": control,
-        }
 
     @bentoml.api(
         route="/admin/reload",
     )
     async def reload(
-        self,
-        request: ControlRequest,
+            self,
+            request: ControlRequest,
     ) -> dict[str, Any]:
         """请求重新加载部署模型
 
+        只允许操作当前 Service environment
+        对应的 Deployment。
+
         reload 保持 desired_status=loaded，
-        通过 generation 递增通知所有 Worker。
+        通过 generation 递增通知所属环境的 Worker。
 
         参数：
             request: 运行控制请求
@@ -424,34 +433,21 @@ class DatamindRuntimeService:
         返回：
             控制请求受理结果
         """
-        control = (
-            await self._request_reload_control(
-                deployment_id=(
-                    request.deployment_id
-                ),
-                operator=request.operator,
-            )
+        await self._validate_service_environment(
+            deployment_id=request.deployment_id,
         )
 
-        logger.info(
-            "提交模型重新加载控制请求",
+        return await self.controller.reload(
             deployment_id=request.deployment_id,
             operator=request.operator,
-            generation=control["generation"],
         )
-
-        return {
-            "action": "reload",
-            "accepted": True,
-            "control": control,
-        }
 
     @bentoml.api(
         route="/admin/status",
     )
     async def status(
-        self,
-        request: DeploymentRequest,
+            self,
+            request: DeploymentRequest,
     ) -> dict[str, Any]:
         """查询部署运行状态
 
@@ -470,39 +466,9 @@ class DatamindRuntimeService:
             request.deployment_id
         )
 
-        async with UnitOfWork() as uow:
-            control_repo = ControlRepository(
-                uow.session
-            )
-
-            runtime_repo = RuntimeRepository(
-                uow.session
-            )
-
-            control = (
-                await control_repo.get_deployment_control(
-                    deployment_id
-                )
-            )
-
-            runtimes = await runtime_repo.list_runtimes(
-                deployment_id=deployment_id
-            )
-
-            control_info = (
-                self._control_to_dict(
-                    control
-                )
-                if control is not None
-                else None
-            )
-
-            runtime_info = [
-                self._runtime_to_dict(
-                    runtime
-                )
-                for runtime in runtimes
-            ]
+        status_info = await self.controller.get_status(
+            deployment_id=deployment_id,
+        )
 
         local_status = await self.manager.status(
             deployment_id
@@ -510,8 +476,11 @@ class DatamindRuntimeService:
 
         return {
             "deployment_id": deployment_id,
-            "control": control_info,
-            "runtimes": runtime_info,
+            "environment": (
+                service_config.environment
+            ),
+            "control": status_info["control"],
+            "runtimes": status_info["runtimes"],
             "local": local_status,
             "local_generation": (
                 self.reconciler.get_applied_generation(
@@ -524,7 +493,7 @@ class DatamindRuntimeService:
         route="/admin/services",
     )
     def services(
-        self,
+            self,
     ) -> dict[str, Any]:
         """查询当前 Worker 服务状态
 
@@ -533,6 +502,9 @@ class DatamindRuntimeService:
         """
         return {
             "worker_id": self.manager.worker_id,
+            "environment": (
+                service_config.environment
+            ),
             "runtime_count": (
                 self.manager.count()
             ),
@@ -558,8 +530,8 @@ class DatamindRuntimeService:
         route="/predict",
     )
     async def predict(
-        self,
-        request: PredictRequest,
+            self,
+            request: PredictRequest,
     ) -> dict[str, Any]:
         """执行单条模型预测
 
@@ -576,7 +548,9 @@ class DatamindRuntimeService:
 
         route = await self.router.resolve(
             model_id=request.model_id,
-            environment=service_config.environment,
+            environment=(
+                service_config.environment
+            ),
             subject_key=request.subject_key,
             subject_type=request.subject_type,
             payload=request.features,
@@ -602,8 +576,8 @@ class DatamindRuntimeService:
         route="/predict/batch",
     )
     async def predict_batch(
-        self,
-        request: BatchPredictRequest,
+            self,
+            request: BatchPredictRequest,
     ) -> dict[str, Any]:
         """执行指定部署批量预测
 
@@ -633,14 +607,14 @@ class DatamindRuntimeService:
         }
 
     async def _get_service(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> BaseRuntimeService:
         """获取当前 Worker 的 RuntimeService
 
         当本地模型尚未加载时，
         主动执行一次 reconcile_once，
-        加速当前 Worker 状态收敛。
+        加速当前 Worker 所属环境的状态收敛。
 
         参数：
             deployment_id: 部署 ID
@@ -691,10 +665,10 @@ class DatamindRuntimeService:
         )
 
         if (
-            cached is not None
-            and cached.generation == generation
-            and cached.runtime_identity
-            == runtime_identity
+                cached is not None
+                and cached.generation == generation
+                and cached.runtime_identity
+                == runtime_identity
         ):
             return cached.service
 
@@ -704,10 +678,10 @@ class DatamindRuntimeService:
             )
 
             if (
-                cached is not None
-                and cached.generation == generation
-                and cached.runtime_identity
-                == runtime_identity
+                    cached is not None
+                    and cached.generation == generation
+                    and cached.runtime_identity
+                    == runtime_identity
             ):
                 return cached.service
 
@@ -726,6 +700,9 @@ class DatamindRuntimeService:
             logger.info(
                 "创建 Worker RuntimeService",
                 worker_id=self.manager.worker_id,
+                environment=(
+                    service_config.environment
+                ),
                 deployment_id=deployment_id,
                 service_type=(
                     service.SERVICE_TYPE
@@ -735,335 +712,57 @@ class DatamindRuntimeService:
 
             return service
 
-    async def _set_loaded_control(
-        self,
-        *,
-        deployment_id: str,
-        operator: str,
-    ) -> dict[str, Any]:
-        """设置期望状态为 loaded
-
-        参数：
-            deployment_id: 部署 ID
-            operator: 操作人
-
-        返回：
-            运行控制信息
-        """
-        async with UnitOfWork() as uow:
-            deployment_repo = DeploymentRepository(
-                uow.session
-            )
-
-            control_repo = ControlRepository(
-                uow.session
-            )
-
-            await self._validate_deployment(
-                deployment_repo=deployment_repo,
-                deployment_id=deployment_id,
-                require_active=True,
-            )
-
-            control = (
-                await control_repo.get_deployment_control(
-                    deployment_id
-                )
-            )
-
-            if control is None:
-                control = control_repo.create_control(
-                    control_id=generate_random_id(
-                        prefix="ctl"
-                    ),
-                    deployment_id=deployment_id,
-                    desired_status=(
-                        RuntimeControlStatus.LOADED
-                    ),
-                    generation=1,
-                    created_by=operator,
-                )
-
-            else:
-                control = control_repo.set_loaded(
-                    control,
-                    updated_by=operator,
-                )
-
-            result = self._control_to_dict(
-                control
-            )
-
-        return result
-
-    async def _set_unloaded_control(
-        self,
-        *,
-        deployment_id: str,
-        operator: str,
-    ) -> dict[str, Any]:
-        """设置期望状态为 unloaded
-
-        参数：
-            deployment_id: 部署 ID
-            operator: 操作人
-
-        返回：
-            运行控制信息
-        """
-        async with UnitOfWork() as uow:
-            deployment_repo = DeploymentRepository(
-                uow.session
-            )
-
-            control_repo = ControlRepository(
-                uow.session
-            )
-
-            await self._validate_deployment(
-                deployment_repo=deployment_repo,
-                deployment_id=deployment_id,
-                require_active=False,
-            )
-
-            control = (
-                await control_repo.get_deployment_control(
-                    deployment_id
-                )
-            )
-
-            if control is None:
-                control = control_repo.create_control(
-                    control_id=generate_random_id(
-                        prefix="ctl"
-                    ),
-                    deployment_id=deployment_id,
-                    desired_status=(
-                        RuntimeControlStatus.UNLOADED
-                    ),
-                    generation=1,
-                    created_by=operator,
-                )
-
-            else:
-                control = control_repo.set_unloaded(
-                    control,
-                    updated_by=operator,
-                )
-
-            result = self._control_to_dict(
-                control
-            )
-
-        return result
-
-    async def _request_reload_control(
-        self,
-        *,
-        deployment_id: str,
-        operator: str,
-    ) -> dict[str, Any]:
-        """请求重新加载部署模型
-
-        参数：
-            deployment_id: 部署 ID
-            operator: 操作人
-
-        返回：
-            更新后的运行控制信息
-
-        异常：
-            RuntimeError:
-                运行控制记录不存在
-        """
-        async with UnitOfWork() as uow:
-            deployment_repo = DeploymentRepository(
-                uow.session
-            )
-
-            control_repo = ControlRepository(
-                uow.session
-            )
-
-            await self._validate_deployment(
-                deployment_repo=deployment_repo,
-                deployment_id=deployment_id,
-                require_active=True,
-            )
-
-            control = (
-                await control_repo.get_deployment_control(
-                    deployment_id
-                )
-            )
-
-            if control is None:
-                raise RuntimeError(
-                    "运行控制记录不存在，"
-                    "请先执行 service load: "
-                    f"{deployment_id}"
-                )
-
-            control = control_repo.request_reload(
-                control,
-                updated_by=operator,
-            )
-
-            result = self._control_to_dict(
-                control
-            )
-
-        return result
-
-    @staticmethod
-    async def _validate_deployment(
-        *,
-        deployment_repo: DeploymentRepository,
-        deployment_id: str,
-        require_active: bool,
+    async def _validate_service_environment(
+            self,
+            *,
+            deployment_id: str,
     ) -> None:
-        """校验部署状态
+        """校验 Deployment 是否属于当前 Service 环境
 
         参数：
-            deployment_repo:
-                部署仓储
-
             deployment_id:
                 部署 ID
 
-            require_active:
-                是否要求部署必须为 active
-
         异常：
-            DeploymentNotFoundError:
+            ServiceDeploymentNotFoundError:
                 部署不存在
 
-            InvalidDeploymentStateError:
-                部署状态不允许加载
+            ServiceEnvironmentMismatchError:
+                Deployment 环境与当前 Service
+                环境不一致
         """
-        deployment = (
-            await deployment_repo.get_deployment(
-                deployment_id
-            )
-        )
-
-        if deployment is None:
-            raise DeploymentNotFoundError(
-                f"部署不存在: {deployment_id}"
+        async with UnitOfWork() as uow:
+            repo = DeploymentRepository(
+                uow.session
             )
 
-        if not require_active:
-            return
-
-        status = deployment.status
-
-        if not isinstance(
-            status,
-            DeploymentStatus,
-        ):
-            status = DeploymentStatus(
-                status
+            deployment = (
+                await repo.get_deployment(
+                    deployment_id
+                )
             )
 
-        if status != DeploymentStatus.ACTIVE:
-            raise InvalidDeploymentStateError(
-                "部署不是启用状态，不能加载: "
-                f"{deployment_id}"
-            )
+            if deployment is None:
+                raise ServiceDeploymentNotFoundError(
+                    f"部署不存在: {deployment_id}"
+                )
 
-    @staticmethod
-    def _control_to_dict(
-        control: Control,
-    ) -> dict[str, Any]:
-        """转换 Control 为字典
-
-        参数：
-            control: 运行控制对象
-
-        返回：
-            运行控制信息字典
-        """
-        desired_status = (
-            control.desired_status
-        )
-
-        if isinstance(
-            desired_status,
-            RuntimeControlStatus,
-        ):
-            desired_status = (
-                desired_status.value
-            )
-
-        return {
-            "control_id": control.control_id,
-            "deployment_id": (
-                control.deployment_id
-            ),
-            "desired_status": str(
-                desired_status
-            ),
-            "generation": int(
-                control.generation
-            ),
-            "created_by": control.created_by,
-            "updated_by": control.updated_by,
-            "created_at": (
-                control.created_at.isoformat()
-                if control.created_at
-                else None
-            ),
-            "updated_at": (
-                control.updated_at.isoformat()
-                if control.updated_at
-                else None
-            ),
-        }
-
-    @staticmethod
-    def _runtime_to_dict(
-        runtime: Runtime,
-    ) -> dict[str, Any]:
-        """转换 Runtime 为字典
-
-        参数：
-            runtime: Worker 运行记录
-
-        返回：
-            Worker 运行状态字典
-        """
-        return {
-            "runtime_id": runtime.runtime_id,
-            "deployment_id": (
-                runtime.deployment_id
-            ),
-            "model_id": runtime.model_id,
-            "version_id": runtime.version_id,
-            "framework": runtime.framework,
-            "status": runtime.status,
-            "worker_id": runtime.worker_id,
-            "loaded_at": (
-                runtime.loaded_at.isoformat()
-                if runtime.loaded_at
-                else None
-            ),
-            "unloaded_at": (
-                runtime.unloaded_at.isoformat()
-                if runtime.unloaded_at
-                else None
-            ),
-            "last_heartbeat_at": (
-                runtime.last_heartbeat_at.isoformat()
-                if runtime.last_heartbeat_at
-                else None
-            ),
-            "error": runtime.error,
-            "context": runtime.context,
-        }
+            if (
+                    deployment.environment
+                    != service_config.environment
+            ):
+                raise ServiceEnvironmentMismatchError(
+                    "部署环境与当前服务环境不一致: "
+                    f"deployment_id={deployment_id}, "
+                    f"deployment_environment="
+                    f"{deployment.environment}, "
+                    f"service_environment="
+                    f"{service_config.environment}"
+                )
 
     @staticmethod
     def _build_service_info(
-        service: BaseRuntimeService,
+            service: BaseRuntimeService,
     ) -> dict[str, Any]:
         """构造 RuntimeService 信息
 

@@ -30,10 +30,6 @@ from datamind.db.repositories.deployment import (
     DeploymentPatch,
     DeploymentRepository,
 )
-from datamind.db.repositories.runtime import (
-    RuntimePatch,
-    RuntimeRepository,
-)
 from datamind.db.repositories.experiment import (
     ExperimentPatch,
     ExperimentRepository,
@@ -50,6 +46,10 @@ from datamind.db.repositories.request import RequestRepository
 from datamind.db.repositories.routing import (
     RoutingPatch,
     RoutingRepository,
+)
+from datamind.db.repositories.runtime import (
+    RuntimePatch,
+    RuntimeRepository,
 )
 from datamind.db.repositories.variant import (
     VariantPatch,

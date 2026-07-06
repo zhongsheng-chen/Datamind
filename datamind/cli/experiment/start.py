@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich.console import Console
 
 from datamind.audit import audit
@@ -31,25 +32,25 @@ logger = structlog.get_logger(__name__)
 
 @app.command("start")
 def start_experiment(
-    experiment_id: str = typer.Argument(
-        ...,
-        help="实验 ID"
-    ),
-    operator: str = typer.Option(
-        "system",
-        "--operator",
-        help="操作人"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        experiment_id: str = typer.Argument(
+            ...,
+            help="实验 ID"
+        ),
+        operator: str = typer.Option(
+            "system",
+            "--operator",
+            help="操作人"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """启动实验"""
 
@@ -110,10 +111,10 @@ def start_experiment(
 
     async def runner():
         async with cli_context(
-            user=operator,
-            source="cli",
-            verbose=verbose,
-            enable_audit=True,
+                user=operator,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
         ):
             await _run()
 

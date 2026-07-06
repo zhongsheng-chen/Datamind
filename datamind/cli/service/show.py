@@ -14,13 +14,19 @@
 import asyncio
 import json
 
-import typer
 import structlog
+import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
 from datamind.services import RuntimeController
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime,
+)
 
 app = typer.Typer(help="查看服务状态命令")
 console = Console()
@@ -30,20 +36,20 @@ logger = structlog.get_logger(__name__)
 
 @app.command("show")
 def show_service(
-    deployment_id: str = typer.Argument(
-        ...,
-        help="部署 ID"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        deployment_id: str = typer.Argument(
+            ...,
+            help="部署 ID"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """查看部署服务运行状态"""
 
@@ -64,23 +70,66 @@ def show_service(
             deployment_id=deployment_id,
         )
 
+        deployment = result["deployment"]
+        control = result["control"]
+        runtimes = result["runtimes"]
+
         if output == "json":
+            json_result = {
+                "deployment": deployment,
+                "control": (
+                    {
+                        **control,
+                        "created_at": format_iso_utc(
+                            parse_datetime(
+                                control["created_at"]
+                            )
+                        ),
+                        "updated_at": format_iso_utc(
+                            parse_datetime(
+                                control["updated_at"]
+                            )
+                        ),
+                    }
+                    if control is not None
+                    else None
+                ),
+                "runtimes": [
+                    {
+                        **runtime,
+                        "loaded_at": format_iso_utc(
+                            parse_datetime(
+                                runtime["loaded_at"]
+                            )
+                        ),
+                        "unloaded_at": format_iso_utc(
+                            parse_datetime(
+                                runtime["unloaded_at"]
+                            )
+                        ),
+                        "last_heartbeat_at": format_iso_utc(
+                            parse_datetime(
+                                runtime["last_heartbeat_at"]
+                            )
+                        ),
+                    }
+                    for runtime in runtimes
+                ],
+            }
+
             console.print_json(
                 json.dumps(
-                    result,
+                    json_result,
                     ensure_ascii=False,
                     indent=2,
                     default=str,
                 )
             )
-            return
 
-        deployment = result["deployment"]
-        control = result["control"]
-        runtimes = result["runtimes"]
+            return json_result
 
         console.print(
-            "[bold cyan]Deployment[/bold cyan]\n"
+            "[green]服务详情[/green]\n"
         )
 
         console.print(
@@ -118,13 +167,9 @@ def show_service(
 
         console.print()
 
-        console.print(
-            "[bold cyan]Control[/bold cyan]\n"
-        )
-
         if control is None:
             console.print(
-                "[yellow]暂无运行控制记录[/yellow]"
+                "[yellow]暂无运行控制记录[/yellow]\n"
             )
 
         else:
@@ -142,67 +187,76 @@ def show_service(
             )
             console.print(
                 f"[cyan]{'CREATED BY':<18}[/cyan] : "
-                f"{control['created_by']}"
+                f"{control['created_by'] or '-'}"
+            )
+            console.print(
+                f"[cyan]{'CREATED AT':<18}[/cyan] : "
+                f"{format_datetime(parse_datetime(control['created_at']))}"
             )
             console.print(
                 f"[cyan]{'UPDATED BY':<18}[/cyan] : "
-                f"{control['updated_by']}"
+                f"{control['updated_by'] or '-'}"
             )
             console.print(
                 f"[cyan]{'UPDATED AT':<18}[/cyan] : "
-                f"{control['updated_at']}"
+                f"{format_datetime(parse_datetime(control['updated_at']))}"
             )
 
-        console.print()
+            console.print()
 
         console.print(
-            "[bold cyan]Runtimes[/bold cyan]\n"
+            f"[dim]共找到 {len(runtimes)} 个 Worker 运行记录[/dim]\n"
         )
 
         if not runtimes:
-            console.print(
-                "[yellow]暂无 Worker 运行记录[/yellow]"
-            )
-            return
+            return result
 
-        table = Table()
+        table = Table(
+            box=box.ASCII,
+            header_style="bold cyan",
+            show_lines=False,
+            pad_edge=False,
+        )
 
-        table.add_column(
-            "RUNTIME ID",
-            style="cyan",
-        )
-        table.add_column(
-            "WORKER ID",
-        )
-        table.add_column(
-            "STATUS",
-        )
-        table.add_column(
-            "LOADED AT",
-        )
-        table.add_column(
-            "HEARTBEAT",
-        )
-        table.add_column(
-            "ERROR",
-        )
+        table.add_column("RUNTIME ID")
+        table.add_column("WORKER ID")
+        table.add_column("STATUS")
+        table.add_column("LOADED AT")
+        table.add_column("UNLOADED AT")
+        table.add_column("HEARTBEAT")
+        table.add_column("ERROR")
 
         for runtime in runtimes:
             table.add_row(
                 str(runtime["runtime_id"]),
                 str(runtime["worker_id"]),
                 str(runtime["status"]),
-                str(runtime["loaded_at"] or ""),
-                str(runtime["last_heartbeat_at"] or ""),
-                str(runtime["error"] or ""),
+                format_datetime(
+                    parse_datetime(
+                        runtime["loaded_at"]
+                    )
+                ),
+                format_datetime(
+                    parse_datetime(
+                        runtime["unloaded_at"]
+                    )
+                ),
+                format_datetime(
+                    parse_datetime(
+                        runtime["last_heartbeat_at"]
+                    )
+                ),
+                str(runtime["error"] or "-"),
             )
 
         console.print(table)
 
+        return result
+
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

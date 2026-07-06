@@ -13,11 +13,12 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
@@ -32,56 +33,56 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_models(
-    status: str | None = typer.Option(
-        None,
-        "--status",
-        help="按模型状态过滤，例如 active/inactive/archived"
-    ),
-    framework: str | None = typer.Option(
-        None,
-        "--framework",
-        help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
-    ),
-    model_type: str | None = typer.Option(
-        None,
-        "--model-type",
-        help="按模型类型过滤，例如 logistic_regression/random_forest/xgboost"
-    ),
-    task_type: str | None = typer.Option(
-        None,
-        "--task-type",
-        help="按任务类型过滤，例如 classification/scoring"
-    ),
-    owner: str | None = typer.Option(
-        None,
-        "--owner",
-        help="按创建人过滤"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    limit: int = typer.Option(
-        10,
-        "--limit",
-        help="返回记录数量限制"
-    ),
-    offset: int = typer.Option(
-        0,
-        "--offset",
-        help="分页偏移量"
-    ),
-    include_archived: bool = typer.Option(
-        False,
-        "--include-archived",
-        help="包含已归档的模型，默认不显示"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        status: str | None = typer.Option(
+            None,
+            "--status",
+            help="按模型状态过滤，例如 active/inactive/archived"
+        ),
+        framework: str | None = typer.Option(
+            None,
+            "--framework",
+            help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
+        ),
+        model_type: str | None = typer.Option(
+            None,
+            "--model-type",
+            help="按模型类型过滤，例如 logistic_regression/random_forest/xgboost"
+        ),
+        task_type: str | None = typer.Option(
+            None,
+            "--task-type",
+            help="按任务类型过滤，例如 classification/scoring"
+        ),
+        owner: str | None = typer.Option(
+            None,
+            "--owner",
+            help="按创建人过滤"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        limit: int = typer.Option(
+            10,
+            "--limit",
+            help="返回记录数量限制"
+        ),
+        offset: int = typer.Option(
+            0,
+            "--offset",
+            help="分页偏移量"
+        ),
+        include_archived: bool = typer.Option(
+            False,
+            "--include-archived",
+            help="包含已归档的模型，默认不显示"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """列出模型"""
 
@@ -221,8 +222,8 @@ def list_models(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

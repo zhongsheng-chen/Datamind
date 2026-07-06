@@ -23,7 +23,6 @@
 
 from typing import Any, Callable, Dict
 
-
 _HANDLERS: Dict[str, Callable[[bytes], Any]] = {}
 
 
@@ -49,6 +48,7 @@ class ModelArtifactRegister:
         参数：
             framework: 模型框架
         """
+
         def decorator(func: Callable[[bytes], Any]) -> Callable[[bytes], Any]:
             _HANDLERS[_normalize(framework)] = func
             return func

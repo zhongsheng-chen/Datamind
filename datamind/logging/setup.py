@@ -16,9 +16,15 @@
 """
 
 import logging
+
 import structlog
 
 from datamind.config.logging import LoggingConfig
+from datamind.logging.handlers import (
+    create_file_handler,
+    create_console_handler,
+    create_async_handler,
+)
 from datamind.logging.processors import (
     add_timestamp,
     add_context,
@@ -26,11 +32,6 @@ from datamind.logging.processors import (
     sampling,
 )
 from datamind.logging.render import text_renderer, json_renderer
-from datamind.logging.handlers import (
-    create_file_handler,
-    create_console_handler,
-    create_async_handler,
-)
 
 
 def _logger_factory(name=None):

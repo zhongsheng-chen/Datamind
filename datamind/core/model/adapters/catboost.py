@@ -41,10 +41,10 @@ class CatBoostAdapter(BaseModelAdapter):
     """
 
     def __init__(
-        self,
-        model,
-        feature_names=None,
-        data_types=None,
+            self,
+            model,
+            feature_names=None,
+            data_types=None,
     ):
         """初始化适配器
 
@@ -62,7 +62,7 @@ class CatBoostAdapter(BaseModelAdapter):
         self._validate_model()
 
     def _detect_capabilities(
-        self,
+            self,
     ) -> ModelCapability:
         """检测当前 CatBoost 模型实例能力
 
@@ -118,7 +118,7 @@ class CatBoostAdapter(BaseModelAdapter):
         return capabilities
 
     def _validate_model(
-        self,
+            self,
     ) -> None:
         """校验模型
 
@@ -130,8 +130,8 @@ class CatBoostAdapter(BaseModelAdapter):
             ValueError: 模型类别数量不是 2
         """
         if not hasattr(
-            self.model,
-            "classes_",
+                self.model,
+                "classes_",
         ):
             return
 
@@ -153,8 +153,8 @@ class CatBoostAdapter(BaseModelAdapter):
         )
 
     def predict_proba(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """预测违约概率
 
@@ -179,8 +179,8 @@ class CatBoostAdapter(BaseModelAdapter):
         )
 
         if (
-            probabilities.ndim != 2
-            or probabilities.shape[1] != 2
+                probabilities.ndim != 2
+                or probabilities.shape[1] != 2
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__}: "
@@ -200,8 +200,8 @@ class CatBoostAdapter(BaseModelAdapter):
         return result
 
     def decision_function(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """获取原始 Logit 值
 
@@ -256,8 +256,8 @@ class CatBoostAdapter(BaseModelAdapter):
         return result
 
     def predict_proba_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量预测违约概率
 
@@ -286,8 +286,8 @@ class CatBoostAdapter(BaseModelAdapter):
         )
 
         if (
-            probabilities.ndim != 2
-            or probabilities.shape[1] != 2
+                probabilities.ndim != 2
+                or probabilities.shape[1] != 2
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__}: "
@@ -308,8 +308,8 @@ class CatBoostAdapter(BaseModelAdapter):
         return result
 
     def decision_function_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量获取原始 Logit 值
 
@@ -362,7 +362,7 @@ class CatBoostAdapter(BaseModelAdapter):
         return result
 
     def get_feature_importance(
-        self,
+            self,
     ) -> dict[str, float]:
         """获取特征重要性
 
@@ -410,9 +410,9 @@ class CatBoostAdapter(BaseModelAdapter):
         return result
 
     def _resolve_feature_names(
-        self,
-        *,
-        importance_count: int,
+            self,
+            *,
+            importance_count: int,
     ) -> list[str]:
         """解析特征名称
 
@@ -440,14 +440,14 @@ class CatBoostAdapter(BaseModelAdapter):
         )
 
         if (
-            not isinstance(
-                model_feature_names,
-                str,
-            )
-            and isinstance(
-                model_feature_names,
-                Iterable,
-            )
+                not isinstance(
+                    model_feature_names,
+                    str,
+                )
+                and isinstance(
+            model_feature_names,
+            Iterable,
+        )
         ):
             names = [
                 str(name)
@@ -466,7 +466,7 @@ class CatBoostAdapter(BaseModelAdapter):
 
     @staticmethod
     def _ensure_2d(
-        X: np.ndarray,
+            X: np.ndarray,
     ) -> np.ndarray:
         """确保输入为二维数组
 

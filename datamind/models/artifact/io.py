@@ -16,9 +16,10 @@
 
 import os
 import tempfile
-import structlog
 from contextlib import contextmanager
 from typing import Iterator
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -49,8 +50,8 @@ def temp_file(data: bytes, suffix: str) -> Iterator[str]:
         except FileNotFoundError:
             logger.debug("临时文件已不存在", path=path)
 
-        except PermissionError as e:
-            logger.warning("无法删除临时文件（权限不足或文件占用）", path=path, error=str(e))
+        except PermissionError as exc:
+            logger.warning("无法删除临时文件（权限不足或文件占用）", path=path, error=str(exc))
 
-        except Exception as e:
-            logger.warning("删除临时文件失败", path=path, error=str(e))
+        except Exception as exc:
+            logger.warning("删除临时文件失败", path=path, error=str(exc))

@@ -19,8 +19,8 @@
   - DATAMIND_SCORECARD_MAX_SCORE: 评分上限，默认 1000
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ScorecardConfig(BaseSettings):
@@ -61,6 +61,7 @@ class ScorecardConfig(BaseSettings):
             raise ValueError(f"pdo（{self.pdo}）应在 20 到 100 之间")
 
         if not self.min_score <= self.base_score <= self.max_score:
-            raise ValueError(f"base_score（{self.base_score}）必须在 min_score（{self.min_score}）和 max_score（{self.max_score}）之间")
+            raise ValueError(
+                f"base_score（{self.base_score}）必须在 min_score（{self.min_score}）和 max_score（{self.max_score}）之间")
 
         return self

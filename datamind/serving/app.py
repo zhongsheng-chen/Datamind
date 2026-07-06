@@ -72,8 +72,8 @@ def create_app() -> FastAPI:
                 operator=operator,
                 force=force,
             )
-        except Exception as e:
-            raise _to_http_exception(e) from e
+        except Exception as exc:
+            raise _to_http_exception(exc) from exc
 
         result = runtime_model.to_dict()
         result["loaded_in_memory"] = True
@@ -92,8 +92,8 @@ def create_app() -> FastAPI:
                 deployment_id=deployment_id,
                 operator=operator,
             )
-        except Exception as e:
-            raise _to_http_exception(e) from e
+        except Exception as exc:
+            raise _to_http_exception(exc) from exc
 
         return {
             "deployment_id": deployment_id,
@@ -112,8 +112,8 @@ def create_app() -> FastAPI:
                 deployment_id=deployment_id,
                 operator=operator,
             )
-        except Exception as e:
-            raise _to_http_exception(e) from e
+        except Exception as exc:
+            raise _to_http_exception(exc) from exc
 
         result = runtime_model.to_dict()
         result["loaded_in_memory"] = True
@@ -130,8 +130,8 @@ def create_app() -> FastAPI:
             return await manager.status(
                 deployment_id=deployment_id,
             )
-        except Exception as e:
-            raise _to_http_exception(e) from e
+        except Exception as exc:
+            raise _to_http_exception(exc) from exc
 
     @app.get("/admin/deployments")
     async def list_deployments():

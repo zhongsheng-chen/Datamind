@@ -24,8 +24,9 @@
     score = scorer.score(features)
 """
 
-import structlog
 from typing import Any
+
+import structlog
 
 from datamind.core.inference import Inference
 from datamind.core.scoring.transformer import ScoreTransformer
@@ -44,9 +45,9 @@ class Scorer:
     """
 
     def __init__(
-        self,
-        inference: Inference,
-        transformer: ScoreTransformer | None = None,
+            self,
+            inference: Inference,
+            transformer: ScoreTransformer | None = None,
     ):
         """初始化评分器
 

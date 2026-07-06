@@ -22,26 +22,26 @@
 
 import uuid
 
-from datamind.utils.network import get_host_ip, get_hostname
 from datamind.audit.dispatcher import get_queue
 from datamind.audit.worker import start_audit_worker, stop_audit_worker
 from datamind.config import get_settings
 from datamind.context.scope import context_scope
 from datamind.logging import setup_logging
+from datamind.utils.network import get_host_ip, get_hostname
 
 
 class CLIContext:
     """CLI 上下文"""
 
     def __init__(
-        self,
-        *,
-        user: str = "system",
-        ip: str | None = None,
-        hostname: str | None = None,
-        source: str = "cli",
-        verbose: bool = False,
-        enable_audit: bool = False,
+            self,
+            *,
+            user: str = "system",
+            ip: str | None = None,
+            hostname: str | None = None,
+            source: str = "cli",
+            verbose: bool = False,
+            enable_audit: bool = False,
     ):
         """初始化 CLI 上下文
 
@@ -120,12 +120,12 @@ class CLIContext:
 
 
 def cli_context(
-    *,
-    user: str = "system",
-    ip: str | None = None,
-    source: str = "cli",
-    verbose: bool = False,
-    enable_audit: bool = False,
+        *,
+        user: str = "system",
+        ip: str | None = None,
+        source: str = "cli",
+        verbose: bool = False,
+        enable_audit: bool = False,
 ) -> CLIContext:
     """CLI 上下文管理器
 

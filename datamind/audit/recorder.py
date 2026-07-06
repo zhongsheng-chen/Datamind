@@ -108,10 +108,10 @@ class AuditRecorder:
             await dispatch(event)
         except AuditDispatchError:
             raise
-        except Exception as e:
+        except Exception as exc:
             logger.error(
                 "审计事件分发失败",
-                error=str(e),
+                error=str(exc),
                 action=action,
                 target_id=target_id,
                 trace_id=trace_id,

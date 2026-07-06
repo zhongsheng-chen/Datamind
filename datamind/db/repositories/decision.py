@@ -56,8 +56,8 @@ class DecisionRepository(BaseRepository):
     """请求决策仓储"""
 
     async def get_decision(
-        self,
-        request_id: str,
+            self,
+            request_id: str,
     ) -> Decision | None:
         """获取请求的决策结果
 
@@ -73,11 +73,11 @@ class DecisionRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_decisions(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Decision]:
         """获取请求决策记录列表
 
@@ -123,11 +123,11 @@ class DecisionRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_model_decisions(
-        self,
-        model_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            model_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Decision]:
         """获取模型决策记录
 
@@ -150,11 +150,11 @@ class DecisionRepository(BaseRepository):
         )
 
     async def list_deployment_decisions(
-        self,
-        deployment_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            deployment_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Decision]:
         """获取部署决策记录
 
@@ -177,11 +177,11 @@ class DecisionRepository(BaseRepository):
         )
 
     async def list_experiment_decisions(
-        self,
-        experiment_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            experiment_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Decision]:
         """获取实验决策记录
 
@@ -204,11 +204,11 @@ class DecisionRepository(BaseRepository):
         )
 
     async def list_variant_decisions(
-        self,
-        variant_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            variant_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Decision]:
         """获取实验分组决策记录
 
@@ -231,28 +231,28 @@ class DecisionRepository(BaseRepository):
         )
 
     def create_decision(
-        self,
-        *,
-        decision_id: str,
-        request_id: str,
-        model_id: str,
-        version_id: str,
-        customer_id: str,
-        source: DecisionStrategy,
-        deployment_id: str | None = None,
-        experiment_id: str | None = None,
-        variant_id: str | None = None,
-        strategy: str | None = None,
-        bucket: str | None = None,
-        group: str | None = None,
-        weight: float | None = None,
-        prediction: dict | None = None,
-        probability: float | None = None,
-        score: float | None = None,
-        decision: str | None = None,
-        latency_ms: float | None = None,
-        context: dict | None = None,
-        decided_at: datetime | None = None,
+            self,
+            *,
+            decision_id: str,
+            request_id: str,
+            model_id: str,
+            version_id: str,
+            customer_id: str,
+            source: DecisionStrategy,
+            deployment_id: str | None = None,
+            experiment_id: str | None = None,
+            variant_id: str | None = None,
+            strategy: str | None = None,
+            bucket: str | None = None,
+            group: str | None = None,
+            weight: float | None = None,
+            prediction: dict | None = None,
+            probability: float | None = None,
+            score: float | None = None,
+            decision: str | None = None,
+            latency_ms: float | None = None,
+            context: dict | None = None,
+            decided_at: datetime | None = None,
     ) -> Decision:
         """创建决策记录
 

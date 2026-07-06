@@ -55,9 +55,10 @@ MinIO存储（minio）：
     - DATAMIND_STORAGE_MINIO_MAX_RETRIES: 最大重试，默认 3
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator, Field
 from pathlib import Path
+
+from pydantic import model_validator, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from datamind.constants import StorageType, SUPPORTED_STORAGE_TYPES, MB
 

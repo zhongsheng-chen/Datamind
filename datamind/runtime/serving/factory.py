@@ -53,14 +53,14 @@ class RuntimeServiceFactory:
 
     @classmethod
     def create(
-        cls,
-        *,
-        runtime_model: RuntimeModel,
-        task_type: str | None = None,
-        feature_names: list[str] | None = None,
-        data_types: dict[str, DataType] | None = None,
-        threshold: float | None = None,
-        scorecard_config: ScorecardConfig | dict[str, Any] | None = None,
+            cls,
+            *,
+            runtime_model: RuntimeModel,
+            task_type: str | None = None,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
+            threshold: float | None = None,
+            scorecard_config: ScorecardConfig | dict[str, Any] | None = None,
     ) -> BaseRuntimeService:
         """创建运行时服务
 
@@ -128,10 +128,10 @@ class RuntimeServiceFactory:
 
     @classmethod
     def _resolve_task_type(
-        cls,
-        *,
-        runtime_model: RuntimeModel,
-        task_type: str | None,
+            cls,
+            *,
+            runtime_model: RuntimeModel,
+            task_type: str | None,
     ) -> str:
         """解析任务类型
 
@@ -153,8 +153,8 @@ class RuntimeServiceFactory:
 
         if resolved is None:
             metadata = (
-                runtime_model.metadata
-                or {}
+                    runtime_model.metadata
+                    or {}
             )
 
             resolved = metadata.get(
@@ -193,8 +193,8 @@ class RuntimeServiceFactory:
 
     @classmethod
     def _resolve_threshold(
-        cls,
-        runtime_model: RuntimeModel,
+            cls,
+            runtime_model: RuntimeModel,
     ) -> float:
         """解析分类阈值
 
@@ -216,8 +216,8 @@ class RuntimeServiceFactory:
                 threshold 超出合法范围
         """
         metadata = (
-            runtime_model.metadata
-            or {}
+                runtime_model.metadata
+                or {}
         )
 
         threshold = cls._parse_threshold(
@@ -234,8 +234,8 @@ class RuntimeServiceFactory:
         )
 
         if isinstance(
-            config,
-            dict,
+                config,
+                dict,
         ):
             threshold = cls._parse_threshold(
                 config.get(
@@ -250,7 +250,7 @@ class RuntimeServiceFactory:
 
     @staticmethod
     def _parse_threshold(
-        value: Any,
+            value: Any,
     ) -> float | None:
         """解析分类阈值
 
@@ -271,16 +271,16 @@ class RuntimeServiceFactory:
             return None
 
         if isinstance(
-            value,
-            bool,
+                value,
+                bool,
         ):
             raise ValueError(
                 "threshold 不能是布尔值"
             )
 
         if not isinstance(
-            value,
-            (int, float, str),
+                value,
+                (int, float, str),
         ):
             raise ValueError(
                 "threshold 类型无效: "
@@ -291,11 +291,11 @@ class RuntimeServiceFactory:
             threshold = float(
                 value
             )
-        except ValueError as e:
+        except ValueError as exc:
             raise ValueError(
                 "threshold 无法转换为浮点数: "
                 f"{value}"
-            ) from e
+            ) from exc
 
         if not 0 <= threshold <= 1:
             raise ValueError(

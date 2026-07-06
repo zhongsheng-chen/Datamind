@@ -80,13 +80,13 @@ async def _write(event) -> None:
             )
             return
 
-        except Exception as e:
+        except Exception as exc:
             queue_size = queue.qsize()
 
             if attempt == MAX_RETRIES:
                 logger.error(
                     "审计写入失败，重试次数已耗尽",
-                    error=str(e),
+                    error=str(exc),
                     attempt=attempt,
                     queue_size=queue_size,
                     action=event.action,
@@ -105,7 +105,7 @@ async def _write(event) -> None:
 
             logger.warning(
                 "审计写入重试",
-                error=str(e),
+                error=str(exc),
                 attempt=attempt,
                 delay=delay,
                 queue_size=queue_size,
@@ -162,10 +162,10 @@ async def audit_worker():
         try:
             await _write(event)
 
-        except Exception as e:
+        except Exception as exc:
             logger.error(
                 "审计 Worker 异常",
-                error=str(e),
+                error=str(exc),
                 exc_info=True,
             )
 

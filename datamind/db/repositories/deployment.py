@@ -58,7 +58,6 @@ class DeploymentPatch:
         config: 运行时配置
         description: 部署描述
     """
-
     framework: str | None = None
     environment: str | None = None
     rollout_type: str | None = None
@@ -73,8 +72,8 @@ class DeploymentRepository(BaseRepository):
     """部署仓储"""
 
     async def get_deployment(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> Deployment | None:
         """获取部署记录
 
@@ -92,12 +91,12 @@ class DeploymentRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_deployments(
-        self,
-        *,
-        exclude_status: DeploymentStatus | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            exclude_status: DeploymentStatus | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Deployment]:
         """获取部署记录列表
 
@@ -144,13 +143,13 @@ class DeploymentRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_active_deployments(
-        self,
-        model_id: str,
-        *,
-        version_id: str | None = None,
-        environment: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            model_id: str,
+            *,
+            version_id: str | None = None,
+            environment: str | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Deployment]:
         """获取活跃部署记录列表
 
@@ -182,20 +181,20 @@ class DeploymentRepository(BaseRepository):
         )
 
     def create_deployment(
-        self,
-        *,
-        deployment_id: str,
-        model_id: str,
-        version_id: str,
-        framework: str,
-        environment: str,
-        rollout_type: str = "full",
-        role: str = "champion",
-        effective_from: datetime | None = None,
-        effective_to: datetime | None = None,
-        config: dict | None = None,
-        description: str | None = None,
-        deployed_by: str | None = None,
+            self,
+            *,
+            deployment_id: str,
+            model_id: str,
+            version_id: str,
+            framework: str,
+            environment: str,
+            rollout_type: str = "full",
+            role: str = "champion",
+            effective_from: datetime | None = None,
+            effective_to: datetime | None = None,
+            config: dict | None = None,
+            description: str | None = None,
+            deployed_by: str | None = None,
     ) -> Deployment:
         """创建部署
 
@@ -237,11 +236,11 @@ class DeploymentRepository(BaseRepository):
         return obj
 
     def update_deployment(
-        self,
-        deployment: Deployment,
-        patch: DeploymentPatch,
-        *,
-        updated_by: str | None = None,
+            self,
+            deployment: Deployment,
+            patch: DeploymentPatch,
+            *,
+            updated_by: str | None = None,
     ) -> Deployment:
         """更新部署
 
@@ -267,10 +266,10 @@ class DeploymentRepository(BaseRepository):
         return deployment
 
     def activate_deployment(
-        self,
-        deployment: Deployment,
-        *,
-        updated_by: str | None = None,
+            self,
+            deployment: Deployment,
+            *,
+            updated_by: str | None = None,
     ) -> Deployment:
         """启用部署
 
@@ -292,10 +291,10 @@ class DeploymentRepository(BaseRepository):
         return deployment
 
     def deactivate_deployment(
-        self,
-        deployment: Deployment,
-        *,
-        updated_by: str | None = None,
+            self,
+            deployment: Deployment,
+            *,
+            updated_by: str | None = None,
     ) -> Deployment:
         """停用部署
 

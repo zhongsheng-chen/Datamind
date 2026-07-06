@@ -19,8 +19,8 @@
   logger.info("用户登录成功", user_id=123, action="login")
 """
 
-from datamind.logging.setup import setup_logging
 from datamind.logging.logger import get_logger
+from datamind.logging.setup import setup_logging
 
 __all__ = [
     "setup_logging",

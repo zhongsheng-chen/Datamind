@@ -29,6 +29,7 @@
 """
 
 import math
+
 import structlog
 
 from datamind.config.scorecard import ScorecardConfig
@@ -46,8 +47,8 @@ class ScoreTransformer:
     """
 
     def __init__(
-        self,
-        config: ScorecardConfig | None = None,
+            self,
+            config: ScorecardConfig | None = None,
     ):
         """初始化评分转换器
 

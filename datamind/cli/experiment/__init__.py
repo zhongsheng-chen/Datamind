@@ -19,15 +19,15 @@
 
 import typer
 
+from datamind.cli.experiment.analyze import app as analyze_app
+from datamind.cli.experiment.archive import app as archive_app
+from datamind.cli.experiment.complete import app as complete_app
 from datamind.cli.experiment.create import app as create_app
 from datamind.cli.experiment.list import app as list_app
+from datamind.cli.experiment.pause import app as pause_app
 from datamind.cli.experiment.show import app as show_app
 from datamind.cli.experiment.start import app as start_app
-from datamind.cli.experiment.pause import app as pause_app
 from datamind.cli.experiment.stop import app as stop_app
-from datamind.cli.experiment.complete import app as complete_app
-from datamind.cli.experiment.archive import app as archive_app
-from datamind.cli.experiment.analyze import app as analyze_app
 from datamind.cli.experiment.variant import app as variant_app
 
 app = typer.Typer(

@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: c8f331d23157
+Revision ID: d9331db7966d
 Revises: 
-Create Date: 2026-07-06 12:15:29.176581+00:00
+Create Date: 2026-07-07 08:16:58.892648+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'c8f331d23157'
+revision = 'd9331db7966d'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -83,6 +83,7 @@ def upgrade() -> None:
     op.create_table('controls',
     sa.Column('control_id', sa.String(length=64), nullable=False, comment='控制 ID，运行控制记录的唯一标识'),
     sa.Column('deployment_id', sa.String(length=64), nullable=False, comment='部署 ID，每个部署仅对应一条运行控制记录'),
+    sa.Column('environment', sa.String(length=32), server_default=sa.text("'production'"), nullable=False, comment='运行环境，可选值 production / staging / development / testing'),
     sa.Column('desired_status', sa.String(length=20), server_default=sa.text("'unloaded'"), nullable=False, comment='期望运行状态，可选值：loaded / unloaded'),
     sa.Column('generation', sa.Integer(), server_default=sa.text('1'), nullable=False, comment='控制版本号，每次状态变更或重新加载时递增'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
@@ -95,6 +96,8 @@ def upgrade() -> None:
     )
     op.create_index('idx_controls_deployment_id', 'controls', ['deployment_id'], unique=False)
     op.create_index('idx_controls_desired_status', 'controls', ['desired_status'], unique=False)
+    op.create_index('idx_controls_environment', 'controls', ['environment'], unique=False)
+    op.create_index('idx_controls_environment_desired_status', 'controls', ['environment', 'desired_status'], unique=False)
     op.create_index('idx_controls_updated_at', 'controls', ['updated_at'], unique=False)
     op.create_index('uk_controls_control_id', 'controls', ['control_id'], unique=True)
     op.create_index('uk_controls_deployment_id', 'controls', ['deployment_id'], unique=True)
@@ -344,7 +347,7 @@ def upgrade() -> None:
     sa.Column('input_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输入 Schema，JSON 格式'),
     sa.Column('output_schema', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='输出 Schema，JSON 格式'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='状态，可选值：active / inactive / deprecated / archived'),
-    sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，格式为 模型名:版本'),
+    sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，由模型名和版本组成，格式为：模型名:版本'),
     sa.Column('model_path', sa.String(length=255), nullable=False, comment='模型文件存储路径'),
     sa.Column('model_key', sa.String(length=255), nullable=False, comment='模型文件存储键'),
     sa.Column('input_schema_key', sa.String(length=255), nullable=True, comment='输入 Schema 文件存储键'),
@@ -459,6 +462,8 @@ def downgrade() -> None:
     op.drop_index('uk_controls_deployment_id', table_name='controls')
     op.drop_index('uk_controls_control_id', table_name='controls')
     op.drop_index('idx_controls_updated_at', table_name='controls')
+    op.drop_index('idx_controls_environment_desired_status', table_name='controls')
+    op.drop_index('idx_controls_environment', table_name='controls')
     op.drop_index('idx_controls_desired_status', table_name='controls')
     op.drop_index('idx_controls_deployment_id', table_name='controls')
     op.drop_table('controls')

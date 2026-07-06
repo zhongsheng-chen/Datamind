@@ -126,9 +126,9 @@ class ModelGuard:
 
     @classmethod
     def validate_metadata_transition(
-        cls,
-        current: MetadataStatus,
-        target: MetadataStatus,
+            cls,
+            current: MetadataStatus,
+            target: MetadataStatus,
     ) -> None:
         """校验元数据状态迁移
 
@@ -151,9 +151,9 @@ class ModelGuard:
 
     @classmethod
     def validate_version_transition(
-        cls,
-        current: VersionStatus,
-        target: VersionStatus,
+            cls,
+            current: VersionStatus,
+            target: VersionStatus,
     ) -> None:
         """校验版本状态迁移
 
@@ -176,10 +176,10 @@ class ModelGuard:
 
     @classmethod
     def validate_deployment_transition(
-        cls,
-        current: DeploymentStatus,
-        target: DeploymentStatus,
-        metadata_status: MetadataStatus,
+            cls,
+            current: DeploymentStatus,
+            target: DeploymentStatus,
+            metadata_status: MetadataStatus,
     ) -> None:
         """校验部署状态迁移
 
@@ -208,9 +208,9 @@ class ModelGuard:
 
     @classmethod
     def validate_experiment_transition(
-        cls,
-        current: ExperimentStatus,
-        target: ExperimentStatus,
+            cls,
+            current: ExperimentStatus,
+            target: ExperimentStatus,
     ) -> None:
         """校验实验状态迁移
 
@@ -233,8 +233,8 @@ class ModelGuard:
 
     @classmethod
     def validate_model_deployable(
-        cls,
-        status: MetadataStatus,
+            cls,
+            status: MetadataStatus,
     ) -> None:
         """校验模型是否允许部署
 
@@ -258,8 +258,8 @@ class ModelGuard:
 
     @classmethod
     def validate_version_deployable(
-        cls,
-        status: VersionStatus,
+            cls,
+            status: VersionStatus,
     ) -> None:
         """校验版本是否允许部署
 
@@ -283,10 +283,10 @@ class ModelGuard:
 
     @classmethod
     def validate_enable_deployment(
-        cls,
-        *,
-        current: DeploymentStatus,
-        metadata_status: MetadataStatus,
+            cls,
+            *,
+            current: DeploymentStatus,
+            metadata_status: MetadataStatus,
     ) -> None:
         """校验是否允许启用部署
 
@@ -314,10 +314,10 @@ class ModelGuard:
 
     @classmethod
     def validate_disable_deployment(
-        cls,
-        *,
-        current: DeploymentStatus,
-        metadata_status: MetadataStatus,
+            cls,
+            *,
+            current: DeploymentStatus,
+            metadata_status: MetadataStatus,
     ) -> None:
         """校验是否允许禁用部署
 

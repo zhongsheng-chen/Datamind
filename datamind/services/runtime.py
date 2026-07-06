@@ -32,6 +32,7 @@ import structlog
 
 from datamind.db.core import UnitOfWork
 from datamind.db.models.controls import Control
+from datamind.db.models.deployments import Deployment
 from datamind.db.models.runtimes import Runtime
 from datamind.db.repositories import (
     ControlRepository,
@@ -59,10 +60,10 @@ class RuntimeController:
     """
 
     async def load(
-        self,
-        *,
-        deployment_id: str,
-        operator: str = "system",
+            self,
+            *,
+            deployment_id: str,
+            operator: str = "system",
     ) -> dict[str, Any]:
         """请求加载部署模型
 
@@ -86,6 +87,9 @@ class RuntimeController:
 
             InvalidDeploymentStateError:
                 部署不是启用状态
+
+            RuntimeError:
+                Control 与 Deployment 环境不一致
         """
         logger.info(
             "开始提交模型加载控制请求",
@@ -102,7 +106,7 @@ class RuntimeController:
                 uow.session
             )
 
-            await self._validate_deployment(
+            deployment = await self._validate_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
                 require_active=True,
@@ -120,6 +124,7 @@ class RuntimeController:
                         prefix="ctl"
                     ),
                     deployment_id=deployment_id,
+                    environment=deployment.environment,
                     desired_status=(
                         RuntimeControlStatus.LOADED
                     ),
@@ -128,6 +133,11 @@ class RuntimeController:
                 )
 
             else:
+                self._validate_control_environment(
+                    control=control,
+                    deployment=deployment,
+                )
+
                 control = control_repo.set_loaded(
                     control,
                     updated_by=operator,
@@ -140,6 +150,7 @@ class RuntimeController:
         logger.info(
             "模型加载控制请求提交完成",
             deployment_id=deployment_id,
+            environment=control_info["environment"],
             operator=operator,
             generation=control_info["generation"],
         )
@@ -151,10 +162,10 @@ class RuntimeController:
         }
 
     async def unload(
-        self,
-        *,
-        deployment_id: str,
-        operator: str = "system",
+            self,
+            *,
+            deployment_id: str,
+            operator: str = "system",
     ) -> dict[str, Any]:
         """请求卸载部署模型
 
@@ -175,6 +186,9 @@ class RuntimeController:
         异常：
             DeploymentNotFoundError:
                 部署不存在
+
+            RuntimeError:
+                Control 与 Deployment 环境不一致
         """
         logger.info(
             "开始提交模型卸载控制请求",
@@ -191,7 +205,7 @@ class RuntimeController:
                 uow.session
             )
 
-            await self._validate_deployment(
+            deployment = await self._validate_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
                 require_active=False,
@@ -209,6 +223,7 @@ class RuntimeController:
                         prefix="ctl"
                     ),
                     deployment_id=deployment_id,
+                    environment=deployment.environment,
                     desired_status=(
                         RuntimeControlStatus.UNLOADED
                     ),
@@ -217,6 +232,11 @@ class RuntimeController:
                 )
 
             else:
+                self._validate_control_environment(
+                    control=control,
+                    deployment=deployment,
+                )
+
                 control = control_repo.set_unloaded(
                     control,
                     updated_by=operator,
@@ -229,6 +249,7 @@ class RuntimeController:
         logger.info(
             "模型卸载控制请求提交完成",
             deployment_id=deployment_id,
+            environment=control_info["environment"],
             operator=operator,
             generation=control_info["generation"],
         )
@@ -240,15 +261,15 @@ class RuntimeController:
         }
 
     async def reload(
-        self,
-        *,
-        deployment_id: str,
-        operator: str = "system",
+            self,
+            *,
+            deployment_id: str,
+            operator: str = "system",
     ) -> dict[str, Any]:
         """请求重新加载部署模型
 
         保持 desired_status 为 loaded，
-        通过递增 generation 通知所有 Worker
+        通过递增 generation 通知所属环境的所有 Worker
         重新加载模型。
 
         参数：
@@ -266,7 +287,8 @@ class RuntimeController:
                 部署不是启用状态
 
             RuntimeError:
-                运行控制记录不存在
+                运行控制记录不存在，
+                或 Control 与 Deployment 环境不一致
 
             ValueError:
                 当前期望状态不是 loaded
@@ -286,7 +308,7 @@ class RuntimeController:
                 uow.session
             )
 
-            await self._validate_deployment(
+            deployment = await self._validate_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
                 require_active=True,
@@ -305,6 +327,11 @@ class RuntimeController:
                     f"{deployment_id}"
                 )
 
+            self._validate_control_environment(
+                control=control,
+                deployment=deployment,
+            )
+
             control = control_repo.request_reload(
                 control,
                 updated_by=operator,
@@ -317,6 +344,7 @@ class RuntimeController:
         logger.info(
             "模型重新加载控制请求提交完成",
             deployment_id=deployment_id,
+            environment=control_info["environment"],
             operator=operator,
             generation=control_info["generation"],
         )
@@ -328,9 +356,9 @@ class RuntimeController:
         }
 
     async def get_status(
-        self,
-        *,
-        deployment_id: str,
+            self,
+            *,
+            deployment_id: str,
     ) -> dict[str, Any]:
         """查询部署运行状态
 
@@ -423,18 +451,22 @@ class RuntimeController:
         }
 
     async def list_services(
-        self,
-        *,
-        desired_status: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            *,
+            environment: str | None = None,
+            desired_status: str | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[dict[str, Any]]:
         """查询运行服务列表
 
         以 controls 表中的运行控制记录为主，
-        汇总每个 Deployment 的 Worker 运行状态。
+        汇总每个 Deployment 的 Worker 和 Runtime 状态。
 
         参数：
+            environment:
+                按运行环境过滤
+
             desired_status:
                 按期望状态过滤，可选值 loaded / unloaded
 
@@ -446,6 +478,25 @@ class RuntimeController:
 
         返回：
             运行服务状态列表
+
+        统计字段：
+          - worker_count:
+              当前非 unloaded 状态的 Worker 数量
+
+          - runtime_count:
+              Runtime 记录总数，包括历史记录
+
+          - loading_count:
+              loading 状态的 Runtime 数量
+
+          - loaded_count:
+              loaded 状态的 Runtime 数量
+
+          - unloaded_count:
+              unloaded 状态的 Runtime 数量
+
+          - failed_count:
+              failed 状态的 Runtime 数量
 
         异常：
             ValueError:
@@ -470,6 +521,9 @@ class RuntimeController:
 
         filters = {}
 
+        if environment is not None:
+            filters["environment"] = environment
+
         if desired_status_value is not None:
             filters["desired_status"] = (
                 desired_status_value
@@ -477,6 +531,7 @@ class RuntimeController:
 
         logger.info(
             "开始查询运行服务列表",
+            environment=environment,
             desired_status=desired_status,
             limit=limit,
             offset=offset,
@@ -537,18 +592,28 @@ class RuntimeController:
                             runtime_status
                         ] += 1
 
+                worker_count = (
+                        status_counts["loading"]
+                        + status_counts["loaded"]
+                        + status_counts["failed"]
+                )
+
+                runtime_count = len(
+                    deployment_runtimes
+                )
+
                 result.append({
                     "control_id": control.control_id,
                     "deployment_id": control.deployment_id,
+                    "environment": control.environment,
                     "desired_status": self._control_status_value(
                         control.desired_status
                     ),
                     "generation": int(
                         control.generation
                     ),
-                    "worker_count": len(
-                        deployment_runtimes
-                    ),
+                    "worker_count": worker_count,
+                    "runtime_count": runtime_count,
                     "loading_count": status_counts["loading"],
                     "loaded_count": status_counts["loaded"],
                     "unloaded_count": status_counts["unloaded"],
@@ -572,12 +637,12 @@ class RuntimeController:
 
     @staticmethod
     async def _validate_deployment(
-        *,
-        deployment_repo: DeploymentRepository,
-        deployment_id: str,
-        require_active: bool,
-    ) -> None:
-        """校验部署状态
+            *,
+            deployment_repo: DeploymentRepository,
+            deployment_id: str,
+            require_active: bool,
+    ) -> Deployment:
+        """校验并返回部署对象
 
         参数：
             deployment_repo:
@@ -588,6 +653,9 @@ class RuntimeController:
 
             require_active:
                 是否要求部署必须为 active
+
+        返回：
+            Deployment 对象
 
         异常：
             DeploymentNotFoundError:
@@ -608,13 +676,13 @@ class RuntimeController:
             )
 
         if not require_active:
-            return
+            return deployment
 
         status = deployment.status
 
         if not isinstance(
-            status,
-            DeploymentStatus,
+                status,
+                DeploymentStatus,
         ):
             status = DeploymentStatus(
                 status
@@ -626,9 +694,43 @@ class RuntimeController:
                 f"{deployment_id}"
             )
 
+        return deployment
+
+    @staticmethod
+    def _validate_control_environment(
+            *,
+            control: Control,
+            deployment: Deployment,
+    ) -> None:
+        """校验 Control 与 Deployment 环境一致性
+
+        参数：
+            control:
+                运行控制对象
+
+            deployment:
+                部署对象
+
+        异常：
+            RuntimeError:
+                Control 与 Deployment 环境不一致
+        """
+        if (
+                control.environment
+                == deployment.environment
+        ):
+            return
+
+        raise RuntimeError(
+            "运行控制环境与部署环境不一致: "
+            f"deployment_id={deployment.deployment_id}, "
+            f"control_environment={control.environment}, "
+            f"deployment_environment={deployment.environment}"
+        )
+
     @staticmethod
     def _control_to_dict(
-        control: Control,
+            control: Control,
     ) -> dict[str, Any]:
         """转换 Control 为字典
 
@@ -643,6 +745,7 @@ class RuntimeController:
             "deployment_id": (
                 control.deployment_id
             ),
+            "environment": control.environment,
             "desired_status": (
                 RuntimeController._control_status_value(
                     control.desired_status
@@ -667,7 +770,7 @@ class RuntimeController:
 
     @staticmethod
     def _runtime_to_dict(
-        runtime: Runtime,
+            runtime: Runtime,
     ) -> dict[str, Any]:
         """转换 Runtime 为字典
 
@@ -708,12 +811,12 @@ class RuntimeController:
 
     @staticmethod
     def _control_status_value(
-        status: RuntimeControlStatus | str,
+            status: RuntimeControlStatus | str,
     ) -> str:
         """获取运行控制状态字符串"""
         if isinstance(
-            status,
-            RuntimeControlStatus,
+                status,
+                RuntimeControlStatus,
         ):
             return status.value
 
@@ -723,12 +826,12 @@ class RuntimeController:
 
     @staticmethod
     def _status_value(
-        status: DeploymentStatus | str,
+            status: DeploymentStatus | str,
     ) -> str:
         """获取部署状态字符串"""
         if isinstance(
-            status,
-            DeploymentStatus,
+                status,
+                DeploymentStatus,
         ):
             return status.value
 

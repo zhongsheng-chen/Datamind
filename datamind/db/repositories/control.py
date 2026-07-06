@@ -19,6 +19,9 @@
 
   Runtime 记录各 Worker 的实际运行状态。
 
+  Control 按 environment 进行环境隔离，
+  各 Serving 环境只处理所属环境的运行控制记录。
+
   状态变化规则：
 
     unloaded -> loaded
@@ -47,6 +50,7 @@
       control = repo.create_control(
           control_id="ctl_a1b2c3d4",
           deployment_id="dep_a1b2c3d4",
+          environment="production",
           created_by="system"
       )
 
@@ -67,8 +71,8 @@ class ControlRepository(BaseRepository):
     """模型运行控制仓储"""
 
     async def get_control(
-        self,
-        control_id: str,
+            self,
+            control_id: str,
     ) -> Control | None:
         """获取运行控制记录
 
@@ -89,8 +93,8 @@ class ControlRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def get_deployment_control(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> Control | None:
         """获取部署对应的运行控制记录
 
@@ -111,11 +115,11 @@ class ControlRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_controls(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Control]:
         """获取运行控制记录列表
 
@@ -126,6 +130,7 @@ class ControlRepository(BaseRepository):
                 支持字段：
                     control_id
                     deployment_id
+                    environment
                     desired_status
                     created_by
                     updated_by
@@ -164,35 +169,50 @@ class ControlRepository(BaseRepository):
         )
 
     async def list_loaded_controls(
-        self,
+            self,
+            *,
+            environment: str | None = None,
     ) -> list[Control]:
         """获取期望加载的运行控制记录
+
+        参数：
+            environment:
+                运行环境（可选）
 
         返回：
             desired_status 为 loaded 的运行控制记录列表
         """
-        return await self.list_controls(
-            desired_status=(
+        filters = {
+            "desired_status": (
                 RuntimeControlStatus.LOADED
             )
+        }
+
+        if environment is not None:
+            filters["environment"] = environment
+
+        return await self.list_controls(
+            **filters
         )
 
     def create_control(
-        self,
-        *,
-        control_id: str,
-        deployment_id: str,
-        desired_status: RuntimeControlStatus = (
-            RuntimeControlStatus.UNLOADED
-        ),
-        generation: int = 1,
-        created_by: str | None = None,
+            self,
+            *,
+            control_id: str,
+            deployment_id: str,
+            environment: str,
+            desired_status: RuntimeControlStatus = (
+                    RuntimeControlStatus.UNLOADED
+            ),
+            generation: int = 1,
+            created_by: str | None = None,
     ) -> Control:
         """创建运行控制记录
 
         参数：
             control_id: 控制 ID
             deployment_id: 部署 ID
+            environment: 运行环境
             desired_status: 期望运行状态
             generation: 初始控制版本号
             created_by: 创建人（可选）
@@ -201,8 +221,15 @@ class ControlRepository(BaseRepository):
             创建后的运行控制记录对象
 
         异常：
-            ValueError: generation 小于 1
+            ValueError:
+                environment 为空
+                generation 小于 1
         """
+        if not environment:
+            raise ValueError(
+                "environment 不能为空"
+            )
+
         if generation < 1:
             raise ValueError(
                 "generation 必须大于等于 1"
@@ -211,6 +238,7 @@ class ControlRepository(BaseRepository):
         obj = Control(
             control_id=control_id,
             deployment_id=deployment_id,
+            environment=environment,
             desired_status=desired_status,
             generation=generation,
             created_by=created_by,
@@ -224,10 +252,10 @@ class ControlRepository(BaseRepository):
         return obj
 
     def set_loaded(
-        self,
-        control: Control,
-        *,
-        updated_by: str | None = None,
+            self,
+            control: Control,
+            *,
+            updated_by: str | None = None,
     ) -> Control:
         """设置期望状态为 loaded
 
@@ -247,8 +275,8 @@ class ControlRepository(BaseRepository):
             更新后的运行控制对象
         """
         if (
-            control.desired_status
-            != RuntimeControlStatus.LOADED
+                control.desired_status
+                != RuntimeControlStatus.LOADED
         ):
             control.desired_status = (
                 RuntimeControlStatus.LOADED
@@ -262,10 +290,10 @@ class ControlRepository(BaseRepository):
         return control
 
     def set_unloaded(
-        self,
-        control: Control,
-        *,
-        updated_by: str | None = None,
+            self,
+            control: Control,
+            *,
+            updated_by: str | None = None,
     ) -> Control:
         """设置期望状态为 unloaded
 
@@ -285,8 +313,8 @@ class ControlRepository(BaseRepository):
             更新后的运行控制对象
         """
         if (
-            control.desired_status
-            != RuntimeControlStatus.UNLOADED
+                control.desired_status
+                != RuntimeControlStatus.UNLOADED
         ):
             control.desired_status = (
                 RuntimeControlStatus.UNLOADED
@@ -300,10 +328,10 @@ class ControlRepository(BaseRepository):
         return control
 
     def request_reload(
-        self,
-        control: Control,
-        *,
-        updated_by: str | None = None,
+            self,
+            control: Control,
+            *,
+            updated_by: str | None = None,
     ) -> Control:
         """请求重新加载模型
 
@@ -326,8 +354,8 @@ class ControlRepository(BaseRepository):
                 当前期望状态不是 loaded
         """
         if (
-            control.desired_status
-            != RuntimeControlStatus.LOADED
+                control.desired_status
+                != RuntimeControlStatus.LOADED
         ):
             raise ValueError(
                 "只有期望状态为 loaded 的部署"

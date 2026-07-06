@@ -15,15 +15,15 @@
 
 from functools import lru_cache
 
-from datamind.config.database import DatabaseConfig
-from datamind.config.storage import StorageConfig
-from datamind.config.logging import LoggingConfig
-from datamind.config.audit import AuditConfig
-from datamind.config.model import ModelConfig
 from datamind.config.ab_test import ABTestConfig
-from datamind.config.scorecard import ScorecardConfig
+from datamind.config.audit import AuditConfig
 from datamind.config.classification import ClassificationConfig
+from datamind.config.database import DatabaseConfig
+from datamind.config.logging import LoggingConfig
+from datamind.config.model import ModelConfig
+from datamind.config.scorecard import ScorecardConfig
 from datamind.config.service import ServiceConfig
+from datamind.config.storage import StorageConfig
 
 
 class Settings:

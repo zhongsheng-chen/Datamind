@@ -45,10 +45,10 @@ class Storage:
         self._admin = storage_admin
 
     def _kwargs(
-        self,
-        model_id: str,
-        version: str | None = None,
-        filename: str | None = None,
+            self,
+            model_id: str,
+            version: str | None = None,
+            filename: str | None = None,
     ) -> dict:
         """构造模型参数
 

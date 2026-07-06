@@ -234,7 +234,9 @@ class ABTestEngine:
             )
 
             assignment = self.assignment_repo.create_assignment(
-                assignment_id=generate_random_id(prefix="asn"),
+                assignment_id=generate_random_id(
+                    prefix="asn"
+                ),
                 experiment_id=experiment.experiment_id,
                 variant_id=assignment_result.variant.variant_id,
                 subject_key=actual_subject_key,

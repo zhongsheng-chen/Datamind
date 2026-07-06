@@ -18,8 +18,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich.console import Console
 
 from datamind.audit import audit
@@ -42,55 +43,55 @@ logger = structlog.get_logger(__name__)
 
 @app.command("add")
 def add_variant(
-    experiment_id: str = typer.Argument(
-        ...,
-        help="实验 ID"
-    ),
-    name: str = typer.Option(
-        ...,
-        "--name",
-        help="实验分组名称，例如 control / treatment"
-    ),
-    deployment_id: str = typer.Option(
-        ...,
-        "--deployment-id",
-        help="部署 ID"
-    ),
-    weight: float = typer.Option(
-        ...,
-        "--weight",
-        help="实验分组权重，范围 0~1"
-    ),
-    control: bool = typer.Option(
-        False,
-        "--control",
-        help="是否为对照组"
-    ),
-    config: str | None = typer.Option(
-        None,
-        "--config",
-        help="分组配置 JSON 字符串"
-    ),
-    description: str | None = typer.Option(
-        None,
-        "--description",
-        help="分组描述"
-    ),
-    owner: str = typer.Option(
-        "system",
-        "--owner",
-        help="创建人"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        experiment_id: str = typer.Argument(
+            ...,
+            help="实验 ID"
+        ),
+        name: str = typer.Option(
+            ...,
+            "--name",
+            help="实验分组名称，例如 control / treatment"
+        ),
+        deployment_id: str = typer.Option(
+            ...,
+            "--deployment-id",
+            help="部署 ID"
+        ),
+        weight: float = typer.Option(
+            ...,
+            "--weight",
+            help="实验分组权重，范围 0~1"
+        ),
+        control: bool = typer.Option(
+            False,
+            "--control",
+            help="是否为对照组"
+        ),
+        config: str | None = typer.Option(
+            None,
+            "--config",
+            help="分组配置 JSON 字符串"
+        ),
+        description: str | None = typer.Option(
+            None,
+            "--description",
+            help="分组描述"
+        ),
+        owner: str = typer.Option(
+            "system",
+            "--owner",
+            help="创建人"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """添加实验分组"""
 
@@ -111,8 +112,8 @@ def add_variant(
         if config:
             try:
                 variant_config = json.loads(config)
-            except json.JSONDecodeError as e:
-                console.print(f"[red]config JSON 解析失败: {e}[/red]")
+            except json.JSONDecodeError as exc:
+                console.print(f"[red]config JSON 解析失败: {exc}[/red]")
                 raise typer.Exit(1)
 
             if not isinstance(variant_config, dict):
@@ -153,7 +154,9 @@ def add_variant(
                 raise typer.Exit(1)
 
             variant = variant_repo.create_variant(
-                variant_id=generate_random_id(prefix="var"),
+                variant_id=generate_random_id(
+                    prefix="var"
+                ),
                 experiment_id=experiment_id,
                 name=name,
                 deployment_id=deployment_id,
@@ -206,10 +209,10 @@ def add_variant(
 
     async def runner():
         async with cli_context(
-            user=owner,
-            source="cli",
-            verbose=verbose,
-            enable_audit=True,
+                user=owner,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
         ):
             await _run()
 

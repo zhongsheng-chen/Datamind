@@ -21,8 +21,8 @@
   - DATAMIND_AUDIT_RETENTION_DAYS: 保留天数，默认 365
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AuditConfig(BaseSettings):

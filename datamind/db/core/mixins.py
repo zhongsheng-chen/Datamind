@@ -10,6 +10,7 @@
 """
 
 from datetime import datetime
+
 from sqlalchemy import DateTime, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func

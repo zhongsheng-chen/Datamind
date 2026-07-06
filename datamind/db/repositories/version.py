@@ -67,7 +67,6 @@ class VersionPatch:
         archived_at: 归档时间
         archived_by: 归档人
     """
-
     version: str | None = None
     framework: str | None = None
     input_schema: dict | None = None
@@ -90,8 +89,8 @@ class VersionRepository(BaseRepository):
     """模型版本仓储"""
 
     async def get_version(
-        self,
-        version_id: str,
+            self,
+            version_id: str,
     ) -> Version | None:
         """获取指定版本
 
@@ -107,8 +106,8 @@ class VersionRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def get_latest_version(
-        self,
-        model_id: str,
+            self,
+            model_id: str,
     ) -> Version | None:
         """获取最新版本
 
@@ -129,12 +128,12 @@ class VersionRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_versions(
-        self,
-        *,
-        exclude_status: VersionStatus | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            exclude_status: VersionStatus | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Version]:
         """获取版本列表
 
@@ -174,23 +173,23 @@ class VersionRepository(BaseRepository):
         return list(result.scalars().all())
 
     def create_version(
-        self,
-        *,
-        version_id: str,
-        model_id: str,
-        version: str,
-        framework: str,
-        bento_tag: str,
-        model_path: str,
-        model_key: str,
-        input_schema: dict | None = None,
-        output_schema: dict | None = None,
-        input_schema_key: str | None = None,
-        output_schema_key: str | None = None,
-        params: dict | None = None,
-        metrics: dict | None = None,
-        description: str | None = None,
-        created_by: str | None = None,
+            self,
+            *,
+            version_id: str,
+            model_id: str,
+            version: str,
+            framework: str,
+            bento_tag: str,
+            model_path: str,
+            model_key: str,
+            input_schema: dict | None = None,
+            output_schema: dict | None = None,
+            input_schema_key: str | None = None,
+            output_schema_key: str | None = None,
+            params: dict | None = None,
+            metrics: dict | None = None,
+            description: str | None = None,
+            created_by: str | None = None,
     ) -> Version:
         """创建版本
 
@@ -237,11 +236,11 @@ class VersionRepository(BaseRepository):
         return obj
 
     def update_version(
-        self,
-        version: Version,
-        patch: VersionPatch,
-        *,
-        updated_by: str | None = None,
+            self,
+            version: Version,
+            patch: VersionPatch,
+            *,
+            updated_by: str | None = None,
     ) -> Version:
         """更新版本
 
@@ -267,10 +266,10 @@ class VersionRepository(BaseRepository):
         return version
 
     def archive_version(
-        self,
-        version: Version,
-        *,
-        updated_by: str | None = None,
+            self,
+            version: Version,
+            *,
+            updated_by: str | None = None,
     ) -> Version:
         """归档版本
 
@@ -291,10 +290,10 @@ class VersionRepository(BaseRepository):
         return version
 
     def activate_version(
-        self,
-        version: Version,
-        *,
-        updated_by: str | None = None,
+            self,
+            version: Version,
+            *,
+            updated_by: str | None = None,
     ) -> Version:
         """激活版本
 
@@ -313,10 +312,10 @@ class VersionRepository(BaseRepository):
         return version
 
     def deprecate_version(
-        self,
-        version: Version,
-        *,
-        updated_by: str | None = None,
+            self,
+            version: Version,
+            *,
+            updated_by: str | None = None,
     ) -> Version:
         """标记版本废弃
 

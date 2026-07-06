@@ -46,11 +46,11 @@ class BaseRuntimeService(ABC):
     SERVICE_TYPE = "base"
 
     def __init__(
-        self,
-        *,
-        runtime_model: RuntimeModel,
-        feature_names: list[str] | None = None,
-        data_types: dict[str, DataType] | None = None,
+            self,
+            *,
+            runtime_model: RuntimeModel,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
     ):
         """初始化运行时服务
 
@@ -72,21 +72,21 @@ class BaseRuntimeService(ABC):
         metadata = runtime_model.metadata or {}
 
         self.feature_names = (
-            feature_names
-            or self._get_metadata_feature_names(
-                metadata
-            )
-            or self._infer_feature_names(
-                runtime_model.model
-            )
+                feature_names
+                or self._get_metadata_feature_names(
+            metadata
+        )
+                or self._infer_feature_names(
+            runtime_model.model
+        )
         )
 
         self.data_types = (
-            data_types
-            or self._get_metadata_data_types(
-                metadata
-            )
-            or {}
+                data_types
+                or self._get_metadata_data_types(
+            metadata
+        )
+                or {}
         )
 
         self.inference = Inference(
@@ -97,41 +97,41 @@ class BaseRuntimeService(ABC):
 
     @property
     def deployment_id(
-        self,
+            self,
     ) -> str:
         """获取部署 ID"""
         return self.runtime_model.deployment_id
 
     @property
     def model_id(
-        self,
+            self,
     ) -> str:
         """获取模型 ID"""
         return self.runtime_model.model_id
 
     @property
     def version_id(
-        self,
+            self,
     ) -> str:
         """获取版本 ID"""
         return self.runtime_model.version_id
 
     @property
     def framework(
-        self,
+            self,
     ) -> str:
         """获取模型框架"""
         return self.runtime_model.framework
 
     @property
     def metadata(
-        self,
+            self,
     ) -> dict[str, Any]:
         """获取运行时元数据"""
         return self.runtime_model.metadata or {}
 
     def get_capabilities(
-        self,
+            self,
     ) -> ModelCapability:
         """获取当前模型能力集
 
@@ -144,7 +144,7 @@ class BaseRuntimeService(ABC):
         )
 
     def get_capability_names(
-        self,
+            self,
     ) -> list[str]:
         """获取当前模型能力名称列表
 
@@ -156,8 +156,8 @@ class BaseRuntimeService(ABC):
         )
 
     def has_capability(
-        self,
-        capability: ModelCapability,
+            self,
+            capability: ModelCapability,
     ) -> bool:
         """检查模型是否支持指定能力
 
@@ -175,8 +175,8 @@ class BaseRuntimeService(ABC):
         )
 
     def require_capability(
-        self,
-        capability: ModelCapability,
+            self,
+            capability: ModelCapability,
     ) -> None:
         """校验模型能力
 
@@ -193,8 +193,8 @@ class BaseRuntimeService(ABC):
 
     @abstractmethod
     def predict(
-        self,
-        features: dict[str, Any],
+            self,
+            features: dict[str, Any],
     ) -> dict[str, Any]:
         """单条预测
 
@@ -208,8 +208,8 @@ class BaseRuntimeService(ABC):
 
     @abstractmethod
     def predict_batch(
-        self,
-        features_list: list[dict[str, Any]],
+            self,
+            features_list: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """批量预测
 
@@ -222,8 +222,8 @@ class BaseRuntimeService(ABC):
         raise NotImplementedError
 
     def build_result(
-        self,
-        result: dict[str, Any],
+            self,
+            result: dict[str, Any],
     ) -> dict[str, Any]:
         """构造统一预测结果
 
@@ -245,7 +245,7 @@ class BaseRuntimeService(ABC):
         }
 
     def touch(
-        self,
+            self,
     ) -> None:
         """更新运行时模型访问状态
 
@@ -257,7 +257,7 @@ class BaseRuntimeService(ABC):
 
     @staticmethod
     def _get_metadata_feature_names(
-        metadata: dict[str, Any],
+            metadata: dict[str, Any],
     ) -> list[str] | None:
         """从运行时元数据获取特征名称
 
@@ -273,14 +273,14 @@ class BaseRuntimeService(ABC):
         )
 
         if isinstance(
-            feature_names,
-            str,
+                feature_names,
+                str,
         ):
             return None
 
         if not isinstance(
-            feature_names,
-            Iterable,
+                feature_names,
+                Iterable,
         ):
             return None
 
@@ -293,7 +293,7 @@ class BaseRuntimeService(ABC):
 
     @staticmethod
     def _get_metadata_data_types(
-        metadata: dict[str, Any],
+            metadata: dict[str, Any],
     ) -> dict[str, DataType] | None:
         """从运行时元数据获取特征类型
 
@@ -309,8 +309,8 @@ class BaseRuntimeService(ABC):
         )
 
         if not isinstance(
-            data_types,
-            dict,
+                data_types,
+                dict,
         ):
             return None
 
@@ -318,14 +318,14 @@ class BaseRuntimeService(ABC):
 
         for name, data_type in data_types.items():
             if not isinstance(
-                name,
-                str,
+                    name,
+                    str,
             ):
                 continue
 
             if isinstance(
-                data_type,
-                DataType,
+                    data_type,
+                    DataType,
             ):
                 result[name] = data_type
                 continue
@@ -335,8 +335,8 @@ class BaseRuntimeService(ABC):
                     data_type
                 )
             except (
-                TypeError,
-                ValueError,
+                    TypeError,
+                    ValueError,
             ):
                 continue
 
@@ -344,7 +344,7 @@ class BaseRuntimeService(ABC):
 
     @staticmethod
     def _infer_feature_names(
-        model: Any,
+            model: Any,
     ) -> list[str] | None:
         """尝试从模型对象推断特征名称
 
@@ -375,14 +375,14 @@ class BaseRuntimeService(ABC):
             )
 
             if isinstance(
-                value,
-                str,
+                    value,
+                    str,
             ):
                 continue
 
             if not isinstance(
-                value,
-                Iterable,
+                    value,
+                    Iterable,
             ):
                 continue
 
@@ -401,7 +401,7 @@ class BaseRuntimeService(ABC):
         )
 
         if not callable(
-            get_booster
+                get_booster
         ):
             return None
 
@@ -414,14 +414,14 @@ class BaseRuntimeService(ABC):
         )
 
         if isinstance(
-            feature_names,
-            str,
+                feature_names,
+                str,
         ):
             return None
 
         if not isinstance(
-            feature_names,
-            Iterable,
+                feature_names,
+                Iterable,
         ):
             return None
 

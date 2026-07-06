@@ -23,7 +23,16 @@ class Control(Base, IdMixin, TimestampMixin):
             "deployment_id",
         ),
         Index(
+            "idx_controls_environment",
+            "environment",
+        ),
+        Index(
             "idx_controls_desired_status",
+            "desired_status",
+        ),
+        Index(
+            "idx_controls_environment_desired_status",
+            "environment",
             "desired_status",
         ),
         Index(
@@ -58,6 +67,13 @@ class Control(Base, IdMixin, TimestampMixin):
         comment="部署 ID，每个部署仅对应一条运行控制记录",
     )
 
+    environment = Column(
+        String(32),
+        nullable=False,
+        server_default=text("'production'"),
+        comment="运行环境，可选值 production / staging / development / testing",
+    )
+
     desired_status = Column(
         String(20),
         nullable=False,
@@ -89,6 +105,7 @@ class Control(Base, IdMixin, TimestampMixin):
             f"<Control("
             f"control_id='{self.control_id}', "
             f"deployment_id='{self.deployment_id}', "
+            f"environment='{self.environment}', "
             f"desired_status='{self.desired_status}', "
             f"generation={self.generation}"
             f")>"

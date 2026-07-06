@@ -15,12 +15,12 @@
 
 import typer
 
-from datamind.cli.service.run import app as run_app
-from datamind.cli.service.load import app as load_app
-from datamind.cli.service.unload import app as unload_app
-from datamind.cli.service.reload import app as reload_app
 from datamind.cli.service.list import app as list_app
+from datamind.cli.service.load import app as load_app
+from datamind.cli.service.reload import app as reload_app
+from datamind.cli.service.run import app as run_app
 from datamind.cli.service.show import app as show_app
+from datamind.cli.service.unload import app as unload_app
 
 app = typer.Typer(
     help="服务管理命令"

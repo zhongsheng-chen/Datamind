@@ -16,8 +16,8 @@
 """
 
 import datamind.db.models
-from datamind.db.core.url import get_db_url
 from datamind.db.core.engine import get_engine, create_engine
+from datamind.db.core.url import get_db_url
 
 __all__ = [
     "get_engine",

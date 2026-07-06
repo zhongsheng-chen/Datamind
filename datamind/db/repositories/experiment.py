@@ -61,7 +61,6 @@ class ExperimentPatch:
         effective_from: 生效开始时间
         effective_to: 生效结束时间
     """
-
     name: str | None = None
     description: str | None = None
     config: dict | None = None
@@ -73,8 +72,8 @@ class ExperimentRepository(BaseRepository):
     """实验仓储"""
 
     async def get_experiment(
-        self,
-        experiment_id: str,
+            self,
+            experiment_id: str,
     ) -> Experiment | None:
         """获取实验
 
@@ -90,11 +89,11 @@ class ExperimentRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_experiments(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Experiment]:
         """获取实验列表
 
@@ -129,11 +128,11 @@ class ExperimentRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_running_experiments(
-        self,
-        model_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            model_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Experiment]:
         """获取运行中的实验
 
@@ -157,16 +156,16 @@ class ExperimentRepository(BaseRepository):
         )
 
     def create_experiment(
-        self,
-        *,
-        experiment_id: str,
-        model_id: str,
-        name: str | None = None,
-        description: str | None = None,
-        config: dict | None = None,
-        effective_from: datetime | None = None,
-        effective_to: datetime | None = None,
-        created_by: str | None = None,
+            self,
+            *,
+            experiment_id: str,
+            model_id: str,
+            name: str | None = None,
+            description: str | None = None,
+            config: dict | None = None,
+            effective_from: datetime | None = None,
+            effective_to: datetime | None = None,
+            created_by: str | None = None,
     ) -> Experiment:
         """创建实验
 
@@ -199,11 +198,11 @@ class ExperimentRepository(BaseRepository):
         return obj
 
     def update_experiment(
-        self,
-        experiment: Experiment,
-        patch: ExperimentPatch,
-        *,
-        updated_by: str | None = None,
+            self,
+            experiment: Experiment,
+            patch: ExperimentPatch,
+            *,
+            updated_by: str | None = None,
     ) -> Experiment:
         """更新实验
 
@@ -229,10 +228,10 @@ class ExperimentRepository(BaseRepository):
         return experiment
 
     def start_experiment(
-        self,
-        experiment: Experiment,
-        *,
-        updated_by: str | None = None,
+            self,
+            experiment: Experiment,
+            *,
+            updated_by: str | None = None,
     ) -> Experiment:
         """启动实验
 
@@ -251,10 +250,10 @@ class ExperimentRepository(BaseRepository):
         return experiment
 
     def stop_experiment(
-        self,
-        experiment: Experiment,
-        *,
-        updated_by: str | None = None,
+            self,
+            experiment: Experiment,
+            *,
+            updated_by: str | None = None,
     ) -> Experiment:
         """停止实验
 
@@ -273,10 +272,10 @@ class ExperimentRepository(BaseRepository):
         return experiment
 
     def pause_experiment(
-        self,
-        experiment: Experiment,
-        *,
-        updated_by: str | None = None,
+            self,
+            experiment: Experiment,
+            *,
+            updated_by: str | None = None,
     ) -> Experiment:
         """暂停实验
 
@@ -295,10 +294,10 @@ class ExperimentRepository(BaseRepository):
         return experiment
 
     def complete_experiment(
-        self,
-        experiment: Experiment,
-        *,
-        updated_by: str | None = None,
+            self,
+            experiment: Experiment,
+            *,
+            updated_by: str | None = None,
     ) -> Experiment:
         """完成实验
 
@@ -317,10 +316,10 @@ class ExperimentRepository(BaseRepository):
         return experiment
 
     def archive_experiment(
-        self,
-        experiment: Experiment,
-        *,
-        updated_by: str | None = None,
+            self,
+            experiment: Experiment,
+            *,
+            updated_by: str | None = None,
     ) -> Experiment:
         """归档实验
 

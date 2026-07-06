@@ -39,8 +39,8 @@
 from datamind.config.storage import StorageConfig
 from datamind.storage.base import BaseStorageBackend
 from datamind.storage.factory import get_backend
-from datamind.storage.strategy import StorageKeyStrategy
 from datamind.storage.observability import observe_storage
+from datamind.storage.strategy import StorageKeyStrategy
 
 
 class StorageAdmin:
@@ -57,12 +57,12 @@ class StorageAdmin:
         self._strategy = StorageKeyStrategy(config.model_dir)
 
     def _resolve_key(
-        self,
-        *,
-        key: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        filename: str | None = None,
+            self,
+            *,
+            key: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            filename: str | None = None,
     ) -> str:
         """解析存储键
 
@@ -88,13 +88,13 @@ class StorageAdmin:
 
     @observe_storage("save")
     def save(
-        self,
-        *,
-        data: bytes,
-        key: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        filename: str | None = None,
+            self,
+            *,
+            data: bytes,
+            key: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            filename: str | None = None,
     ) -> str:
         """保存模型文件
 
@@ -120,12 +120,12 @@ class StorageAdmin:
 
     @observe_storage("load")
     def load(
-        self,
-        *,
-        key: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        filename: str | None = None,
+            self,
+            *,
+            key: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            filename: str | None = None,
     ) -> bytes:
         """加载模型文件
 
@@ -149,13 +149,13 @@ class StorageAdmin:
 
     @observe_storage("delete")
     def delete(
-        self,
-        *,
-        key: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        filename: str | None = None,
-        strict: bool = False,
+            self,
+            *,
+            key: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            filename: str | None = None,
+            strict: bool = False,
     ) -> bool:
         """删除模型文件
 
@@ -188,12 +188,12 @@ class StorageAdmin:
 
     @observe_storage("exists")
     def exists(
-        self,
-        *,
-        key: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        filename: str | None = None,
+            self,
+            *,
+            key: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            filename: str | None = None,
     ) -> bool:
         """检查模型文件是否存在
 

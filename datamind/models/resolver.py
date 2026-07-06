@@ -47,10 +47,10 @@ class ModelResolver:
         self.version_repo = version_repo
 
     async def resolve_model(
-        self,
-        *,
-        model_id: str | None = None,
-        name: str | None = None,
+            self,
+            *,
+            model_id: str | None = None,
+            name: str | None = None,
     ):
         """解析模型
 
@@ -80,11 +80,11 @@ class ModelResolver:
         return model
 
     async def resolve_version(
-        self,
-        *,
-        model_id: str,
-        version_id: str | None = None,
-        version: str | None = None,
+            self,
+            *,
+            model_id: str,
+            version_id: str | None = None,
+            version: str | None = None,
     ):
         """解析版本
 

@@ -126,13 +126,13 @@ def audit(
 
                 return result
 
-            except Exception as e:
+            except Exception as exc:
                 await recorder.record(
                     action=action,
                     target_type=target_type,
                     target_id=target_id,
                     status="failed",
-                    error=str(e),
+                    error=str(exc),
                     before=before,
                     after=None,
                     context={

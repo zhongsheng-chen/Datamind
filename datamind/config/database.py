@@ -21,8 +21,8 @@
   - DATAMIND_DATABASE_ECHO: 是否打印 SQL，默认 False
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseConfig(BaseSettings):

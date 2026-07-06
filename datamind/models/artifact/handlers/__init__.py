@@ -8,10 +8,10 @@
   from datamind.models.artifact.handlers import sklearn
 """
 
+from datamind.models.artifact.handlers import catboost
+from datamind.models.artifact.handlers import lightgbm
 from datamind.models.artifact.handlers import sklearn
 from datamind.models.artifact.handlers import xgboost
-from datamind.models.artifact.handlers import lightgbm
-from datamind.models.artifact.handlers import catboost
 
 __all__ = [
     "catboost",

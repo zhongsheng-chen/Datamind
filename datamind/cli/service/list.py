@@ -14,13 +14,19 @@
 import asyncio
 import json
 
-import typer
 import structlog
+import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
 from datamind.services import RuntimeController
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime,
+)
 
 app = typer.Typer(help="服务列表命令")
 console = Console()
@@ -30,61 +36,72 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_services(
-    desired_status: str | None = typer.Option(
-        None,
-        "--desired-status",
-        help="期望运行状态：loaded/unloaded"
-    ),
-    limit: int | None = typer.Option(
-        None,
-        "--limit",
-        help="返回数量限制"
-    ),
-    offset: int | None = typer.Option(
-        None,
-        "--offset",
-        help="分页偏移量"
-    ),
-    output: str = typer.Option(
-        "table",
-        "--format",
-        help="输出格式：table/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        environment: str | None = typer.Option(
+            None,
+            "--environment",
+            help="按运行环境过滤"
+        ),
+        desired_status: str | None = typer.Option(
+            None,
+            "--desired-status",
+            help="按期望运行状态过滤，例如 loaded/unloaded"
+        ),
+        limit: int = typer.Option(
+            10,
+            "--limit",
+            help="返回记录数量限制"
+        ),
+        offset: int = typer.Option(
+            0,
+            "--offset",
+            help="分页偏移量"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """查询运行服务列表"""
 
     async def _run():
-        if output not in ("table", "json"):
+        if output not in ("text", "json"):
             raise typer.BadParameter(
-                "--format 只支持 table 或 json"
+                "--format 只支持 text 或 json"
+            )
+
+        if environment is not None and not environment:
+            raise typer.BadParameter(
+                "--environment 不能为空"
             )
 
         if desired_status not in (
-            None,
-            "loaded",
-            "unloaded",
+                None,
+                "loaded",
+                "unloaded",
         ):
             raise typer.BadParameter(
                 "--desired-status 只支持 loaded 或 unloaded"
             )
 
-        if limit is not None and limit <= 0:
+        if limit <= 0:
             raise typer.BadParameter(
                 "--limit 必须大于 0"
             )
 
-        if offset is not None and offset < 0:
+        if offset < 0:
             raise typer.BadParameter(
                 "--offset 不能小于 0"
             )
 
         logger.info(
             "开始查询运行服务列表",
+            environment=environment,
             desired_status=desired_status,
             limit=limit,
             offset=offset,
@@ -92,13 +109,47 @@ def list_services(
 
         controller = RuntimeController()
 
-        result = await controller.list_services(
+        services = await controller.list_services(
+            environment=environment,
             desired_status=desired_status,
             limit=limit,
             offset=offset,
         )
 
         if output == "json":
+            result = []
+
+            for item in services:
+                result.append({
+                    **item,
+                    "updated_at": format_iso_utc(
+                        parse_datetime(
+                            item["updated_at"]
+                        )
+                    ),
+                    "runtimes": [
+                        {
+                            **runtime,
+                            "loaded_at": format_iso_utc(
+                                parse_datetime(
+                                    runtime["loaded_at"]
+                                )
+                            ),
+                            "unloaded_at": format_iso_utc(
+                                parse_datetime(
+                                    runtime["unloaded_at"]
+                                )
+                            ),
+                            "last_heartbeat_at": format_iso_utc(
+                                parse_datetime(
+                                    runtime["last_heartbeat_at"]
+                                )
+                            ),
+                        }
+                        for runtime in item["runtimes"]
+                    ],
+                })
+
             console.print_json(
                 json.dumps(
                     result,
@@ -107,80 +158,66 @@ def list_services(
                     default=str,
                 )
             )
-            return
 
-        if not result:
-            console.print(
-                "[yellow]未找到运行服务记录[/yellow]"
-            )
-            return
+            return result
+
+        console.print(
+            f"[dim]共找到 {len(services)} 个运行服务[/dim]\n"
+        )
+
+        if not services:
+            return services
 
         table = Table(
-            title="Runtime Services"
+            box=box.ASCII,
+            header_style="bold cyan",
+            show_lines=False,
+            pad_edge=False,
         )
 
-        table.add_column(
-            "CONTROL ID",
-            style="cyan",
-        )
-        table.add_column(
-            "DEPLOYMENT ID",
-        )
-        table.add_column(
-            "DESIRED",
-        )
-        table.add_column(
-            "GENERATION",
-            justify="right",
-        )
-        table.add_column(
-            "WORKERS",
-            justify="right",
-        )
-        table.add_column(
-            "LOADING",
-            justify="right",
-        )
-        table.add_column(
-            "LOADED",
-            justify="right",
-        )
-        table.add_column(
-            "UNLOADED",
-            justify="right",
-        )
-        table.add_column(
-            "FAILED",
-            justify="right",
-        )
-        table.add_column(
-            "UPDATED BY",
-        )
-        table.add_column(
-            "UPDATED AT",
-        )
+        table.add_column("CONTROL ID")
+        table.add_column("DEPLOYMENT ID")
+        table.add_column("ENVIRONMENT")
+        table.add_column("DESIRED STATUS")
+        table.add_column("GENERATION")
+        table.add_column("WORKERS")
+        table.add_column("RUNTIMES")
+        table.add_column("LOADING")
+        table.add_column("LOADED")
+        table.add_column("UNLOADED")
+        table.add_column("FAILED")
+        table.add_column("UPDATED BY")
+        table.add_column("UPDATED AT")
 
-        for item in result:
+        for item in services:
             table.add_row(
                 str(item["control_id"]),
                 str(item["deployment_id"]),
+                str(item["environment"]),
                 str(item["desired_status"]),
                 str(item["generation"]),
                 str(item["worker_count"]),
+                str(item["runtime_count"]),
                 str(item["loading_count"]),
                 str(item["loaded_count"]),
                 str(item["unloaded_count"]),
                 str(item["failed_count"]),
-                str(item["updated_by"] or ""),
-                str(item["updated_at"] or ""),
+                str(item["updated_by"] or "-"),
+                format_datetime(
+                    parse_datetime(
+                        item["updated_at"]
+                    )
+                ),
             )
 
         console.print(table)
 
+        return services
+
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

@@ -25,9 +25,9 @@
   )
 """
 
-import bentoml
 from typing import Any
 
+import bentoml
 
 FRAMEWORK_TO_BENTOML = {
     "sklearn": bentoml.sklearn,
