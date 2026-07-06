@@ -419,11 +419,17 @@ class RuntimeReconciler:
                 controls
             )
 
-            logger.debug(
-                "运行时状态协调完成",
-                worker_id=self.worker_id,
-                **result.to_dict(),
-            )
+            if (
+                result.loaded
+                or result.unloaded
+                or result.reloaded
+                or result.failed
+            ):
+                logger.info(
+                    "运行时状态协调完成",
+                    worker_id=self.worker_id,
+                    **result.to_dict(),
+                )
 
             return result
 
@@ -472,7 +478,7 @@ class RuntimeReconciler:
                 ValueError,
             ) as exc:
                 logger.exception(
-                    "运行时协调周期执行失败",
+                    "运行时状态协调周期执行失败",
                     worker_id=self.worker_id,
                     error=str(exc),
                 )
