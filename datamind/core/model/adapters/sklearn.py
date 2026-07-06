@@ -39,10 +39,10 @@ class SklearnAdapter(BaseModelAdapter):
     """
 
     def __init__(
-        self,
-        model,
-        feature_names=None,
-        data_types=None,
+            self,
+            model,
+            feature_names=None,
+            data_types=None,
     ):
         """初始化适配器
 
@@ -60,7 +60,7 @@ class SklearnAdapter(BaseModelAdapter):
         self._validate_model()
 
     def _detect_capabilities(
-        self,
+            self,
     ) -> ModelCapability:
         """检测当前 Sklearn 模型实例能力
 
@@ -101,14 +101,14 @@ class SklearnAdapter(BaseModelAdapter):
             )
 
         if (
-            hasattr(
-                self.model,
-                "feature_importances_",
-            )
-            or hasattr(
-                self.model,
-                "coef_",
-            )
+                hasattr(
+                    self.model,
+                    "feature_importances_",
+                )
+                or hasattr(
+            self.model,
+            "coef_",
+        )
         ):
             capabilities |= (
                 ModelCapability.FEATURE_IMPORTANCE
@@ -117,7 +117,7 @@ class SklearnAdapter(BaseModelAdapter):
         return capabilities
 
     def _validate_model(
-        self,
+            self,
     ) -> None:
         """校验模型
 
@@ -129,8 +129,8 @@ class SklearnAdapter(BaseModelAdapter):
             ValueError: 模型类别数量不是 2
         """
         if not hasattr(
-            self.model,
-            "classes_",
+                self.model,
+                "classes_",
         ):
             return
 
@@ -152,8 +152,8 @@ class SklearnAdapter(BaseModelAdapter):
         )
 
     def predict_proba(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """预测违约概率
 
@@ -178,8 +178,8 @@ class SklearnAdapter(BaseModelAdapter):
         )
 
         if (
-            probabilities.ndim != 2
-            or probabilities.shape[1] != 2
+                probabilities.ndim != 2
+                or probabilities.shape[1] != 2
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__}: "
@@ -199,8 +199,8 @@ class SklearnAdapter(BaseModelAdapter):
         return result
 
     def decision_function(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """获取原始 Logit 值
 
@@ -245,8 +245,8 @@ class SklearnAdapter(BaseModelAdapter):
         return result
 
     def predict_proba_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量预测违约概率
 
@@ -278,8 +278,8 @@ class SklearnAdapter(BaseModelAdapter):
         )
 
         if (
-            probabilities.ndim != 2
-            or probabilities.shape[1] != 2
+                probabilities.ndim != 2
+                or probabilities.shape[1] != 2
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__}: "
@@ -300,8 +300,8 @@ class SklearnAdapter(BaseModelAdapter):
         return result
 
     def decision_function_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量获取原始 Logit 值
 
@@ -352,7 +352,7 @@ class SklearnAdapter(BaseModelAdapter):
         return result
 
     def get_feature_importance(
-        self,
+            self,
     ) -> dict[str, float]:
         """获取特征重要性
 
@@ -374,8 +374,8 @@ class SklearnAdapter(BaseModelAdapter):
         )
 
         if hasattr(
-            self.model,
-            "feature_importances_",
+                self.model,
+                "feature_importances_",
         ):
             importance = np.asarray(
                 self.model.feature_importances_
@@ -387,8 +387,8 @@ class SklearnAdapter(BaseModelAdapter):
             )
 
         elif hasattr(
-            self.model,
-            "coef_",
+                self.model,
+                "coef_",
         ):
             coefficients = np.asarray(
                 self.model.coef_
@@ -406,8 +406,8 @@ class SklearnAdapter(BaseModelAdapter):
                 )
 
             elif (
-                coefficients.ndim == 2
-                and coefficients.shape[0] == 1
+                    coefficients.ndim == 2
+                    and coefficients.shape[0] == 1
             ):
                 importance = np.abs(
                     coefficients[0]
@@ -452,7 +452,7 @@ class SklearnAdapter(BaseModelAdapter):
 
     @staticmethod
     def _ensure_2d(
-        X: np.ndarray,
+            X: np.ndarray,
     ) -> np.ndarray:
         """确保输入为二维数组
 

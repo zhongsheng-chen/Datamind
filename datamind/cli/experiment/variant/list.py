@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -32,50 +33,50 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_variants(
-    experiment_id: str | None = typer.Argument(
-        None,
-        help="按实验 ID 过滤"
-    ),
-    deployment_id: str | None = typer.Option(
-        None,
-        "--deployment-id",
-        help="按部署 ID 过滤"
-    ),
-    status: str | None = typer.Option(
-        None,
-        "--status",
-        help="按实验分组状态过滤，例如 active/inactive/archived"
-    ),
-    is_control: bool | None = typer.Option(
-        None,
-        "--control/--non-control",
-        help="按是否对照组过滤"
-    ),
-    created_by: str | None = typer.Option(
-        None,
-        "--created-by",
-        help="按创建人过滤"
-    ),
-    limit: int = typer.Option(
-        10,
-        "--limit",
-        help="返回记录数量限制"
-    ),
-    offset: int = typer.Option(
-        0,
-        "--offset",
-        help="分页偏移量"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        experiment_id: str | None = typer.Argument(
+            None,
+            help="按实验 ID 过滤"
+        ),
+        deployment_id: str | None = typer.Option(
+            None,
+            "--deployment-id",
+            help="按部署 ID 过滤"
+        ),
+        status: str | None = typer.Option(
+            None,
+            "--status",
+            help="按实验分组状态过滤，例如 active/inactive/archived"
+        ),
+        is_control: bool | None = typer.Option(
+            None,
+            "--control/--non-control",
+            help="按是否对照组过滤"
+        ),
+        created_by: str | None = typer.Option(
+            None,
+            "--created-by",
+            help="按创建人过滤"
+        ),
+        limit: int = typer.Option(
+            10,
+            "--limit",
+            help="返回记录数量限制"
+        ),
+        offset: int = typer.Option(
+            0,
+            "--offset",
+            help="分页偏移量"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """列出实验分组"""
 
@@ -191,8 +192,8 @@ def list_variants(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

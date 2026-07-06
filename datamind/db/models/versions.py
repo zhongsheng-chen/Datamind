@@ -84,7 +84,7 @@ class Version(Base, IdMixin, TimestampMixin):
     bento_tag = Column(
         String(100),
         nullable=False,
-        comment="BentoML 标签，格式为 模型名:版本"
+        comment="BentoML 标签，由模型名和版本组成，格式为：模型名:版本"
     )
     model_path = Column(
         String(255),

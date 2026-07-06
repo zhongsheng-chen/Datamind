@@ -52,8 +52,8 @@ async def dispatch(event: AuditEvent):
             hostname=event.hostname,
         )
 
-    except Exception as e:
-        raise AuditDispatchError(f"审计事件入队失败: {str(e)}")
+    except Exception as exc:
+        raise AuditDispatchError(f"审计事件入队失败: {str(exc)}")
 
 
 def get_queue() -> asyncio.Queue:

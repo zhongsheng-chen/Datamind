@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich.console import Console
 
 from datamind.cli.common import cli_context
@@ -30,20 +31,20 @@ logger = structlog.get_logger(__name__)
 
 @app.command("show")
 def show_variant(
-    variant_id: str = typer.Argument(
-        ...,
-        help="实验分组 ID"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        variant_id: str = typer.Argument(
+            ...,
+            help="实验分组 ID"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """查看实验分组详情"""
 
@@ -116,8 +117,8 @@ def show_variant(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

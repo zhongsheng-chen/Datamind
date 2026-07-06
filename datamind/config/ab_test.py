@@ -17,8 +17,8 @@
   - DATAMIND_ABTEST_STRATEGY: 分流策略，默认 random
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from datamind.constants import ABStrategy, SUPPORTED_AB_STRATEGIES
 

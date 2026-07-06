@@ -41,10 +41,10 @@ class Inference:
     """统一模型推理接口"""
 
     def __init__(
-        self,
-        model: Any,
-        feature_names: list[str] | None = None,
-        data_types: dict[str, DataType] | None = None,
+            self,
+            model: Any,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
     ):
         """初始化推理实例
 

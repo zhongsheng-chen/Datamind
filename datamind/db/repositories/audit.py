@@ -48,12 +48,12 @@ class AuditRepository(BaseRepository):
     """审计日志仓储"""
 
     async def list_audits(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        order_desc: bool = True,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            order_desc: bool = True,
+            **filters,
     ) -> list[Audit]:
         """获取审计日志列表
 
@@ -100,9 +100,9 @@ class AuditRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_entity_history(
-        self,
-        target_type: str,
-        target_id: str,
+            self,
+            target_type: str,
+            target_id: str,
     ) -> list[Audit]:
         """获取某个实体的变更历史
 
@@ -124,10 +124,10 @@ class AuditRepository(BaseRepository):
         )
 
     async def list_failed_operations(
-        self,
-        *,
-        limit: int | None = 100,
-        offset: int | None = None,
+            self,
+            *,
+            limit: int | None = 100,
+            offset: int | None = None,
     ) -> list[Audit]:
         """获取失败操作记录
 
@@ -149,11 +149,11 @@ class AuditRepository(BaseRepository):
         )
 
     async def list_user_actions(
-        self,
-        user: str,
-        *,
-        limit: int | None = 100,
-        offset: int | None = None,
+            self,
+            user: str,
+            *,
+            limit: int | None = 100,
+            offset: int | None = None,
     ) -> list[Audit]:
         """获取用户操作记录
 
@@ -176,26 +176,26 @@ class AuditRepository(BaseRepository):
         )
 
     def create_audit(
-        self,
-        *,
-        audit_id: str,
-        action: str,
-        resource: str,
-        operation: str,
-        target_type: str,
-        target_id: str,
-        source: str,
-        trace_id: str | None = None,
-        request_id: str | None = None,
-        user: str | None = None,
-        ip: str | None = None,
-        hostname: str | None = None,
-        status: str = "success",
-        error: str | None = None,
-        before: dict | None = None,
-        after: dict | None = None,
-        context: dict | None = None,
-        occurred_at: datetime | None = None,
+            self,
+            *,
+            audit_id: str,
+            action: str,
+            resource: str,
+            operation: str,
+            target_type: str,
+            target_id: str,
+            source: str,
+            trace_id: str | None = None,
+            request_id: str | None = None,
+            user: str | None = None,
+            ip: str | None = None,
+            hostname: str | None = None,
+            status: str = "success",
+            error: str | None = None,
+            before: dict | None = None,
+            after: dict | None = None,
+            context: dict | None = None,
+            occurred_at: datetime | None = None,
     ) -> Audit:
         """创建审计日志
 

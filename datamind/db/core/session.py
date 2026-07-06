@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from datamind.db.core.engine import get_engine
 
-
 _SessionFactory: async_sessionmaker[AsyncSession] | None = None
 
 

@@ -14,11 +14,11 @@
 import asyncio
 import json
 
-import typer
 import structlog
+import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 from datamind.cli.common import cli_context
 from datamind.db.core.uow import UnitOfWork
@@ -33,66 +33,66 @@ logger = structlog.get_logger(__name__)
 
 @app.command("list")
 def list_deployments(
-    model_id: str | None = typer.Option(
-        None,
-        "--model-id",
-        help="按模型 ID 过滤"
-    ),
-    version_id: str | None = typer.Option(
-        None,
-        "--version-id",
-        help="按版本 ID 过滤"
-    ),
-    framework: str | None = typer.Option(
-        None,
-        "--framework",
-        help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
-    ),
-    environment: str | None = typer.Option(
-        None,
-        "--environment",
-        help="按部署环境过滤，例如 production/staging/development/testing"
-    ),
-    rollout: str | None = typer.Option(
-        None,
-        "--rollout",
-        help="按发布方式过滤，例如 full/canary/shadow"
-    ),
-    role: str | None = typer.Option(
-        None,
-        "--role",
-        help="按部署角色过滤，例如 champion/challenger"
-    ),
-    status: str | None = typer.Option(
-        None,
-        "--status",
-        help="按部署状态过滤，例如 active/inactive"
-    ),
-    deployed_by: str | None = typer.Option(
-        None,
-        "--deployed-by",
-        help="按部署人过滤"
-    ),
-    limit: int = typer.Option(
-        10,
-        "--limit",
-        help="返回记录数量限制"
-    ),
-    offset: int = typer.Option(
-        0,
-        "--offset",
-        help="分页偏移量"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        model_id: str | None = typer.Option(
+            None,
+            "--model-id",
+            help="按模型 ID 过滤"
+        ),
+        version_id: str | None = typer.Option(
+            None,
+            "--version-id",
+            help="按版本 ID 过滤"
+        ),
+        framework: str | None = typer.Option(
+            None,
+            "--framework",
+            help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
+        ),
+        environment: str | None = typer.Option(
+            None,
+            "--environment",
+            help="按部署环境过滤，例如 production/staging/development/testing"
+        ),
+        rollout: str | None = typer.Option(
+            None,
+            "--rollout",
+            help="按发布方式过滤，例如 full/canary/shadow"
+        ),
+        role: str | None = typer.Option(
+            None,
+            "--role",
+            help="按部署角色过滤，例如 champion/challenger"
+        ),
+        status: str | None = typer.Option(
+            None,
+            "--status",
+            help="按部署状态过滤，例如 active/inactive"
+        ),
+        deployed_by: str | None = typer.Option(
+            None,
+            "--deployed-by",
+            help="按部署人过滤"
+        ),
+        limit: int = typer.Option(
+            10,
+            "--limit",
+            help="返回记录数量限制"
+        ),
+        offset: int = typer.Option(
+            0,
+            "--offset",
+            help="分页偏移量"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """列出部署"""
 
@@ -231,8 +231,8 @@ def list_deployments(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

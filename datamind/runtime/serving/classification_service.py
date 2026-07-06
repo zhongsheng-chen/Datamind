@@ -55,12 +55,12 @@ class ClassificationService(BaseRuntimeService):
     SERVICE_TYPE = "classification"
 
     def __init__(
-        self,
-        *,
-        runtime_model: RuntimeModel,
-        feature_names: list[str] | None = None,
-        data_types: dict[str, DataType] | None = None,
-        threshold: float = 0.5,
+            self,
+            *,
+            runtime_model: RuntimeModel,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
+            threshold: float = 0.5,
     ):
         """初始化分类模型服务
 
@@ -92,8 +92,8 @@ class ClassificationService(BaseRuntimeService):
         self.threshold = float(threshold)
 
     def predict(
-        self,
-        features: dict[str, Any],
+            self,
+            features: dict[str, Any],
     ) -> dict[str, Any]:
         """单条分类预测
 
@@ -146,8 +146,8 @@ class ClassificationService(BaseRuntimeService):
         })
 
     def predict_batch(
-        self,
-        features_list: list[dict[str, Any]],
+            self,
+            features_list: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """批量分类预测
 
@@ -206,8 +206,8 @@ class ClassificationService(BaseRuntimeService):
         })
 
     def _classify(
-        self,
-        probability: float,
+            self,
+            probability: float,
     ) -> int:
         """根据概率计算分类标签
 

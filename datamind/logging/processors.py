@@ -22,13 +22,13 @@
 """
 
 import random
-import structlog
 from datetime import datetime
-from zoneinfo import ZoneInfo
 from typing import Dict, Any, Set, Optional
+from zoneinfo import ZoneInfo
+
+import structlog
 
 from datamind.context.keys import ALL_KEYS
-
 
 _SENSITIVE_KEYS: Set[str] = {
     "password", "passwd", "pwd",
@@ -70,6 +70,7 @@ def add_context():
     返回：
         上下文字段处理器函数
     """
+
     def processor(_, __, event_dict):
         ctx = structlog.contextvars.get_contextvars()
 
@@ -94,6 +95,7 @@ def mask_sensitive(mask_char: str = "*", prefix: int = 2, suffix: int = 2):
     返回：
         脱敏处理器函数
     """
+
     def is_sensitive_key(key: str) -> bool:
         k = key.lower()
         return any(s in k for s in _SENSITIVE_KEYS)
@@ -114,9 +116,9 @@ def mask_sensitive(mask_char: str = "*", prefix: int = 2, suffix: int = 2):
                     event_dict[key] = mask_char * length
                 else:
                     event_dict[key] = (
-                        value[:prefix]
-                        + mask_char * (length - prefix - suffix)
-                        + value[-suffix:]
+                            value[:prefix]
+                            + mask_char * (length - prefix - suffix)
+                            + value[-suffix:]
                     )
             else:
                 event_dict[key] = mask_char * 8

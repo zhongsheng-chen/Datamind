@@ -27,10 +27,10 @@
     score = scorer.score({"age": 30, "income": 50000})
 """
 
+from datamind.core.capability import ModelCapability, ScorecardCapability
 from datamind.core.inference import Inference
 from datamind.core.scoring import Scorer, ScoreTransformer, LRContrib
 from datamind.core.scoring.base import BaseScorer
-from datamind.core.capability import ModelCapability, ScorecardCapability
 
 __all__ = [
     "Inference",

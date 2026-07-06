@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -32,20 +33,20 @@ logger = structlog.get_logger(__name__)
 
 @app.command("show")
 def show_experiment(
-    experiment_id: str = typer.Argument(
-        ...,
-        help="实验 ID"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        experiment_id: str = typer.Argument(
+            ...,
+            help="实验 ID"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """查看实验详情"""
 
@@ -169,8 +170,8 @@ def show_experiment(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

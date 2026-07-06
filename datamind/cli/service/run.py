@@ -19,8 +19,8 @@ import asyncio
 import os
 import subprocess
 
-import typer
 import structlog
+import typer
 from rich.console import Console
 
 from datamind.audit import audit
@@ -40,36 +40,36 @@ SERVICE_TARGET = (
 
 @app.command("run")
 def run_service(
-    environment: str | None = typer.Option(
-        None,
-        "--environment",
-        help="运行环境，默认使用服务配置"
-    ),
-    host: str | None = typer.Option(
-        None,
-        "--host",
-        help="监听地址，默认使用服务配置"
-    ),
-    port: int | None = typer.Option(
-        None,
-        "--port",
-        help="监听端口，默认使用服务配置"
-    ),
-    reload: bool = typer.Option(
-        False,
-        "--reload",
-        help="代码变更时自动重载"
-    ),
-    operator: str = typer.Option(
-        "system",
-        "--operator",
-        help="操作人"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        environment: str | None = typer.Option(
+            None,
+            "--environment",
+            help="运行环境，默认使用服务配置"
+        ),
+        host: str | None = typer.Option(
+            None,
+            "--host",
+            help="监听地址，默认使用服务配置"
+        ),
+        port: int | None = typer.Option(
+            None,
+            "--port",
+            help="监听端口，默认使用服务配置"
+        ),
+        reload: bool = typer.Option(
+            False,
+            "--reload",
+            help="代码变更时自动重载"
+        ),
+        operator: str = typer.Option(
+            "system",
+            "--operator",
+            help="操作人"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """启动 Datamind 模型服务"""
     settings = get_settings()
@@ -103,12 +103,12 @@ def run_service(
         target_id_from="service_name",
     )
     async def _run(
-        *,
-        service_name: str,
-        run_environment: str,
-        run_host: str,
-        run_port: int,
-        reload_enabled: bool,
+            *,
+            service_name: str,
+            run_environment: str,
+            run_host: str,
+            run_port: int,
+            reload_enabled: bool,
     ):
         nonlocal process
 
@@ -200,10 +200,10 @@ def run_service(
 
     async def runner():
         async with cli_context(
-            user=operator,
-            source="cli",
-            verbose=verbose,
-            enable_audit=True,
+                user=operator,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
         ):
             await _run(
                 service_name=configured_service_name,

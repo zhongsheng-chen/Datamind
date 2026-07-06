@@ -57,12 +57,12 @@ class ScoringService(BaseRuntimeService):
     SERVICE_TYPE = "scoring"
 
     def __init__(
-        self,
-        *,
-        runtime_model: RuntimeModel,
-        feature_names: list[str] | None = None,
-        data_types: dict[str, DataType] | None = None,
-        scorecard_config: ScorecardConfig | dict[str, Any] | None = None,
+            self,
+            *,
+            runtime_model: RuntimeModel,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
+            scorecard_config: ScorecardConfig | dict[str, Any] | None = None,
     ):
         """初始化评分模型服务
 
@@ -104,8 +104,8 @@ class ScoringService(BaseRuntimeService):
         )
 
     def predict(
-        self,
-        features: dict[str, Any],
+            self,
+            features: dict[str, Any],
     ) -> dict[str, Any]:
         """单条评分
 
@@ -171,8 +171,8 @@ class ScoringService(BaseRuntimeService):
         })
 
     def predict_batch(
-        self,
-        features_list: list[dict[str, Any]],
+            self,
+            features_list: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """批量评分
 
@@ -213,16 +213,16 @@ class ScoringService(BaseRuntimeService):
         )
 
         if not isinstance(
-            probabilities,
-            list,
+                probabilities,
+                list,
         ):
             raise TypeError(
                 "批量评分未返回概率列表"
             )
 
         if not isinstance(
-            logits,
-            list,
+                logits,
+                list,
         ):
             raise TypeError(
                 "批量评分未返回 Logit 列表"
@@ -236,8 +236,8 @@ class ScoringService(BaseRuntimeService):
         predictions = []
 
         for probability, logit in zip(
-            probabilities,
-            logits,
+                probabilities,
+                logits,
         ):
             probability_value = float(
                 probability
@@ -265,8 +265,8 @@ class ScoringService(BaseRuntimeService):
         })
 
     def _resolve_scorecard_config(
-        self,
-        config: ScorecardConfig | dict[str, Any] | None,
+            self,
+            config: ScorecardConfig | dict[str, Any] | None,
     ) -> ScorecardConfig:
         """解析评分配置
 
@@ -282,14 +282,14 @@ class ScoringService(BaseRuntimeService):
             ScorecardConfig 实例
         """
         if isinstance(
-            config,
-            ScorecardConfig,
+                config,
+                ScorecardConfig,
         ):
             return config
 
         if isinstance(
-            config,
-            dict,
+                config,
+                dict,
         ):
             return ScorecardConfig(
                 **config
@@ -300,8 +300,8 @@ class ScoringService(BaseRuntimeService):
         )
 
         if isinstance(
-            runtime_config,
-            dict,
+                runtime_config,
+                dict,
         ):
             return ScorecardConfig(
                 **runtime_config

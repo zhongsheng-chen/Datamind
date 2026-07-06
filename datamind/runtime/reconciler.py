@@ -16,6 +16,9 @@
 说明：
   每个 Serving Worker 创建一个独立的 RuntimeReconciler。
 
+  每个 RuntimeReconciler 只处理所属 environment
+  的运行控制记录。
+
   controls 表保存 Serving 集群的期望运行状态，
   runtimes 表保存每个 Worker 的实际运行状态。
 
@@ -60,6 +63,7 @@
 
   reconciler = RuntimeReconciler(
       manager=manager,
+      environment="production",
       interval_seconds=2.0,
       heartbeat_interval_seconds=30.0,
   )
@@ -110,12 +114,15 @@ class ControlSnapshot:
 
     属性：
         deployment_id: 部署 ID
+        environment: 运行环境
         desired_status: 期望运行状态
         generation: 控制版本号
         updated_by: 最近更新人
     """
 
     deployment_id: str
+
+    environment: str
 
     desired_status: RuntimeControlStatus
 
@@ -150,8 +157,8 @@ class ReconcileResult:
     failed: int = 0
 
     def record(
-        self,
-        action: str,
+            self,
+            action: str,
     ) -> None:
         """记录协调动作
 
@@ -182,7 +189,7 @@ class ReconcileResult:
         )
 
     def to_dict(
-        self,
+            self,
     ) -> dict[str, int]:
         """转换为字典"""
         return {
@@ -200,28 +207,33 @@ class RuntimeReconciler:
 
     每个 Worker 创建一个独立协调器实例。
 
-    协调器定期读取 controls 表，
+    协调器定期读取当前 environment
+    对应的 controls 记录，
     并驱动当前 Worker 的 RuntimeManager
     达到期望运行状态。
     """
 
     def __init__(
-        self,
-        *,
-        manager: RuntimeManager,
-        interval_seconds: float = (
-            DEFAULT_INTERVAL_SECONDS
-        ),
-        heartbeat_interval_seconds: float = (
-            DEFAULT_HEARTBEAT_INTERVAL_SECONDS
-        ),
-        operator: str = DEFAULT_OPERATOR,
+            self,
+            *,
+            manager: RuntimeManager,
+            environment: str,
+            interval_seconds: float = (
+                    DEFAULT_INTERVAL_SECONDS
+            ),
+            heartbeat_interval_seconds: float = (
+                    DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+            ),
+            operator: str = DEFAULT_OPERATOR,
     ):
         """初始化运行时状态协调器
 
         参数：
             manager:
                 当前 Worker 的 RuntimeManager
+
+            environment:
+                当前 Serving Worker 所属运行环境
 
             interval_seconds:
                 状态协调间隔，单位秒
@@ -235,6 +247,11 @@ class RuntimeReconciler:
         异常：
             ValueError: 参数配置无效
         """
+        if not environment:
+            raise ValueError(
+                "environment 不能为空"
+            )
+
         if interval_seconds <= 0:
             raise ValueError(
                 "interval_seconds 必须大于 0"
@@ -252,6 +269,8 @@ class RuntimeReconciler:
             )
 
         self.manager = manager
+
+        self.environment = environment
 
         self.interval_seconds = float(
             interval_seconds
@@ -278,23 +297,23 @@ class RuntimeReconciler:
 
     @property
     def worker_id(
-        self,
+            self,
     ) -> str:
         """获取当前 Worker ID"""
         return self.manager.worker_id
 
     @property
     def is_running(
-        self,
+            self,
     ) -> bool:
         """判断协调器是否正在运行"""
         return (
-            self._task is not None
-            and not self._task.done()
+                self._task is not None
+                and not self._task.done()
         )
 
     async def start(
-        self,
+            self,
     ) -> None:
         """启动后台协调循环
 
@@ -316,6 +335,7 @@ class RuntimeReconciler:
         logger.info(
             "运行时协调器启动成功",
             worker_id=self.worker_id,
+            environment=self.environment,
             interval_seconds=(
                 self.interval_seconds
             ),
@@ -325,7 +345,7 @@ class RuntimeReconciler:
         )
 
     async def stop(
-        self,
+            self,
     ) -> None:
         """停止后台协调循环
 
@@ -352,10 +372,11 @@ class RuntimeReconciler:
         logger.info(
             "运行时协调器已停止",
             worker_id=self.worker_id,
+            environment=self.environment,
         )
 
     async def reconcile_once(
-        self,
+            self,
     ) -> ReconcileResult:
         """执行一次状态协调
 
@@ -363,6 +384,9 @@ class RuntimeReconciler:
             单次协调结果
 
         说明：
+            只协调当前 environment
+            对应的 Control。
+
             单个 Deployment 协调失败，
             不影响其他 Deployment 的状态协调。
         """
@@ -389,22 +413,26 @@ class RuntimeReconciler:
                     raise
 
                 except (
-                    BackendError,
-                    DeploymentNotFoundError,
-                    InvalidDeploymentStateError,
-                    RuntimeRouteError,
-                    VersionNotFoundError,
-                    SQLAlchemyError,
-                    RuntimeError,
-                    ValueError,
+                        BackendError,
+                        DeploymentNotFoundError,
+                        InvalidDeploymentStateError,
+                        RuntimeRouteError,
+                        VersionNotFoundError,
+                        SQLAlchemyError,
+                        RuntimeError,
+                        ValueError,
                 ) as exc:
                     result.failed += 1
 
                     logger.exception(
                         "运行时状态协调失败",
                         worker_id=self.worker_id,
+                        environment=self.environment,
                         deployment_id=(
                             control.deployment_id
+                        ),
+                        control_environment=(
+                            control.environment
                         ),
                         desired_status=(
                             control.desired_status.value
@@ -420,22 +448,23 @@ class RuntimeReconciler:
             )
 
             if (
-                result.loaded
-                or result.unloaded
-                or result.reloaded
-                or result.failed
+                    result.loaded
+                    or result.unloaded
+                    or result.reloaded
+                    or result.failed
             ):
                 logger.info(
                     "运行时状态协调完成",
                     worker_id=self.worker_id,
+                    environment=self.environment,
                     **result.to_dict(),
                 )
 
             return result
 
     def get_applied_generation(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> int | None:
         """获取本 Worker 已应用的控制版本
 
@@ -450,7 +479,7 @@ class RuntimeReconciler:
         )
 
     def get_applied_generations(
-        self,
+            self,
     ) -> dict[str, int]:
         """获取本 Worker 全部已应用版本
 
@@ -462,7 +491,7 @@ class RuntimeReconciler:
         )
 
     async def _run_loop(
-        self,
+            self,
     ) -> None:
         """运行后台协调循环"""
         while not self._stop_event.is_set():
@@ -473,13 +502,14 @@ class RuntimeReconciler:
                 raise
 
             except (
-                SQLAlchemyError,
-                RuntimeError,
-                ValueError,
+                    SQLAlchemyError,
+                    RuntimeError,
+                    ValueError,
             ) as exc:
                 logger.exception(
                     "运行时状态协调周期执行失败",
                     worker_id=self.worker_id,
+                    environment=self.environment,
                     error=str(exc),
                 )
 
@@ -493,24 +523,29 @@ class RuntimeReconciler:
                 continue
 
     async def _load_controls(
-        self,
+            self,
     ) -> list[ControlSnapshot]:
-        """读取运行控制状态
+        """读取当前环境的运行控制状态
 
         返回：
-            控制状态快照列表
+            当前 environment 对应的控制状态快照列表
         """
         async with UnitOfWork() as uow:
             repo = ControlRepository(
                 uow.session
             )
 
-            controls = await repo.list_controls()
+            controls = await repo.list_controls(
+                environment=self.environment,
+            )
 
             snapshots = [
                 ControlSnapshot(
                     deployment_id=str(
                         control.deployment_id
+                    ),
+                    environment=str(
+                        control.environment
                     ),
                     desired_status=(
                         self._parse_status(
@@ -532,8 +567,8 @@ class RuntimeReconciler:
         return snapshots
 
     async def _reconcile_control(
-        self,
-        control: ControlSnapshot,
+            self,
+            control: ControlSnapshot,
     ) -> str:
         """协调单个 Deployment
 
@@ -545,7 +580,19 @@ class RuntimeReconciler:
             unloaded
             reloaded
             unchanged
+
+        异常：
+            RuntimeError:
+                Control 环境与当前 Reconciler 环境不一致
         """
+        if control.environment != self.environment:
+            raise RuntimeError(
+                "运行控制环境与当前协调器环境不一致: "
+                f"deployment_id={control.deployment_id}, "
+                f"control_environment={control.environment}, "
+                f"reconciler_environment={self.environment}"
+            )
+
         deployment_id = control.deployment_id
 
         generation = control.generation
@@ -555,8 +602,8 @@ class RuntimeReconciler:
         )
 
         operator = (
-            control.updated_by
-            or self.operator
+                control.updated_by
+                or self.operator
         )
 
         local_loaded = self.manager.exists(
@@ -570,8 +617,8 @@ class RuntimeReconciler:
         )
 
         if (
-            desired_status
-            == RuntimeControlStatus.LOADED
+                desired_status
+                == RuntimeControlStatus.LOADED
         ):
             if not local_loaded:
                 await self.manager.start(
@@ -586,6 +633,7 @@ class RuntimeReconciler:
                 logger.info(
                     "Worker 加载部署模型",
                     worker_id=self.worker_id,
+                    environment=self.environment,
                     deployment_id=deployment_id,
                     generation=generation,
                 )
@@ -600,6 +648,7 @@ class RuntimeReconciler:
                 logger.debug(
                     "初始化本地控制版本",
                     worker_id=self.worker_id,
+                    environment=self.environment,
                     deployment_id=deployment_id,
                     generation=generation,
                 )
@@ -619,6 +668,7 @@ class RuntimeReconciler:
                 logger.info(
                     "Worker 重新加载部署模型",
                     worker_id=self.worker_id,
+                    environment=self.environment,
                     deployment_id=deployment_id,
                     previous_generation=(
                         applied_generation
@@ -631,8 +681,8 @@ class RuntimeReconciler:
             return "unchanged"
 
         if (
-            desired_status
-            == RuntimeControlStatus.UNLOADED
+                desired_status
+                == RuntimeControlStatus.UNLOADED
         ):
             if local_loaded:
                 await self.manager.stop(
@@ -647,6 +697,7 @@ class RuntimeReconciler:
                 logger.info(
                     "Worker 卸载部署模型",
                     worker_id=self.worker_id,
+                    environment=self.environment,
                     deployment_id=deployment_id,
                     generation=generation,
                 )
@@ -665,24 +716,25 @@ class RuntimeReconciler:
         )
 
     async def _heartbeat_if_due(
-        self,
-        controls: list[ControlSnapshot],
+            self,
+            controls: list[ControlSnapshot],
     ) -> None:
         """按间隔更新已加载模型运行心跳
 
         参数：
-            controls: 当前运行控制快照列表
+            controls:
+                当前环境的运行控制快照列表
         """
         now = time.monotonic()
 
         elapsed = (
-            now
-            - self._last_heartbeat_at
+                now
+                - self._last_heartbeat_at
         )
 
         if (
-            elapsed
-            < self.heartbeat_interval_seconds
+                elapsed
+                < self.heartbeat_interval_seconds
         ):
             return
 
@@ -697,33 +749,35 @@ class RuntimeReconciler:
             raise
 
         except (
-            SQLAlchemyError,
-            RuntimeError,
+                SQLAlchemyError,
+                RuntimeError,
         ) as exc:
             logger.exception(
                 "运行时心跳更新失败",
                 worker_id=self.worker_id,
+                environment=self.environment,
                 error=str(exc),
             )
 
     async def _heartbeat_loaded_runtimes(
-        self,
-        controls: list[ControlSnapshot],
+            self,
+            controls: list[ControlSnapshot],
     ) -> None:
         """更新当前 Worker 已加载模型心跳
 
         参数：
-            controls: 当前运行控制快照列表
+            controls:
+                当前环境的运行控制快照列表
         """
         deployment_ids = [
             control.deployment_id
             for control in controls
             if (
-                control.desired_status
-                == RuntimeControlStatus.LOADED
-                and self.manager.exists(
-                    control.deployment_id
-                )
+                    control.desired_status
+                    == RuntimeControlStatus.LOADED
+                    and self.manager.exists(
+                control.deployment_id
+            )
             )
         ]
 
@@ -760,12 +814,13 @@ class RuntimeReconciler:
         logger.debug(
             "运行时心跳更新完成",
             worker_id=self.worker_id,
+            environment=self.environment,
             heartbeat_count=heartbeat_count,
         )
 
     @staticmethod
     def _parse_status(
-        value: object,
+            value: object,
     ) -> RuntimeControlStatus:
         """解析运行控制状态
 
@@ -780,8 +835,8 @@ class RuntimeReconciler:
             ValueError: 状态值不合法
         """
         if isinstance(
-            value,
-            RuntimeControlStatus,
+                value,
+                RuntimeControlStatus,
         ):
             return value
 

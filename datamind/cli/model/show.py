@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
 from typing import Any
+
+import typer
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -32,40 +33,40 @@ console = Console()
 
 @app.command("show")
 def show_model(
-    name: str | None = typer.Argument(
-        None,
-        help="模型名称"
-    ),
-    model_id: str | None = typer.Option(
-        None,
-        "--model-id",
-        help="模型 ID"
-    ),
-    version: str | None = typer.Option(
-        None,
-        "--version",
-        help="模型版本号"
-    ),
-    version_id: str | None = typer.Option(
-        None,
-        "--version-id",
-        help="版本 ID"
-    ),
-    include_archived: bool = typer.Option(
-        False,
-        "--include-archived",
-        help="是否包含归档版本"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        name: str | None = typer.Argument(
+            None,
+            help="模型名称"
+        ),
+        model_id: str | None = typer.Option(
+            None,
+            "--model-id",
+            help="模型 ID"
+        ),
+        version: str | None = typer.Option(
+            None,
+            "--version",
+            help="模型版本号"
+        ),
+        version_id: str | None = typer.Option(
+            None,
+            "--version-id",
+            help="版本 ID"
+        ),
+        include_archived: bool = typer.Option(
+            False,
+            "--include-archived",
+            help="是否包含归档版本"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """查看模型详情"""
 

@@ -51,10 +51,11 @@
   - DATAMIND_LOG_UNMASKED_SUFFIX: 脱敏后面保留位数，默认 2
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
 from pathlib import Path
 from typing import Optional
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from datamind.constants import (
     LogLevel, SUPPORTED_LOG_LEVELS,

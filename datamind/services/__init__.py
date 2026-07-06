@@ -22,10 +22,10 @@
   )
 """
 
-from datamind.services.register import ModelRegister
 from datamind.services.deleter import ModelDeleter
-from datamind.services.lifecycle import ModelLifecycle
 from datamind.services.deployer import ModelDeployer
+from datamind.services.lifecycle import ModelLifecycle
+from datamind.services.register import ModelRegister
 from datamind.services.runtime import RuntimeController
 
 __all__ = [

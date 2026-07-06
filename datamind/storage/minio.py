@@ -17,8 +17,9 @@
   - 异常分类：区分不存在、权限、连接等错误
 """
 
-from minio import Minio, S3Error
 from io import BytesIO
+
+from minio import Minio, S3Error
 
 from datamind.storage.base import BaseStorageBackend
 from datamind.storage.errors import (
@@ -32,13 +33,13 @@ class MinIOStorageBackend(BaseStorageBackend):
     """MinIO对象存储后端"""
 
     def __init__(
-        self,
-        endpoint: str,
-        access_key: str,
-        secret_key: str,
-        bucket: str,
-        secure: bool,
-        region: str | None = None,
+            self,
+            endpoint: str,
+            access_key: str,
+            secret_key: str,
+            bucket: str,
+            secure: bool,
+            region: str | None = None,
     ):
         """初始化MinIO存储后端
 
@@ -58,8 +59,8 @@ class MinIOStorageBackend(BaseStorageBackend):
                 secure=secure,
                 region=region,
             )
-        except Exception as e:
-            raise StorageConnectionError(f"连接MinIO失败: {e}")
+        except Exception as exc:
+            raise StorageConnectionError(f"连接MinIO失败: {exc}")
 
         self.bucket = bucket
 
@@ -67,8 +68,8 @@ class MinIOStorageBackend(BaseStorageBackend):
         try:
             if not self.client.bucket_exists(bucket):
                 self.client.make_bucket(bucket)
-        except S3Error as e:
-            raise StoragePermissionError(f"访问存储桶失败: {e}")
+        except S3Error as exc:
+            raise StoragePermissionError(f"访问存储桶失败: {exc}")
 
     def put_object(self, key: str, data: bytes) -> None:
         """上传对象到存储桶
@@ -102,10 +103,10 @@ class MinIOStorageBackend(BaseStorageBackend):
                 return response.read()
             finally:
                 response.close()
-        except S3Error as e:
-            if e.code == "NoSuchKey":
+        except S3Error as exc:
+            if exc.code == "NoSuchKey":
                 raise StorageNotFoundError(f"对象不存在: {key}")
-            raise StoragePermissionError(f"读取对象失败: {e}")
+            raise StoragePermissionError(f"读取对象失败: {exc}")
 
     def delete_object(self, key: str) -> None:
         """删除对象
@@ -131,8 +132,8 @@ class MinIOStorageBackend(BaseStorageBackend):
         try:
             self.client.stat_object(self.bucket, key)
             return True
-        except S3Error as e:
-            if e.code == "NoSuchKey":
+        except S3Error as exc:
+            if exc.code == "NoSuchKey":
                 return False
             # 其他错误（如权限）返回 False 但记录日志
             return False

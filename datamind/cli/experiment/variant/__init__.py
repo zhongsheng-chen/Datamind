@@ -15,12 +15,12 @@
 
 import typer
 
+from datamind.cli.experiment.variant.activate import app as activate_app
 from datamind.cli.experiment.variant.add import app as add_app
+from datamind.cli.experiment.variant.archive import app as archive_app
+from datamind.cli.experiment.variant.deactivate import app as deactivate_app
 from datamind.cli.experiment.variant.list import app as list_app
 from datamind.cli.experiment.variant.show import app as show_app
-from datamind.cli.experiment.variant.activate import app as activate_app
-from datamind.cli.experiment.variant.deactivate import app as deactivate_app
-from datamind.cli.experiment.variant.archive import app as archive_app
 
 app = typer.Typer(
     help="实验分组管理命令"

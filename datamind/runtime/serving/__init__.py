@@ -24,11 +24,11 @@ from datamind.runtime.serving.base import BaseRuntimeService
 from datamind.runtime.serving.classification_service import (
     ClassificationService,
 )
-from datamind.runtime.serving.scoring_service import (
-    ScoringService,
-)
 from datamind.runtime.serving.factory import (
     RuntimeServiceFactory,
+)
+from datamind.runtime.serving.scoring_service import (
+    ScoringService,
 )
 
 __all__ = [

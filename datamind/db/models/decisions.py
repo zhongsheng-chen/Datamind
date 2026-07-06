@@ -6,9 +6,9 @@
 用于在线推理、A/B 测试、灰度发布和决策审计。
 """
 
-from sqlalchemy.sql import func
 from sqlalchemy import Column, String, Float, DateTime, Index
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 

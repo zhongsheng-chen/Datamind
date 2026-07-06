@@ -36,11 +36,11 @@
 """
 
 from .base import BaseModelAdapter
-from .sklearn import SklearnAdapter
-from .xgboost import XGBoostAdapter
-from .lightgbm import LightGBMAdapter
 from .catboost import CatBoostAdapter
 from .factory import ModelAdapterFactory
+from .lightgbm import LightGBMAdapter
+from .sklearn import SklearnAdapter
+from .xgboost import XGBoostAdapter
 
 __all__ = [
     "BaseModelAdapter",

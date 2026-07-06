@@ -11,8 +11,8 @@
   - DATAMIND_CLASSIFICATION_THRESHOLD: 分类阈值，默认 0.5
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ClassificationConfig(BaseSettings):

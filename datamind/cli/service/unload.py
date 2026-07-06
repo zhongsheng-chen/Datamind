@@ -14,8 +14,8 @@
 import asyncio
 import json
 
-import typer
 import structlog
+import typer
 from rich.console import Console
 
 from datamind.audit import audit
@@ -30,25 +30,25 @@ logger = structlog.get_logger(__name__)
 
 @app.command("unload")
 def unload_service(
-    deployment_id: str = typer.Argument(
-        ...,
-        help="部署 ID"
-    ),
-    operator: str = typer.Option(
-        "system",
-        "--operator",
-        help="操作人"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        deployment_id: str = typer.Argument(
+            ...,
+            help="部署 ID"
+        ),
+        operator: str = typer.Option(
+            "system",
+            "--operator",
+            help="操作人"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """请求卸载部署模型"""
 
@@ -58,8 +58,8 @@ def unload_service(
         target_id_from="target_deployment_id",
     )
     async def _run(
-        *,
-        target_deployment_id: str,
+            *,
+            target_deployment_id: str,
     ):
         if output not in ("text", "json"):
             raise typer.BadParameter(
@@ -120,10 +120,10 @@ def unload_service(
 
     async def runner():
         async with cli_context(
-            user=operator,
-            source="cli",
-            verbose=verbose,
-            enable_audit=True,
+                user=operator,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
         ):
             await _run(
                 target_deployment_id=deployment_id,

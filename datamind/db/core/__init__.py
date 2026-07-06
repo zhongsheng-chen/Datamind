@@ -24,8 +24,8 @@
 """
 
 from datamind.db.core.base import Base
-from datamind.db.core.mixins import IdMixin, TimestampMixin
 from datamind.db.core.engine import get_engine
+from datamind.db.core.mixins import IdMixin, TimestampMixin
 from datamind.db.core.uow import UnitOfWork
 
 __all__ = [

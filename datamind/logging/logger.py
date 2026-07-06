@@ -14,8 +14,9 @@
   logger.info("用户登录成功", user_id=123, action="login")
 """
 
-import structlog
 from typing import Optional
+
+import structlog
 
 from datamind.context.core import get_context
 

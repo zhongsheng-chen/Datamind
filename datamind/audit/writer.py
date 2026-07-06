@@ -76,12 +76,12 @@ class AuditWriter:
             await session.commit()
             return obj
 
-        except Exception as e:
+        except Exception as exc:
             await session.rollback()
 
             logger.error(
                 "审计写入失败",
-                error=str(e),
+                error=str(exc),
                 action=event.action,
                 target_id=event.target_id,
                 trace_id=event.trace_id,

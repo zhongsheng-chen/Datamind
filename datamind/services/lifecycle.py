@@ -40,13 +40,13 @@ class ModelLifecycle:
     """
 
     async def activate(
-        self,
-        *,
-        name: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        version_id: str | None = None,
-        updated_by: str = "system",
+            self,
+            *,
+            name: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            version_id: str | None = None,
+            updated_by: str = "system",
     ) -> dict[str, Any]:
         """激活模型或模型版本
 
@@ -139,13 +139,13 @@ class ModelLifecycle:
         raise RuntimeError("模型激活失败：事务未正常完成")
 
     async def deactivate(
-        self,
-        *,
-        name: str | None = None,
-        model_id: str | None = None,
-        version: str | None = None,
-        version_id: str | None = None,
-        updated_by: str = "system",
+            self,
+            *,
+            name: str | None = None,
+            model_id: str | None = None,
+            version: str | None = None,
+            version_id: str | None = None,
+            updated_by: str = "system",
     ) -> dict[str, Any]:
         """停用模型或模型版本
 

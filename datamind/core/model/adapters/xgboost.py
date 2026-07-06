@@ -41,10 +41,10 @@ class XGBoostAdapter(BaseModelAdapter):
     """
 
     def __init__(
-        self,
-        model,
-        feature_names=None,
-        data_types=None,
+            self,
+            model,
+            feature_names=None,
+            data_types=None,
     ):
         """初始化适配器
 
@@ -62,7 +62,7 @@ class XGBoostAdapter(BaseModelAdapter):
         self._validate_model()
 
     def _detect_capabilities(
-        self,
+            self,
     ) -> ModelCapability:
         """检测当前 XGBoost 模型实例能力
 
@@ -118,7 +118,7 @@ class XGBoostAdapter(BaseModelAdapter):
         return capabilities
 
     def _validate_model(
-        self,
+            self,
     ) -> None:
         """校验模型
 
@@ -130,8 +130,8 @@ class XGBoostAdapter(BaseModelAdapter):
             ValueError: 模型类别数量不是 2
         """
         if not hasattr(
-            self.model,
-            "n_classes_",
+                self.model,
+                "n_classes_",
         ):
             return
 
@@ -151,8 +151,8 @@ class XGBoostAdapter(BaseModelAdapter):
         )
 
     def predict_proba(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """预测违约概率
 
@@ -177,8 +177,8 @@ class XGBoostAdapter(BaseModelAdapter):
         )
 
         if (
-            probabilities.ndim != 2
-            or probabilities.shape[1] != 2
+                probabilities.ndim != 2
+                or probabilities.shape[1] != 2
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__}: "
@@ -198,8 +198,8 @@ class XGBoostAdapter(BaseModelAdapter):
         return result
 
     def decision_function(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """获取原始 Logit 值
 
@@ -248,8 +248,8 @@ class XGBoostAdapter(BaseModelAdapter):
         return result
 
     def predict_proba_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量预测违约概率
 
@@ -278,8 +278,8 @@ class XGBoostAdapter(BaseModelAdapter):
         )
 
         if (
-            probabilities.ndim != 2
-            or probabilities.shape[1] != 2
+                probabilities.ndim != 2
+                or probabilities.shape[1] != 2
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__}: "
@@ -300,8 +300,8 @@ class XGBoostAdapter(BaseModelAdapter):
         return result
 
     def decision_function_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量获取原始 Logit 值
 
@@ -355,7 +355,7 @@ class XGBoostAdapter(BaseModelAdapter):
         return result
 
     def get_feature_importance(
-        self,
+            self,
     ) -> dict[str, float]:
         """获取特征重要性
 
@@ -415,10 +415,10 @@ class XGBoostAdapter(BaseModelAdapter):
 
     @staticmethod
     def _resolve_booster_feature_name(
-        *,
-        booster,
-        index: int,
-        feature_name: str,
+            *,
+            booster,
+            index: int,
+            feature_name: str,
     ) -> str:
         """解析 Booster 特征名称
 
@@ -441,14 +441,14 @@ class XGBoostAdapter(BaseModelAdapter):
         )
 
         if (
-            not isinstance(
-                booster_feature_names,
-                str,
-            )
-            and isinstance(
-                booster_feature_names,
-                Iterable,
-            )
+                not isinstance(
+                    booster_feature_names,
+                    str,
+                )
+                and isinstance(
+            booster_feature_names,
+            Iterable,
+        )
         ):
             feature_names = {
                 str(name)
@@ -462,7 +462,7 @@ class XGBoostAdapter(BaseModelAdapter):
 
     @staticmethod
     def _ensure_2d(
-        X: np.ndarray,
+            X: np.ndarray,
     ) -> np.ndarray:
         """确保输入为二维数组
 

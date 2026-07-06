@@ -24,7 +24,7 @@
           payload={"features": {"age": 35}},
           source="api",
           latency_ms=125.5,
-          user="tom",
+          user="system",
           ip="127.0.0.1"
       )
 """
@@ -39,8 +39,8 @@ class RequestRepository(BaseRepository):
     """请求仓储"""
 
     async def get_request(
-        self,
-        request_id: str,
+            self,
+            request_id: str,
     ) -> Request | None:
         """获取请求记录
 
@@ -56,11 +56,11 @@ class RequestRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_requests(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Request]:
         """获取请求记录列表
 
@@ -95,10 +95,10 @@ class RequestRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_recent_requests(
-        self,
-        *,
-        limit: int | None = 100,
-        offset: int | None = None,
+            self,
+            *,
+            limit: int | None = 100,
+            offset: int | None = None,
     ) -> list[Request]:
         """获取最近请求列表
 
@@ -115,11 +115,11 @@ class RequestRepository(BaseRepository):
         )
 
     async def list_model_requests(
-        self,
-        model_id: str,
-        *,
-        limit: int | None = 100,
-        offset: int | None = None,
+            self,
+            model_id: str,
+            *,
+            limit: int | None = 100,
+            offset: int | None = None,
     ) -> list[Request]:
         """获取模型请求列表
 
@@ -142,15 +142,15 @@ class RequestRepository(BaseRepository):
         )
 
     def create_request(
-        self,
-        *,
-        request_id: str,
-        model_id: str,
-        payload: dict | None = None,
-        source: str | None = None,
-        latency_ms: float | None = None,
-        user: str | None = None,
-        ip: str | None = None,
+            self,
+            *,
+            request_id: str,
+            model_id: str,
+            payload: dict | None = None,
+            source: str | None = None,
+            latency_ms: float | None = None,
+            user: str | None = None,
+            ip: str | None = None,
     ) -> Request:
         """创建请求记录
 

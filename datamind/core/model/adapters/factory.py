@@ -28,10 +28,10 @@
     importance = adapter.get_feature_importance()
 """
 
+from datamind.core.model.adapters.catboost import CatBoostAdapter
+from datamind.core.model.adapters.lightgbm import LightGBMAdapter
 from datamind.core.model.adapters.sklearn import SklearnAdapter
 from datamind.core.model.adapters.xgboost import XGBoostAdapter
-from datamind.core.model.adapters.lightgbm import LightGBMAdapter
-from datamind.core.model.adapters.catboost import CatBoostAdapter
 
 
 class ModelAdapterFactory:

@@ -5,9 +5,9 @@
 记录系统控制平面的所有变更行为，提供变更追溯和审计能力。
 """
 
-from sqlalchemy.sql import func
 from sqlalchemy import Column, String, DateTime, Index, text
 from sqlalchemy.dialects.postgresql import TEXT, JSONB
+from sqlalchemy.sql import func
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 

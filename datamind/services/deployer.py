@@ -41,8 +41,9 @@
   )
 """
 
-import structlog
 from typing import Any
+
+import structlog
 
 from datamind.config.classification import ClassificationConfig
 from datamind.config.scorecard import ScorecardConfig
@@ -60,8 +61,8 @@ from datamind.models.errors import (
     DeploymentError,
     DeploymentNotFoundError,
 )
-from datamind.models.resolver import ModelResolver
 from datamind.models.guard import ModelGuard
+from datamind.models.resolver import ModelResolver
 from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
@@ -71,18 +72,18 @@ class ModelDeployer:
     """模型部署器"""
 
     async def create_deployment(
-        self,
-        *,
-        name: str | None = None,
-        model_id: str | None = None,
-        version_id: str | None = None,
-        version: str | None = None,
-        environment: str = "production",
-        rollout_type: str = "full",
-        role: str = "champion",
-        config: dict | None = None,
-        description: str | None = None,
-        deployed_by: str | None = None,
+            self,
+            *,
+            name: str | None = None,
+            model_id: str | None = None,
+            version_id: str | None = None,
+            version: str | None = None,
+            environment: str = "production",
+            rollout_type: str = "full",
+            role: str = "champion",
+            config: dict | None = None,
+            description: str | None = None,
+            deployed_by: str | None = None,
     ) -> dict[str, Any]:
         """创建部署
 
@@ -108,7 +109,9 @@ class ModelDeployer:
                 - role
                 - status
         """
-        deployment_id = generate_random_id(prefix="dep")
+        deployment_id = generate_random_id(
+            prefix="dep"
+        )
 
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
@@ -179,10 +182,10 @@ class ModelDeployer:
         raise RuntimeError("创建部署失败：事务未正常完成")
 
     async def enable_deployment(
-        self,
-        *,
-        deployment_id: str,
-        updated_by: str | None = None,
+            self,
+            *,
+            deployment_id: str,
+            updated_by: str | None = None,
     ) -> dict[str, Any]:
         """启用部署
 
@@ -252,10 +255,10 @@ class ModelDeployer:
         raise RuntimeError("启用部署失败：事务未正常完成")
 
     async def disable_deployment(
-        self,
-        *,
-        deployment_id: str,
-        updated_by: str | None = None,
+            self,
+            *,
+            deployment_id: str,
+            updated_by: str | None = None,
     ) -> dict[str, Any]:
         """禁用部署
 
@@ -325,10 +328,10 @@ class ModelDeployer:
         raise RuntimeError("禁用部署失败：事务未正常完成")
 
     def _validate_config(
-        self,
-        *,
-        task_type: str,
-        config: dict | None,
+            self,
+            *,
+            task_type: str,
+            config: dict | None,
     ) -> None:
         """配置校验（内部方法）
 
@@ -355,5 +358,5 @@ class ModelDeployer:
 
         except DeploymentError:
             raise
-        except Exception as e:
-            raise DeploymentError(f"配置校验失败: {e}") from e
+        except Exception as exc:
+            raise DeploymentError(f"配置校验失败: {exc}") from exc

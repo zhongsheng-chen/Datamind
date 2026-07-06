@@ -15,13 +15,12 @@
 
 import typer
 
-from datamind.cli.model.register import app as register_app
-from datamind.cli.model.list import app as list_app
-from datamind.cli.model.show import app as show_app
 from datamind.cli.model.activate import app as activate_app
 from datamind.cli.model.deactivate import app as deactivate_app
 from datamind.cli.model.delete import app as delete_app
-
+from datamind.cli.model.list import app as list_app
+from datamind.cli.model.register import app as register_app
+from datamind.cli.model.show import app as show_app
 
 app = typer.Typer(
     help="模型管理命令"

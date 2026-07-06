@@ -48,8 +48,8 @@ try:
     logger.info("=" * 50)
     logger.info("列出完成")
 
-except Exception as e:
-    logger.error(f"列出模型失败: {e}")
+except Exception as exc:
+    logger.error(f"列出模型失败: {exc}")
     import traceback
     traceback.print_exc()
     sys.exit(1)

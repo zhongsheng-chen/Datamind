@@ -13,9 +13,10 @@
 
 import asyncio
 import json
-import typer
-import structlog
 from typing import Any
+
+import structlog
+import typer
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -38,35 +39,35 @@ logger = structlog.get_logger(__name__)
 
 @app.command("analyze")
 def analyze_experiment(
-    experiment_id: str = typer.Argument(
-        ...,
-        help="实验 ID"
-    ),
-    baseline_variant_id: str | None = typer.Option(
-        None,
-        "--baseline-variant-id",
-        help="基准分组 ID"
-    ),
-    limit: int | None = typer.Option(
-        None,
-        "--limit",
-        help="实验结果数量限制"
-    ),
-    offset: int | None = typer.Option(
-        None,
-        "--offset",
-        help="实验结果分页偏移"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        experiment_id: str = typer.Argument(
+            ...,
+            help="实验 ID"
+        ),
+        baseline_variant_id: str | None = typer.Option(
+            None,
+            "--baseline-variant-id",
+            help="基准分组 ID"
+        ),
+        limit: int | None = typer.Option(
+            None,
+            "--limit",
+            help="实验结果数量限制"
+        ),
+        offset: int | None = typer.Option(
+            None,
+            "--offset",
+            help="实验结果分页偏移"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """分析实验效果"""
 
@@ -114,8 +115,8 @@ def analyze_experiment(
 
     async def runner():
         async with cli_context(
-            verbose=verbose,
-            enable_audit=False,
+                verbose=verbose,
+                enable_audit=False,
         ):
             await _run()
 

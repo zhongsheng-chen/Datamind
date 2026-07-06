@@ -16,14 +16,15 @@
           ...
 """
 
-import time
-import structlog
 import functools
+import time
+
+import structlog
 
 from datamind.context import get_context
 
-
 logger = structlog.get_logger(__name__)
+
 
 def observe_storage(op: str):
     """存储操作可观测性装饰器
@@ -36,6 +37,7 @@ def observe_storage(op: str):
         def put(self, key, data):
             ...
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -57,12 +59,12 @@ def observe_storage(op: str):
 
                 return result
 
-            except Exception as e:
+            except Exception as exc:
                 logger.exception(
                     "存储操作失败",
                     operation=op,
                     status="error",
-                    error_type=type(e).__name__,
+                    error_type=type(exc).__name__,
                     storage_type=getattr(self.config, "type", None)
                     if hasattr(self, "config") else None,
                     **ctx
@@ -70,4 +72,5 @@ def observe_storage(op: str):
                 raise
 
         return wrapper
+
     return decorator

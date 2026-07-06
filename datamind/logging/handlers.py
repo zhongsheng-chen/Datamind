@@ -17,13 +17,13 @@
 """
 
 import logging
-from queue import Queue
 from logging.handlers import (
     QueueHandler,
     QueueListener,
     TimedRotatingFileHandler,
     RotatingFileHandler,
 )
+from queue import Queue
 
 from datamind.config.logging import LoggingConfig
 

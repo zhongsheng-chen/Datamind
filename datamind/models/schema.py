@@ -55,10 +55,10 @@ class SchemaExtractor:
 
     @classmethod
     def extract(
-        cls,
-        *,
-        model: Any,
-        framework: str,
+            cls,
+            *,
+            model: Any,
+            framework: str,
     ) -> dict | None:
         """提取模型输入 Schema
 
@@ -94,9 +94,9 @@ class SchemaExtractor:
 
     @staticmethod
     def _extract_feature_names(
-        *,
-        model: Any,
-        framework: str,
+            *,
+            model: Any,
+            framework: str,
     ) -> list[str] | None:
         """提取特征名称
 
@@ -190,8 +190,8 @@ class SchemaExtractor:
 
     @classmethod
     def _get_source(
-        cls,
-        framework: str,
+            cls,
+            framework: str,
     ) -> str:
         """返回 Schema 来源
 

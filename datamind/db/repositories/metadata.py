@@ -59,7 +59,6 @@ class MetadataPatch:
         archived_at: 归档时间
         archived_by: 归档人
     """
-
     name: str | None = None
     model_type: str | None = None
     task_type: str | None = None
@@ -75,10 +74,10 @@ class MetadataRepository(BaseRepository):
     """模型元数据仓储"""
 
     async def get_model(
-        self,
-        *,
-        model_id: str | None = None,
-        name: str | None = None,
+            self,
+            *,
+            model_id: str | None = None,
+            name: str | None = None,
     ) -> Metadata | None:
         """获取单个模型
 
@@ -107,12 +106,12 @@ class MetadataRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_models(
-        self,
-        *,
-        exclude_status: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            exclude_status: str | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Metadata]:
         """获取模型列表
 
@@ -180,16 +179,16 @@ class MetadataRepository(BaseRepository):
         )
 
     def create_model(
-        self,
-        *,
-        model_id: str,
-        name: str,
-        model_type: str,
-        task_type: str,
-        framework: str,
-        description: str | None = None,
-        created_by: str | None = None,
-        updated_by: str | None = None,
+            self,
+            *,
+            model_id: str,
+            name: str,
+            model_type: str,
+            task_type: str,
+            framework: str,
+            description: str | None = None,
+            created_by: str | None = None,
+            updated_by: str | None = None,
     ) -> Metadata:
         """创建模型
 
@@ -222,11 +221,11 @@ class MetadataRepository(BaseRepository):
         return obj
 
     def update_model(
-        self,
-        metadata: Metadata,
-        patch: MetadataPatch,
-        *,
-        updated_by: str | None = None,
+            self,
+            metadata: Metadata,
+            patch: MetadataPatch,
+            *,
+            updated_by: str | None = None,
     ) -> Metadata:
         """更新模型元数据
 
@@ -252,10 +251,10 @@ class MetadataRepository(BaseRepository):
         return metadata
 
     def archive_model(
-        self,
-        metadata: Metadata,
-        *,
-        updated_by: str | None = None,
+            self,
+            metadata: Metadata,
+            *,
+            updated_by: str | None = None,
     ) -> Metadata:
         """归档模型
 
@@ -276,10 +275,10 @@ class MetadataRepository(BaseRepository):
         return metadata
 
     def activate_model(
-        self,
-        metadata: Metadata,
-        *,
-        updated_by: str | None = None,
+            self,
+            metadata: Metadata,
+            *,
+            updated_by: str | None = None,
     ) -> Metadata:
         """激活模型
 

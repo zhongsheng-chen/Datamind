@@ -31,8 +31,9 @@
   )
 """
 
-import structlog
 from typing import Any
+
+import structlog
 
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
@@ -61,11 +62,11 @@ class RuntimeManager:
     """运行时管理器"""
 
     def __init__(
-        self,
-        *,
-        loader: ModelLoader | None = None,
-        registry: RuntimeRegistry | None = None,
-        worker_id: str = DEFAULT_WORKER_ID,
+            self,
+            *,
+            loader: ModelLoader | None = None,
+            registry: RuntimeRegistry | None = None,
+            worker_id: str = DEFAULT_WORKER_ID,
     ):
         """初始化运行时管理器
 
@@ -79,11 +80,11 @@ class RuntimeManager:
         self.worker_id = worker_id
 
     async def start(
-        self,
-        deployment_id: str,
-        *,
-        operator: str = "system",
-        force: bool = False,
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
+            force: bool = False,
     ) -> RuntimeModel:
         """加载指定部署对应的模型
 
@@ -251,8 +252,8 @@ class RuntimeManager:
                 bento_tag=bento_tag,
             )
 
-        except Exception as e:
-            load_error = e
+        except Exception as exc:
+            load_error = exc
 
             self.registry.unregister(
                 deployment_id,
@@ -269,7 +270,7 @@ class RuntimeManager:
                 if runtime is not None:
                     runtime_repo.mark_failed(
                         runtime,
-                        error=str(e),
+                        error=str(exc),
                         started_by=operator,
                         context=runtime_context,
                     )
@@ -290,10 +291,10 @@ class RuntimeManager:
         return runtime_model
 
     async def stop(
-        self,
-        deployment_id: str,
-        *,
-        operator: str = "system",
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
     ) -> RuntimeModel | None:
         """卸载指定部署对应的模型
 
@@ -346,10 +347,10 @@ class RuntimeManager:
         return runtime_model
 
     async def restart(
-        self,
-        deployment_id: str,
-        *,
-        operator: str = "system",
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
     ) -> RuntimeModel:
         """重启指定部署对应的模型
 
@@ -372,8 +373,8 @@ class RuntimeManager:
         )
 
     async def status(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> dict:
         """查看指定部署的运行状态
 
@@ -432,10 +433,10 @@ class RuntimeManager:
         }
 
     def get(
-        self,
-        deployment_id: str,
-        *,
-        touch: bool = True,
+            self,
+            deployment_id: str,
+            *,
+            touch: bool = True,
     ) -> RuntimeModel | None:
         """获取运行时模型
 
@@ -452,10 +453,10 @@ class RuntimeManager:
         )
 
     def get_model(
-        self,
-        deployment_id: str,
-        *,
-        touch: bool = True,
+            self,
+            deployment_id: str,
+            *,
+            touch: bool = True,
     ) -> Any | None:
         """获取已加载模型对象
 
@@ -472,8 +473,8 @@ class RuntimeManager:
         )
 
     def exists(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> bool:
         """判断部署是否已加载
 
@@ -488,7 +489,7 @@ class RuntimeManager:
         )
 
     def all(
-        self,
+            self,
     ) -> list[RuntimeModel]:
         """获取所有已加载模型
 
@@ -498,7 +499,7 @@ class RuntimeManager:
         return self.registry.all()
 
     def to_dicts(
-        self,
+            self,
     ) -> list[dict]:
         """获取所有已加载模型的字典信息
 
@@ -508,7 +509,7 @@ class RuntimeManager:
         return self.registry.to_dicts()
 
     def count(
-        self,
+            self,
     ) -> int:
         """获取已加载模型数量
 
@@ -518,16 +519,16 @@ class RuntimeManager:
         return self.registry.count()
 
     def clear(
-        self,
+            self,
     ) -> None:
         """清空内存注册表"""
         self.registry.clear()
 
     async def ensure_loaded(
-        self,
-        deployment_id: str,
-        *,
-        operator: str = "system",
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
     ) -> RuntimeModel:
         """确保指定部署已经加载
 
@@ -551,14 +552,14 @@ class RuntimeManager:
         )
 
     async def _get_or_create_runtime(
-        self,
-        *,
-        runtime_repo: RuntimeRepository,
-        deployment_id: str,
-        model_id: str,
-        version_id: str,
-        framework: str,
-        operator: str,
+            self,
+            *,
+            runtime_repo: RuntimeRepository,
+            deployment_id: str,
+            model_id: str,
+            version_id: str,
+            framework: str,
+            operator: str,
     ):
         """获取或创建运行记录"""
         runtime = await runtime_repo.get_deployment_runtime(
@@ -575,7 +576,9 @@ class RuntimeManager:
             return runtime
 
         return runtime_repo.create_runtime(
-            runtime_id=generate_random_id(prefix="rtm"),
+            runtime_id=generate_random_id(
+                prefix="rtm"
+            ),
             deployment_id=deployment_id,
             model_id=model_id,
             version_id=version_id,
@@ -589,8 +592,8 @@ class RuntimeManager:
 
     @staticmethod
     def _validate_required(
-        name: str,
-        value: str,
+            name: str,
+            value: str,
     ) -> None:
         """校验必填字符串参数
 

@@ -101,14 +101,14 @@ class RuntimeRegistry:
         self._lock = RLock()
 
     def register(
-        self,
-        *,
-        deployment_id: str,
-        model_id: str,
-        version_id: str,
-        framework: str,
-        model: Any,
-        metadata: dict[str, Any] | None = None,
+            self,
+            *,
+            deployment_id: str,
+            model_id: str,
+            version_id: str,
+            framework: str,
+            model: Any,
+            metadata: dict[str, Any] | None = None,
     ) -> RuntimeModel:
         """注册已加载模型
 
@@ -149,10 +149,10 @@ class RuntimeRegistry:
         return runtime_model
 
     def get(
-        self,
-        deployment_id: str,
-        *,
-        touch: bool = True,
+            self,
+            deployment_id: str,
+            *,
+            touch: bool = True,
     ) -> RuntimeModel | None:
         """获取运行时模型
 
@@ -175,10 +175,10 @@ class RuntimeRegistry:
             return runtime_model
 
     def get_model(
-        self,
-        deployment_id: str,
-        *,
-        touch: bool = True,
+            self,
+            deployment_id: str,
+            *,
+            touch: bool = True,
     ) -> Any | None:
         """获取已加载模型对象
 
@@ -200,8 +200,8 @@ class RuntimeRegistry:
         return runtime_model.model
 
     def exists(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> bool:
         """判断部署是否已加载
 
@@ -218,8 +218,8 @@ class RuntimeRegistry:
             return deployment_id in self._models
 
     def unregister(
-        self,
-        deployment_id: str,
+            self,
+            deployment_id: str,
     ) -> RuntimeModel | None:
         """卸载运行时模型
 
@@ -236,7 +236,7 @@ class RuntimeRegistry:
             return self._models.pop(deployment_id, None)
 
     def all(
-        self,
+            self,
     ) -> list[RuntimeModel]:
         """获取所有已加载模型
 
@@ -247,7 +247,7 @@ class RuntimeRegistry:
             return list(self._models.values())
 
     def to_dicts(
-        self,
+            self,
     ) -> list[dict]:
         """转换为字典列表
 
@@ -276,8 +276,8 @@ class RuntimeRegistry:
 
     @staticmethod
     def _validate_required(
-        name: str,
-        value: str,
+            name: str,
+            value: str,
     ) -> None:
         """校验必填字符串参数
 

@@ -16,6 +16,7 @@
 """
 
 from typing import Dict, Any
+
 import structlog
 
 from datamind.context.keys import ALL_KEYS
@@ -35,6 +36,7 @@ def text_renderer():
     返回：
         文本渲染器函数
     """
+
     def renderer(_, __, event_dict: Dict[str, Any]) -> str:
         cols = [
             event_dict.pop("timestamp") or "-",

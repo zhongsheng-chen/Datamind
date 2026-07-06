@@ -6,10 +6,9 @@
 用于保证同一个主体在同一个实验中稳定命中同一个分组。
 """
 
-from sqlalchemy.sql import func
 from sqlalchemy import Column, String, Float, DateTime, Index
-
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 

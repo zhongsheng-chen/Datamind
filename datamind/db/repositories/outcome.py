@@ -71,7 +71,6 @@ class OutcomePatch:
         context: 结果上下文
         outcome_time: 结果发生时间
     """
-
     experiment_id: str | None = None
     variant_id: str | None = None
     assignment_id: str | None = None
@@ -93,8 +92,8 @@ class OutcomeRepository(BaseRepository):
     """实验结果仓储"""
 
     async def get_outcome(
-        self,
-        outcome_id: str,
+            self,
+            outcome_id: str,
     ) -> Outcome | None:
         """获取实验结果
 
@@ -110,11 +109,11 @@ class OutcomeRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_outcomes(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Outcome]:
         """获取实验结果列表
 
@@ -159,11 +158,11 @@ class OutcomeRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_experiment_outcomes(
-        self,
-        experiment_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            experiment_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Outcome]:
         """获取实验结果列表
 
@@ -186,11 +185,11 @@ class OutcomeRepository(BaseRepository):
         )
 
     async def list_variant_outcomes(
-        self,
-        variant_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            variant_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Outcome]:
         """获取实验分组结果列表
 
@@ -213,11 +212,11 @@ class OutcomeRepository(BaseRepository):
         )
 
     async def list_subject_outcomes(
-        self,
-        subject_key: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            subject_key: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Outcome]:
         """获取主体结果列表
 
@@ -240,11 +239,11 @@ class OutcomeRepository(BaseRepository):
         )
 
     async def list_request_outcomes(
-        self,
-        request_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            request_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Outcome]:
         """获取请求结果列表
 
@@ -267,24 +266,24 @@ class OutcomeRepository(BaseRepository):
         )
 
     def create_outcome(
-        self,
-        *,
-        outcome_id: str,
-        subject_key: str,
-        experiment_id: str | None = None,
-        variant_id: str | None = None,
-        assignment_id: str | None = None,
-        decision_id: str | None = None,
-        request_id: str | None = None,
-        subject_type: str | None = None,
-        approved: bool | None = None,
-        converted: bool | None = None,
-        defaulted: bool | None = None,
-        overdue_days: int | None = None,
-        amount: float | None = None,
-        label: str | None = None,
-        context: dict | None = None,
-        outcome_time: datetime | None = None,
+            self,
+            *,
+            outcome_id: str,
+            subject_key: str,
+            experiment_id: str | None = None,
+            variant_id: str | None = None,
+            assignment_id: str | None = None,
+            decision_id: str | None = None,
+            request_id: str | None = None,
+            subject_type: str | None = None,
+            approved: bool | None = None,
+            converted: bool | None = None,
+            defaulted: bool | None = None,
+            overdue_days: int | None = None,
+            amount: float | None = None,
+            label: str | None = None,
+            context: dict | None = None,
+            outcome_time: datetime | None = None,
     ) -> Outcome:
         """创建实验结果
 
@@ -333,9 +332,9 @@ class OutcomeRepository(BaseRepository):
         return obj
 
     def update_outcome(
-        self,
-        outcome: Outcome,
-        patch: OutcomePatch,
+            self,
+            outcome: Outcome,
+            patch: OutcomePatch,
     ) -> Outcome:
         """更新实验结果
 

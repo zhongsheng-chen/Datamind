@@ -1,4 +1,4 @@
-# datamind/utils/id.py
+# datamind/utils/generator.py
 
 """ID 生成工具
 
@@ -9,22 +9,27 @@
   - generate_random_id: 生成随机 ID，用于事件类对象
 
 使用示例：
-    from datamind.utils.id import generate_id, generate_random_id
+  from datamind.utils.generator import (
+      generate_id,
+      generate_random_id,
+  )
 
-    # 生成模型 ID
-    model_id = generate_id(
-        prefix="mdl",
-        keys=(name,),
-    )
+  # 生成模型 ID
+  model_id = generate_id(
+      prefix="mdl",
+      keys=(name,),
+  )
 
-    # 生成版本 ID
-    version_id = generate_id(
-        prefix="ver",
-        keys=(model_id, version),
-    )
+  # 生成版本 ID
+  version_id = generate_id(
+      prefix="ver",
+      keys=(model_id, version),
+  )
 
-    # 生成部署 ID
-    deployment_id = generate_random_id(prefix="dep")
+  # 生成部署 ID
+  deployment_id = generate_random_id(
+      prefix="dep"
+  )
 """
 
 import hashlib
@@ -32,9 +37,9 @@ import uuid
 
 
 def generate_id(
-    *,
-    prefix: str,
-    keys: tuple[str, ...],
+        *,
+        prefix: str,
+        keys: tuple[str, ...],
 ) -> str:
     """生成唯一 ID
 
@@ -54,9 +59,10 @@ def generate_id(
 
     return f"{prefix}_{digest}"
 
+
 def generate_random_id(
-    *,
-    prefix: str,
+        *,
+        prefix: str,
 ) -> str:
     """生成随机 ID
 

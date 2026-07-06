@@ -14,11 +14,12 @@
   start_retention_worker(config)
 """
 
-from pathlib import Path
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 import threading
 import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -51,8 +52,8 @@ def cleanup_logs(log_dir: Path, retention_days: int, timezone: str) -> None:
             pass
         except PermissionError:
             logger.warning("权限不足，无法删除日志文件", file=str(file))
-        except OSError as e:
-            logger.warning("删除日志文件失败", file=str(file), error=str(e))
+        except OSError as exc:
+            logger.warning("删除日志文件失败", file=str(file), error=str(exc))
 
 
 def start_retention_worker(config) -> None:
@@ -61,6 +62,7 @@ def start_retention_worker(config) -> None:
     参数：
         config: 日志配置对象（需包含 dir、retention_days、timezone 属性）
     """
+
     def worker():
         while True:
             cleanup_logs(

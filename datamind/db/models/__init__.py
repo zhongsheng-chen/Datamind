@@ -29,18 +29,18 @@
   )
 """
 
-from datamind.db.models.audit import Audit
-from datamind.db.models.requests import Request
-from datamind.db.models.decisions import Decision
 from datamind.db.models.assignments import Assignment
-from datamind.db.models.routing import Routing
-from datamind.db.models.deployments import Deployment
+from datamind.db.models.audit import Audit
 from datamind.db.models.controls import Control
-from datamind.db.models.runtimes import Runtime
+from datamind.db.models.decisions import Decision
+from datamind.db.models.deployments import Deployment
 from datamind.db.models.experiments import Experiment
-from datamind.db.models.variants import Variant
-from datamind.db.models.outcomes import Outcome
 from datamind.db.models.metadata import Metadata
+from datamind.db.models.outcomes import Outcome
+from datamind.db.models.requests import Request
+from datamind.db.models.routing import Routing
+from datamind.db.models.runtimes import Runtime
+from datamind.db.models.variants import Variant
 from datamind.db.models.versions import Version
 
 __all__ = [

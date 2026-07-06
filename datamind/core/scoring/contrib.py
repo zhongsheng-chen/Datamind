@@ -43,10 +43,10 @@
     ])
 """
 
-import structlog
-import numpy as np
-
 from typing import Any
+
+import numpy as np
+import structlog
 
 from datamind.core.inference import Inference
 from datamind.core.scoring.transformer import ScoreTransformer
@@ -67,9 +67,9 @@ class LRContrib:
     """
 
     def __init__(
-        self,
-        inference: Inference,
-        transformer: ScoreTransformer | None = None,
+            self,
+            inference: Inference,
+            transformer: ScoreTransformer | None = None,
     ):
         """初始化逻辑回归特征贡献分解器
 

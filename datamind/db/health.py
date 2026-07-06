@@ -15,6 +15,7 @@
 """
 
 import time
+
 import structlog
 from sqlalchemy import text
 
@@ -60,13 +61,13 @@ async def health_check() -> dict:
 
         return result
 
-    except Exception as e:
+    except Exception as exc:
         latency = (time.perf_counter() - start) * 1000
 
         result = {
             "status": "error",
             "latency_ms": round(latency, 2),
-            "error": str(e),
+            "error": str(exc),
         }
 
         logger.error(

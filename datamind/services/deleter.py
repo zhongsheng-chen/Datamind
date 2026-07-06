@@ -28,10 +28,11 @@
   result = await deleter.delete(model_id="mdl_a1b2c3d4")
 """
 
-import structlog
-import bentoml
-from typing import Any
 from datetime import datetime, timezone
+from typing import Any
+
+import bentoml
+import structlog
 
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.repositories import (
@@ -55,14 +56,14 @@ class ModelDeleter:
         self.storage = get_storage()
 
     async def delete(
-        self,
-        *,
-        model_id: str | None = None,
-        name: str | None = None,
-        version: str | None = None,
-        version_id: str | None = None,
-        purge: bool = False,
-        operator: str | None = None,
+            self,
+            *,
+            model_id: str | None = None,
+            name: str | None = None,
+            version: str | None = None,
+            version_id: str | None = None,
+            purge: bool = False,
+            operator: str | None = None,
     ) -> dict[str, Any]:
         """删除模型或版本
 
@@ -195,9 +196,9 @@ class ModelDeleter:
         """
         # 删除存储文件
         for key in (
-            version.model_key,
-            version.input_schema_key,
-            version.output_schema_key,
+                version.model_key,
+                version.input_schema_key,
+                version.output_schema_key,
         ):
             if not key:
                 continue
@@ -213,11 +214,11 @@ class ModelDeleter:
                     key=key,
                 )
 
-            except Exception as e:
+            except Exception as exc:
                 logger.error(
                     "删除存储文件失败",
                     key=key,
-                    error=str(e),
+                    error=str(exc),
                 )
                 raise
 
@@ -236,22 +237,22 @@ class ModelDeleter:
                     )
                     break
 
-        except Exception as e:
+        except Exception as exc:
             logger.error(
                 "删除 BentoML 模型失败",
                 tag=version.bento_tag,
-                error=str(e),
+                error=str(exc),
             )
             raise
 
     async def _purge_all_versions(
-        self,
-        session,
-        model_id: str,
-        *,
-        purge: bool,
-        deleted_at: datetime,
-        operator: str | None = None,
+            self,
+            session,
+            model_id: str,
+            *,
+            purge: bool,
+            deleted_at: datetime,
+            operator: str | None = None,
     ) -> int:
         """硬删除模型的所有版本
 

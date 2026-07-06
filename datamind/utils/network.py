@@ -35,8 +35,8 @@ def get_host_ip() -> str:
     """
     try:
         with socket.socket(
-            socket.AF_INET,
-            socket.SOCK_DGRAM,
+                socket.AF_INET,
+                socket.SOCK_DGRAM,
         ) as sock:
             sock.connect(("8.8.8.8", 80))
 
@@ -44,6 +44,7 @@ def get_host_ip() -> str:
 
     except OSError:
         return "127.0.0.1"
+
 
 def get_hostname() -> str:
     """获取当前主机名

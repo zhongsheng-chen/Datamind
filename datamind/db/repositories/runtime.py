@@ -57,7 +57,6 @@ class RuntimePatch:
         error: 错误信息
         context: 运行上下文
     """
-
     framework: str | None = None
     worker_id: str | None = None
     error: str | None = None
@@ -68,8 +67,8 @@ class RuntimeRepository(BaseRepository):
     """模型运行仓储"""
 
     async def get_runtime(
-        self,
-        runtime_id: str,
+            self,
+            runtime_id: str,
     ) -> Runtime | None:
         """获取运行记录
 
@@ -85,10 +84,10 @@ class RuntimeRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def get_deployment_runtime(
-        self,
-        deployment_id: str,
-        *,
-        worker_id: str = "default",
+            self,
+            deployment_id: str,
+            *,
+            worker_id: str = "default",
     ) -> Runtime | None:
         """获取部署对应的运行记录
 
@@ -108,11 +107,11 @@ class RuntimeRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_runtimes(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Runtime]:
         """获取运行记录列表
 
@@ -155,14 +154,14 @@ class RuntimeRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_loaded_runtimes(
-        self,
-        *,
-        model_id: str | None = None,
-        version_id: str | None = None,
-        framework: str | None = None,
-        worker_id: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            *,
+            model_id: str | None = None,
+            version_id: str | None = None,
+            framework: str | None = None,
+            worker_id: str | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Runtime]:
         """获取已加载运行记录
 
@@ -200,22 +199,22 @@ class RuntimeRepository(BaseRepository):
         )
 
     def create_runtime(
-        self,
-        *,
-        runtime_id: str,
-        deployment_id: str,
-        model_id: str,
-        version_id: str,
-        framework: str,
-        status: str = "unloaded",
-        worker_id: str = "default",
-        loaded_at: datetime | None = None,
-        unloaded_at: datetime | None = None,
-        started_by: str | None = None,
-        stopped_by: str | None = None,
-        last_heartbeat_at: datetime | None = None,
-        error: str | None = None,
-        context: dict | None = None,
+            self,
+            *,
+            runtime_id: str,
+            deployment_id: str,
+            model_id: str,
+            version_id: str,
+            framework: str,
+            status: str = "unloaded",
+            worker_id: str = "default",
+            loaded_at: datetime | None = None,
+            unloaded_at: datetime | None = None,
+            started_by: str | None = None,
+            stopped_by: str | None = None,
+            last_heartbeat_at: datetime | None = None,
+            error: str | None = None,
+            context: dict | None = None,
     ) -> Runtime:
         """创建运行记录
 
@@ -260,9 +259,9 @@ class RuntimeRepository(BaseRepository):
         return obj
 
     def update_runtime(
-        self,
-        runtime: Runtime,
-        patch: RuntimePatch,
+            self,
+            runtime: Runtime,
+            patch: RuntimePatch,
     ) -> Runtime:
         """更新运行记录
 
@@ -288,11 +287,11 @@ class RuntimeRepository(BaseRepository):
         return runtime
 
     def mark_loading(
-        self,
-        runtime: Runtime,
-        *,
-        started_by: str | None = None,
-        context: dict | None = None,
+            self,
+            runtime: Runtime,
+            *,
+            started_by: str | None = None,
+            context: dict | None = None,
     ) -> Runtime:
         """标记运行记录为加载中
 
@@ -317,12 +316,12 @@ class RuntimeRepository(BaseRepository):
         return runtime
 
     def mark_loaded(
-        self,
-        runtime: Runtime,
-        *,
-        started_by: str | None = None,
-        context: dict | None = None,
-        loaded_at: datetime | None = None,
+            self,
+            runtime: Runtime,
+            *,
+            started_by: str | None = None,
+            context: dict | None = None,
+            loaded_at: datetime | None = None,
     ) -> Runtime:
         """标记运行记录为已加载
 
@@ -350,12 +349,12 @@ class RuntimeRepository(BaseRepository):
         return runtime
 
     def mark_unloaded(
-        self,
-        runtime: Runtime,
-        *,
-        stopped_by: str | None = None,
-        context: dict | None = None,
-        unloaded_at: datetime | None = None,
+            self,
+            runtime: Runtime,
+            *,
+            stopped_by: str | None = None,
+            context: dict | None = None,
+            unloaded_at: datetime | None = None,
     ) -> Runtime:
         """标记运行记录为已卸载
 
@@ -380,12 +379,12 @@ class RuntimeRepository(BaseRepository):
         return runtime
 
     def mark_failed(
-        self,
-        runtime: Runtime,
-        *,
-        error: str,
-        started_by: str | None = None,
-        context: dict | None = None,
+            self,
+            runtime: Runtime,
+            *,
+            error: str,
+            started_by: str | None = None,
+            context: dict | None = None,
     ) -> Runtime:
         """标记运行记录为失败
 
@@ -410,10 +409,10 @@ class RuntimeRepository(BaseRepository):
         return runtime
 
     def heartbeat(
-        self,
-        runtime: Runtime,
-        *,
-        heartbeat_at: datetime | None = None,
+            self,
+            runtime: Runtime,
+            *,
+            heartbeat_at: datetime | None = None,
     ) -> Runtime:
         """更新运行心跳
 

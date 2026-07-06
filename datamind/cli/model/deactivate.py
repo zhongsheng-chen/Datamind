@@ -15,6 +15,7 @@
 
 import asyncio
 import json
+
 import typer
 from rich.console import Console
 
@@ -28,40 +29,40 @@ console = Console()
 
 @app.command("deactivate")
 def deactivate_model(
-    name: str | None = typer.Argument(
-        None,
-        help="模型名称"
-    ),
-    model_id: str | None = typer.Option(
-        None,
-        "--model-id",
-        help="模型 ID"
-    ),
-    version: str | None = typer.Option(
-        None,
-        "--version",
-        help="模型版本号"
-    ),
-    version_id: str | None = typer.Option(
-        None,
-        "--version-id",
-        help="版本 ID"
-    ),
-    operator: str = typer.Option(
-        "system",
-        "--operator",
-        help="操作人"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="显示调试日志"
-    ),
+        name: str | None = typer.Argument(
+            None,
+            help="模型名称"
+        ),
+        model_id: str | None = typer.Option(
+            None,
+            "--model-id",
+            help="模型 ID"
+        ),
+        version: str | None = typer.Option(
+            None,
+            "--version",
+            help="模型版本号"
+        ),
+        version_id: str | None = typer.Option(
+            None,
+            "--version-id",
+            help="版本 ID"
+        ),
+        operator: str = typer.Option(
+            "system",
+            "--operator",
+            help="操作人"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示调试日志"
+        ),
 ):
     """停用模型或模型版本"""
 

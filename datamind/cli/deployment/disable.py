@@ -13,8 +13,9 @@
 
 import asyncio
 import json
-import typer
+
 import structlog
+import typer
 from rich.console import Console
 
 from datamind.audit import audit
@@ -29,25 +30,25 @@ logger = structlog.get_logger(__name__)
 
 @app.command("disable")
 def disable_deployment(
-    deployment_id: str = typer.Argument(
-        ...,
-        help="部署 ID"
-    ),
-    operator: str = typer.Option(
-        "system",
-        "--operator",
-        help="操作人"
-    ),
-    output: str = typer.Option(
-        "text",
-        "--format",
-        help="输出格式：text/json"
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        help="是否输出调试日志"
-    ),
+        deployment_id: str = typer.Argument(
+            ...,
+            help="部署 ID"
+        ),
+        operator: str = typer.Option(
+            "system",
+            "--operator",
+            help="操作人"
+        ),
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text/json"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="是否输出调试日志"
+        ),
 ):
     """禁用部署"""
 
@@ -94,10 +95,10 @@ def disable_deployment(
 
     async def runner():
         async with cli_context(
-            user=operator,
-            source="cli",
-            verbose=verbose,
-            enable_audit=True,
+                user=operator,
+                source="cli",
+                verbose=verbose,
+                enable_audit=True,
         ):
             await _run()
 

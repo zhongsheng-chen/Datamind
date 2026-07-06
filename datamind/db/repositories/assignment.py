@@ -48,8 +48,8 @@ class AssignmentRepository(BaseRepository):
     """实验分配仓储"""
 
     async def get_assignment(
-        self,
-        assignment_id: str,
+            self,
+            assignment_id: str,
     ) -> Assignment | None:
         """获取实验分配记录
 
@@ -67,10 +67,10 @@ class AssignmentRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def get_subject_assignment(
-        self,
-        *,
-        experiment_id: str,
-        subject_key: str,
+            self,
+            *,
+            experiment_id: str,
+            subject_key: str,
     ) -> Assignment | None:
         """获取主体在实验中的固定分配
 
@@ -90,11 +90,11 @@ class AssignmentRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def list_assignments(
-        self,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        **filters,
+            self,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
+            **filters,
     ) -> list[Assignment]:
         """获取实验分配记录列表
 
@@ -134,11 +134,11 @@ class AssignmentRepository(BaseRepository):
         return list(result.scalars().all())
 
     async def list_experiment_assignments(
-        self,
-        experiment_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            experiment_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Assignment]:
         """获取实验分配记录
 
@@ -161,11 +161,11 @@ class AssignmentRepository(BaseRepository):
         )
 
     async def list_variant_assignments(
-        self,
-        variant_id: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            variant_id: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Assignment]:
         """获取实验分组分配记录
 
@@ -188,11 +188,11 @@ class AssignmentRepository(BaseRepository):
         )
 
     async def list_subject_assignments(
-        self,
-        subject_key: str,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            subject_key: str,
+            *,
+            limit: int | None = None,
+            offset: int | None = None,
     ) -> list[Assignment]:
         """获取主体参与的实验分配记录
 
@@ -215,18 +215,18 @@ class AssignmentRepository(BaseRepository):
         )
 
     def create_assignment(
-        self,
-        *,
-        assignment_id: str,
-        experiment_id: str,
-        variant_id: str,
-        subject_key: str,
-        subject_type: str | None = None,
-        strategy: AssignmentStrategy = AssignmentStrategy.HASH,
-        bucket: str | None = None,
-        weight: float | None = None,
-        context: dict | None = None,
-        assigned_at: datetime | None = None,
+            self,
+            *,
+            assignment_id: str,
+            experiment_id: str,
+            variant_id: str,
+            subject_key: str,
+            subject_type: str | None = None,
+            strategy: AssignmentStrategy = AssignmentStrategy.HASH,
+            bucket: str | None = None,
+            weight: float | None = None,
+            context: dict | None = None,
+            assigned_at: datetime | None = None,
     ) -> Assignment:
         """创建实验分配记录
 

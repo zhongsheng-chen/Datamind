@@ -6,9 +6,9 @@
 用于 A/B 测试效果评估、模型表现监控和业务指标统计。
 """
 
-from sqlalchemy.sql import func
 from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Index
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 

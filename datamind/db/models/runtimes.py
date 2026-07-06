@@ -6,7 +6,6 @@
 用于区分部署配置状态和真实运行状态。
 """
 
-from sqlalchemy.sql import func
 from sqlalchemy import Column, String, DateTime, Index, text
 from sqlalchemy.dialects.postgresql import TEXT, JSONB
 

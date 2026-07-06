@@ -54,10 +54,10 @@ class BaseModelAdapter(ABC):
     SUPPORTED_CAPABILITIES = ModelCapability.NONE
 
     def __init__(
-        self,
-        model,
-        feature_names: list[str] | None = None,
-        data_types: dict[str, DataType] | None = None,
+            self,
+            model,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
     ):
         """初始化适配器
 
@@ -74,8 +74,8 @@ class BaseModelAdapter(ABC):
             {
                 name: idx
                 for idx, name in enumerate(
-                    feature_names
-                )
+                feature_names
+            )
             }
             if feature_names
             else None
@@ -111,7 +111,7 @@ class BaseModelAdapter(ABC):
         )
 
     def _detect_capabilities(
-        self,
+            self,
     ) -> ModelCapability:
         """检测当前模型实例能力
 
@@ -126,8 +126,8 @@ class BaseModelAdapter(ABC):
 
     @abstractmethod
     def predict_proba(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """预测违约概率
 
@@ -141,8 +141,8 @@ class BaseModelAdapter(ABC):
 
     @abstractmethod
     def decision_function(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> float:
         """获取原始 Logit 值
 
@@ -155,8 +155,8 @@ class BaseModelAdapter(ABC):
         raise NotImplementedError
 
     def predict_proba_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量概率预测
 
@@ -183,8 +183,8 @@ class BaseModelAdapter(ABC):
         ]
 
     def decision_function_batch(
-        self,
-        X: np.ndarray,
+            self,
+            X: np.ndarray,
     ) -> list[float]:
         """批量获取原始 Logit 值
 
@@ -211,10 +211,10 @@ class BaseModelAdapter(ABC):
         ]
 
     def predict(
-        self,
-        X: np.ndarray
-        | dict[str, Any]
-        | list[dict[str, Any]],
+            self,
+            X: np.ndarray
+               | dict[str, Any]
+               | list[dict[str, Any]],
     ) -> float | list[float]:
         """统一概率预测接口
 
@@ -244,20 +244,20 @@ class BaseModelAdapter(ABC):
         )
 
         if (
-            isinstance(X, list)
-            and len(X) == 0
+                isinstance(X, list)
+                and len(X) == 0
         ):
             return []
 
         if (
-            isinstance(X, np.ndarray)
-            and X.size == 0
+                isinstance(X, np.ndarray)
+                and X.size == 0
         ):
             return []
 
         if isinstance(
-            X,
-            dict,
+                X,
+                dict,
         ):
             self.validate_features(X)
 
@@ -266,9 +266,9 @@ class BaseModelAdapter(ABC):
             )
 
         if (
-            isinstance(X, list)
-            and X
-            and isinstance(X[0], dict)
+                isinstance(X, list)
+                and X
+                and isinstance(X[0], dict)
         ):
             self.require_capability(
                 ModelCapability.BATCH_PREDICT
@@ -279,8 +279,8 @@ class BaseModelAdapter(ABC):
             )
 
         if isinstance(
-            X,
-            np.ndarray,
+                X,
+                np.ndarray,
         ):
             if X.ndim == 1:
                 return self.predict_proba(
@@ -306,10 +306,10 @@ class BaseModelAdapter(ABC):
         )
 
     def predict_logit(
-        self,
-        X: np.ndarray
-        | dict[str, Any]
-        | list[dict[str, Any]],
+            self,
+            X: np.ndarray
+               | dict[str, Any]
+               | list[dict[str, Any]],
     ) -> float | list[float]:
         """统一 Logit 预测接口
 
@@ -339,20 +339,20 @@ class BaseModelAdapter(ABC):
         )
 
         if (
-            isinstance(X, list)
-            and len(X) == 0
+                isinstance(X, list)
+                and len(X) == 0
         ):
             return []
 
         if (
-            isinstance(X, np.ndarray)
-            and X.size == 0
+                isinstance(X, np.ndarray)
+                and X.size == 0
         ):
             return []
 
         if isinstance(
-            X,
-            dict,
+                X,
+                dict,
         ):
             self.validate_features(X)
 
@@ -361,9 +361,9 @@ class BaseModelAdapter(ABC):
             )
 
         if (
-            isinstance(X, list)
-            and X
-            and isinstance(X[0], dict)
+                isinstance(X, list)
+                and X
+                and isinstance(X[0], dict)
         ):
             self.require_capability(
                 ModelCapability.BATCH_PREDICT
@@ -374,8 +374,8 @@ class BaseModelAdapter(ABC):
             )
 
         if isinstance(
-            X,
-            np.ndarray,
+                X,
+                np.ndarray,
         ):
             if X.ndim == 1:
                 return self.decision_function(
@@ -401,8 +401,8 @@ class BaseModelAdapter(ABC):
         )
 
     def to_array(
-        self,
-        features: dict[str, Any],
+            self,
+            features: dict[str, Any],
     ) -> np.ndarray:
         """特征字典转 numpy 数组
 
@@ -461,8 +461,8 @@ class BaseModelAdapter(ABC):
         )
 
     def to_array_batch(
-        self,
-        features_list: list[dict[str, Any]],
+            self,
+            features_list: list[dict[str, Any]],
     ) -> np.ndarray:
         """批量特征字典转 numpy 数组
 
@@ -519,8 +519,8 @@ class BaseModelAdapter(ABC):
             )
 
     def _to_array_batch_fallback(
-        self,
-        features_list: list[dict[str, Any]],
+            self,
+            features_list: list[dict[str, Any]],
     ) -> np.ndarray:
         """批量特征转换回退实现
 
@@ -561,7 +561,7 @@ class BaseModelAdapter(ABC):
         )
 
         for row_idx, features in enumerate(
-            features_list
+                features_list
         ):
             for name, value in features.items():
                 column_idx = (
@@ -582,7 +582,7 @@ class BaseModelAdapter(ABC):
         return arr
 
     def _get_feature_index(
-        self,
+            self,
     ) -> dict[str, int]:
         """获取特征索引映射
 
@@ -618,8 +618,8 @@ class BaseModelAdapter(ABC):
 
     @staticmethod
     def _to_value_or_nan(
-        value: Any,
-        feature_name: str | None = None,
+            value: Any,
+            feature_name: str | None = None,
     ) -> Any:
         """将输入值转换为模型输入值
 
@@ -641,8 +641,8 @@ class BaseModelAdapter(ABC):
             return np.nan
 
         if isinstance(
-            value,
-            bool,
+                value,
+                bool,
         ):
             return (
                 1.0
@@ -651,19 +651,19 @@ class BaseModelAdapter(ABC):
             )
 
         if isinstance(
-            value,
-            (
-                int,
-                float,
-                np.integer,
-                np.floating,
-            ),
+                value,
+                (
+                        int,
+                        float,
+                        np.integer,
+                        np.floating,
+                ),
         ):
             return float(value)
 
         if isinstance(
-            value,
-            str,
+                value,
+                str,
         ):
             return value
 
@@ -679,8 +679,8 @@ class BaseModelAdapter(ABC):
         return value
 
     def validate_features(
-        self,
-        features: dict[str, Any],
+            self,
+            features: dict[str, Any],
     ) -> tuple[
         list[str],
         list[tuple[str, str, str]],
@@ -728,12 +728,12 @@ class BaseModelAdapter(ABC):
 
             if data_type == DataType.NUMERIC:
                 if not isinstance(
-                    value,
-                    (
-                        int,
-                        float,
-                        np.number,
-                    ),
+                        value,
+                        (
+                                int,
+                                float,
+                                np.number,
+                        ),
                 ):
                     type_errors.append(
                         (
@@ -747,12 +747,12 @@ class BaseModelAdapter(ABC):
 
             elif data_type == DataType.BOOLEAN:
                 if not isinstance(
-                    value,
-                    (
-                        bool,
-                        int,
-                        float,
-                    ),
+                        value,
+                        (
+                                bool,
+                                int,
+                                float,
+                        ),
                 ):
                     type_errors.append(
                         (
@@ -770,7 +770,7 @@ class BaseModelAdapter(ABC):
         )
 
     def get_capabilities(
-        self,
+            self,
     ) -> ModelCapability:
         """获取当前模型实例能力集
 
@@ -780,8 +780,8 @@ class BaseModelAdapter(ABC):
         return self.capabilities
 
     def has_capability(
-        self,
-        capability: ModelCapability,
+            self,
+            capability: ModelCapability,
     ) -> bool:
         """检查模型是否支持指定能力
 
@@ -797,8 +797,8 @@ class BaseModelAdapter(ABC):
         )
 
     def require_capability(
-        self,
-        capability: ModelCapability,
+            self,
+            capability: ModelCapability,
     ) -> None:
         """校验模型能力
 
@@ -810,7 +810,7 @@ class BaseModelAdapter(ABC):
                 当前模型不支持指定能力
         """
         if not self.has_capability(
-            capability
+                capability
         ):
             raise NotImplementedError(
                 f"{self.__class__.__name__} "
@@ -818,7 +818,7 @@ class BaseModelAdapter(ABC):
             )
 
     def get_feature_importance(
-        self,
+            self,
     ) -> dict[str, float]:
         """获取特征重要性
 
