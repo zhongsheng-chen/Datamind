@@ -72,20 +72,20 @@ class DeploymentStatus(BaseEnum):
 class RuntimeControlStatus(BaseEnum):
     """运行控制目标状态
 
-    表示 Serving 集群中各 Worker 对指定 Deployment
+    表示各 Worker 对指定 Deployment
     应达到的期望运行状态。
 
     LOADED:
-        所有 Serving Worker 应加载该部署对应的模型。
+        各 Worker 应加载该部署对应的模型。
 
     UNLOADED:
-        所有 Serving Worker 应卸载该部署对应的模型。
+        各 Worker 应卸载该部署对应的模型。
 
     说明：
         该状态表示运行控制目标状态，
         不代表某个 Worker 当前的实际运行状态。
 
-        Worker 的实际运行状态仍由 Runtime 记录维护，
+        Worker 的实际运行状态由 Runtime 记录维护，
         例如：
           - loading
           - loaded
