@@ -48,8 +48,7 @@ class RuntimePatch:
     """运行更新结构
 
     注意：
-        status 字段不建议通过 patch 修改，
-        应由 mark_loading / mark_loaded / mark_unloaded / mark_failed 控制。
+        不允许通过 patch 修改 status，由生命周期方法控制
 
     属性：
         framework: 框架类型
