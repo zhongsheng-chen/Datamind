@@ -2,7 +2,7 @@
 
 """模型运行控制仓储
 
-提供 Serving 集群模型运行期望状态的查询与管理能力。
+提供模型运行期望状态的查询与管理能力。
 
 核心功能：
   - get_control: 获取运行控制记录
@@ -15,12 +15,15 @@
   - request_reload: 请求重新加载模型
 
 说明：
-  Control 记录 Serving 集群的期望运行状态。
+  Control 记录模型部署的期望运行状态。
 
   Runtime 记录各 Worker 的实际运行状态。
 
   Control 按 environment 进行环境隔离，
-  各 Serving 环境只处理所属环境的运行控制记录。
+  各 Worker 只处理所属运行环境的控制记录。
+
+  新创建的 Control 默认状态为 unloaded，
+  初始 generation 为 1。
 
   状态变化规则：
 
@@ -201,46 +204,38 @@ class ControlRepository(BaseRepository):
             control_id: str,
             deployment_id: str,
             environment: str,
-            desired_status: RuntimeControlStatus = (
-                    RuntimeControlStatus.UNLOADED
-            ),
-            generation: int = 1,
             created_by: str | None = None,
     ) -> Control:
         """创建运行控制记录
+
+        新创建的运行控制记录默认状态为 unloaded，
+        初始控制版本号为 1。
 
         参数：
             control_id: 控制 ID
             deployment_id: 部署 ID
             environment: 运行环境
-            desired_status: 期望运行状态
-            generation: 初始控制版本号
             created_by: 创建人（可选）
 
         返回：
             创建后的运行控制记录对象
 
         异常：
-            ValueError:
-                environment 为空
-                generation 小于 1
+            ValueError: environment 为空
         """
         if not environment:
             raise ValueError(
                 "environment 不能为空"
             )
 
-        if generation < 1:
-            raise ValueError(
-                "generation 必须大于等于 1"
-            )
-
         obj = Control(
             control_id=control_id,
             deployment_id=deployment_id,
             environment=environment,
-            desired_status=desired_status,
-            generation=generation,
+            desired_status=(
+                RuntimeControlStatus.UNLOADED
+            ),
+            generation=1,
             created_by=created_by,
             updated_by=created_by,
         )
@@ -263,9 +258,10 @@ class ControlRepository(BaseRepository):
 
           - desired_status 设置为 loaded
           - generation 递增
+          - 更新 updated_by
 
         当当前状态已经是 loaded 时保持幂等，
-        不重复递增 generation。
+        不修改 generation 和 updated_by。
 
         参数：
             control: 运行控制对象
@@ -276,13 +272,15 @@ class ControlRepository(BaseRepository):
         """
         if (
                 control.desired_status
-                != RuntimeControlStatus.LOADED
+                == RuntimeControlStatus.LOADED
         ):
-            control.desired_status = (
-                RuntimeControlStatus.LOADED
-            )
+            return control
 
-            control.generation += 1
+        control.desired_status = (
+            RuntimeControlStatus.LOADED
+        )
+
+        control.generation += 1
 
         if updated_by is not None:
             control.updated_by = updated_by
@@ -301,9 +299,10 @@ class ControlRepository(BaseRepository):
 
           - desired_status 设置为 unloaded
           - generation 递增
+          - 更新 updated_by
 
         当当前状态已经是 unloaded 时保持幂等，
-        不重复递增 generation。
+        不修改 generation 和 updated_by。
 
         参数：
             control: 运行控制对象
@@ -314,13 +313,15 @@ class ControlRepository(BaseRepository):
         """
         if (
                 control.desired_status
-                != RuntimeControlStatus.UNLOADED
+                == RuntimeControlStatus.UNLOADED
         ):
-            control.desired_status = (
-                RuntimeControlStatus.UNLOADED
-            )
+            return control
 
-            control.generation += 1
+        control.desired_status = (
+            RuntimeControlStatus.UNLOADED
+        )
+
+        control.generation += 1
 
         if updated_by is not None:
             control.updated_by = updated_by

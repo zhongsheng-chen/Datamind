@@ -2,7 +2,7 @@
 
 """运行时控制服务
 
-负责 Serving 集群的模型运行控制和状态查询。
+负责模型运行控制和状态查询。
 
 核心功能：
   - load: 请求加载部署模型
@@ -55,7 +55,7 @@ logger = structlog.get_logger(__name__)
 class RuntimeController:
     """运行时控制服务
 
-    负责管理 Serving 集群的期望运行状态，
+    负责管理模型部署的期望运行状态，
     并查询各 Worker 的实际运行状态。
     """
 
@@ -69,7 +69,8 @@ class RuntimeController:
 
         设置部署的期望运行状态为 loaded。
 
-        如果运行控制记录不存在，则创建控制记录；
+        如果运行控制记录不存在，则创建控制记录，
+        再将期望状态设置为 loaded；
         如果已经是 loaded，则保持幂等；
         如果当前为 unloaded，则切换为 loaded，
         并递增 generation。
@@ -125,10 +126,6 @@ class RuntimeController:
                     ),
                     deployment_id=deployment_id,
                     environment=deployment.environment,
-                    desired_status=(
-                        RuntimeControlStatus.LOADED
-                    ),
-                    generation=1,
                     created_by=operator,
                 )
 
@@ -138,10 +135,10 @@ class RuntimeController:
                     deployment=deployment,
                 )
 
-                control = control_repo.set_loaded(
-                    control,
-                    updated_by=operator,
-                )
+            control = control_repo.set_loaded(
+                control,
+                updated_by=operator,
+            )
 
             control_info = self._control_to_dict(
                 control
@@ -171,7 +168,8 @@ class RuntimeController:
 
         设置部署的期望运行状态为 unloaded。
 
-        如果运行控制记录不存在，则创建 unloaded 控制记录；
+        如果运行控制记录不存在，则创建默认状态为
+        unloaded 的控制记录；
         如果已经是 unloaded，则保持幂等；
         如果当前为 loaded，则切换为 unloaded，
         并递增 generation。
@@ -224,10 +222,6 @@ class RuntimeController:
                     ),
                     deployment_id=deployment_id,
                     environment=deployment.environment,
-                    desired_status=(
-                        RuntimeControlStatus.UNLOADED
-                    ),
-                    generation=1,
                     created_by=operator,
                 )
 

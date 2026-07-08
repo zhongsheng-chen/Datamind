@@ -2136,6 +2136,8 @@ tree -a -I "__pycache__|.git|*.pyc"
 ```
 然后：
 ```bash
+sudo apt-get install python3.12-tk
+python3.12 -c "import tkinter; print('tkinter 安装成功')"
 pip install code-merger
 merge -e py -f merged_output.md
 merge -e py -f merged_output.md -s .venv __pycache__ .git .idea .pytest_cache
@@ -2144,6 +2146,19 @@ merge -e py -f merged_output.md -s .venv __pycache__ .git .idea .pytest_cache
 ```bash
 tar -czf datamind.tar.gz .
 ```
+
+
+# 仅 Datamind 核心
+pip install -e .
+
+# Datamind + sklearn
+pip install -e ".[sklearn]"
+
+# Datamind + XGBoost
+pip install -e ".[xgboost]"
+
+# 完整模型框架环境
+pip install -e ".[full]"
 
 
 参考：https://blog.51cto.com/u_16099215/9695963

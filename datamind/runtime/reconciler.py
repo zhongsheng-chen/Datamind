@@ -14,12 +14,12 @@
   - is_running: 判断协调器是否正在运行
 
 说明：
-  每个 Serving Worker 创建一个独立的 RuntimeReconciler。
+  每个 Worker 创建一个独立的 RuntimeReconciler。
 
   每个 RuntimeReconciler 只处理所属 environment
   的运行控制记录。
 
-  controls 表保存 Serving 集群的期望运行状态，
+  controls 表保存运行集群的期望状态，
   runtimes 表保存每个 Worker 的实际运行状态。
 
   协调规则：
@@ -233,7 +233,7 @@ class RuntimeReconciler:
                 当前 Worker 的 RuntimeManager
 
             environment:
-                当前 Serving Worker 所属运行环境
+                当前 Worker 所属运行环境
 
             interval_seconds:
                 状态协调间隔，单位秒
@@ -354,7 +354,7 @@ class RuntimeReconciler:
             不主动卸载当前 Worker 中已加载模型。
 
             Worker 关闭时的模型卸载，
-            由 Serving Service 生命周期负责。
+            由运行服务生命周期负责。
         """
         task = self._task
 
