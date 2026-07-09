@@ -1,5 +1,5 @@
 {
-  "assignment_key": "customer_id",
+  "bucket_key": "customer_id",
   "traffic_ratio": 0.2,
   "strategy": "hash",
   "variants": [

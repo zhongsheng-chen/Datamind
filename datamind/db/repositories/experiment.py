@@ -29,7 +29,7 @@
           name="评分卡A/B测试实验",
           description="测试新策略",
           config={
-              "strategy": "consistent",
+              "strategy": "hash",
               "traffic_ratio": 1.0,
               "bucket_key": "customer_id",
           },
