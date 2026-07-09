@@ -2,7 +2,7 @@
 
 """评分模型运行服务
 
-提供评分模型的在线推理和评分能力。
+提供评分模型的在线推理、评分和特征贡献分解能力。
 
 核心功能：
   - ScoringService: 评分模型运行服务
@@ -38,7 +38,11 @@ from typing import Any
 from datamind.config.scorecard import ScorecardConfig
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
-from datamind.core.scoring import Scorer, ScoreTransformer
+from datamind.core.scoring import (
+    LRContrib,
+    Scorer,
+    ScoreTransformer,
+)
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.base import BaseRuntimeService
 
@@ -48,10 +52,13 @@ class ScoringService(BaseRuntimeService):
 
     基于模型概率和 Logit 输出生成评分结果。
 
+    对 Logistic Regression 模型提供特征贡献分解能力。
+
     属性：
         SERVICE_TYPE: 服务类型
         transformer: 评分转换器
         scorer: 评分器
+        contrib: 特征贡献分解器
     """
 
     SERVICE_TYPE = "scoring"
@@ -103,6 +110,21 @@ class ScoringService(BaseRuntimeService):
             transformer=self.transformer,
         )
 
+        self.contrib: LRContrib | None = None
+
+        model_type = str(
+            self.metadata.get(
+                "model_type",
+                ""
+            )
+        ).strip().lower()
+
+        if model_type == "logistic_regression":
+            self.contrib = LRContrib(
+                inference=self.inference,
+                transformer=self.transformer,
+            )
+
     def predict(
             self,
             features: dict[str, Any],
@@ -117,6 +139,7 @@ class ScoringService(BaseRuntimeService):
               - probability
               - logit
               - score
+              - score_detail
               - deployment_id
               - model_id
               - version_id
@@ -162,12 +185,24 @@ class ScoringService(BaseRuntimeService):
             logit_value
         )
 
+        score_detail = None
+
+        if self.contrib is not None:
+            explanation = self.contrib.explain(
+                features
+            )
+
+            score_detail = self._build_score_detail(
+                explanation
+            )
+
         self.touch()
 
         return self.build_result({
             "probability": probability_value,
             "logit": logit_value,
             "score": float(score),
+            "score_detail": score_detail,
         })
 
     def predict_batch(
@@ -191,8 +226,10 @@ class ScoringService(BaseRuntimeService):
 
         异常：
             TypeError: 批量推理结果类型异常
-            RuntimeError: 概率和 Logit 结果数量不一致
-            NotImplementedError: 模型不支持批量推理
+            RuntimeError:
+                概率、Logit 或贡献分解结果数量不一致
+            NotImplementedError:
+                模型不支持批量推理
         """
         self.require_capability(
             ModelCapability.BATCH_PREDICT
@@ -233,11 +270,39 @@ class ScoringService(BaseRuntimeService):
                 "概率预测结果数量与 Logit 结果数量不一致"
             )
 
+        score_details: list[
+            dict[str, Any] | None
+            ]
+
+        if self.contrib is not None:
+            explanations = self.contrib.explain_batch(
+                features_list
+            )
+
+            if len(explanations) != len(probabilities):
+                raise RuntimeError(
+                    "特征贡献分解结果数量与预测结果数量不一致"
+                )
+
+            score_details = [
+                self._build_score_detail(
+                    explanation
+                )
+                for explanation in explanations
+            ]
+
+        else:
+            score_details = [
+                None
+                for _ in probabilities
+            ]
+
         predictions = []
 
-        for probability, logit in zip(
+        for probability, logit, score_detail in zip(
                 probabilities,
                 logits,
+                score_details,
         ):
             probability_value = float(
                 probability
@@ -255,6 +320,7 @@ class ScoringService(BaseRuntimeService):
                 "probability": probability_value,
                 "logit": logit_value,
                 "score": float(score),
+                "score_detail": score_detail,
             })
 
         self.touch()
@@ -263,6 +329,47 @@ class ScoringService(BaseRuntimeService):
             "count": len(predictions),
             "predictions": predictions,
         })
+
+    @staticmethod
+    def _build_score_detail(
+            explanation: dict[str, float],
+    ) -> dict[str, Any]:
+        """构造评分明细
+
+        参数：
+            explanation: LR 特征贡献分解结果
+
+        返回：
+            评分明细，包含：
+              - intercept_score
+              - feature_score
+              - raw_score
+              - feature_scores
+        """
+        summary_fields = {
+            "intercept_score",
+            "feature_score",
+            "total_score",
+        }
+
+        feature_scores = {
+            name: float(value)
+            for name, value in explanation.items()
+            if name not in summary_fields
+        }
+
+        return {
+            "intercept_score": float(
+                explanation["intercept_score"]
+            ),
+            "feature_score": float(
+                explanation["feature_score"]
+            ),
+            "raw_score": float(
+                explanation["total_score"]
+            ),
+            "feature_scores": feature_scores,
+        }
 
     def _resolve_scorecard_config(
             self,

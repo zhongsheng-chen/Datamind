@@ -29,7 +29,9 @@
           deployment_id="dep_a1b2c3d4",
           experiment_id="exp_a1b2c3d4",
           variant_id="var_a1b2c3d4",
-          customer_id="cus_a1b2c3d4",
+          assignment_id="asn_a1b2c3d4",
+          subject_key="customer_10001",
+          subject_type="customer",
           source=DecisionStrategy.EXPERIMENT,
           strategy="hash",
           bucket="bucket_0089",
@@ -39,7 +41,10 @@
           score=680,
           decision="approve",
           latency_ms=35.6,
-          context={"experiment_id": "exp_a1b2c3d4", "group": "treatment"}
+          context={
+              "experiment_id": "exp_a1b2c3d4",
+              "group": "treatment",
+          }
       )
 """
 
@@ -67,7 +72,10 @@ class DecisionRepository(BaseRepository):
         返回：
             决策记录对象，不存在时返回 None
         """
-        stmt = select(Decision).where(Decision.request_id == request_id)
+        stmt = select(Decision).where(
+            Decision.request_id == request_id
+        )
+
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
@@ -92,7 +100,9 @@ class DecisionRepository(BaseRepository):
                     deployment_id
                     experiment_id
                     variant_id
-                    customer_id
+                    assignment_id
+                    subject_key
+                    subject_type
                     source
                     strategy
                     bucket
@@ -237,11 +247,13 @@ class DecisionRepository(BaseRepository):
             request_id: str,
             model_id: str,
             version_id: str,
-            customer_id: str,
             source: DecisionStrategy,
             deployment_id: str | None = None,
             experiment_id: str | None = None,
             variant_id: str | None = None,
+            assignment_id: str | None = None,
+            subject_key: str | None = None,
+            subject_type: str | None = None,
             strategy: str | None = None,
             bucket: str | None = None,
             group: str | None = None,
@@ -261,11 +273,13 @@ class DecisionRepository(BaseRepository):
             request_id: 请求 ID
             model_id: 模型 ID
             version_id: 版本 ID
-            customer_id: 客户 ID
             source: 决策来源
             deployment_id: 部署 ID（可选）
             experiment_id: 实验 ID（可选）
             variant_id: 实验分组 ID（可选）
+            assignment_id: 实验分配 ID（可选）
+            subject_key: 请求主体标识（可选）
+            subject_type: 请求主体类型（可选）
             strategy: 分配策略（可选）
             bucket: 分桶标识（可选）
             group: 实验组别（可选）
@@ -289,7 +303,9 @@ class DecisionRepository(BaseRepository):
             deployment_id=deployment_id,
             experiment_id=experiment_id,
             variant_id=variant_id,
-            customer_id=customer_id,
+            assignment_id=assignment_id,
+            subject_key=subject_key,
+            subject_type=subject_type,
             source=source,
             strategy=strategy,
             bucket=bucket,

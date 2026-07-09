@@ -3030,3 +3030,46 @@ assignments
 
 outcomes
   结果回流表：通过、转化、逾期、坏账等后验结果
+
+
+
+
+
+现在的实验 bucket_key 是 customer_id，但当前 /predict 请求模型里已经有 subject_key、subject_type，
+并且 A/B 引擎优先使用显式传入的 subject_key，只有没传 subject_key 时才从 payload 里按 bucket_key 提取。
+
+
+
+
+Datamind 当前路由优先级是：
+
+1. 如果请求指定 deployment_id
+   → manual
+
+2. 如果有 running 实验，并且 subject 命中实验流量
+   → experiment
+
+3. 如果 routing 表有启用路由规则
+   → routing
+
+4. 如果以上都没有命中
+   → fallback 到 active champion deployment
+
+
+什么时候会走 routing？
+
+你的路由顺序是：
+
+1. 请求传了 deployment_id
+   → manual
+   → 不走 experiment，也不走 routing
+
+2. 没传 deployment_id，且命中 running experiment
+   → experiment
+   → 不走 routing
+
+3. 没传 deployment_id，且没有命中实验
+   → routing
+
+4. routing 表没有可用规则
+   → fallback 到 active champion deployment

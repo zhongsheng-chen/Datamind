@@ -2,11 +2,11 @@
 
 """请求表
 
-记录进入系统的原始请求信息，用于请求追踪和性能分析。
+记录进入系统的原始请求信息，用于请求追踪、异常排查和性能分析。
 """
 
-from sqlalchemy import Column, String, Index, Float
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, Index, Float, text
+from sqlalchemy.dialects.postgresql import JSONB, TEXT
 
 from datamind.db.core import Base, IdMixin, TimestampMixin
 
@@ -32,6 +32,10 @@ class Request(Base, IdMixin, TimestampMixin):
         Index(
             "idx_requests_source",
             "source"
+        ),
+        Index(
+            "idx_requests_status",
+            "status"
         ),
         Index(
             "idx_requests_user",
@@ -60,6 +64,17 @@ class Request(Base, IdMixin, TimestampMixin):
         nullable=True,
         comment="请求来源，如 api"
     )
+    status = Column(
+        String(20),
+        nullable=False,
+        server_default=text("'received'"),
+        comment="请求状态，可选值：received / success / failed"
+    )
+    error = Column(
+        TEXT,
+        nullable=True,
+        comment="请求处理失败时的错误信息"
+    )
     latency_ms = Column(
         Float,
         nullable=True,
@@ -80,6 +95,8 @@ class Request(Base, IdMixin, TimestampMixin):
         return (
             f"<Request("
             f"request_id='{self.request_id}', "
-            f"source='{self.source}'"
+            f"model_id='{self.model_id}', "
+            f"source='{self.source}', "
+            f"status='{self.status}'"
             f")>"
         )

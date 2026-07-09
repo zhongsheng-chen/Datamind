@@ -20,9 +20,14 @@
   route = await router.resolve(
       model_id="mdl_a1b2c3d4",
       environment="production",
+      subject_key="customer_10001",
+      subject_type="customer",
       payload={
-          "customer_id": "customer_10001",
-          "age": 35,
+          "age": 0.35,
+          "income": 0.72,
+          "gender": 0.10,
+          "province": 0.65,
+          "education": 0.80,
       }
   )
 
@@ -179,6 +184,8 @@ class RuntimeRouter:
                     deployment_repo=deployment_repo,
                     deployment_id=deployment_id,
                     model_id=model_id,
+                    subject_key=subject_key,
+                    subject_type=subject_type,
                     environment=environment,
                     now=current_time,
                 )
@@ -202,6 +209,7 @@ class RuntimeRouter:
                 routing_repo=routing_repo,
                 model_id=model_id,
                 subject_key=subject_key,
+                subject_type=subject_type,
                 payload=payload,
                 environment=environment,
                 now=current_time,
@@ -213,6 +221,8 @@ class RuntimeRouter:
             deployment_result = await self._resolve_default_deployment(
                 deployment_repo=deployment_repo,
                 model_id=model_id,
+                subject_key=subject_key,
+                subject_type=subject_type,
                 environment=environment,
                 now=current_time,
             )
@@ -230,6 +240,8 @@ class RuntimeRouter:
             deployment_repo: DeploymentRepository,
             deployment_id: str,
             model_id: str,
+            subject_key: str | None,
+            subject_type: str | None,
             environment: str,
             now: datetime,
     ) -> RouteResult:
@@ -258,6 +270,8 @@ class RuntimeRouter:
             deployment=deployment,
             source=DecisionStrategy.MANUAL,
             strategy="manual",
+            subject_key=subject_key,
+            subject_type=subject_type,
             context={
                 "reason": "manual_deployment",
             },
@@ -355,6 +369,7 @@ class RuntimeRouter:
             routing_repo: RoutingRepository,
             model_id: str,
             subject_key: str | None,
+            subject_type: str | None,
             payload: dict | None,
             environment: str,
             now: datetime,
@@ -392,7 +407,20 @@ class RuntimeRouter:
         if not candidates:
             return None
 
-        routing_key = subject_key or self._payload_key(payload) or model_id
+        payload_subject_key = self._payload_key(
+            payload
+        )
+
+        routing_key = (
+                subject_key
+                or payload_subject_key
+                or model_id
+        )
+
+        route_subject_key = (
+                subject_key
+                or payload_subject_key
+        )
 
         ratio, bucket = self._hash_ratio(
             "routing",
@@ -431,6 +459,8 @@ class RuntimeRouter:
                     source=DecisionStrategy.ROUTING,
                     strategy="weighted",
                     routing_id=routing.routing_id,
+                    subject_key=route_subject_key,
+                    subject_type=subject_type,
                     bucket=bucket,
                     weight=weight,
                     context={
@@ -451,6 +481,8 @@ class RuntimeRouter:
             source=DecisionStrategy.ROUTING,
             strategy="weighted",
             routing_id=routing.routing_id,
+            subject_key=route_subject_key,
+            subject_type=subject_type,
             bucket=bucket,
             weight=self._safe_float(routing.traffic_ratio, default=0.0),
             context={
@@ -470,6 +502,8 @@ class RuntimeRouter:
             *,
             deployment_repo: DeploymentRepository,
             model_id: str,
+            subject_key: str | None,
+            subject_type: str | None,
             environment: str,
             now: datetime,
     ) -> RouteResult | None:
@@ -505,6 +539,8 @@ class RuntimeRouter:
             deployment=deployment,
             source=DecisionStrategy.DEPLOYMENT,
             strategy="fallback",
+            subject_key=subject_key,
+            subject_type=subject_type,
             context={
                 "reason": "active_champion_deployment",
             },
@@ -549,6 +585,8 @@ class RuntimeRouter:
             source: str,
             strategy: str,
             routing_id: str | None = None,
+            subject_key: str | None = None,
+            subject_type: str | None = None,
             bucket: str | None = None,
             weight: float | None = None,
             context: dict | None = None,
@@ -562,6 +600,8 @@ class RuntimeRouter:
             source=source,
             strategy=strategy,
             routing_id=routing_id,
+            subject_key=subject_key,
+            subject_type=subject_type,
             bucket=bucket,
             weight=weight,
             context={

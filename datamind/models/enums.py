@@ -34,7 +34,9 @@ from enum import Enum
 class BaseEnum(str, Enum):
     """字符串枚举基类"""
 
-    pass
+    def __str__(self) -> str:
+        """返回枚举值字符串"""
+        return self.value
 
 
 class MetadataStatus(BaseEnum):

@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: d9331db7966d
+Revision ID: 41473ff0a4fb
 Revises: 
-Create Date: 2026-07-07 08:16:58.892648+00:00
+Create Date: 2026-07-09 17:09:37.290006+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'd9331db7966d'
+revision = '41473ff0a4fb'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -109,9 +109,11 @@ def upgrade() -> None:
     sa.Column('deployment_id', sa.String(length=64), nullable=True, comment='命中的部署 ID'),
     sa.Column('experiment_id', sa.String(length=64), nullable=True, comment='命中的实验 ID'),
     sa.Column('variant_id', sa.String(length=64), nullable=True, comment='命中的实验分组 ID'),
-    sa.Column('customer_id', sa.String(length=64), nullable=False, comment='请求主体标识'),
+    sa.Column('assignment_id', sa.String(length=64), nullable=True, comment='命中的实验分配 ID'),
+    sa.Column('subject_key', sa.String(length=128), nullable=True, comment='请求主体标识，例如客户号、订单号、申请单号'),
+    sa.Column('subject_type', sa.String(length=32), nullable=True, comment='请求主体类型，例如 customer / order / application'),
     sa.Column('source', sa.String(length=20), nullable=False, comment='决策来源，可选值：experiment / routing / deployment / shadow / manual'),
-    sa.Column('strategy', sa.String(length=20), nullable=True, comment='流量分配策略，可选值：random / hash / bucket / weighted'),
+    sa.Column('strategy', sa.String(length=20), nullable=True, comment='流量分配策略，可选值：manual / random / hash / bucket / weighted'),
     sa.Column('bucket', sa.String(length=32), nullable=True, comment='分桶标识'),
     sa.Column('group', sa.String(length=32), nullable=True, comment='实验分组名称，如 control / treatment'),
     sa.Column('weight', sa.Float(), nullable=True, comment='命中分组的权重'),
@@ -127,12 +129,13 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_decisions'))
     )
+    op.create_index('idx_decisions_assignment_id', 'decisions', ['assignment_id'], unique=False)
     op.create_index('idx_decisions_created_at', 'decisions', ['created_at'], unique=False)
-    op.create_index('idx_decisions_customer_id', 'decisions', ['customer_id'], unique=False)
     op.create_index('idx_decisions_deployment_id', 'decisions', ['deployment_id'], unique=False)
     op.create_index('idx_decisions_experiment_id', 'decisions', ['experiment_id'], unique=False)
     op.create_index('idx_decisions_model_id', 'decisions', ['model_id'], unique=False)
     op.create_index('idx_decisions_source', 'decisions', ['source'], unique=False)
+    op.create_index('idx_decisions_subject_key', 'decisions', ['subject_key'], unique=False)
     op.create_index('idx_decisions_variant_id', 'decisions', ['variant_id'], unique=False)
     op.create_index('idx_decisions_version_id', 'decisions', ['version_id'], unique=False)
     op.create_index('uk_decisions_decision_id', 'decisions', ['decision_id'], unique=True)
@@ -247,6 +250,8 @@ def upgrade() -> None:
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='目标模型 ID'),
     sa.Column('payload', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='请求负载，JSON 格式'),
     sa.Column('source', sa.String(length=50), nullable=True, comment='请求来源，如 api'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'received'"), nullable=False, comment='请求状态，可选值：received / success / failed'),
+    sa.Column('error', sa.TEXT(), nullable=True, comment='请求处理失败时的错误信息'),
     sa.Column('latency_ms', sa.Float(), nullable=True, comment='处理耗时，单位毫秒'),
     sa.Column('user', sa.String(length=64), nullable=True, comment='用户标识'),
     sa.Column('ip', sa.String(length=64), nullable=True, comment='客户端 IP 地址'),
@@ -260,6 +265,7 @@ def upgrade() -> None:
     op.create_index('idx_requests_model_id', 'requests', ['model_id'], unique=False)
     op.create_index('idx_requests_request_id', 'requests', ['request_id'], unique=False)
     op.create_index('idx_requests_source', 'requests', ['source'], unique=False)
+    op.create_index('idx_requests_status', 'requests', ['status'], unique=False)
     op.create_index('idx_requests_user', 'requests', ['user'], unique=False)
     op.create_table('routing',
     sa.Column('routing_id', sa.String(length=64), nullable=False, comment='路由 ID，路由的唯一标志'),
@@ -411,6 +417,7 @@ def downgrade() -> None:
     op.drop_index('idx_routing_deployment_id', table_name='routing')
     op.drop_table('routing')
     op.drop_index('idx_requests_user', table_name='requests')
+    op.drop_index('idx_requests_status', table_name='requests')
     op.drop_index('idx_requests_source', table_name='requests')
     op.drop_index('idx_requests_request_id', table_name='requests')
     op.drop_index('idx_requests_model_id', table_name='requests')
@@ -452,12 +459,13 @@ def downgrade() -> None:
     op.drop_index('uk_decisions_decision_id', table_name='decisions')
     op.drop_index('idx_decisions_version_id', table_name='decisions')
     op.drop_index('idx_decisions_variant_id', table_name='decisions')
+    op.drop_index('idx_decisions_subject_key', table_name='decisions')
     op.drop_index('idx_decisions_source', table_name='decisions')
     op.drop_index('idx_decisions_model_id', table_name='decisions')
     op.drop_index('idx_decisions_experiment_id', table_name='decisions')
     op.drop_index('idx_decisions_deployment_id', table_name='decisions')
-    op.drop_index('idx_decisions_customer_id', table_name='decisions')
     op.drop_index('idx_decisions_created_at', table_name='decisions')
+    op.drop_index('idx_decisions_assignment_id', table_name='decisions')
     op.drop_table('decisions')
     op.drop_index('uk_controls_deployment_id', table_name='controls')
     op.drop_index('uk_controls_control_id', table_name='controls')

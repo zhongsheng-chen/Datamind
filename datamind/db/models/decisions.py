@@ -40,8 +40,12 @@ class Decision(Base, IdMixin, TimestampMixin):
             "variant_id"
         ),
         Index(
-            "idx_decisions_customer_id",
-            "customer_id"
+            "idx_decisions_assignment_id",
+            "assignment_id"
+        ),
+        Index(
+            "idx_decisions_subject_key",
+            "subject_key"
         ),
         Index(
             "idx_decisions_created_at",
@@ -98,10 +102,20 @@ class Decision(Base, IdMixin, TimestampMixin):
         nullable=True,
         comment="命中的实验分组 ID"
     )
-    customer_id = Column(
+    assignment_id = Column(
         String(64),
-        nullable=False,
-        comment="请求主体标识"
+        nullable=True,
+        comment="命中的实验分配 ID"
+    )
+    subject_key = Column(
+        String(128),
+        nullable=True,
+        comment="请求主体标识，例如客户号、订单号、申请单号"
+    )
+    subject_type = Column(
+        String(32),
+        nullable=True,
+        comment="请求主体类型，例如 customer / order / application"
     )
     source = Column(
         String(20),
@@ -111,7 +125,7 @@ class Decision(Base, IdMixin, TimestampMixin):
     strategy = Column(
         String(20),
         nullable=True,
-        comment="流量分配策略，可选值：random / hash / bucket / weighted"
+        comment="流量分配策略，可选值：manual / random / hash / bucket / weighted"
     )
     bucket = Column(
         String(32),

@@ -78,62 +78,145 @@ class LRContrib:
             transformer: 评分转换器，为 None 时使用默认配置
 
         异常：
-            NotImplementedError: 模型不具有 coef_ 属性
+            NotImplementedError:
+                模型不具有 coef_ 属性或模型结构不受支持
         """
         self.inference = inference
         self.transformer = transformer or ScoreTransformer()
 
         model = inference.adapter.model
 
-        if not hasattr(model, "coef_"):
-            raise NotImplementedError("LRContrib 仅支持具有 coef_ 的线性模型")
+        if not hasattr(
+                model,
+                "coef_",
+        ):
+            raise NotImplementedError(
+                "LRContrib 仅支持具有 coef_ 的线性模型"
+            )
 
-        self.coef = np.asarray(model.coef_).reshape(-1)
+        coefficients = np.asarray(
+            model.coef_
+        )
 
-        self.intercept = float(getattr(model, "intercept_", 0.0))
+        if (
+                coefficients.ndim != 2
+                or coefficients.shape[0] != 1
+        ):
+            raise NotImplementedError(
+                "LRContrib 仅支持二分类单输出线性模型，"
+                f"当前 coef_ shape={coefficients.shape}"
+            )
+
+        self.coef = coefficients[0]
+
+        intercepts = np.asarray(
+            getattr(
+                model,
+                "intercept_",
+                [0.0],
+            )
+        ).reshape(-1)
+
+        if len(intercepts) != 1:
+            raise NotImplementedError(
+                "LRContrib 仅支持单一截距的二分类模型，"
+                f"当前 intercept_ shape={intercepts.shape}"
+            )
+
+        self.intercept = float(
+            intercepts[0]
+        )
 
         self.factor = self.transformer.factor
         self.offset = self.transformer.offset
 
         logger.debug(
-            "初始化逻辑回归特征贡献分解器 | 特征数=%d",
-            len(self.coef),
+            "初始化逻辑回归特征贡献分解器",
+            feature_count=len(self.coef),
+            intercept=self.intercept,
         )
 
-    def _explain_one(self, x: np.ndarray) -> dict[str, float]:
-        """单样本特征贡献分解（内部方法）
+    def _explain_one(
+            self,
+            x: np.ndarray,
+    ) -> dict[str, float]:
+        """单样本特征贡献分解
 
         参数：
             x: 输入特征数组，形状为 (n_features,)
 
         返回：
-            dict[str, float]: 评分拆解结果，包含 intercept_score、feature_score、total_score 和各特征贡献
+            评分拆解结果，包含 intercept_score、
+            feature_score、total_score 和各特征贡献
+
+        异常：
+            ValueError: 输入特征数量与模型系数数量不一致
         """
+        if len(x) != len(self.coef):
+            raise ValueError(
+                "输入特征数量与模型系数数量不一致: "
+                f"feature_count={len(x)}, "
+                f"coefficient_count={len(self.coef)}"
+            )
+
         contributions: dict[str, float] = {}
-        feature_score: float = 0.0
+        feature_score = 0.0
 
-        feature_names = self.inference.adapter.feature_names
+        feature_names = (
+            self.inference.adapter.feature_names
+        )
 
-        for i, (xi, wi) in enumerate(zip(x, self.coef)):
+        for i, (xi, wi) in enumerate(
+                zip(
+                    x,
+                    self.coef,
+                )
+        ):
             xi_val = (
                 0.0
-                if xi is None or (isinstance(xi, float) and np.isnan(xi))
+                if (
+                        xi is None
+                        or (
+                                isinstance(
+                                    xi,
+                                    float,
+                                )
+                                and np.isnan(xi)
+                        )
+                )
                 else float(xi)
             )
 
-            contrib_score = -self.factor * float(wi) * xi_val
+            contrib_score = (
+                    -self.factor
+                    * float(wi)
+                    * xi_val
+            )
 
-            if feature_names and i < len(feature_names):
+            if (
+                    feature_names
+                    and i < len(feature_names)
+            ):
                 feature_key = feature_names[i]
+
             else:
                 feature_key = f"特征{i}"
 
-            contributions[feature_key] = contrib_score
+            contributions[
+                feature_key
+            ] = contrib_score
+
             feature_score += contrib_score
 
-        intercept_score = self.offset - self.factor * self.intercept
+        intercept_score = (
+                self.offset
+                - self.factor * self.intercept
+        )
 
-        total_score = intercept_score + feature_score
+        total_score = (
+                intercept_score
+                + feature_score
+        )
 
         return {
             "intercept_score": intercept_score,
@@ -142,42 +225,59 @@ class LRContrib:
             **contributions,
         }
 
-    def explain(self, X: Any) -> dict[str, float]:
+    def explain(
+            self,
+            X: Any,
+    ) -> dict[str, float]:
         """单样本特征贡献分解
 
         参数：
             X: 输入数据，支持单条字典或 numpy 数组
 
         返回：
-            dict[str, float]: 评分拆解结果
+            评分拆解结果
         """
-        x = self.inference.transform(X)[0]
+        x = self.inference.transform(
+            X
+        )[0]
 
-        result = self._explain_one(x)
+        result = self._explain_one(
+            x
+        )
 
         logger.debug(
-            "特征贡献分解完成 | 总评分=%s",
-            result["total_score"],
+            "特征贡献分解完成",
+            total_score=result["total_score"],
         )
 
         return result
 
-    def explain_batch(self, X: Any) -> list[dict[str, float]]:
+    def explain_batch(
+            self,
+            X: Any,
+    ) -> list[dict[str, float]]:
         """批量特征贡献分解
 
         参数：
             X: 输入数据，支持字典列表或 numpy 数组
 
         返回：
-            list[dict[str, float]]: 批量评分拆解结果
+            批量评分拆解结果
         """
-        X_arr = self.inference.transform_batch(X)
+        X_arr = self.inference.transform_batch(
+            X
+        )
 
-        results = [self._explain_one(row) for row in X_arr]
+        results = [
+            self._explain_one(
+                row
+            )
+            for row in X_arr
+        ]
 
         logger.debug(
-            "批量特征贡献分解完成 | 样本数=%d",
-            len(results),
+            "批量特征贡献分解完成",
+            sample_count=len(results),
         )
 
         return results
