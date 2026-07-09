@@ -55,6 +55,7 @@
 import asyncio
 import os
 import socket
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -65,15 +66,20 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.config import get_settings
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import DeploymentRepository
+from datamind.db.repositories import (
+    DecisionRepository,
+    DeploymentRepository,
+    RequestRepository,
+)
 from datamind.logging import setup_logging
+from datamind.models.enums import DecisionStrategy
 from datamind.models.errors import (
     BackendError,
     RuntimeRouteError,
 )
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
-from datamind.runtime.router import RuntimeRouter
+from datamind.runtime.router import RouteResult, RuntimeRouter
 from datamind.runtime.server.errors import (
     ServiceDeploymentNotFoundError,
     ServiceEnvironmentMismatchError,
@@ -83,6 +89,7 @@ from datamind.runtime.serving.factory import (
     RuntimeServiceFactory,
 )
 from datamind.services import RuntimeController
+from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
 
@@ -535,38 +542,102 @@ class DatamindRuntimeService:
     ) -> dict[str, Any]:
         """执行单条模型预测
 
+        处理流程：
+          - 创建请求记录
+          - 解析运行时路由
+          - 执行模型预测
+          - 更新请求状态并创建决策记录
+          - 返回预测结果和追踪 ID
+
         参数：
             request: 单条预测请求
 
         返回：
             模型预测结果
         """
-        if not request.features:
-            raise ValueError(
-                "features 不能为空"
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        started_at = time.perf_counter()
+
+        payload = self._build_request_payload(
+            request
+        )
+
+        await self._create_request_record(
+            request_id=request_id,
+            model_id=request.model_id,
+            payload=payload,
+        )
+
+        try:
+            if not request.features:
+                raise ValueError(
+                    "features 不能为空"
+                )
+
+            route = await self.router.resolve(
+                model_id=request.model_id,
+                environment=(
+                    service_config.environment
+                ),
+                subject_key=request.subject_key,
+                subject_type=request.subject_type,
+                payload=request.features,
+                deployment_id=request.deployment_id,
             )
 
-        route = await self.router.resolve(
-            model_id=request.model_id,
-            environment=(
-                service_config.environment
-            ),
-            subject_key=request.subject_key,
-            subject_type=request.subject_type,
-            payload=request.features,
-            deployment_id=request.deployment_id,
-        )
+            service = await self._get_service(
+                route.deployment_id
+            )
 
-        service = await self._get_service(
-            route.deployment_id
-        )
+            result = await asyncio.to_thread(
+                service.predict,
+                request.features,
+            )
 
-        result = await asyncio.to_thread(
-            service.predict,
-            request.features,
-        )
+            latency_ms = (
+                                 time.perf_counter() - started_at
+                         ) * 1000
+
+            decision_id = generate_random_id(
+                prefix="dcs"
+            )
+
+            await self._record_prediction_success(
+                request_id=request_id,
+                decision_id=decision_id,
+                route=route,
+                result=result,
+                latency_ms=latency_ms,
+            )
+
+        except Exception as exc:
+            latency_ms = (
+                                 time.perf_counter() - started_at
+                         ) * 1000
+
+            try:
+                await self._mark_request_failed(
+                    request_id=request_id,
+                    error=str(exc),
+                    latency_ms=latency_ms,
+                )
+
+            except Exception as record_exc:
+                logger.exception(
+                    "记录失败请求状态失败",
+                    request_id=request_id,
+                    model_id=request.model_id,
+                    error=str(record_exc),
+                )
+
+            raise
 
         return {
+            "request_id": request_id,
+            "decision_id": decision_id,
             **result,
             "route": route.to_dict(),
             "worker_id": self.manager.worker_id,
@@ -605,6 +676,291 @@ class DatamindRuntimeService:
             **result,
             "worker_id": self.manager.worker_id,
         }
+
+    @staticmethod
+    def _build_request_payload(
+            request: PredictRequest,
+    ) -> dict[str, Any]:
+        """构造请求负载
+
+        参数：
+            request: 单条预测请求
+
+        返回：
+            请求负载字典
+        """
+        return {
+            "model_id": request.model_id,
+            "deployment_id": request.deployment_id,
+            "subject_key": request.subject_key,
+            "subject_type": request.subject_type,
+            "features": request.features,
+        }
+
+    async def _create_request_record(
+            self,
+            *,
+            request_id: str,
+            model_id: str,
+            payload: dict[str, Any],
+    ) -> None:
+        """创建原始请求记录
+
+        参数：
+            request_id: 请求 ID
+            model_id: 模型 ID
+            payload: 请求负载
+        """
+        async with UnitOfWork() as uow:
+            repo = RequestRepository(
+                uow.session
+            )
+
+            repo.create_request(
+                request_id=request_id,
+                model_id=model_id,
+                payload=payload,
+                source="api",
+            )
+
+    async def _record_prediction_success(
+            self,
+            *,
+            request_id: str,
+            decision_id: str,
+            route: RouteResult,
+            result: dict[str, Any],
+            latency_ms: float,
+    ) -> None:
+        """记录成功请求和决策结果
+
+        Request 状态更新和 Decision 创建
+        在同一个事务中完成。
+
+        参数：
+            request_id: 请求 ID
+            decision_id: 决策 ID
+            route: 路由结果
+            result: 模型预测结果
+            latency_ms: 处理耗时
+        """
+        async with UnitOfWork() as uow:
+            request_repo = RequestRepository(
+                uow.session
+            )
+
+            decision_repo = DecisionRepository(
+                uow.session
+            )
+
+            request_record = await request_repo.get_request(
+                request_id
+            )
+
+            if request_record is None:
+                raise RuntimeError(
+                    f"请求记录不存在: {request_id}"
+                )
+
+            request_repo.mark_success(
+                request_record,
+                latency_ms=latency_ms,
+            )
+
+            decision_repo.create_decision(
+                decision_id=decision_id,
+                request_id=request_id,
+                model_id=route.model_id,
+                version_id=route.version_id,
+                source=self._resolve_decision_source(
+                    route.source
+                ),
+                deployment_id=route.deployment_id,
+                experiment_id=route.experiment_id,
+                variant_id=route.variant_id,
+                assignment_id=route.assignment_id,
+                subject_key=route.subject_key,
+                subject_type=route.subject_type,
+                strategy=self._string_value(
+                    route.strategy
+                ),
+                bucket=route.bucket,
+                group=route.group,
+                weight=route.weight,
+                prediction=(
+                    self._build_prediction_payload(
+                        result
+                    )
+                ),
+                probability=self._optional_float(
+                    result.get(
+                        "probability"
+                    )
+                ),
+                score=self._optional_float(
+                    result.get(
+                        "score"
+                    )
+                ),
+                decision=self._optional_string(
+                    result.get(
+                        "decision"
+                    )
+                ),
+                latency_ms=latency_ms,
+                context={
+                    "route": route.to_dict(),
+                    "worker_id": self.manager.worker_id,
+                    "environment": (
+                        service_config.environment
+                    ),
+                },
+            )
+
+    async def _mark_request_failed(
+            self,
+            *,
+            request_id: str,
+            error: str,
+            latency_ms: float,
+    ) -> None:
+        """标记请求处理失败
+
+        参数：
+            request_id: 请求 ID
+            error: 错误信息
+            latency_ms: 处理耗时
+        """
+        async with UnitOfWork() as uow:
+            repo = RequestRepository(
+                uow.session
+            )
+
+            request_record = await repo.get_request(
+                request_id
+            )
+
+            if request_record is None:
+                logger.warning(
+                    "失败请求记录不存在",
+                    request_id=request_id,
+                )
+                return
+
+            repo.mark_failed(
+                request_record,
+                error=error,
+                latency_ms=latency_ms,
+            )
+
+    @staticmethod
+    def _build_prediction_payload(
+            result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """构造决策表中的模型预测结果
+
+        去除模型和部署标识字段，
+        保留服务类型和实际预测输出。
+
+        参数：
+            result: RuntimeService 预测结果
+
+        返回：
+            模型预测结果
+        """
+        identity_fields = {
+            "deployment_id",
+            "model_id",
+            "version_id",
+            "framework",
+        }
+
+        return {
+            key: value
+            for key, value in result.items()
+            if key not in identity_fields
+        }
+
+    @staticmethod
+    def _resolve_decision_source(
+            value: str,
+    ) -> DecisionStrategy:
+        """解析决策来源
+
+        参数：
+            value: 路由来源
+
+        返回：
+            DecisionStrategy
+        """
+        if isinstance(
+                value,
+                DecisionStrategy,
+        ):
+            return value
+
+        return DecisionStrategy(
+            str(value)
+        )
+
+    @staticmethod
+    def _string_value(
+            value: Any,
+    ) -> str | None:
+        """转换字符串枚举或普通值"""
+        if value is None:
+            return None
+
+        enum_value = getattr(
+            value,
+            "value",
+            value,
+        )
+
+        return str(
+            enum_value
+        )
+
+    @staticmethod
+    def _optional_float(
+            value: Any,
+    ) -> float | None:
+        """安全转换可选浮点数"""
+        if (
+                value is None
+                or isinstance(
+            value,
+            bool,
+        )
+        ):
+            return None
+
+        try:
+            return float(
+                value
+            )
+
+        except (
+                TypeError,
+                ValueError,
+        ):
+            return None
+
+    @staticmethod
+    def _optional_string(
+            value: Any,
+    ) -> str | None:
+        """安全转换可选字符串"""
+        if value is None:
+            return None
+
+        if not isinstance(
+                value,
+                str,
+        ):
+            return None
+
+        return value
 
     async def _get_service(
             self,

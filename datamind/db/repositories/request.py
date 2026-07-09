@@ -2,7 +2,8 @@
 
 """请求仓储
 
-提供系统原始请求记录的查询与写入能力，用于请求追踪与性能分析。
+提供系统原始请求记录的查询与写入能力，
+用于请求追踪、异常排查和性能分析。
 
 核心功能：
   - get_request: 获取请求记录
@@ -10,6 +11,8 @@
   - list_recent_requests: 获取最近请求列表
   - list_model_requests: 获取模型请求列表
   - create_request: 创建请求记录
+  - mark_success: 标记请求处理成功
+  - mark_failed: 标记请求处理失败
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -21,11 +24,19 @@
       request = repo.create_request(
           request_id="req_a1b2c3d4",
           model_id="mdl_a1b2c3d4",
-          payload={"features": {"age": 35}},
+          payload={
+              "features": {
+                  "age": 35,
+              },
+          },
           source="api",
-          latency_ms=125.5,
           user="system",
-          ip="127.0.0.1"
+          ip="127.0.0.1",
+      )
+
+      repo.mark_success(
+          request,
+          latency_ms=125.5,
       )
 """
 
@@ -50,7 +61,10 @@ class RequestRepository(BaseRepository):
         返回：
             请求记录对象，不存在时返回 None
         """
-        stmt = select(Request).where(Request.request_id == request_id)
+        stmt = select(Request).where(
+            Request.request_id == request_id
+        )
+
         result = await self.session.execute(stmt)
 
         return result.scalar_one_or_none()
@@ -69,8 +83,10 @@ class RequestRepository(BaseRepository):
             offset: 分页偏移（可选）
             **filters: 过滤条件
                 支持字段：
+                    request_id
                     model_id
                     source
+                    status
                     user
                     ip
 
@@ -82,7 +98,9 @@ class RequestRepository(BaseRepository):
         if filters:
             stmt = stmt.filter_by(**filters)
 
-        stmt = stmt.order_by(Request.created_at.desc())
+        stmt = stmt.order_by(
+            Request.created_at.desc()
+        )
 
         if offset is not None:
             stmt = stmt.offset(offset)
@@ -148,6 +166,7 @@ class RequestRepository(BaseRepository):
             model_id: str,
             payload: dict | None = None,
             source: str | None = None,
+            status: str = "received",
             latency_ms: float | None = None,
             user: str | None = None,
             ip: str | None = None,
@@ -159,6 +178,7 @@ class RequestRepository(BaseRepository):
             model_id: 模型 ID
             payload: 请求输入数据（可选）
             source: 请求来源（可选）
+            status: 请求状态，默认 received
             latency_ms: 处理耗时（可选）
             user: 用户标识（可选）
             ip: 客户端 IP 地址（可选）
@@ -171,6 +191,7 @@ class RequestRepository(BaseRepository):
             model_id=model_id,
             payload=payload,
             source=source,
+            status=status,
             latency_ms=latency_ms,
             user=user,
             ip=ip,
@@ -179,3 +200,47 @@ class RequestRepository(BaseRepository):
         self.add(obj)
 
         return obj
+
+    def mark_success(
+            self,
+            request: Request,
+            *,
+            latency_ms: float | None = None,
+    ) -> Request:
+        """标记请求处理成功
+
+        参数：
+            request: 请求记录对象
+            latency_ms: 处理耗时（可选）
+
+        返回：
+            更新后的请求记录对象
+        """
+        request.status = "success"
+        request.error = None
+        request.latency_ms = latency_ms
+
+        return request
+
+    def mark_failed(
+            self,
+            request: Request,
+            *,
+            error: str,
+            latency_ms: float | None = None,
+    ) -> Request:
+        """标记请求处理失败
+
+        参数：
+            request: 请求记录对象
+            error: 错误信息
+            latency_ms: 处理耗时（可选）
+
+        返回：
+            更新后的请求记录对象
+        """
+        request.status = "failed"
+        request.error = error
+        request.latency_ms = latency_ms
+
+        return request
