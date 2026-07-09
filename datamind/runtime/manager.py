@@ -38,6 +38,7 @@ import structlog
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DeploymentRepository,
+    MetadataRepository,
     RuntimeRepository,
     VersionRepository,
 )
@@ -46,6 +47,7 @@ from datamind.models.errors import (
     BackendError,
     DeploymentNotFoundError,
     InvalidDeploymentStateError,
+    ModelNotFoundError,
     RuntimeRouteError,
     VersionNotFoundError,
 )
@@ -98,6 +100,7 @@ class RuntimeManager:
 
         异常：
             DeploymentNotFoundError: 部署不存在
+            ModelNotFoundError: 模型元数据不存在
             VersionNotFoundError: 版本不存在
             InvalidDeploymentStateError: 部署状态不可加载
             BackendError: 模型加载失败
@@ -132,16 +135,20 @@ class RuntimeManager:
         model_id = ""
         version_id = ""
         framework = ""
+        model_type = ""
+        task_type = ""
         bento_tag = ""
         model_path = None
         model_key = None
         environment = ""
         rollout_type = ""
         role = None
+        config = None
         runtime_context: dict[str, Any] = {}
 
         async with UnitOfWork() as uow:
             deployment_repo = DeploymentRepository(uow.session)
+            metadata_repo = MetadataRepository(uow.session)
             version_repo = VersionRepository(uow.session)
             runtime_repo = RuntimeRepository(uow.session)
 
@@ -150,11 +157,22 @@ class RuntimeManager:
             )
 
             if deployment is None:
-                raise DeploymentNotFoundError(f"部署不存在: {deployment_id}")
+                raise DeploymentNotFoundError(
+                    f"部署不存在: {deployment_id}"
+                )
 
             if deployment.status != DeploymentStatus.ACTIVE:
                 raise InvalidDeploymentStateError(
                     f"部署不是启用状态，不能加载: {deployment_id}"
+                )
+
+            metadata = await metadata_repo.get_model(
+                model_id=deployment.model_id,
+            )
+
+            if metadata is None:
+                raise ModelNotFoundError(
+                    f"模型元数据不存在: {deployment.model_id}"
                 )
 
             version = await version_repo.get_version(
@@ -162,7 +180,9 @@ class RuntimeManager:
             )
 
             if version is None:
-                raise VersionNotFoundError(f"版本不存在: {deployment.version_id}")
+                raise VersionNotFoundError(
+                    f"版本不存在: {deployment.version_id}"
+                )
 
             if not version.bento_tag:
                 raise VersionNotFoundError(
@@ -182,18 +202,27 @@ class RuntimeManager:
             model_id = deployment.model_id
             version_id = deployment.version_id
             framework = deployment.framework
+            model_type = metadata.model_type
+            task_type = metadata.task_type
             bento_tag = version.bento_tag
             model_path = version.model_path
             model_key = version.model_key
             environment = deployment.environment
             rollout_type = deployment.rollout_type
             role = deployment.role
+            config = deployment.config
 
             runtime_context = {
                 "worker_id": self.worker_id,
                 "bento_tag": bento_tag,
                 "model_path": model_path,
                 "model_key": model_key,
+                "model_type": model_type,
+                "task_type": task_type,
+                "environment": environment,
+                "rollout_type": rollout_type,
+                "role": role,
+                "config": config,
             }
 
             runtime_repo.mark_loading(
@@ -223,9 +252,12 @@ class RuntimeManager:
                     "bento_tag": bento_tag,
                     "model_path": model_path,
                     "model_key": model_key,
+                    "model_type": model_type,
+                    "task_type": task_type,
                     "environment": environment,
                     "rollout_type": rollout_type,
                     "role": role,
+                    "config": config,
                 },
             )
 
@@ -283,10 +315,14 @@ class RuntimeManager:
             )
 
         if load_error is not None:
-            raise BackendError(f"模型加载失败: {deployment_id}") from load_error
+            raise BackendError(
+                f"模型加载失败: {deployment_id}"
+            ) from load_error
 
         if runtime_model is None:
-            raise BackendError(f"模型加载失败: {deployment_id}")
+            raise BackendError(
+                f"模型加载失败: {deployment_id}"
+            )
 
         return runtime_model
 

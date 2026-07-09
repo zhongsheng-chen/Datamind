@@ -123,21 +123,15 @@ class ABTestAnalyzer:
 
     读取实验配置、实验分组和实验结果，
     并调用 ABTestMetricEvaluator 生成实验分析结果。
-
-    说明：
-      - 不负责实验分配
-      - 不负责写入结果
-      - 不负责提交事务
-      - 只做查询和分析编排
     """
 
     def __init__(
-        self,
-        *,
-        experiment_repo: ExperimentRepository,
-        variant_repo: VariantRepository,
-        outcome_repo: OutcomeRepository,
-        metric_evaluator: ABTestMetricEvaluator | None = None,
+            self,
+            *,
+            experiment_repo: ExperimentRepository,
+            variant_repo: VariantRepository,
+            outcome_repo: OutcomeRepository,
+            metric_evaluator: ABTestMetricEvaluator | None = None,
     ):
         """初始化 A/B 实验分析器
 
@@ -153,20 +147,16 @@ class ABTestAnalyzer:
         self.metric_evaluator = metric_evaluator or ABTestMetricEvaluator()
 
     async def analyze_experiment(
-        self,
-        *,
-        experiment_id: str,
-        baseline_variant_id: str | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            *,
+            experiment_id: str,
+            baseline_variant_id: str | None = None,
     ) -> ABTestAnalysis:
         """分析指定实验
 
         参数：
             experiment_id: 实验 ID
             baseline_variant_id: 基准分组 ID（可选）
-            limit: 实验结果返回数量限制（可选）
-            offset: 实验结果分页偏移（可选）
 
         返回：
             A/B 实验分析结果
@@ -199,17 +189,26 @@ class ABTestAnalyzer:
 
         outcomes = await self._list_experiment_outcomes(
             experiment_id=experiment_id,
-            limit=limit,
-            offset=offset,
         )
+
+        outcome_variant_ids = self._get_outcome_variant_ids(outcomes)
+
+        metrics_baseline_variant_id = resolved_baseline_variant_id
+
+        if (
+                metrics_baseline_variant_id is not None
+                and metrics_baseline_variant_id not in outcome_variant_ids
+        ):
+            metrics_baseline_variant_id = None
 
         metrics_result = self.metric_evaluator.calculate_experiment_metrics(
             experiment_id=experiment_id,
             outcomes=outcomes,
-            baseline_variant_id=resolved_baseline_variant_id,
+            baseline_variant_id=metrics_baseline_variant_id,
         )
 
         variant_map = self._build_variant_info_map(variants)
+
         warnings = self._build_warnings(
             variants=variants,
             outcomes=outcomes,
@@ -230,18 +229,14 @@ class ABTestAnalyzer:
         )
 
     async def analyze_variant(
-        self,
-        *,
-        variant_id: str,
-        limit: int | None = None,
-        offset: int | None = None,
+            self,
+            *,
+            variant_id: str,
     ) -> dict:
         """分析单个实验分组
 
         参数：
             variant_id: 实验分组 ID
-            limit: 实验结果返回数量限制（可选）
-            offset: 实验结果分页偏移（可选）
 
         返回：
             单个实验分组分析结果
@@ -259,8 +254,6 @@ class ABTestAnalyzer:
 
         outcomes = await self._list_variant_outcomes(
             variant_id=variant_id,
-            limit=limit,
-            offset=offset,
         )
 
         metrics_map = self.metric_evaluator.calculate_variant_metrics(
@@ -273,15 +266,19 @@ class ABTestAnalyzer:
         return {
             "variant": self._build_variant_info(variant).to_dict(),
             "outcome_count": len(outcomes),
-            "metrics": metrics_result.to_dict() if metrics_result is not None else None,
+            "metrics": (
+                metrics_result.to_dict()
+                if metrics_result is not None
+                else None
+            ),
         }
 
     async def _resolve_baseline_variant_id(
-        self,
-        *,
-        experiment_id: str,
-        variants: list[Variant],
-        baseline_variant_id: str | None,
+            self,
+            *,
+            experiment_id: str,
+            variants: list[Variant],
+            baseline_variant_id: str | None,
     ) -> str | None:
         """解析基准分组 ID
 
@@ -314,62 +311,46 @@ class ABTestAnalyzer:
         if control_variant is not None:
             return self._as_str(control_variant.variant_id)
 
-        for variant in variants:
-            if self._as_str(variant.name) == "control":
-                return self._as_str(variant.variant_id)
-
         return None
 
     async def _list_experiment_outcomes(
-        self,
-        *,
-        experiment_id: str,
-        limit: int | None,
-        offset: int | None,
+            self,
+            *,
+            experiment_id: str,
     ) -> list[Outcome]:
-        """获取实验结果记录
+        """获取实验全部结果记录
 
         参数：
             experiment_id: 实验 ID
-            limit: 返回数量限制（可选）
-            offset: 分页偏移（可选）
 
         返回：
             实验结果记录列表
         """
         return await self.outcome_repo.list_experiment_outcomes(
-            experiment_id,
-            limit=limit,
-            offset=offset,
+            experiment_id
         )
 
     async def _list_variant_outcomes(
-        self,
-        *,
-        variant_id: str,
-        limit: int | None,
-        offset: int | None,
+            self,
+            *,
+            variant_id: str,
     ) -> list[Outcome]:
-        """获取实验分组结果记录
+        """获取实验分组全部结果记录
 
         参数：
             variant_id: 实验分组 ID
-            limit: 返回数量限制（可选）
-            offset: 分页偏移（可选）
 
         返回：
             实验结果记录列表
         """
         return await self.outcome_repo.list_variant_outcomes(
-            variant_id,
-            limit=limit,
-            offset=offset,
+            variant_id
         )
 
     @classmethod
     def _build_variant_info_map(
-        cls,
-        variants: list[Variant],
+            cls,
+            variants: list[Variant],
     ) -> dict[str, VariantInfo]:
         """构造实验分组信息字典
 
@@ -385,7 +366,10 @@ class ABTestAnalyzer:
         }
 
     @classmethod
-    def _build_variant_info(cls, variant: Variant) -> VariantInfo:
+    def _build_variant_info(
+            cls,
+            variant: Variant,
+    ) -> VariantInfo:
         """构造实验分组信息
 
         参数：
@@ -407,12 +391,12 @@ class ABTestAnalyzer:
 
     @classmethod
     def _build_warnings(
-        cls,
-        *,
-        variants: list[Variant],
-        outcomes: list[Outcome],
-        baseline_variant_id: str | None,
-        metrics: ExperimentMetrics,
+            cls,
+            *,
+            variants: list[Variant],
+            outcomes: list[Outcome],
+            baseline_variant_id: str | None,
+            metrics: ExperimentMetrics,
     ) -> list[str]:
         """构造分析提示信息
 
@@ -425,13 +409,22 @@ class ABTestAnalyzer:
         返回：
             提示信息列表
         """
-        warnings = []
+        warnings: list[str] = []
 
         if not outcomes:
             warnings.append("实验暂无结果记录")
 
         if baseline_variant_id is None:
             warnings.append("未找到基准分组，未生成 lift 对比")
+        elif baseline_variant_id not in metrics.variants:
+            warnings.append(
+                f"基准分组 {baseline_variant_id} 暂无结果记录，未生成 lift 对比"
+            )
+
+        variant_ids = {
+            cls._as_str(variant.variant_id)
+            for variant in variants
+        }
 
         variant_ids_with_metrics = set(metrics.variants.keys())
 
@@ -443,6 +436,31 @@ class ABTestAnalyzer:
                     f"实验分组 {variant_id} 暂无结果记录"
                 )
 
+        invalid_variant_count = sum(
+            1
+            for outcome in outcomes
+            if not cls._is_valid_variant_id(
+                getattr(outcome, "variant_id", None)
+            )
+        )
+
+        if invalid_variant_count > 0:
+            warnings.append(
+                f"存在 {invalid_variant_count} 条结果记录缺少有效实验分组 ID"
+            )
+
+        outcome_variant_ids = cls._get_outcome_variant_ids(outcomes)
+        unknown_variant_ids = outcome_variant_ids - variant_ids
+
+        if unknown_variant_ids:
+            unknown_variant_text = ", ".join(
+                sorted(unknown_variant_ids)
+            )
+
+            warnings.append(
+                f"存在未配置的实验分组结果：{unknown_variant_text}"
+            )
+
         active_weight_sum = sum(
             cls._as_float(variant.weight)
             for variant in variants
@@ -453,6 +471,39 @@ class ABTestAnalyzer:
             warnings.append("实验分组权重总和不等于 1")
 
         return warnings
+
+    @classmethod
+    def _get_outcome_variant_ids(
+            cls,
+            outcomes: list[Outcome],
+    ) -> set[str]:
+        """获取实验结果中的有效分组 ID
+
+        参数：
+            outcomes: 实验结果记录列表
+
+        返回：
+            实验分组 ID 集合
+        """
+        return {
+            str(variant_id)
+            for outcome in outcomes
+            if cls._is_valid_variant_id(
+                variant_id := getattr(outcome, "variant_id", None)
+            )
+        }
+
+    @staticmethod
+    def _is_valid_variant_id(value: Any) -> bool:
+        """判断实验分组 ID 是否有效
+
+        参数：
+            value: 原始值
+
+        返回：
+            是否为有效实验分组 ID
+        """
+        return isinstance(value, str) and bool(value)
 
     @staticmethod
     def _as_str(value: Any) -> str:

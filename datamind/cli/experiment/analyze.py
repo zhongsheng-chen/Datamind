@@ -48,16 +48,6 @@ def analyze_experiment(
             "--baseline-variant-id",
             help="基准分组 ID"
         ),
-        limit: int | None = typer.Option(
-            None,
-            "--limit",
-            help="实验结果数量限制"
-        ),
-        offset: int | None = typer.Option(
-            None,
-            "--offset",
-            help="实验结果分页偏移"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
@@ -92,8 +82,6 @@ def analyze_experiment(
             analysis = await analyzer.analyze_experiment(
                 experiment_id=experiment_id,
                 baseline_variant_id=baseline_variant_id,
-                limit=limit,
-                offset=offset,
             )
 
         result = analysis.to_dict()
