@@ -8,11 +8,12 @@
   - archive_experiment: 归档实验
 
 使用示例：
-  python -m datamind.cli.main experiment archive exp_a1b2c3d4 --operator admin
+  python -m datamind.cli.main experiment archive exp_0123456789abcdef
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -22,6 +23,7 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import ExperimentRepository
+from datamind.models.errors import ExperimentError
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="归档实验命令")
@@ -36,20 +38,10 @@ def archive_experiment(
             ...,
             help="实验 ID"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """归档实验"""
@@ -59,7 +51,9 @@ def archive_experiment(
         target_type="experiment",
         target_id_func=lambda p, r: r["experiment_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
@@ -77,12 +71,20 @@ def archive_experiment(
                 console.print(f"[red]实验不存在: {experiment_id}[/red]")
                 raise typer.Exit(1)
 
-            repo.archive_experiment(
-                experiment,
-                updated_by=operator,
-            )
+            try:
+                repo.archive_experiment(
+                    experiment,
+                    updated_by=actor,
+                )
 
-            result = {
+            except ExperimentError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(1) from exc
+
+            await uow.session.flush()
+            await uow.session.refresh(experiment)
+
+            result: dict[str, Any] = {
                 "experiment_id": experiment.experiment_id,
                 "model_id": experiment.model_id,
                 "name": experiment.name,
@@ -97,7 +99,6 @@ def archive_experiment(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
@@ -111,11 +112,10 @@ def archive_experiment(
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="experiment.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

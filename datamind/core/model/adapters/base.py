@@ -2,20 +2,20 @@
 
 """基础模型适配器
 
-提供统一的模型接口规范，所有框架适配器必须继承此类。
+提供统一的模型输入转换、推理调度、能力检查和结果校验能力。
 
 核心功能：
-  - predict_proba: 预测违约概率（抽象方法，子类必须实现）
-  - decision_function: 获取原始 Logit 值（抽象方法，子类必须实现）
-  - predict_proba_batch: 批量预测概率（子类可重写优化）
-  - decision_function_batch: 批量获取 Logit（子类可重写优化）
-  - predict: 统一概率预测接口
-  - predict_logit: 统一 Logit 预测接口
-  - to_array: 特征字典转 numpy 数组
-  - to_array_batch: 批量特征字典转 numpy 数组
-  - validate_features: 验证特征完整性和类型
-  - get_feature_importance: 获取特征重要性
-  - get_capabilities: 获取当前模型实例能力集
+  - predict_proba: 概率预测抽象接口
+  - predict_proba_batch: 批量概率预测回退实现
+  - decision_function: Logit 预测可选接口
+  - decision_function_batch: 批量 Logit 预测回退实现
+  - predict: 概率预测统一入口
+  - predict_logit: Logit 预测统一入口
+  - to_array: 特征转换
+  - to_array_batch: 批量特征转换
+  - validate_features: 特征校验
+  - get_feature_importance: 特征重要性接口
+  - get_capabilities: 获取模型能力集
   - has_capability: 检查模型能力
   - require_capability: 校验模型能力
 
@@ -27,9 +27,12 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from collections.abc import Iterable
+from numbers import Integral
+from typing import Any, TypeAlias, Union
 
 import numpy as np
+from numpy.typing import NDArray
 import structlog
 
 from datamind.constants import DataType
@@ -37,74 +40,86 @@ from datamind.core.capability import ModelCapability
 
 logger = structlog.get_logger(__name__)
 
+PredictionInput: TypeAlias = Union[
+    NDArray[Any],
+    dict[str, Any],
+    list[dict[str, Any]],
+]
+
+PredictionResult: TypeAlias = Union[
+    float,
+    list[float],
+]
+
 
 class BaseModelAdapter(ABC):
-    """统一模型接口
-
-    所有框架适配器的基类。
-
-    属性：
-        SUPPORTED_CAPABILITIES: 默认静态能力声明
-        model: 原始模型对象
-        feature_names: 特征名称列表
-        data_types: 特征数据类型映射
-        capabilities: 当前模型实例能力集
-    """
+    """统一模型适配器基类"""
 
     SUPPORTED_CAPABILITIES = ModelCapability.NONE
 
     def __init__(
             self,
-            model,
+            model: Any,
             feature_names: list[str] | None = None,
             data_types: dict[str, DataType] | None = None,
-    ):
+            positive_class: Any = 1,
+    ) -> None:
         """初始化适配器
 
         参数：
-            model: 训练好的模型
-            feature_names: 特征名称列表，用于保证特征顺序
-            data_types: 特征数据类型映射，用于类型验证
-        """
-        self.model = model
-        self.feature_names = feature_names
-        self.data_types = data_types or {}
+            model: 已训练模型
+            feature_names: 特征名称列表
+            data_types: 特征类型映射
+            positive_class: 正类标签，默认值为 1
 
-        self._feature_index: dict[str, int] | None = (
-            {
-                name: idx
-                for idx, name in enumerate(
-                feature_names
+        异常：
+            ValueError: 模型为空或特征名称无效
+        """
+        if model is None:
+            raise ValueError(
+                "model 不能为空"
             )
+
+        self.model = model
+        self.feature_names = self._normalize_feature_names(
+            feature_names
+        )
+        self.data_types = dict(
+            data_types or {}
+        )
+        self.positive_class = positive_class
+
+        self._feature_index = (
+            {
+                name: index
+                for index, name in enumerate(
+                    self.feature_names
+                )
             }
-            if feature_names
+            if self.feature_names
             else None
         )
 
-        self.capabilities = (
-            self._detect_capabilities()
-        )
+        self.capabilities = self._detect_capabilities()
 
         numeric_count = sum(
-            1
+            data_type == DataType.NUMERIC
             for data_type in self.data_types.values()
-            if data_type == DataType.NUMERIC
         )
-
         categorical_count = sum(
-            1
+            data_type == DataType.CATEGORICAL
             for data_type in self.data_types.values()
-            if data_type == DataType.CATEGORICAL
         )
 
         logger.debug(
-            "初始化适配器",
+            "初始化模型适配器",
             adapter=self.__class__.__name__,
             feature_count=len(
                 self.feature_names or []
             ),
             numeric_count=numeric_count,
             categorical_count=categorical_count,
+            positive_class=self.positive_class,
             capabilities=int(
                 self.capabilities
             ),
@@ -113,15 +128,7 @@ class BaseModelAdapter(ABC):
     def _detect_capabilities(
             self,
     ) -> ModelCapability:
-        """检测当前模型实例能力
-
-        默认返回类级别静态能力声明。
-
-        子类可覆盖此方法，根据实际模型实例动态检测能力。
-
-        返回：
-            模型能力位掩码
-        """
+        """检测当前模型实例能力"""
         return self.SUPPORTED_CAPABILITIES
 
     @abstractmethod
@@ -129,111 +136,70 @@ class BaseModelAdapter(ABC):
             self,
             X: np.ndarray,
     ) -> float:
-        """预测违约概率
-
-        参数：
-            X: 输入特征数组，形状为 (1, n_features)
-
-        返回：
-            违约概率，范围 0 到 1
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def decision_function(
-            self,
-            X: np.ndarray,
-    ) -> float:
-        """获取原始 Logit 值
-
-        参数：
-            X: 输入特征数组，形状为 (1, n_features)
-
-        返回：
-            Logit 值
-        """
-        raise NotImplementedError
+        """概率预测抽象接口"""
+        pass
 
     def predict_proba_batch(
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量概率预测
+        """批量概率预测回退实现"""
+        array = self._ensure_2d(
+            X
+        )
 
-        支持向量化预测的模型适配器应重写此方法。
-
-        默认逐条调用 predict_proba。
-
-        参数：
-            X: 输入特征数组，形状为 (n_samples, n_features)
-
-        返回：
-            概率列表
-        """
         logger.debug(
             "使用批量概率预测回退方案",
-            sample_count=len(X),
+            sample_count=len(array),
         )
 
         return [
             self.predict_proba(
                 row.reshape(1, -1)
             )
-            for row in X
+            for row in array
         ]
+
+    def decision_function(
+            self,
+            X: np.ndarray,
+    ) -> float:
+        """Logit 预测可选接口"""
+        self.require_capability(
+            ModelCapability.PREDICT_LOG_ODDS
+        )
+
+        raise NotImplementedError(
+            f"{self.__class__.__name__}: "
+            "未实现 Logit 预测接口"
+        )
 
     def decision_function_batch(
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量获取原始 Logit 值
+        """批量 Logit 预测回退实现"""
+        array = self._ensure_2d(
+            X
+        )
 
-        支持向量化预测的模型适配器应重写此方法。
-
-        默认逐条调用 decision_function。
-
-        参数：
-            X: 输入特征数组，形状为 (n_samples, n_features)
-
-        返回：
-            Logit 值列表
-        """
         logger.debug(
             "使用批量 Logit 预测回退方案",
-            sample_count=len(X),
+            sample_count=len(array),
         )
 
         return [
             self.decision_function(
                 row.reshape(1, -1)
             )
-            for row in X
+            for row in array
         ]
 
     def predict(
             self,
-            X: np.ndarray
-               | dict[str, Any]
-               | list[dict[str, Any]],
-    ) -> float | list[float]:
-        """统一概率预测接口
-
-        自动识别输入类型并执行单条或批量概率预测。
-
-        参数：
-            X: 输入数据，支持：
-              - np.ndarray
-              - dict[str, Any]
-              - list[dict[str, Any]]
-
-        返回：
-            单条概率或概率列表
-
-        异常：
-            ValueError: 输入为空或数组维度错误
-            TypeError: 输入类型不支持
-            NotImplementedError: 当前模型不支持概率预测
-        """
+            X: PredictionInput,
+    ) -> PredictionResult:
+        """概率预测统一入口"""
         if X is None:
             raise ValueError(
                 "输入不能为 None"
@@ -243,33 +209,24 @@ class BaseModelAdapter(ABC):
             ModelCapability.PREDICT_PROBA
         )
 
-        if (
-                isinstance(X, list)
-                and len(X) == 0
-        ):
-            return []
-
-        if (
-                isinstance(X, np.ndarray)
-                and X.size == 0
-        ):
-            return []
-
         if isinstance(
                 X,
                 dict,
         ):
-            self.validate_features(X)
-
             return self.predict_proba(
                 self.to_array(X)
             )
 
-        if (
-                isinstance(X, list)
-                and X
-                and isinstance(X[0], dict)
+        if isinstance(
+                X,
+                list,
         ):
+            if not X:
+                return []
+
+            self._validate_feature_list(
+                X
+            )
             self.require_capability(
                 ModelCapability.BATCH_PREDICT
             )
@@ -282,6 +239,18 @@ class BaseModelAdapter(ABC):
                 X,
                 np.ndarray,
         ):
+            if X.ndim not in (
+                    1,
+                    2,
+            ):
+                raise ValueError(
+                    "仅支持 1D / 2D numpy 输入，"
+                    f"当前 ndim={X.ndim}"
+                )
+
+            if X.size == 0:
+                return []
+
             if X.ndim == 1:
                 return self.predict_proba(
                     X.reshape(1, -1)
@@ -296,39 +265,20 @@ class BaseModelAdapter(ABC):
                     X
                 )
 
-            raise ValueError(
-                "仅支持 1D / 2D numpy 输入，"
-                f"当前 ndim={X.ndim}"
-            )
+        input_type = str(
+            type(X).__name__
+        )
 
         raise TypeError(
-            f"不支持类型: {type(X)}"
+            "不支持输入类型: "
+            f"{input_type}"
         )
 
     def predict_logit(
             self,
-            X: np.ndarray
-               | dict[str, Any]
-               | list[dict[str, Any]],
-    ) -> float | list[float]:
-        """统一 Logit 预测接口
-
-        自动识别输入类型并执行单条或批量 Logit 预测。
-
-        参数：
-            X: 输入数据，支持：
-              - np.ndarray
-              - dict[str, Any]
-              - list[dict[str, Any]]
-
-        返回：
-            单条 Logit 或 Logit 列表
-
-        异常：
-            ValueError: 输入为空或数组维度错误
-            TypeError: 输入类型不支持
-            NotImplementedError: 当前模型不支持 Logit 输出
-        """
+            X: PredictionInput,
+    ) -> PredictionResult:
+        """Logit 预测统一入口"""
         if X is None:
             raise ValueError(
                 "输入不能为 None"
@@ -338,33 +288,24 @@ class BaseModelAdapter(ABC):
             ModelCapability.PREDICT_LOG_ODDS
         )
 
-        if (
-                isinstance(X, list)
-                and len(X) == 0
-        ):
-            return []
-
-        if (
-                isinstance(X, np.ndarray)
-                and X.size == 0
-        ):
-            return []
-
         if isinstance(
                 X,
                 dict,
         ):
-            self.validate_features(X)
-
             return self.decision_function(
                 self.to_array(X)
             )
 
-        if (
-                isinstance(X, list)
-                and X
-                and isinstance(X[0], dict)
+        if isinstance(
+                X,
+                list,
         ):
+            if not X:
+                return []
+
+            self._validate_feature_list(
+                X
+            )
             self.require_capability(
                 ModelCapability.BATCH_PREDICT
             )
@@ -377,6 +318,18 @@ class BaseModelAdapter(ABC):
                 X,
                 np.ndarray,
         ):
+            if X.ndim not in (
+                    1,
+                    2,
+            ):
+                raise ValueError(
+                    "仅支持 1D / 2D numpy 输入，"
+                    f"当前 ndim={X.ndim}"
+                )
+
+            if X.size == 0:
+                return []
+
             if X.ndim == 1:
                 return self.decision_function(
                     X.reshape(1, -1)
@@ -391,38 +344,20 @@ class BaseModelAdapter(ABC):
                     X
                 )
 
-            raise ValueError(
-                "仅支持 1D / 2D numpy 输入，"
-                f"当前 ndim={X.ndim}"
-            )
+        input_type = str(
+            type(X).__name__
+        )
 
         raise TypeError(
-            f"不支持类型: {type(X)}"
+            "不支持输入类型: "
+            f"{input_type}"
         )
 
     def to_array(
             self,
             features: dict[str, Any],
     ) -> np.ndarray:
-        """特征字典转 numpy 数组
-
-        转换规则：
-          - 数值特征：转换为浮点数
-          - 布尔特征：转换为 0.0 或 1.0
-          - 字符串：保留原值
-          - 缺失特征：填充 np.nan
-
-        参数：
-            features: 特征字典
-
-        返回：
-            numpy 数组，形状为 (1, n_features)
-
-        异常：
-            ValueError:
-                特征字典为空
-                feature_names 为空
-        """
+        """将单条特征字典转换为二维数组"""
         if not features:
             raise ValueError(
                 "features 不能为空"
@@ -433,29 +368,24 @@ class BaseModelAdapter(ABC):
                 "feature_names 不能为空"
             )
 
-        feature_index = (
-            self._get_feature_index()
-        )
-
-        values = [
+        feature_index = self._get_feature_index()
+        values: list[Any] = [
             np.nan
             for _ in self.feature_names
         ]
 
         for name, value in features.items():
-            idx = feature_index.get(
+            index = feature_index.get(
                 name
             )
 
-            if idx is not None:
-                values[idx] = (
-                    self._to_value_or_nan(
-                        value,
-                        name,
-                    )
+            if index is not None:
+                values[index] = self._to_value_or_nan(
+                    value,
+                    name,
                 )
 
-        return np.array(
+        return np.asarray(
             [values],
             dtype=object,
         )
@@ -464,219 +394,37 @@ class BaseModelAdapter(ABC):
             self,
             features_list: list[dict[str, Any]],
     ) -> np.ndarray:
-        """批量特征字典转 numpy 数组
+        """将批量特征字典转换为二维数组
 
-        参数：
-            features_list: 特征字典列表
-
-        返回：
-            numpy 数组，形状为
-            (n_samples, n_features)
-
-        异常：
-            ValueError: 特征列表为空
+        该实现不依赖 pandas，确保不同运行环境下的
+        字段排序和值转换行为一致。
         """
         if not features_list:
             raise ValueError(
                 "features_list 不能为空"
             )
 
-        try:
-            import pandas as pd
-
-            df = pd.DataFrame(
-                features_list
-            )
-
-            if self.feature_names:
-                for column in self.feature_names:
-                    if column not in df.columns:
-                        df[column] = np.nan
-
-                df = df[
-                    self.feature_names
-                ]
-
-            else:
-                df = df[
-                    sorted(df.columns)
-                ]
-
-            return df.values.astype(
-                object
-            )
-
-        except ImportError:
-            logger.debug(
-                "pandas 不可用，"
-                "使用批量转换回退方案"
-            )
-
-            return (
-                self._to_array_batch_fallback(
-                    features_list
-                )
-            )
-
-    def _to_array_batch_fallback(
-            self,
-            features_list: list[dict[str, Any]],
-    ) -> np.ndarray:
-        """批量特征转换回退实现
-
-        参数：
-            features_list: 特征字典列表
-
-        返回：
-            numpy 数组
-
-        异常：
-            ValueError:
-                feature_names 为空
-        """
-        if not self.feature_names:
-            raise ValueError(
-                "feature_names 不能为空"
-            )
-
-        feature_index = (
-            self._get_feature_index()
-        )
-
-        sample_count = len(
+        self._validate_feature_list(
             features_list
         )
 
-        feature_count = len(
-            self.feature_names
+        names = self._resolve_batch_feature_names(
+            features_list
         )
 
-        arr = np.full(
-            (
-                sample_count,
-                feature_count,
-            ),
-            np.nan,
-            dtype=object,
-        )
-
-        for row_idx, features in enumerate(
-                features_list
-        ):
-            for name, value in features.items():
-                column_idx = (
-                    feature_index.get(
-                        name
-                    )
-                )
-
-                if column_idx is not None:
-                    arr[
-                        row_idx,
-                        column_idx,
-                    ] = self._to_value_or_nan(
-                        value,
+        return np.asarray(
+            [
+                [
+                    self._to_value_or_nan(
+                        features.get(name),
                         name,
                     )
-
-        return arr
-
-    def _get_feature_index(
-            self,
-    ) -> dict[str, int]:
-        """获取特征索引映射
-
-        当索引尚未创建时，根据 feature_names
-        延迟构建索引。
-
-        返回：
-            特征名称到位置的映射
-
-        异常：
-            ValueError: feature_names 为空
-        """
-        feature_index = self._feature_index
-
-        if feature_index is not None:
-            return feature_index
-
-        if not self.feature_names:
-            raise ValueError(
-                "feature_names 不能为空"
-            )
-
-        feature_index = {
-            name: idx
-            for idx, name in enumerate(
-                self.feature_names
-            )
-        }
-
-        self._feature_index = feature_index
-
-        return feature_index
-
-    @staticmethod
-    def _to_value_or_nan(
-            value: Any,
-            feature_name: str | None = None,
-    ) -> Any:
-        """将输入值转换为模型输入值
-
-        规则：
-          - None -> np.nan
-          - bool -> 0.0 / 1.0
-          - 数值 -> float
-          - str -> 原值
-          - 其他类型 -> 原值
-
-        参数：
-            value: 输入值
-            feature_name: 特征名称
-
-        返回：
-            转换后的值
-        """
-        if value is None:
-            return np.nan
-
-        if isinstance(
-                value,
-                bool,
-        ):
-            return (
-                1.0
-                if value
-                else 0.0
-            )
-
-        if isinstance(
-                value,
-                (
-                        int,
-                        float,
-                        np.integer,
-                        np.floating,
-                ),
-        ):
-            return float(value)
-
-        if isinstance(
-                value,
-                str,
-        ):
-            return value
-
-        logger.debug(
-            "特征类型未标准化",
-            feature=feature_name,
-            value_type=type(
-                value
-            ).__name__,
-            value=value,
+                    for name in names
+                ]
+                for features in features_list
+            ],
+            dtype=object,
         )
-
-        return value
 
     def validate_features(
             self,
@@ -685,21 +433,8 @@ class BaseModelAdapter(ABC):
         list[str],
         list[tuple[str, str, str]],
     ]:
-        """验证特征完整性和类型
-
-        参数：
-            features: 特征字典
-
-        返回：
-            二元组：
-              - 缺失特征列表
-              - 类型错误列表
-
-            类型错误格式：
-              (特征名, 期望类型, 实际类型)
-        """
+        """验证特征完整性和类型"""
         missing: list[str] = []
-
         type_errors: list[
             tuple[str, str, str]
         ] = []
@@ -727,42 +462,64 @@ class BaseModelAdapter(ABC):
             )
 
             if data_type == DataType.NUMERIC:
-                if not isinstance(
+                valid = (
+                    not isinstance(
+                        value,
+                        bool,
+                    )
+                    and isinstance(
                         value,
                         (
+                            int,
+                            float,
+                            np.number,
+                        ),
+                    )
+                )
+                expected = "numeric"
+
+            elif data_type == DataType.BOOLEAN:
+                valid = (
+                    isinstance(
+                        value,
+                        bool,
+                    )
+                    or (
+                        isinstance(
+                            value,
+                            (
                                 int,
                                 float,
                                 np.number,
-                        ),
-                ):
-                    type_errors.append(
-                        (
-                            name,
-                            "numeric",
-                            type(
-                                value
-                            ).__name__,
+                            ),
+                        )
+                        and value in (
+                            0,
+                            1,
                         )
                     )
+                )
+                expected = "boolean"
 
-            elif data_type == DataType.BOOLEAN:
-                if not isinstance(
-                        value,
-                        (
-                                bool,
-                                int,
-                                float,
-                        ),
-                ):
-                    type_errors.append(
-                        (
-                            name,
-                            "boolean",
-                            type(
-                                value
-                            ).__name__,
-                        )
+            elif data_type == DataType.CATEGORICAL:
+                valid = isinstance(
+                    value,
+                    str,
+                )
+                expected = "categorical"
+
+            else:
+                valid = True
+                expected = "any"
+
+            if not valid:
+                type_errors.append(
+                    (
+                        name,
+                        expected,
+                        type(value).__name__,
                     )
+                )
 
         return (
             missing,
@@ -772,64 +529,45 @@ class BaseModelAdapter(ABC):
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取当前模型实例能力集
-
-        返回：
-            模型能力位掩码
-        """
+        """获取当前模型实例能力集"""
         return self.capabilities
+
+    def get_positive_class_index(
+            self,
+    ) -> int:
+        """获取正类在模型类别中的位置"""
+        return self._get_positive_class_index()
 
     def has_capability(
             self,
             capability: ModelCapability,
     ) -> bool:
-        """检查模型是否支持指定能力
-
-        参数：
-            capability: 模型能力
-
-        返回：
-            支持返回 True，否则返回 False
-        """
-        return bool(
-            self.capabilities
-            & capability
-        )
+        """检查模型是否支持全部指定能力"""
+        return (
+            self.capabilities & capability
+        ) == capability
 
     def require_capability(
             self,
             capability: ModelCapability,
     ) -> None:
-        """校验模型能力
-
-        参数：
-            capability: 所需能力
-
-        异常：
-            NotImplementedError:
-                当前模型不支持指定能力
-        """
+        """校验模型能力"""
         if not self.has_capability(
                 capability
         ):
+            capability_name = str(
+                capability.name
+            )
+
             raise NotImplementedError(
                 f"{self.__class__.__name__} "
-                f"不支持能力: {capability.name}"
+                f"不支持能力: {capability_name}"
             )
 
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取特征重要性
-
-        返回：
-            特征重要性字典
-
-        异常：
-            NotImplementedError:
-                当前模型不支持特征重要性
-                子类未实现特征重要性
-        """
+        """获取特征重要性"""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
@@ -838,3 +576,402 @@ class BaseModelAdapter(ABC):
             f"{self.__class__.__name__} "
             "未实现特征重要性"
         )
+
+    def _validate_binary_model(
+            self,
+    ) -> None:
+        """校验模型为二分类模型并解析正类标签"""
+        classes = getattr(
+            self.model,
+            "classes_",
+            None,
+        )
+
+        if classes is not None:
+            self._get_positive_class_index()
+            return
+
+        class_count = getattr(
+            self.model,
+            "n_classes_",
+            None,
+        )
+
+        if class_count is None:
+            return
+
+        if (
+                isinstance(class_count, bool)
+                or not isinstance(
+                    class_count,
+                    Integral,
+                )
+        ):
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "模型类别数必须为整数，"
+                f"当前类型={type(class_count).__name__}"
+            )
+
+        resolved_class_count = int(
+            class_count
+        )
+
+        if resolved_class_count != 2:
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "仅支持二分类模型，"
+                f"当前类别数={resolved_class_count}"
+            )
+
+    def _get_positive_class_index(
+            self,
+    ) -> int:
+        """获取正类在概率矩阵中的列位置"""
+        classes = getattr(
+            self.model,
+            "classes_",
+            None,
+        )
+
+        if classes is None:
+            return 1
+
+        class_values = np.asarray(
+            classes,
+            dtype=object,
+        ).reshape(-1)
+
+        if len(class_values) != 2:
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "仅支持二分类模型，"
+                f"当前类别数={len(class_values)}"
+            )
+
+        for index, class_value in enumerate(
+                class_values
+        ):
+            if class_value == self.positive_class:
+                return index
+
+        raise ValueError(
+            f"{self.__class__.__name__}: "
+            "模型类别中不存在指定正类，"
+            f"positive_class={self.positive_class}, "
+            f"classes={class_values.tolist()}"
+        )
+
+    def _extract_positive_probabilities(
+            self,
+            values: Any,
+    ) -> np.ndarray:
+        """提取并校验正类概率"""
+        probabilities = np.asarray(
+            values,
+            dtype=float,
+        )
+
+        if probabilities.ndim != 2:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}: "
+                "仅支持二维概率预测结果，"
+                f"当前输出 shape={probabilities.shape}"
+            )
+
+        class_count = int(
+            probabilities.shape[-1]
+        )
+
+        if class_count != 2:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}: "
+                "仅支持二分类概率预测，"
+                f"当前输出 shape={probabilities.shape}"
+            )
+
+        positive_index = self._get_positive_class_index()
+        result = probabilities[
+            :,
+            positive_index,
+        ]
+
+        if (
+                not np.all(
+                    np.isfinite(result)
+                )
+                or np.any(result < 0)
+                or np.any(result > 1)
+        ):
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "模型返回了非法概率值"
+            )
+
+        return result
+
+    def _extract_binary_logits(
+            self,
+            values: Any,
+    ) -> np.ndarray:
+        """提取并统一为指定正类方向的 Logit"""
+        logits = np.asarray(
+            values,
+            dtype=float,
+        )
+
+        if logits.ndim == 0:
+            logits = logits.reshape(1)
+
+        elif logits.ndim == 2:
+            output_count = int(
+                logits.shape[-1]
+            )
+
+            if output_count != 1:
+                raise NotImplementedError(
+                    f"{self.__class__.__name__}: "
+                    "暂不支持多分类 Logit 输出，"
+                    f"当前输出 shape={logits.shape}"
+                )
+
+            logits = logits.reshape(-1)
+
+        elif logits.ndim != 1:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}: "
+                "暂不支持多分类 Logit 输出，"
+                f"当前输出 shape={logits.shape}"
+            )
+
+        if not np.all(
+                np.isfinite(logits)
+        ):
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "模型返回了非法 Logit 值"
+            )
+
+        if self._get_positive_class_index() == 0:
+            return -logits
+
+        return logits
+
+    @staticmethod
+    def _build_feature_importance(
+            values: Any,
+            *,
+            names: Iterable[Any] | None = None,
+    ) -> dict[str, float]:
+        """构造特征重要性字典并校验数量"""
+        importance = np.asarray(
+            values,
+            dtype=float,
+        ).reshape(-1)
+
+        if not np.all(
+                np.isfinite(importance)
+        ):
+            raise ValueError(
+                "特征重要性包含非有限数值"
+            )
+
+        resolved_names = (
+            [
+                str(name)
+                for name in names
+            ]
+            if names is not None
+            else [
+                f"f{index}"
+                for index in range(
+                    len(importance)
+                )
+            ]
+        )
+
+        if len(resolved_names) != len(importance):
+            raise ValueError(
+                "特征名称数量与特征重要性数量不一致: "
+                f"feature_count={len(resolved_names)}, "
+                f"importance_count={len(importance)}"
+            )
+
+        return {
+            name: float(value)
+            for name, value in zip(
+                resolved_names,
+                importance,
+                strict=True,
+            )
+        }
+
+    @staticmethod
+    def _ensure_2d(
+            X: np.ndarray,
+    ) -> np.ndarray:
+        """确保输入为二维数组"""
+        array = np.asarray(
+            X
+        )
+
+        if array.ndim == 1:
+            return array.reshape(
+                1,
+                -1,
+            )
+
+        if array.ndim != 2:
+            raise ValueError(
+                "仅支持 1D / 2D numpy 输入，"
+                f"当前 ndim={array.ndim}"
+            )
+
+        return array
+
+    @staticmethod
+    def _to_value_or_nan(
+            value: Any,
+            feature_name: str | None = None,
+    ) -> Any:
+        """将输入值转换为模型输入值"""
+        if value is None:
+            return np.nan
+
+        if isinstance(
+                value,
+                bool,
+        ):
+            return float(
+                value
+            )
+
+        if isinstance(
+                value,
+                (
+                    int,
+                    float,
+                    np.integer,
+                    np.floating,
+                ),
+        ):
+            return float(
+                value
+            )
+
+        if isinstance(
+                value,
+                str,
+        ):
+            return value
+
+        logger.debug(
+            "特征类型未标准化",
+            feature=feature_name,
+            value_type=type(
+                value
+            ).__name__,
+        )
+
+        return value
+
+    def _get_feature_index(
+            self,
+    ) -> dict[str, int]:
+        """获取特征名称到位置的映射"""
+        if self._feature_index is not None:
+            return self._feature_index
+
+        if not self.feature_names:
+            raise ValueError(
+                "feature_names 不能为空"
+            )
+
+        self._feature_index = {
+            name: index
+            for index, name in enumerate(
+                self.feature_names
+            )
+        }
+
+        return self._feature_index
+
+    def _resolve_batch_feature_names(
+            self,
+            features_list: list[dict[str, Any]],
+    ) -> list[str]:
+        """解析批量转换使用的特征顺序"""
+        if self.feature_names:
+            return self.feature_names
+
+        names = sorted({
+            name
+            for features in features_list
+            for name in features
+        })
+
+        if not names:
+            raise ValueError(
+                "批量特征中不存在可用字段"
+            )
+
+        return names
+
+    @staticmethod
+    def _validate_feature_list(
+            features_list: list[Any],
+    ) -> None:
+        """校验批量输入中的每个元素均为字典"""
+        invalid_index = next(
+            (
+                index
+                for index, features in enumerate(
+                    features_list
+                )
+                if not isinstance(
+                    features,
+                    dict,
+                )
+            ),
+            None,
+        )
+
+        if invalid_index is not None:
+            raise TypeError(
+                "批量输入必须全部为特征字典，"
+                f"第 {invalid_index} 个元素类型为 "
+                f"{type(features_list[invalid_index]).__name__}"
+            )
+
+    @staticmethod
+    def _normalize_feature_names(
+            feature_names: list[str] | None,
+    ) -> list[str] | None:
+        """校验并复制特征名称列表"""
+        if feature_names is None:
+            return None
+
+        normalized = list(
+            feature_names
+        )
+
+        if not normalized:
+            return None
+
+        if any(
+                not isinstance(name, str)
+                or not name.strip()
+                for name in normalized
+        ):
+            raise ValueError(
+                "feature_names 必须是非空字符串列表"
+            )
+
+        if len(normalized) != len(
+                set(normalized)
+        ):
+            raise ValueError(
+                "feature_names 不能包含重复名称"
+            )
+
+        return normalized

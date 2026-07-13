@@ -12,8 +12,7 @@
     --version 1.0.0 \
     --environment production \
     --rollout full \
-    --config-file config.json \
-    --owner admin
+    --config-file config.json
 """
 
 import asyncio
@@ -26,7 +25,7 @@ from rich.console import Console
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.config import get_settings
-from datamind.services.deployer import ModelDeployer
+from datamind.services import DeploymentLifecycleService
 
 app = typer.Typer(help="创建部署命令")
 console = Console()
@@ -63,7 +62,7 @@ def create_deployment(
         rollout: str = typer.Option(
             "full",
             "--rollout",
-            help="发布方式 full canary shadow"
+            help="发布方式，可选值：full / canary / shadow"
         ),
         role: str = typer.Option(
             "champion",
@@ -80,20 +79,10 @@ def create_deployment(
             "--description",
             help="部署描述"
         ),
-        owner: str = typer.Option(
-            "system",
-            "--owner",
-            help="创建人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="是否输出调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """创建部署"""
@@ -111,7 +100,9 @@ def create_deployment(
         target_type="deployment",
         target_id_func=lambda p, r: r["deployment_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if not (name or model_id):
             raise typer.BadParameter(
                 "必须提供 <name> 或 --model-id"
@@ -163,9 +154,7 @@ def create_deployment(
                         "r",
                         encoding="utf-8",
                 ) as f:
-                    cfg = json.load(
-                        f
-                    )
+                    cfg = json.load(f)
 
                 logger.debug(
                     "部署配置文件解析成功",
@@ -186,7 +175,15 @@ def create_deployment(
                 )
                 raise typer.Exit(1)
 
-        deployer = ModelDeployer()
+            if not isinstance(
+                    cfg,
+                    dict,
+            ):
+                raise typer.BadParameter(
+                    "--config-file 必须是 JSON 对象"
+                )
+
+        deployer = DeploymentLifecycleService()
 
         result = await deployer.create_deployment(
             name=name,
@@ -198,7 +195,7 @@ def create_deployment(
             role=role,
             config=cfg,
             description=description,
-            deployed_by=owner,
+            deployed_by=actor,
         )
 
         if output == "json":
@@ -206,7 +203,7 @@ def create_deployment(
                 json.dumps(
                     result,
                     ensure_ascii=False,
-                    indent=2
+                    indent=2,
                 )
             )
             return result
@@ -248,13 +245,10 @@ def create_deployment(
 
     async def runner():
         async with cli_context(
-                user=owner,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="deployment.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
-    asyncio.run(
-        runner()
-    )
+    asyncio.run(runner())

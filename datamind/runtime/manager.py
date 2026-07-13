@@ -19,22 +19,24 @@
   manager = RuntimeManager()
 
   runtime_model = await manager.start(
-      deployment_id="dep_a1b2c3d4",
+      deployment_id="dep_0123456789abcdef",
       operator="admin",
   )
 
-  model = manager.get_model("dep_a1b2c3d4")
+  model = manager.get_model("dep_0123456789abcdef")
 
   await manager.stop(
-      deployment_id="dep_a1b2c3d4",
+      deployment_id="dep_0123456789abcdef",
       operator="admin",
   )
 """
 
+import asyncio
 from typing import Any
 
 import structlog
 
+from datamind.constants import Framework
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DeploymentRepository,
@@ -80,8 +82,27 @@ class RuntimeManager:
         self.loader = loader or ModelLoader()
         self.registry = registry or RuntimeRegistry()
         self.worker_id = worker_id
+        self._operation_locks: dict[str, asyncio.Lock] = {}
+        self._operation_locks_guard = asyncio.Lock()
 
     async def start(
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
+            force: bool = False,
+    ) -> RuntimeModel:
+        """串行加载或重新加载指定部署模型"""
+        operation_lock = await self._get_operation_lock(deployment_id)
+
+        async with operation_lock:
+            return await self._start(
+                deployment_id,
+                operator=operator,
+                force=force,
+            )
+
+    async def _start(
             self,
             deployment_id: str,
             *,
@@ -108,21 +129,18 @@ class RuntimeManager:
         """
         self._validate_required("deployment_id", deployment_id)
 
-        if self.registry.exists(deployment_id):
+        previous_runtime = self.registry.get(
+            deployment_id,
+            touch=False,
+        )
+
+        if previous_runtime is not None:
             if not force:
-                runtime_model = self.registry.get(deployment_id)
-
-                if runtime_model is not None:
-                    logger.info(
-                        "部署已加载，直接返回运行时模型",
-                        deployment_id=deployment_id,
-                    )
-                    return runtime_model
-
-            await self.stop(
-                deployment_id,
-                operator=operator,
-            )
+                logger.info(
+                    "部署已加载，直接返回运行时模型",
+                    deployment_id=deployment_id,
+                )
+                return previous_runtime
 
         logger.info(
             "开始加载运行时模型",
@@ -161,7 +179,7 @@ class RuntimeManager:
                     f"部署不存在: {deployment_id}"
                 )
 
-            if deployment.status != DeploymentStatus.ACTIVE:
+            if deployment.status != str(DeploymentStatus.ACTIVE):
                 raise InvalidDeploymentStateError(
                     f"部署不是启用状态，不能加载: {deployment_id}"
                 )
@@ -184,9 +202,13 @@ class RuntimeManager:
                     f"版本不存在: {deployment.version_id}"
                 )
 
-            if not version.bento_tag:
+            if (
+                    not version.bento_tag
+                    and not version.model_key
+            ):
                 raise VersionNotFoundError(
-                    f"版本缺少 BentoML 标签: {deployment.version_id}"
+                    "版本缺少可加载的模型制品: "
+                    f"{deployment.version_id}"
                 )
 
             runtime = await self._get_or_create_runtime(
@@ -204,7 +226,10 @@ class RuntimeManager:
             framework = deployment.framework
             model_type = metadata.model_type
             task_type = metadata.task_type
-            bento_tag = version.bento_tag
+            bento_tag = (
+                version.bento_tag
+                or ""
+            )
             model_path = version.model_path
             model_key = version.model_key
             environment = deployment.environment
@@ -235,9 +260,11 @@ class RuntimeManager:
         load_error: Exception | None = None
 
         try:
-            model = self.loader.load(
+            model = await asyncio.to_thread(
+                self.loader.load,
                 framework=framework,
                 tag=bento_tag,
+                model_key=model_key,
             )
 
             runtime_model = self.registry.register(
@@ -287,9 +314,14 @@ class RuntimeManager:
         except Exception as exc:
             load_error = exc
 
-            self.registry.unregister(
-                deployment_id,
-            )
+            if previous_runtime is None:
+                self.registry.unregister(
+                    deployment_id,
+                )
+            else:
+                self.registry.restore(
+                    previous_runtime
+                )
 
             async with UnitOfWork() as uow:
                 runtime_repo = RuntimeRepository(uow.session)
@@ -300,12 +332,22 @@ class RuntimeManager:
                 )
 
                 if runtime is not None:
-                    runtime_repo.mark_failed(
-                        runtime,
-                        error=str(exc),
-                        started_by=operator,
-                        context=runtime_context,
-                    )
+                    if previous_runtime is None:
+                        runtime_repo.mark_failed(
+                            runtime,
+                            error=str(exc),
+                            started_by=operator,
+                            context=runtime_context,
+                        )
+                    else:
+                        runtime_repo.mark_loaded(
+                            runtime,
+                            started_by=operator,
+                            context={
+                                **runtime_context,
+                                "reload_error": str(exc),
+                            },
+                        )
 
             logger.exception(
                 "运行时模型加载失败",
@@ -327,6 +369,21 @@ class RuntimeManager:
         return runtime_model
 
     async def stop(
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
+    ) -> RuntimeModel | None:
+        """串行卸载指定部署模型"""
+        operation_lock = await self._get_operation_lock(deployment_id)
+
+        async with operation_lock:
+            return await self._stop(
+                deployment_id,
+                operator=operator,
+            )
+
+    async def _stop(
             self,
             deployment_id: str,
             *,
@@ -397,11 +454,6 @@ class RuntimeManager:
         返回：
             重新加载后的运行时模型对象
         """
-        await self.stop(
-            deployment_id,
-            operator=operator,
-        )
-
         return await self.start(
             deployment_id,
             operator=operator,
@@ -618,13 +670,26 @@ class RuntimeManager:
             deployment_id=deployment_id,
             model_id=model_id,
             version_id=version_id,
-            framework=framework,
+            framework=Framework(
+                framework
+            ),
             worker_id=self.worker_id,
             started_by=operator,
             context={
                 "worker_id": self.worker_id,
             },
         )
+
+    async def _get_operation_lock(
+            self,
+            deployment_id: str,
+    ) -> asyncio.Lock:
+        """获取指定部署的异步操作锁"""
+        async with self._operation_locks_guard:
+            return self._operation_locks.setdefault(
+                deployment_id,
+                asyncio.Lock(),
+            )
 
     @staticmethod
     def _validate_required(

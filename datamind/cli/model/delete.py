@@ -2,26 +2,57 @@
 
 """删除模型命令
 
-提供模型删除功能，支持软删除（归档）和硬删除（purge）。
+提供可恢复的模型逻辑删除功能。
 
 核心功能：
   - delete_model: 删除模型
 
 使用示例：
-  python -m datamind.cli.main model delete scorecard --version 1.0.0 --yes
+  python -m datamind.cli.main model delete scorecard \
+    --version 1.0.0 \
+    --yes
 """
 
 import asyncio
+import json
 
+import structlog
 import typer
 from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.services.deleter import ModelDeleter
+from datamind.services import ModelDeletionService
 
 app = typer.Typer(help="删除模型命令")
 console = Console()
+
+logger = structlog.get_logger(__name__)
+
+
+def _validate_target(
+        *,
+        name: str | None,
+        model_id: str | None,
+        version: str | None,
+        version_id: str | None,
+        output: str,
+) -> None:
+    """校验模型删除目标和输出格式"""
+    if bool(name) == bool(model_id):
+        raise typer.BadParameter(
+            "必须且只能提供 <name> 或 --model-id"
+        )
+
+    if version and version_id:
+        raise typer.BadParameter(
+            "--version 与 --version-id 只能指定一个"
+        )
+
+    if output not in {"text", "json"}:
+        raise typer.BadParameter(
+            "--format 只支持 text 或 json"
+        )
 
 
 @app.command("delete")
@@ -45,25 +76,20 @@ def delete_model(
             "--version-id",
             help="版本 ID（可选）"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
-        purge: bool = typer.Option(
-            False,
-            "--purge",
-            help="是否执行硬删除"
+        reason: str | None = typer.Option(
+            None,
+            "--reason",
+            help="删除原因"
         ),
         yes: bool = typer.Option(
             False,
             "--yes",
             help="跳过确认"
         ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+        output: str = typer.Option(
+            "text",
+            "--format",
+            help="输出格式：text / json"
         ),
 ):
     """删除模型"""
@@ -77,45 +103,73 @@ def delete_model(
                 else r.get("model_id")
         ),
     )
-    async def _run():
-        if not (name or model_id):
-            raise typer.BadParameter("必须提供 <name> 或 --model-id")
-
-        if name and model_id:
-            raise typer.BadParameter("<name> 与 --model-id 只能指定一个")
-
-        if version and version_id:
-            raise typer.BadParameter("--version 与 --version-id 只能指定一个")
+    async def _run(
+            actor: str,
+    ):
+        _validate_target(
+            name=name,
+            model_id=model_id,
+            version=version,
+            version_id=version_id,
+            output=output,
+        )
 
         if not yes:
             if not typer.confirm("确认执行删除操作？"):
                 raise typer.Exit(0)
 
-        deleter = ModelDeleter()
+        logger.info(
+            "开始删除模型",
+            name=name,
+            model_id=model_id,
+            version=version,
+            version_id=version_id,
+        )
+
+        deleter = ModelDeletionService()
 
         result = await deleter.delete(
             name=name,
             model_id=model_id,
             version=version,
             version_id=version_id,
-            purge=purge,
-            operator=operator,
+            reason=reason,
+            operator=actor,
         )
 
+        if output == "json":
+            console.print_json(
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return result
+
         if result["action"] == "delete_version":
-            console.print(f"版本 {result['version']} 删除完成")
+            console.print("[green]模型版本删除成功[/green]\n")
+            console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
+            console.print(f"[cyan]{'VERSION':<16}[/cyan] : {result['version']}")
+            console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
         else:
-            console.print(f"模型 {result['name']} 删除完成")
+            console.print("[green]模型删除成功[/green]\n")
+            console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
+            console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name']}")
+
+        console.print(
+            f"[cyan]{'DELETION ID':<16}[/cyan] : "
+            f"{result['deletion_id']}"
+        )
 
         return result
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="model.delete",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

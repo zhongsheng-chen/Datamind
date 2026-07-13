@@ -8,17 +8,15 @@
   - create_route: 创建路由规则
 
 使用示例：
-  python -m datamind.cli.main route create dep_a1b2c3d4 \
+  python -m datamind.cli.main route create dep_0123456789abcdef \
     --environment development \
-    --traffic 0.8 \
-    --rollout canary \
-    --group champion \
-    --rules "{\"bucket_key\": \"customer_id\"}" \
-    --operator admin
+    --traffic-ratio 0.8 \
+    --rules-file route_rules.json
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -27,17 +25,22 @@ from rich.console import Console
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.config import get_settings
+from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DeploymentRepository,
     RoutingRepository,
 )
+from datamind.runtime.routing import RuleMatcher
 from datamind.utils.generator import generate_random_id
 
 app = typer.Typer(help="创建路由命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
+
+CHAMPION_ROLE = "champion"
+CHAMPION_TRAFFIC_RATIO_WARN_THRESHOLD = 0.7
 
 
 @app.command("create")
@@ -51,26 +54,15 @@ def create_route(
             "--environment",
             help="路由环境，默认使用服务配置"
         ),
-        traffic: float = typer.Option(
+        traffic_ratio: float = typer.Option(
             ...,
-            "--traffic",
-            help="路由权重，范围 0~1"
+            "--traffic-ratio",
+            help="路由流量比例，范围 0~1"
         ),
-        rollout: str | None = typer.Option(
+        rules_file: str | None = typer.Option(
             None,
-            "--rollout",
-            help="发布方式 full/canary/shadow，默认使用部署发布方式"
-        ),
-        rollout_group: str | None = typer.Option(
-            None,
-            "--group",
-            "--rollout-group",
-            help="发布分组，例如 champion/challenger"
-        ),
-        rules: str | None = typer.Option(
-            None,
-            "--rules",
-            help="路由规则 JSON 字符串"
+            "--rules-file",
+            help="路由规则文件(JSON)"
         ),
         description: str | None = typer.Option(
             None,
@@ -82,65 +74,83 @@ def create_route(
             "--enabled/--disabled",
             help="是否启用路由"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="是否输出调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """创建路由规则"""
     settings = get_settings()
     service_config = settings.service
 
-    resolved_environment = (
+    environment_value = (
         environment
         if environment is not None
-        else service_config.environment
+        else str(
+            service_config.environment
+        )
     )
+
+    try:
+        resolved_environment = Environment(
+            environment_value
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(
+            f"不支持的路由环境: {environment_value}"
+        ) from exc
 
     @audit(
         action="route.create",
         target_type="route",
         target_id_func=lambda p, r: r["routing_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if output not in ("text", "json"):
             raise typer.BadParameter(
                 "--format 只支持 text 或 json"
             )
 
-        if not resolved_environment:
+        if traffic_ratio < 0 or traffic_ratio > 1:
             raise typer.BadParameter(
-                "--environment 不能为空"
-            )
-
-        if traffic < 0 or traffic > 1:
-            raise typer.BadParameter(
-                "--traffic 必须在 0 到 1 之间"
+                "--traffic-ratio 必须在 0 到 1 之间"
             )
 
         route_rules = None
 
-        if rules:
+        if rules_file:
+            logger.debug(
+                "读取路由规则文件",
+                rules_file=rules_file,
+            )
+
             try:
-                route_rules = json.loads(
-                    rules
+                with open(
+                        rules_file,
+                        "r",
+                        encoding="utf-8",
+                ) as f:
+                    route_rules = json.load(f)
+
+                logger.debug(
+                    "路由规则文件解析成功",
+                    rules=route_rules,
                 )
 
-            except json.JSONDecodeError as exc:
+            except FileNotFoundError:
                 console.print(
-                    "[red]rules JSON 解析失败: "
-                    f"{exc}[/red]"
+                    "[red]rules 文件不存在: "
+                    f"{rules_file}[/red]"
+                )
+                raise typer.Exit(1)
+
+            except json.JSONDecodeError as json_error:
+                console.print(
+                    "[red]rules-file JSON 解析失败: "
+                    f"{json_error}[/red]"
                 )
                 raise typer.Exit(1)
 
@@ -149,16 +159,27 @@ def create_route(
                     dict,
             ):
                 raise typer.BadParameter(
-                    "--rules 必须是 JSON 对象"
+                    "--rules-file 必须是 JSON 对象"
                 )
+
+            try:
+                RuleMatcher().validate(
+                    route_rules
+                )
+
+            except ValueError as validation_error:
+                console.print(
+                    "[red]rules 规则校验失败: "
+                    f"{validation_error}[/red]"
+                )
+                raise typer.Exit(1)
 
         logger.info(
             "开始创建路由",
             deployment_id=deployment_id,
             environment=resolved_environment,
-            traffic=traffic,
-            rollout=rollout,
-            rollout_group=rollout_group,
+            traffic_ratio=traffic_ratio,
+            rules_file=rules_file,
             enabled=enabled,
         )
 
@@ -189,17 +210,23 @@ def create_route(
                 )
                 raise typer.Exit(1)
 
-            resolved_rollout = (
-                rollout
-                if rollout is not None
-                else deployment.rollout_type
-            )
+            if (
+                    str(deployment.role).lower() == CHAMPION_ROLE
+                    and traffic_ratio < CHAMPION_TRAFFIC_RATIO_WARN_THRESHOLD
+            ):
+                if output == "text":
+                    console.print(
+                        "[yellow]警告: champion 路由流量比例低于 0.7，"
+                        "请确认是否符合预期[/yellow]"
+                    )
 
-            resolved_rollout_group = (
-                rollout_group
-                if rollout_group is not None
-                else deployment.role
-            )
+                logger.warning(
+                    "champion 路由流量比例低于建议值",
+                    deployment_id=deployment.deployment_id,
+                    role=deployment.role,
+                    traffic_ratio=traffic_ratio,
+                    warning_threshold=CHAMPION_TRAFFIC_RATIO_WARN_THRESHOLD,
+                )
 
             route = routing_repo.create_routing(
                 routing_id=generate_random_id(
@@ -207,16 +234,16 @@ def create_route(
                 ),
                 deployment_id=deployment_id,
                 environment=resolved_environment,
-                rollout_type=resolved_rollout,
-                rollout_group=resolved_rollout_group,
-                traffic_ratio=traffic,
+                rollout_type=deployment.rollout_type,
+                rollout_group=deployment.role,
+                traffic_ratio=traffic_ratio,
                 enabled=enabled,
                 rules=route_rules,
                 description=description,
-                created_by=operator,
+                created_by=actor,
             )
 
-            result = {
+            result: dict[str, Any] = {
                 "routing_id": route.routing_id,
                 "deployment_id": route.deployment_id,
                 "environment": route.environment,
@@ -235,7 +262,6 @@ def create_route(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
@@ -265,7 +291,7 @@ def create_route(
             f"{result['rollout_group'] or '-'}"
         )
         console.print(
-            f"[cyan]{'TRAFFIC':<16}[/cyan] : "
+            f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : "
             f"{result['traffic_ratio']}"
         )
         console.print(
@@ -288,11 +314,10 @@ def create_route(
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="routing.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

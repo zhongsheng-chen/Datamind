@@ -21,7 +21,7 @@ from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.services import RuntimeController
+from datamind.services import RuntimeControlService
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
@@ -39,12 +39,12 @@ def list_services(
         environment: str | None = typer.Option(
             None,
             "--environment",
-            help="按运行环境过滤"
+            help="按运行环境过滤，可选值：production / staging / development / testing"
         ),
         desired_status: str | None = typer.Option(
             None,
             "--desired-status",
-            help="按期望运行状态过滤，例如 loaded/unloaded"
+            help="按期望运行状态过滤，可选值：loaded / unloaded"
         ),
         limit: int = typer.Option(
             10,
@@ -59,12 +59,7 @@ def list_services(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """查询运行服务列表"""
@@ -107,7 +102,7 @@ def list_services(
             offset=offset,
         )
 
-        controller = RuntimeController()
+        controller = RuntimeControlService()
 
         services = await controller.list_services(
             environment=environment,
@@ -116,57 +111,56 @@ def list_services(
             offset=offset,
         )
 
+        result = []
+
+        for item in services:
+            result.append({
+                **item,
+                "updated_at": format_iso_utc(
+                    parse_datetime(
+                        item["updated_at"]
+                    )
+                ),
+                "runtimes": [
+                    {
+                        **runtime,
+                        "loaded_at": format_iso_utc(
+                            parse_datetime(
+                                runtime["loaded_at"]
+                            )
+                        ),
+                        "unloaded_at": format_iso_utc(
+                            parse_datetime(
+                                runtime["unloaded_at"]
+                            )
+                        ),
+                        "last_heartbeat_at": format_iso_utc(
+                            parse_datetime(
+                                runtime["last_heartbeat_at"]
+                            )
+                        ),
+                    }
+                    for runtime in item["runtimes"]
+                ],
+            })
+
         if output == "json":
-            result = []
-
-            for item in services:
-                result.append({
-                    **item,
-                    "updated_at": format_iso_utc(
-                        parse_datetime(
-                            item["updated_at"]
-                        )
-                    ),
-                    "runtimes": [
-                        {
-                            **runtime,
-                            "loaded_at": format_iso_utc(
-                                parse_datetime(
-                                    runtime["loaded_at"]
-                                )
-                            ),
-                            "unloaded_at": format_iso_utc(
-                                parse_datetime(
-                                    runtime["unloaded_at"]
-                                )
-                            ),
-                            "last_heartbeat_at": format_iso_utc(
-                                parse_datetime(
-                                    runtime["last_heartbeat_at"]
-                                )
-                            ),
-                        }
-                        for runtime in item["runtimes"]
-                    ],
-                })
-
             console.print_json(
                 json.dumps(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
 
             return result
 
         console.print(
-            f"[dim]共找到 {len(services)} 个运行服务[/dim]\n"
+            f"[dim]共找到 {len(result)} 个运行服务[/dim]\n"
         )
 
-        if not services:
-            return services
+        if not result:
+            return result
 
         table = Table(
             box=box.ASCII,
@@ -189,7 +183,7 @@ def list_services(
         table.add_column("UPDATED BY")
         table.add_column("UPDATED AT")
 
-        for item in services:
+        for item in result:
             table.add_row(
                 str(item["control_id"]),
                 str(item["deployment_id"]),
@@ -212,12 +206,11 @@ def list_services(
 
         console.print(table)
 
-        return services
+        return result
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="runtime.read",
         ):
             await _run()
 

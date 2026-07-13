@@ -1,49 +1,20 @@
 # datamind/runtime/server/service.py
 
-"""Datamind 运行时模型服务
+"""运行时模型服务
 
 基于 BentoML 提供多 Worker 模型推理服务。
 
 核心功能：
   - predict: 单条模型推理
   - predict_batch: 指定部署批量推理
+  - submit_outcome: 提交延迟业务结果
   - load: 设置部署期望状态为 loaded
   - unload: 设置部署期望状态为 unloaded
   - reload: 请求重新加载部署模型
   - status: 查询部署控制状态和 Worker 运行状态
   - services: 查询当前 Worker 的运行时服务
   - health: 服务健康检查
-
-说明：
-  BentoML Service 使用多 Worker 运行模式。
-
-  每个 Worker 独立持有：
-    - RuntimeManager
-    - RuntimeRegistry
-    - RuntimeReconciler
-    - RuntimeService 缓存
-
-  所有 Worker 共享：
-    - controls 表中的期望运行状态
-    - runtimes 表中的 Worker 实际运行状态
-
-  每个 RuntimeReconciler 只读取当前
-  Service environment 对应的 Control。
-
-  load / unload / reload API
-  只允许操作当前 Service environment
-  对应的 Deployment。
-
-  通过环境校验后，
-  再由 RuntimeController 更新 controls 表。
-
-  各 Worker 的 RuntimeReconciler
-  定期读取当前环境的 controls 表记录并执行：
-    - start
-    - stop
-    - restart
-
-  服务运行参数统一由 ServiceConfig 提供。
+  - ready: 服务就绪检查
 
 使用示例：
   bentoml serve \
@@ -53,18 +24,25 @@
 """
 
 import asyncio
+import json
 import os
 import socket
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import bentoml
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from datamind.audit import AuditRecorder
 from datamind.config import get_settings
+from datamind.context import get_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DecisionRepository,
@@ -72,28 +50,116 @@ from datamind.db.repositories import (
     RequestRepository,
 )
 from datamind.logging import setup_logging
-from datamind.models.enums import DecisionStrategy
+from datamind.models.enums import DecisionStrategy, DeploymentStatus
 from datamind.models.errors import (
     BackendError,
     RuntimeRouteError,
 )
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
-from datamind.runtime.router import RouteResult, RuntimeRouter
+from datamind.runtime.routing import RouteResult, RuntimeRouter
 from datamind.runtime.server.errors import (
     ServiceDeploymentNotFoundError,
     ServiceEnvironmentMismatchError,
+)
+from datamind.runtime.server.security import (
+    RuntimeIdentity,
+    RuntimeSecurity,
 )
 from datamind.runtime.serving.base import BaseRuntimeService
 from datamind.runtime.serving.factory import (
     RuntimeServiceFactory,
 )
-from datamind.services import RuntimeController
+from datamind.services import OutcomeService, RuntimeControlService
+from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
 
 service_config = get_settings().service
+
+
+def _get_service_instance_id() -> str | None:
+    """获取当前服务实例 ID"""
+    service_instance_id = os.environ.get(
+        "DATAMIND_SERVICE_INSTANCE_ID"
+    )
+
+    if not service_instance_id:
+        return None
+
+    return service_instance_id
+
+
+def _get_ready_dir() -> Path | None:
+    """获取 Worker 就绪标记目录"""
+    ready_dir = os.environ.get(
+        "DATAMIND_SERVICE_READY_DIR"
+    )
+
+    if not ready_dir:
+        return None
+
+    return Path(
+        ready_dir
+    )
+
+
+def _write_worker_ready_marker(
+        *,
+        worker_id: str,
+        environment: str,
+) -> None:
+    """写入 Worker 就绪标记
+
+    参数：
+        worker_id: Worker ID
+        environment: 服务运行环境
+    """
+    service_instance_id = _get_service_instance_id()
+    ready_dir = _get_ready_dir()
+
+    if service_instance_id is None or ready_dir is None:
+        return
+
+    ready_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    record = {
+        "service_instance_id": service_instance_id,
+        "worker_id": worker_id,
+        "pid": os.getpid(),
+        "environment": environment,
+        "ready": True,
+        "ready_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
+    }
+
+    marker_path = ready_dir / f"{worker_id}.json"
+    temp_path = ready_dir / f"{worker_id}.{os.getpid()}.tmp"
+
+    temp_path.write_text(
+        json.dumps(
+            record,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    temp_path.replace(
+        marker_path
+    )
+
+    logger.debug(
+        "运行时 Worker 就绪标记写入完成",
+        service_instance_id=service_instance_id,
+        worker_id=worker_id,
+        environment=environment,
+        ready_file=str(marker_path),
+    )
 
 
 def _build_worker_id() -> str:
@@ -117,20 +183,23 @@ def _build_worker_id() -> str:
     return worker_id[:64]
 
 
-class ControlRequest(BaseModel):
+class RuntimeRequest(BaseModel):
+    """运行时接口请求基类"""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
+
+class ControlRequest(RuntimeRequest):
     """运行控制请求"""
 
     deployment_id: str = Field(
         min_length=1,
     )
 
-    operator: str = Field(
-        default="system",
-        min_length=1,
-    )
-
-
-class DeploymentRequest(BaseModel):
+class DeploymentRequest(RuntimeRequest):
     """部署查询请求"""
 
     deployment_id: str = Field(
@@ -138,14 +207,16 @@ class DeploymentRequest(BaseModel):
     )
 
 
-class PredictRequest(BaseModel):
+class PredictRequest(RuntimeRequest):
     """单条预测请求"""
 
     model_id: str = Field(
         min_length=1,
     )
 
-    features: dict[str, Any]
+    features: dict[str, Any] = Field(
+        min_length=1,
+    )
 
     deployment_id: str | None = None
 
@@ -154,7 +225,7 @@ class PredictRequest(BaseModel):
     subject_type: str | None = None
 
 
-class BatchPredictRequest(BaseModel):
+class BatchPredictRequest(RuntimeRequest):
     """批量预测请求"""
 
     deployment_id: str = Field(
@@ -163,7 +234,41 @@ class BatchPredictRequest(BaseModel):
 
     features_list: list[
         dict[str, Any]
-    ]
+    ] = Field(
+        min_length=1,
+    )
+
+
+class OutcomeFeedbackRequest(RuntimeRequest):
+    """业务结果回流请求"""
+
+    outcome_id: str = Field(
+        min_length=1,
+        max_length=64,
+    )
+
+    subject_key: str = Field(
+        min_length=1,
+        max_length=128,
+    )
+
+    decision_id: str | None = None
+    request_id: str | None = None
+    subject_type: str | None = None
+    approved: bool | None = None
+    converted: bool | None = None
+    defaulted: bool | None = None
+    overdue_days: int | None = Field(
+        default=None,
+        ge=0,
+    )
+    amount: float | None = Field(
+        default=None,
+        ge=0,
+    )
+    label: str | None = None
+    context: dict[str, Any] | None = None
+    outcome_time: datetime | None = None
 
 
 @dataclass(slots=True)
@@ -213,7 +318,9 @@ class DatamindRuntimeService:
 
         self.router = RuntimeRouter()
 
-        self.controller = RuntimeController()
+        self.controller = RuntimeControlService()
+
+        self.security = RuntimeSecurity()
 
         self.reconciler = RuntimeReconciler(
             manager=self.manager,
@@ -234,6 +341,8 @@ class DatamindRuntimeService:
         ] = {}
 
         self._service_lock = asyncio.Lock()
+
+        self._audit_recorder = AuditRecorder()
 
         logger.info(
             "运行时 Worker 初始化完成",
@@ -275,6 +384,11 @@ class DatamindRuntimeService:
                 service_config.environment
             ),
             **result.to_dict(),
+        )
+
+        _write_worker_ready_marker(
+            worker_id=self.manager.worker_id,
+            environment=service_config.environment,
         )
 
     @bentoml.on_shutdown
@@ -360,11 +474,177 @@ class DatamindRuntimeService:
         }
 
     @bentoml.api(
+        route="/ready",
+    )
+    async def ready(
+            self,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """检查 Worker 是否可以接收请求"""
+        database_ready = False
+
+        try:
+            async with UnitOfWork() as uow:
+                await uow.session.execute(
+                    text("SELECT 1")
+                )
+
+            database_ready = True
+
+        except SQLAlchemyError as exc:
+            logger.warning(
+                "运行时就绪检查数据库不可用",
+                worker_id=self.manager.worker_id,
+                error=str(exc),
+            )
+
+        ready = (
+            database_ready
+            and self.reconciler.is_running
+        )
+
+        if not ready:
+            ctx.response.status_code = 503
+
+        return {
+            "status": (
+                "ready"
+                if ready
+                else "not_ready"
+            ),
+            "database_ready": database_ready,
+            "reconciler_running": (
+                self.reconciler.is_running
+            ),
+            "worker_id": self.manager.worker_id,
+            "environment": service_config.environment,
+        }
+
+    async def _execute_secured(
+            self,
+            *,
+            ctx: bentoml.Context,
+            permission: str,
+            request_id: str,
+            handler: Callable[
+                [RuntimeIdentity],
+                Awaitable[dict[str, Any]],
+            ],
+            audit_action: str | None = None,
+            target_type: str | None = None,
+            target_id: str | None = None,
+    ) -> dict[str, Any]:
+        """在认证请求作用域内执行接口处理函数"""
+        async with self.security.request_scope(
+                context=ctx,
+                permission=permission,
+                request_id=request_id,
+        ) as identity:
+            response = await handler(
+                identity
+            )
+
+            self._apply_response_status(
+                ctx=ctx,
+                response=response,
+            )
+            successful = bool(
+                response.get("success")
+            )
+
+            if (
+                    audit_action is not None
+                    and target_type is not None
+                    and target_id is not None
+            ):
+                await self._audit_recorder.record(
+                    action=audit_action,
+                    target_type=target_type,
+                    target_id=target_id,
+                    status=(
+                        "success"
+                        if successful
+                        else "failed"
+                    ),
+                    error=(
+                        None
+                        if successful
+                        else self._optional_string(
+                            response.get("error")
+                        )
+                    ),
+                    after=(
+                        response
+                        if successful
+                        else None
+                    ),
+                )
+
+            return response
+
+    @staticmethod
+    def _apply_response_status(
+            *,
+            ctx: Any,
+            response: dict[str, Any],
+    ) -> None:
+        """根据错误类型设置 HTTP 响应状态"""
+        if response.get("success", True):
+            return
+
+        error_type = response.get(
+            "error_type"
+        )
+        status_by_error = {
+            "ServiceDeploymentNotFoundError": 404,
+            "ServiceEnvironmentMismatchError": 409,
+            "RuntimeRouteError": 400,
+            "ValueError": 400,
+        }
+
+        status_code = (
+            status_by_error.get(
+                error_type,
+                500,
+            )
+            if isinstance(error_type, str)
+            else 500
+        )
+        ctx.response.status_code = status_code
+
+    @bentoml.api(
         route="/admin/load",
     )
     async def load(
             self,
             request: ControlRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """提交已认证的部署加载请求"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="runtime.manage",
+            request_id=request_id,
+            handler=lambda identity: self._load(
+                request=request,
+                request_id=request_id,
+                operator=identity.username,
+            ),
+            audit_action="runtime.load",
+            target_type="deployment",
+            target_id=request.deployment_id,
+        )
+
+    async def _load(
+            self,
+            *,
+            request: ControlRequest,
+            request_id: str,
+            operator: str,
     ) -> dict[str, Any]:
         """设置部署期望状态为 loaded
 
@@ -372,7 +652,7 @@ class DatamindRuntimeService:
         对应的 Deployment。
 
         环境校验通过后，
-        由 RuntimeController 更新共享 controls 表。
+        由 RuntimeControlService 更新共享 controls 表。
 
         各 Worker 由 RuntimeReconciler
         独立完成模型加载。
@@ -383,14 +663,61 @@ class DatamindRuntimeService:
         返回：
             控制请求受理结果
         """
-        await self._validate_service_environment(
-            deployment_id=request.deployment_id,
-        )
+        try:
+            await self._validate_service_environment(
+                deployment_id=request.deployment_id,
+            )
 
-        return await self.controller.load(
-            deployment_id=request.deployment_id,
-            operator=request.operator,
-        )
+            result = await self.controller.load(
+                deployment_id=request.deployment_id,
+                operator=operator,
+            )
+
+            return {
+                "success": True,
+                "request_id": request_id,
+                **result,
+            }
+
+        except (
+                ServiceDeploymentNotFoundError,
+                ServiceEnvironmentMismatchError,
+                RuntimeRouteError,
+                RuntimeError,
+                ValueError,
+        ) as exc:
+            logger.warning(
+                "请求加载失败",
+                request_id=request_id,
+                deployment_id=request.deployment_id,
+                operator=operator,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "请求加载异常",
+                request_id=request_id,
+                deployment_id=request.deployment_id,
+                operator=operator,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
 
     @bentoml.api(
         route="/admin/unload",
@@ -398,6 +725,33 @@ class DatamindRuntimeService:
     async def unload(
             self,
             request: ControlRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """提交已认证的部署卸载请求"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="runtime.manage",
+            request_id=request_id,
+            handler=lambda identity: self._unload(
+                request=request,
+                request_id=request_id,
+                operator=identity.username,
+            ),
+            audit_action="runtime.unload",
+            target_type="deployment",
+            target_id=request.deployment_id,
+        )
+
+    async def _unload(
+            self,
+            *,
+            request: ControlRequest,
+            request_id: str,
+            operator: str,
     ) -> dict[str, Any]:
         """设置部署期望状态为 unloaded
 
@@ -410,14 +764,61 @@ class DatamindRuntimeService:
         返回：
             控制请求受理结果
         """
-        await self._validate_service_environment(
-            deployment_id=request.deployment_id,
-        )
+        try:
+            await self._validate_service_environment(
+                deployment_id=request.deployment_id,
+            )
 
-        return await self.controller.unload(
-            deployment_id=request.deployment_id,
-            operator=request.operator,
-        )
+            result = await self.controller.unload(
+                deployment_id=request.deployment_id,
+                operator=operator,
+            )
+
+            return {
+                "success": True,
+                "request_id": request_id,
+                **result,
+            }
+
+        except (
+                ServiceDeploymentNotFoundError,
+                ServiceEnvironmentMismatchError,
+                RuntimeRouteError,
+                RuntimeError,
+                ValueError,
+        ) as exc:
+            logger.warning(
+                "请求卸载失败",
+                request_id=request_id,
+                deployment_id=request.deployment_id,
+                operator=operator,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "请求卸载异常",
+                request_id=request_id,
+                deployment_id=request.deployment_id,
+                operator=operator,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
 
     @bentoml.api(
         route="/admin/reload",
@@ -425,6 +826,33 @@ class DatamindRuntimeService:
     async def reload(
             self,
             request: ControlRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """提交已认证的部署重载请求"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="runtime.manage",
+            request_id=request_id,
+            handler=lambda identity: self._reload(
+                request=request,
+                request_id=request_id,
+                operator=identity.username,
+            ),
+            audit_action="runtime.reload",
+            target_type="deployment",
+            target_id=request.deployment_id,
+        )
+
+    async def _reload(
+            self,
+            *,
+            request: ControlRequest,
+            request_id: str,
+            operator: str,
     ) -> dict[str, Any]:
         """请求重新加载部署模型
 
@@ -440,14 +868,61 @@ class DatamindRuntimeService:
         返回：
             控制请求受理结果
         """
-        await self._validate_service_environment(
-            deployment_id=request.deployment_id,
-        )
+        try:
+            await self._validate_service_environment(
+                deployment_id=request.deployment_id,
+            )
 
-        return await self.controller.reload(
-            deployment_id=request.deployment_id,
-            operator=request.operator,
-        )
+            result = await self.controller.reload(
+                deployment_id=request.deployment_id,
+                operator=operator,
+            )
+
+            return {
+                "success": True,
+                "request_id": request_id,
+                **result,
+            }
+
+        except (
+                ServiceDeploymentNotFoundError,
+                ServiceEnvironmentMismatchError,
+                RuntimeRouteError,
+                RuntimeError,
+                ValueError,
+        ) as exc:
+            logger.warning(
+                "请求重载失败",
+                request_id=request_id,
+                deployment_id=request.deployment_id,
+                operator=operator,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "请求重载异常",
+                request_id=request_id,
+                deployment_id=request.deployment_id,
+                operator=operator,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
 
     @bentoml.api(
         route="/admin/status",
@@ -455,6 +930,28 @@ class DatamindRuntimeService:
     async def status(
             self,
             request: DeploymentRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """查询已认证的部署运行状态"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="runtime.read",
+            request_id=request_id,
+            handler=lambda _identity: self._status(
+                request=request,
+                request_id=request_id,
+            ),
+        )
+
+    async def _status(
+            self,
+            *,
+            request: DeploymentRequest,
+            request_id: str,
     ) -> dict[str, Any]:
         """查询部署运行状态
 
@@ -473,33 +970,94 @@ class DatamindRuntimeService:
             request.deployment_id
         )
 
-        status_info = await self.controller.get_status(
-            deployment_id=deployment_id,
-        )
+        try:
+            await self._validate_service_environment(
+                deployment_id=deployment_id,
+            )
 
-        local_status = await self.manager.status(
-            deployment_id
-        )
+            status_info = await self.controller.get_status(
+                deployment_id=deployment_id,
+            )
 
-        return {
-            "deployment_id": deployment_id,
-            "environment": (
-                service_config.environment
-            ),
-            "control": status_info["control"],
-            "runtimes": status_info["runtimes"],
-            "local": local_status,
-            "local_generation": (
-                self.reconciler.get_applied_generation(
-                    deployment_id
-                )
-            ),
-        }
+            local_status = await self.manager.status(
+                deployment_id
+            )
+
+            return {
+                "success": True,
+                "request_id": request_id,
+                "deployment_id": deployment_id,
+                "environment": (
+                    service_config.environment
+                ),
+                "control": status_info["control"],
+                "runtimes": status_info["runtimes"],
+                "local": local_status,
+                "local_generation": (
+                    self.reconciler.get_applied_generation(
+                        deployment_id
+                    )
+                ),
+            }
+
+        except (
+                ServiceDeploymentNotFoundError,
+                ServiceEnvironmentMismatchError,
+                RuntimeRouteError,
+                RuntimeError,
+                ValueError,
+        ) as exc:
+            logger.warning(
+                "部署运行状态查询失败",
+                request_id=request_id,
+                deployment_id=deployment_id,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "部署运行状态查询异常",
+                request_id=request_id,
+                deployment_id=deployment_id,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                error=exc,
+            )
 
     @bentoml.api(
         route="/admin/services",
     )
-    def services(
+    async def services(
+            self,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """查询当前 Worker 的已认证服务列表"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="runtime.read",
+            request_id=request_id,
+            handler=lambda _identity: self._services(),
+        )
+
+    async def _services(
             self,
     ) -> dict[str, Any]:
         """查询当前 Worker 服务状态
@@ -534,11 +1092,98 @@ class DatamindRuntimeService:
         }
 
     @bentoml.api(
+        route="/feedback/outcomes",
+    )
+    async def submit_outcome(
+            self,
+            request: OutcomeFeedbackRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """提交已认证的延迟业务结果"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="outcome.write",
+            request_id=request_id,
+            handler=lambda _identity: self._submit_outcome(
+                request=request,
+                request_id=request_id,
+            ),
+            audit_action="outcome.submit",
+            target_type="outcome",
+            target_id=request.outcome_id,
+        )
+
+    @staticmethod
+    async def _submit_outcome(
+            *,
+            request: OutcomeFeedbackRequest,
+            request_id: str,
+    ) -> dict[str, Any]:
+        """提交延迟业务结果"""
+        result = await OutcomeService().submit(
+            outcome_id=request.outcome_id,
+            subject_key=request.subject_key,
+            decision_id=request.decision_id,
+            request_id=request.request_id,
+            subject_type=request.subject_type,
+            approved=request.approved,
+            converted=request.converted,
+            defaulted=request.defaulted,
+            overdue_days=request.overdue_days,
+            amount=request.amount,
+            label=request.label,
+            context=request.context,
+            outcome_time=request.outcome_time,
+        )
+        outcome = result["outcome"]
+
+        for field in (
+                "outcome_time",
+                "created_at",
+                "updated_at",
+        ):
+            outcome[field] = format_iso_utc(
+                outcome[field]
+            )
+
+        return {
+            "success": True,
+            "request_id": request_id,
+            **result,
+        }
+
+    @bentoml.api(
         route="/predict",
     )
     async def predict(
             self,
             request: PredictRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """执行已认证的单条模型预测"""
+        request_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="prediction.invoke",
+            request_id=request_id,
+            handler=lambda _identity: self._predict(
+                request=request,
+                request_id=request_id,
+            ),
+        )
+
+    async def _predict(
+            self,
+            *,
+            request: PredictRequest,
+            request_id: str,
     ) -> dict[str, Any]:
         """执行单条模型预测
 
@@ -555,23 +1200,23 @@ class DatamindRuntimeService:
         返回：
             模型预测结果
         """
-        request_id = generate_random_id(
-            prefix="req"
-        )
-
         started_at = time.perf_counter()
 
-        payload = self._build_request_payload(
-            request
-        )
-
-        await self._create_request_record(
-            request_id=request_id,
-            model_id=request.model_id,
-            payload=payload,
-        )
+        request_record_created = False
 
         try:
+            payload = self._build_request_payload(
+                request
+            )
+
+            await self._create_request_record(
+                request_id=request_id,
+                model_id=request.model_id,
+                payload=payload,
+            )
+
+            request_record_created = True
+
             if not request.features:
                 raise ValueError(
                     "features 不能为空"
@@ -613,35 +1258,85 @@ class DatamindRuntimeService:
                 latency_ms=latency_ms,
             )
 
+            return {
+                "success": True,
+                "request_id": request_id,
+                "decision_id": decision_id,
+                **result,
+                "route": route.to_dict(),
+                "environment": service_config.environment,
+                "worker_id": self.manager.worker_id,
+            }
+
+        except (
+                RuntimeRouteError,
+                RuntimeError,
+                ValueError,
+        ) as exc:
+            latency_ms = (
+                                 time.perf_counter() - started_at
+                         ) * 1000
+
+            await self._mark_prediction_failed(
+                request_id=request_id,
+                model_id=request.model_id,
+                request_record_created=request_record_created,
+                error=str(exc),
+                latency_ms=latency_ms,
+            )
+
+            logger.warning(
+                "预测请求处理失败",
+                request_id=request_id,
+                model_id=request.model_id,
+                deployment_id=request.deployment_id,
+                subject_key=request.subject_key,
+                subject_type=request.subject_type,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=request_id,
+                decision_id=None,
+                include_decision_id=True,
+                error=exc,
+            )
+
         except Exception as exc:
             latency_ms = (
                                  time.perf_counter() - started_at
                          ) * 1000
 
-            try:
-                await self._mark_request_failed(
-                    request_id=request_id,
-                    error=str(exc),
-                    latency_ms=latency_ms,
-                )
+            await self._mark_prediction_failed(
+                request_id=request_id,
+                model_id=request.model_id,
+                request_record_created=request_record_created,
+                error=str(exc),
+                latency_ms=latency_ms,
+            )
 
-            except Exception as record_exc:
-                logger.exception(
-                    "记录失败请求状态失败",
-                    request_id=request_id,
-                    model_id=request.model_id,
-                    error=str(record_exc),
-                )
+            logger.exception(
+                "预测请求处理异常",
+                request_id=request_id,
+                model_id=request.model_id,
+                deployment_id=request.deployment_id,
+                subject_key=request.subject_key,
+                subject_type=request.subject_type,
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
 
-            raise
-
-        return {
-            "request_id": request_id,
-            "decision_id": decision_id,
-            **result,
-            "route": route.to_dict(),
-            "worker_id": self.manager.worker_id,
-        }
+            return self._build_error_response(
+                request_id=request_id,
+                decision_id=None,
+                include_decision_id=True,
+                error=exc,
+            )
 
     @bentoml.api(
         route="/predict/batch",
@@ -649,6 +1344,28 @@ class DatamindRuntimeService:
     async def predict_batch(
             self,
             request: BatchPredictRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """执行已认证的批量模型预测"""
+        batch_id = generate_random_id(
+            prefix="req"
+        )
+
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="prediction.invoke",
+            request_id=batch_id,
+            handler=lambda _identity: self._predict_batch(
+                request=request,
+                batch_id=batch_id,
+            ),
+        )
+
+    async def _predict_batch(
+            self,
+            *,
+            request: BatchPredictRequest,
+            batch_id: str,
     ) -> dict[str, Any]:
         """执行指定部署批量预测
 
@@ -658,24 +1375,381 @@ class DatamindRuntimeService:
         返回：
             批量预测结果
         """
-        if not request.features_list:
-            raise ValueError(
-                "features_list 不能为空"
+        request_ids: list[str] = []
+        records_created = False
+        started_at = time.perf_counter()
+
+        try:
+            if not request.features_list:
+                raise ValueError(
+                    "features_list 不能为空"
+                )
+
+            await self._validate_service_environment(
+                deployment_id=request.deployment_id,
             )
 
-        service = await self._get_service(
-            request.deployment_id
-        )
+            service = await self._get_service(
+                request.deployment_id
+            )
 
-        result = await asyncio.to_thread(
-            service.predict_batch,
-            request.features_list,
-        )
+            request_ids = [
+                generate_random_id(
+                    prefix="req"
+                )
+                for _ in request.features_list
+            ]
+            decision_ids = [
+                generate_random_id(
+                    prefix="dcs"
+                )
+                for _ in request.features_list
+            ]
 
-        return {
-            **result,
+            await self._create_batch_request_records(
+                batch_id=batch_id,
+                request_ids=request_ids,
+                model_id=service.model_id,
+                deployment_id=request.deployment_id,
+                features_list=request.features_list,
+            )
+            records_created = True
+
+            result = await asyncio.to_thread(
+                service.predict_batch,
+                request.features_list,
+            )
+
+            predictions = result.get(
+                "predictions"
+            )
+
+            if (
+                    not isinstance(predictions, list)
+                    or len(predictions)
+                    != len(request.features_list)
+            ):
+                raise RuntimeError(
+                    "批量预测结果数量与请求数量不一致"
+                )
+
+            latency_ms = (
+                                 time.perf_counter()
+                                 - started_at
+                         ) * 1000
+
+            route = RouteResult(
+                model_id=service.model_id,
+                version_id=service.version_id,
+                deployment_id=service.deployment_id,
+                framework=service.framework,
+                environment=str(
+                    service_config.environment
+                ),
+                source=str(
+                    DecisionStrategy.DEPLOYMENT
+                ),
+                strategy="manual",
+                context={
+                    "batch_id": batch_id,
+                },
+            )
+
+            await self._record_batch_success(
+                batch_id=batch_id,
+                request_ids=request_ids,
+                decision_ids=decision_ids,
+                route=route,
+                predictions=predictions,
+                latency_ms=latency_ms,
+            )
+
+            return {
+                "success": True,
+                "request_id": batch_id,
+                "request_ids": request_ids,
+                "decision_ids": decision_ids,
+                **result,
+                "worker_id": self.manager.worker_id,
+            }
+
+        except (
+                ServiceDeploymentNotFoundError,
+                ServiceEnvironmentMismatchError,
+                RuntimeRouteError,
+                RuntimeError,
+                ValueError,
+        ) as exc:
+            await self._mark_batch_failed(
+                request_ids=request_ids,
+                records_created=records_created,
+                error=str(exc),
+                latency_ms=(
+                                   time.perf_counter()
+                                   - started_at
+                           ) * 1000,
+            )
+
+            logger.warning(
+                "批量预测请求处理失败",
+                request_id=batch_id,
+                deployment_id=request.deployment_id,
+                batch_size=len(request.features_list),
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=batch_id,
+                error=exc,
+            )
+
+        except Exception as exc:
+            await self._mark_batch_failed(
+                request_ids=request_ids,
+                records_created=records_created,
+                error=str(exc),
+                latency_ms=(
+                                   time.perf_counter()
+                                   - started_at
+                           ) * 1000,
+            )
+
+            logger.exception(
+                "批量预测请求处理异常",
+                request_id=batch_id,
+                deployment_id=request.deployment_id,
+                batch_size=len(request.features_list),
+                environment=service_config.environment,
+                worker_id=self.manager.worker_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+            return self._build_error_response(
+                request_id=batch_id,
+                error=exc,
+            )
+
+    @staticmethod
+    async def _create_batch_request_records(
+            *,
+            batch_id: str,
+            request_ids: list[str],
+            model_id: str,
+            deployment_id: str,
+            features_list: list[dict[str, Any]],
+    ) -> None:
+        """在同一事务中创建批量请求记录"""
+        request_context = get_context()
+
+        async with UnitOfWork() as uow:
+            repository = RequestRepository(
+                uow.session
+            )
+
+            for index, (request_id, features) in enumerate(
+                    zip(
+                        request_ids,
+                        features_list,
+                    )
+            ):
+                repository.create_request(
+                    request_id=request_id,
+                    model_id=model_id,
+                    payload={
+                        "batch_id": batch_id,
+                        "batch_index": index,
+                        "deployment_id": deployment_id,
+                        "features": features,
+                    },
+                    source="http",
+                    user=request_context.get(
+                        "user"
+                    ),
+                    ip=request_context.get(
+                        "ip"
+                    ),
+                )
+
+    async def _record_batch_success(
+            self,
+            *,
+            batch_id: str,
+            request_ids: list[str],
+            decision_ids: list[str],
+            route: RouteResult,
+            predictions: list[dict[str, Any]],
+            latency_ms: float,
+    ) -> None:
+        """在同一事务中记录批量请求和决策结果"""
+        async with UnitOfWork() as uow:
+            request_repo = RequestRepository(
+                uow.session
+            )
+            decision_repo = DecisionRepository(
+                uow.session
+            )
+
+            for index, (
+                    request_id,
+                    decision_id,
+                    prediction,
+            ) in enumerate(
+                zip(
+                    request_ids,
+                    decision_ids,
+                    predictions,
+                )
+            ):
+                request_record = await request_repo.get_request(
+                    request_id
+                )
+
+                if request_record is None:
+                    raise RuntimeError(
+                        f"批量请求记录不存在: {request_id}"
+                    )
+
+                request_repo.mark_success(
+                    request_record,
+                    latency_ms=latency_ms,
+                )
+                decision_repo.create_decision(
+                    decision_id=decision_id,
+                    request_id=request_id,
+                    model_id=route.model_id,
+                    version_id=route.version_id,
+                    source=DecisionStrategy.DEPLOYMENT,
+                    deployment_id=route.deployment_id,
+                    strategy=route.strategy,
+                    prediction=prediction,
+                    probability=self._optional_float(
+                        prediction.get("probability")
+                    ),
+                    score=self._optional_float(
+                        prediction.get("score")
+                    ),
+                    decision=self._optional_string(
+                        prediction.get("decision")
+                    ),
+                    latency_ms=latency_ms,
+                    context={
+                        "batch_id": batch_id,
+                        "batch_index": index,
+                        "route": route.to_dict(),
+                        "worker_id": self.manager.worker_id,
+                        "environment": service_config.environment,
+                    },
+                )
+
+    @staticmethod
+    async def _mark_batch_failed(
+            *,
+            request_ids: list[str],
+            records_created: bool,
+            error: str,
+            latency_ms: float,
+    ) -> None:
+        """标记已经创建的批量请求为失败"""
+        if not records_created:
+            return
+
+        try:
+            async with UnitOfWork() as uow:
+                repository = RequestRepository(
+                    uow.session
+                )
+
+                for request_id in request_ids:
+                    request_record = await repository.get_request(
+                        request_id
+                    )
+
+                    if request_record is not None:
+                        repository.mark_failed(
+                            request_record,
+                            error=error,
+                            latency_ms=latency_ms,
+                        )
+
+        except Exception as exc:
+            logger.exception(
+                "记录批量失败请求状态失败",
+                request_ids=request_ids,
+                error=str(exc),
+            )
+
+    def _build_error_response(
+            self,
+            *,
+            request_id: str,
+            error: Exception,
+            decision_id: str | None = None,
+            include_decision_id: bool = False,
+    ) -> dict[str, Any]:
+        """构造接口错误响应
+
+        参数：
+            request_id: 请求追踪 ID
+            error: 异常对象
+            decision_id: 决策 ID，预测失败时通常为 None
+            include_decision_id: 是否在响应中包含 decision_id 字段
+
+        返回：
+            错误响应字典
+        """
+        response: dict[str, Any] = {
+            "success": False,
+            "request_id": request_id,
+            "error": str(error),
+            "error_type": error.__class__.__name__,
+            "environment": service_config.environment,
             "worker_id": self.manager.worker_id,
         }
+
+        if include_decision_id or decision_id is not None:
+            response["decision_id"] = decision_id
+
+        return response
+
+    async def _mark_prediction_failed(
+            self,
+            *,
+            request_id: str,
+            model_id: str,
+            request_record_created: bool,
+            error: str,
+            latency_ms: float,
+    ) -> None:
+        """标记预测请求失败
+
+        参数：
+            request_id: 请求 ID
+            model_id: 模型 ID
+            request_record_created: 请求记录是否已创建
+            error: 错误信息
+            latency_ms: 处理耗时
+        """
+        if not request_record_created:
+            return
+
+        try:
+            await self._mark_request_failed(
+                request_id=request_id,
+                error=error,
+                latency_ms=latency_ms,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "记录失败请求状态失败",
+                request_id=request_id,
+                model_id=model_id,
+                error=str(exc),
+            )
 
     @staticmethod
     def _build_request_payload(
@@ -691,14 +1765,15 @@ class DatamindRuntimeService:
         """
         return {
             "model_id": request.model_id,
+            "environment": service_config.environment,
             "deployment_id": request.deployment_id,
             "subject_key": request.subject_key,
             "subject_type": request.subject_type,
             "features": request.features,
         }
 
+    @staticmethod
     async def _create_request_record(
-            self,
             *,
             request_id: str,
             model_id: str,
@@ -711,6 +1786,8 @@ class DatamindRuntimeService:
             model_id: 模型 ID
             payload: 请求负载
         """
+        request_context = get_context()
+
         async with UnitOfWork() as uow:
             repo = RequestRepository(
                 uow.session
@@ -720,7 +1797,13 @@ class DatamindRuntimeService:
                 request_id=request_id,
                 model_id=model_id,
                 payload=payload,
-                source="api",
+                source="http",
+                user=request_context.get(
+                    "user"
+                ),
+                ip=request_context.get(
+                    "ip"
+                ),
             )
 
     async def _record_prediction_success(
@@ -772,7 +1855,7 @@ class DatamindRuntimeService:
                 request_id=request_id,
                 model_id=route.model_id,
                 version_id=route.version_id,
-                source=self._resolve_decision_source(
+                source=DecisionStrategy(
                     route.source
                 ),
                 deployment_id=route.deployment_id,
@@ -781,9 +1864,7 @@ class DatamindRuntimeService:
                 assignment_id=route.assignment_id,
                 subject_key=route.subject_key,
                 subject_type=route.subject_type,
-                strategy=self._string_value(
-                    route.strategy
-                ),
+                strategy=route.strategy,
                 bucket=route.bucket,
                 group=route.group,
                 weight=route.weight,
@@ -817,8 +1898,8 @@ class DatamindRuntimeService:
                 },
             )
 
+    @staticmethod
     async def _mark_request_failed(
-            self,
             *,
             request_id: str,
             error: str,
@@ -880,46 +1961,6 @@ class DatamindRuntimeService:
             for key, value in result.items()
             if key not in identity_fields
         }
-
-    @staticmethod
-    def _resolve_decision_source(
-            value: str,
-    ) -> DecisionStrategy:
-        """解析决策来源
-
-        参数：
-            value: 路由来源
-
-        返回：
-            DecisionStrategy
-        """
-        if isinstance(
-                value,
-                DecisionStrategy,
-        ):
-            return value
-
-        return DecisionStrategy(
-            str(value)
-        )
-
-    @staticmethod
-    def _string_value(
-            value: Any,
-    ) -> str | None:
-        """转换字符串枚举或普通值"""
-        if value is None:
-            return None
-
-        enum_value = getattr(
-            value,
-            "value",
-            value,
-        )
-
-        return str(
-            enum_value
-        )
 
     @staticmethod
     def _optional_float(
@@ -1068,8 +2109,8 @@ class DatamindRuntimeService:
 
             return service
 
+    @staticmethod
     async def _validate_service_environment(
-            self,
             *,
             deployment_id: str,
     ) -> None:
@@ -1114,6 +2155,11 @@ class DatamindRuntimeService:
                     f"{deployment.environment}, "
                     f"service_environment="
                     f"{service_config.environment}"
+                )
+
+            if deployment.status != str(DeploymentStatus.ACTIVE):
+                raise RuntimeRouteError(
+                    f"部署不可用: {deployment_id}"
                 )
 
     @staticmethod

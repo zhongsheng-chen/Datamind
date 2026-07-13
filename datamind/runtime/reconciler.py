@@ -2,8 +2,7 @@
 
 """运行时状态协调器
 
-根据 controls 表中的期望状态，
-协调当前 Worker 的模型运行状态。
+根据 controls 表中的期望状态，协调当前 Worker 的模型运行状态。
 
 核心功能：
   - start: 启动后台协调循环
@@ -12,46 +11,6 @@
   - get_applied_generation: 获取本 Worker 已应用版本
   - get_applied_generations: 获取全部已应用版本
   - is_running: 判断协调器是否正在运行
-
-说明：
-  每个 Worker 创建一个独立的 RuntimeReconciler。
-
-  每个 RuntimeReconciler 只处理所属 environment
-  的运行控制记录。
-
-  controls 表保存运行集群的期望状态，
-  runtimes 表保存每个 Worker 的实际运行状态。
-
-  协调规则：
-
-    - desired_status=loaded，本地未加载
-
-         RuntimeManager.start()
-
-    - desired_status=loaded，本地已加载，
-       generation 与本地已应用版本不同
-
-         RuntimeManager.restart()
-
-    - desired_status=loaded，本地已加载，
-       generation 与本地已应用版本一致
-
-         不执行操作
-
-    - desired_status=unloaded，本地已加载
-
-         RuntimeManager.stop()
-
-    - desired_status=unloaded，本地未加载
-
-         不执行操作
-
-  reload 不使用独立状态，
-  而是通过 generation 递增触发。
-
-  模型加载、卸载或重新加载失败时，
-  不更新本 Worker 的 applied_generation，
-  后续协调周期会继续尝试收敛。
 
 使用示例：
   from datamind.runtime.manager import RuntimeManager
@@ -84,6 +43,7 @@ from dataclasses import dataclass
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
+from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     ControlRepository,
@@ -435,7 +395,7 @@ class RuntimeReconciler:
                             control.environment
                         ),
                         desired_status=(
-                            control.desired_status.value
+                            str(control.desired_status)
                         ),
                         generation=(
                             control.generation
@@ -536,7 +496,9 @@ class RuntimeReconciler:
             )
 
             controls = await repo.list_controls(
-                environment=self.environment,
+                environment=Environment(
+                    self.environment
+                ),
             )
 
             snapshots = [
@@ -820,7 +782,7 @@ class RuntimeReconciler:
 
     @staticmethod
     def _parse_status(
-            value: object,
+            value: RuntimeControlStatus | str,
     ) -> RuntimeControlStatus:
         """解析运行控制状态
 
@@ -841,5 +803,5 @@ class RuntimeReconciler:
             return value
 
         return RuntimeControlStatus(
-            str(value)
+            value
         )

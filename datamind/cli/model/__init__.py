@@ -11,6 +11,8 @@
   - activate: 激活模型或模型版本
   - deactivate: 停用模型或模型版本
   - delete: 删除模型
+  - restore: 恢复逻辑删除的模型
+  - purge: 永久清理模型制品
 """
 
 import typer
@@ -19,7 +21,9 @@ from datamind.cli.model.activate import app as activate_app
 from datamind.cli.model.deactivate import app as deactivate_app
 from datamind.cli.model.delete import app as delete_app
 from datamind.cli.model.list import app as list_app
+from datamind.cli.model.purge import app as purge_app
 from datamind.cli.model.register import app as register_app
+from datamind.cli.model.restore import app as restore_app
 from datamind.cli.model.show import app as show_app
 
 app = typer.Typer(
@@ -32,3 +36,5 @@ app.add_typer(show_app)
 app.add_typer(activate_app)
 app.add_typer(deactivate_app)
 app.add_typer(delete_app)
+app.add_typer(restore_app)
+app.add_typer(purge_app)

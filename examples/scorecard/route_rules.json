@@ -1,0 +1,10 @@
+{
+  "match": "all",
+  "conditions": [
+    {
+      "field": "features.credit_utilization_ratio",
+      "op": "gte",
+      "value": 0.7
+    }
+  ]
+}

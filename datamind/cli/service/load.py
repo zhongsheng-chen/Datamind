@@ -8,11 +8,12 @@
   - load_service: 请求加载部署模型
 
 使用示例：
-  python -m datamind.cli.main service load dep_a1b2c3d4
+  python -m datamind.cli.main service load dep_0123456789abcdef
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -20,7 +21,8 @@ from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.services.runtime import RuntimeController
+from datamind.services import RuntimeControlService
+from datamind.utils.datetime import format_iso_utc, parse_datetime
 
 app = typer.Typer(help="加载服务命令")
 console = Console()
@@ -34,20 +36,10 @@ def load_service(
             ...,
             help="部署 ID"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """请求加载部署模型"""
@@ -60,6 +52,7 @@ def load_service(
     async def _run(
             *,
             target_deployment_id: str,
+            actor: str,
     ):
         if output not in ("text", "json"):
             raise typer.BadParameter(
@@ -71,12 +64,32 @@ def load_service(
             deployment_id=target_deployment_id,
         )
 
-        controller = RuntimeController()
+        controller = RuntimeControlService()
 
-        result = await controller.load(
+        raw_result = await controller.load(
             deployment_id=target_deployment_id,
-            operator=operator,
+            operator=actor,
         )
+
+        control: dict[str, Any] = {
+            **raw_result["control"],
+        }
+
+        for field in (
+                "created_at",
+                "updated_at",
+        ):
+            if field in control:
+                control[field] = format_iso_utc(
+                    parse_datetime(
+                        control[field]
+                    )
+                )
+
+        result: dict[str, Any] = {
+            **raw_result,
+            "control": control,
+        }
 
         if output == "json":
             console.print_json(
@@ -84,12 +97,9 @@ def load_service(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
-
-        control = result["control"]
 
         console.print(
             "[green]模型加载请求提交成功[/green]\n"
@@ -120,13 +130,11 @@ def load_service(
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
+                required_permission="runtime.manage",
+        ) as context:
             await _run(
                 target_deployment_id=deployment_id,
+                actor=context.user,
             )
 
     asyncio.run(runner())

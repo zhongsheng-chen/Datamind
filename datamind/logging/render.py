@@ -2,70 +2,142 @@
 
 """日志渲染器
 
-提供文本和 JSON 两种格式的日志渲染器。
+提供文本和 JSON 两种格式的日志渲染能力。
 
 核心功能：
-  - text_renderer: 文本格式渲染器（控制台/文件）
-  - json_renderer: JSON 格式渲染器（文件）
+  - text_renderer: 创建文本格式日志渲染器
+  - json_renderer: 创建 JSON 格式日志渲染器
 
 使用示例：
-  from datamind.logging.render import text_renderer, json_renderer
+  from datamind.logging.render import (
+      json_renderer,
+      text_renderer,
+  )
 
-  text_renderer = text_renderer()
-  json_renderer = json_renderer()
+  text_processor = text_renderer()
+  json_processor = json_renderer()
 """
 
-from typing import Dict, Any
+from collections.abc import Callable
+from typing import Final
 
 import structlog
+from structlog.typing import (
+    EventDict,
+    WrappedLogger,
+)
 
 from datamind.context.keys import ALL_KEYS
 
 
-def text_renderer():
-    """文本格式日志渲染器
+Renderer = Callable[
+    [
+        WrappedLogger,
+        str,
+        EventDict,
+    ],
+    str,
+]
 
-    格式：
-        time | level | [trace_id] | [request_id] | [source] |[user] | [ip] | event | kv
+_PROCESSOR_META_KEYS: Final[tuple[str, ...]] = (
+    "_record",
+    "_from_structlog",
+)
 
-    说明：
-        - trace_id / request_id / source / user / ip：存在时才输出（key=value）
-        - event：主日志内容
-        - kv：额外字段（key=value，逗号分隔）
+
+def _copy_event(event_dict: EventDict) -> EventDict:
+    """复制日志事件并移除处理器内部字段
+
+    参数：
+        event_dict: 原始日志事件
 
     返回：
-        文本渲染器函数
+        移除处理器内部字段后的事件副本
+    """
+    event = dict(event_dict)
+
+    for key in _PROCESSOR_META_KEYS:
+        event.pop(key, None)
+
+    return event
+
+
+def text_renderer() -> Renderer:
+    """创建文本格式日志渲染器
+
+    格式：
+        timestamp | level | context | event | fields
+
+    说明：
+        - context: 按标准顺序输出存在的上下文字段
+        - event: 主日志内容
+        - fields: 其余字段，使用 key=value 格式输出
+
+    返回：
+        文本格式渲染器函数
     """
 
-    def renderer(_, __, event_dict: Dict[str, Any]) -> str:
-        cols = [
-            event_dict.pop("timestamp") or "-",
-            f"{event_dict.pop('level', '').upper():<8}",
+    def renderer(
+            _: WrappedLogger,
+            __: str,
+            event_dict: EventDict,
+    ) -> str:
+        event = _copy_event(event_dict)
+
+        timestamp = str(event.pop("timestamp", "") or "-")
+        level = str(event.pop("level", "")).upper()
+
+        columns = [
+            timestamp,
+            f"{level:<8}",
         ]
 
         for key in ALL_KEYS:
-            value = event_dict.pop(key, None)
-            if value:
-                cols.append(f"{key}={value}")
+            value = event.pop(key, None)
 
-        cols.append(event_dict.pop("event", ""))
+            if value is not None and value != "":
+                columns.append(f"{key}={value}")
 
-        msg = " | ".join(cols)
+        columns.append(str(event.pop("event", "")))
 
-        if event_dict:
-            msg += " | " + ", ".join(
-                f"{k}={v}" for k, v in event_dict.items()
+        message = " | ".join(columns)
+
+        if event:
+            fields = ", ".join(
+                f"{key}={value}"
+                for key, value in event.items()
             )
+            message = f"{message} | {fields}"
 
-        return msg
+        return message
 
     return renderer
 
 
-def json_renderer():
-    """JSON 格式日志渲染器
+def json_renderer() -> Renderer:
+    """创建 JSON 格式日志渲染器
 
     返回：
-        JSON 渲染器函数
+        JSON 格式渲染器函数
     """
-    return structlog.processors.JSONRenderer()
+    json_processor = structlog.processors.JSONRenderer()
+
+    def renderer(
+            logger: WrappedLogger,
+            method_name: str,
+            event_dict: EventDict,
+    ) -> str:
+        event = _copy_event(event_dict)
+
+        result = json_processor(
+            logger,
+            method_name,
+            event,
+        )
+
+        if isinstance(result, bytes):
+            return result.decode("utf-8")
+
+        return result
+
+    return renderer

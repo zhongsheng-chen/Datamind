@@ -8,7 +8,7 @@
   - show_deployment: 查看部署详情
 
 使用示例：
-  python -m datamind.cli.main deployment show dep_a1b2c3d4
+  python -m datamind.cli.main deployment show dep_0123456789abcdef
 """
 
 import asyncio
@@ -19,9 +19,13 @@ import typer
 from rich.console import Console
 
 from datamind.cli.common import cli_context
-from datamind.db.core.uow import UnitOfWork
+from datamind.db.core import UnitOfWork
 from datamind.db.repositories.deployment import DeploymentRepository
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime
+)
 
 app = typer.Typer(help="部署详情命令")
 console = Console()
@@ -38,12 +42,7 @@ def show_deployment(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="是否输出调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """查看部署详情"""
@@ -62,11 +61,10 @@ def show_deployment(
 
             deployment = await repo.get_deployment(deployment_id)
 
-        if not deployment:
-            console.print(f"[red]未找到部署: {deployment_id}[/red]")
-            raise typer.Exit(1)
+            if not deployment:
+                console.print(f"[red]未找到部署: {deployment_id}[/red]")
+                raise typer.Exit(1)
 
-        if output == "json":
             result = {
                 "deployment_id": deployment.deployment_id,
                 "model_id": deployment.model_id,
@@ -85,12 +83,12 @@ def show_deployment(
                 "updated_at": format_iso_utc(deployment.updated_at),
             }
 
+        if output == "json":
             console.print_json(
                 json.dumps(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
 
@@ -103,36 +101,48 @@ def show_deployment(
 
         console.print("[green]部署详情[/green]\n")
 
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {deployment.deployment_id}")
-        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {deployment.model_id}")
-        console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {deployment.version_id}")
-        console.print(f"[cyan]{'FRAMEWORK':<16}[/cyan] : {deployment.framework}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {deployment.environment}")
-        console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {deployment.rollout_type}")
-        console.print(f"[cyan]{'ROLE':<16}[/cyan] : {deployment.role}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {deployment.status}")
+        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
+        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
+        console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
+        console.print(f"[cyan]{'FRAMEWORK':<16}[/cyan] : {result['framework']}")
+        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
+        console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {result['rollout_type']}")
+        console.print(f"[cyan]{'ROLE':<16}[/cyan] : {result['role']}")
+        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
 
-        if deployment.config:
+        if result["config"]:
             console.print(
                 f"[cyan]{'CONFIG':<16}[/cyan] : "
-                f"{json.dumps(deployment.config, ensure_ascii=False)}"
+                f"{json.dumps(result['config'], ensure_ascii=False)}"
             )
 
-        console.print(f"[cyan]{'DESCRIPTION':<16}[/cyan] : {deployment.description or '-'}")
-        console.print(f"[cyan]{'DEPLOYED BY':<16}[/cyan] : {deployment.deployed_by or '-'}")
-        console.print(f"[cyan]{'CREATED AT':<16}[/cyan] : {format_datetime(deployment.created_at)}")
-        console.print(f"[cyan]{'UPDATED AT':<16}[/cyan] : {format_datetime(deployment.updated_at)}")
+        console.print(
+            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{result['description'] or '-'}"
+        )
+        console.print(
+            f"[cyan]{'DEPLOYED BY':<16}[/cyan] : "
+            f"{result['deployed_by'] or '-'}"
+        )
+        console.print(
+            f"[cyan]{'CREATED AT':<16}[/cyan] : "
+            f"{format_datetime(parse_datetime(result['created_at']))}"
+        )
+        console.print(
+            f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+            f"{format_datetime(parse_datetime(result['updated_at']))}"
+        )
 
-        if deployment.effective_from:
+        if result["effective_from"]:
             console.print(
                 f"[cyan]{'EFFECTIVE FROM':<16}[/cyan] : "
-                f"{format_datetime(deployment.effective_from)}"
+                f"{format_datetime(parse_datetime(result['effective_from']))}"
             )
 
-        if deployment.effective_to:
+        if result["effective_to"]:
             console.print(
                 f"[cyan]{'EFFECTIVE TO':<16}[/cyan] : "
-                f"{format_datetime(deployment.effective_to)}"
+                f"{format_datetime(parse_datetime(result['effective_to']))}"
             )
 
         logger.info(
@@ -141,12 +151,11 @@ def show_deployment(
             output=output,
         )
 
-        return deployment
+        return result
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="deployment.read",
         ):
             await _run()
 

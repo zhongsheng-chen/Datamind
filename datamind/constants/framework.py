@@ -1,33 +1,42 @@
 # datamind/constants/framework.py
 
-"""框架常量
+"""框架枚举
 
 定义支持的机器学习框架类型，用于模型注册和运行时识别。
 
 核心功能：
-  - Framework: 框架类型常量类
+  - Framework: 机器学习框架字符串枚举
   - SUPPORTED_FRAMEWORKS: 支持的框架集合
 
 使用示例：
-  from datamind.constants.model_framework import Framework, SUPPORTED_FRAMEWORKS
+  from datamind.constants.framework import Framework
 
-  if framework in SUPPORTED_FRAMEWORKS:
-      load_model(framework, model_path)
+  if framework == Framework.SKLEARN:
+      load_sklearn_model(model_path)
+  elif framework == Framework.XGBOOST:
+      load_xgboost_model(model_path)
 """
 
-
-class Framework:
-    """模型框架常量"""
-
-    sklearn: str = "sklearn"
-    xgboost: str = "xgboost"
-    lightgbm: str = "lightgbm"
-    catboost: str = "catboost"
+from enum import Enum
+from typing import FrozenSet
 
 
-SUPPORTED_FRAMEWORKS = frozenset({
-    Framework.sklearn,
-    Framework.xgboost,
-    Framework.lightgbm,
-    Framework.catboost,
-})
+class Framework(str, Enum):
+    """机器学习框架字符串枚举"""
+
+    SKLEARN = "sklearn"
+    XGBOOST = "xgboost"
+    LIGHTGBM = "lightgbm"
+    CATBOOST = "catboost"
+
+    def __str__(
+            self,
+    ) -> str:
+        """返回枚举值字符串"""
+        return self.value
+
+
+SUPPORTED_FRAMEWORKS: FrozenSet[str] = frozenset(
+    str(framework)
+    for framework in Framework
+)

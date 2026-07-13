@@ -9,13 +9,12 @@
       服务部署不存在
   - ServiceEnvironmentMismatchError:
       部署环境与当前服务环境不一致
-
-说明：
-  本模块中的异常用于运行时模型服务接口层，
-  负责将服务请求错误映射为明确的 HTTP 响应状态。
-
-  这些异常仅用于服务接口层，
-  不属于 Datamind 核心业务异常。
+  - ServiceAuthenticationError:
+      请求身份认证失败
+  - ServiceAuthorizationError:
+      请求权限不足
+  - ServiceAuthenticationUnavailableError:
+      认证服务不可用
 
 使用示例：
   from datamind.runtime.server.errors import (
@@ -57,3 +56,27 @@ class ServiceEnvironmentMismatchError(
     """部署环境与当前服务环境不一致"""
 
     error_code = HTTPStatus.CONFLICT
+
+
+class ServiceAuthenticationError(
+    BentoMLException
+):
+    """请求身份认证失败"""
+
+    error_code = HTTPStatus.UNAUTHORIZED
+
+
+class ServiceAuthorizationError(
+    BentoMLException
+):
+    """请求权限不足"""
+
+    error_code = HTTPStatus.FORBIDDEN
+
+
+class ServiceAuthenticationUnavailableError(
+    BentoMLException
+):
+    """认证服务不可用"""
+
+    error_code = HTTPStatus.SERVICE_UNAVAILABLE

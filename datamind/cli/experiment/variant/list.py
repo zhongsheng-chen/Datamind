@@ -23,12 +23,39 @@ from rich.table import Table
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import VariantRepository
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime
+)
 
 app = typer.Typer(help="列出实验分组命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
+
+
+def _get_variant_environment(
+        config: dict | None,
+) -> str | None:
+    """获取实验分组环境"""
+    if not isinstance(
+            config,
+            dict,
+    ):
+        return None
+
+    value = config.get(
+        "environment"
+    )
+
+    if not isinstance(
+            value,
+            str,
+    ):
+        return None
+
+    return value
 
 
 @app.command("list")
@@ -45,7 +72,7 @@ def list_variants(
         status: str | None = typer.Option(
             None,
             "--status",
-            help="按实验分组状态过滤，例如 active/inactive/archived"
+            help="按实验分组状态过滤，可选值：active / inactive / archived"
         ),
         is_control: bool | None = typer.Option(
             None,
@@ -70,12 +97,7 @@ def list_variants(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """列出实验分组"""
@@ -123,7 +145,6 @@ def list_variants(
                 **filters,
             )
 
-        if output == "json":
             result = []
 
             for item in variants:
@@ -132,6 +153,7 @@ def list_variants(
                     "experiment_id": item.experiment_id,
                     "name": item.name,
                     "deployment_id": item.deployment_id,
+                    "environment": _get_variant_environment(item.config),
                     "weight": item.weight,
                     "is_control": item.is_control,
                     "status": item.status,
@@ -143,20 +165,20 @@ def list_variants(
                     "updated_at": format_iso_utc(item.updated_at),
                 })
 
+        if output == "json":
             console.print_json(
                 json.dumps(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
 
-        console.print(f"[dim]共找到 {len(variants)} 个实验分组[/dim]\n")
+        console.print(f"[dim]共找到 {len(result)} 个实验分组[/dim]\n")
 
-        if not variants:
-            return variants
+        if not result:
+            return result
 
         table = Table(
             box=box.ASCII,
@@ -169,31 +191,32 @@ def list_variants(
         table.add_column("EXPERIMENT ID")
         table.add_column("NAME")
         table.add_column("DEPLOYMENT ID")
+        table.add_column("ENVIRONMENT")
         table.add_column("WEIGHT")
         table.add_column("CONTROL")
         table.add_column("STATUS")
         table.add_column("UPDATED AT")
 
-        for item in variants:
+        for item in result:
             table.add_row(
-                item.variant_id,
-                item.experiment_id,
-                item.name,
-                item.deployment_id,
-                str(item.weight),
-                str(item.is_control),
-                item.status,
-                format_datetime(item.updated_at),
+                item["variant_id"],
+                item["experiment_id"],
+                item["name"] or "-",
+                item["deployment_id"],
+                item["environment"] or "-",
+                str(item["weight"]),
+                str(item["is_control"]),
+                item["status"],
+                format_datetime(parse_datetime(item["updated_at"])),
             )
 
         console.print(table)
 
-        return variants
+        return result
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="experiment.read",
         ):
             await _run()
 

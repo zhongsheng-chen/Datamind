@@ -2,71 +2,115 @@
 
 """Sklearn 模型适配器
 
-为 Sklearn 模型提供统一接口适配。
+为 Sklearn 二分类模型提供概率预测和特征重要性接口，
+逻辑回归模型额外提供 Logit 预测接口。
 
 核心功能：
-  - predict_proba: 预测违约概率
-  - decision_function: 获取原始 Logit 值
-  - predict_proba_batch: 批量预测违约概率
-  - decision_function_batch: 批量获取 Logit 值
+  - predict_proba: 概率预测
+  - predict_proba_batch: 批量概率预测
+  - decision_function: 逻辑回归 Logit 预测
+  - decision_function_batch: 逻辑回归批量 Logit 预测
   - get_feature_importance: 获取特征重要性
-  - _detect_capabilities: 动态检测当前模型实例能力
 
-能力检测规则：
-  - PREDICT_PROBA:
-      模型实现 predict_proba 方法
-  - PREDICT_LOG_ODDS:
-      模型实现 decision_function 方法
-  - FEATURE_IMPORTANCE:
-      模型具有 feature_importances_ 或 coef_ 属性
-  - BATCH_PREDICT:
-      模型支持概率预测或 Logit 预测
+使用示例：
+  import numpy as np
+  from sklearn.linear_model import LogisticRegression
+
+  from datamind.core.model.adapters.sklearn import SklearnAdapter
+
+  X_train = np.array([
+      [25, 80000, 0.20, 0.25, 0],
+      [45, 150000, 0.38, 0.62, 2],
+      [32, 100000, 0.28, 0.35, 0],
+      [50, 180000, 0.42, 0.70, 3],
+  ])
+
+  y_train = np.array([
+      1,
+      0,
+      1,
+      0,
+  ])
+
+  model = LogisticRegression()
+  model.fit(
+      X_train,
+      y_train,
+  )
+
+  adapter = SklearnAdapter(
+      model=model,
+      feature_names=[
+          "age",
+          "annual_income",
+          "debt_to_income_ratio",
+          "credit_utilization_ratio",
+          "delinquency_count",
+      ],
+      positive_class=1,
+  )
+
+  probability = adapter.predict({
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
+  })
+
+  logit = adapter.predict_logit({
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
+  })
 """
+
+from typing import Any
 
 import numpy as np
 import structlog
+from sklearn.linear_model import (
+    LogisticRegression,
+    LogisticRegressionCV,
+)
 
+from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
 from datamind.core.model.adapters.base import BaseModelAdapter
 
 logger = structlog.get_logger(__name__)
 
+_LOGISTIC_REGRESSION_TYPES = (
+    LogisticRegression,
+    LogisticRegressionCV,
+)
+
 
 class SklearnAdapter(BaseModelAdapter):
-    """Sklearn 模型适配器
-
-    根据当前模型实例动态检测模型能力。
-    """
+    """Sklearn 二分类模型适配器"""
 
     def __init__(
             self,
-            model,
-            feature_names=None,
-            data_types=None,
-    ):
-        """初始化适配器
-
-        参数：
-            model: Sklearn 模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
-        """
+            model: Any,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
+            positive_class: Any = 1,
+    ) -> None:
         super().__init__(
             model=model,
             feature_names=feature_names,
             data_types=data_types,
+            positive_class=positive_class,
         )
 
-        self._validate_model()
+        self._validate_binary_model()
 
     def _detect_capabilities(
             self,
     ) -> ModelCapability:
-        """检测当前 Sklearn 模型实例能力
-
-        返回：
-            模型能力位掩码
-        """
+        """检测当前 Sklearn 模型能力"""
         capabilities = ModelCapability.NONE
 
         supports_proba = callable(
@@ -77,169 +121,83 @@ class SklearnAdapter(BaseModelAdapter):
             )
         )
 
-        supports_logit = callable(
+        supports_log_odds = (
+            isinstance(
+                self.model,
+                _LOGISTIC_REGRESSION_TYPES,
+            )
+            and callable(
+                getattr(
+                    self.model,
+                    "decision_function",
+                    None,
+                )
+            )
+            and getattr(
+                self.model,
+                "coef_",
+                None,
+            ) is not None
+            and getattr(
+                self.model,
+                "intercept_",
+                None,
+            ) is not None
+        )
+
+        supports_importance = (
             getattr(
                 self.model,
-                "decision_function",
+                "feature_importances_",
                 None,
-            )
+            ) is not None
+            or getattr(
+                self.model,
+                "coef_",
+                None,
+            ) is not None
         )
 
         if supports_proba:
             capabilities |= (
                 ModelCapability.PREDICT_PROBA
+                | ModelCapability.BATCH_PREDICT
             )
 
-        if supports_logit:
+        if supports_log_odds:
             capabilities |= (
                 ModelCapability.PREDICT_LOG_ODDS
             )
 
-        if supports_proba or supports_logit:
-            capabilities |= (
-                ModelCapability.BATCH_PREDICT
-            )
-
-        if (
-                hasattr(
-                    self.model,
-                    "feature_importances_",
-                )
-                or hasattr(
-            self.model,
-            "coef_",
-        )
-        ):
+        if supports_importance:
             capabilities |= (
                 ModelCapability.FEATURE_IMPORTANCE
             )
 
         return capabilities
 
-    def _validate_model(
-            self,
-    ) -> None:
-        """校验模型
-
-        当前仅支持二分类模型。
-
-        如果模型具有 classes_ 属性，则检查类别数量。
-
-        异常：
-            ValueError: 模型类别数量不是 2
-        """
-        if not hasattr(
-                self.model,
-                "classes_",
-        ):
-            return
-
-        class_count = len(
-            self.model.classes_
-        )
-
-        if class_count != 2:
-            raise ValueError(
-                f"{self.__class__.__name__}: "
-                "仅支持二分类模型，"
-                f"当前类别数={class_count}"
-            )
-
-        logger.debug(
-            "Sklearn 模型校验通过",
-            adapter=self.__class__.__name__,
-            class_count=class_count,
-        )
-
     def predict_proba(
             self,
             X: np.ndarray,
     ) -> float:
-        """预测违约概率
-
-        参数：
-            X: 输入特征数组，形状为 (1, n_features)
-
-        返回：
-            正类概率，范围 0 到 1
-
-        异常：
-            NotImplementedError: 模型不支持概率预测
-            NotImplementedError: 模型不是二分类模型
-        """
+        """概率预测"""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
 
-        X = self._ensure_2d(X)
-
-        probabilities = np.asarray(
-            self.model.predict_proba(X)
+        probabilities = (
+            self._predict_positive_probabilities(
+                X
+            )
         )
 
-        if (
-                probabilities.ndim != 2
-                or probabilities.shape[1] != 2
-        ):
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "仅支持二分类概率预测，"
-                f"当前输出 shape={probabilities.shape}"
-            )
-
         result = float(
-            probabilities[0, 1]
+            probabilities[0]
         )
 
         logger.debug(
-            "概率预测成功",
+            "Sklearn 概率预测成功",
             probability=result,
-        )
-
-        return result
-
-    def decision_function(
-            self,
-            X: np.ndarray,
-    ) -> float:
-        """获取原始 Logit 值
-
-        参数：
-            X: 输入特征数组，形状为 (1, n_features)
-
-        返回：
-            Logit 值
-
-        异常：
-            NotImplementedError:
-                模型不支持 decision_function
-            NotImplementedError:
-                模型返回多分类结果
-        """
-        self.require_capability(
-            ModelCapability.PREDICT_LOG_ODDS
-        )
-
-        X = self._ensure_2d(X)
-
-        logits = np.asarray(
-            self.model.decision_function(X)
-        )
-
-        if logits.ndim != 1:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "暂不支持多分类 decision_function，"
-                f"当前输出 shape={logits.shape}"
-            )
-
-        result = float(
-            logits[0]
-        )
-
-        logger.debug(
-            "Logit 预测成功",
-            logit=result,
         )
 
         return result
@@ -248,53 +206,52 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量预测违约概率
-
-        参数：
-            X: 输入数组，形状为
-               (n_samples, n_features)
-
-        返回：
-            正类概率列表
-
-        异常：
-            NotImplementedError:
-                模型不支持概率预测
-            NotImplementedError:
-                模型不是二分类模型
-        """
+        """批量概率预测"""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
-
         self.require_capability(
             ModelCapability.BATCH_PREDICT
         )
 
-        X = self._ensure_2d(X)
-
-        probabilities = np.asarray(
-            self.model.predict_proba(X)
-        )
-
-        if (
-                probabilities.ndim != 2
-                or probabilities.shape[1] != 2
-        ):
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "仅支持二分类概率预测，"
-                f"当前输出 shape={probabilities.shape}"
+        probabilities = (
+            self._predict_positive_probabilities(
+                X
             )
+        )
 
         result = [
             float(probability)
-            for probability in probabilities[:, 1]
+            for probability in probabilities
         ]
 
         logger.debug(
-            "批量概率预测成功",
+            "Sklearn 批量概率预测成功",
             sample_count=len(result),
+        )
+
+        return result
+
+    def decision_function(
+            self,
+            X: np.ndarray,
+    ) -> float:
+        """逻辑回归 Logit 预测"""
+        self.require_capability(
+            ModelCapability.PREDICT_LOG_ODDS
+        )
+
+        logits = self._predict_positive_logits(
+            X
+        )
+
+        result = float(
+            logits[0]
+        )
+
+        logger.debug(
+            "Sklearn Logit 预测成功",
+            logit=result,
         )
 
         return result
@@ -303,41 +260,17 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量获取原始 Logit 值
-
-        参数：
-            X: 输入数组，形状为
-               (n_samples, n_features)
-
-        返回：
-            Logit 值列表
-
-        异常：
-            NotImplementedError:
-                模型不支持 decision_function
-            NotImplementedError:
-                模型返回多分类结果
-        """
+        """逻辑回归批量 Logit 预测"""
         self.require_capability(
             ModelCapability.PREDICT_LOG_ODDS
         )
-
         self.require_capability(
             ModelCapability.BATCH_PREDICT
         )
 
-        X = self._ensure_2d(X)
-
-        logits = np.asarray(
-            self.model.decision_function(X)
+        logits = self._predict_positive_logits(
+            X
         )
-
-        if logits.ndim != 1:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "暂不支持多分类 decision_function，"
-                f"当前输出 shape={logits.shape}"
-            )
 
         result = [
             float(logit)
@@ -345,7 +278,7 @@ class SklearnAdapter(BaseModelAdapter):
         ]
 
         logger.debug(
-            "批量 Logit 预测成功",
+            "Sklearn 批量 Logit 预测成功",
             sample_count=len(result),
         )
 
@@ -354,128 +287,159 @@ class SklearnAdapter(BaseModelAdapter):
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取特征重要性
-
-        支持以下来源：
-          - feature_importances_: 树模型
-          - coef_: 线性模型，使用系数绝对值
-
-        返回：
-            特征重要性字典
-
-        异常：
-            NotImplementedError:
-                模型不支持特征重要性
-            NotImplementedError:
-                coef_ 为多分类结构
-        """
+        """获取特征重要性"""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
 
-        if hasattr(
-                self.model,
-                "feature_importances_",
-        ):
+        feature_importances = getattr(
+            self.model,
+            "feature_importances_",
+            None,
+        )
+
+        if feature_importances is not None:
             importance = np.asarray(
-                self.model.feature_importances_
+                feature_importances,
+                dtype=float,
             )
 
-            logger.debug(
-                "获取特征重要性",
-                source="feature_importances_",
-            )
+            source = "feature_importances_"
 
-        elif hasattr(
-                self.model,
-                "coef_",
-        ):
+        else:
             coefficients = np.asarray(
-                self.model.coef_
+                self.model.coef_,
+                dtype=float,
             )
 
-            logger.debug(
-                "获取特征重要性",
-                source="coef_",
-                shape=coefficients.shape,
+            importance = self._extract_coefficient_importance(
+                coefficients
             )
 
-            if coefficients.ndim == 1:
-                importance = np.abs(
-                    coefficients
-                )
+            source = "coef_"
 
-            elif (
-                    coefficients.ndim == 2
-                    and coefficients.shape[0] == 1
-            ):
-                importance = np.abs(
-                    coefficients[0]
-                )
-
-            else:
-                raise NotImplementedError(
-                    f"{self.__class__.__name__}: "
-                    "暂不支持多分类 coef_ 特征重要性，"
-                    f"当前 shape={coefficients.shape}"
-                )
-
-        else:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "模型不支持特征重要性"
-            )
-
-        if self.feature_names:
-            result = {
-                name: float(value)
-                for name, value in zip(
-                    self.feature_names,
-                    importance,
-                )
-            }
-
-        else:
-            result = {
-                f"f{index}": float(value)
-                for index, value in enumerate(
-                    importance
-                )
-            }
+        result = self._build_feature_importance(
+            importance,
+            names=self.feature_names,
+        )
 
         logger.debug(
-            "特征重要性计算完成",
+            "Sklearn 特征重要性计算完成",
+            source=source,
             feature_count=len(result),
         )
 
         return result
 
-    @staticmethod
-    def _ensure_2d(
+    def _predict_positive_probabilities(
+            self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """确保输入为二维数组
+        """执行模型预测并提取正类概率"""
+        array = self._ensure_2d(
+            X
+        )
 
-        参数：
-            X: 输入数组
+        values = self.model.predict_proba(
+            array
+        )
 
-        返回：
-            二维数组
+        return self._extract_positive_probabilities(
+            values
+        )
 
-        异常：
-            ValueError:
-                输入不是一维或二维数组
-        """
-        if X.ndim == 1:
-            return X.reshape(
-                1,
-                -1,
+    def _predict_positive_logits(
+            self,
+            X: np.ndarray,
+    ) -> np.ndarray:
+        """执行逻辑回归预测并提取正类 Logit"""
+        array = self._ensure_2d(
+            X
+        )
+
+        values = np.asarray(
+            self.model.decision_function(
+                array
+            ),
+            dtype=float,
+        )
+
+        if values.ndim == 0:
+            logits = values.reshape(
+                1
             )
 
-        if X.ndim != 2:
-            raise ValueError(
-                "仅支持 1D / 2D numpy 输入，"
-                f"当前 ndim={X.ndim}"
+        elif values.ndim == 1:
+            logits = values
+
+        elif (
+                values.ndim == 2
+                and values.shape[-1] == 1
+        ):
+            logits = values.reshape(
+                -1
             )
 
-        return X
+        else:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}: "
+                "不支持当前 decision_function 输出，"
+                f"shape={values.shape}"
+            )
+
+        direction = (
+            1.0
+            if self.get_positive_class_index() == 1
+            else -1.0
+        )
+
+        return (
+            logits
+            * direction
+        )
+
+    def _extract_coefficient_importance(
+            self,
+            coefficients: np.ndarray,
+    ) -> np.ndarray:
+        """提取正类对应的系数绝对值"""
+        if coefficients.ndim == 1:
+            return np.abs(
+                coefficients
+            )
+
+        if coefficients.ndim != 2:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}: "
+                "不支持当前 coef_ 维度，"
+                f"shape={coefficients.shape}"
+            )
+
+        class_count = int(
+            coefficients.shape[-2]
+        )
+
+        if class_count == 1:
+            selected = coefficients.reshape(
+                -1
+            )
+
+        elif class_count == 2:
+            positive_index = (
+                self.get_positive_class_index()
+            )
+
+            selected = coefficients[
+                positive_index
+            ]
+
+        else:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}: "
+                "暂不支持多分类 coef_，"
+                f"当前 shape={coefficients.shape}"
+            )
+
+        return np.abs(
+            selected
+        )

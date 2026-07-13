@@ -1,0 +1,366 @@
+# tests/runtime/server/test_security.py
+
+"""运行时服务安全边界测试
+
+验证环境保护、Bearer 令牌解析、权限校验和可信请求上下文。
+
+核心功能：
+  - 验证生产环境认证保护和测试环境匿名策略
+  - 验证 Bearer 令牌解析和认证异常转换
+  - 验证接口权限校验
+  - 验证可信日志及审计请求上下文
+"""
+
+from types import SimpleNamespace
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+import datamind.runtime.server.security as security_module
+from datamind.auth.errors import AuthError, PermissionDeniedError
+from datamind.constants import Environment
+from datamind.context import get_context
+from datamind.runtime.server.errors import (
+    ServiceAuthenticationError,
+    ServiceAuthenticationUnavailableError,
+    ServiceAuthorizationError,
+)
+from datamind.runtime.server.security import RuntimeIdentity, RuntimeSecurity
+
+
+class ContextStub:
+    """BentoML 请求上下文替身"""
+
+    def __init__(self) -> None:
+        self.request: Any = SimpleNamespace(
+            headers={},
+            client=SimpleNamespace(
+                host="127.0.0.1"
+            ),
+            scope={},
+        )
+
+
+class FakeUnitOfWork:
+    """运行时认证测试工作单元"""
+
+    def __init__(self) -> None:
+        self.session = MagicMock()
+
+    async def __aenter__(self) -> "FakeUnitOfWork":
+        return self
+
+    async def __aexit__(self, *_args: object) -> bool:
+        return False
+
+
+@pytest.mark.asyncio
+async def test_production_rejects_disabled_auth(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试生产环境拒绝关闭认证"""
+    settings = SimpleNamespace(
+        auth=SimpleNamespace(enabled=False),
+        service=SimpleNamespace(
+            environment=Environment.PRODUCTION
+        ),
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "get_settings",
+        lambda: settings,
+    )
+
+    with pytest.raises(
+            ServiceAuthenticationUnavailableError,
+            match="必须启用认证",
+    ):
+        await RuntimeSecurity().authenticate(
+            context=ContextStub(),
+            permission="prediction.invoke",
+        )
+
+
+@pytest.mark.asyncio
+async def test_testing_allows_local_anonymous_identity(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试测试环境允许本地匿名调试"""
+    settings = SimpleNamespace(
+        auth=SimpleNamespace(enabled=False),
+        service=SimpleNamespace(
+            environment=Environment.TESTING
+        ),
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "get_settings",
+        lambda: settings,
+    )
+
+    identity = await RuntimeSecurity().authenticate(
+        context=ContextStub(),
+        permission="prediction.invoke",
+    )
+
+    assert identity.username == "system"
+    assert identity.authenticated is False
+
+
+@pytest.mark.parametrize(
+    "authorization",
+    [
+        None,
+        "Basic credentials",
+        "Bearer",
+        "Bearer   ",
+    ],
+)
+def test_extract_bearer_token_rejects_invalid_header(
+        authorization: str | None,
+) -> None:
+    """测试拒绝非法 Authorization 头"""
+    with pytest.raises(
+            ServiceAuthenticationError,
+            match="Bearer",
+    ):
+        RuntimeSecurity._extract_bearer_token(
+            authorization
+        )
+
+
+def test_extract_bearer_token_normalizes_valid_header() -> None:
+    """测试解析 Bearer 令牌并去除两端空白"""
+    assert RuntimeSecurity._extract_bearer_token(
+        "bearer   access-token  "
+    ) == "access-token"
+
+
+@pytest.mark.asyncio
+async def test_authenticate_validates_required_permission(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试已认证请求校验接口权限"""
+    settings = SimpleNamespace(
+        auth=SimpleNamespace(enabled=True),
+        service=SimpleNamespace(
+            environment=Environment.PRODUCTION
+        ),
+    )
+    user = SimpleNamespace(
+        user_id="usr_test",
+        username="alice",
+        permissions=["prediction.invoke"],
+    )
+    service = MagicMock()
+    service.authenticate_access_token = AsyncMock(
+        return_value=user
+    )
+    require_permission = MagicMock()
+    context = ContextStub()
+    context.request.headers[
+        "authorization"
+    ] = "Bearer access-token"
+    monkeypatch.setitem(
+        vars(security_module),
+        "get_settings",
+        lambda: settings,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "create_auth_service",
+        lambda **_kwargs: service,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "require_permission",
+        require_permission,
+    )
+
+    identity = await RuntimeSecurity().authenticate(
+        context=context,
+        permission="prediction.invoke",
+    )
+
+    assert identity.username == "alice"
+    assert identity.authenticated is True
+    require_permission.assert_called_once_with(
+        granted_permissions=["prediction.invoke"],
+        required_permission="prediction.invoke",
+    )
+
+
+@pytest.mark.asyncio
+async def test_authenticate_maps_invalid_access_token(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试认证异常转换为服务认证错误"""
+    settings = SimpleNamespace(
+        auth=SimpleNamespace(enabled=True),
+        service=SimpleNamespace(
+            environment=Environment.PRODUCTION
+        ),
+    )
+    service = MagicMock()
+    service.authenticate_access_token = AsyncMock(
+        side_effect=AuthError("invalid token")
+    )
+    context = ContextStub()
+    context.request.headers["authorization"] = "Bearer access-token"
+    monkeypatch.setitem(
+        vars(security_module),
+        "get_settings",
+        lambda: settings,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "create_auth_service",
+        lambda **_kwargs: service,
+    )
+
+    with pytest.raises(
+            ServiceAuthenticationError,
+            match="访问令牌无效或已失效",
+    ):
+        await RuntimeSecurity().authenticate(
+            context=context,
+            permission="prediction.invoke",
+        )
+
+
+@pytest.mark.asyncio
+async def test_authenticate_maps_permission_denied(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试权限不足转换为服务授权错误"""
+    settings = SimpleNamespace(
+        auth=SimpleNamespace(enabled=True),
+        service=SimpleNamespace(
+            environment=Environment.PRODUCTION
+        ),
+    )
+    service = MagicMock()
+    service.authenticate_access_token = AsyncMock(
+        return_value=SimpleNamespace(
+            user_id="usr_test",
+            username="alice",
+            permissions=[],
+        )
+    )
+    context = ContextStub()
+    context.request.headers["authorization"] = "Bearer access-token"
+    monkeypatch.setitem(
+        vars(security_module),
+        "get_settings",
+        lambda: settings,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "create_auth_service",
+        lambda **_kwargs: service,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "require_permission",
+        MagicMock(
+            side_effect=PermissionDeniedError()
+        ),
+    )
+
+    with pytest.raises(
+            ServiceAuthorizationError,
+            match="缺少接口权限",
+    ):
+        await RuntimeSecurity().authenticate(
+            context=context,
+            permission="runtime.manage",
+        )
+
+
+@pytest.mark.asyncio
+async def test_request_scope_establishes_trusted_context(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试认证请求作用域建立并恢复可信上下文"""
+    security = RuntimeSecurity()
+    identity = RuntimeIdentity(
+        user_id="usr_test",
+        username="alice",
+        permissions=("prediction.invoke",),
+        authenticated=True,
+    )
+    authenticate = AsyncMock(
+        return_value=identity
+    )
+    monkeypatch.setattr(
+        security,
+        "authenticate",
+        authenticate,
+    )
+    context = ContextStub()
+    context.request.scope = {
+        "trace_id": "trace_test",
+        "invalid": 100,
+    }
+
+    async with security.request_scope(
+            context=context,
+            permission="prediction.invoke",
+            request_id="req_test",
+    ) as current_identity:
+        request_context = get_context()
+
+        assert current_identity is identity
+        assert request_context["user"] == "alice"
+        assert request_context["ip"] == "127.0.0.1"
+        assert request_context["trace_id"] == "trace_test"
+        assert request_context["request_id"] == "req_test"
+
+    assert get_context().get("request_id") is None
+
+
+@pytest.mark.asyncio
+async def test_request_scope_handles_missing_client(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试请求未提供客户端地址时上下文 IP 为空"""
+    security = RuntimeSecurity()
+    monkeypatch.setattr(
+        security,
+        "authenticate",
+        AsyncMock(return_value=RuntimeIdentity(
+            user_id="usr_test",
+            username="alice",
+            permissions=("prediction.invoke",),
+            authenticated=True,
+        )),
+    )
+    context = ContextStub()
+    context.request.client = None
+    context.request.scope = {
+        "trace_id": 100,
+    }
+
+    async with security.request_scope(
+            context=context,
+            permission="prediction.invoke",
+            request_id="req_test",
+    ):
+        assert get_context()["ip"] is None
+        assert get_context()["trace_id"] is None

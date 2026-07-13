@@ -8,11 +8,12 @@
   - show_service: 查看部署服务运行状态
 
 使用示例：
-  python -m datamind.cli.main service show dep_a1b2c3d4
+  python -m datamind.cli.main service show dep_0123456789abcdef
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -21,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.services import RuntimeController
+from datamind.services import RuntimeControlService
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
@@ -43,12 +44,7 @@ def show_service(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """查看部署服务运行状态"""
@@ -64,69 +60,86 @@ def show_service(
             deployment_id=deployment_id,
         )
 
-        controller = RuntimeController()
+        controller = RuntimeControlService()
 
-        result = await controller.get_status(
+        raw_result = await controller.get_status(
             deployment_id=deployment_id,
         )
 
-        deployment = result["deployment"]
-        control = result["control"]
-        runtimes = result["runtimes"]
+        deployment: dict[str, Any] = {
+            **raw_result["deployment"],
+        }
 
-        if output == "json":
-            json_result = {
-                "deployment": deployment,
-                "control": (
-                    {
-                        **control,
-                        "created_at": format_iso_utc(
-                            parse_datetime(
-                                control["created_at"]
-                            )
-                        ),
-                        "updated_at": format_iso_utc(
-                            parse_datetime(
-                                control["updated_at"]
-                            )
-                        ),
-                    }
-                    if control is not None
-                    else None
+        for field in (
+                "effective_from",
+                "effective_to",
+                "created_at",
+                "updated_at",
+        ):
+            if field in deployment:
+                deployment[field] = format_iso_utc(
+                    parse_datetime(
+                        deployment[field]
+                    )
+                )
+
+        control: dict[str, Any] | None = raw_result[
+            "control"
+        ]
+
+        if control is not None:
+            control = {
+                **control,
+                "created_at": format_iso_utc(
+                    parse_datetime(
+                        control["created_at"]
+                    )
                 ),
-                "runtimes": [
-                    {
-                        **runtime,
-                        "loaded_at": format_iso_utc(
-                            parse_datetime(
-                                runtime["loaded_at"]
-                            )
-                        ),
-                        "unloaded_at": format_iso_utc(
-                            parse_datetime(
-                                runtime["unloaded_at"]
-                            )
-                        ),
-                        "last_heartbeat_at": format_iso_utc(
-                            parse_datetime(
-                                runtime["last_heartbeat_at"]
-                            )
-                        ),
-                    }
-                    for runtime in runtimes
-                ],
+                "updated_at": format_iso_utc(
+                    parse_datetime(
+                        control["updated_at"]
+                    )
+                ),
             }
 
+        runtimes: list[dict[str, Any]] = [
+            {
+                **runtime,
+                "loaded_at": format_iso_utc(
+                    parse_datetime(
+                        runtime["loaded_at"]
+                    )
+                ),
+                "unloaded_at": format_iso_utc(
+                    parse_datetime(
+                        runtime["unloaded_at"]
+                    )
+                ),
+                "last_heartbeat_at": format_iso_utc(
+                    parse_datetime(
+                        runtime["last_heartbeat_at"]
+                    )
+                ),
+            }
+            for runtime in raw_result["runtimes"]
+        ]
+
+        result: dict[str, Any] = {
+            "deployment": deployment,
+            "control": control,
+            "runtimes": runtimes,
+        }
+
+        if output == "json":
             console.print_json(
                 json.dumps(
-                    json_result,
+                    result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
 
-            return json_result
+            return result
 
         console.print(
             "[green]服务详情[/green]\n"
@@ -255,8 +268,7 @@ def show_service(
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="runtime.read",
         ):
             await _run()
 

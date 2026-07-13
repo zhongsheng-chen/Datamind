@@ -1,4 +1,4 @@
-# datamind/migrations/env.py
+# migrations/env.py
 
 """Alembic 迁移环境配置
 
@@ -29,20 +29,26 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from datamind.config import get_settings
-from datamind.db.core import Base
-from datamind.db.core.url import get_db_url
+from datamind.config.database import DatabaseConfig
+from datamind.db import models as database_models
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = database_models.Metadata.metadata
 
-settings = get_settings()
 
-config.set_main_option("sqlalchemy.url", get_db_url())
+def get_url() -> str:
+    """获取迁移使用的数据库连接 URL"""
+    return DatabaseConfig().url
+
+
+config.set_main_option(
+    "sqlalchemy.url",
+    get_url()
+)
 
 
 def run_migrations_offline() -> None:
@@ -85,8 +91,17 @@ async def run_migrations_online() -> None:
 
     异步连接数据库并执行迁移。
     """
+    configuration = config.get_section(
+        config.config_ini_section
+    )
+
+    if configuration is None:
+        raise RuntimeError(
+            "Alembic 主配置段不存在"
+        )
+
     connectable: AsyncEngine = async_engine_from_config(
-        config.get_section(config.config_ini_section),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

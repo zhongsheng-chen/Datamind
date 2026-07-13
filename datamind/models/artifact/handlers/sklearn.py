@@ -15,7 +15,7 @@ from datamind.constants.framework import Framework
 from datamind.models.artifact.register import ModelArtifactRegister
 
 
-@ModelArtifactRegister.register(Framework.sklearn)
+@ModelArtifactRegister.register(Framework.SKLEARN)
 def load_sklearn(data: bytes):
     """加载 Sklearn 模型
 

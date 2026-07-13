@@ -6,6 +6,7 @@
 
 命令组：
   - add: 添加实验分组
+  - update: 更新实验分组
   - list: 列出实验分组
   - show: 查看实验分组详情
   - activate: 启用实验分组
@@ -21,12 +22,14 @@ from datamind.cli.experiment.variant.archive import app as archive_app
 from datamind.cli.experiment.variant.deactivate import app as deactivate_app
 from datamind.cli.experiment.variant.list import app as list_app
 from datamind.cli.experiment.variant.show import app as show_app
+from datamind.cli.experiment.variant.update import app as update_app
 
 app = typer.Typer(
     help="实验分组管理命令"
 )
 
 app.add_typer(add_app)
+app.add_typer(update_app)
 app.add_typer(list_app)
 app.add_typer(show_app)
 app.add_typer(activate_app)

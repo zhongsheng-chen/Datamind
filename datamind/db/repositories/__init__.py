@@ -2,27 +2,60 @@
 
 """数据库仓储模块
 
-提供统一的数据仓储接口，封装数据库操作。
+提供统一的数据仓储入口，
+封装数据库模型的查询和变更操作。
 
-仓储列表：
+核心功能：
   - BaseRepository: 数据库仓储基类
-  - AssignmentRepository: 实验分配仓储
-  - AuditRepository: 审计日志仓储
-  - ControlRepository: 模型运行控制仓储
-  - DecisionRepository: 请求决策仓储
-  - DeploymentRepository: 部署仓储
-  - RuntimeRepository: 模型运行仓储
-  - ExperimentRepository: 实验仓储
+  - SystemStateRepository: 系统初始化状态仓储
+  - UserPatch: 用户更新字段
+  - UserRepository: 用户仓储
+  - RolePatch: 角色更新字段
+  - RoleRepository: 角色仓储
+  - GrantRepository: 角色授予仓储
+  - TokenRepository: 认证令牌仓储
+  - MetadataPatch: 模型元数据更新字段
   - MetadataRepository: 模型元数据仓储
-  - OutcomeRepository: 实验结果仓储
-  - RequestRepository: 请求仓储
-  - RoutingRepository: 路由仓储
-  - VariantRepository: 实验分组仓储
+  - VersionPatch: 模型版本更新字段
   - VersionRepository: 模型版本仓储
+  - DeploymentPatch: 部署更新字段
+  - DeploymentRepository: 部署仓储
+  - ControlRepository: 模型运行控制仓储
+  - RuntimePatch: 模型运行更新字段
+  - RuntimeRepository: 模型运行仓储
+  - RoutingPatch: 路由更新字段
+  - RoutingRepository: 路由仓储
+  - ExperimentPatch: 实验更新字段
+  - ExperimentRepository: 实验仓储
+  - VariantPatch: 实验分组更新字段
+  - VariantRepository: 实验分组仓储
+  - AssignmentRepository: 实验分配仓储
+  - RequestRepository: 请求仓储
+  - DecisionRepository: 请求决策仓储
+  - OutcomePatch: 实验结果更新字段
+  - OutcomeRepository: 实验结果仓储
+  - AuditRepository: 审计日志仓储
+  - ArtifactRepository: 模型制品仓储
+
+使用示例：
+  from datamind.db.core import UnitOfWork
+  from datamind.db.repositories import (
+      MetadataRepository,
+      UserRepository,
+  )
+
+  async with UnitOfWork() as uow:
+      user_repo = UserRepository(
+          uow.session
+      )
+      metadata_repo = MetadataRepository(
+          uow.session
+      )
 """
 
 from datamind.db.repositories.assignment import AssignmentRepository
 from datamind.db.repositories.audit import AuditRepository
+from datamind.db.repositories.artifact import ArtifactRepository
 from datamind.db.repositories.base import BaseRepository
 from datamind.db.repositories.control import ControlRepository
 from datamind.db.repositories.decision import DecisionRepository
@@ -34,6 +67,7 @@ from datamind.db.repositories.experiment import (
     ExperimentPatch,
     ExperimentRepository,
 )
+from datamind.db.repositories.grant import GrantRepository
 from datamind.db.repositories.metadata import (
     MetadataPatch,
     MetadataRepository,
@@ -43,6 +77,10 @@ from datamind.db.repositories.outcome import (
     OutcomeRepository,
 )
 from datamind.db.repositories.request import RequestRepository
+from datamind.db.repositories.role import (
+    RolePatch,
+    RoleRepository,
+)
 from datamind.db.repositories.routing import (
     RoutingPatch,
     RoutingRepository,
@@ -50,6 +88,12 @@ from datamind.db.repositories.routing import (
 from datamind.db.repositories.runtime import (
     RuntimePatch,
     RuntimeRepository,
+)
+from datamind.db.repositories.system import SystemStateRepository
+from datamind.db.repositories.token import TokenRepository
+from datamind.db.repositories.user import (
+    UserPatch,
+    UserRepository,
 )
 from datamind.db.repositories.variant import (
     VariantPatch,
@@ -60,27 +104,36 @@ from datamind.db.repositories.version import (
     VersionRepository,
 )
 
+
 __all__ = [
     "BaseRepository",
-    "AssignmentRepository",
-    "AuditRepository",
-    "ControlRepository",
-    "DecisionRepository",
-    "DeploymentPatch",
-    "DeploymentRepository",
-    "RuntimePatch",
-    "RuntimeRepository",
-    "ExperimentPatch",
-    "ExperimentRepository",
+    "SystemStateRepository",
+    "UserPatch",
+    "UserRepository",
+    "RolePatch",
+    "RoleRepository",
+    "GrantRepository",
+    "TokenRepository",
     "MetadataPatch",
     "MetadataRepository",
-    "OutcomePatch",
-    "OutcomeRepository",
-    "RequestRepository",
-    "RoutingPatch",
-    "RoutingRepository",
-    "VariantPatch",
-    "VariantRepository",
     "VersionPatch",
     "VersionRepository",
+    "DeploymentPatch",
+    "DeploymentRepository",
+    "ControlRepository",
+    "RuntimePatch",
+    "RuntimeRepository",
+    "RoutingPatch",
+    "RoutingRepository",
+    "ExperimentPatch",
+    "ExperimentRepository",
+    "VariantPatch",
+    "VariantRepository",
+    "AssignmentRepository",
+    "RequestRepository",
+    "DecisionRepository",
+    "OutcomePatch",
+    "OutcomeRepository",
+    "AuditRepository",
+    "ArtifactRepository",
 ]

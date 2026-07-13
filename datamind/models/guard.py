@@ -53,15 +53,15 @@
 """
 
 from datamind.models.enums import (
-    MetadataStatus,
-    VersionStatus,
     DeploymentStatus,
     ExperimentStatus,
+    MetadataStatus,
+    VersionStatus,
 )
 from datamind.models.errors import (
-    InvalidModelStateError,
     InvalidDeploymentStateError,
     InvalidExperimentStateError,
+    InvalidModelStateError,
 )
 
 
@@ -108,14 +108,23 @@ class ModelGuard:
     }
 
     _EXPERIMENT_TRANSITIONS = {
+        ExperimentStatus.DRAFT: {
+            ExperimentStatus.RUNNING,
+            ExperimentStatus.ARCHIVED,
+        },
         ExperimentStatus.RUNNING: {
             ExperimentStatus.PAUSED,
+            ExperimentStatus.STOPPED,
             ExperimentStatus.COMPLETED,
             ExperimentStatus.ARCHIVED,
         },
         ExperimentStatus.PAUSED: {
             ExperimentStatus.RUNNING,
+            ExperimentStatus.STOPPED,
             ExperimentStatus.COMPLETED,
+            ExperimentStatus.ARCHIVED,
+        },
+        ExperimentStatus.STOPPED: {
             ExperimentStatus.ARCHIVED,
         },
         ExperimentStatus.COMPLETED: {
@@ -146,7 +155,7 @@ class ModelGuard:
 
         if target not in allowed:
             raise InvalidModelStateError(
-                f"非法模型状态迁移: {current.value} -> {target.value}"
+                f"非法模型状态迁移: {current} -> {target}"
             )
 
     @classmethod
@@ -171,7 +180,7 @@ class ModelGuard:
 
         if target not in allowed:
             raise InvalidModelStateError(
-                f"非法版本状态迁移: {current.value} -> {target.value}"
+                f"非法版本状态迁移: {current} -> {target}"
             )
 
     @classmethod
@@ -194,16 +203,19 @@ class ModelGuard:
         if current == target:
             return
 
-        if target == DeploymentStatus.ACTIVE and metadata_status != MetadataStatus.ACTIVE:
+        if (
+                target == DeploymentStatus.ACTIVE
+                and metadata_status != MetadataStatus.ACTIVE
+        ):
             raise InvalidDeploymentStateError(
-                f"当前模型状态为 {metadata_status.value}，不允许上线"
+                f"当前模型状态为 {metadata_status}，不允许上线"
             )
 
         allowed = cls._DEPLOYMENT_TRANSITIONS.get(current, set())
 
         if target not in allowed:
             raise InvalidDeploymentStateError(
-                f"非法部署状态迁移: {current.value} -> {target.value}"
+                f"非法部署状态迁移: {current} -> {target}"
             )
 
     @classmethod
@@ -228,7 +240,7 @@ class ModelGuard:
 
         if target not in allowed:
             raise InvalidExperimentStateError(
-                f"非法实验状态迁移: {current.value} -> {target.value}"
+                f"非法实验状态迁移: {current} -> {target}"
             )
 
     @classmethod
@@ -302,14 +314,15 @@ class ModelGuard:
 
         if metadata_status != MetadataStatus.ACTIVE:
             raise InvalidDeploymentStateError(
-                f"当前模型状态为 {metadata_status.value}，不允许启用部署"
+                f"当前模型状态为 {metadata_status}，不允许启用部署"
             )
 
         allowed = cls._DEPLOYMENT_TRANSITIONS.get(current, set())
 
         if DeploymentStatus.ACTIVE not in allowed:
             raise InvalidDeploymentStateError(
-                f"非法部署状态迁移: {current.value} -> ACTIVE"
+                "非法部署状态迁移: "
+                f"{current} -> {DeploymentStatus.ACTIVE}"
             )
 
     @classmethod
@@ -317,13 +330,11 @@ class ModelGuard:
             cls,
             *,
             current: DeploymentStatus,
-            metadata_status: MetadataStatus,
     ) -> None:
         """校验是否允许禁用部署
 
         参数：
             current: 当前部署状态
-            metadata_status: 模型元数据状态
 
         异常：
             InvalidDeploymentStateError: 不允许禁用部署
@@ -331,14 +342,10 @@ class ModelGuard:
         if current == DeploymentStatus.INACTIVE:
             return
 
-        if metadata_status != MetadataStatus.ACTIVE:
-            raise InvalidDeploymentStateError(
-                f"当前模型状态为 {metadata_status.value}，不允许禁用部署"
-            )
-
         allowed = cls._DEPLOYMENT_TRANSITIONS.get(current, set())
 
         if DeploymentStatus.INACTIVE not in allowed:
             raise InvalidDeploymentStateError(
-                f"非法部署状态迁移: {current.value} -> INACTIVE"
+                "非法部署状态迁移: "
+                f"{current} -> {DeploymentStatus.INACTIVE}"
             )

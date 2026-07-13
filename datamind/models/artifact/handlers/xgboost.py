@@ -15,7 +15,7 @@ from datamind.constants.framework import Framework
 from datamind.models.artifact.register import ModelArtifactRegister
 
 
-@ModelArtifactRegister.register(Framework.xgboost)
+@ModelArtifactRegister.register(Framework.XGBOOST)
 def load_xgboost(data: bytes):
     """加载 XGBoost 模型
 

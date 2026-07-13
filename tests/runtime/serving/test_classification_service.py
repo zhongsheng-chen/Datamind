@@ -1,0 +1,216 @@
+# tests/runtime/serving/test_classification_service.py
+
+"""分类模型运行服务测试
+
+验证分类阈值、单条预测、批量预测和异常结果处理。
+
+核心功能：
+  - 验证分类阈值校验
+  - 验证单条概率转换为分类结果
+  - 验证批量分类结果和空批次
+  - 验证非法推理结果被拒绝
+"""
+
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+
+import datamind.runtime.serving.base as base_module
+from datamind.core.capability import ModelCapability
+from datamind.runtime.registry import RuntimeModel
+from datamind.runtime.serving.classification_service import (
+    ClassificationService,
+)
+
+
+def create_service(
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        prediction: Any = 0.8,
+        threshold: float = 0.5,
+) -> tuple[ClassificationService, MagicMock]:
+    """创建使用推理替身的分类服务"""
+    adapter = MagicMock()
+    adapter.get_capabilities.return_value = (
+        ModelCapability.PREDICT_PROBA
+        | ModelCapability.BATCH_PREDICT
+    )
+    inference = MagicMock()
+    inference.adapter = adapter
+    inference.predict.return_value = prediction
+    monkeypatch.setitem(
+        vars(base_module),
+        "Inference",
+        lambda **_kwargs: inference,
+    )
+    runtime_model = RuntimeModel(
+        deployment_id="dep_test",
+        model_id="mdl_test",
+        version_id="ver_test",
+        framework="sklearn",
+        model=object(),
+    )
+
+    return (
+        ClassificationService(
+            runtime_model=runtime_model,
+            threshold=threshold,
+        ),
+        inference,
+    )
+
+
+@pytest.mark.parametrize(
+    "threshold",
+    [-0.1, 1.1],
+)
+def test_service_rejects_invalid_threshold(
+        threshold: float,
+) -> None:
+    """测试分类服务拒绝范围外阈值"""
+    with pytest.raises(
+            ValueError,
+            match="threshold 必须在 0 到 1 之间",
+    ):
+        ClassificationService(
+            runtime_model=RuntimeModel(
+                deployment_id="dep_test",
+                model_id="mdl_test",
+                version_id="ver_test",
+                framework="sklearn",
+                model=object(),
+            ),
+            threshold=threshold,
+        )
+
+
+@pytest.mark.parametrize(
+    ("probability", "expected"),
+    [
+        (0.49, 0),
+        (0.50, 1),
+        (0.90, 1),
+    ],
+)
+def test_predict_classifies_probability(
+        monkeypatch: pytest.MonkeyPatch,
+        probability: float,
+        expected: int,
+) -> None:
+    """测试单条概率按照阈值转换为分类标签"""
+    service, inference = create_service(
+        monkeypatch,
+        prediction=probability,
+    )
+
+    result = service.predict({
+        "age": 35,
+    })
+
+    inference.adapter.require_capability.assert_called_once_with(
+        ModelCapability.PREDICT_PROBA
+    )
+    inference.predict.assert_called_once_with({
+        "age": 35,
+    })
+    assert result["prediction"] == expected
+    assert result["probability"] == probability
+    assert result["threshold"] == 0.5
+    assert result["service_type"] == "classification"
+    assert service.runtime_model.access_count == 1
+
+
+def test_predict_rejects_empty_features(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试单条分类拒绝空特征"""
+    service, _ = create_service(monkeypatch)
+
+    with pytest.raises(
+            ValueError,
+            match="features 不能为空",
+    ):
+        service.predict({})
+
+
+def test_predict_rejects_batch_result(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试单条分类拒绝批量概率结果"""
+    service, _ = create_service(
+        monkeypatch,
+        prediction=[0.8],
+    )
+
+    with pytest.raises(
+            TypeError,
+            match="单条分类预测返回了批量结果",
+    ):
+        service.predict({"age": 35})
+
+
+def test_predict_batch_returns_classifications(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试批量分类返回逐条预测结果"""
+    service, inference = create_service(
+        monkeypatch,
+        prediction=[0.2, 0.8],
+    )
+    features = [
+        {"age": 25},
+        {"age": 45},
+    ]
+
+    result = service.predict_batch(features)
+
+    inference.adapter.require_capability.assert_any_call(
+        ModelCapability.BATCH_PREDICT
+    )
+    assert result["count"] == 2
+    assert result["predictions"] == [
+        {
+            "prediction": 0,
+            "probability": 0.2,
+            "threshold": 0.5,
+        },
+        {
+            "prediction": 1,
+            "probability": 0.8,
+            "threshold": 0.5,
+        },
+    ]
+    assert service.runtime_model.access_count == 1
+
+
+def test_predict_batch_returns_empty_result(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试空批次返回空预测列表"""
+    service, inference = create_service(monkeypatch)
+
+    result = service.predict_batch([])
+
+    assert result["count"] == 0
+    assert result["predictions"] == []
+    inference.predict.assert_not_called()
+    assert service.runtime_model.access_count == 0
+
+
+def test_predict_batch_rejects_scalar_result(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试批量分类拒绝标量概率结果"""
+    service, _ = create_service(
+        monkeypatch,
+        prediction=0.8,
+    )
+
+    with pytest.raises(
+            TypeError,
+            match="批量分类预测未返回列表结果",
+    ):
+        service.predict_batch([
+            {"age": 35},
+        ])

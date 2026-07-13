@@ -15,7 +15,7 @@ from datamind.constants.framework import Framework
 from datamind.models.artifact.register import ModelArtifactRegister
 
 
-@ModelArtifactRegister.register(Framework.lightgbm)
+@ModelArtifactRegister.register(Framework.LIGHTGBM)
 def load_lightgbm(data: bytes):
     """加载 LightGBM 模型
 

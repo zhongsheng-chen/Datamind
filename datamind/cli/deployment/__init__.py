@@ -1,4 +1,4 @@
-# datamind/cli/deployment/_init_.py
+# datamind/cli/deployment/__init__.py
 
 """部署管理命令
 

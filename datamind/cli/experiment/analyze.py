@@ -8,7 +8,7 @@
   - analyze_experiment: 分析实验效果
 
 使用示例：
-  python -m datamind.cli.main experiment analyze exp_a1b2c3d4
+  python -m datamind.cli.main experiment analyze exp_0123456789abcdef
 """
 
 import asyncio
@@ -51,12 +51,7 @@ def analyze_experiment(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """分析实验效果"""
@@ -92,7 +87,6 @@ def analyze_experiment(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
@@ -103,8 +97,7 @@ def analyze_experiment(
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="experiment.read",
         ):
             await _run()
 
@@ -121,9 +114,14 @@ def _print_analysis(result: dict[str, Any]) -> None:
 
     console.print(f"[cyan]{'EXPERIMENT ID':<20}[/cyan] : {result['experiment_id']}")
     console.print(f"[cyan]{'MODEL ID':<20}[/cyan] : {result['model_id']}")
+    console.print(f"[cyan]{'ENVIRONMENT':<20}[/cyan] : {result['environment']}")
     console.print(f"[cyan]{'NAME':<20}[/cyan] : {result['name'] or '-'}")
     console.print(f"[cyan]{'STATUS':<20}[/cyan] : {result['status']}")
-    console.print(f"[cyan]{'BASELINE VARIANT':<20}[/cyan] : {result['baseline_variant_id'] or '-'}")
+    console.print(f"[cyan]{'STRATEGY':<20}[/cyan] : {result['strategy']}")
+    console.print(
+        f"[cyan]{'BASELINE VARIANT':<20}[/cyan] : "
+        f"{result['baseline_variant_id'] or '-'}"
+    )
     console.print(f"[cyan]{'OUTCOME COUNT':<20}[/cyan] : {result['outcome_count']}")
 
     console.print()

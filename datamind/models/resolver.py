@@ -5,8 +5,8 @@
 提供模型和版本的解析能力，支持通过 ID 或名称查找。
 
 核心功能：
-  - resolve_model: 解析模型（支持 model_id 或 name）
-  - resolve_version: 解析版本（支持 version_id 或 version）
+  - resolve_model: 解析模型
+  - resolve_version: 解析版本
 
 使用示例：
   from datamind.db.repositories import MetadataRepository, VersionRepository
@@ -15,16 +15,16 @@
   resolver = ModelResolver(metadata_repo, version_repo)
 
   # 解析模型
-  model = await resolver.resolve_model(model_id="mdl_a1b2c3d4")
+  model = await resolver.resolve_model(model_id="mdl_0123456789abcdef")
   model = await resolver.resolve_model(name="scorecard")
 
   # 解析版本
   version = await resolver.resolve_version(
-      model_id="mdl_a1b2c3d4",
-      version_id="ver_a1b2c3d4",
+      model_id="mdl_0123456789abcdef",
+      version_id="ver_0123456789abcdef",
   )
   version = await resolver.resolve_version(
-      model_id="mdl_a1b2c3d4",
+      model_id="mdl_0123456789abcdef",
       version="1.0.0",
   )
 """
@@ -54,6 +54,9 @@ class ModelResolver:
     ):
         """解析模型
 
+        优先按 model_id 查询模型。未找到且提供 name 时，
+        再按模型名称查询。
+
         参数：
             model_id: 模型 ID（可选）
             name: 模型名称（可选）
@@ -66,16 +69,21 @@ class ModelResolver:
         """
         model = None
 
-        # 优先 model_id
         if model_id:
             model = await self.metadata_repo.get_model(model_id=model_id)
 
-        # 兜底：按 name 查询
         if not model and name:
             model = await self.metadata_repo.get_model(name=name)
 
         if not model:
-            raise ModelNotFoundError(f"模型不存在 (model_id={model_id}, name={name})")
+            model_id = model_id or "未提供"
+            name = name or "未提供"
+
+            raise ModelNotFoundError(
+                "模型不存在 "
+                f"(model_id={model_id}, "
+                f"name={name})"
+            )
 
         return model
 
@@ -85,13 +93,19 @@ class ModelResolver:
             model_id: str,
             version_id: str | None = None,
             version: str | None = None,
+            include_archived: bool = False,
     ):
         """解析版本
+
+        提供 version_id 时优先按版本 ID 查询，并校验版本是否
+        属于指定模型。未提供 version_id 时，再按 model_id 和
+        version 查询指定模型的版本。
 
         参数：
             model_id: 模型 ID
             version_id: 版本 ID（可选）
             version: 版本号（可选）
+            include_archived: 按版本号查询时是否包含归档版本
 
         返回：
             版本对象
@@ -99,16 +113,17 @@ class ModelResolver:
         异常：
             VersionNotFoundError: 版本不存在
         """
-        # 优先 version_id
         if version_id:
             v = await self.version_repo.get_version(version_id)
-            if not v:
+            if not v or v.model_id != model_id:
                 raise VersionNotFoundError(f"版本不存在: {version_id}")
             return v
 
-        # 兜底：按 version 查询
         if version:
-            versions = await self.version_repo.list_versions(model_id=model_id)
+            versions = await self.version_repo.list_versions(
+                model_id=model_id,
+                include_archived=include_archived,
+            )
             v = next((x for x in versions if x.version == version), None)
 
             if not v:

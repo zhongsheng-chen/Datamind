@@ -1,42 +1,40 @@
 # datamind/logging/logger.py
 
-"""日志API
+"""日志 API
 
-提供统一的日志获取接口，自动绑定当前上下文。
+提供统一的日志获取接口。
+
+日志上下文由处理器在每次写入日志时动态补充，
+避免重复绑定或使用过期上下文。
 
 核心功能：
-  - get_logger: 获取日志实例，自动绑定 trace_id、request_id 等上下文
+  - get_logger: 获取指定名称的日志实例
 
 使用示例：
   from datamind.logging import get_logger
 
   logger = get_logger(__name__)
-  logger.info("用户登录成功", user_id=123, action="login")
+  logger.info(
+      "用户登录成功",
+      user="admin",
+      action="login",
+  )
 """
-
-from typing import Optional
 
 import structlog
 
-from datamind.context.core import get_context
 
-
-def get_logger(name: Optional[str] = None) -> structlog.stdlib.BoundLogger:
+def get_logger(
+        name: str | None = None,
+) -> structlog.stdlib.BoundLogger:
     """获取日志实例
 
-    自动绑定当前上下文（trace_id、request_id、user、ip 等）。
-
     参数：
-        name: 日志名称（可选）
+        name: 日志名称，通常传入 __name__
 
     返回：
-        structlog.BoundLogger 实例
-
-    使用示例：
-        from datamind.logging import get_logger
-
-        logger = get_logger(__name__)
-        logger.info("用户登录成功", user_id=123, action="login")
+        structlog.stdlib.BoundLogger 实例
     """
-    logger = structlog.get_logger(name)
-    return logger.bind(**get_context())
+    return structlog.get_logger(
+        name
+    )

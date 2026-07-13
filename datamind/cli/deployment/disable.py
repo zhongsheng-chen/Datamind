@@ -8,7 +8,7 @@
   - disable_deployment: 禁用部署
 
 使用示例：
-  python -m datamind.cli.main deployment disable dep_a1b2c3d4
+  python -m datamind.cli.main deployment disable dep_0123456789abcdef
 """
 
 import asyncio
@@ -20,7 +20,7 @@ from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.services.deployer import ModelDeployer
+from datamind.services import DeploymentLifecycleService
 
 app = typer.Typer(help="禁用部署命令")
 console = Console()
@@ -34,20 +34,10 @@ def disable_deployment(
             ...,
             help="部署 ID"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="是否输出调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """禁用部署"""
@@ -57,7 +47,9 @@ def disable_deployment(
         target_type="deployment",
         target_id_func=lambda p, r: r["deployment_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
@@ -66,11 +58,11 @@ def disable_deployment(
             deployment_id=deployment_id,
         )
 
-        deployer = ModelDeployer()
+        deployer = DeploymentLifecycleService()
 
         result = await deployer.disable_deployment(
             deployment_id=deployment_id,
-            updated_by=operator,
+            updated_by=actor,
         )
 
         if output == "json":
@@ -95,11 +87,10 @@ def disable_deployment(
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="deployment.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

@@ -8,11 +8,14 @@
   - update_route: 更新路由规则
 
 使用示例：
-  python -m datamind.cli.main route update rtn_a1b2c3d4 --traffic 0.3 --operator admin
+  python -m datamind.cli.main route update rtn_0123456789abcdef \
+    --traffic-ratio 0.3 \
+    --rules-file route_rules.json
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -20,18 +23,27 @@ from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DeploymentRepository,
     RoutingPatch,
     RoutingRepository,
 )
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.runtime.routing import RuleMatcher
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime
+)
 
 app = typer.Typer(help="更新路由命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
+
+CHAMPION_ROLE = "champion"
+CHAMPION_TRAFFIC_WARN_THRESHOLD = 0.7
 
 
 @app.command("update")
@@ -43,48 +55,27 @@ def update_route(
         environment: str | None = typer.Option(
             None,
             "--environment",
-            help="路由环境，例如 production/staging/development/testing"
+            help="路由环境，可选值：production / staging / development / testing"
         ),
-        traffic: float | None = typer.Option(
+        traffic_ratio: float | None = typer.Option(
             None,
-            "--traffic",
-            help="路由权重，范围 0~1"
+            "--traffic-ratio",
+            help="路由流量比例，范围 0~1"
         ),
-        rollout: str | None = typer.Option(
+        rules_file: str | None = typer.Option(
             None,
-            "--rollout",
-            help="发布方式 full/canary/shadow"
-        ),
-        rollout_group: str | None = typer.Option(
-            None,
-            "--group",
-            "--rollout-group",
-            help="发布分组，例如 champion/challenger"
-        ),
-        rules: str | None = typer.Option(
-            None,
-            "--rules",
-            help="路由规则 JSON 字符串"
+            "--rules-file",
+            help="路由规则文件(JSON)"
         ),
         description: str | None = typer.Option(
             None,
             "--description",
             help="路由描述"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="是否输出调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """更新路由规则"""
@@ -94,28 +85,62 @@ def update_route(
         target_type="route",
         target_id_func=lambda p, r: r["routing_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
-        if traffic is not None and (
-                traffic < 0 or traffic > 1
+        if traffic_ratio is not None and (
+                traffic_ratio < 0 or traffic_ratio > 1
         ):
             raise typer.BadParameter(
-                "--traffic 必须在 0 到 1 之间"
+                "--traffic-ratio 必须在 0 到 1 之间"
             )
+
+        requested_environment: Environment | None = None
+
+        if environment is not None:
+            try:
+                requested_environment = Environment(
+                    environment
+                )
+            except ValueError as exc:
+                raise typer.BadParameter(
+                    f"不支持的路由环境: {environment}"
+                ) from exc
 
         route_rules = None
 
-        if rules:
+        if rules_file:
+            logger.debug(
+                "读取路由规则文件",
+                rules_file=rules_file,
+            )
+
             try:
-                route_rules = json.loads(
-                    rules
+                with open(
+                        rules_file,
+                        "r",
+                        encoding="utf-8",
+                ) as f:
+                    route_rules = json.load(f)
+
+                logger.debug(
+                    "路由规则文件解析成功",
+                    rules=route_rules,
                 )
+
+            except FileNotFoundError:
+                console.print(
+                    "[red]rules 文件不存在: "
+                    f"{rules_file}[/red]"
+                )
+                raise typer.Exit(1)
 
             except json.JSONDecodeError as exc:
                 console.print(
-                    "[red]rules JSON 解析失败: "
+                    "[red]rules-file JSON 解析失败: "
                     f"{exc}[/red]"
                 )
                 raise typer.Exit(1)
@@ -125,15 +150,25 @@ def update_route(
                     dict,
             ):
                 raise typer.BadParameter(
-                    "--rules 必须是 JSON 对象"
+                    "--rules-file 必须是 JSON 对象"
                 )
+
+            try:
+                RuleMatcher().validate(
+                    route_rules
+                )
+
+            except ValueError as exc:
+                console.print(
+                    "[red]rules 规则校验失败: "
+                    f"{exc}[/red]"
+                )
+                raise typer.Exit(1)
 
         if (
                 environment is None
-                and traffic is None
-                and rollout is None
-                and rollout_group is None
-                and rules is None
+                and traffic_ratio is None
+                and rules_file is None
                 and description is None
         ):
             raise typer.BadParameter(
@@ -143,10 +178,9 @@ def update_route(
         logger.info(
             "开始更新路由",
             routing_id=routing_id,
-            environment=environment,
-            traffic=traffic,
-            rollout=rollout,
-            rollout_group=rollout_group,
+            environment=requested_environment,
+            traffic_ratio=traffic_ratio,
+            rules_file=rules_file,
         )
 
         async with UnitOfWork() as uow:
@@ -180,9 +214,11 @@ def update_route(
                 raise typer.Exit(1)
 
             resolved_environment = (
-                environment
-                if environment is not None
-                else route.environment
+                requested_environment
+                if requested_environment is not None
+                else Environment(
+                    route.environment
+                )
             )
 
             if deployment.environment != resolved_environment:
@@ -193,11 +229,36 @@ def update_route(
                 )
                 raise typer.Exit(1)
 
+            target_traffic_ratio = (
+                traffic_ratio
+                if traffic_ratio is not None
+                else route.traffic_ratio
+            )
+
+            if (
+                    str(deployment.role).lower() == CHAMPION_ROLE
+                    and target_traffic_ratio < CHAMPION_TRAFFIC_WARN_THRESHOLD
+            ):
+                if output == "text":
+                    console.print(
+                        "[yellow]警告: champion 路由流量比例低于建议值，"
+                        "请确认是否符合预期[/yellow]"
+                    )
+
+                logger.warning(
+                    "champion 路由流量比例低于建议值",
+                    routing_id=route.routing_id,
+                    deployment_id=deployment.deployment_id,
+                    role=deployment.role,
+                    traffic_ratio=target_traffic_ratio,
+                    warning_threshold=CHAMPION_TRAFFIC_WARN_THRESHOLD,
+                )
+
             patch = RoutingPatch(
-                rollout_type=rollout,
-                rollout_group=rollout_group,
-                environment=environment,
-                traffic_ratio=traffic,
+                rollout_type=deployment.rollout_type,
+                rollout_group=deployment.role,
+                environment=requested_environment,
+                traffic_ratio=traffic_ratio,
                 rules=route_rules,
                 description=description,
             )
@@ -206,7 +267,7 @@ def update_route(
                 routing_repo.update_routing(
                     route,
                     patch,
-                    updated_by=operator,
+                    updated_by=actor,
                 )
 
             except ValueError as exc:
@@ -218,7 +279,7 @@ def update_route(
             await uow.session.flush()
             await uow.session.refresh(route)
 
-            result = {
+            result: dict[str, Any] = {
                 "routing_id": route.routing_id,
                 "deployment_id": route.deployment_id,
                 "environment": route.environment,
@@ -238,7 +299,6 @@ def update_route(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
@@ -249,8 +309,11 @@ def update_route(
         console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
         console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
         console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {result['rollout_type']}")
-        console.print(f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : {result['rollout_group'] or '-'}")
-        console.print(f"[cyan]{'TRAFFIC':<16}[/cyan] : {result['traffic_ratio']}")
+        console.print(
+            f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : "
+            f"{result['rollout_group'] or '-'}"
+        )
+        console.print(f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : {result['traffic_ratio']}")
         console.print(f"[cyan]{'ENABLED':<16}[/cyan] : {result['enabled']}")
 
         if result["rules"]:
@@ -259,19 +322,27 @@ def update_route(
                 f"{json.dumps(result['rules'], ensure_ascii=False)}"
             )
 
-        console.print(f"[cyan]{'DESCRIPTION':<16}[/cyan] : {result['description'] or '-'}")
-        console.print(f"[cyan]{'UPDATED BY':<16}[/cyan] : {result['updated_by'] or '-'}")
-        console.print(f"[cyan]{'UPDATED AT':<16}[/cyan] : {format_datetime(result['updated_at'])}")
+        console.print(
+            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{result['description'] or '-'}"
+        )
+        console.print(
+            f"[cyan]{'UPDATED BY':<16}[/cyan] : "
+            f"{result['updated_by'] or '-'}"
+        )
+        console.print(
+            f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+            f"{format_datetime(parse_datetime(result['updated_at']))}"
+        )
 
         return result
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="routing.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

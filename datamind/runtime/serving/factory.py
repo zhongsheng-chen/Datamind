@@ -21,8 +21,11 @@
   )
 
   result = service.predict({
-      "age": 30,
-      "income": 50000,
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
   })
 """
 

@@ -17,18 +17,27 @@
   )
 
   result = service.predict({
-      "age": 30,
-      "income": 50000,
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
   })
 
   batch_result = service.predict_batch([
       {
-          "age": 30,
-          "income": 50000,
+          "age": 35,
+          "annual_income": 120000,
+          "debt_to_income_ratio": 0.32,
+          "credit_utilization_ratio": 0.45,
+          "delinquency_count": 0,
       },
       {
-          "age": 40,
-          "income": 80000,
+          "age": 35,
+          "annual_income": 120000,
+          "debt_to_income_ratio": 0.32,
+          "credit_utilization_ratio": 0.45,
+          "delinquency_count": 0,
       },
   ])
 """
