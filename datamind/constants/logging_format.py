@@ -1,29 +1,40 @@
 # datamind/constants/logging_format.py
 
-"""日志格式常量
+"""日志格式枚举
 
 定义日志输出格式类型，用于结构化日志和文本日志。
 
 核心功能：
-  - LogFormat: 日志格式常量类
+  - LogFormat: 日志格式字符串枚举
   - SUPPORTED_LOG_FORMATS: 支持的日志格式集合
 
 使用示例：
-  from datamind.constants.logging_format import LogFormat, SUPPORTED_LOG_FORMATS
+  from datamind.constants.logging_format import LogFormat
 
-  if format == LogFormat.json:
+  if log_format == LogFormat.JSON:
       enable_json_logging()
+  elif log_format == LogFormat.TEXT:
+      enable_text_logging()
 """
 
-
-class LogFormat:
-    """日志格式常量"""
-
-    TEXT: str = "text"
-    JSON: str = "json"
+from enum import Enum
+from typing import FrozenSet
 
 
-SUPPORTED_LOG_FORMATS = frozenset({
-    LogFormat.TEXT,
-    LogFormat.JSON,
-})
+class LogFormat(str, Enum):
+    """日志格式字符串枚举"""
+
+    TEXT = "text"
+    JSON = "json"
+
+    def __str__(
+            self,
+    ) -> str:
+        """返回枚举值字符串"""
+        return self.value
+
+
+SUPPORTED_LOG_FORMATS: FrozenSet[str] = frozenset(
+    str(log_format)
+    for log_format in LogFormat
+)

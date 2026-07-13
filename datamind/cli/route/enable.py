@@ -8,11 +8,12 @@
   - enable_route: 启用路由规则
 
 使用示例：
-  python -m datamind.cli.main route enable rtn_a1b2c3d4 --operator admin
+  python -m datamind.cli.main route enable rtn_0123456789abcdef
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -36,20 +37,10 @@ def enable_route(
             ...,
             help="路由 ID"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="是否输出调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """启用路由规则"""
@@ -59,7 +50,9 @@ def enable_route(
         target_type="route",
         target_id_func=lambda p, r: r["routing_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
@@ -85,13 +78,13 @@ def enable_route(
 
             repo.enable_routing(
                 route,
-                updated_by=operator,
+                updated_by=actor,
             )
 
             await uow.session.flush()
             await uow.session.refresh(route)
 
-            result = {
+            result: dict[str, Any] = {
                 "routing_id": route.routing_id,
                 "deployment_id": route.deployment_id,
                 "environment": route.environment,
@@ -109,7 +102,6 @@ def enable_route(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
@@ -120,19 +112,21 @@ def enable_route(
         console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
         console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
         console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {result['rollout_type']}")
-        console.print(f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : {result['rollout_group'] or '-'}")
-        console.print(f"[cyan]{'TRAFFIC':<16}[/cyan] : {result['traffic_ratio']}")
+        console.print(
+            f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : "
+            f"{result['rollout_group'] or '-'}"
+        )
+        console.print(f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : {result['traffic_ratio']}")
         console.print(f"[cyan]{'ENABLED':<16}[/cyan] : {result['enabled']}")
 
         return result
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="routing.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

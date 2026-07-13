@@ -6,6 +6,7 @@
 
 命令组：
   - create: 创建实验
+  - update: 更新实验
   - list: 列出实验
   - show: 查看实验详情
   - start: 启动实验
@@ -28,6 +29,7 @@ from datamind.cli.experiment.pause import app as pause_app
 from datamind.cli.experiment.show import app as show_app
 from datamind.cli.experiment.start import app as start_app
 from datamind.cli.experiment.stop import app as stop_app
+from datamind.cli.experiment.update import app as update_app
 from datamind.cli.experiment.variant import app as variant_app
 
 app = typer.Typer(
@@ -35,6 +37,7 @@ app = typer.Typer(
 )
 
 app.add_typer(create_app)
+app.add_typer(update_app)
 app.add_typer(list_app)
 app.add_typer(show_app)
 app.add_typer(start_app)

@@ -1,6 +1,6 @@
 # datamind/services/lifecycle.py
 
-"""模型生命周期管理器
+"""模型生命周期管理服务
 
 负责模型和版本的状态管理。
 
@@ -9,11 +9,11 @@
   - deactivate: 停用模型或指定版本
 
 使用示例：
-  from datamind.services.lifecycle import ModelLifecycle
+  from datamind.services.lifecycle import ModelLifecycleService
 
-  lifecycle = ModelLifecycle()
+  service = ModelLifecycleService()
 
-  result = await lifecycle.activate(
+  result = await service.activate(
       name="scorecard",
       version="1.0.0",
       updated_by="admin"
@@ -25,16 +25,21 @@ from typing import Any
 import structlog
 
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import MetadataRepository, VersionRepository
+from datamind.db.repositories import (
+    DeploymentRepository,
+    MetadataRepository,
+    VersionRepository,
+)
 from datamind.models.enums import MetadataStatus, VersionStatus
+from datamind.models.errors import InvalidModelStateError
 from datamind.models.guard import ModelGuard
 from datamind.models.resolver import ModelResolver
 
 logger = structlog.get_logger(__name__)
 
 
-class ModelLifecycle:
-    """模型生命周期管理器
+class ModelLifecycleService:
+    """模型生命周期管理服务
 
     负责模型元数据和模型版本的启用、停用等生命周期操作。
     """
@@ -94,7 +99,9 @@ class ModelLifecycle:
             model.status = MetadataStatus.ACTIVE
             model.updated_by = updated_by
 
-            ver = None
+            resolved_version_id: str | None = None
+            resolved_version: str | None = None
+            resolved_version_status: str | None = None
 
             if version or version_id:
                 ver = await resolver.resolve_version(
@@ -115,28 +122,31 @@ class ModelLifecycle:
 
                 ver.status = VersionStatus.ACTIVE
                 ver.updated_by = updated_by
+                resolved_version_id = ver.version_id
+                resolved_version = ver.version
+                resolved_version_status = ver.status
 
             logger.info(
                 "模型激活完成",
                 model_id=model.model_id,
                 name=model.name,
                 model_status=model.status,
-                version_id=ver.version_id if ver else None,
-                version=ver.version if ver else None,
-                version_status=ver.status if ver else None,
+                version_id=resolved_version_id,
+                version=resolved_version,
+                version_status=resolved_version_status,
                 updated_by=updated_by,
             )
 
-            return {
+            result: dict[str, Any] = {
                 "model_id": model.model_id,
                 "name": model.name,
                 "model_status": model.status,
-                "version_id": ver.version_id if ver else None,
-                "version": ver.version if ver else None,
-                "version_status": ver.status if ver else None,
+                "version_id": resolved_version_id,
+                "version": resolved_version,
+                "version_status": resolved_version_status,
             }
 
-        raise RuntimeError("模型激活失败：事务未正常完成")
+        return result
 
     async def deactivate(
             self,
@@ -183,7 +193,9 @@ class ModelLifecycle:
             if not model:
                 raise ValueError("模型不存在")
 
-            ver = None
+            resolved_version_id: str | None = None
+            resolved_version: str | None = None
+            resolved_version_status: str | None = None
 
             if version or version_id:
                 ver = await resolver.resolve_version(
@@ -195,6 +207,18 @@ class ModelLifecycle:
                 if not ver:
                     raise ValueError("模型版本不存在")
 
+                active_deployments = await DeploymentRepository(
+                    uow.session
+                ).list_active_deployments(
+                    model_id=model.model_id,
+                    version_id=ver.version_id,
+                )
+
+                if active_deployments:
+                    raise InvalidModelStateError(
+                        "模型版本存在活动部署，请先禁用相关部署"
+                    )
+
                 current_version_status = VersionStatus(ver.status)
 
                 ModelGuard.validate_version_transition(
@@ -204,8 +228,22 @@ class ModelLifecycle:
 
                 ver.status = VersionStatus.INACTIVE
                 ver.updated_by = updated_by
+                resolved_version_id = ver.version_id
+                resolved_version = ver.version
+                resolved_version_status = ver.status
 
             else:
+                active_deployments = await DeploymentRepository(
+                    uow.session
+                ).list_active_deployments(
+                    model_id=model.model_id,
+                )
+
+                if active_deployments:
+                    raise InvalidModelStateError(
+                        "模型存在活动部署，请先禁用相关部署"
+                    )
+
                 current_model_status = MetadataStatus(model.status)
 
                 ModelGuard.validate_metadata_transition(
@@ -221,19 +259,19 @@ class ModelLifecycle:
                 model_id=model.model_id,
                 name=model.name,
                 model_status=model.status,
-                version_id=ver.version_id if ver else None,
-                version=ver.version if ver else None,
-                version_status=ver.status if ver else None,
+                version_id=resolved_version_id,
+                version=resolved_version,
+                version_status=resolved_version_status,
                 updated_by=updated_by,
             )
 
-            return {
+            result: dict[str, Any] = {
                 "model_id": model.model_id,
                 "name": model.name,
                 "model_status": model.status,
-                "version_id": ver.version_id if ver else None,
-                "version": ver.version if ver else None,
-                "version_status": ver.status if ver else None,
+                "version_id": resolved_version_id,
+                "version": resolved_version,
+                "version_status": resolved_version_status,
             }
 
-        raise RuntimeError("模型停用失败：事务未正常完成")
+        return result

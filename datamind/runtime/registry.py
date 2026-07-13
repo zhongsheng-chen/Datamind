@@ -14,9 +14,9 @@
   registry = RuntimeRegistry()
 
   registry.register(
-      deployment_id="dep_a1b2c3d4",
-      model_id="mdl_a1b2c3d4",
-      version_id="ver_a1b2c3d4",
+      deployment_id="dep_0123456789abcdef",
+      model_id="mdl_0123456789abcdef",
+      version_id="ver_0123456789abcdef",
       framework="sklearn",
       model=model,
       metadata={
@@ -24,7 +24,7 @@
       },
   )
 
-  runtime_model = registry.get("dep_a1b2c3d4")
+  runtime_model = registry.get("dep_0123456789abcdef")
 
   if runtime_model is not None:
       model = runtime_model.model
@@ -234,6 +234,11 @@ class RuntimeRegistry:
 
         with self._lock:
             return self._models.pop(deployment_id, None)
+
+    def restore(self, runtime_model: RuntimeModel) -> None:
+        """恢复先前可用的运行时模型对象"""
+        with self._lock:
+            self._models[runtime_model.deployment_id] = runtime_model
 
     def all(
             self,

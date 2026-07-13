@@ -2,25 +2,34 @@
 
 """数据库引擎管理
 
-提供异步数据库引擎的创建和单例管理。
+提供异步数据库引擎的创建、单例获取和资源释放能力。
 
 核心功能：
   - create_engine: 创建异步数据库引擎
-  - get_engine: 获取数据库引擎实例，返回单例
-  - dispose_engine: 关闭数据库引擎
+  - get_engine: 获取数据库引擎单例
+  - dispose_engine: 关闭数据库引擎并重置会话工厂
 
 使用示例：
-  from datamind.db.core.engine import get_engine, dispose_engine
+  from datamind.db.core.engine import (
+      dispose_engine,
+      get_engine,
+  )
 
   engine = get_engine()
+
   # 使用引擎...
+
   await dispose_engine()
 """
 
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    create_async_engine,
+)
 
 from datamind.config import get_settings
 from datamind.db.core.url import get_db_url
+
 
 _engine: AsyncEngine | None = None
 
@@ -35,7 +44,7 @@ def create_engine() -> AsyncEngine:
     db = settings.database
     url = get_db_url()
 
-    engine = create_async_engine(
+    return create_async_engine(
         url,
         pool_size=db.pool_size,
         max_overflow=db.max_overflow,
@@ -48,30 +57,42 @@ def create_engine() -> AsyncEngine:
         },
     )
 
-    return engine
-
 
 def get_engine() -> AsyncEngine:
-    """获取数据库引擎实例（单例）
+    """获取数据库引擎单例
+
+    首次调用时创建引擎，后续调用返回同一实例。
 
     返回：
         AsyncEngine 实例
     """
     global _engine
 
-    if _engine is None:
-        _engine = create_engine()
+    engine = _engine
 
-    return _engine
+    if engine is None:
+        engine = create_engine()
+        _engine = engine
+
+    return engine
 
 
 async def dispose_engine() -> None:
-    """关闭数据库引擎
+    """关闭数据库引擎并重置会话工厂
 
-    释放连接池资源，通常在应用关闭时调用。
+    解除全局引擎和 SessionFactory 对旧引擎的引用，
+    然后释放原连接池资源。
     """
     global _engine
 
-    if _engine is not None:
-        await _engine.dispose()
-        _engine = None
+    from datamind.db.core.session import (
+        reset_session_factory,
+    )
+
+    engine = _engine
+
+    _engine = None
+    reset_session_factory()
+
+    if engine is not None:
+        await engine.dispose()

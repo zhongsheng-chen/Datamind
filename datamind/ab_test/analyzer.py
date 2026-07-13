@@ -28,7 +28,7 @@
       )
 
       analysis = await analyzer.analyze_experiment(
-          experiment_id="exp_a1b2c3d4"
+          experiment_id="exp_0123456789abcdef"
       )
 
       result = analysis.to_dict()
@@ -43,6 +43,7 @@ from datamind.db.models.variants import Variant
 from datamind.db.repositories.experiment import ExperimentRepository
 from datamind.db.repositories.outcome import OutcomeRepository
 from datamind.db.repositories.variant import VariantRepository
+from datamind.models.enums import AssignmentStrategy, ExperimentVariantStatus
 
 
 @dataclass(slots=True)
@@ -54,6 +55,7 @@ class VariantInfo:
         experiment_id: 实验 ID
         name: 实验分组名称
         deployment_id: 部署 ID
+        environment: 实验环境，优先来自分组配置
         weight: 分组权重
         is_control: 是否为对照组
         status: 分组状态
@@ -64,6 +66,7 @@ class VariantInfo:
     experiment_id: str
     name: str
     deployment_id: str
+    environment: str | None
     weight: float
     is_control: bool
     status: str
@@ -81,8 +84,10 @@ class ABTestAnalysis:
     属性：
         experiment_id: 实验 ID
         model_id: 模型 ID
+        environment: 实验环境
         name: 实验名称
         status: 实验状态
+        strategy: 实验分配策略
         baseline_variant_id: 基准分组 ID
         outcome_count: 实验结果记录数
         variants: 实验分组信息，key 为 variant_id
@@ -92,8 +97,10 @@ class ABTestAnalysis:
 
     experiment_id: str
     model_id: str
+    environment: str
     name: str | None
     status: str
+    strategy: str
     baseline_variant_id: str | None
     outcome_count: int
     variants: dict[str, VariantInfo]
@@ -105,8 +112,10 @@ class ABTestAnalysis:
         return {
             "experiment_id": self.experiment_id,
             "model_id": self.model_id,
+            "environment": self.environment,
             "name": self.name,
             "status": self.status,
+            "strategy": self.strategy,
             "baseline_variant_id": self.baseline_variant_id,
             "outcome_count": self.outcome_count,
             "variants": {
@@ -174,6 +183,8 @@ class ABTestAnalyzer:
         if experiment is None:
             raise ValueError("实验不存在")
 
+        strategy = self._get_experiment_strategy(experiment)
+
         variants = await self.variant_repo.list_variants(
             experiment_id=experiment_id,
         )
@@ -210,6 +221,7 @@ class ABTestAnalyzer:
         variant_map = self._build_variant_info_map(variants)
 
         warnings = self._build_warnings(
+            strategy=strategy,
             variants=variants,
             outcomes=outcomes,
             baseline_variant_id=resolved_baseline_variant_id,
@@ -219,8 +231,10 @@ class ABTestAnalyzer:
         return ABTestAnalysis(
             experiment_id=self._as_str(experiment.experiment_id),
             model_id=self._as_str(experiment.model_id),
+            environment=self._as_str(experiment.environment),
             name=self._as_optional_str(experiment.name),
             status=self._as_str(experiment.status),
+            strategy=self._as_str(strategy),
             baseline_variant_id=resolved_baseline_variant_id,
             outcome_count=len(outcomes),
             variants=variant_map,
@@ -383,6 +397,7 @@ class ABTestAnalyzer:
             experiment_id=cls._as_str(variant.experiment_id),
             name=cls._as_str(variant.name),
             deployment_id=cls._as_str(variant.deployment_id),
+            environment=cls._get_variant_environment(variant),
             weight=cls._as_float(variant.weight),
             is_control=cls._as_bool(variant.is_control),
             status=cls._as_str(variant.status),
@@ -393,6 +408,7 @@ class ABTestAnalyzer:
     def _build_warnings(
             cls,
             *,
+            strategy: AssignmentStrategy,
             variants: list[Variant],
             outcomes: list[Outcome],
             baseline_variant_id: str | None,
@@ -401,6 +417,7 @@ class ABTestAnalyzer:
         """构造分析提示信息
 
         参数：
+            strategy: 实验分配策略
             variants: 实验分组列表
             outcomes: 实验结果记录列表
             baseline_variant_id: 基准分组 ID
@@ -461,16 +478,110 @@ class ABTestAnalyzer:
                 f"存在未配置的实验分组结果：{unknown_variant_text}"
             )
 
-        active_weight_sum = sum(
-            cls._as_float(variant.weight)
-            for variant in variants
-            if cls._as_float(variant.weight) > 0
-        )
+        active_variants = [
+            variant for variant in variants
+            if cls._is_active_variant(variant)
+        ]
 
-        if abs(active_weight_sum - 1.0) > 1e-8:
-            warnings.append("实验分组权重总和不等于 1")
+        if not active_variants:
+            warnings.append("实验没有 active 分组")
+
+        if strategy == AssignmentStrategy.HASH and active_variants:
+            active_weight_sum = sum(
+                cls._as_float(variant.weight)
+                for variant in active_variants
+                if cls._as_float(variant.weight) > 0
+            )
+
+            if abs(active_weight_sum - 1.0) > 1e-8:
+                warnings.append("hash 策略下 active 分组权重总和不等于 1")
 
         return warnings
+
+    @classmethod
+    def _get_experiment_strategy(
+            cls,
+            experiment,
+    ) -> AssignmentStrategy:
+        """获取实验分配策略
+
+        参数：
+            experiment: 实验对象
+
+        返回：
+            实验分配策略
+
+        异常：
+            ValueError: 实验配置非法
+        """
+        config = cls._get_config(experiment)
+
+        value = (
+                config.get("strategy")
+                or AssignmentStrategy.HASH
+        )
+
+        value = str(value).lower()
+
+        try:
+            return AssignmentStrategy(value)
+
+        except ValueError as exc:
+            raise ValueError(
+                f"不支持的实验分配策略: {value}"
+            ) from exc
+
+    @staticmethod
+    def _get_config(
+            experiment,
+    ) -> dict:
+        """获取实验配置
+
+        参数：
+            experiment: 实验对象
+
+        返回：
+            实验配置字典
+
+        异常：
+            ValueError: 实验配置非法
+        """
+        config = getattr(
+            experiment,
+            "config",
+            None,
+        ) or {}
+
+        if not isinstance(config, dict):
+            raise ValueError("实验配置 config 必须是 JSON 对象")
+
+        return config
+
+    @staticmethod
+    def _is_active_variant(
+            variant: Variant,
+    ) -> bool:
+        """判断实验分组是否为 active 状态
+
+        参数：
+            variant: 实验分组对象
+
+        返回：
+            是否为 active 状态
+        """
+        status = getattr(
+            variant,
+            "status",
+            None,
+        )
+
+        if not isinstance(status, str):
+            return False
+
+        return (
+                status.lower()
+                == str(ExperimentVariantStatus.ACTIVE)
+        )
 
     @classmethod
     def _get_outcome_variant_ids(
@@ -485,16 +596,26 @@ class ABTestAnalyzer:
         返回：
             实验分组 ID 集合
         """
-        return {
-            str(variant_id)
-            for outcome in outcomes
-            if cls._is_valid_variant_id(
-                variant_id := getattr(outcome, "variant_id", None)
+        variant_ids: set[str] = set()
+
+        for outcome in outcomes:
+            variant_id = getattr(
+                outcome,
+                "variant_id",
+                None,
             )
-        }
+
+            if isinstance(variant_id, str) and variant_id:
+                variant_ids.add(
+                    variant_id
+                )
+
+        return variant_ids
 
     @staticmethod
-    def _is_valid_variant_id(value: Any) -> bool:
+    def _is_valid_variant_id(
+            value: Any,
+    ) -> bool:
         """判断实验分组 ID 是否有效
 
         参数：
@@ -504,6 +625,29 @@ class ABTestAnalyzer:
             是否为有效实验分组 ID
         """
         return isinstance(value, str) and bool(value)
+
+    @staticmethod
+    def _get_variant_environment(
+            variant: Variant,
+    ) -> str | None:
+        """获取实验分组环境"""
+        config = getattr(
+            variant,
+            "config",
+            None,
+        ) or {}
+
+        if not isinstance(config, dict):
+            return None
+
+        value = config.get(
+            "environment"
+        )
+
+        if not isinstance(value, str):
+            return None
+
+        return value
 
     @staticmethod
     def _as_str(value: Any) -> str:

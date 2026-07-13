@@ -16,7 +16,7 @@
   evaluator = ABTestMetricEvaluator()
 
   metrics = evaluator.calculate_experiment_metrics(
-      experiment_id="exp_a1b2c3d4",
+      experiment_id="exp_0123456789abcdef",
       outcomes=outcomes,
       baseline_variant_id="var_control",
   )
@@ -25,6 +25,7 @@
 """
 
 from dataclasses import asdict, dataclass, field
+import math
 from typing import Any
 
 
@@ -494,11 +495,13 @@ class ABTestMetricEvaluator:
             return None
 
         if isinstance(value, (int, float)):
-            return float(value)
+            result = float(value)
+            return result if math.isfinite(result) else None
 
         if isinstance(value, str) and value.strip():
             try:
-                return float(value)
+                result = float(value)
+                return result if math.isfinite(result) else None
             except ValueError:
                 return None
 

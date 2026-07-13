@@ -8,6 +8,7 @@
 核心功能：
   - get_assignment: 获取实验分配记录
   - get_subject_assignment: 获取主体在实验中的固定分配
+  - get_or_create_assignment: 原子获取或创建主体固定分配
   - list_assignments: 获取实验分配记录列表
   - list_experiment_assignments: 获取实验分配记录
   - list_variant_assignments: 获取实验分组分配记录
@@ -20,24 +21,32 @@
   from datamind.models.enums import AssignmentStrategy
 
   async with UnitOfWork() as uow:
-      repo = AssignmentRepository(uow.session)
+      repo = AssignmentRepository(
+          uow.session
+      )
 
       assignment = repo.create_assignment(
-          assignment_id="asn_a1b2c3d4",
-          experiment_id="exp_a1b2c3d4",
-          variant_id="var_a1b2c3d4",
+          assignment_id="asn_0123456789abcdef",
+          experiment_id="exp_0123456789abcdef",
+          variant_id="var_0123456789abcdef",
           subject_key="customer_10001",
           subject_type="customer",
           strategy=AssignmentStrategy.HASH,
           bucket="bucket_0123",
           weight=0.5,
-          context={"group": "treatment"}
+          context={
+              "group": "treatment",
+          },
       )
 """
 
-from datetime import datetime, timezone
+from datetime import (
+    datetime,
+    timezone,
+)
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from datamind.db.models.assignments import Assignment
 from datamind.db.repositories.base import BaseRepository
@@ -46,6 +55,45 @@ from datamind.models.enums import AssignmentStrategy
 
 class AssignmentRepository(BaseRepository):
     """实验分配仓储"""
+
+    @staticmethod
+    def _validate_pagination(
+            *,
+            limit: int | None,
+            offset: int | None,
+    ) -> None:
+        """校验分页参数"""
+        if (
+                limit is not None
+                and limit < 0
+        ):
+            raise ValueError(
+                "limit 不能小于 0"
+            )
+
+        if (
+                offset is not None
+                and offset < 0
+        ):
+            raise ValueError(
+                "offset 不能小于 0"
+            )
+
+    @staticmethod
+    def _validate_weight(
+            weight: float | None,
+    ) -> None:
+        """校验实验分组权重"""
+        if weight is None:
+            return
+
+        if (
+                weight < 0
+                or weight > 1
+        ):
+            raise ValueError(
+                "实验分配 weight 必须在 0 到 1 之间"
+            )
 
     async def get_assignment(
             self,
@@ -59,10 +107,16 @@ class AssignmentRepository(BaseRepository):
         返回：
             实验分配记录对象，不存在时返回 None
         """
-        stmt = select(Assignment).where(
-            Assignment.assignment_id == assignment_id
+        stmt = select(
+            Assignment
+        ).where(
+            Assignment.assignment_id
+            == assignment_id
         )
-        result = await self.session.execute(stmt)
+
+        result = await self.session.execute(
+            stmt
+        )
 
         return result.scalar_one_or_none()
 
@@ -81,42 +135,162 @@ class AssignmentRepository(BaseRepository):
         返回：
             实验分配记录对象，不存在时返回 None
         """
-        stmt = select(Assignment).where(
-            Assignment.experiment_id == experiment_id,
-            Assignment.subject_key == subject_key,
+        stmt = select(
+            Assignment
+        ).where(
+            Assignment.experiment_id
+            == experiment_id,
+            Assignment.subject_key
+            == subject_key,
         )
-        result = await self.session.execute(stmt)
+
+        result = await self.session.execute(
+            stmt
+        )
 
         return result.scalar_one_or_none()
+
+    async def get_or_create_assignment(
+            self,
+            *,
+            assignment_id: str,
+            experiment_id: str,
+            variant_id: str,
+            subject_key: str,
+            subject_type: str | None = None,
+            strategy: AssignmentStrategy = AssignmentStrategy.HASH,
+            bucket: str | None = None,
+            weight: float | None = None,
+            context: dict | None = None,
+            assigned_at: datetime | None = None,
+    ) -> tuple[Assignment, bool]:
+        """原子获取或创建主体的固定实验分配"""
+        self._validate_weight(weight)
+
+        stmt = insert(Assignment).values(
+            assignment_id=assignment_id,
+            experiment_id=experiment_id,
+            variant_id=variant_id,
+            subject_key=subject_key,
+            subject_type=subject_type,
+            strategy=str(strategy),
+            bucket=bucket,
+            weight=weight,
+            context=context,
+            assigned_at=(
+                assigned_at
+                if assigned_at is not None
+                else datetime.now(timezone.utc)
+            ),
+        ).on_conflict_do_nothing(
+            index_elements=[
+                Assignment.experiment_id,
+                Assignment.subject_key,
+            ]
+        ).returning(Assignment)
+
+        result = await self.session.execute(stmt)
+        assignment: Assignment | None = (
+            result.scalar_one_or_none()
+        )
+
+        if assignment is not None:
+            return assignment, True
+
+        existing = await self.get_subject_assignment(
+            experiment_id=experiment_id,
+            subject_key=subject_key,
+        )
+
+        if existing is None:
+            raise RuntimeError("固定实验分配写入失败")
+
+        return existing, False
 
     async def list_assignments(
             self,
             *,
+            assignment_id: str | None = None,
+            experiment_id: str | None = None,
+            variant_id: str | None = None,
+            subject_key: str | None = None,
+            subject_type: str | None = None,
+            strategy: AssignmentStrategy | None = None,
+            bucket: str | None = None,
             limit: int | None = None,
             offset: int | None = None,
-            **filters,
     ) -> list[Assignment]:
         """获取实验分配记录列表
 
         参数：
+            assignment_id: 分配 ID（可选）
+            experiment_id: 实验 ID（可选）
+            variant_id: 实验分组 ID（可选）
+            subject_key: 分桶主体标识（可选）
+            subject_type: 分桶主体类型（可选）
+            strategy: 分配策略（可选）
+            bucket: 分桶标识（可选）
             limit: 返回数量限制（可选）
             offset: 分页偏移（可选）
-            **filters: 过滤条件
-                支持字段：
-                    experiment_id
-                    variant_id
-                    subject_key
-                    subject_type
-                    strategy
-                    bucket
 
         返回：
-            实验分配记录列表，按分配时间倒序排列
-        """
-        stmt = select(Assignment)
+            实验分配记录列表，按分配时间和创建时间倒序排列
 
-        if filters:
-            stmt = stmt.filter_by(**filters)
+        异常：
+            ValueError: 分页参数小于 0
+        """
+        self._validate_pagination(
+            limit=limit,
+            offset=offset,
+        )
+
+        stmt = select(
+            Assignment
+        )
+
+        if assignment_id is not None:
+            stmt = stmt.where(
+                Assignment.assignment_id
+                == assignment_id
+            )
+
+        if experiment_id is not None:
+            stmt = stmt.where(
+                Assignment.experiment_id
+                == experiment_id
+            )
+
+        if variant_id is not None:
+            stmt = stmt.where(
+                Assignment.variant_id
+                == variant_id
+            )
+
+        if subject_key is not None:
+            stmt = stmt.where(
+                Assignment.subject_key
+                == subject_key
+            )
+
+        if subject_type is not None:
+            stmt = stmt.where(
+                Assignment.subject_type
+                == subject_type
+            )
+
+        if strategy is not None:
+            stmt = stmt.where(
+                Assignment.strategy
+                == str(
+                    strategy
+                )
+            )
+
+        if bucket is not None:
+            stmt = stmt.where(
+                Assignment.bucket
+                == bucket
+            )
 
         stmt = stmt.order_by(
             Assignment.assigned_at.desc(),
@@ -124,14 +298,22 @@ class AssignmentRepository(BaseRepository):
         )
 
         if offset is not None:
-            stmt = stmt.offset(offset)
+            stmt = stmt.offset(
+                offset
+            )
 
         if limit is not None:
-            stmt = stmt.limit(limit)
+            stmt = stmt.limit(
+                limit
+            )
 
-        result = await self.session.execute(stmt)
+        result = await self.session.execute(
+            stmt
+        )
 
-        return list(result.scalars().all())
+        return list(
+            result.scalars().all()
+        )
 
     async def list_experiment_assignments(
             self,
@@ -148,16 +330,12 @@ class AssignmentRepository(BaseRepository):
             offset: 分页偏移（可选）
 
         返回：
-            实验分配记录列表，按分配时间倒序排列
+            实验分配记录列表，按分配时间和创建时间倒序排列
         """
-        filters = {
-            "experiment_id": experiment_id,
-        }
-
         return await self.list_assignments(
+            experiment_id=experiment_id,
             limit=limit,
             offset=offset,
-            **filters,
         )
 
     async def list_variant_assignments(
@@ -175,16 +353,12 @@ class AssignmentRepository(BaseRepository):
             offset: 分页偏移（可选）
 
         返回：
-            实验分配记录列表，按分配时间倒序排列
+            实验分配记录列表，按分配时间和创建时间倒序排列
         """
-        filters = {
-            "variant_id": variant_id,
-        }
-
         return await self.list_assignments(
+            variant_id=variant_id,
             limit=limit,
             offset=offset,
-            **filters,
         )
 
     async def list_subject_assignments(
@@ -202,16 +376,12 @@ class AssignmentRepository(BaseRepository):
             offset: 分页偏移（可选）
 
         返回：
-            实验分配记录列表，按分配时间倒序排列
+            实验分配记录列表，按分配时间和创建时间倒序排列
         """
-        filters = {
-            "subject_key": subject_key,
-        }
-
         return await self.list_assignments(
+            subject_key=subject_key,
             limit=limit,
             offset=offset,
-            **filters,
         )
 
     def create_assignment(
@@ -222,7 +392,9 @@ class AssignmentRepository(BaseRepository):
             variant_id: str,
             subject_key: str,
             subject_type: str | None = None,
-            strategy: AssignmentStrategy = AssignmentStrategy.HASH,
+            strategy: AssignmentStrategy = (
+                AssignmentStrategy.HASH
+            ),
             bucket: str | None = None,
             weight: float | None = None,
             context: dict | None = None,
@@ -244,20 +416,45 @@ class AssignmentRepository(BaseRepository):
 
         返回：
             创建后的实验分配记录对象
+
+        异常：
+            ValueError: weight 不在 0 到 1 之间
         """
-        obj = Assignment(
+        self._validate_weight(
+            weight
+        )
+
+        new_assignment = Assignment(
             assignment_id=assignment_id,
             experiment_id=experiment_id,
             variant_id=variant_id,
             subject_key=subject_key,
-            subject_type=subject_type,
-            strategy=strategy,
-            bucket=bucket,
-            weight=weight,
-            context=context,
-            assigned_at=assigned_at or datetime.now(timezone.utc),
+            strategy=str(
+                strategy
+            ),
+            assigned_at=(
+                assigned_at
+                if assigned_at is not None
+                else datetime.now(
+                    timezone.utc
+                )
+            ),
         )
 
-        self.add(obj)
+        if subject_type is not None:
+            new_assignment.subject_type = subject_type
 
-        return obj
+        if bucket is not None:
+            new_assignment.bucket = bucket
+
+        if weight is not None:
+            new_assignment.weight = weight
+
+        if context is not None:
+            new_assignment.context = context
+
+        self.add(
+            new_assignment
+        )
+
+        return new_assignment

@@ -1,36 +1,65 @@
 # datamind/audit/__init__.py
 
-"""审计模块
+"""审计组件
 
-对外提供审计装饰器与运行控制接口。
+对外提供审计装饰器、记录器、服务和失败策略。
 
 核心功能：
   - audit: 审计装饰器
-  - start_audit_worker: 启动审计 Worker
-  - stop_audit_worker: 停止审计 Worker
-
-使用示例：
-
-  from datamind.audit import audit, start_audit_worker, stop_audit_worker
-
-  await start_audit_worker()
-
-  @audit(
-      action="model.register",
-      target_type="model",
-      target_id_from="model_id",
-  )
-  async def register(model_id: str):
-      ...
-
-  await stop_audit_worker()
+  - AuditRecorder: 审计记录器
+  - AuditService: 审计服务
+  - AuditFailureMode: 审计失败处理模式
+  - AuditResult: 审计记录结果
 """
 
-from datamind.audit.decorator import audit
-from datamind.audit.worker import start_audit_worker, stop_audit_worker
+from importlib import import_module
+from typing import (
+    Any,
+    Final,
+)
 
-__all__ = [
-    "audit",
-    "start_audit_worker",
-    "stop_audit_worker",
-]
+_EXPORTS: Final[dict[str, tuple[str, str]]] = {
+    "AuditFailureMode": (
+        "datamind.audit.policy",
+        "AuditFailureMode",
+    ),
+    "AuditRecorder": (
+        "datamind.audit.recorder",
+        "AuditRecorder",
+    ),
+    "AuditResult": (
+        "datamind.audit.service",
+        "AuditResult",
+    ),
+    "AuditService": (
+        "datamind.audit.service",
+        "AuditService",
+    ),
+    "audit": (
+        "datamind.audit.decorator",
+        "audit",
+    ),
+}
+
+__all__ = list(
+    _EXPORTS
+)
+
+
+def __getattr__(name: str) -> Any:
+    """按需加载包级公共 API"""
+    target = _EXPORTS.get(name)
+
+    if target is None:
+        raise AttributeError(
+            f"module {__name__!r} has no attribute {name!r}"
+        )
+
+    module_name, attribute_name = target
+    value = getattr(
+        import_module(module_name),
+        attribute_name,
+    )
+    globals()[name] = value
+
+    return value

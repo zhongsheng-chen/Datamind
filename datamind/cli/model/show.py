@@ -8,13 +8,15 @@
   - show_model: 查看模型和指定模型版本详情
 
 使用示例：
-  python -m datamind.cli.main model show scorecard --version 1.0.0
+  python -m datamind.cli.main model show scorecard \
+    --version 1.0.0
 """
 
 import asyncio
 import json
 from typing import Any
 
+import structlog
 import typer
 from rich import box
 from rich.console import Console
@@ -25,10 +27,12 @@ from datamind.db.core import UnitOfWork
 from datamind.db.repositories import MetadataRepository, VersionRepository
 from datamind.models.enums import VersionStatus
 from datamind.models.resolver import ModelResolver
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.utils.datetime import format_datetime, format_iso_utc, parse_datetime
 
 app = typer.Typer(help="查看模型命令")
 console = Console()
+
+logger = structlog.get_logger(__name__)
 
 
 @app.command("show")
@@ -60,12 +64,7 @@ def show_model(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """查看模型详情"""
@@ -82,6 +81,15 @@ def show_model(
 
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
+
+        logger.info(
+            "开始查询模型详情",
+            name=name,
+            model_id=model_id,
+            version=version,
+            version_id=version_id,
+            include_archived=include_archived,
+        )
 
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
@@ -117,64 +125,48 @@ def show_model(
                     "version": _version_to_dict(ver),
                 }
 
-                if output == "json":
-                    console.print_json(
-                        json.dumps(
-                            result,
-                            ensure_ascii=False,
-                            indent=2,
-                            default=str,
-                        )
-                    )
-                    return result
-
-                _print_model_detail(model)
-                console.print()
-                _print_version_detail(ver)
-
-                return result
-
-            versions = await version_repo.list_versions(
-                model_id=model.model_id,
-            )
-
-            if not include_archived:
-                versions = [
-                    item for item in versions
-                    if item.status != VersionStatus.ARCHIVED.value
-                ]
-
-            result = {
-                "model": _model_to_dict(model),
-                "versions": [
-                    _version_summary_to_dict(item)
-                    for item in versions
-                ],
-            }
-
-            if output == "json":
-                console.print_json(
-                    json.dumps(
-                        result,
-                        ensure_ascii=False,
-                        indent=2,
-                        default=str,
-                    )
+            else:
+                versions = await version_repo.list_versions(
+                    model_id=model.model_id,
                 )
-                return result
 
-            _print_model_detail(model)
-            console.print()
-            _print_version_list(versions)
+                if not include_archived:
+                    versions = [
+                        item for item in versions
+                        if item.status != str(VersionStatus.ARCHIVED)
+                    ]
 
+                result = {
+                    "model": _model_to_dict(model),
+                    "versions": [
+                        _version_summary_to_dict(item)
+                        for item in versions
+                    ],
+                }
+
+        if output == "json":
+            console.print_json(
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
             return result
+
+        _print_model_detail(result["model"])
+        console.print()
+
+        if "version" in result:
+            _print_version_detail(result["version"])
+        else:
+            _print_version_list(result["versions"])
+
+        return result
 
     async def runner():
         async with cli_context(
-                user="system",
-                source="cli",
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="model.read",
         ):
             await _run()
 
@@ -267,56 +259,74 @@ def _version_summary_to_dict(ver: Any) -> dict[str, Any]:
     }
 
 
-def _print_model_detail(model: Any) -> None:
+def _print_model_detail(model: dict[str, Any]) -> None:
     """打印模型详情
 
     参数：
-        model: 模型元数据对象
+        model: 模型元数据字典
     """
     console.print("[green]模型详情[/green]\n")
 
-    console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {model.model_id}")
-    console.print(f"[cyan]{'NAME':<16}[/cyan] : {model.name}")
-    console.print(f"[cyan]{'MODEL TYPE':<16}[/cyan] : {model.model_type}")
-    console.print(f"[cyan]{'TASK TYPE':<16}[/cyan] : {model.task_type}")
-    console.print(f"[cyan]{'FRAMEWORK':<16}[/cyan] : {model.framework}")
-    console.print(f"[cyan]{'STATUS':<16}[/cyan] : {model.status}")
-    console.print(f"[cyan]{'DESCRIPTION':<16}[/cyan] : {model.description or '-'}")
-    console.print(f"[cyan]{'CREATED BY':<16}[/cyan] : {model.created_by or '-'}")
-    console.print(f"[cyan]{'CREATED AT':<16}[/cyan] : {format_datetime(model.created_at)}")
-    console.print(f"[cyan]{'UPDATED BY':<16}[/cyan] : {model.updated_by or '-'}")
-    console.print(f"[cyan]{'UPDATED AT':<16}[/cyan] : {format_datetime(model.updated_at)}")
+    console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {model['model_id']}")
+    console.print(f"[cyan]{'NAME':<16}[/cyan] : {model['name']}")
+    console.print(f"[cyan]{'MODEL TYPE':<16}[/cyan] : {model['model_type']}")
+    console.print(f"[cyan]{'TASK TYPE':<16}[/cyan] : {model['task_type']}")
+    console.print(f"[cyan]{'FRAMEWORK':<16}[/cyan] : {model['framework']}")
+    console.print(f"[cyan]{'STATUS':<16}[/cyan] : {model['status']}")
+    console.print(f"[cyan]{'DESCRIPTION':<16}[/cyan] : {model['description'] or '-'}")
+    console.print(f"[cyan]{'CREATED BY':<16}[/cyan] : {model['created_by'] or '-'}")
+    console.print(
+        f"[cyan]{'CREATED AT':<16}[/cyan] : "
+        f"{format_datetime(parse_datetime(model['created_at']))}"
+    )
+    console.print(f"[cyan]{'UPDATED BY':<16}[/cyan] : {model['updated_by'] or '-'}")
+    console.print(
+        f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+        f"{format_datetime(parse_datetime(model['updated_at']))}"
+    )
 
 
-def _print_version_detail(ver: Any) -> None:
+def _print_version_detail(ver: dict[str, Any]) -> None:
     """打印模型版本详情
 
     参数：
-        ver: 模型版本对象
+        ver: 模型版本字典
     """
     console.print("[green]版本详情[/green]\n")
 
-    console.print(f"[cyan]{'VERSION ID':<18}[/cyan] : {ver.version_id}")
-    console.print(f"[cyan]{'VERSION':<18}[/cyan] : {ver.version}")
-    console.print(f"[cyan]{'FRAMEWORK':<18}[/cyan] : {ver.framework}")
-    console.print(f"[cyan]{'STATUS':<18}[/cyan] : {ver.status}")
-    console.print(f"[cyan]{'BENTO TAG':<18}[/cyan] : {ver.bento_tag or '-'}")
-    console.print(f"[cyan]{'MODEL PATH':<18}[/cyan] : {ver.model_path or '-'}")
-    console.print(f"[cyan]{'MODEL KEY':<18}[/cyan] : {ver.model_key or '-'}")
-    console.print(f"[cyan]{'INPUT SCHEMA KEY':<18}[/cyan] : {ver.input_schema_key or '-'}")
-    console.print(f"[cyan]{'OUTPUT SCHEMA KEY':<18}[/cyan] : {ver.output_schema_key or '-'}")
-    console.print(f"[cyan]{'DESCRIPTION':<18}[/cyan] : {ver.description or '-'}")
-    console.print(f"[cyan]{'CREATED BY':<18}[/cyan] : {ver.created_by or '-'}")
-    console.print(f"[cyan]{'CREATED AT':<18}[/cyan] : {format_datetime(ver.created_at)}")
-    console.print(f"[cyan]{'UPDATED BY':<18}[/cyan] : {ver.updated_by or '-'}")
-    console.print(f"[cyan]{'UPDATED AT':<18}[/cyan] : {format_datetime(ver.updated_at)}")
+    console.print(f"[cyan]{'VERSION ID':<18}[/cyan] : {ver['version_id']}")
+    console.print(f"[cyan]{'VERSION':<18}[/cyan] : {ver['version']}")
+    console.print(f"[cyan]{'FRAMEWORK':<18}[/cyan] : {ver['framework']}")
+    console.print(f"[cyan]{'STATUS':<18}[/cyan] : {ver['status']}")
+    console.print(f"[cyan]{'BENTO TAG':<18}[/cyan] : {ver['bento_tag'] or '-'}")
+    console.print(f"[cyan]{'MODEL PATH':<18}[/cyan] : {ver['model_path'] or '-'}")
+    console.print(f"[cyan]{'MODEL KEY':<18}[/cyan] : {ver['model_key'] or '-'}")
+    console.print(
+        f"[cyan]{'INPUT SCHEMA KEY':<18}[/cyan] : "
+        f"{ver['input_schema_key'] or '-'}"
+    )
+    console.print(
+        f"[cyan]{'OUTPUT SCHEMA KEY':<18}[/cyan] : "
+        f"{ver['output_schema_key'] or '-'}"
+    )
+    console.print(f"[cyan]{'DESCRIPTION':<18}[/cyan] : {ver['description'] or '-'}")
+    console.print(f"[cyan]{'CREATED BY':<18}[/cyan] : {ver['created_by'] or '-'}")
+    console.print(
+        f"[cyan]{'CREATED AT':<18}[/cyan] : "
+        f"{format_datetime(parse_datetime(ver['created_at']))}"
+    )
+    console.print(f"[cyan]{'UPDATED BY':<18}[/cyan] : {ver['updated_by'] or '-'}")
+    console.print(
+        f"[cyan]{'UPDATED AT':<18}[/cyan] : "
+        f"{format_datetime(parse_datetime(ver['updated_at']))}"
+    )
 
 
-def _print_version_list(versions: list[Any]) -> None:
+def _print_version_list(versions: list[dict[str, Any]]) -> None:
     """打印模型版本列表
 
     参数：
-        versions: 模型版本列表
+        versions: 模型版本摘要字典列表
     """
     console.print(f"[green]模型共包含 {len(versions)} 个版本[/green]\n")
 
@@ -340,12 +350,12 @@ def _print_version_list(versions: list[Any]) -> None:
 
     for item in versions:
         table.add_row(
-            item.version_id,
-            item.version,
-            item.framework,
-            item.status,
-            item.bento_tag or "-",
-            format_datetime(item.created_at),
+            item["version_id"],
+            item["version"],
+            item["framework"],
+            item["status"],
+            item["bento_tag"] or "-",
+            format_datetime(parse_datetime(item["created_at"])),
         )
 
     console.print(table)

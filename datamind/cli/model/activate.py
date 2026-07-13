@@ -9,22 +9,24 @@
 
 使用示例：
   python -m datamind.cli.main model activate scorecard \
-    --version 1.0.0 \
-    --operator admin
+    --version 1.0.0
 """
 
 import asyncio
 import json
 
+import structlog
 import typer
 from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.services.lifecycle import ModelLifecycle
+from datamind.services import ModelLifecycleService
 
 app = typer.Typer(help="激活模型命令")
 console = Console()
+
+logger = structlog.get_logger(__name__)
 
 
 @app.command("activate")
@@ -48,20 +50,10 @@ def activate_model(
             "--version-id",
             help="版本 ID"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """激活模型或模型版本"""
@@ -71,7 +63,9 @@ def activate_model(
         target_type="model",
         target_id_func=lambda p, r: r["model_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if not (name or model_id):
             raise typer.BadParameter("必须提供 <name> 或 --model-id")
 
@@ -84,14 +78,22 @@ def activate_model(
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
-        lifecycle = ModelLifecycle()
+        logger.info(
+            "开始激活模型",
+            name=name,
+            model_id=model_id,
+            version=version,
+            version_id=version_id,
+        )
+
+        lifecycle = ModelLifecycleService()
 
         result = await lifecycle.activate(
             name=name,
             model_id=model_id,
             version=version,
             version_id=version_id,
-            updated_by=operator,
+            updated_by=actor,
         )
 
         if output == "json":
@@ -113,17 +115,19 @@ def activate_model(
         if result.get("version_id"):
             console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
             console.print(f"[cyan]{'VERSION':<16}[/cyan] : {result['version']}")
-            console.print(f"[cyan]{'VERSION STATUS':<16}[/cyan] : {result['version_status']}")
+            console.print(
+                f"[cyan]{'VERSION STATUS':<16}[/cyan] : "
+                f"{result['version_status']}"
+            )
 
         return result
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="model.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

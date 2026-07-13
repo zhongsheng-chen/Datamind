@@ -21,9 +21,13 @@ from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.db.core.uow import UnitOfWork
+from datamind.db.core import UnitOfWork
 from datamind.db.repositories import MetadataRepository
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime
+)
 
 app = typer.Typer(help="列出模型命令")
 console = Console()
@@ -36,32 +40,36 @@ def list_models(
         status: str | None = typer.Option(
             None,
             "--status",
-            help="按模型状态过滤，例如 active/inactive/archived"
+            help="按模型状态过滤，可选值：active / deprecated / inactive / archived"
         ),
         framework: str | None = typer.Option(
             None,
             "--framework",
-            help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
+            help="按模型框架过滤，可选值：sklearn / xgboost / lightgbm / catboost"
         ),
         model_type: str | None = typer.Option(
             None,
             "--model-type",
-            help="按模型类型过滤，例如 logistic_regression/random_forest/xgboost"
+            help=(
+                "按模型类型过滤，可选值：logistic_regression / "
+                "decision_tree / random_forest / xgboost / "
+                "lightgbm / catboost"
+            )
         ),
         task_type: str | None = typer.Option(
             None,
             "--task-type",
-            help="按任务类型过滤，例如 classification/scoring"
+            help="按任务类型过滤，可选值：classification / scoring"
         ),
-        owner: str | None = typer.Option(
+        created_by: str | None = typer.Option(
             None,
-            "--owner",
+            "--created-by",
             help="按创建人过滤"
         ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
+            help="输出格式：text / json"
         ),
         limit: int = typer.Option(
             10,
@@ -77,11 +85,6 @@ def list_models(
             False,
             "--include-archived",
             help="包含已归档的模型，默认不显示"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
         ),
 ):
     """列出模型"""
@@ -110,19 +113,12 @@ def list_models(
         if task_type is not None:
             filters["task_type"] = task_type
 
-        if owner is not None:
-            filters["created_by"] = owner
-
-        exclude_status = None
-
-        # 默认隐藏 archived；如果用户显式传了 --status，则尊重用户过滤条件
-        if not include_archived and status is None:
-            exclude_status = "archived"
+        if created_by is not None:
+            filters["created_by"] = created_by
 
         logger.info(
             "开始列出模型",
             filters=filters,
-            exclude_status=exclude_status,
             limit=limit,
             offset=offset,
             include_archived=include_archived,
@@ -132,7 +128,7 @@ def list_models(
             repo = MetadataRepository(uow.session)
 
             models = await repo.list_models(
-                exclude_status=exclude_status,
+                include_archived=include_archived,
                 limit=limit,
                 offset=offset,
                 **filters
@@ -143,87 +139,87 @@ def list_models(
                 count=len(models),
             )
 
-            if output == "json":
-                result = []
+            result = []
 
-                for m in models:
-                    result.append({
-                        "model_id": m.model_id,
-                        "name": m.name,
-                        "status": m.status,
-                        "framework": m.framework,
-                        "model_type": m.model_type,
-                        "task_type": m.task_type,
-                        "created_by": m.created_by,
-                        "created_at": format_iso_utc(m.created_at),
-                        "updated_by": m.updated_by,
-                        "updated_at": format_iso_utc(m.updated_at),
-                    })
+            for model in models:
+                result.append({
+                    "model_id": model.model_id,
+                    "name": model.name,
+                    "status": model.status,
+                    "framework": model.framework,
+                    "model_type": model.model_type,
+                    "task_type": model.task_type,
+                    "created_by": model.created_by,
+                    "created_at": format_iso_utc(model.created_at),
+                    "updated_by": model.updated_by,
+                    "updated_at": format_iso_utc(model.updated_at),
+                })
 
-                logger.info(
-                    "模型列表输出完成",
-                    count=len(models),
-                    output=output,
-                )
-
-                console.print_json(
-                    json.dumps(
-                        result,
-                        ensure_ascii=False,
-                        indent=2,
-                        default=str,
-                    )
-                )
-                return
-
-            console.print(f"[dim]共找到 {len(models)} 个模型[/dim]\n")
-
-            if not models:
-                logger.info(
-                    "模型列表输出完成",
-                    count=0,
-                    output=output,
-                )
-                return
-
-            table = Table(
-                box=box.ASCII,
-                header_style="bold cyan",
-                show_lines=False,
-                pad_edge=False,
-            )
-
-            table.add_column("NAME")
-            table.add_column("MODEL ID")
-            table.add_column("STATUS")
-            table.add_column("FRAMEWORK")
-            table.add_column("MODEL TYPE")
-            table.add_column("TASK TYPE")
-            table.add_column("UPDATED AT")
-
-            for m in models:
-                table.add_row(
-                    m.name,
-                    m.model_id,
-                    m.status,
-                    m.framework,
-                    m.model_type,
-                    m.task_type,
-                    format_datetime(m.updated_at),
-                )
-
+        if output == "json":
             logger.info(
                 "模型列表输出完成",
-                count=len(models),
+                count=len(result),
                 output=output,
             )
 
-            console.print(table)
+            console.print_json(
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return result
+
+        console.print(f"[dim]共找到 {len(result)} 个模型[/dim]\n")
+
+        if not result:
+            logger.info(
+                "模型列表输出完成",
+                count=0,
+                output=output,
+            )
+            return result
+
+        table = Table(
+            box=box.ASCII,
+            header_style="bold cyan",
+            show_lines=False,
+            pad_edge=False,
+        )
+
+        table.add_column("NAME")
+        table.add_column("MODEL ID")
+        table.add_column("STATUS")
+        table.add_column("FRAMEWORK")
+        table.add_column("MODEL TYPE")
+        table.add_column("TASK TYPE")
+        table.add_column("UPDATED AT")
+
+        for item in result:
+            table.add_row(
+                item["name"],
+                item["model_id"],
+                item["status"],
+                item["framework"],
+                item["model_type"],
+                item["task_type"],
+                format_datetime(parse_datetime(item["updated_at"])),
+            )
+
+        logger.info(
+            "模型列表输出完成",
+            count=len(result),
+            output=output,
+        )
+
+        console.print(table)
+
+        return result
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="model.read",
         ):
             await _run()
 

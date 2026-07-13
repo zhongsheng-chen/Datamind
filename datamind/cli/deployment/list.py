@@ -21,9 +21,13 @@ from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.db.core.uow import UnitOfWork
+from datamind.db.core import UnitOfWork
 from datamind.db.repositories.deployment import DeploymentRepository
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime
+)
 
 app = typer.Typer(help="列出部署命令")
 console = Console()
@@ -46,27 +50,27 @@ def list_deployments(
         framework: str | None = typer.Option(
             None,
             "--framework",
-            help="按模型框架过滤，例如 sklearn/xgboost/lightgbm/catboost"
+            help="按模型框架过滤，可选值：sklearn / xgboost / lightgbm / catboost"
         ),
         environment: str | None = typer.Option(
             None,
             "--environment",
-            help="按部署环境过滤，例如 production/staging/development/testing"
+            help="按部署环境过滤，可选值：production / staging / development / testing"
         ),
         rollout: str | None = typer.Option(
             None,
             "--rollout",
-            help="按发布方式过滤，例如 full/canary/shadow"
+            help="按发布方式过滤，可选值：full / canary / shadow"
         ),
         role: str | None = typer.Option(
             None,
             "--role",
-            help="按部署角色过滤，例如 champion/challenger"
+            help="按部署角色过滤，可选值：champion / challenger"
         ),
         status: str | None = typer.Option(
             None,
             "--status",
-            help="按部署状态过滤，例如 active/inactive"
+            help="按部署状态过滤，可选值：active / inactive"
         ),
         deployed_by: str | None = typer.Option(
             None,
@@ -86,12 +90,7 @@ def list_deployments(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """列出部署"""
@@ -148,48 +147,47 @@ def list_deployments(
                 **filters,
             )
 
-        if output == "json":
             result = []
 
-            for d in deployments:
+            for deployment in deployments:
                 result.append({
-                    "deployment_id": d.deployment_id,
-                    "model_id": d.model_id,
-                    "version_id": d.version_id,
-                    "framework": d.framework,
-                    "environment": d.environment,
-                    "rollout_type": d.rollout_type,
-                    "role": d.role,
-                    "status": d.status,
-                    "deployed_by": d.deployed_by,
-                    "created_at": format_iso_utc(d.created_at),
-                    "updated_at": format_iso_utc(d.updated_at),
+                    "deployment_id": deployment.deployment_id,
+                    "model_id": deployment.model_id,
+                    "version_id": deployment.version_id,
+                    "framework": deployment.framework,
+                    "environment": deployment.environment,
+                    "rollout_type": deployment.rollout_type,
+                    "role": deployment.role,
+                    "status": deployment.status,
+                    "deployed_by": deployment.deployed_by,
+                    "created_at": format_iso_utc(deployment.created_at),
+                    "updated_at": format_iso_utc(deployment.updated_at),
                 })
 
+        if output == "json":
             console.print_json(
                 json.dumps(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
 
             logger.info(
                 "部署列表输出完成",
-                count=len(deployments),
+                count=len(result),
                 output=output,
             )
-            return
+            return result
 
-        console.print(f"[dim]共找到 {len(deployments)} 个部署[/dim]\n")
+        console.print(f"[dim]共找到 {len(result)} 个部署[/dim]\n")
 
-        if not deployments:
+        if not result:
             logger.info(
                 "部署列表为空",
                 count=0,
             )
-            return
+            return result
 
         table = Table(
             box=box.ASCII,
@@ -208,31 +206,32 @@ def list_deployments(
         table.add_column("STATUS")
         table.add_column("UPDATED AT")
 
-        for d in deployments:
+        for item in result:
             table.add_row(
-                d.deployment_id,
-                d.model_id,
-                d.version_id,
-                d.framework,
-                d.environment,
-                d.rollout_type,
-                d.role,
-                d.status,
-                format_datetime(d.updated_at),
+                item["deployment_id"],
+                item["model_id"],
+                item["version_id"],
+                item["framework"],
+                item["environment"],
+                item["rollout_type"],
+                item["role"],
+                item["status"],
+                format_datetime(parse_datetime(item["updated_at"])),
             )
 
         console.print(table)
 
         logger.info(
             "部署列表输出完成",
-            count=len(deployments),
+            count=len(result),
             output=output,
         )
 
+        return result
+
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="deployment.read",
         ):
             await _run()
 

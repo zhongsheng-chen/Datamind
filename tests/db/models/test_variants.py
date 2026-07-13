@@ -1,0 +1,90 @@
+# tests/db/models/test_variants.py
+
+"""实验分组表测试
+
+验证实验分组表的字段、索引、检查约束和字段注释。
+
+核心功能：
+  - test_variant_table_and_columns:
+    验证表名和字段集合
+  - test_variant_indexes:
+    验证索引集合
+  - test_variant_check_constraints:
+    验证检查约束集合
+  - test_variant_column_comments:
+    验证字段注释
+"""
+
+from sqlalchemy import (
+    CheckConstraint,
+    Table,
+)
+
+from datamind.db.models.variants import Variant
+
+
+def get_model_table(
+        value: object,
+) -> Table:
+    """获取并校验模型数据表"""
+    assert isinstance(value, Table)
+    return value
+
+
+TABLE = get_model_table(
+    Variant.__table__
+)
+
+
+def test_variant_table_and_columns() -> None:
+    """验证表名和字段集合"""
+    assert TABLE.name == "variants"
+    assert set(TABLE.columns.keys()) == {
+        "variant_id",
+        "experiment_id",
+        "name",
+        "deployment_id",
+        "weight",
+        "is_control",
+        "status",
+        "config",
+        "description",
+        "created_by",
+        "updated_by",
+        "id",
+        "created_at",
+        "updated_at",
+    }
+
+
+def test_variant_indexes() -> None:
+    """验证索引集合"""
+    assert {index.name for index in TABLE.indexes} == {
+        "idx_variants_created_at",
+        "idx_variants_deployment_id",
+        "idx_variants_experiment_id",
+        "idx_variants_experiment_status",
+        "idx_variants_status",
+        "uk_variants_active_control",
+        "uk_variants_experiment_name",
+        "uk_variants_variant_id",
+    }
+
+
+def test_variant_check_constraints() -> None:
+    """验证检查约束集合"""
+    assert {
+        constraint.name
+        for constraint in TABLE.constraints
+        if isinstance(constraint, CheckConstraint)
+    } == {
+        "ck_variants_config_object",
+        "ck_variants_status_valid",
+        "ck_variants_weight_range",
+    }
+
+
+def test_variant_column_comments() -> None:
+    """验证字段注释"""
+    for column in TABLE.columns.values():
+        assert column.comment, column.name

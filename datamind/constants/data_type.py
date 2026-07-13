@@ -1,15 +1,15 @@
 # datamind/constants/data_type.py
 
-"""数据类型常量
+"""数据类型枚举
 
 定义特征数据的基本类型，用于数据验证和预处理。
 
 核心功能：
-  - DataType: 数据类型枚举类
+  - DataType: 数据类型字符串枚举
   - SUPPORTED_DATA_TYPES: 支持的数据类型集合
 
 使用示例：
-  from datamind.constants.data_type import DataType, SUPPORTED_DATA_TYPES
+  from datamind.constants.data_type import DataType
 
   if data_type == DataType.NUMERIC:
       apply_numeric_validation()
@@ -26,11 +26,9 @@ from typing import FrozenSet
 
 
 class DataType(str, Enum):
-    """数据类型枚举
+    """数据类型字符串枚举
 
-    定义特征数据的基本类型，用于数据验证和预处理。
-
-    属性:
+    属性：
         NUMERIC: 数值类型（整数、浮点数）
         CATEGORICAL: 分类类型（字符串、有限枚举值）
         BOOLEAN: 布尔类型（True/False）
@@ -42,10 +40,14 @@ class DataType(str, Enum):
     BOOLEAN = "boolean"
     ANY = "any"
 
+    def __str__(
+            self,
+    ) -> str:
+        """返回枚举值字符串"""
+        return self.value
 
-SUPPORTED_DATA_TYPES: FrozenSet[str] = frozenset({
-    DataType.NUMERIC,
-    DataType.CATEGORICAL,
-    DataType.BOOLEAN,
-    DataType.ANY,
-})
+
+SUPPORTED_DATA_TYPES: FrozenSet[str] = frozenset(
+    str(data_type)
+    for data_type in DataType
+)

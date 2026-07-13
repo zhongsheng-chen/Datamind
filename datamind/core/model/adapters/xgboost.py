@@ -2,32 +2,70 @@
 
 """XGBoost 模型适配器
 
-为 XGBoost 二分类模型提供统一接口适配。
+为采用 Sklearn API 的 XGBoost 二分类模型提供概率预测和
+Gain 特征重要性接口。
 
 核心功能：
-  - predict_proba: 预测违约概率
-  - decision_function: 获取原始 Logit 值
-  - predict_proba_batch: 批量预测违约概率
-  - decision_function_batch: 批量获取 Logit 值
-  - get_feature_importance: 获取特征重要性
-  - _detect_capabilities: 动态检测当前模型实例能力
+  - predict_proba: 概率预测
+  - predict_proba_batch: 批量概率预测
+  - get_feature_importance: 获取 Gain 特征重要性
 
-能力检测规则：
-  - PREDICT_PROBA:
-      模型实现 predict_proba 方法
-  - PREDICT_LOG_ODDS:
-      模型实现 predict 方法，并支持 output_margin=True
-  - FEATURE_IMPORTANCE:
-      模型实现 get_booster 方法
-  - BATCH_PREDICT:
-      模型支持概率预测或 Logit 预测
+使用示例：
+  import numpy as np
+  from xgboost import XGBClassifier
+
+  from datamind.core.model.adapters.xgboost import XGBoostAdapter
+
+  X_train = np.array([
+      [25, 5000],
+      [45, 12000],
+      [32, 8000],
+      [50, 15000],
+  ])
+
+  y_train = np.array([
+      1,
+      0,
+      1,
+      0,
+  ])
+
+  model = XGBClassifier()
+  model.fit(
+      X_train,
+      y_train,
+  )
+
+  adapter = XGBoostAdapter(
+      model=model,
+      feature_names=[
+          "age",
+          "annual_income",
+          "debt_to_income_ratio",
+          "credit_utilization_ratio",
+          "delinquency_count",
+      ],
+      positive_class=1,
+  )
+
+  probability = adapter.predict({
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
+  })
+
 """
 
 from collections.abc import Iterable
+from numbers import Integral
+from typing import Any
 
 import numpy as np
 import structlog
 
+from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
 from datamind.core.model.adapters.base import BaseModelAdapter
 
@@ -35,54 +73,34 @@ logger = structlog.get_logger(__name__)
 
 
 class XGBoostAdapter(BaseModelAdapter):
-    """XGBoost 模型适配器
-
-    根据当前模型实例动态检测模型能力。
-    """
+    """XGBoost 二分类模型适配器"""
 
     def __init__(
             self,
-            model,
-            feature_names=None,
-            data_types=None,
-    ):
-        """初始化适配器
-
-        参数：
-            model: XGBoost 模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
-        """
+            model: Any,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
+            positive_class: Any = 1,
+    ) -> None:
         super().__init__(
             model=model,
             feature_names=feature_names,
             data_types=data_types,
+            positive_class=positive_class,
         )
 
-        self._validate_model()
+        self._validate_classifier_model()
 
     def _detect_capabilities(
             self,
     ) -> ModelCapability:
-        """检测当前 XGBoost 模型实例能力
-
-        返回：
-            模型能力位掩码
-        """
+        """检测当前 XGBoost 模型能力"""
         capabilities = ModelCapability.NONE
 
         supports_proba = callable(
             getattr(
                 self.model,
                 "predict_proba",
-                None,
-            )
-        )
-
-        supports_predict = callable(
-            getattr(
-                self.model,
-                "predict",
                 None,
             )
         )
@@ -98,16 +116,7 @@ class XGBoostAdapter(BaseModelAdapter):
         if supports_proba:
             capabilities |= (
                 ModelCapability.PREDICT_PROBA
-            )
-
-        if supports_predict:
-            capabilities |= (
-                ModelCapability.PREDICT_LOG_ODDS
-            )
-
-        if supports_proba or supports_predict:
-            capabilities |= (
-                ModelCapability.BATCH_PREDICT
+                | ModelCapability.BATCH_PREDICT
             )
 
         if supports_booster:
@@ -117,77 +126,23 @@ class XGBoostAdapter(BaseModelAdapter):
 
         return capabilities
 
-    def _validate_model(
-            self,
-    ) -> None:
-        """校验模型
-
-        当前仅支持二分类模型。
-
-        如果模型具有 n_classes_ 属性，则检查类别数量。
-
-        异常：
-            ValueError: 模型类别数量不是 2
-        """
-        if not hasattr(
-                self.model,
-                "n_classes_",
-        ):
-            return
-
-        class_count = self.model.n_classes_
-
-        if class_count != 2:
-            raise ValueError(
-                f"{self.__class__.__name__}: "
-                "仅支持二分类模型，"
-                f"当前类别数={class_count}"
-            )
-
-        logger.debug(
-            "XGBoost 模型校验通过",
-            adapter=self.__class__.__name__,
-            class_count=class_count,
-        )
-
     def predict_proba(
             self,
             X: np.ndarray,
     ) -> float:
-        """预测违约概率
-
-        参数：
-            X: 输入特征数组，形状为 (1, n_features)
-
-        返回：
-            正类概率，范围 0 到 1
-
-        异常：
-            NotImplementedError: 模型不支持概率预测
-            NotImplementedError: 模型不是二分类模型
-        """
+        """概率预测"""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
 
-        X = self._ensure_2d(X)
-
-        probabilities = np.asarray(
-            self.model.predict_proba(X)
+        probabilities = (
+            self._predict_positive_probabilities(
+                X
+            )
         )
 
-        if (
-                probabilities.ndim != 2
-                or probabilities.shape[1] != 2
-        ):
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "仅支持二分类概率预测，"
-                f"当前输出 shape={probabilities.shape}"
-            )
-
         result = float(
-            probabilities[0, 1]
+            probabilities[0]
         )
 
         logger.debug(
@@ -197,99 +152,27 @@ class XGBoostAdapter(BaseModelAdapter):
 
         return result
 
-    def decision_function(
-            self,
-            X: np.ndarray,
-    ) -> float:
-        """获取原始 Logit 值
-
-        XGBoost 使用 predict(output_margin=True)
-        获取未经 Sigmoid 转换的原始 margin。
-
-        参数：
-            X: 输入特征数组，形状为 (1, n_features)
-
-        返回：
-            Logit 值
-
-        异常：
-            NotImplementedError: 模型不支持 Logit 输出
-            NotImplementedError: 模型返回多分类结果
-        """
-        self.require_capability(
-            ModelCapability.PREDICT_LOG_ODDS
-        )
-
-        X = self._ensure_2d(X)
-
-        margins = np.asarray(
-            self.model.predict(
-                X,
-                output_margin=True,
-            )
-        )
-
-        if margins.ndim != 1:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "暂不支持多分类 Logit 输出，"
-                f"当前输出 shape={margins.shape}"
-            )
-
-        result = float(
-            margins[0]
-        )
-
-        logger.debug(
-            "XGBoost Logit 预测成功",
-            logit=result,
-        )
-
-        return result
-
     def predict_proba_batch(
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量预测违约概率
-
-        参数：
-            X: 输入特征数组，形状为 (n_samples, n_features)
-
-        返回：
-            正类概率列表
-
-        异常：
-            NotImplementedError: 模型不支持概率预测
-            NotImplementedError: 模型不是二分类模型
-        """
+        """批量概率预测"""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
-
         self.require_capability(
             ModelCapability.BATCH_PREDICT
         )
 
-        X = self._ensure_2d(X)
-
-        probabilities = np.asarray(
-            self.model.predict_proba(X)
-        )
-
-        if (
-                probabilities.ndim != 2
-                or probabilities.shape[1] != 2
-        ):
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "仅支持二分类概率预测，"
-                f"当前输出 shape={probabilities.shape}"
+        probabilities = (
+            self._predict_positive_probabilities(
+                X
             )
+        )
 
         result = [
             float(probability)
-            for probability in probabilities[:, 1]
+            for probability in probabilities
         ]
 
         logger.debug(
@@ -299,193 +182,304 @@ class XGBoostAdapter(BaseModelAdapter):
 
         return result
 
-    def decision_function_batch(
-            self,
-            X: np.ndarray,
-    ) -> list[float]:
-        """批量获取原始 Logit 值
-
-        使用 XGBoost predict(output_margin=True)
-        获取批量原始 margin。
-
-        参数：
-            X: 输入特征数组，形状为 (n_samples, n_features)
-
-        返回：
-            Logit 值列表
-
-        异常：
-            NotImplementedError: 模型不支持 Logit 输出
-            NotImplementedError: 模型返回多分类结果
-        """
-        self.require_capability(
-            ModelCapability.PREDICT_LOG_ODDS
-        )
-
-        self.require_capability(
-            ModelCapability.BATCH_PREDICT
-        )
-
-        X = self._ensure_2d(X)
-
-        margins = np.asarray(
-            self.model.predict(
-                X,
-                output_margin=True,
-            )
-        )
-
-        if margins.ndim != 1:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}: "
-                "暂不支持多分类 Logit 输出，"
-                f"当前输出 shape={margins.shape}"
-            )
-
-        result = [
-            float(margin)
-            for margin in margins
-        ]
-
-        logger.debug(
-            "XGBoost 批量 Logit 预测成功",
-            sample_count=len(result),
-        )
-
-        return result
-
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取特征重要性
-
-        使用 XGBoost Booster 的 gain 作为重要性指标。
-
-        返回：
-            特征重要性字典
-
-        异常：
-            NotImplementedError:
-                模型不支持特征重要性
-        """
+        """获取 Gain 特征重要性"""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
 
         booster = self.model.get_booster()
 
-        score = booster.get_score(
+        raw_score = booster.get_score(
             importance_type="gain"
         )
 
-        logger.debug(
-            "获取 XGBoost 特征重要性",
-            source="gain",
+        score = {
+            str(name): float(value)
+            for name, value in raw_score.items()
+        }
+
+        feature_mapping = (
+            self._resolve_feature_mapping(
+                booster=booster,
+                score=score,
+            )
         )
 
-        if not self.feature_names:
-            result = {
-                str(name): float(value)
-                for name, value in score.items()
-            }
+        names = [
+            display_name
+            for display_name, _ in feature_mapping
+        ]
 
-        else:
-            result = {
-                name: float(
-                    score.get(
-                        self._resolve_booster_feature_name(
-                            booster=booster,
-                            index=index,
-                            feature_name=name,
-                        ),
-                        0.0,
-                    )
-                )
-                for index, name in enumerate(
-                    self.feature_names
-                )
-            }
+        values = [
+            score.get(
+                booster_name,
+                0.0,
+            )
+            for _, booster_name in feature_mapping
+        ]
+
+        result = self._build_feature_importance(
+            values,
+            names=names,
+        )
 
         logger.debug(
             "XGBoost 特征重要性计算完成",
+            importance_type="gain",
             feature_count=len(result),
         )
 
         return result
 
-    @staticmethod
-    def _resolve_booster_feature_name(
-            *,
-            booster,
-            index: int,
-            feature_name: str,
-    ) -> str:
-        """解析 Booster 特征名称
+    def _validate_classifier_model(
+            self,
+    ) -> None:
+        """校验模型为已训练的 XGBoost 二分类模型"""
+        if not callable(
+                getattr(
+                    self.model,
+                    "predict_proba",
+                    None,
+                )
+        ):
+            raise TypeError(
+                f"{self.__class__.__name__}: "
+                "仅支持提供 predict_proba 接口的 "
+                "XGBoost 分类模型"
+            )
 
-        XGBoost Booster 的特征名可能是：
-          - 原始业务字段名称
-          - f0、f1、f2 等默认名称
-
-        参数：
-            booster: XGBoost Booster
-            index: 特征位置
-            feature_name: 业务特征名称
-
-        返回：
-            Booster 中使用的特征名称
-        """
-        booster_feature_names = getattr(
-            booster,
-            "feature_names",
+        classes = getattr(
+            self.model,
+            "classes_",
             None,
         )
 
-        if (
-                not isinstance(
-                    booster_feature_names,
-                    str,
-                )
-                and isinstance(
-            booster_feature_names,
-            Iterable,
-        )
-        ):
-            feature_names = {
-                str(name)
-                for name in booster_feature_names
-            }
+        if classes is None:
+            raise ValueError(
+                f"{self.__class__.__name__}: "
+                "模型尚未训练或不属于分类模型"
+            )
 
-            if feature_name in feature_names:
-                return feature_name
+        self._validate_binary_model()
 
-        return f"f{index}"
-
-    @staticmethod
-    def _ensure_2d(
+    def _predict_positive_probabilities(
+            self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """确保输入为二维数组
+        """执行模型预测并提取正类概率"""
+        array = self._ensure_2d(
+            X
+        )
 
-        参数：
-            X: 输入数组
+        values = self.model.predict_proba(
+            array
+        )
 
-        返回：
-            二维数组
+        return self._extract_positive_probabilities(
+            values
+        )
 
-        异常：
-            ValueError:
-                输入不是一维或二维数组
-        """
-        if X.ndim == 1:
-            return X.reshape(
-                1,
-                -1,
+    def _resolve_feature_mapping(
+            self,
+            *,
+            booster: Any,
+            score: dict[str, float],
+    ) -> list[tuple[str, str]]:
+        """解析展示特征名与 Booster 特征名的对应关系"""
+        configured_names = (
+            list(self.feature_names)
+            if self.feature_names
+            else None
+        )
+
+        booster_names = self._to_feature_names(
+            getattr(
+                booster,
+                "feature_names",
+                None,
+            )
+        )
+
+        model_names = self._to_feature_names(
+            getattr(
+                self.model,
+                "feature_names_in_",
+                None,
+            )
+        )
+
+        feature_count = self._get_feature_count()
+
+        if configured_names is not None:
+            display_names = configured_names
+
+        elif booster_names is not None:
+            display_names = booster_names
+
+        elif model_names is not None:
+            display_names = model_names
+
+        elif feature_count is not None:
+            display_names = [
+                f"f{index}"
+                for index in range(
+                    feature_count
+                )
+            ]
+
+        else:
+            display_names = sorted(
+                score,
+                key=self._feature_sort_key,
             )
 
-        if X.ndim != 2:
+        if booster_names is not None:
+            internal_names = booster_names
+
+        elif feature_count is not None:
+            internal_names = [
+                f"f{index}"
+                for index in range(
+                    feature_count
+                )
+            ]
+
+        elif configured_names is not None:
+            internal_names = [
+                f"f{index}"
+                for index in range(
+                    len(configured_names)
+                )
+            ]
+
+        elif model_names is not None:
+            internal_names = [
+                f"f{index}"
+                for index in range(
+                    len(model_names)
+                )
+            ]
+
+        else:
+            internal_names = sorted(
+                score,
+                key=self._feature_sort_key,
+            )
+
+        if feature_count is not None:
+            if len(display_names) != feature_count:
+                raise ValueError(
+                    "特征名称数量与模型特征数量不一致: "
+                    f"names={len(display_names)}, "
+                    f"model={feature_count}"
+                )
+
+            if len(internal_names) != feature_count:
+                raise ValueError(
+                    "Booster 特征名称数量与模型特征数量不一致: "
+                    f"names={len(internal_names)}, "
+                    f"model={feature_count}"
+                )
+
+        if len(display_names) != len(
+                internal_names
+        ):
             raise ValueError(
-                "仅支持 1D / 2D numpy 输入，"
-                f"当前 ndim={X.ndim}"
+                "展示特征名称与 Booster 特征名称数量不一致: "
+                f"display={len(display_names)}, "
+                f"booster={len(internal_names)}"
             )
 
-        return X
+        return list(
+            zip(
+                display_names,
+                internal_names,
+                strict=True,
+            )
+        )
+
+    def _get_feature_count(
+            self,
+    ) -> int | None:
+        """获取模型特征数量"""
+        value = getattr(
+            self.model,
+            "n_features_in_",
+            None,
+        )
+
+        if value is None:
+            return None
+
+        if (
+                isinstance(value, bool)
+                or not isinstance(
+                    value,
+                    Integral,
+                )
+        ):
+            raise ValueError(
+                "模型特征数量必须为整数，"
+                f"当前类型={type(value).__name__}"
+            )
+
+        feature_count = int(
+            value
+        )
+
+        if feature_count < 1:
+            raise ValueError(
+                "模型特征数量必须大于 0"
+            )
+
+        return feature_count
+
+    @staticmethod
+    def _to_feature_names(
+            values: Any,
+    ) -> list[str] | None:
+        """将特征名称转换为字符串列表"""
+        if (
+                values is None
+                or isinstance(
+                    values,
+                    (
+                        str,
+                        bytes,
+                    ),
+                )
+                or not isinstance(
+                    values,
+                    Iterable,
+                )
+        ):
+            return None
+
+        names = [
+            str(name)
+            for name in values
+        ]
+
+        return names or None
+
+    @staticmethod
+    def _feature_sort_key(
+            name: str,
+    ) -> tuple[int, int | str]:
+        """生成 XGBoost 特征名称排序键"""
+        if (
+                name.startswith("f")
+                and name[1:].isdigit()
+        ):
+            return (
+                0,
+                int(name[1:]),
+            )
+
+        return (
+            1,
+            name,
+        )

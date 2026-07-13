@@ -23,7 +23,11 @@ from rich.table import Table
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import RoutingRepository
-from datamind.utils.datetime import format_datetime, format_iso_utc
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime
+)
 
 app = typer.Typer(help="列出路由命令")
 console = Console()
@@ -41,18 +45,18 @@ def list_routes(
         environment: str | None = typer.Option(
             None,
             "--environment",
-            help="按路由环境过滤，例如 production/staging/development/testing"
+            help="按路由环境过滤，可选值：production / staging / development / testing"
         ),
         rollout: str | None = typer.Option(
             None,
             "--rollout",
-            help="按发布方式过滤，例如 full/canary/shadow"
+            help="按发布方式过滤，可选值：full / canary / shadow"
         ),
         rollout_group: str | None = typer.Option(
             None,
             "--group",
             "--rollout-group",
-            help="按发布分组过滤，例如 champion/challenger"
+            help="按发布分组过滤，可选值：champion / challenger"
         ),
         enabled: bool | None = typer.Option(
             None,
@@ -77,12 +81,7 @@ def list_routes(
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """列出路由规则"""
@@ -135,7 +134,6 @@ def list_routes(
                 **filters,
             )
 
-        if output == "json":
             result = []
 
             for route in routes:
@@ -155,31 +153,31 @@ def list_routes(
                     "updated_at": format_iso_utc(route.updated_at),
                 })
 
+        if output == "json":
             console.print_json(
                 json.dumps(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
 
             logger.info(
                 "路由列表输出完成",
-                count=len(routes),
+                count=len(result),
                 output=output,
             )
 
             return result
 
-        console.print(f"[dim]共找到 {len(routes)} 条路由[/dim]\n")
+        console.print(f"[dim]共找到 {len(result)} 条路由[/dim]\n")
 
-        if not routes:
+        if not result:
             logger.info(
                 "路由列表为空",
                 count=0,
             )
-            return routes
+            return result
 
         table = Table(
             box=box.ASCII,
@@ -193,36 +191,35 @@ def list_routes(
         table.add_column("ENVIRONMENT")
         table.add_column("ROLLOUT TYPE")
         table.add_column("GROUP")
-        table.add_column("TRAFFIC")
+        table.add_column("TRAFFIC RATIO")
         table.add_column("ENABLED")
         table.add_column("UPDATED AT")
 
-        for route in routes:
+        for item in result:
             table.add_row(
-                route.routing_id,
-                route.deployment_id,
-                route.environment,
-                route.rollout_type,
-                route.rollout_group or "-",
-                str(route.traffic_ratio),
-                str(route.enabled),
-                format_datetime(route.updated_at),
+                item["routing_id"],
+                item["deployment_id"],
+                item["environment"],
+                item["rollout_type"],
+                item["rollout_group"] or "-",
+                str(item["traffic_ratio"]),
+                str(item["enabled"]),
+                format_datetime(parse_datetime(item["updated_at"])),
             )
 
         console.print(table)
 
         logger.info(
             "路由列表输出完成",
-            count=len(routes),
+            count=len(result),
             output=output,
         )
 
-        return routes
+        return result
 
     async def runner():
         async with cli_context(
-                verbose=verbose,
-                enable_audit=False,
+                required_permission="routing.read",
         ):
             await _run()
 

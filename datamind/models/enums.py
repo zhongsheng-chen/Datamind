@@ -8,6 +8,7 @@
 核心功能：
   - MetadataStatus: 模型元数据生命周期状态
   - VersionStatus: 模型版本生命周期状态
+  - ArtifactStatus: 模型制品生命周期状态
   - DeploymentStatus: 模型部署状态
   - RuntimeControlStatus: 运行控制目标状态
   - ExperimentStatus: 实验生命周期状态
@@ -55,6 +56,16 @@ class VersionStatus(BaseEnum):
     DEPRECATED = "deprecated"
     INACTIVE = "inactive"
     ARCHIVED = "archived"
+
+
+class ArtifactStatus(BaseEnum):
+    """模型制品生命周期状态"""
+
+    ACTIVE = "active"
+    RETIRED = "retired"
+    PURGE_PENDING = "purge_pending"
+    PURGED = "purged"
+    PURGE_FAILED = "purge_failed"
 
 
 class DeploymentStatus(BaseEnum):
@@ -142,6 +153,7 @@ __all__ = [
     "BaseEnum",
     "MetadataStatus",
     "VersionStatus",
+    "ArtifactStatus",
     "DeploymentStatus",
     "RuntimeControlStatus",
     "ExperimentStatus",

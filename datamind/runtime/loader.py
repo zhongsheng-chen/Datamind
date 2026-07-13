@@ -20,7 +20,9 @@
 
 from typing import Any
 
+from datamind.models.artifact import ModelArtifactLoader
 from datamind.runtime.backend import BentoBackend
+from datamind.storage import get_storage
 
 
 class ModelLoader:
@@ -28,22 +30,40 @@ class ModelLoader:
 
     def __init__(self):
         self.backend = BentoBackend()
+        self.storage = get_storage()
 
     def load(
             self,
             *,
             framework: str,
-            tag: str,
+            tag: str | None,
+            model_key: str | None = None,
     ) -> Any:
         """加载模型
 
         参数：
             framework: 模型框架
-            tag: BentoML模型标签（格式：name:version）
+            tag: BentoML 模型标签（可选）
+            model_key: 对象存储中的模型制品键（可选）
 
         返回：
             模型实例
         """
+        if model_key is not None:
+            data = self.storage.load_by_key(
+                model_key
+            )
+
+            return ModelArtifactLoader.load(
+                framework=framework,
+                data=data,
+            )
+
+        if tag is None or tag.strip() == "":
+            raise ValueError(
+                "tag 和 model_key 至少需要提供一个"
+            )
+
         return self.backend.load(
             framework=framework,
             tag=tag,

@@ -1,44 +1,49 @@
 # datamind/constants/model_type.py
 
-"""模型类型常量
+"""模型类型枚举
 
-定义支持的机器学习模型类型，用于模型注册、运行时识别和API响应。
+定义支持的机器学习模型类型，用于模型注册、运行时识别和 API 响应。
 
 核心功能：
-  - ModelType: 模型类型常量类
+  - ModelType: 模型类型字符串枚举
   - SUPPORTED_MODEL_TYPES: 支持的模型类型集合
 
 使用示例：
-  from datamind.constants.model_type import ModelType, SUPPORTED_MODEL_TYPES
+  from datamind.constants.model_type import ModelType
 
-  if model_type == ModelType.logistic_regression:
+  if model_type == ModelType.LOGISTIC_REGRESSION:
       return run_logistic_regression(model)
-  elif model_type == ModelType.xgboost:
+  elif model_type == ModelType.XGBOOST:
       return run_xgboost(model)
 """
 
+from enum import Enum
 from typing import FrozenSet
 
 
-class ModelType:
-    """模型类型常量"""
+class ModelType(str, Enum):
+    """机器学习模型类型字符串枚举"""
 
     # 线性模型
-    logistic_regression: str = "logistic_regression"
+    LOGISTIC_REGRESSION = "logistic_regression"
 
     # 树模型
-    decision_tree: str = "decision_tree"
-    random_forest: str = "random_forest"
+    DECISION_TREE = "decision_tree"
+    RANDOM_FOREST = "random_forest"
 
     # 梯度提升模型
-    xgboost: str = "xgboost"
-    lightgbm: str = "lightgbm"
+    XGBOOST = "xgboost"
+    LIGHTGBM = "lightgbm"
+    CATBOOST = "catboost"
+
+    def __str__(
+            self,
+    ) -> str:
+        """返回枚举值字符串"""
+        return self.value
 
 
-SUPPORTED_MODEL_TYPES: FrozenSet[str] = frozenset({
-    ModelType.logistic_regression,
-    ModelType.decision_tree,
-    ModelType.random_forest,
-    ModelType.xgboost,
-    ModelType.lightgbm,
-})
+SUPPORTED_MODEL_TYPES: FrozenSet[str] = frozenset(
+    str(model_type)
+    for model_type in ModelType
+)

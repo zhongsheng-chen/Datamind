@@ -2,72 +2,163 @@
 
 """日志系统初始化
 
-配置 structlog 处理器链，支持 JSON 文本两种输出格式，同时支持同步异步日志。
+配置 structlog 处理器链，支持 JSON、文本输出以及同步、异步日志。
 
 核心功能：
-  - setup_logging: 初始化日志系统（处理器链、渲染器、handler）
+  - setup_logging: 初始化日志系统
+  - shutdown_logging: 关闭日志系统并释放日志资源
 
 使用示例：
-  from datamind.logging import setup_logging
   from datamind.config import get_settings
+  from datamind.logging import (
+      setup_logging,
+      shutdown_logging,
+  )
 
   settings = get_settings()
   setup_logging(settings.logging)
+
+  # 进程退出前可显式调用
+  shutdown_logging()
 """
 
 import logging
+from contextlib import suppress
+from logging.handlers import QueueListener
 
 import structlog
+from structlog.typing import Processor
 
 from datamind.config.logging import LoggingConfig
 from datamind.logging.handlers import (
-    create_file_handler,
-    create_console_handler,
     create_async_handler,
+    create_console_handler,
+    create_file_handler,
 )
 from datamind.logging.processors import (
-    add_timestamp,
     add_context,
+    add_timestamp,
     mask_sensitive,
     sampling,
 )
-from datamind.logging.render import text_renderer, json_renderer
+from datamind.logging.render import (
+    json_renderer,
+    text_renderer,
+)
 
 
-def _logger_factory(name=None):
-    """统一日志工厂
+_LOG_LISTENER: QueueListener | None = None
+_LOG_HANDLERS: list[logging.Handler] = []
 
-    structlog 可能传入 logger name，但本系统不做 routing，
-    所有日志统一进入 datamind logger。
+
+def _logger_factory(
+        name: str | None = None,
+) -> logging.Logger:
+    """创建标准库日志实例
 
     参数：
-        name: 日志名称（忽略）
+        name: 日志名称，未提供时使用 datamind
 
     返回：
         logging.Logger 实例
     """
-    _ = name
-    return logging.getLogger("datamind")
+    return logging.getLogger(name or "datamind")
 
 
-def setup_logging(config: LoggingConfig) -> None:
+def _safe_flush_and_close(
+        handler: logging.Handler,
+) -> None:
+    """安全刷新并关闭日志 handler
+
+    参数：
+        handler: 待刷新和关闭的日志 handler
+    """
+    with suppress(
+        OSError,
+        RuntimeError,
+        ValueError,
+    ):
+        handler.flush()
+
+    with suppress(
+        OSError,
+        RuntimeError,
+        ValueError,
+    ):
+        handler.close()
+
+
+def shutdown_logging() -> None:
+    """关闭日志系统
+
+    停止异步日志监听器，刷新并关闭已创建的 handler，
+    同时清空 datamind logger，避免重复初始化时重复输出。
+    """
+    global _LOG_LISTENER
+    global _LOG_HANDLERS
+
+    datamind_logger = logging.getLogger("datamind")
+
+    if _LOG_LISTENER is not None:
+        try:
+            _LOG_LISTENER.stop()
+
+        finally:
+            _LOG_LISTENER = None
+
+    handlers = list(datamind_logger.handlers)
+
+    for handler in _LOG_HANDLERS:
+        if handler not in handlers:
+            handlers.append(handler)
+
+    for handler in handlers:
+        _safe_flush_and_close(handler)
+
+    datamind_logger.handlers = []
+    _LOG_HANDLERS = []
+
+
+def setup_logging(
+        config: LoggingConfig,
+) -> None:
     """初始化日志系统
 
     参数：
         config: 日志配置对象
     """
-    if config.enable_file:
-        config.dir.mkdir(parents=True, exist_ok=True)
+    global _LOG_LISTENER
+    global _LOG_HANDLERS
 
-    # 构建处理器链
-    processors = [
+    shutdown_logging()
+
+    if config.enable_file:
+        config.dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+    processors: list[Processor] = [
         structlog.stdlib.filter_by_level,
-        structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
         structlog.stdlib.PositionalArgumentsFormatter(),
-        add_timestamp(config.timezone, config.date_format),
-        add_context(),
     ]
+
+    if config.sample_rate < 1.0:
+        processors.append(
+            sampling(config.sample_rate)
+        )
+
+    processors.extend(
+        [
+            add_timestamp(
+                config.timezone,
+                config.date_format,
+            ),
+            add_context(),
+        ]
+    )
 
     if config.mask_sensitive:
         processors.append(
@@ -78,56 +169,70 @@ def setup_logging(config: LoggingConfig) -> None:
             )
         )
 
-    if config.sample_rate < 1.0:
-        processors.append(sampling(config.sample_rate))
+    processors.append(
+        structlog.processors.format_exc_info
+    )
 
-    processors.append(structlog.processors.format_exc_info)
+    renderer = (
+        json_renderer()
+        if str(config.format) == "json"
+        else text_renderer()
+    )
+    level = getattr(
+        logging,
+        str(config.level).upper(),
+    )
 
-    # 选择渲染器
-    if config.format == "json":
-        renderer = json_renderer()
-    else:
-        renderer = text_renderer()
-
-    # 配置 structlog
     structlog.configure(
-        processors=processors + [
-            structlog.stdlib.ProcessorFormatter.wrap_for_formatter
+        processors=[
+            *processors,
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, config.level.upper())
+            level
         ),
         context_class=dict,
         logger_factory=_logger_factory,
-        cache_logger_on_first_use=True,
+        cache_logger_on_first_use=False,
     )
 
-    # 构建格式化器
     formatter = structlog.stdlib.ProcessorFormatter(
         processor=renderer,
         foreign_pre_chain=processors,
     )
 
-    # 构建处理器
-    handlers = []
+    output_handlers: list[logging.Handler] = []
 
     if config.enable_console:
-        handlers.append(create_console_handler(formatter))
+        output_handlers.append(
+            create_console_handler(formatter)
+        )
 
     if config.enable_file:
         file_handler = create_file_handler(config)
         file_handler.setFormatter(formatter)
-        handlers.append(file_handler)
+        output_handlers.append(file_handler)
 
-    # 配置日志器
     datamind_logger = logging.getLogger("datamind")
-    datamind_logger.setLevel(getattr(logging, config.level.upper()))
+    datamind_logger.setLevel(level)
     datamind_logger.propagate = False
 
-    # 异步或同步模式
-    if config.enable_async:
-        queue_handler, listener = create_async_handler(handlers)
+    if config.enable_async and output_handlers:
+        queue_handler, listener = create_async_handler(
+            output_handlers
+        )
         listener.start()
-        datamind_logger.handlers = [queue_handler]
+
+        _LOG_LISTENER = listener
+        _LOG_HANDLERS = [
+            queue_handler,
+            *output_handlers,
+        ]
+        datamind_logger.handlers = [
+            queue_handler,
+        ]
+
     else:
-        datamind_logger.handlers = handlers
+        _LOG_LISTENER = None
+        _LOG_HANDLERS = output_handlers.copy()
+        datamind_logger.handlers = output_handlers

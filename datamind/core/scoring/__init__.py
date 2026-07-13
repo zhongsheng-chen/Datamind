@@ -2,26 +2,55 @@
 
 """评分模块
 
-提供评分卡相关的核心功能：
-    - 评分转换器：Logit、Odds、Probability 与 Score 之间的转换
-    - 评分器：基于模型预测结果计算评分
-    - 特征贡献分解器：逻辑回归模型的特征贡献分解
-    - 评分组件基类：定义评分组件统一接口规范
+提供评分、评分转换和评分贡献分解能力。
+
+核心功能：
+  - BaseScorer: 评分组件基类
+  - ScoreTransformer: 评分转换器
+  - Scorer: 评分器
+  - LRContrib: 逻辑回归评分贡献分解器
 
 使用示例：
-    from datamind.core.scoring import Scorer, ScoreTransformer, LRContrib
+  from datamind.config.scorecard import ScorecardConfig
+  from datamind.core.scoring import (
+      LRContrib,
+      Scorer,
+      ScoreTransformer,
+  )
 
-    # 创建评分转换器
-    transformer = ScoreTransformer()
-    score = transformer.probability_to_score(0.3)
+  transformer = ScoreTransformer(
+      config=ScorecardConfig(
+          base_score=600,
+          base_odds=20,
+          pdo=50,
+      )
+  )
 
-    # 模型评分
-    scorer = Scorer(inference)
-    score = scorer.score(features)
+  scorer = Scorer(
+      inference=inference,
+      transformer=transformer,
+  )
 
-    # 特征贡献分解
-    contrib = LRContrib(inference)
-    explanation = contrib.explain(features)
+  contrib = LRContrib(
+      inference=inference,
+      transformer=transformer,
+  )
+
+  score = scorer.score({
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
+  })
+
+  contributions = contrib.explain({
+      "age": 35,
+      "annual_income": 120000,
+      "debt_to_income_ratio": 0.32,
+      "credit_utilization_ratio": 0.45,
+      "delinquency_count": 0,
+  })
 """
 
 from datamind.core.scoring.base import BaseScorer

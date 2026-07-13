@@ -2,7 +2,7 @@
 
 """模型错误定义
 
-统一定义模型注册、部署、加载、运行过程中的业务异常类型。
+统一定义模型注册、部署、加载、运行和实验过程中的异常类型。
 
 核心功能：
   - ModelError: 模型基础异常
@@ -10,7 +10,9 @@
   - ModelAlreadyExistsError: 模型已存在
   - VersionNotFoundError: 版本不存在
   - InvalidModelStateError: 非法模型状态
+  - ExperimentError: 实验基础异常
   - InvalidExperimentStateError: 非法实验状态
+  - InvalidExperimentConfigError: 非法实验配置
   - DeploymentError: 模型部署异常
   - DeploymentNotFoundError: 部署不存在
   - InvalidDeploymentStateError: 非法部署状态
@@ -23,11 +25,13 @@
       ModelNotFoundError,
       VersionNotFoundError,
       RuntimeRouteError,
+      InvalidExperimentConfigError,
   )
 
   raise ModelNotFoundError("模型不存在")
   raise VersionNotFoundError("版本不存在")
   raise RuntimeRouteError("没有可用部署")
+  raise InvalidExperimentConfigError("实验配置不合法")
 """
 
 
@@ -59,8 +63,21 @@ class InvalidModelStateError(ModelError):
     pass
 
 
-class InvalidExperimentStateError(ModelError):
+class ExperimentError(Exception):
+    """实验基础异常"""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
+class InvalidExperimentStateError(ExperimentError):
     """非法实验状态"""
+    pass
+
+
+class InvalidExperimentConfigError(ExperimentError):
+    """非法实验配置"""
     pass
 
 

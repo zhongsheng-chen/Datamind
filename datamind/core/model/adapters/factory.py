@@ -2,32 +2,58 @@
 
 """模型适配器工厂
 
-根据模型类型自动创建对应的适配器。
+根据模型类所属模块识别机器学习框架，并创建对应适配器。
 
 核心功能：
-    - create: 创建模型适配器
-    - get_framework: 获取模型所属框架
+  - create: 创建模型适配器
+  - get_framework: 获取模型所属框架
+  - register_adapter: 注册模型适配器
+  - get_adapter_class: 获取已注册的适配器类
 
 使用示例：
-    from datamind.core.model.adapters.factory import ModelAdapterFactory
+  from sklearn.linear_model import LogisticRegression
 
-    # 创建适配器
-    adapter = ModelAdapterFactory.create(
-        model=model,
-        feature_names=["age", "income", "credit_score"],
-        data_types={"age": "numerical", "income": "numerical"},
-    )
+  from datamind.constants import Framework
+  from datamind.core.model.adapters.factory import ModelAdapterFactory
 
-    # 预测概率
-    proba = adapter.predict_proba(X)
+  model = LogisticRegression()
 
-    # 批量预测概率
-    probas = adapter.predict_proba_batch(X_batch)
+  adapter = ModelAdapterFactory.create(
+      model=model,
+      feature_names=[
+          "age",
+          "annual_income",
+          "debt_to_income_ratio",
+          "credit_utilization_ratio",
+          "delinquency_count",
+      ],
+  )
 
-    # 获取特征重要性
-    importance = adapter.get_feature_importance()
+  framework = ModelAdapterFactory.get_framework(
+      model
+  )
+
+  adapter_class = ModelAdapterFactory.get_adapter_class(
+      framework
+  )
+
+  ModelAdapterFactory.register_adapter(
+      Framework.SKLEARN,
+      adapter_class,
+      override=True,
+  )
 """
 
+from typing import (
+    Any,
+    ClassVar,
+)
+
+from datamind.constants import (
+    DataType,
+    Framework,
+)
+from datamind.core.model.adapters.base import BaseModelAdapter
 from datamind.core.model.adapters.catboost import CatBoostAdapter
 from datamind.core.model.adapters.lightgbm import LightGBMAdapter
 from datamind.core.model.adapters.sklearn import SklearnAdapter
@@ -37,86 +63,181 @@ from datamind.core.model.adapters.xgboost import XGBoostAdapter
 class ModelAdapterFactory:
     """模型适配器工厂"""
 
-    @staticmethod
+    _ADAPTERS: ClassVar[
+        dict[
+            Framework,
+            type[BaseModelAdapter],
+        ]
+    ] = {}
+
+    @classmethod
     def create(
-            model,
-            feature_names=None,
-            data_types=None,
-    ):
-        """创建模型适配器
+            cls,
+            model: Any,
+            feature_names: list[str] | None = None,
+            data_types: dict[str, DataType] | None = None,
+            positive_class: Any = 1,
+    ) -> BaseModelAdapter:
+        """创建模型适配器"""
+        framework = cls.get_framework(
+            model
+        )
 
-        参数：
-            model: 原始模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
+        adapter_class = cls.get_adapter_class(
+            framework
+        )
 
-        返回：
-            BaseModelAdapter
-
-        异常：
-            ValueError: 不支持的模型类型
-        """
-        framework = ModelAdapterFactory.get_framework(model)
-
-        if framework == "xgboost":
-            return XGBoostAdapter(
-                model=model,
-                feature_names=feature_names,
-                data_types=data_types,
-            )
-
-        if framework == "lightgbm":
-            return LightGBMAdapter(
-                model=model,
-                feature_names=feature_names,
-                data_types=data_types,
-            )
-
-        if framework == "catboost":
-            return CatBoostAdapter(
-                model=model,
-                feature_names=feature_names,
-                data_types=data_types,
-            )
-
-        if framework == "sklearn":
-            return SklearnAdapter(
-                model=model,
-                feature_names=feature_names,
-                data_types=data_types,
-            )
-
-        raise ValueError(
-            f"不支持的模型类型: {model.__class__.__name__}"
+        return adapter_class(
+            model=model,
+            feature_names=feature_names,
+            data_types=data_types,
+            positive_class=positive_class,
         )
 
     @staticmethod
-    def get_framework(model) -> str:
-        """获取模型所属框架
+    def get_framework(
+            model: Any,
+    ) -> Framework:
+        """获取模型所属框架"""
+        if model is None:
+            raise ValueError(
+                "model 不能为空"
+            )
 
-        参数：
-            model: 原始模型
+        module_name = str(
+            model.__class__.__module__
+        ).lower()
 
-        返回：
-            框架名称
+        if module_name.startswith(
+                "xgboost"
+        ):
+            return Framework.XGBOOST
 
-        异常：
-            ValueError: 不支持的模型类型
-        """
-        module_name = model.__class__.__module__
+        if module_name.startswith(
+                "lightgbm"
+        ):
+            return Framework.LIGHTGBM
 
-        if module_name.startswith("xgboost"):
-            return "xgboost"
+        if module_name.startswith(
+                "catboost"
+        ):
+            return Framework.CATBOOST
 
-        if module_name.startswith("lightgbm"):
-            return "lightgbm"
+        if (
+                module_name == "sklearn"
+                or module_name.startswith(
+                    "sklearn."
+                )
+        ):
+            return Framework.SKLEARN
 
-        if module_name.startswith("catboost"):
-            return "catboost"
-
-        if "sklearn" in module_name:
-            return "sklearn"
+        model_name = str(
+            model.__class__.__name__
+        )
 
         raise ValueError(
-            f"不支持的模型类型: {model.__class__.__name__}"
+            "不支持的模型类型: "
+            f"{model_name}"
         )
+
+    @classmethod
+    def register_adapter(
+            cls,
+            framework: Framework,
+            adapter_class: type[BaseModelAdapter],
+            *,
+            override: bool = False,
+    ) -> None:
+        """注册模型适配器
+
+        参数：
+            framework: 机器学习框架
+            adapter_class: 模型适配器类
+            override: 是否覆盖已注册的适配器
+
+        异常：
+            TypeError: framework 或 adapter_class 类型不正确
+            ValueError: 适配器已注册且不允许覆盖
+        """
+        if not isinstance(
+                framework,
+                Framework,
+        ):
+            raise TypeError(
+                "framework 必须是 Framework 枚举"
+            )
+
+        if (
+                not isinstance(
+                    adapter_class,
+                    type,
+                )
+                or not issubclass(
+                    adapter_class,
+                    BaseModelAdapter,
+                )
+        ):
+            raise TypeError(
+                "adapter_class 必须继承 "
+                "BaseModelAdapter"
+            )
+
+        if (
+                framework in cls._ADAPTERS
+                and not override
+        ):
+            framework_name = str(
+                framework
+            )
+
+            raise ValueError(
+                "模型适配器已注册: "
+                f"{framework_name}"
+            )
+
+        cls._ADAPTERS[
+            framework
+        ] = adapter_class
+
+    @classmethod
+    def get_adapter_class(
+            cls,
+            framework: Framework,
+    ) -> type[BaseModelAdapter]:
+        """获取已注册的适配器类"""
+        adapter_class = cls._ADAPTERS.get(
+            framework
+        )
+
+        if adapter_class is None:
+            framework_name = str(
+                framework
+            )
+
+            raise ValueError(
+                "未注册模型适配器: "
+                f"{framework_name}"
+            )
+
+        return adapter_class
+
+
+ModelAdapterFactory.register_adapter(
+    Framework.SKLEARN,
+    SklearnAdapter,
+)
+
+ModelAdapterFactory.register_adapter(
+    Framework.XGBOOST,
+    XGBoostAdapter,
+)
+
+ModelAdapterFactory.register_adapter(
+    Framework.LIGHTGBM,
+    LightGBMAdapter,
+)
+
+ModelAdapterFactory.register_adapter(
+    Framework.CATBOOST,
+    CatBoostAdapter,
+)

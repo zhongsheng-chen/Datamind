@@ -1,0 +1,12 @@
+{
+  "model_id": "mdl_replace_me",
+  "subject_key": "txn_10001",
+  "subject_type": "transaction",
+  "features": {
+    "transaction_amount": 1500.0,
+    "account_age_days": 720,
+    "transaction_hour": 2,
+    "distance_from_home": 85.0,
+    "recent_transaction_count": 6
+  }
+}

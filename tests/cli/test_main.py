@@ -1,0 +1,236 @@
+# tests/cli/test_main.py
+
+"""CLI 主入口测试
+
+验证主要命令组和新增业务入口能够被 Typer 正确加载。
+
+核心功能：
+  - test_main_initializes_configured_logging:
+    验证主入口使用日志配置初始化日志系统
+  - test_main_help_lists_command_groups:
+    验证主入口列出全部命令组
+  - test_init_help_lists_initialization_options:
+    验证系统初始化命令可用
+  - test_main_help_lists_session_commands:
+    验证顶层登录会话命令可用
+  - test_identity_help_lists_management_commands:
+    验证用户和角色管理命令可用
+  - test_outcome_submit_help_lists_link_fields:
+    验证结果回流命令公开关联字段
+  - test_business_command_help_is_available:
+    验证全部业务命令能够生成帮助信息
+"""
+
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+from typer.testing import CliRunner
+
+import datamind.cli.main as main_module
+from datamind.cli.main import app
+
+runner = CliRunner()
+
+BUSINESS_COMMANDS = [
+    "model register",
+    "model list",
+    "model show",
+    "model activate",
+    "model deactivate",
+    "model delete",
+    "model restore",
+    "model purge",
+    "deployment create",
+    "deployment list",
+    "deployment show",
+    "deployment enable",
+    "deployment disable",
+    "route create",
+    "route list",
+    "route show",
+    "route update",
+    "route enable",
+    "route disable",
+    "experiment create",
+    "experiment list",
+    "experiment show",
+    "experiment update",
+    "experiment start",
+    "experiment pause",
+    "experiment stop",
+    "experiment complete",
+    "experiment archive",
+    "experiment analyze",
+    "experiment variant add",
+    "experiment variant list",
+    "experiment variant show",
+    "experiment variant update",
+    "experiment variant activate",
+    "experiment variant deactivate",
+    "experiment variant archive",
+    "service run",
+    "service list",
+    "service show",
+    "service load",
+    "service unload",
+    "service reload",
+    "outcome submit",
+    "user create",
+    "user list",
+    "user show",
+    "user enable",
+    "user disable",
+    "user reset-password",
+    "user delete",
+    "role create",
+    "role list",
+    "role show",
+    "role grant",
+    "role revoke",
+    "role delete",
+]
+
+
+def test_main_initializes_configured_logging(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试主入口使用日志配置初始化日志系统"""
+    logging_config = MagicMock()
+    setup_logging = MagicMock()
+    monkeypatch.setitem(
+        vars(main_module),
+        "get_settings",
+        lambda: SimpleNamespace(
+            logging=logging_config
+        ),
+    )
+    monkeypatch.setitem(
+        vars(main_module),
+        "setup_logging",
+        setup_logging,
+    )
+
+    main_module.main()
+
+    setup_logging.assert_called_once_with(
+        logging_config
+    )
+
+
+def test_main_help_lists_command_groups() -> None:
+    """测试主入口列出业务命令组"""
+    result = runner.invoke(
+        app,
+        ["--help"],
+    )
+
+    assert result.exit_code == 0
+    assert "init" in result.stdout
+    assert "outcome" in result.stdout
+    assert "user" in result.stdout
+    assert "role" in result.stdout
+
+
+def test_init_help_lists_initialization_options() -> None:
+    """测试系统初始化命令公开管理员和密码文件参数"""
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--help",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "--username" in result.stdout
+    assert "--password-file" in result.stdout
+
+
+def test_main_help_lists_session_commands() -> None:
+    """测试主入口列出顶层登录会话命令"""
+    result = runner.invoke(
+        app,
+        ["--help"],
+    )
+
+    assert result.exit_code == 0
+
+    for command in (
+            "login",
+            "whoami",
+            "logout",
+    ):
+        assert command in result.stdout
+
+
+def test_outcome_submit_help_lists_link_fields() -> None:
+    """测试结果回流命令公开决策和请求关联参数"""
+    result = runner.invoke(
+        app,
+        ["outcome", "submit", "--help"],
+    )
+
+    assert result.exit_code == 0
+    assert "--decision-id" in result.stdout
+    assert "--request-id" in result.stdout
+
+
+def test_identity_help_lists_management_commands() -> None:
+    """测试用户和角色命令列出完整管理操作"""
+    user_result = runner.invoke(
+        app,
+        ["user", "--help"],
+    )
+    role_result = runner.invoke(
+        app,
+        ["role", "--help"],
+    )
+
+    assert user_result.exit_code == 0
+    assert role_result.exit_code == 0
+
+    for command in (
+            "create",
+            "list",
+            "show",
+            "enable",
+            "disable",
+            "reset-password",
+            "delete",
+    ):
+        assert command in user_result.stdout
+
+    for command in (
+            "create",
+            "list",
+            "show",
+            "grant",
+            "revoke",
+            "delete",
+    ):
+        assert command in role_result.stdout
+
+
+@pytest.mark.parametrize(
+    "command_path",
+    BUSINESS_COMMANDS,
+)
+def test_business_command_help_is_available(
+        command_path: str,
+) -> None:
+    """测试业务命令帮助可用且不接受外部操作人"""
+    result = runner.invoke(
+        app,
+        [
+            *command_path.split(),
+            "--help",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "--operator" not in result.stdout
+    assert "--owner" not in result.stdout
+
+    if command_path == "model list":
+        assert "--created-by" in result.stdout

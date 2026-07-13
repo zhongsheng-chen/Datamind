@@ -16,7 +16,7 @@ from datamind.models.artifact.io import temp_file
 from datamind.models.artifact.register import ModelArtifactRegister
 
 
-@ModelArtifactRegister.register(Framework.catboost)
+@ModelArtifactRegister.register(Framework.CATBOOST)
 def load_catboost(data: bytes):
     """加载 CatBoost 模型
 

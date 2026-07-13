@@ -1,0 +1,18 @@
+{
+  "feature_names": [
+    "transaction_amount",
+    "account_age_days",
+    "transaction_hour",
+    "distance_from_home",
+    "recent_transaction_count"
+  ],
+  "data_types": {
+    "transaction_amount": "numeric",
+    "account_age_days": "numeric",
+    "transaction_hour": "numeric",
+    "distance_from_home": "numeric",
+    "recent_transaction_count": "numeric"
+  },
+  "inferred": false,
+  "source": "manual"
+}

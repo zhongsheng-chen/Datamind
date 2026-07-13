@@ -12,13 +12,18 @@
   - refresh: 刷新对象状态
 
 使用示例：
-  from datamind.db.repositories.base import BaseRepository
   from datamind.db.core.uow import UnitOfWork
+  from datamind.db.repositories.base import BaseRepository
 
   async with UnitOfWork() as uow:
-      repo = BaseRepository(uow.session)
+      repo = BaseRepository(
+          uow.session
+      )
 
       repo.add(obj)
+      await repo.flush()
+
+      await repo.delete(obj)
       await repo.flush()
 """
 
@@ -35,12 +40,14 @@ class BaseRepository:
         session: 数据库会话对象
     """
 
-    def __init__(self, session: AsyncSession):
-        """
-        初始化数据库仓储基类
+    def __init__(
+            self,
+            session: AsyncSession,
+    ) -> None:
+        """初始化数据库仓储基类
 
         参数：
-            session: 异步数据库会话对象，用于执行数据库操作
+            session: 异步数据库会话对象
         """
         self._session = session
 
@@ -49,22 +56,42 @@ class BaseRepository:
         """获取数据库会话"""
         return self._session
 
-    def add(self, obj: Any) -> None:
+    def add(
+            self,
+            obj: Any,
+    ) -> None:
         """添加单个对象"""
-        self._session.add(obj)
+        self._session.add(
+            obj
+        )
 
-    def add_all(self, objs: Iterable[Any]) -> None:
+    def add_all(
+            self,
+            objs: Iterable[Any],
+    ) -> None:
         """添加多个对象"""
-        self._session.add_all(objs)
+        self._session.add_all(
+            objs
+        )
 
-    def delete(self, obj: Any) -> None:
+    async def delete(
+            self,
+            obj: Any,
+    ) -> None:
         """删除对象"""
-        self._session.delete(obj)
+        await self._session.delete(
+            obj
+        )
 
     async def flush(self) -> None:
         """刷新会话，将待处理操作发送到数据库"""
         await self._session.flush()
 
-    async def refresh(self, obj: Any) -> None:
+    async def refresh(
+            self,
+            obj: Any,
+    ) -> None:
         """刷新对象状态"""
-        await self._session.refresh(obj)
+        await self._session.refresh(
+            obj
+        )

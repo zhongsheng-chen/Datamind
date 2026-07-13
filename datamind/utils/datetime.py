@@ -2,152 +2,273 @@
 
 """日期时间工具
 
-提供时区转换、日期时间解析和格式化功能。
+提供时区获取、UTC 转换、日期时间解析、
+本地时间转换和格式化能力。
 
 核心功能：
-  - get_timezone: 获取配置的时区
-  - to_utc: 转换为 UTC 时间
-  - parse_datetime: 解析日期时间字符串
-  - to_local: 转换为本地时间
-  - format_datetime: 格式化日期时间
-  - format_iso_utc: 格式化为 ISO 8601 UTC
+  - get_timezone: 获取当前配置时区
+  - parse_datetime: 解析 ISO 8601 日期时间字符串
+  - to_utc: 将日期时间转换为 UTC
+  - to_local: 将日期时间转换为本地时区
+  - format_datetime: 格式化本地日期时间
+  - format_iso_utc: 格式化为 ISO 8601 UTC 字符串
 
 使用示例：
+  from datetime import datetime
+
   from datamind.utils.datetime import (
-      to_utc,
-      parse_datetime,
-      to_local,
       format_datetime,
       format_iso_utc,
+      parse_datetime,
+      to_local,
+      to_utc,
   )
 
-  # 转换为 UTC
-  utc_dt = to_utc(datetime.now())
+  # 转换为 UTC 时间
+  utc_dt = to_utc(
+      datetime.now()
+  )
 
   # 解析日期时间字符串
-  parsed_dt = parse_datetime("2026-06-25T09:00:00+08:00")
+  parsed_dt = parse_datetime(
+      "2026-06-25T09:00:00+08:00"
+  )
 
   # 转换为本地时间
-  local_dt = to_local(utc_dt)
+  local_dt = to_local(
+      utc_dt
+  )
 
-  # 格式化日期时间
-  formatted = format_datetime(local_dt)
+  # 格式化本地时间
+  formatted_dt = format_datetime(
+      local_dt
+  )
 
-  # 格式化为 ISO 8601 UTC
-  iso = format_iso_utc(datetime.now())
+  # 格式化为 ISO 8601 UTC 时间
+  iso_dt = format_iso_utc(
+      datetime.now()
+  )
 """
 
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
+from typing import overload
 from zoneinfo import ZoneInfo
 
 
-def get_timezone() -> ZoneInfo:
-    """获取配置的时区
+def get_timezone(
+        timezone_name: str | None = None,
+) -> ZoneInfo:
+    """获取当前配置时区
 
-    从环境变量 TZ 读取时区，未配置时返回 UTC。
-
-    返回：
-        ZoneInfo 实例
-    """
-    tz_name = os.getenv("TZ", "UTC")
-    return ZoneInfo(tz_name)
-
-
-def to_utc(dt: datetime | None) -> datetime | None:
-    """转换为 UTC 时间
+    优先使用显式传入的 IANA 时区名称，否则从环境变量 TZ 读取，
+    两者均未配置时使用 UTC。
 
     参数：
-        dt: 原始时间（带时区或不带时区）
+        timezone_name: IANA 时区名称（可选）
 
     返回：
-        UTC 时间，输入为 None 时返回 None
+        当前配置的 ZoneInfo 实例
     """
-    if dt is None:
-        return None
+    resolved_name = (
+        timezone_name
+        or os.getenv(
+            "TZ",
+            "UTC",
+        )
+    )
 
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+    return ZoneInfo(
+        resolved_name
+    )
 
-    return dt.astimezone(timezone.utc)
 
+def parse_datetime(
+        raw: str | None,
+) -> datetime | None:
+    """解析 ISO 8601 日期时间字符串
 
-def parse_datetime(raw: str | None) -> datetime | None:
-    """解析日期时间字符串
-
-    将 ISO 格式日期时间字符串解析为 datetime，
-    并统一转换为 UTC 时间。
+    解析完成后统一转换为 UTC。
+    不带时区的日期时间按 UTC 处理。
 
     参数：
-        raw: ISO 格式日期时间字符串，例如 2026-06-25T09:00:00+08:00
+        raw: ISO 8601 日期时间字符串
 
     返回：
-        UTC 时间，输入为 None 时返回 None
+        UTC 日期时间，输入为 None 时返回 None
 
     异常：
-        ValueError: 时间字符串格式错误
+        ValueError: 日期时间字符串格式错误
     """
     if raw is None:
         return None
 
-    value = datetime.fromisoformat(raw)
+    normalized = (
+        f"{raw[:-1]}+00:00"
+        if raw.endswith(
+            "Z"
+        )
+        else raw
+    )
 
-    return to_utc(value)
+    dt = datetime.fromisoformat(
+        normalized
+    )
+
+    return to_utc(
+        dt
+    )
 
 
-def to_local(dt: datetime | None) -> datetime | None:
-    """转换为本地时间
+@overload
+def to_utc(
+        dt: datetime,
+) -> datetime:
+    ...
+
+
+@overload
+def to_utc(
+        dt: None,
+) -> None:
+    ...
+
+
+@overload
+def to_utc(
+        dt: datetime | None,
+) -> datetime | None:
+    ...
+
+
+def to_utc(
+        dt: datetime | None,
+) -> datetime | None:
+    """将日期时间转换为 UTC
+
+    不带时区的日期时间按 UTC 处理。
 
     参数：
-        dt: 原始时间（带时区或不带时区）
+        dt: 待转换的日期时间
 
     返回：
-        本地时间，输入为 None 时返回 None
+        UTC 日期时间，输入为 None 时返回 None
     """
     if dt is None:
         return None
-
-    tz = get_timezone()
 
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        return dt.replace(
+            tzinfo=timezone.utc
+        )
 
-    return dt.astimezone(tz)
-
-
-def format_datetime(dt: datetime | None, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
-    """格式化日期时间
-
-    参数：
-        dt: 原始时间
-        fmt: 时间格式
-
-    返回：
-        格式化后的时间字符串，输入为 None 时返回 "-"
-    """
-    if dt is None:
-        return "-"
-
-    return to_local(dt).strftime(fmt)
+    return dt.astimezone(
+        timezone.utc
+    )
 
 
-def format_iso_utc(dt: datetime | None) -> str | None:
-    """格式化为 ISO 8601 UTC 时间（毫秒精度）
+def to_local(
+        dt: datetime | None,
+        *,
+        timezone_name: str | None = None,
+) -> datetime | None:
+    """将日期时间转换为本地时区
+
+    不带时区的日期时间按 UTC 处理。
 
     参数：
-        dt: 原始时间
+        dt: 待转换的日期时间
+        timezone_name: IANA 时区名称（可选）
 
     返回：
-        ISO 8601 UTC 字符串（如 2024-01-01T12:00:00.123Z），输入为 None 时返回 None
+        本地日期时间，输入为 None 时返回 None
     """
     if dt is None:
         return None
 
-    dt = to_utc(dt)
+    if dt.tzinfo is None:
+        dt = dt.replace(
+            tzinfo=timezone.utc
+        )
 
-    # 对齐到毫秒
-    dt = dt - timedelta(microseconds=dt.microsecond % 1000)
+    local_timezone = (
+        get_timezone(
+            timezone_name
+        )
+        if timezone_name is not None
+        else get_timezone()
+    )
 
-    ms = dt.microsecond // 1000
+    return dt.astimezone(
+        local_timezone
+    )
 
-    return f"{dt:%Y-%m-%dT%H:%M:%S}.{ms:03d}Z"
+
+def format_datetime(
+        dt: datetime | None,
+        fmt: str = "%Y-%m-%d %H:%M:%S",
+        *,
+        timezone_name: str | None = None,
+) -> str:
+    """格式化本地日期时间
+
+    参数：
+        dt: 待格式化的日期时间
+        fmt: 日期时间格式
+        timezone_name: IANA 时区名称（可选）
+
+    返回：
+        格式化后的字符串，输入为 None 时返回 "-"
+    """
+    local_dt = to_local(
+        dt,
+        timezone_name=timezone_name,
+    )
+
+    if local_dt is None:
+        return "-"
+
+    return local_dt.strftime(
+        fmt
+    )
+
+
+def format_iso_utc(
+        dt: datetime | None,
+) -> str | None:
+    """格式化为 ISO 8601 UTC 字符串
+
+    输出固定为毫秒精度，并使用 Z 表示 UTC。
+
+    参数：
+        dt: 待格式化的日期时间
+
+    返回：
+        ISO 8601 UTC 字符串，输入为 None 时返回 None
+    """
+    utc_dt = to_utc(
+        dt
+    )
+
+    if utc_dt is None:
+        return None
+
+    utc_dt = utc_dt - timedelta(
+        microseconds=(
+            utc_dt.microsecond
+            % 1000
+        )
+    )
+    milliseconds = (
+        utc_dt.microsecond
+        // 1000
+    )
+
+    return (
+        f"{utc_dt:%Y-%m-%dT%H:%M:%S}"
+        f".{milliseconds:03d}Z"
+    )

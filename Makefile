@@ -189,7 +189,7 @@ test:
 
 test-cov:
 	@echo "$(GREEN)运行测试并生成覆盖率报告...$(NC)"
-	pytest tests/ -v --cov=api --cov=core --cov-report=term --cov-report=html
+	pytest tests/ -v --cov=datamind --cov=core --cov-report=term --cov-report=html
 	@echo "$(GREEN)✅ 测试完成，覆盖率报告: htmlcov/index.html$(NC)"
 
 # ==================== 运行服务 ====================

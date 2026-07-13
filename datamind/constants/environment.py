@@ -1,39 +1,40 @@
 # datamind/constants/environment.py
 
-"""服务环境常量
+"""服务环境枚举
 
 定义服务的运行环境类型。
 
 核心功能：
-  - Environment: 服务环境常量类
+  - Environment: 服务环境字符串枚举
   - SUPPORTED_ENVIRONMENTS: 支持的环境集合
 
 使用示例：
-  from datamind.constants.environment import Environment, SUPPORTED_ENVIRONMENTS
+  from datamind.constants.environment import Environment
 
-  if env == Environment.PRODUCTION:
+  if environment == Environment.PRODUCTION:
       enable_monitoring()
-
-环境说明：
-  - development: 开发环境
-  - testing: 测试环境
-  - staging: 预发布环境
-  - production: 生产环境
 """
 
-
-class Environment:
-    """服务环境常量"""
-
-    DEVELOPMENT: str = "development"
-    TESTING: str = "testing"
-    STAGING: str = "staging"
-    PRODUCTION: str = "production"
+from enum import Enum
+from typing import FrozenSet
 
 
-SUPPORTED_ENVIRONMENTS = frozenset({
-    Environment.DEVELOPMENT,
-    Environment.TESTING,
-    Environment.STAGING,
-    Environment.PRODUCTION,
-})
+class Environment(str, Enum):
+    """服务环境字符串枚举"""
+
+    DEVELOPMENT = "development"
+    TESTING = "testing"
+    STAGING = "staging"
+    PRODUCTION = "production"
+
+    def __str__(
+            self,
+    ) -> str:
+        """返回枚举值字符串"""
+        return self.value
+
+
+SUPPORTED_ENVIRONMENTS: FrozenSet[str] = frozenset(
+    str(environment)
+    for environment in Environment
+)

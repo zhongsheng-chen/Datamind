@@ -2,11 +2,12 @@
 
 """ID 生成工具
 
-提供统一的 ID 生成能力，支持确定性 ID 与随机 ID 两种模式。
+提供统一的 ID 生成能力，
+支持确定性 ID 和随机 ID 两种模式。
 
 核心功能：
-  - generate_id: 基于前缀和键值生成确定性 ID，用于实体对象
-  - generate_random_id: 生成随机 ID，用于事件类对象
+  - generate_id: 根据前缀和键值生成稳定、可重复的 ID
+  - generate_random_id: 根据前缀生成随机 ID
 
 使用示例：
   from datamind.utils.generator import (
@@ -14,26 +15,28 @@
       generate_random_id,
   )
 
-  # 生成模型 ID
-  model_id = generate_id(
-      prefix="mdl",
-      keys=(name,),
+  # 生成确定性 ID
+  entity_id = generate_id(
+      prefix="ent",
+      keys=(
+          "customer",
+          "001",
+      ),
   )
 
-  # 生成版本 ID
-  version_id = generate_id(
-      prefix="ver",
-      keys=(model_id, version),
-  )
-
-  # 生成部署 ID
-  deployment_id = generate_random_id(
-      prefix="dep"
+  # 生成随机 ID
+  event_id = generate_random_id(
+      prefix="evt"
   )
 """
 
 import hashlib
+import json
 import uuid
+from typing import Final
+
+
+ID_LENGTH: Final[int] = 16
 
 
 def generate_id(
@@ -41,23 +44,59 @@ def generate_id(
         prefix: str,
         keys: tuple[str, ...],
 ) -> str:
-    """生成唯一 ID
+    """生成确定性 ID
 
-    基于 prefix 和 keys 计算 MD5 哈希生成稳定 ID，
-    相同输入始终生成相同 ID。
+    对 prefix 和 keys 进行无歧义序列化，
+    并计算 SHA-256 哈希。
+    相同的 prefix 和 keys 始终生成相同 ID，
+    keys 的顺序会影响生成结果。
 
     参数：
         prefix: ID 前缀
-        keys: 用于生成哈希的键值列表
+        keys: 用于生成哈希的键值元组
 
     返回：
-        格式为 {prefix}_{8位MD5哈希} 的 ID
+        格式为 {prefix}_{16 位哈希} 的 ID
+
+    异常：
+        ValueError: prefix 或 keys 为空
     """
-    raw = ":".join(keys)
+    normalized_prefix = prefix.strip()
 
-    digest = hashlib.md5(raw.encode("utf-8")).hexdigest()[:8]
+    if not normalized_prefix:
+        raise ValueError(
+            "prefix 不能为空"
+        )
 
-    return f"{prefix}_{digest}"
+    if not keys:
+        raise ValueError(
+            "keys 不能为空"
+        )
+
+    raw = json.dumps(
+        {
+            "prefix": normalized_prefix,
+            "keys": keys,
+        },
+        ensure_ascii=False,
+        separators=(
+            ",",
+            ":",
+        ),
+        sort_keys=True,
+    )
+
+    digest = hashlib.sha256(
+        raw.encode(
+            "utf-8"
+        )
+    ).hexdigest()[
+        :ID_LENGTH
+    ]
+
+    return (
+        f"{normalized_prefix}_{digest}"
+    )
 
 
 def generate_random_id(
@@ -72,6 +111,22 @@ def generate_random_id(
         prefix: ID 前缀
 
     返回：
-        格式为 {prefix}_{12位uuid} 的 ID
+        格式为 {prefix}_{16 位 UUID} 的 ID
+
+    异常：
+        ValueError: prefix 为空
     """
-    return f"{prefix}_{uuid.uuid4().hex[:12]}"
+    normalized_prefix = prefix.strip()
+
+    if not normalized_prefix:
+        raise ValueError(
+            "prefix 不能为空"
+        )
+
+    random_part = uuid.uuid4().hex[
+        :ID_LENGTH
+    ]
+
+    return (
+        f"{normalized_prefix}_{random_part}"
+    )

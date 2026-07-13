@@ -8,11 +8,12 @@
   - deactivate_variant: 停用实验分组
 
 使用示例：
-  python -m datamind.cli.main experiment variant deactivate var_a1b2c3d4 --operator admin
+  python -m datamind.cli.main experiment variant deactivate var_0123456789abcdef
 """
 
 import asyncio
 import json
+from typing import Any
 
 import structlog
 import typer
@@ -22,6 +23,7 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import VariantRepository
+from datamind.models.errors import ExperimentError
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="停用实验分组命令")
@@ -36,20 +38,10 @@ def deactivate_variant(
             ...,
             help="实验分组 ID"
         ),
-        operator: str = typer.Option(
-            "system",
-            "--operator",
-            help="操作人"
-        ),
         output: str = typer.Option(
             "text",
             "--format",
-            help="输出格式：text/json"
-        ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            help="显示调试日志"
+            help="输出格式：text / json"
         ),
 ):
     """停用实验分组"""
@@ -59,7 +51,9 @@ def deactivate_variant(
         target_type="variant",
         target_id_func=lambda p, r: r["variant_id"],
     )
-    async def _run():
+    async def _run(
+            actor: str,
+    ):
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
@@ -77,12 +71,20 @@ def deactivate_variant(
                 console.print(f"[red]实验分组不存在: {variant_id}[/red]")
                 raise typer.Exit(1)
 
-            repo.deactivate_variant(
-                variant,
-                updated_by=operator,
-            )
+            try:
+                repo.deactivate_variant(
+                    variant,
+                    updated_by=actor,
+                )
 
-            result = {
+            except ExperimentError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise typer.Exit(1) from exc
+
+            await uow.session.flush()
+            await uow.session.refresh(variant)
+
+            result: dict[str, Any] = {
                 "variant_id": variant.variant_id,
                 "experiment_id": variant.experiment_id,
                 "name": variant.name,
@@ -100,7 +102,6 @@ def deactivate_variant(
                     result,
                     ensure_ascii=False,
                     indent=2,
-                    default=str,
                 )
             )
             return result
@@ -109,18 +110,17 @@ def deactivate_variant(
 
         console.print(f"[cyan]{'VARIANT ID':<16}[/cyan] : {result['variant_id']}")
         console.print(f"[cyan]{'EXPERIMENT ID':<16}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name']}")
+        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name'] or '-'}")
         console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
 
         return result
 
     async def runner():
         async with cli_context(
-                user=operator,
-                source="cli",
-                verbose=verbose,
-                enable_audit=True,
-        ):
-            await _run()
+                required_permission="experiment.write",
+        ) as context:
+            await _run(
+                context.user
+            )
 
     asyncio.run(runner())

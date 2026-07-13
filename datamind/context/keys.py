@@ -11,44 +11,61 @@
   - USER: 操作用户
   - IP: 客户端 IP 地址
   - HOSTNAME: 客户端主机名称
-  - ALL_KEYS: 所有键的集合（用于校验和调试）
+  - ALL_KEYS: 所有标准上下文键
 
 使用示例：
-    from datamind.context.keys import (
-      TRACE_ID,
+  from datamind.context.keys import (
+      ALL_KEYS,
+      HOSTNAME,
+      IP,
       REQUEST_ID,
       SOURCE,
+      TRACE_ID,
       USER,
-      IP,
-      HOSTNAME,
-      ALL_KEYS,
   )
 
   context = {
-      TRACE_ID: "trace_123",
-      REQUEST_ID: "req_123",
+      TRACE_ID: "0123456789abcdef0123456789abcdef",
+      REQUEST_ID: "req_0123456789abcdef",
       SOURCE: "http",
       USER: "admin",
       IP: "192.168.1.100",
       HOSTNAME: "client",
   }
 
-  # 校验
-  missing = set(ALL_KEYS.keys()) - set(context.keys())
+  missing = set(
+      ALL_KEYS
+  ) - set(
+      context
+  )
 """
 
-TRACE_ID = "trace_id"
-REQUEST_ID = "request_id"
-SOURCE = "source"
-USER = "user"
-IP = "ip"
-HOSTNAME = "hostname"
+from typing import Final
 
-ALL_KEYS = {
-    TRACE_ID: None,
-    REQUEST_ID: None,
-    SOURCE: None,
-    USER: None,
-    IP: None,
-    HOSTNAME: None,
-}
+
+TRACE_ID: Final[str] = "trace_id"
+REQUEST_ID: Final[str] = "request_id"
+SOURCE: Final[str] = "source"
+USER: Final[str] = "user"
+IP: Final[str] = "ip"
+HOSTNAME: Final[str] = "hostname"
+
+ALL_KEYS: Final[tuple[str, ...]] = (
+    TRACE_ID,
+    REQUEST_ID,
+    SOURCE,
+    USER,
+    IP,
+    HOSTNAME,
+)
+
+
+__all__ = [
+    "TRACE_ID",
+    "REQUEST_ID",
+    "SOURCE",
+    "USER",
+    "IP",
+    "HOSTNAME",
+    "ALL_KEYS",
+]

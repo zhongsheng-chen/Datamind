@@ -1,28 +1,30 @@
-# datamind/config/audit.py
-
 """审计配置
 
-定义审计日志的配置参数，满足金融监管要求。
+定义审计服务的启用状态、失败策略和数据库重试参数。
+
+核心功能：
+  - AuditConfig: 读取并校验审计组件配置
 
 属性：
-  - enable_request_log: 是否记录请求日志
-  - enable_response_log: 是否记录响应日志
-  - log_request_body: 是否记录请求体
-  - log_response_body: 是否记录响应体
-  - trace_id_header: 链路追踪ID的HTTP头名称
-  - retention_days: 日志保留天数
+  - enabled: 是否启用审计组件
+  - failure_mode: 审计失败处理模式
+  - max_retries: 瞬时数据库错误最大尝试次数
+  - retry_base_delay: 重试基础延迟（秒）
 
 环境变量：
-  - DATAMIND_AUDIT_ENABLE_REQUEST_LOG: 是否记录请求日志，默认 true
-  - DATAMIND_AUDIT_ENABLE_RESPONSE_LOG: 是否记录响应日志，默认 true
-  - DATAMIND_AUDIT_LOG_REQUEST_BODY: 是否记录请求体，默认 true
-  - DATAMIND_AUDIT_LOG_RESPONSE_BODY: 是否记录响应体，默认 false
-  - DATAMIND_AUDIT_TRACE_ID_HEADER: 追踪ID头，默认 X-Trace-Id
-  - DATAMIND_AUDIT_RETENTION_DAYS: 保留天数，默认 365
+  - DATAMIND_AUDIT_ENABLED: 是否启用审计组件，默认 true
+  - DATAMIND_AUDIT_FAILURE_MODE: 失败处理模式，默认 open
+  - DATAMIND_AUDIT_MAX_RETRIES: 最大尝试次数，默认 2
+  - DATAMIND_AUDIT_RETRY_BASE_DELAY: 重试基础延迟，默认 0.05
 """
 
 from pydantic import model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
+
+from datamind.audit.policy import AuditFailureMode
 
 
 class AuditConfig(BaseSettings):
@@ -35,20 +37,24 @@ class AuditConfig(BaseSettings):
         frozen=True,
     )
 
-    enable_request_log: bool = True
-    enable_response_log: bool = True
-    log_request_body: bool = True
-    log_response_body: bool = False
-    trace_id_header: str = "X-Trace-Id"
-    retention_days: int = 365
+    enabled: bool = True
+    failure_mode: AuditFailureMode = AuditFailureMode.OPEN
+    max_retries: int = 2
+    retry_base_delay: float = 0.05
 
     @model_validator(mode="after")
-    def validate(self):
-        """校验配置参数"""
-        if not self.trace_id_header:
-            raise ValueError("trace_id_header 不能为空")
+    def validate_config(self) -> "AuditConfig":
+        """校验审计配置参数"""
+        if self.max_retries < 1:
+            raise ValueError(
+                "max_retries 必须大于等于 1，"
+                f"当前值：{self.max_retries}"
+            )
 
-        if self.retention_days <= 0:
-            raise ValueError(f"retention_days 必须大于 0，当前值：{self.retention_days}")
+        if self.retry_base_delay <= 0:
+            raise ValueError(
+                "retry_base_delay 必须大于 0，"
+                f"当前值：{self.retry_base_delay}"
+            )
 
         return self

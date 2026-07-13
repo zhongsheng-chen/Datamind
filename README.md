@@ -269,9 +269,6 @@ datamind/
 ├── README.md
 ├── requirements.txt
 ├── .env.example
-├── .env.dev
-├── .env.test
-├── .env.prod
 ├── .gitignore
 ├── docker-compose.yml
 ├── Dockerfile
@@ -452,6 +449,9 @@ python -m unittest tests/test_logging_config.py -v
 [tool.pytest.ini_options]
 pythonpath = ["."]
 
+pytest tests/ --cov=datamind --cov-branch --cov-report=term-missing
+
+python -m pytest tests\ab_test --cov=datamind/ab_test --cov-branch --cov-report=term-missing
 
 from core.logging import LogManager
 
@@ -673,6 +673,17 @@ cp .env.example .env
 vim .env
 ```
 
+Windows PowerShell：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env` 包含数据库密码、存储密钥和 JWT 签名密钥，不应提交到版本库。
+CLI 登录成功后会在当前操作系统用户目录保存受限凭据，后续命令自动
+认证和续期。`DATAMIND_ACCESS_TOKEN` 仅用于自动化覆盖，不应写入
+共享的 `.env`。
+
 ## 启动依赖服务
 
 ```bash
@@ -685,11 +696,14 @@ docker-compose up -d postgres redis
 ## 初始化数据库
 
 ```bash
-# 创建数据库表
-python scripts/init_db.py
-
 # 执行数据库迁移
 alembic upgrade head
+
+# 首次部署时创建系统管理员
+datamind init
+
+# 使用初始化时设置的管理员密码登录
+datamind login --username admin
 ```
 
 ---
@@ -1649,27 +1663,11 @@ curl http://localhost:3000/health
 
 ## 训练
 ```bash
-    # 逻辑回归（WOE编码）
-    python -m datamind.demo.train
-
-    # 逻辑回归（无编码）
-    python -m datamind.demo.train --encoder none
-
-    # 逻辑回归（标准化编码）
-    python -m datamind.demo.train --encoder standard
-
-    # 随机森林
-    python -m datamind.demo.train --model_type random_forest
-
-    # 自定义模型名称和版本
-    python -m datamind.demo.train --model_name demo_logistic_woe --model_version 2.0.0
-
-    # 强制覆盖已存在的模型
-    python -m datamind.demo.train --force
-
-    # 只保存本地文件，不注册
-    python -m datamind.demo.train --local --output ./model.pkl
+python examples/scorecard/train.py
+python examples/classification/train.py
 ```
+
+详细说明参见 `examples/README.md`。
 
 步骤
 docker compose down -v
@@ -1691,8 +1689,6 @@ docker exec -it postgres psql -U datamind -d datamind -c "SELECT enum_range(NULL
 docker exec -it postgres psql -U datamind -d postgres -c "DROP DATABASE IF EXISTS datamind;"
 docker exec -it postgres psql -U datamind -d postgres -c "CREATE DATABASE datamind OWNER datamind;"
 python -m alembic upgrade head
-python -m datamind.demo.train --model_type logistic_regression
-python -m datamind.demo.train --model_type logistic_regression --model_name demo_logistic_woe --model_version 2.0.0
 
 ## 检查生产模型
 ```bash
@@ -3039,8 +3035,24 @@ outcomes
 并且 A/B 引擎优先使用显式传入的 subject_key，只有没传 subject_key 时才从 payload 里按 bucket_key 提取。
 
 
+请求决策时，系统首先判断请求是否显式指定 deployment_id。若已指定，则直接校验并返回对应部署。
+若未指定，则优先尝试匹配 running 状态的实验，实验内部根据 strategy 执行 manual 或 hash 分配， 并返回实验分组绑定的部署。
+若实验未命中，则继续匹配启用状态的路由规则。
+若实验和路由均未命中，则进入默认部署兜底逻辑：优先选择当前环境下的活跃主部署；
+若不存在主部署，则选择第一个可用的活跃部署作为兜底部署。
+同一模型、同一环境，只允许一个 running 实验。
 
+部署解析优先级：
 
+1. 显式指定 deployment_id
+2. 实验分流 experiment
+   - 实验内部根据 strategy 执行 manual 或 hash
+3. 路由规则 routing
+4. 默认活跃部署 fallback
+   - 优先选择 active champion 部署
+   - 如果没有 champion，则选择第一个 active 部署
+
+    
 Datamind 当前路由优先级是：
 
 1. 如果请求指定 deployment_id
@@ -3093,3 +3105,184 @@ datamind route create dep_b9f267054202 `
   --rollout canary `
   --group challenger `
   --operator admin
+
+## 实验或分组更新条件：
+
+| 实验状态        | 分组状态       | 是否允许 update | 允许修改字段                                                            |
+| ----------- | ---------- | ----------: | ----------------------------------------------------------------- |
+| `draft`     | `active`   |          允许 | `name`、`deployment_id`、`weight`、`control/treatment`、`description` |
+| `draft`     | `inactive` |          允许 | `name`、`deployment_id`、`weight`、`control/treatment`、`description` |
+| `draft`     | `archived` |         不允许 | 不允许修改                                                             |
+| `paused`    | `active`   |        部分允许 | 只允许 `description`                                                 |
+| `paused`    | `inactive` |        部分允许 | 只允许 `description`                                                 |
+| `paused`    | `archived` |         不允许 | 不允许修改                                                             |
+| `running`   | 任意状态       |         不允许 | 不允许修改                                                             |
+| `stopped`   | 任意状态       |         不允许 | 不允许修改                                                             |
+| `completed` | 任意状态       |         不允许 | 不允许修改                                                             |
+| `archived`  | 任意状态       |         不允许 | 不允许修改                                                             |
+
+
+## 决策来源与路由策略对应关系
+| source       | strategy   | 说明                     |
+| ------------ | ---------- | ---------------------- |
+| `manual`     | `manual`   | 请求显式指定 `deployment_id` |
+| `experiment` | `manual`   | 命中 manual 实验分配         |
+| `experiment` | `hash`     | 命中 hash 实验分配           |
+| `routing`    | `weighted` | 命中 routing 表加权路由       |
+| `deployment` | `fallback` | 实验和路由都未命中，使用默认活跃部署兜底   |
+
+
+## 实验启动校验
+
+- 至少有一个活跃分组
+- 必须且只能有一个活跃对照组
+- 至少有一个活跃实验组
+- hash 策略下活跃分组权重之和必须等于 1
+
+## 报文示例
+
+#### 1. 显式指定部署：`source=manual`，`strategy=manual`
+
+```http
+POST /predict
+Content-Type: application/json
+```
+
+```json
+{
+    "request": {
+        "model_id": "mdl_0efc148c",
+        "deployment_id": "dep_18f009682bc5",
+        "environment": "development",
+        "features": {
+            "age": 0.35,
+            "income": 0.72,
+            "gender": 0.10,
+            "province": 0.65,
+            "education": 0.80
+        }
+    }
+}
+```
+
+说明：请求报文中显式指定 `deployment_id` 时，系统会优先使用该部署进行推理，不再进入实验分流和路由规则匹配流程。
+
+---
+
+#### 2. 命中 manual 实验：`source=experiment`，`strategy=manual`
+
+```http
+POST /predict
+Content-Type: application/json
+```
+
+```json
+{
+    "request": {
+        "model_id": "mdl_0efc148c",
+        "environment": "development",
+        "subject_key": "customer_10001",
+        "subject_type": "customer",
+        "features": {
+            "age": 0.35,
+            "income": 0.72,
+            "gender": 0.10,
+            "province": 0.65,
+            "education": 0.80
+        }
+    }
+}
+```
+
+说明：请求报文本身不直接指定 `deployment_id`。系统会根据 `subject_key` 查找 manual 实验中的人工分配记录，命中对应实验分组后，再找到该分组绑定的 `deployment_id`。
+
+---
+
+#### 3. 命中 hash 实验：`source=experiment`，`strategy=hash`
+
+```http
+POST /predict
+Content-Type: application/json
+```
+
+```json
+{
+    "request": {
+        "model_id": "mdl_0efc148c",
+        "environment": "development",
+        "customer_id": "customer_10002",
+        "subject_key": "customer_10002",
+        "subject_type": "customer",
+        "features": {
+            "age": 0.42,
+            "income": 0.83,
+            "gender": 0.20,
+            "province": 0.58,
+            "education": 0.91
+        }
+    }
+}
+```
+
+说明：请求报文本身不直接指定 `deployment_id`。系统会使用实验配置中的 `bucket_key` 做 hash 分桶。例如创建实验时指定 `--bucket-key customer_id`，则请求报文中需要提供 `customer_id`。系统根据实验 `traffic_ratio` 和实验分组 `weight` 命中对应实验分组，再找到该分组绑定的 `deployment_id`。
+
+---
+
+#### 4. 命中路由规则：`source=routing`，`strategy=weighted`
+
+```http
+POST /predict
+Content-Type: application/json
+```
+
+```json
+{
+    "request": {
+        "model_id": "mdl_0efc148c",
+        "environment": "development",
+        "subject_key": "customer_10003",
+        "subject_type": "customer",
+        "features": {
+            "age": 0.28,
+            "income": 0.49,
+            "gender": 0.30,
+            "province": 0.76,
+            "education": 0.63
+        }
+    }
+}
+```
+
+说明：当请求未显式指定 `deployment_id`，且没有命中 running 实验时，系统会继续匹配启用状态的路由规则。若 `features` 满足 `rules` 条件，则按路由表中的 `traffic_ratio` 做加权分流。
+
+---
+
+#### 5. 默认活跃部署兜底：`source=deployment`，`strategy=fallback`
+
+```http
+POST /predict
+Content-Type: application/json
+```
+
+```json
+{
+    "request": {
+        "model_id": "mdl_0efc148c",
+        "environment": "development",
+        "subject_key": "customer_10004",
+        "subject_type": "customer",
+        "features": {
+            "age": 0.51,
+            "income": 0.68,
+            "gender": 0.40,
+            "province": 0.33,
+            "education": 0.74
+        }
+    }
+}
+```
+
+当请求未显式指定 deployment_id，且未命中 running 实验和启用状态路由规则时，系统会优先查找当前环境下的活跃主部署；
+如果不存在活跃主部署，则使用当前环境下第一个可用的活跃部署作为兜底部署进行推理。
+
+python -c "import secrets; print(secrets.token_urlsafe(64))"

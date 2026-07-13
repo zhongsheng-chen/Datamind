@@ -9,8 +9,10 @@
   - Storage: 存储门面类，对外提供统一 API
 
 实际存储路径：
-  - 本地：{base_dir}/models/{model_id}/{version}/{filename}
-  - MinIO：{bucket}/{base_prefix}/models/{model_id}/{version}/{filename}
+  - 本地：{base_dir}/models/{model_id}/{version}/
+    artifacts/{artifact_id}/{filename}
+  - MinIO：{bucket}/{base_prefix}/models/{model_id}/{version}/
+    artifacts/{artifact_id}/{filename}
 
 使用示例：
   from datamind.storage import get_storage
@@ -18,7 +20,13 @@
   storage = get_storage()
 
   # 基于模型信息保存
-  storage.save("mdl_a1b2c3d4", "1.0.0", "scorecard.pkl", data)
+  storage.save(
+      "mdl_0123456789abcdef",
+      "1.0.0",
+      "art_0123456789abcdef",
+      "scorecard.pkl",
+      data,
+  )
 
   # 基于存储键保存
   storage.save_by_key(storage_key, data)
@@ -36,7 +44,10 @@ class Storage:
     对外提供统一的存储 API，内部委托给 StorageAdmin。
     """
 
-    def __init__(self, storage_admin: StorageAdmin):
+    def __init__(
+            self,
+            storage_admin: StorageAdmin,
+    ) -> None:
         """初始化存储实例
 
         参数：
@@ -44,102 +55,130 @@ class Storage:
         """
         self._admin = storage_admin
 
-    def _kwargs(
+    def save(
             self,
             model_id: str,
-            version: str | None = None,
-            filename: str | None = None,
-    ) -> dict:
-        """构造模型参数
-
-        参数：
-            model_id: 模型ID
-            version: 模型版本号
-            filename: 文件名
-
-        返回：
-            参数字典
-        """
-        return {
-            "model_id": model_id,
-            "version": version,
-            "filename": filename,
-        }
-
-    def save(self, model_id: str, version: str, filename: str, data: bytes) -> str:
+            version: str,
+            artifact_id: str,
+            filename: str,
+            data: bytes,
+    ) -> str:
         """保存模型文件
 
         参数：
-            model_id: 模型ID
+            model_id: 模型 ID
             version: 模型版本号
+            artifact_id: 模型制品 ID
             filename: 文件名
             data: 二进制数据
 
         返回：
-            存储 key
+            存储键
         """
         return self._admin.save(
-            **self._kwargs(model_id, version, filename),
+            model_id=model_id,
+            version=version,
+            artifact_id=artifact_id,
+            filename=filename,
             data=data,
         )
 
-    def load(self, model_id: str, version: str, filename: str) -> bytes:
+    def load(
+            self,
+            model_id: str,
+            version: str,
+            artifact_id: str,
+            filename: str,
+    ) -> bytes:
         """加载模型文件
 
         参数：
-            model_id: 模型ID
+            model_id: 模型 ID
             version: 模型版本号
+            artifact_id: 模型制品 ID
             filename: 文件名
 
         返回：
             二进制数据
         """
         return self._admin.load(
-            **self._kwargs(model_id, version, filename),
+            model_id=model_id,
+            version=version,
+            artifact_id=artifact_id,
+            filename=filename,
         )
 
-    def delete(self, model_id: str, version: str, filename: str) -> bool:
+    def delete(
+            self,
+            model_id: str,
+            version: str,
+            artifact_id: str,
+            filename: str,
+    ) -> bool:
         """删除模型文件
 
         参数：
-            model_id: 模型ID
+            model_id: 模型 ID
             version: 模型版本号
+            artifact_id: 模型制品 ID
             filename: 文件名
 
         返回：
             删除成功返回 True
         """
         return self._admin.delete(
-            **self._kwargs(model_id, version, filename),
+            model_id=model_id,
+            version=version,
+            artifact_id=artifact_id,
+            filename=filename,
         )
 
-    def exists(self, model_id: str, version: str, filename: str) -> bool:
+    def exists(
+            self,
+            model_id: str,
+            version: str,
+            artifact_id: str,
+            filename: str,
+    ) -> bool:
         """检查模型文件是否存在
 
         参数：
-            model_id: 模型ID
+            model_id: 模型 ID
             version: 模型版本号
+            artifact_id: 模型制品 ID
             filename: 文件名
 
         返回：
             存在返回 True，否则返回 False
         """
         return self._admin.exists(
-            **self._kwargs(model_id, version, filename),
+            model_id=model_id,
+            version=version,
+            artifact_id=artifact_id,
+            filename=filename,
         )
 
-    def list(self, model_id: str) -> list[str]:
+    def list(
+            self,
+            model_id: str,
+    ) -> list[str]:
         """列出模型的所有文件
 
         参数：
-            model_id: 模型ID
+            model_id: 模型 ID
 
         返回：
             文件名列表
         """
-        return self._admin.list(model_id)
+        return self._admin.list(
+            model_id
+        )
 
-    def save_by_key(self, key: str, data: bytes) -> str:
+    def save_by_key(
+            self,
+            key: str,
+            data: bytes,
+    ) -> str:
         """通过存储键保存文件
 
         参数：
@@ -149,9 +188,15 @@ class Storage:
         返回：
             存储键
         """
-        return self._admin.save_by_key(key, data)
+        return self._admin.save_by_key(
+            key,
+            data,
+        )
 
-    def load_by_key(self, key: str) -> bytes:
+    def load_by_key(
+            self,
+            key: str,
+    ) -> bytes:
         """通过存储键加载文件
 
         参数：
@@ -160,9 +205,15 @@ class Storage:
         返回：
             二进制数据
         """
-        return self._admin.load_by_key(key)
+        return self._admin.load_by_key(
+            key
+        )
 
-    def delete_by_key(self, key: str, strict: bool = False) -> bool:
+    def delete_by_key(
+            self,
+            key: str,
+            strict: bool = False,
+    ) -> bool:
         """通过存储键删除文件
 
         参数：
@@ -172,9 +223,15 @@ class Storage:
         返回：
             删除成功返回 True
         """
-        return self._admin.delete_by_key(key, strict)
+        return self._admin.delete_by_key(
+            key,
+            strict=strict,
+        )
 
-    def exists_by_key(self, key: str) -> bool:
+    def exists_by_key(
+            self,
+            key: str,
+    ) -> bool:
         """通过存储键检查文件是否存在
 
         参数：
@@ -183,7 +240,9 @@ class Storage:
         返回：
             是否存在
         """
-        return self._admin.exists_by_key(key)
+        return self._admin.exists_by_key(
+            key
+        )
 
 
 @lru_cache
@@ -194,4 +253,17 @@ def get_storage() -> Storage:
         全局唯一的 Storage 实例
     """
     settings = get_settings()
-    return Storage(StorageAdmin(settings.storage))
+
+    storage_admin = StorageAdmin(
+        settings.storage
+    )
+
+    return Storage(
+        storage_admin
+    )
+
+
+__all__ = [
+    "Storage",
+    "get_storage",
+]
