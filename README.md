@@ -3073,3 +3073,23 @@ Datamind 当前路由优先级是：
 
 4. routing 表没有可用规则
    → fallback 到 active champion deployment
+
+
+这个命令创建的是 routing 表记录，但用户侧命令叫：
+
+datamind route create
+
+例如你现在要给两个部署配置 routing 阶段 80% / 20%，后面可以这样用：
+
+datamind route create dep_f1ac4e6e3318 `
+  --environment development `
+  --traffic 0.8 `
+  --rollout canary `
+  --group champion `
+  --operator admin
+datamind route create dep_b9f267054202 `
+  --environment development `
+  --traffic 0.2 `
+  --rollout canary `
+  --group challenger `
+  --operator admin

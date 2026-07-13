@@ -8,6 +8,7 @@
   - model: 模型管理子命令
   - deployment: 部署管理子命令
   - experiment: 实验管理子命令
+  - route: 路由管理子命令
   - service: 服务管理子命令
 """
 
@@ -19,6 +20,7 @@ from datamind._build import BUILD_COMMIT
 from datamind.cli.deployment import app as deployment_app
 from datamind.cli.experiment import app as experiment_app
 from datamind.cli.model import app as model_app
+from datamind.cli.route import app as route_app
 from datamind.cli.service import app as service_app
 
 
@@ -67,6 +69,7 @@ def main(
 app.add_typer(model_app, name="model")
 app.add_typer(deployment_app, name="deployment")
 app.add_typer(experiment_app, name="experiment")
+app.add_typer(route_app, name="route")
 app.add_typer(service_app, name="service")
 
 if __name__ == "__main__":
