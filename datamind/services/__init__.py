@@ -14,6 +14,7 @@
   - DeploymentLifecycleService: 模型部署生命周期服务
   - RuntimeControlService: 部署运行期望状态控制服务
   - OutcomeService: 实验结果回流服务
+  - DashboardService: 管理控制台查询服务
 
 使用示例：
   from datamind.services import (
@@ -25,10 +26,12 @@
       DeploymentLifecycleService,
       RuntimeControlService,
       OutcomeService,
+      DashboardService,
   )
 """
 
 from datamind.services.control import RuntimeControlService
+from datamind.services.dashboard import DashboardService
 from datamind.services.deletion import ModelDeletionService
 from datamind.services.deployment import DeploymentLifecycleService
 from datamind.services.initialization import InitializationService
@@ -46,4 +49,5 @@ __all__ = [
     "DeploymentLifecycleService",
     "RuntimeControlService",
     "OutcomeService",
+    "DashboardService",
 ]

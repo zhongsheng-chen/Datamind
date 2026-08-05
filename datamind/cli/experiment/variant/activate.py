@@ -22,8 +22,13 @@ from rich.console import Console
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
+from datamind.db.models.variants import Variant
 from datamind.db.repositories import VariantRepository
-from datamind.models.errors import ExperimentError
+from datamind.models.enums import ExperimentVariantStatus
+from datamind.models.errors import (
+    ExperimentError,
+    InvalidExperimentConfigError,
+)
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="启用实验分组命令")
@@ -72,6 +77,21 @@ def activate_variant(
                 raise typer.Exit(1)
 
             try:
+                variants = await repo.list_variants(
+                    experiment_id=variant.experiment_id,
+                    deployment_id=variant.deployment_id,
+                    status=ExperimentVariantStatus.ACTIVE,
+                )
+
+                if _has_other_active_variant(
+                        variants=variants,
+                        current_variant_id=variant.variant_id,
+                ):
+                    raise InvalidExperimentConfigError(
+                        "实验已存在绑定该部署的其他启用状态分组: "
+                        f"{variant.deployment_id}"
+                    )
+
                 repo.activate_variant(
                     variant,
                     updated_by=actor,
@@ -124,3 +144,15 @@ def activate_variant(
             )
 
     asyncio.run(runner())
+
+
+def _has_other_active_variant(
+        *,
+        variants: list[Variant],
+        current_variant_id: str,
+) -> bool:
+    """判断查询结果中是否包含其他启用状态分组"""
+    return any(
+        item.variant_id != current_variant_id
+        for item in variants
+    )

@@ -17,6 +17,8 @@
     验证版本解析优先按版本 ID 查询
   - test_resolve_version_falls_back_to_version_number:
     验证未提供版本 ID 时按版本号查询
+  - test_resolve_version_includes_archived_version:
+    验证按版本号解析时不会隐藏归档版本
   - test_resolve_version_rejects_foreign_model_version:
     验证拒绝属于其他模型的版本
   - test_resolve_version_rejects_unknown_version_number:
@@ -158,7 +160,6 @@ async def test_resolve_version_falls_back_to_version_number() -> None:
     )
     version_repo = AsyncMock()
     version_repo.list_versions.return_value = [
-        SimpleNamespace(version="0.9.0"),
         expected,
     ]
     resolver = ModelResolver(
@@ -174,9 +175,43 @@ async def test_resolve_version_falls_back_to_version_number() -> None:
     assert result is expected
     version_repo.list_versions.assert_awaited_once_with(
         model_id="mdl_test",
-        include_archived=False,
+        version="1.0.0",
+        include_archived=True,
+        limit=1,
     )
     version_repo.get_version.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resolve_version_includes_archived_version() -> None:
+    """测试按版本号解析时返回归档版本"""
+    archived_version = SimpleNamespace(
+        version_id="ver_archived",
+        model_id="mdl_test",
+        version="1.0.0",
+        status="archived",
+    )
+    version_repo = AsyncMock()
+    version_repo.list_versions.return_value = [
+        archived_version
+    ]
+    resolver = ModelResolver(
+        AsyncMock(),
+        version_repo,
+    )
+
+    result = await resolver.resolve_version(
+        model_id="mdl_test",
+        version="1.0.0",
+    )
+
+    assert result is archived_version
+    version_repo.list_versions.assert_awaited_once_with(
+        model_id="mdl_test",
+        version="1.0.0",
+        include_archived=True,
+        limit=1,
+    )
 
 
 @pytest.mark.asyncio

@@ -197,6 +197,54 @@ async def test_authenticate_validates_required_permission(
 
 
 @pytest.mark.asyncio
+async def test_authenticate_accepts_system_admin_permission(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试系统管理员通配权限可调用预测接口"""
+    settings = SimpleNamespace(
+        auth=SimpleNamespace(enabled=True),
+        service=SimpleNamespace(
+            environment=Environment.PRODUCTION
+        ),
+    )
+    service = MagicMock()
+    service.authenticate_access_token = AsyncMock(
+        return_value=SimpleNamespace(
+            user_id="usr_admin",
+            username="admin",
+            permissions=["*"],
+        )
+    )
+    context = ContextStub()
+    context.request.headers[
+        "authorization"
+    ] = "Bearer access-token"
+    monkeypatch.setitem(
+        vars(security_module),
+        "get_settings",
+        lambda: settings,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(security_module),
+        "create_auth_service",
+        lambda **_kwargs: service,
+    )
+
+    identity = await RuntimeSecurity().authenticate(
+        context=context,
+        permission="prediction.invoke",
+    )
+
+    assert identity.username == "admin"
+    assert identity.permissions == ("*",)
+
+
+@pytest.mark.asyncio
 async def test_authenticate_maps_invalid_access_token(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -24,6 +24,7 @@ dependencies = [
     "numpy>=1.26.0",
     "argon2-cffi>=25.1.0",
     "PyJWT[crypto]>=2.10.0",
+    "starlette>=0.40.0",
 ]
 
 
@@ -60,6 +61,10 @@ datamind = "datamind.cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["datamind*"]
+
+
+[tool.setuptools.package-data]
+"datamind.console" = ["static/*.html", "static/*.css", "static/*.js"]
 
 
 [tool.pytest.ini_options]

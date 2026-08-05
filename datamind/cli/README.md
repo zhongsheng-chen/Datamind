@@ -83,23 +83,27 @@ datamind deployment --help
 datamind route --help
 datamind experiment --help
 datamind service --help
+datamind runtime --help
+datamind console --help
 ```
 
 主要命令组：
 
-| 命令组 | 说明 |
-|--------|------|
-| `init` | 一次性创建首个管理员、系统管理员角色和初始化状态 |
-| `login` / `logout` / `whoami` | 登录、退出和身份查询 |
-| `user` | 本地用户创建、查询、启停、密码重置和逻辑删除 |
-| `role` | 角色创建、查询、授予、撤销和逻辑删除 |
-| `model` | 模型注册、查询、激活、停用、删除 |
-| `deployment` | 模型部署创建、查询、启用、禁用 |
-| `route` | 模型路由规则创建、查询、更新、启用、禁用 |
+| 命令组 | 说明                                                 |
+|--------|------------------------------------------------------|
+| `init` | 一次性创建首个管理员、系统管理员角色和初始化状态     |
+| `login` / `logout` / `whoami` | 登录、退出和身份查询                                 |
+| `user` | 本地用户创建、查询、启停、密码重置和逻辑删除         |
+| `role` | 角色创建、查询、授予、撤销和逻辑删除                 |
+| `model` | 模型注册、查询、激活、停用、删除                     |
+| `deployment` | 模型部署创建、查询、启用、禁用                       |
+| `route` | 模型路由规则创建、查询、更新、启用、禁用             |
 | `experiment` | A/B 实验创建、更新、生命周期管理、分组管理和效果分析 |
-| `service` | Runtime Service 启动、模型加载、卸载、重载和状态查询 |
+| `service` | 启动 Runtime Service                               |
+| `runtime` | 部署模型加载、卸载、重载和运行状态查询             |
+| `console` | 启动管理控制台                                       |
 
-### 通用参数说明
+### 业务命令常用参数
 
 | 参数 | 说明 |
 |------|------|
@@ -176,7 +180,8 @@ datamind logout
 | `deployment` | `deployment.read` | `deployment.write` | - |
 | `route` | `routing.read` | `routing.write` | - |
 | `experiment` | `experiment.read` | `experiment.write` | - |
-| `service` | `runtime.read` | `runtime.manage` | - |
+| `service` | - | `runtime.manage` | - |
+| `runtime` | `runtime.read` | `runtime.manage` | - |
 | `outcome` | - | `outcome.write` | - |
 | `user` / `role` | `identity.read` | `identity.manage` | `identity.manage` |
 
@@ -1251,7 +1256,7 @@ datamind experiment variant archive var_a1b2c3d4
 
 ---
 
-## 运行服务管理
+## 服务进程管理
 
 ### 启动 Runtime Service：`service run`
 
@@ -1287,58 +1292,60 @@ datamind service run \
 datamind service run --reload
 ```
 
-### 请求加载部署模型：`service load`
+## 运行状态管理
+
+### 请求加载部署模型：`runtime load`
 
 #### 命令格式
 
 ```bash
-datamind service load <deployment-id>
+datamind runtime load <deployment-id>
   [--format <text|json>]
 ```
 
 #### 使用示例
 
 ```bash
-datamind service load dep_a1b2c3d4
-datamind service load dep_a1b2c3d4 --format json
+datamind runtime load dep_a1b2c3d4
+datamind runtime load dep_a1b2c3d4 --format json
 ```
 
-### 请求卸载部署模型：`service unload`
+### 请求卸载部署模型：`runtime unload`
 
 #### 命令格式
 
 ```bash
-datamind service unload <deployment-id>
+datamind runtime unload <deployment-id>
   [--format <text|json>]
 ```
 
 #### 使用示例
 
 ```bash
-datamind service unload dep_a1b2c3d4
+datamind runtime unload dep_a1b2c3d4
 ```
 
-### 请求重新加载部署模型：`service reload`
+### 请求重新加载部署模型：`runtime reload`
 
 #### 命令格式
 
 ```bash
-datamind service reload <deployment-id>
+datamind runtime reload <deployment-id>
   [--format <text|json>]
 ```
 
 #### 使用示例
 
 ```bash
-datamind service reload dep_a1b2c3d4
+datamind runtime reload dep_a1b2c3d4
 ```
 
-### 列出运行服务：`service list`
+### 列出运行状态：`runtime list`
 
 #### 命令格式
 
 ```bash
-datamind service list
+datamind runtime list
   [--environment <environment>]
   [--desired-status <loaded|unloaded>]
   [--limit <n>]
@@ -1359,26 +1366,26 @@ datamind service list
 #### 使用示例
 
 ```bash
-datamind service list
-datamind service list --environment development
-datamind service list --desired-status loaded
-datamind service list --format json
+datamind runtime list
+datamind runtime list --environment development
+datamind runtime list --desired-status loaded
+datamind runtime list --format json
 ```
 
-### 查看部署服务状态：`service show`
+### 查看部署运行状态：`runtime show`
 
 #### 命令格式
 
 ```bash
-datamind service show <deployment-id>
+datamind runtime show <deployment-id>
   [--format <text|json>]
 ```
 
 #### 使用示例
 
 ```bash
-datamind service show dep_a1b2c3d4
-datamind service show dep_a1b2c3d4 --format json
+datamind runtime show dep_a1b2c3d4
+datamind runtime show dep_a1b2c3d4 --format json
 ```
 
 ---
@@ -1419,17 +1426,17 @@ datamind route create dep_a1b2c3d4 \
 datamind route list --environment development
 ```
 
-### 3. 启动 Runtime Service 并加载模型
+### 3. 设置运行状态并启动 Runtime Service
 
 ```bash
+datamind runtime load dep_a1b2c3d4
+
 datamind service run \
   --environment development \
   --host 0.0.0.0 \
   --port 3000
 
-datamind service load dep_a1b2c3d4
-
-datamind service show dep_a1b2c3d4
+datamind runtime show dep_a1b2c3d4
 ```
 
 ### 4. 创建并启动 A/B 实验
@@ -1503,6 +1510,7 @@ datamind route --help
 datamind experiment --help
 datamind experiment variant --help
 datamind service --help
+datamind runtime --help
 ```
 
 再逐个检查子命令帮助：
@@ -1547,9 +1555,9 @@ datamind experiment variant deactivate --help
 datamind experiment variant archive --help
 
 datamind service run --help
-datamind service load --help
-datamind service unload --help
-datamind service reload --help
-datamind service list --help
-datamind service show --help
+datamind runtime load --help
+datamind runtime unload --help
+datamind runtime reload --help
+datamind runtime list --help
+datamind runtime show --help
 ```

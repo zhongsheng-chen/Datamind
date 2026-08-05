@@ -52,17 +52,21 @@ from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     ControlRepository,
     DeploymentRepository,
+    ExperimentRepository,
     MetadataRepository,
+    VariantRepository,
     VersionRepository,
 )
 from datamind.models.enums import (
     DeploymentStatus,
+    ExperimentVariantStatus,
     MetadataStatus,
     VersionStatus,
 )
 from datamind.models.errors import (
     DeploymentError,
     DeploymentNotFoundError,
+    InvalidDeploymentStateError,
 )
 from datamind.models.guard import ModelGuard
 from datamind.models.resolver import ModelResolver
@@ -313,6 +317,37 @@ class DeploymentLifecycleService:
             ModelGuard.validate_disable_deployment(
                 current=current_status,
             )
+
+            experiment_repo = ExperimentRepository(
+                uow.session
+            )
+            running_experiment = (
+                await experiment_repo.get_running_experiment(
+                    model_id=deployment.model_id,
+                    environment=Environment(
+                        deployment.environment
+                    ),
+                )
+            )
+
+            if running_experiment is not None:
+                variant_repo = VariantRepository(
+                    uow.session
+                )
+                variants = await variant_repo.list_variants(
+                    experiment_id=running_experiment.experiment_id,
+                    deployment_id=deployment_id,
+                    status=ExperimentVariantStatus.ACTIVE,
+                    limit=1,
+                )
+
+                if variants:
+                    raise InvalidDeploymentStateError(
+                        "部署正在被运行中的实验引用，不能禁用\n"
+                        f"部署 ID: {deployment_id}\n"
+                        "实验 ID: "
+                        f"{running_experiment.experiment_id}"
+                    )
 
             deployment_repo.deactivate_deployment(
                 deployment,

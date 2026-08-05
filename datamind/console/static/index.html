@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Datamind 管理控制台</title>
+  <meta name="description" content="开放式模型服务管理平台，连接模型交付与生产服务，让模型注册、版本管理、部署上线、API 调用、实验评估与审计追踪更加简单可靠。">
+  <link rel="stylesheet" href="./assets/style.css?v=1">
+  <script src="./assets/app.js?v=1" defer></script>
+</head>
+<body>
+  <div id="login-view" class="login-shell">
+    <section class="login-intro" aria-label="产品介绍">
+      <div class="brand brand-light">
+        <span class="brand-mark">DM</span>
+        <span>DATAMIND</span>
+      </div>
+      <div class="intro-copy">
+        <h1>让服务的每一次变化，都清晰可见。</h1>
+        <div class="intro-benefits" aria-label="产品价值">
+          <span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 14.5 9.5 9l4 4L20 6.5" />
+              <path d="M14 6.5h6v6" />
+            </svg>
+            更快上线
+          </span>
+          <span class="intro-benefit-divider" aria-hidden="true"></span>
+          <span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3.5 19 6v5.5c0 4.4-2.8 7.3-7 9-4.2-1.7-7-4.6-7-9V6l7-2.5Z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            更稳运行
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <main class="login-panel">
+      <form id="login-form" class="login-card">
+        <div>
+          <h2>登录控制台</h2>
+          <p class="muted">使用本地账户登录。</p>
+        </div>
+
+        <label>
+          <span>用户名</span>
+          <input id="username" name="username" type="text" autocomplete="username" maxlength="64" required autofocus>
+        </label>
+
+        <label>
+          <span>密码</span>
+          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+        </label>
+
+        <p id="login-error" class="form-error" role="alert" hidden></p>
+        <button id="login-button" class="primary-button" type="submit">登录</button>
+        <div class="login-meta">
+          <p class="security-note">登录信息仅用于当前会话验证，不会保存在浏览器脚本中。</p>
+          <p class="login-credit">Powered by <span>Zhongsheng Chen</span></p>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <div id="dashboard-view" class="dashboard" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">DM</span>
+        <span>DATAMIND</span>
+      </div>
+      <nav id="navigation" class="navigation" aria-label="控制台导航"></nav>
+      <div class="sidebar-footer">
+        <button id="console-home-button" class="environment-badge" type="button" aria-label="返回概览">
+          <span class="pulse-dot"></span>
+          <span>控制台</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <button id="menu-button" class="icon-button menu-button" type="button" aria-label="打开导航">☰</button>
+        <div>
+          <h1 id="page-title">概览</h1>
+        </div>
+        <div class="account">
+          <div class="account-copy">
+            <strong id="account-name">-</strong>
+            <span id="account-roles">-</span>
+          </div>
+          <button id="logout-button" class="secondary-button" type="button">退出</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="hero-card">
+          <div>
+            <h2>服务状态</h2>
+          </div>
+          <div class="snapshot-meta">
+            <div class="auto-refresh-status">
+              <span class="pulse-dot"></span>
+              <span id="realtime-status">正在建立实时连接</span>
+            </div>
+            <div class="snapshot-time">
+              <span>最近更新时间</span>
+              <strong id="snapshot-time">-</strong>
+            </div>
+          </div>
+        </section>
+
+        <section id="summary-grid" class="summary-grid" aria-label="数据摘要"></section>
+
+        <section id="request-trend" class="trend-panel" hidden>
+          <div class="trend-heading">
+            <div>
+              <h2>API 调用趋势</h2>
+              <p>最近 24 小时</p>
+            </div>
+            <div class="trend-metrics">
+              <span>调用总量 <strong id="request-trend-total">0</strong></span>
+              <span class="success">成功调用 <strong id="request-trend-success">0</strong></span>
+              <span class="failed">失败调用 <strong id="request-trend-failed">0</strong></span>
+            </div>
+          </div>
+          <div id="request-trend-chart" class="trend-chart" aria-label="最近 24 小时 API 成功与失败调用量折线图"></div>
+        </section>
+
+        <section class="data-panel">
+          <div class="panel-heading">
+            <div>
+              <h2 id="section-title">最近记录</h2>
+              <p id="section-caption" class="section-caption" hidden></p>
+            </div>
+            <div class="panel-actions">
+              <form id="search-form" class="search-form" role="search">
+                <input id="search-input" type="search" maxlength="100" placeholder="输入关键词查询" aria-label="查询关键词">
+                <button class="secondary-button" type="submit">查询</button>
+                <button id="clear-search-button" class="text-button" type="button" hidden>清除</button>
+              </form>
+              <button id="back-button" class="secondary-button" type="button" hidden>返回模型</button>
+              <button id="refresh-button" class="secondary-button" type="button">刷新数据</button>
+            </div>
+          </div>
+          <div id="table-container" class="table-container"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

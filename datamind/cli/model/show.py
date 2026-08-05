@@ -25,7 +25,6 @@ from rich.table import Table
 from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import MetadataRepository, VersionRepository
-from datamind.models.enums import VersionStatus
 from datamind.models.resolver import ModelResolver
 from datamind.utils.datetime import format_datetime, format_iso_utc, parse_datetime
 
@@ -128,13 +127,8 @@ def show_model(
             else:
                 versions = await version_repo.list_versions(
                     model_id=model.model_id,
+                    include_archived=include_archived,
                 )
-
-                if not include_archived:
-                    versions = [
-                        item for item in versions
-                        if item.status != str(VersionStatus.ARCHIVED)
-                    ]
 
                 result = {
                     "model": _model_to_dict(model),

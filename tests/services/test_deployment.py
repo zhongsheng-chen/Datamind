@@ -22,6 +22,10 @@
   - test_enable_rejects_inactive_version: 验证版本未激活
   - test_disable_sets_runtime_control_unloaded: 验证禁用并卸载
   - test_disable_creates_runtime_control: 验证首次禁用创建控制记录
+  - test_disable_rejects_running_experiment_reference:
+    验证运行中实验引用部署时拒绝禁用
+  - test_disable_allows_unreferenced_running_experiment:
+    验证其他部署存在运行中实验时仍可禁用
 """
 
 from types import SimpleNamespace
@@ -35,6 +39,7 @@ from datamind.constants import Environment
 from datamind.models.errors import (
     DeploymentError,
     DeploymentNotFoundError,
+    InvalidDeploymentStateError,
     InvalidModelStateError,
 )
 from datamind.services import DeploymentLifecycleService
@@ -77,7 +82,9 @@ def configure_service(
         model_exists: bool = True,
         version_exists: bool = True,
         control: object | None = None,
-) -> tuple[MagicMock, MagicMock, MagicMock]:
+        running_experiment: object | None = None,
+        referenced_variants: list[object] | None = None,
+) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
     """配置部署服务依赖替身"""
     model = (
         SimpleNamespace(
@@ -112,6 +119,18 @@ def configure_service(
     control_repo.get_deployment_control = AsyncMock(
         return_value=control
     )
+    experiment_repo = MagicMock()
+    experiment_repo.get_running_experiment = AsyncMock(
+        return_value=running_experiment
+    )
+    variant_repo = MagicMock()
+    variant_repo.list_variants = AsyncMock(
+        return_value=(
+            referenced_variants
+            if referenced_variants is not None
+            else []
+        )
+    )
 
     monkeypatch.setitem(
         vars(deployment_module),
@@ -140,11 +159,26 @@ def configure_service(
     )
     monkeypatch.setitem(
         vars(deployment_module),
+        "ExperimentRepository",
+        lambda _session: experiment_repo,
+    )
+    monkeypatch.setitem(
+        vars(deployment_module),
+        "VariantRepository",
+        lambda _session: variant_repo,
+    )
+    monkeypatch.setitem(
+        vars(deployment_module),
         "ModelResolver",
         lambda **_kwargs: resolver,
     )
 
-    return deployment_repo, control_repo, resolver
+    return (
+        deployment_repo,
+        control_repo,
+        resolver,
+        experiment_repo,
+    )
 
 
 @pytest.mark.asyncio
@@ -152,7 +186,7 @@ async def test_create_deployment_passes_normalized_values(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试创建部署并向仓储传递规范化参数"""
-    deployment_repo, _, resolver = configure_service(
+    deployment_repo, _, resolver, _ = configure_service(
         monkeypatch,
     )
 
@@ -189,7 +223,7 @@ async def test_create_deployment_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试模型不存在时拒绝创建部署"""
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         model_exists=False,
     )
@@ -207,7 +241,7 @@ async def test_create_deployment_rejects_missing_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试模型版本不存在时拒绝创建部署"""
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         version_exists=False,
     )
@@ -226,7 +260,7 @@ async def test_create_deployment_rejects_invalid_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试拒绝未知部署环境"""
-    deployment_repo, _, _ = configure_service(monkeypatch)
+    deployment_repo, _, _, _ = configure_service(monkeypatch)
 
     with pytest.raises(ValueError, match="not a valid Environment"):
         await DeploymentLifecycleService().create_deployment(
@@ -291,7 +325,7 @@ async def test_enable_deployment_activates_valid_deployment(
 ) -> None:
     """测试启用满足条件的部署"""
     deployment = create_deployment()
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=deployment,
     )
@@ -313,7 +347,7 @@ async def test_enable_rejects_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试启用不存在的部署时报错"""
-    deployment_repo, _, _ = configure_service(monkeypatch)
+    deployment_repo, _, _, _ = configure_service(monkeypatch)
 
     with pytest.raises(DeploymentNotFoundError, match="部署不存在"):
         await DeploymentLifecycleService().enable_deployment(
@@ -328,7 +362,7 @@ async def test_enable_rejects_inactive_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试非活动版本不能启用部署"""
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(),
         version_status="inactive",
@@ -347,7 +381,7 @@ async def test_enable_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试模型不存在时拒绝启用部署"""
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(),
         model_exists=False,
@@ -371,7 +405,7 @@ async def test_disable_sets_runtime_control_unloaded(
         desired_status="loaded",
         generation=1,
     )
-    deployment_repo, control_repo, _ = configure_service(
+    deployment_repo, control_repo, _, experiment_repo = configure_service(
         monkeypatch,
         deployment=deployment,
         control=control,
@@ -386,6 +420,10 @@ async def test_disable_sets_runtime_control_unloaded(
         deployment,
         updated_by="operator",
     )
+    experiment_repo.get_running_experiment.assert_awaited_once_with(
+        model_id="mdl_test",
+        environment=Environment.PRODUCTION,
+    )
     control_repo.set_unloaded.assert_called_once_with(
         control,
         updated_by="operator",
@@ -398,7 +436,7 @@ async def test_disable_creates_runtime_control(
 ) -> None:
     """测试首次禁用部署时创建 unloaded 控制记录"""
     deployment = create_deployment(status="active")
-    _, control_repo, _ = configure_service(
+    _, control_repo, _, _ = configure_service(
         monkeypatch,
         deployment=deployment,
     )
@@ -418,11 +456,78 @@ async def test_disable_creates_runtime_control(
 
 
 @pytest.mark.asyncio
+async def test_disable_rejects_running_experiment_reference(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试运行中实验引用部署时拒绝禁用"""
+    deployment = create_deployment(
+        status="active"
+    )
+    running_experiment = SimpleNamespace(
+        experiment_id="exp_running"
+    )
+    deployment_repo, control_repo, _, experiment_repo = configure_service(
+        monkeypatch,
+        deployment=deployment,
+        running_experiment=running_experiment,
+        referenced_variants=[
+            SimpleNamespace(
+                variant_id="var_active"
+            )
+        ],
+    )
+
+    with pytest.raises(
+            InvalidDeploymentStateError,
+            match="部署正在被运行中的实验引用",
+    ):
+        await DeploymentLifecycleService().disable_deployment(
+            deployment_id="dep_test",
+            updated_by="operator",
+        )
+
+    experiment_repo.get_running_experiment.assert_awaited_once_with(
+        model_id="mdl_test",
+        environment=Environment.PRODUCTION,
+    )
+    deployment_repo.deactivate_deployment.assert_not_called()
+    control_repo.get_deployment_control.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_disable_allows_unreferenced_running_experiment(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试运行中实验未引用当前部署时允许禁用"""
+    deployment = create_deployment(
+        status="active"
+    )
+    deployment_repo, _, _, _ = configure_service(
+        monkeypatch,
+        deployment=deployment,
+        running_experiment=SimpleNamespace(
+            experiment_id="exp_running"
+        ),
+        referenced_variants=[],
+    )
+
+    await DeploymentLifecycleService().disable_deployment(
+        deployment_id="dep_test",
+        updated_by="operator",
+    )
+
+    deployment_repo.deactivate_deployment.assert_called_once_with(
+        deployment,
+        updated_by="operator",
+    )
+
+
+@pytest.mark.asyncio
 async def test_disable_rejects_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试禁用不存在的部署时报错"""
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch
     )
 
@@ -439,7 +544,7 @@ async def test_disable_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试模型不存在时拒绝禁用部署"""
-    deployment_repo, _, _ = configure_service(
+    deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(status="active"),
         model_exists=False,

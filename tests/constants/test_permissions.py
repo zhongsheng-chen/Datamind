@@ -30,6 +30,8 @@ EXPECTED_PERMISSIONS = {
     "runtime.manage",
     "outcome.write",
     "prediction.invoke",
+    "request.read",
+    "audit.read",
 }
 
 

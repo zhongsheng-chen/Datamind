@@ -118,7 +118,6 @@ class ModelDeletionService:
                     model_id=metadata.model_id,
                     version_id=version_id,
                     version=version,
-                    include_archived=True,
                 )
                 await self._ensure_no_active_deployments(
                     deployment_repo,
@@ -219,7 +218,6 @@ class ModelDeletionService:
                     model_id=metadata.model_id,
                     version_id=version_id,
                     version=version,
-                    include_archived=True,
                 )
                 await self._ensure_version_restorable(
                     artifact_repo,
@@ -376,7 +374,6 @@ class ModelDeletionService:
                     model_id=metadata.model_id,
                     version_id=version_id,
                     version=version,
-                    include_archived=True,
                 )
 
                 if target_version.deleted_at is None:

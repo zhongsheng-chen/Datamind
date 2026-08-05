@@ -2,7 +2,7 @@
 
 """运行服务命令
 
-提供 Datamind Runtime Service 启动功能。
+提供模型评分服务启动功能。
 
 核心功能：
   - run_service: 启动模型服务
@@ -22,7 +22,6 @@ import signal
 import subprocess
 import tempfile
 import uuid
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from types import FrameType
 from typing import Callable
@@ -31,8 +30,12 @@ import structlog
 import typer
 from rich.console import Console
 
-from datamind._build import BUILD_COMMIT
 from datamind.audit import audit
+from datamind.cli.branding import (
+    build_http_url,
+    get_app_version,
+    print_startup_summary,
+)
 from datamind.cli.common import cli_context
 from datamind.config import get_settings
 from datamind.logging import setup_logging, shutdown_logging
@@ -47,55 +50,6 @@ SERVICE_TARGET = (
     "DatamindRuntimeService"
 )
 
-POWERED_BY = "Zhongsheng Chen"
-
-LOGO = r"""
- ____        _                  _           _ 
-|  _ \  __ _| |_ __ _ _ __ ___ (_)_ __   __| |
-| | | |/ _` | __/ _` | '_ ` _ \| | '_ \ / _` |
-| |_| | (_| | || (_| | | | | | | | | | | (_| |
-|____/ \__,_|\__\__,_|_| |_| |_|_|_| |_|\__,_|
-""".strip("\n")
-
-
-def _get_app_version() -> str:
-    """获取 Datamind 版本号"""
-    try:
-        app_version = version("datamind")
-
-    except PackageNotFoundError:
-        app_version = "unknown"
-
-    if BUILD_COMMIT != "dev":
-        app_version = f"{app_version} ({BUILD_COMMIT})"
-
-    return app_version
-
-
-def _build_startup_summary(
-        result: dict,
-) -> str:
-    """构建启动摘要文本
-
-    参数：
-        result: 服务启动结果
-
-    返回：
-        启动摘要文本
-    """
-    return (
-        f"{LOGO}\n\n"
-        f"Datamind v{result['version']} · Powered by {POWERED_BY}\n\n"
-        f"{'NAME':<16} : {result['name']}\n"
-        f"{'ENVIRONMENT':<16} : {result['environment']}\n"
-        f"{'HOST':<16} : {result['host']}\n"
-        f"{'PORT':<16} : {result['port']}\n"
-        f"{'WORKERS':<16} : {result['workers']}\n"
-        f"{'RELOAD':<16} : {result['reload']}\n"
-        f"{'PID':<16} : {result['pid']}"
-    )
-
-
 def _print_startup_summary(
         result: dict,
 ) -> None:
@@ -104,25 +58,19 @@ def _print_startup_summary(
     参数：
         result: 服务启动结果
     """
-    console.print()
-    console.print(LOGO, style="bold cyan")
-    console.print()
-    console.print(
-        f"[bold]Datamind[/bold] "
-        f"[cyan]v{result['version']}[/cyan] "
-        f"[dim]· Powered by {POWERED_BY}[/dim]"
+    print_startup_summary(
+        console,
+        {
+            "NAME": result["name"],
+            "ENVIRONMENT": result["environment"],
+            "HOST": result["host"],
+            "PORT": result["port"],
+            "WORKERS": result["workers"],
+            "RELOAD": result["reload"],
+            "PID": result["pid"],
+        },
+        app_version=result["version"],
     )
-    console.print()
-
-    console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name']}")
-    console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-    console.print(f"[cyan]{'HOST':<16}[/cyan] : {result['host']}")
-    console.print(f"[cyan]{'PORT':<16}[/cyan] : {result['port']}")
-    console.print(f"[cyan]{'WORKERS':<16}[/cyan] : {result['workers']}")
-    console.print(f"[cyan]{'RELOAD':<16}[/cyan] : {result['reload']}")
-    console.print(f"[cyan]{'PID':<16}[/cyan] : {result['pid']}")
-
-    console.print()
 
 
 def _log_startup_summary(
@@ -429,7 +377,7 @@ def run_service(
                 "--port 必须在 1 到 65535 之间"
             )
 
-        app_version = _get_app_version()
+        app_version = get_app_version()
 
         command: list[str] = [
             "bentoml",
@@ -588,6 +536,18 @@ def run_service(
             service_instance_id=current_service_instance_id,
             ready_dir=str(current_ready_dir),
             pid=result["pid"],
+        )
+
+        service_url = build_http_url(
+            host=run_host,
+            port=run_port,
+        )
+        console.print(
+            "服务地址："
+            f"[cyan]{service_url}[/cyan]"
+        )
+        console.print(
+            "按 Ctrl+C 停止\n"
         )
 
         return result

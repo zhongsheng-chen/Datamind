@@ -6,7 +6,7 @@
 并按照原始请求决策补齐实验关联信息。
 
 核心功能：
-  - OutcomeService.submit: 幂等提交实验结果
+  - submit: 幂等提交实验结果
 
 使用示例：
   from datamind.services.outcome import OutcomeService

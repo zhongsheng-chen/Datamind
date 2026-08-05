@@ -23,6 +23,8 @@
     验证提交失败时回滚并关闭会话
   - test_rollback_failure_still_closes_session:
     验证回滚失败时仍关闭会话
+  - test_cancellation_waits_for_session_close:
+    验证任务取消时仍等待会话关闭
   - test_close_is_idempotent:
     验证重复关闭保持幂等
   - test_close_clears_state_before_session_close:
@@ -37,6 +39,7 @@
     验证关闭后的工作单元可以复用
 """
 
+import asyncio
 from collections.abc import Iterator
 from typing import cast
 from unittest.mock import (
@@ -478,6 +481,59 @@ async def test_rollback_failure_still_closes_session(
             None,
             None,
         )
+
+    commit.assert_not_awaited()
+    rollback.assert_awaited_once_with()
+    close.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_cancellation_waits_for_session_close(
+        patch_session_factory: MagicMock,
+        session_resources: tuple[
+            AsyncSession,
+            AsyncMock,
+            AsyncMock,
+            AsyncMock,
+        ],
+) -> None:
+    """验证任务取消时仍等待会话关闭"""
+    _, commit, rollback, close = (
+        session_resources
+    )
+    entered = asyncio.Event()
+    close_started = asyncio.Event()
+    allow_close = asyncio.Event()
+
+    async def delayed_close() -> None:
+        close_started.set()
+        await allow_close.wait()
+
+    close.side_effect = delayed_close
+
+    async def run_transaction() -> None:
+        async with UnitOfWork():
+            entered.set()
+            await asyncio.Event().wait()
+
+    task = asyncio.create_task(
+        run_transaction()
+    )
+    await entered.wait()
+    task.cancel()
+    await close_started.wait()
+
+    for _ in range(3):
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+
+    allow_close.set()
+
+    with pytest.raises(
+            asyncio.CancelledError,
+    ):
+        await task
 
     commit.assert_not_awaited()
     rollback.assert_awaited_once_with()

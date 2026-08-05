@@ -1,14 +1,14 @@
-# datamind/cli/service/list.py
+# datamind/cli/runtime/list.py
 
-"""服务列表命令
+"""运行状态列表命令
 
-提供运行服务状态列表查询功能。
+提供部署运行状态列表查询功能。
 
 核心功能：
-  - list_services: 查询运行服务列表
+  - list_runtimes: 查询部署运行状态列表
 
 使用示例：
-  python -m datamind.cli.main service list
+  python -m datamind.cli.main runtime list
 """
 
 import asyncio
@@ -28,14 +28,14 @@ from datamind.utils.datetime import (
     parse_datetime,
 )
 
-app = typer.Typer(help="服务列表命令")
+app = typer.Typer(help="运行状态列表命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
 
 
 @app.command("list")
-def list_services(
+def list_runtimes(
         environment: str | None = typer.Option(
             None,
             "--environment",
@@ -62,7 +62,7 @@ def list_services(
             help="输出格式：text / json"
         ),
 ):
-    """查询运行服务列表"""
+    """查询部署运行状态列表"""
 
     async def _run():
         if output not in ("text", "json"):
@@ -95,7 +95,7 @@ def list_services(
             )
 
         logger.info(
-            "开始查询运行服务列表",
+            "开始查询部署运行状态列表",
             environment=environment,
             desired_status=desired_status,
             limit=limit,
@@ -156,7 +156,7 @@ def list_services(
             return result
 
         console.print(
-            f"[dim]共找到 {len(result)} 个运行服务[/dim]\n"
+            f"[dim]共找到 {len(result)} 个运行状态[/dim]\n"
         )
 
         if not result:

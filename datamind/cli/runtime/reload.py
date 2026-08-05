@@ -1,14 +1,14 @@
-# datamind/cli/service/load.py
+# datamind/cli/runtime/reload.py
 
-"""加载服务命令
+"""重新加载部署命令
 
-提供部署模型加载请求功能。
+提供部署模型重新加载请求功能。
 
 核心功能：
-  - load_service: 请求加载部署模型
+  - reload_runtime: 请求重新加载部署模型
 
 使用示例：
-  python -m datamind.cli.main service load dep_0123456789abcdef
+  python -m datamind.cli.main runtime reload dep_0123456789abcdef
 """
 
 import asyncio
@@ -24,14 +24,14 @@ from datamind.cli.common import cli_context
 from datamind.services import RuntimeControlService
 from datamind.utils.datetime import format_iso_utc, parse_datetime
 
-app = typer.Typer(help="加载服务命令")
+app = typer.Typer(help="重新加载部署命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
 
 
-@app.command("load")
-def load_service(
+@app.command("reload")
+def reload_runtime(
         deployment_id: str = typer.Argument(
             ...,
             help="部署 ID"
@@ -42,10 +42,10 @@ def load_service(
             help="输出格式：text / json"
         ),
 ):
-    """请求加载部署模型"""
+    """请求重新加载部署模型"""
 
     @audit(
-        action="service.load",
+        action="service.reload",
         target_type="deployment",
         target_id_from="target_deployment_id",
     )
@@ -60,13 +60,13 @@ def load_service(
             )
 
         logger.info(
-            "开始提交模型加载请求",
+            "开始提交模型重新加载请求",
             deployment_id=target_deployment_id,
         )
 
         controller = RuntimeControlService()
 
-        raw_result = await controller.load(
+        raw_result = await controller.reload(
             deployment_id=target_deployment_id,
             operator=actor,
         )
@@ -102,7 +102,7 @@ def load_service(
             return result
 
         console.print(
-            "[green]模型加载请求提交成功[/green]\n"
+            "[green]模型重新加载请求提交成功[/green]\n"
         )
 
         console.print(

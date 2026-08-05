@@ -7,6 +7,8 @@
 核心功能：
   - test_activate_model: 验证激活模型
   - test_activate_model_version: 验证激活模型和指定版本
+  - test_activate_rejects_archived_version:
+    验证归档版本按非法状态迁移拒绝激活
   - test_deactivate_model: 验证停用模型
   - test_deactivate_model_version: 验证停用指定版本
   - test_deactivate_rejects_model_with_active_deployment:
@@ -152,6 +154,34 @@ async def test_activate_model_version(
     assert version_record.updated_by == "operator"
     assert result["version_id"] == "ver_test"
     assert result["version_status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_activate_rejects_archived_version(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试归档版本按非法状态迁移拒绝激活"""
+    resolver, _ = configure_repositories(
+        monkeypatch,
+        model_status="active",
+        version_status="archived",
+        deployments=[],
+    )
+
+    with pytest.raises(
+        InvalidModelStateError,
+        match="archived.*active",
+    ):
+        await ModelLifecycleService().activate(
+            model_id="mdl_test",
+            version="1.0.0",
+        )
+
+    resolver.resolve_version.assert_awaited_once_with(
+        model_id="mdl_test",
+        version="1.0.0",
+        version_id=None,
+    )
 
 
 @pytest.mark.asyncio

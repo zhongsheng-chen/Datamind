@@ -79,7 +79,18 @@ def create_ab_test_result(
         experiment=MagicMock(),
         variant=MagicMock(),
         assignment=MagicMock(),
-        context={"traffic_ratio": 0.2},
+        context={
+            "source": "new_assignment",
+            "model_id": "mdl_test",
+            "experiment_id": "exp_test",
+            "variant_id": "var_test",
+            "deployment_id": deployment_id,
+            "subject_key": "customer_10001",
+            "bucket": "bucket_1000",
+            "variant_weight": 0.2,
+            "traffic_ratio": 0.2,
+            "point": 0.4,
+        },
     )
 
 
@@ -500,7 +511,11 @@ async def test_resolve_uses_ab_test_deployment(
     assert result.source == str(DecisionStrategy.EXPERIMENT)
     assert result.experiment_id == "exp_test"
     assert result.variant_id == "var_test"
-    assert result.context["traffic_ratio"] == 0.2
+    assert result.context == {
+        "traffic_ratio": 0.2,
+        "point": 0.4,
+        "assignment_source": "new_assignment",
+    }
 
 
 @pytest.mark.asyncio

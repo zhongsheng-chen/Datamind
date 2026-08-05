@@ -26,6 +26,7 @@
       )
 """
 
+import asyncio
 import inspect
 from types import TracebackType
 from collections.abc import Callable
@@ -111,12 +112,41 @@ class UnitOfWork:
         正常退出时提交事务；
         发生异常或已标记回滚时回滚事务。
         """
+        exit_task = asyncio.create_task(
+            self._finish(
+                exc_type
+            )
+        )
+
+        try:
+            await asyncio.shield(
+                exit_task
+            )
+        except asyncio.CancelledError as cancellation:
+            while not exit_task.done():
+                try:
+                    await asyncio.shield(
+                        exit_task
+                    )
+                except asyncio.CancelledError:
+                    continue
+
+            exit_task.result()
+            raise cancellation
+
+        return False
+
+    async def _finish(
+            self,
+            exc_type: type[BaseException] | None,
+    ) -> None:
+        """完成事务并关闭会话"""
         session = self.session
 
         try:
             if (
-                exc_type is not None
-                or self._rollback_only
+                    exc_type is not None
+                    or self._rollback_only
             ):
                 await session.rollback()
                 await self._run_callbacks(
@@ -138,11 +168,8 @@ class UnitOfWork:
                         self._after_commit,
                         suppress_errors=False,
                     )
-
         finally:
             await self.close()
-
-        return False
 
     @staticmethod
     async def _run_callbacks(

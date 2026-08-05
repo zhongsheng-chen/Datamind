@@ -20,6 +20,7 @@
   - VersionRepository: 模型版本仓储
   - DeploymentPatch: 部署更新字段
   - DeploymentRepository: 部署仓储
+  - DashboardRepository: 管理控制台统计仓储
   - ControlRepository: 模型运行控制仓储
   - RuntimePatch: 模型运行更新字段
   - RuntimeRepository: 模型运行仓储
@@ -36,6 +37,7 @@
   - OutcomeRepository: 实验结果仓储
   - AuditRepository: 审计日志仓储
   - ArtifactRepository: 模型制品仓储
+  - OutboxRepository: 控制台事件仓储
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -89,6 +91,8 @@ from datamind.db.repositories.runtime import (
     RuntimePatch,
     RuntimeRepository,
 )
+from datamind.db.repositories.dashboard import DashboardRepository
+from datamind.db.repositories.outbox import OutboxRepository
 from datamind.db.repositories.system import SystemStateRepository
 from datamind.db.repositories.token import TokenRepository
 from datamind.db.repositories.user import (
@@ -120,6 +124,7 @@ __all__ = [
     "VersionRepository",
     "DeploymentPatch",
     "DeploymentRepository",
+    "DashboardRepository",
     "ControlRepository",
     "RuntimePatch",
     "RuntimeRepository",
@@ -136,4 +141,5 @@ __all__ = [
     "OutcomeRepository",
     "AuditRepository",
     "ArtifactRepository",
+    "OutboxRepository",
 ]

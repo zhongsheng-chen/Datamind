@@ -33,4 +33,6 @@ SUPPORTED_PERMISSIONS: FrozenSet[str] = frozenset({
     "runtime.manage",
     "outcome.write",
     "prediction.invoke",
+    "request.read",
+    "audit.read",
 })

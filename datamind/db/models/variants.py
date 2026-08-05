@@ -86,6 +86,12 @@ class Variant(
             unique=True,
         ),
         Index(
+            "uk_variants_experiment_deployment",
+            "experiment_id",
+            "deployment_id",
+            unique=True,
+        ),
+        Index(
             "uk_variants_active_control",
             "experiment_id",
             unique=True,

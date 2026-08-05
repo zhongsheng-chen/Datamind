@@ -587,6 +587,38 @@ class RuntimeRouter:
             deployment: Deployment,
     ) -> RouteResult:
         """构造 A/B 实验路由结果"""
+        duplicate_fields = {
+            "assignment_id",
+            "bucket",
+            "deployment_id",
+            "environment",
+            "experiment_id",
+            "model_id",
+            "strategy",
+            "subject_key",
+            "subject_type",
+            "variant_id",
+            "variant_name",
+            "variant_weight",
+        }
+        context = {
+            key: value
+            for key, value in (result.context or {}).items()
+            if key not in duplicate_fields
+        }
+        assignment_source = context.pop(
+            "source",
+            None,
+        )
+
+        if assignment_source in {
+            "existing_assignment",
+            "new_assignment",
+        }:
+            context[
+                "assignment_source"
+            ] = assignment_source
+
         return RouteResult(
             model_id=deployment.model_id,
             version_id=deployment.version_id,
@@ -603,16 +635,7 @@ class RuntimeRouter:
             bucket=result.bucket,
             group=result.group,
             weight=result.weight,
-            context={
-                "source": "ab_test_engine",
-                "model_id": deployment.model_id,
-                "environment": deployment.environment,
-                "experiment_id": result.experiment_id,
-                "variant_id": result.variant_id,
-                "variant_name": result.group,
-                "deployment_id": deployment.deployment_id,
-                **(result.context or {}),
-            },
+            context=context,
         )
 
     @staticmethod
@@ -643,9 +666,6 @@ class RuntimeRouter:
             bucket=bucket,
             weight=weight,
             context={
-                "model_id": deployment.model_id,
-                "deployment_id": deployment.deployment_id,
-                "environment": deployment.environment,
                 "rollout_type": deployment.rollout_type,
                 "role": deployment.role,
                 **(context or {}),

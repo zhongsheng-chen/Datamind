@@ -49,7 +49,10 @@ from dataclasses import (
     dataclass,
     fields,
 )
-from datetime import datetime
+from datetime import (
+    datetime,
+    timezone,
+)
 from typing import Any
 
 from sqlalchemy import (
@@ -547,14 +550,36 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """启动实验"""
-        return self._transition_experiment(
+        """启动实验
+
+        未配置生效开始时间时，使用实验启动时间。
+        """
+        current_status = ExperimentStatus(
+            experiment.status
+        )
+
+        if current_status == ExperimentStatus.RUNNING:
+            return experiment
+
+        started_experiment = self._transition_experiment(
             experiment,
             target_status=(
                 ExperimentStatus.RUNNING
             ),
             updated_by=updated_by,
         )
+        effective_from: Any = (
+            started_experiment.effective_from
+        )
+
+        if effective_from is None:
+            started_experiment.effective_from = (
+                datetime.now(
+                    timezone.utc
+                )
+            )
+
+        return started_experiment
 
     def stop_experiment(
             self,

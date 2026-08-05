@@ -16,6 +16,7 @@ import datamind.services.errors as service_errors
 
 
 EXPECTED_EXPORTS = {
+    "DashboardService",
     "DeploymentLifecycleService",
     "InitializationService",
     "IdentityService",

@@ -249,6 +249,18 @@ def update_variant(
                         f"实验已存在其他启用状态的同名分组: {target_name}"
                     )
 
+                deployment_variant = _find_other_variant_by_deployment(
+                        variants=variants,
+                        current_variant_id=variant.variant_id,
+                        deployment_id=target_deployment_id,
+                )
+
+                if deployment_variant is not None:
+                    raise InvalidExperimentConfigError(
+                        "实验已存在绑定该部署的其他分组: "
+                        f"{deployment_variant.variant_id}"
+                    )
+
                 if (
                         target_is_control
                         and target_variant_status == VARIANT_STATUS_ACTIVE
@@ -470,6 +482,26 @@ def _has_other_active_variant_name(
         and item.variant_id != current_variant_id
         and str(item.name or "").strip().lower() == target_name
         for item in variants
+    )
+
+
+def _find_other_variant_by_deployment(
+        *,
+        variants: list[Variant],
+        current_variant_id: str,
+        deployment_id: str,
+) -> Variant | None:
+    """查找绑定指定部署的其他分组"""
+    return next(
+        (
+            item
+            for item in variants
+            if (
+                    item.variant_id != current_variant_id
+                    and item.deployment_id == deployment_id
+            )
+        ),
+        None,
     )
 
 

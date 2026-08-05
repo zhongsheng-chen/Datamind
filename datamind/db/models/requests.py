@@ -2,8 +2,8 @@
 
 """请求表
 
-记录进入系统的原始请求信息，
-用于请求追踪、异常排查和性能分析。
+记录进入系统的请求及其处理结果，
+用于调用追踪、异常排查和性能分析。
 
 核心功能：
   - Request: 原始请求记录
@@ -27,6 +27,12 @@
               "credit_utilization_ratio": 0.45,
               "delinquency_count": 0,
           },
+      },
+      response={
+          "success": True,
+          "request_id": "req_0123456789abcdef",
+          "decision_id": "dcs_0123456789abcdef",
+          "score": 680,
       },
       source="http",
       status="received",
@@ -114,6 +120,13 @@ class Request(
             ),
             name="payload_object",
         ),
+        CheckConstraint(
+            (
+                "response IS NULL "
+                "OR jsonb_typeof(response) = 'object'"
+            ),
+            name="response_object",
+        ),
     )
 
     request_id = Column(
@@ -136,6 +149,17 @@ class Request(
         comment=(
             "请求负载，JSON 格式。"
             "可记录模型、部署、主体和特征等请求信息"
+        ),
+    )
+
+    response = Column(
+        JSONB(
+            none_as_null=True
+        ),
+        nullable=True,
+        comment=(
+            "请求处理结果，JSON 格式。"
+            "记录返回给调用方的业务响应"
         ),
     )
 

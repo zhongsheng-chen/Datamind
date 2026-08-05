@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: fda2f8363cd0
+Revision ID: 7bf7278a76d1
 Revises: 
-Create Date: 2026-08-03 02:12:39.003727+00:00
+Create Date: 2026-08-10 08:10:58.073514+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'fda2f8363cd0'
+revision = '7bf7278a76d1'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -316,6 +316,20 @@ def upgrade() -> None:
     op.create_index('idx_metadata_task_type', 'metadata', ['task_type'], unique=False)
     op.create_index('uk_metadata_model_id', 'metadata', ['model_id'], unique=True)
     op.create_index('uk_metadata_name', 'metadata', ['name'], unique=True)
+    op.create_table('outbox',
+    sa.Column('event_id', sa.BigInteger(), autoincrement=True, nullable=False, comment='事件游标'),
+    sa.Column('topic', sa.String(length=32), nullable=False, comment='控制台数据主题'),
+    sa.Column('resource_id', sa.String(length=64), nullable=True, comment='发生变化的资源 ID'),
+    sa.Column('action', sa.String(length=16), nullable=False, comment='变更类型：insert / update / delete'),
+    sa.Column('schema_version', sa.Integer(), server_default=sa.text('1'), nullable=False, comment='事件结构版本'),
+    sa.Column('occurred_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='事件发生时间'),
+    sa.CheckConstraint("action IN ('insert', 'update', 'delete')", name=op.f('ck_outbox_action_valid')),
+    sa.CheckConstraint("topic IN ('models', 'versions', 'deployments', 'runtimes', 'requests', 'experiments', 'audits')", name=op.f('ck_outbox_topic_valid')),
+    sa.CheckConstraint('schema_version >= 1', name=op.f('ck_outbox_schema_version_positive')),
+    sa.PrimaryKeyConstraint('event_id', name=op.f('pk_outbox'))
+    )
+    op.create_index('idx_outbox_occurred_at', 'outbox', ['occurred_at'], unique=False)
+    op.create_index('idx_outbox_topic_event_id', 'outbox', ['topic', 'event_id'], unique=False)
     op.create_table('outcomes',
     sa.Column('outcome_id', sa.String(length=64), nullable=False, comment='结果 ID，实验结果记录的唯一标识'),
     sa.Column('experiment_id', sa.String(length=64), nullable=True, comment='实验 ID'),
@@ -354,6 +368,7 @@ def upgrade() -> None:
     sa.Column('request_id', sa.String(length=64), nullable=False, comment='请求 ID，请求的唯一标识'),
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='目标模型 ID'),
     sa.Column('payload', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='请求负载，JSON 格式。可记录模型、部署、主体和特征等请求信息'),
+    sa.Column('response', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='请求处理结果，JSON 格式。记录返回给调用方的业务响应'),
     sa.Column('source', sa.String(length=50), nullable=True, comment='请求来源，例如 api'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'received'"), nullable=False, comment='请求状态，可选值：received / success / failed'),
     sa.Column('error', sa.TEXT(), nullable=True, comment='请求处理失败时的错误信息'),
@@ -364,6 +379,7 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
     sa.CheckConstraint("payload IS NULL OR jsonb_typeof(payload) = 'object'", name=op.f('ck_requests_payload_object')),
+    sa.CheckConstraint("response IS NULL OR jsonb_typeof(response) = 'object'", name=op.f('ck_requests_response_object')),
     sa.CheckConstraint("status IN ('received', 'success', 'failed')", name=op.f('ck_requests_status_valid')),
     sa.CheckConstraint('latency_ms IS NULL OR latency_ms >= 0', name=op.f('ck_requests_latency_ms_non_negative')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_requests'))
@@ -561,6 +577,7 @@ def upgrade() -> None:
     op.create_index('idx_variants_experiment_status', 'variants', ['experiment_id', 'status'], unique=False)
     op.create_index('idx_variants_status', 'variants', ['status'], unique=False)
     op.create_index('uk_variants_active_control', 'variants', ['experiment_id'], unique=True, postgresql_where=sa.text("is_control = true AND status = 'active'"))
+    op.create_index('uk_variants_experiment_deployment', 'variants', ['experiment_id', 'deployment_id'], unique=True)
     op.create_index('uk_variants_experiment_name', 'variants', ['experiment_id', 'name'], unique=True)
     op.create_index('uk_variants_variant_id', 'variants', ['variant_id'], unique=True)
     op.create_table('versions',
@@ -626,6 +643,7 @@ def downgrade() -> None:
     op.drop_table('versions')
     op.drop_index('uk_variants_variant_id', table_name='variants')
     op.drop_index('uk_variants_experiment_name', table_name='variants')
+    op.drop_index('uk_variants_experiment_deployment', table_name='variants')
     op.drop_index('uk_variants_active_control', table_name='variants', postgresql_where=sa.text("is_control = true AND status = 'active'"))
     op.drop_index('idx_variants_status', table_name='variants')
     op.drop_index('idx_variants_experiment_status', table_name='variants')
@@ -689,6 +707,9 @@ def downgrade() -> None:
     op.drop_index('idx_outcomes_created_at', table_name='outcomes')
     op.drop_index('idx_outcomes_assignment_id', table_name='outcomes')
     op.drop_table('outcomes')
+    op.drop_index('idx_outbox_topic_event_id', table_name='outbox')
+    op.drop_index('idx_outbox_occurred_at', table_name='outbox')
+    op.drop_table('outbox')
     op.drop_index('uk_metadata_name', table_name='metadata')
     op.drop_index('uk_metadata_model_id', table_name='metadata')
     op.drop_index('idx_metadata_task_type', table_name='metadata')

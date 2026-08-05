@@ -24,6 +24,7 @@
   - Decision: 请求决策表
   - Outcome: 实验结果表
   - Audit: 审计日志表
+  - OutboxEvent: 控制台变更事件表
 
 使用示例：
   from datamind.db.models import (
@@ -62,6 +63,7 @@ from datamind.db.models.requests import Request
 from datamind.db.models.decisions import Decision
 from datamind.db.models.outcomes import Outcome
 from datamind.db.models.audit import Audit
+from datamind.db.models.outbox import OutboxEvent
 
 
 __all__ = [
@@ -84,4 +86,5 @@ __all__ = [
     "Decision",
     "Outcome",
     "Audit",
+    "OutboxEvent",
 ]

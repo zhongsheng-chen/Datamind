@@ -2,8 +2,8 @@
 
 """请求仓储
 
-提供系统原始请求记录的查询与写入能力，
-用于请求追踪、异常排查和性能分析。
+提供请求及处理结果的查询与写入能力，
+用于调用追踪、异常排查和性能分析。
 
 核心功能：
   - get_request: 获取请求记录
@@ -42,6 +42,11 @@
 
       repo.mark_success(
           request,
+          response={
+              "success": True,
+              "request_id": request.request_id,
+              "score": 680,
+          },
           latency_ms=125.5,
       )
 """
@@ -319,12 +324,14 @@ class RequestRepository(BaseRepository):
             self,
             request: Request,
             *,
+            response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
         """标记请求处理成功
 
         参数：
             request: 请求记录对象
+            response: 请求处理结果（可选）
             latency_ms: 处理耗时（可选）
 
         返回：
@@ -340,6 +347,9 @@ class RequestRepository(BaseRepository):
         request.status = "success"
         request.error = None
 
+        if response is not None:
+            request.response = response
+
         if latency_ms is not None:
             request.latency_ms = latency_ms
 
@@ -350,6 +360,7 @@ class RequestRepository(BaseRepository):
             request: Request,
             *,
             error: str,
+            response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
         """标记请求处理失败
@@ -357,6 +368,7 @@ class RequestRepository(BaseRepository):
         参数：
             request: 请求记录对象
             error: 错误信息
+            response: 请求处理结果（可选）
             latency_ms: 处理耗时（可选）
 
         返回：
@@ -371,6 +383,9 @@ class RequestRepository(BaseRepository):
 
         request.status = "failed"
         request.error = error
+
+        if response is not None:
+            request.response = response
 
         if latency_ms is not None:
             request.latency_ms = latency_ms

@@ -328,7 +328,7 @@ class RuntimeControlService:
             if control is None:
                 raise RuntimeError(
                     "运行控制记录不存在，"
-                    "请先执行 service load: "
+                    "请先执行 runtime load: "
                     f"{deployment_id}"
                 )
 

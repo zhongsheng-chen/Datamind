@@ -96,6 +96,9 @@ def test_credential_store_rejects_invalid_content(
         "not-json",
         encoding="utf-8",
     )
+    path.chmod(
+        0o600
+    )
 
     with pytest.raises(
             CredentialError,
