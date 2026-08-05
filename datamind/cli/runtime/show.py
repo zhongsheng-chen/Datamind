@@ -1,14 +1,14 @@
-# datamind/cli/service/show.py
+# datamind/cli/runtime/show.py
 
-"""查看服务状态命令
+"""查看运行状态命令
 
 提供指定部署的运行状态查询功能。
 
 核心功能：
-  - show_service: 查看部署服务运行状态
+  - show_runtime: 查看部署运行状态
 
 使用示例：
-  python -m datamind.cli.main service show dep_0123456789abcdef
+  python -m datamind.cli.main runtime show dep_0123456789abcdef
 """
 
 import asyncio
@@ -29,14 +29,14 @@ from datamind.utils.datetime import (
     parse_datetime,
 )
 
-app = typer.Typer(help="查看服务状态命令")
+app = typer.Typer(help="查看运行状态命令")
 console = Console()
 
 logger = structlog.get_logger(__name__)
 
 
 @app.command("show")
-def show_service(
+def show_runtime(
         deployment_id: str = typer.Argument(
             ...,
             help="部署 ID"
@@ -47,7 +47,7 @@ def show_service(
             help="输出格式：text / json"
         ),
 ):
-    """查看部署服务运行状态"""
+    """查看部署运行状态"""
 
     async def _run():
         if output not in ("text", "json"):
@@ -56,7 +56,7 @@ def show_service(
             )
 
         logger.info(
-            "开始查询部署服务状态",
+            "开始查询部署运行状态",
             deployment_id=deployment_id,
         )
 
@@ -142,7 +142,7 @@ def show_service(
             return result
 
         console.print(
-            "[green]服务详情[/green]\n"
+            "[green]运行状态详情[/green]\n"
         )
 
         console.print(

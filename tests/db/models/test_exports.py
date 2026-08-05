@@ -34,6 +34,7 @@ EXPECTED_EXPORTS = {
     "Outcome",
     "Audit",
     "Artifact",
+    "OutboxEvent",
 }
 
 

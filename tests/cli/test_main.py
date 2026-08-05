@@ -70,11 +70,12 @@ BUSINESS_COMMANDS = [
     "experiment variant deactivate",
     "experiment variant archive",
     "service run",
-    "service list",
-    "service show",
-    "service load",
-    "service unload",
-    "service reload",
+    "runtime list",
+    "runtime show",
+    "runtime load",
+    "runtime unload",
+    "runtime reload",
+    "console run",
     "outcome submit",
     "user create",
     "user list",
@@ -130,6 +131,34 @@ def test_main_help_lists_command_groups() -> None:
     assert "outcome" in result.stdout
     assert "user" in result.stdout
     assert "role" in result.stdout
+    assert "runtime" in result.stdout
+    assert "console" in result.stdout
+
+
+def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
+    """测试服务进程与运行状态命令分别注册"""
+    service_result = runner.invoke(
+        app,
+        ["service", "--help"],
+    )
+    runtime_result = runner.invoke(
+        app,
+        ["runtime", "--help"],
+    )
+
+    assert service_result.exit_code == 0
+    assert runtime_result.exit_code == 0
+    assert "run" in service_result.stdout
+
+    for command in (
+            "load",
+            "unload",
+            "reload",
+            "list",
+            "show",
+    ):
+        assert command not in service_result.stdout
+        assert command in runtime_result.stdout
 
 
 def test_init_help_lists_initialization_options() -> None:

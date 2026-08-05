@@ -30,7 +30,7 @@
     --effective-to 2026-07-31T23:59:59+08:00
 
 说明：
-  - effective_from 默认当前 UTC 时间
+  - effective_from 未指定时，在启动实验时设置
   - effective_to 默认 None，表示不限制结束时间
   - effective_from / effective_to 使用 ISO 日期时间格式
   - bucket_key 表示分桶主体字段，用于从请求数据中提取 subject_key
@@ -41,7 +41,6 @@
 import asyncio
 import json
 from typing import Any
-from datetime import datetime, timezone
 
 import structlog
 import typer
@@ -107,7 +106,11 @@ def create_experiment(
         effective_from: str | None = typer.Option(
             None,
             "--effective-from",
-            help="生效开始时间，ISO 格式，例如 2026-07-01T09:00:00+08:00；默认当前时间"
+            help=(
+                "生效开始时间，ISO 格式，"
+                "例如 2026-07-01T09:00:00+08:00；"
+                "未指定时在启动实验时设置"
+            )
         ),
         effective_to: str | None = typer.Option(
             None,
@@ -176,11 +179,9 @@ def create_experiment(
             console.print("[red]时间格式错误，请使用 ISO 格式[/red]")
             raise typer.Exit(1)
 
-        if effective_from_value is None:
-            effective_from_value = datetime.now(timezone.utc)
-
         if (
-                effective_to_value is not None
+                effective_from_value is not None
+                and effective_to_value is not None
                 and effective_to_value <= effective_from_value
         ):
             raise typer.BadParameter("--effective-to 必须晚于 --effective-from")

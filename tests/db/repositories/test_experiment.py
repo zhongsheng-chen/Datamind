@@ -20,6 +20,8 @@
     验证创建实验并设置 draft 状态
   - test_update_experiment:
     验证普通实验字段更新
+  - test_start_experiment:
+    验证启动实验时设置生效时间
   - test_experiment_lifecycle:
     验证实验生命周期状态迁移
 """
@@ -43,6 +45,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+import datamind.db.repositories.experiment as experiment_module
 from datamind.constants import Environment
 from datamind.db.models.experiments import Experiment
 from datamind.db.repositories.experiment import (
@@ -886,6 +889,48 @@ def test_experiment_lifecycle_transition(
         current=current_status,
         target=target_status,
     )
+
+
+def test_start_experiment_sets_missing_effective_from(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证启动时使用当前时间补全生效时间"""
+    clock = MagicMock()
+    clock.now.return_value = CURRENT_TIME
+    monkeypatch.setitem(
+        vars(experiment_module),
+        "datetime",
+        clock,
+    )
+    repository, _, _ = create_repository()
+    experiment = create_experiment(
+        effective_from=None
+    )
+
+    result = repository.start_experiment(
+        experiment,
+        updated_by="operator",
+    )
+
+    assert result.effective_from == CURRENT_TIME
+    clock.now.assert_called_once_with(
+        timezone.utc
+    )
+
+
+def test_start_experiment_preserves_configured_effective_from() -> None:
+    """验证启动时保留显式配置的生效时间"""
+    repository, _, _ = create_repository()
+    experiment = create_experiment(
+        effective_from=LATER_TIME
+    )
+
+    result = repository.start_experiment(
+        experiment,
+        updated_by="operator",
+    )
+
+    assert result.effective_from == LATER_TIME
 
 
 @pytest.mark.parametrize(

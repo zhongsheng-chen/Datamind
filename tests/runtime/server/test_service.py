@@ -20,9 +20,16 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.datastructures import MutableHeaders
 
+from datamind.auth.errors import (
+    AuthError,
+    InvalidCredentialsError,
+    InvalidRefreshTokenError,
+)
+from datamind.auth.schemas import TokenResponse
 from datamind.models.errors import RuntimeRouteError
 
 
@@ -128,6 +135,24 @@ class SecurityStub:
         )
 
 
+class AuthContextStub:
+    """运行时认证请求上下文替身"""
+
+    def __init__(self) -> None:
+        self.request = SimpleNamespace(
+            headers={
+                "user-agent": "pytest",
+            },
+            client=SimpleNamespace(
+                host="127.0.0.1"
+            ),
+        )
+        self.response = SimpleNamespace(
+            status_code=200,
+            headers=MutableHeaders(),
+        )
+
+
 def install_repositories(
         service_module: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -179,6 +204,295 @@ def install_repositories(
         decision_repository,
         deployment_repository,
     )
+
+
+def install_auth_service(
+        service_module: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        auth_service: MagicMock,
+) -> None:
+    """安装运行时认证服务替身"""
+    monkeypatch.setitem(
+        vars(service_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "create_auth_service",
+        lambda **_kwargs: auth_service,
+    )
+
+
+def test_auth_endpoints_use_top_level_request_schemas(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试认证端点使用顶层请求数据结构"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    apis = (
+        service_module
+        .DatamindRuntimeService
+        .apis
+    )
+
+    assert apis["login"].route == "/auth/login"
+    assert set(
+        apis["login"].input_spec.model_fields
+    ) == {
+        "username",
+        "password",
+    }
+    assert apis["refresh"].route == "/auth/refresh"
+    assert set(
+        apis["refresh"].input_spec.model_fields
+    ) == {
+        "refresh_token",
+    }
+    assert apis["logout"].route == "/auth/logout"
+    assert set(
+        apis["logout"].input_spec.model_fields
+    ) == {
+        "refresh_token",
+    }
+
+
+@pytest.mark.asyncio
+async def test_login_returns_tokens_without_cache(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试本地登录签发不缓存的令牌响应"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    runtime_service = create_service(
+        service_module
+    )
+    auth_service = MagicMock()
+    auth_service.login = AsyncMock(
+        return_value=TokenResponse(
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_in=1800,
+        )
+    )
+    install_auth_service(
+        service_module,
+        monkeypatch,
+        auth_service,
+    )
+    context = AuthContextStub()
+
+    result = await runtime_service.login(
+        username="alice",
+        password=SecretStr("secret"),
+        ctx=context,
+    )
+
+    assert result == {
+        "access_token": "access-token",
+        "refresh_token": "refresh-token",
+        "token_type": "bearer",
+        "expires_in": 1800,
+    }
+    assert context.response.status_code == 200
+    assert context.response.headers[
+        "cache-control"
+    ] == "no-store"
+    assert context.response.headers[
+        "pragma"
+    ] == "no-cache"
+    awaited_call = auth_service.login.await_args
+    assert awaited_call is not None
+    login_request = awaited_call.args[0]
+    assert login_request.username == "alice"
+    assert (
+        login_request.password.get_secret_value()
+        == "secret"
+    )
+    assert awaited_call.kwargs == {
+        "ip": "127.0.0.1",
+        "user_agent": "pytest",
+    }
+
+
+@pytest.mark.asyncio
+async def test_login_hides_authentication_failure(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试登录失败不暴露账户状态"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    runtime_service = create_service(
+        service_module
+    )
+    auth_service = MagicMock()
+    auth_service.login = AsyncMock(
+        side_effect=InvalidCredentialsError()
+    )
+    install_auth_service(
+        service_module,
+        monkeypatch,
+        auth_service,
+    )
+    context = AuthContextStub()
+
+    result = await runtime_service.login(
+        username="alice",
+        password=SecretStr("invalid"),
+        ctx=context,
+    )
+
+    assert result == {
+        "error": "用户名或密码错误"
+    }
+    assert context.response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_rotates_tokens(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试刷新接口轮换访问令牌和刷新令牌"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    runtime_service = create_service(
+        service_module
+    )
+    auth_service = MagicMock()
+    auth_service.refresh = AsyncMock(
+        return_value=TokenResponse(
+            access_token="new-access-token",
+            refresh_token="new-refresh-token",
+            expires_in=1800,
+        )
+    )
+    install_auth_service(
+        service_module,
+        monkeypatch,
+        auth_service,
+    )
+    context = AuthContextStub()
+
+    result = await runtime_service.refresh(
+        refresh_token=SecretStr("refresh-token"),
+        ctx=context,
+    )
+
+    assert result["access_token"] == "new-access-token"
+    assert result["refresh_token"] == "new-refresh-token"
+    awaited_call = auth_service.refresh.await_args
+    assert awaited_call is not None
+    refresh_request = awaited_call.args[0]
+    assert (
+        refresh_request.refresh_token.get_secret_value()
+        == "refresh-token"
+    )
+
+
+@pytest.mark.asyncio
+async def test_refresh_hides_invalid_token_details(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试刷新失败返回统一认证错误"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    runtime_service = create_service(
+        service_module
+    )
+    auth_service = MagicMock()
+    auth_service.refresh = AsyncMock(
+        side_effect=InvalidRefreshTokenError()
+    )
+    install_auth_service(
+        service_module,
+        monkeypatch,
+        auth_service,
+    )
+    context = AuthContextStub()
+
+    result = await runtime_service.refresh(
+        refresh_token=SecretStr("invalid"),
+        ctx=context,
+    )
+
+    assert result == {
+        "error": "刷新令牌无效或已失效"
+    }
+    assert context.response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_is_idempotent(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试退出接口幂等撤销刷新令牌"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    runtime_service = create_service(
+        service_module
+    )
+    auth_service = MagicMock()
+    auth_service.logout = AsyncMock(
+        return_value=False
+    )
+    install_auth_service(
+        service_module,
+        monkeypatch,
+        auth_service,
+    )
+    context = AuthContextStub()
+
+    result = await runtime_service.logout(
+        refresh_token=SecretStr("refresh-token"),
+        ctx=context,
+    )
+
+    assert result == {}
+    assert context.response.status_code == 204
+    auth_service.logout.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_login_reports_unavailable_auth_service(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试认证配置不可用时返回 HTTP 503"""
+    service_module = load_service_module(
+        monkeypatch
+    )
+    runtime_service = create_service(
+        service_module
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "create_auth_service",
+        MagicMock(
+            side_effect=AuthError()
+        ),
+    )
+    context = AuthContextStub()
+
+    result = await runtime_service.login(
+        username="alice",
+        password=SecretStr("secret"),
+        ctx=context,
+    )
+
+    assert result == {
+        "error": "认证服务暂不可用"
+    }
+    assert context.response.status_code == 503
 
 
 def test_apply_response_status_maps_request_error(
@@ -764,6 +1078,14 @@ async def test_predict_records_successful_decision(
     assert result["success"] is True
     assert result["decision_id"] == "dcs_test"
     assert result["score"] == 720.0
+    assert result["route"] == {
+        "source": "deployment",
+        "strategy": "fallback",
+        "routing_id": None,
+        "experiment_id": None,
+        "variant_id": None,
+        "assignment_id": None,
+    }
     service._create_request_record.assert_awaited_once()
     service._record_prediction_success.assert_awaited_once()
     service._mark_prediction_failed.assert_not_awaited()
@@ -952,6 +1274,16 @@ async def test_record_batch_success_creates_decisions(
 
     request_repo.mark_success.assert_called_once_with(
         request_record,
+        response={
+            "success": True,
+            "request_id": "req_1",
+            "decision_id": "dcs_1",
+            "batch_id": "batch_test",
+            "batch_index": 0,
+            "probability": "0.8",
+            "score": 720,
+            "decision": "approved",
+        },
         latency_ms=10.0,
     )
     assert decision_repo.create_decision.call_args.kwargs[
@@ -1020,12 +1352,20 @@ async def test_mark_batch_failed_updates_existing_records(
         request_ids=["req_1", "req_2"],
         records_created=True,
         error="prediction failed",
+        response={
+            "success": False,
+            "error": "prediction failed",
+        },
         latency_ms=10.0,
     )
 
     request_repo.mark_failed.assert_called_once_with(
         request_record,
         error="prediction failed",
+        response={
+            "success": False,
+            "error": "prediction failed",
+        },
         latency_ms=10.0,
     )
 
@@ -1064,6 +1404,10 @@ async def test_create_and_mark_single_request_record(
     await service_class._mark_request_failed(
         request_id="req_test",
         error="prediction failed",
+        response={
+            "success": False,
+            "error": "prediction failed",
+        },
         latency_ms=10.0,
     )
 
@@ -1071,6 +1415,10 @@ async def test_create_and_mark_single_request_record(
     request_repo.mark_failed.assert_called_once_with(
         request_record,
         error="prediction failed",
+        response={
+            "success": False,
+            "error": "prediction failed",
+        },
         latency_ms=10.0,
     )
 
@@ -1119,11 +1467,23 @@ async def test_record_prediction_success_creates_decision(
             "score": 720,
             "decision": "approved",
         },
+        response={
+            "success": True,
+            "request_id": "req_test",
+            "decision_id": "dcs_test",
+            "score": 720,
+        },
         latency_ms=10.0,
     )
 
     request_repo.mark_success.assert_called_once_with(
         request_record,
+        response={
+            "success": True,
+            "request_id": "req_test",
+            "decision_id": "dcs_test",
+            "score": 720,
+        },
         latency_ms=10.0,
     )
     decision = decision_repo.create_decision.call_args.kwargs
@@ -1135,6 +1495,11 @@ async def test_record_prediction_success_creates_decision(
     }
     assert decision["probability"] == 0.8
     assert decision["score"] == 720.0
+    assert decision["context"] == {
+        "framework": "sklearn",
+        "environment": "testing",
+        "worker_id": "worker_test",
+    }
 
 
 @pytest.mark.asyncio
@@ -1169,6 +1534,9 @@ async def test_record_prediction_success_requires_request_record(
                 strategy="fallback",
             ),
             result={},
+            response={
+                "success": True,
+            },
             latency_ms=10.0,
         )
 
@@ -1189,6 +1557,9 @@ async def test_mark_prediction_failed_handles_persistence_error(
         model_id="mdl_test",
         request_record_created=False,
         error="prediction failed",
+        response={
+            "success": False,
+        },
         latency_ms=10.0,
     )
     service._mark_request_failed.assert_not_awaited()
@@ -1198,6 +1569,9 @@ async def test_mark_prediction_failed_handles_persistence_error(
         model_id="mdl_test",
         request_record_created=True,
         error="prediction failed",
+        response={
+            "success": False,
+        },
         latency_ms=10.0,
     )
     service._mark_request_failed.assert_awaited_once()

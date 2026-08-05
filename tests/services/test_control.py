@@ -267,7 +267,7 @@ async def test_reload_requires_existing_control(
         deployment=create_deployment(),
     )
 
-    with pytest.raises(RuntimeError, match="请先执行 service load"):
+    with pytest.raises(RuntimeError, match="请先执行 runtime load"):
         await RuntimeControlService().reload(
             deployment_id="dep_test"
         )

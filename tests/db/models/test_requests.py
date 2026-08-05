@@ -43,6 +43,7 @@ def test_request_table_and_columns() -> None:
         "request_id",
         "model_id",
         "payload",
+        "response",
         "source",
         "status",
         "error",
@@ -76,6 +77,7 @@ def test_request_check_constraints() -> None:
     } == {
         "ck_requests_latency_ms_non_negative",
         "ck_requests_payload_object",
+        "ck_requests_response_object",
         "ck_requests_status_valid",
     }
 

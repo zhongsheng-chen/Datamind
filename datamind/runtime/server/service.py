@@ -5,6 +5,9 @@
 基于 BentoML 提供多 Worker 模型推理服务。
 
 核心功能：
+  - login: 使用本地账户登录
+  - refresh: 续期并轮换刷新令牌
+  - logout: 撤销刷新令牌
   - predict: 单条模型推理
   - predict_batch: 指定部署批量推理
   - submit_outcome: 提交延迟业务结果
@@ -36,11 +39,24 @@ from typing import Any
 
 import bentoml
 import structlog
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.audit import AuditRecorder
+from datamind.auth.errors import (
+    AuthError,
+    InvalidCredentialsError,
+    TokenError,
+    UserDisabledError,
+    UserLockedError,
+)
+from datamind.auth.factory import create_auth_service
+from datamind.auth.schemas import (
+    LoginRequest,
+    LogoutRequest,
+    RefreshTokenRequest,
+)
 from datamind.config import get_settings
 from datamind.context import get_context
 from datamind.db.core import UnitOfWork
@@ -519,6 +535,197 @@ class DatamindRuntimeService:
             "worker_id": self.manager.worker_id,
             "environment": service_config.environment,
         }
+
+    @bentoml.api(
+        route="/auth/login",
+    )
+    async def login(
+            self,
+            username: str,
+            password: SecretStr,
+        ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """使用本地用户名和密码登录"""
+        self._set_auth_response_headers(
+            ctx
+        )
+
+        try:
+            async with UnitOfWork() as uow:
+                service = create_auth_service(
+                    session=uow.session
+                )
+
+                try:
+                    tokens = await service.login(
+                        LoginRequest(
+                            username=username,
+                            password=password,
+                        ),
+                        ip=self._request_ip(
+                            ctx
+                        ),
+                        user_agent=ctx.request.headers.get(
+                            "user-agent"
+                        ),
+                    )
+                except (
+                        InvalidCredentialsError,
+                        UserDisabledError,
+                        UserLockedError,
+                ):
+                    return self._auth_error_response(
+                        ctx=ctx,
+                        message="用户名或密码错误",
+                        status_code=401,
+                    )
+        except (
+                AuthError,
+                SQLAlchemyError,
+                ValueError,
+        ):
+            return self._auth_error_response(
+                ctx=ctx,
+                message="认证服务暂不可用",
+                status_code=503,
+            )
+
+        return tokens.model_dump(
+            mode="json"
+        )
+
+    @bentoml.api(
+        route="/auth/refresh",
+    )
+    async def refresh(
+            self,
+            refresh_token: SecretStr,
+        ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """续期并轮换刷新令牌"""
+        self._set_auth_response_headers(
+            ctx
+        )
+
+        try:
+            async with UnitOfWork() as uow:
+                service = create_auth_service(
+                    session=uow.session
+                )
+
+                try:
+                    tokens = await service.refresh(
+                        RefreshTokenRequest(
+                            refresh_token=refresh_token
+                        ),
+                        ip=self._request_ip(
+                            ctx
+                        ),
+                        user_agent=ctx.request.headers.get(
+                            "user-agent"
+                        ),
+                    )
+                except (
+                        TokenError,
+                        UserDisabledError,
+                        UserLockedError,
+                ):
+                    return self._auth_error_response(
+                        ctx=ctx,
+                        message="刷新令牌无效或已失效",
+                        status_code=401,
+                    )
+        except (
+                AuthError,
+                SQLAlchemyError,
+                ValueError,
+        ):
+            return self._auth_error_response(
+                ctx=ctx,
+                message="认证服务暂不可用",
+                status_code=503,
+            )
+
+        return tokens.model_dump(
+            mode="json"
+        )
+
+    @bentoml.api(
+        route="/auth/logout",
+    )
+    async def logout(
+            self,
+            refresh_token: SecretStr,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """撤销刷新令牌"""
+        self._set_auth_response_headers(
+            ctx
+        )
+
+        try:
+            async with UnitOfWork() as uow:
+                service = create_auth_service(
+                    session=uow.session
+                )
+                await service.logout(
+                    LogoutRequest(
+                        refresh_token=refresh_token
+                    )
+                )
+        except (
+                AuthError,
+                SQLAlchemyError,
+                ValueError,
+        ):
+            return self._auth_error_response(
+                ctx=ctx,
+                message="认证服务暂不可用",
+                status_code=503,
+            )
+
+        ctx.response.status_code = 204
+
+        return {}
+
+    @staticmethod
+    def _set_auth_response_headers(
+        ctx: bentoml.Context,
+    ) -> None:
+        """禁止缓存认证响应"""
+        ctx.response.headers[
+            "Cache-Control"
+        ] = "no-store"
+        ctx.response.headers[
+            "Pragma"
+        ] = "no-cache"
+
+    @staticmethod
+    def _auth_error_response(
+            *,
+            ctx: bentoml.Context,
+            message: str,
+            status_code: int,
+    ) -> dict[str, Any]:
+        """构造认证错误响应"""
+        ctx.response.status_code = status_code
+
+        return {
+            "error": message,
+        }
+
+    @staticmethod
+    def _request_ip(
+            ctx: bentoml.Context,
+    ) -> str | None:
+        """读取客户端 IP"""
+        client = ctx.request.client
+
+        return (
+            client.host
+            if client is not None
+            else None
+        )
 
     async def _execute_secured(
             self,
@@ -1250,23 +1457,28 @@ class DatamindRuntimeService:
                 prefix="dcs"
             )
 
+            response = {
+                "success": True,
+                "request_id": request_id,
+                "decision_id": decision_id,
+                **result,
+                "route": self._build_route_response(
+                    route
+                ),
+                "environment": service_config.environment,
+                "worker_id": self.manager.worker_id,
+            }
+
             await self._record_prediction_success(
                 request_id=request_id,
                 decision_id=decision_id,
                 route=route,
                 result=result,
+                response=response,
                 latency_ms=latency_ms,
             )
 
-            return {
-                "success": True,
-                "request_id": request_id,
-                "decision_id": decision_id,
-                **result,
-                "route": route.to_dict(),
-                "environment": service_config.environment,
-                "worker_id": self.manager.worker_id,
-            }
+            return response
 
         except (
                 RuntimeRouteError,
@@ -1276,12 +1488,19 @@ class DatamindRuntimeService:
             latency_ms = (
                                  time.perf_counter() - started_at
                          ) * 1000
+            response = self._build_error_response(
+                request_id=request_id,
+                decision_id=None,
+                include_decision_id=True,
+                error=exc,
+            )
 
             await self._mark_prediction_failed(
                 request_id=request_id,
                 model_id=request.model_id,
                 request_record_created=request_record_created,
                 error=str(exc),
+                response=response,
                 latency_ms=latency_ms,
             )
 
@@ -1298,23 +1517,25 @@ class DatamindRuntimeService:
                 error=str(exc),
             )
 
-            return self._build_error_response(
+            return response
+
+        except Exception as exc:
+            latency_ms = (
+                                 time.perf_counter() - started_at
+                         ) * 1000
+            response = self._build_error_response(
                 request_id=request_id,
                 decision_id=None,
                 include_decision_id=True,
                 error=exc,
             )
 
-        except Exception as exc:
-            latency_ms = (
-                                 time.perf_counter() - started_at
-                         ) * 1000
-
             await self._mark_prediction_failed(
                 request_id=request_id,
                 model_id=request.model_id,
                 request_record_created=request_record_created,
                 error=str(exc),
+                response=response,
                 latency_ms=latency_ms,
             )
 
@@ -1331,12 +1552,7 @@ class DatamindRuntimeService:
                 error=str(exc),
             )
 
-            return self._build_error_response(
-                request_id=request_id,
-                decision_id=None,
-                include_decision_id=True,
-                error=exc,
-            )
+            return response
 
     @bentoml.api(
         route="/predict/batch",
@@ -1480,10 +1696,16 @@ class DatamindRuntimeService:
                 RuntimeError,
                 ValueError,
         ) as exc:
+            response = self._build_error_response(
+                request_id=batch_id,
+                error=exc,
+            )
+
             await self._mark_batch_failed(
                 request_ids=request_ids,
                 records_created=records_created,
                 error=str(exc),
+                response=response,
                 latency_ms=(
                                    time.perf_counter()
                                    - started_at
@@ -1501,16 +1723,19 @@ class DatamindRuntimeService:
                 error=str(exc),
             )
 
-            return self._build_error_response(
+            return response
+
+        except Exception as exc:
+            response = self._build_error_response(
                 request_id=batch_id,
                 error=exc,
             )
 
-        except Exception as exc:
             await self._mark_batch_failed(
                 request_ids=request_ids,
                 records_created=records_created,
                 error=str(exc),
+                response=response,
                 latency_ms=(
                                    time.perf_counter()
                                    - started_at
@@ -1528,10 +1753,7 @@ class DatamindRuntimeService:
                 error=str(exc),
             )
 
-            return self._build_error_response(
-                request_id=batch_id,
-                error=exc,
-            )
+            return response
 
     @staticmethod
     async def _create_batch_request_records(
@@ -1615,6 +1837,14 @@ class DatamindRuntimeService:
 
                 request_repo.mark_success(
                     request_record,
+                    response={
+                        "success": True,
+                        "request_id": request_id,
+                        "decision_id": decision_id,
+                        "batch_id": batch_id,
+                        "batch_index": index,
+                        **prediction,
+                    },
                     latency_ms=latency_ms,
                 )
                 decision_repo.create_decision(
@@ -1636,13 +1866,11 @@ class DatamindRuntimeService:
                         prediction.get("decision")
                     ),
                     latency_ms=latency_ms,
-                    context={
-                        "batch_id": batch_id,
-                        "batch_index": index,
-                        "route": route.to_dict(),
-                        "worker_id": self.manager.worker_id,
-                        "environment": service_config.environment,
-                    },
+                    context=self._build_decision_context(
+                        route,
+                        batch_id=batch_id,
+                        batch_index=index,
+                    ),
                 )
 
     @staticmethod
@@ -1651,6 +1879,7 @@ class DatamindRuntimeService:
             request_ids: list[str],
             records_created: bool,
             error: str,
+            response: dict[str, Any] | None = None,
             latency_ms: float,
     ) -> None:
         """标记已经创建的批量请求为失败"""
@@ -1672,6 +1901,7 @@ class DatamindRuntimeService:
                         repository.mark_failed(
                             request_record,
                             error=error,
+                            response=response,
                             latency_ms=latency_ms,
                         )
 
@@ -1722,6 +1952,7 @@ class DatamindRuntimeService:
             model_id: str,
             request_record_created: bool,
             error: str,
+            response: dict[str, Any],
             latency_ms: float,
     ) -> None:
         """标记预测请求失败
@@ -1731,6 +1962,7 @@ class DatamindRuntimeService:
             model_id: 模型 ID
             request_record_created: 请求记录是否已创建
             error: 错误信息
+            response: 返回给调用方的错误响应
             latency_ms: 处理耗时
         """
         if not request_record_created:
@@ -1740,6 +1972,7 @@ class DatamindRuntimeService:
             await self._mark_request_failed(
                 request_id=request_id,
                 error=error,
+                response=response,
                 latency_ms=latency_ms,
             )
 
@@ -1813,6 +2046,7 @@ class DatamindRuntimeService:
             decision_id: str,
             route: RouteResult,
             result: dict[str, Any],
+            response: dict[str, Any],
             latency_ms: float,
     ) -> None:
         """记录成功请求和决策结果
@@ -1825,6 +2059,7 @@ class DatamindRuntimeService:
             decision_id: 决策 ID
             route: 路由结果
             result: 模型预测结果
+            response: 返回给调用方的业务响应
             latency_ms: 处理耗时
         """
         async with UnitOfWork() as uow:
@@ -1847,6 +2082,7 @@ class DatamindRuntimeService:
 
             request_repo.mark_success(
                 request_record,
+                response=response,
                 latency_ms=latency_ms,
             )
 
@@ -1889,13 +2125,9 @@ class DatamindRuntimeService:
                     )
                 ),
                 latency_ms=latency_ms,
-                context={
-                    "route": route.to_dict(),
-                    "worker_id": self.manager.worker_id,
-                    "environment": (
-                        service_config.environment
-                    ),
-                },
+                context=self._build_decision_context(
+                    route
+                ),
             )
 
     @staticmethod
@@ -1903,6 +2135,7 @@ class DatamindRuntimeService:
             *,
             request_id: str,
             error: str,
+            response: dict[str, Any],
             latency_ms: float,
     ) -> None:
         """标记请求处理失败
@@ -1910,6 +2143,7 @@ class DatamindRuntimeService:
         参数：
             request_id: 请求 ID
             error: 错误信息
+            response: 返回给调用方的错误响应
             latency_ms: 处理耗时
         """
         async with UnitOfWork() as uow:
@@ -1931,8 +2165,83 @@ class DatamindRuntimeService:
             repo.mark_failed(
                 request_record,
                 error=error,
+                response=response,
                 latency_ms=latency_ms,
             )
+
+    def _build_decision_context(
+            self,
+            route: RouteResult,
+            *,
+            batch_id: str | None = None,
+            batch_index: int | None = None,
+    ) -> dict[str, Any]:
+        """构造不重复结构化决策字段的诊断上下文"""
+        duplicate_fields = {
+            "assignment_id",
+            "bucket",
+            "deployment_id",
+            "environment",
+            "experiment_id",
+            "model_id",
+            "strategy",
+            "subject_key",
+            "subject_type",
+            "variant_id",
+            "variant_name",
+            "variant_weight",
+            "version_id",
+        }
+        context = {
+            key: value
+            for key, value in route.context.items()
+            if key not in duplicate_fields
+        }
+        assignment_source = context.pop(
+            "source",
+            None,
+        )
+
+        if assignment_source in {
+            "existing_assignment",
+            "new_assignment",
+        }:
+            context[
+                "assignment_source"
+            ] = assignment_source
+
+        if route.routing_id is not None:
+            context[
+                "routing_id"
+            ] = route.routing_id
+
+        context.update({
+            "framework": route.framework,
+            "environment": route.environment,
+            "worker_id": self.manager.worker_id,
+        })
+
+        if batch_id is not None:
+            context["batch_id"] = batch_id
+
+        if batch_index is not None:
+            context["batch_index"] = batch_index
+
+        return context
+
+    @staticmethod
+    def _build_route_response(
+            route: RouteResult,
+    ) -> dict[str, str | None]:
+        """构造面向调用方的路由摘要"""
+        return {
+            "source": route.source,
+            "strategy": route.strategy,
+            "routing_id": route.routing_id,
+            "experiment_id": route.experiment_id,
+            "variant_id": route.variant_id,
+            "assignment_id": route.assignment_id,
+        }
 
     @staticmethod
     def _build_prediction_payload(

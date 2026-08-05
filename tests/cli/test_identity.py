@@ -32,6 +32,7 @@ from unittest.mock import (
 )
 
 import pytest
+from rich.text import Text
 from typer.testing import CliRunner
 
 import datamind.cli.role.create as role_create_module
@@ -332,9 +333,12 @@ def test_user_list_renders_count_and_updated_at(
     )
 
     assert result.exit_code == 0
-    assert "共找到 1 个用户" in result.output
-    assert "UPDATED AT" in result.output
-    assert "DELETED AT" not in result.output
+    output = Text.from_ansi(
+        result.output
+    ).plain
+    assert "共找到 1 个用户" in output
+    assert "UPDATED AT" in output
+    assert "DELETED AT" not in output
 
 
 def test_role_list_renders_count_and_updated_at(
@@ -380,9 +384,12 @@ def test_role_list_renders_count_and_updated_at(
     )
 
     assert result.exit_code == 0
-    assert "共找到 1 个角色" in result.output
-    assert "UPDATED AT" in result.output
-    assert "DELETED AT" not in result.output
+    output = Text.from_ansi(
+        result.output
+    ).plain
+    assert "共找到 1 个角色" in output
+    assert "UPDATED AT" in output
+    assert "DELETED AT" not in output
 
 
 def test_show_user_renders_standard_detail_layout(

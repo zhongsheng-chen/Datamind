@@ -93,7 +93,6 @@ class ModelResolver:
             model_id: str,
             version_id: str | None = None,
             version: str | None = None,
-            include_archived: bool = False,
     ):
         """解析版本
 
@@ -105,7 +104,6 @@ class ModelResolver:
             model_id: 模型 ID
             version_id: 版本 ID（可选）
             version: 版本号（可选）
-            include_archived: 按版本号查询时是否包含归档版本
 
         返回：
             版本对象
@@ -122,9 +120,11 @@ class ModelResolver:
         if version:
             versions = await self.version_repo.list_versions(
                 model_id=model_id,
-                include_archived=include_archived,
+                version=version,
+                include_archived=True,
+                limit=1,
             )
-            v = next((x for x in versions if x.version == version), None)
+            v = versions[0] if versions else None
 
             if not v:
                 raise VersionNotFoundError(

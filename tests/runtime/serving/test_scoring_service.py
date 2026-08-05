@@ -27,7 +27,7 @@ from datamind.runtime.serving.scoring_service import ScoringService
 EXPLANATION = {
     "intercept_score": 500.0,
     "feature_score": 120.0,
-    "total_score": 620.0,
+    "raw_score": 620.0,
     "age": 20.0,
     "annual_income": 100.0,
 }

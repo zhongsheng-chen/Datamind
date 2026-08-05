@@ -13,6 +13,10 @@
 
 import asyncio
 import json
+from datetime import (
+    datetime,
+    timezone,
+)
 from typing import Any
 
 import structlog
@@ -23,6 +27,7 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
+from datamind.db.models.deployments import Deployment
 from datamind.db.models.experiments import Experiment
 from datamind.db.models.variants import Variant
 from datamind.db.repositories import (
@@ -30,12 +35,17 @@ from datamind.db.repositories import (
     ExperimentRepository,
     VariantRepository,
 )
-from datamind.models.enums import AssignmentStrategy, ExperimentVariantStatus
+from datamind.models.enums import (
+    AssignmentStrategy,
+    DeploymentStatus,
+    ExperimentVariantStatus,
+)
 from datamind.models.errors import ExperimentError, InvalidExperimentConfigError
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
-    parse_datetime
+    parse_datetime,
+    to_utc,
 )
 
 app = typer.Typer(help="启动实验命令")
@@ -125,6 +135,9 @@ def start_experiment(
                     deployment_repo=deployment_repo,
                     experiment=experiment,
                     active_variants=active_variants,
+                    now=datetime.now(
+                        timezone.utc
+                    ),
                 )
 
                 control_count = sum(
@@ -292,8 +305,28 @@ async def _validate_active_variant_deployments(
         deployment_repo: DeploymentRepository,
         experiment: Experiment,
         active_variants: list[Variant],
+        now: datetime,
 ) -> None:
     """校验启用状态实验分组绑定的部署"""
+    deployment_variants: dict[str, str] = {}
+
+    for variant in active_variants:
+        existing_variant_id = deployment_variants.get(
+            variant.deployment_id
+        )
+
+        if existing_variant_id is not None:
+            raise InvalidExperimentConfigError(
+                "启用状态实验分组必须绑定不同部署\n"
+                f"部署 ID: {variant.deployment_id}\n"
+                "实验分组 ID: "
+                f"{existing_variant_id}, {variant.variant_id}"
+            )
+
+        deployment_variants[
+            variant.deployment_id
+        ] = variant.variant_id
+
     for variant in active_variants:
         deployment = await deployment_repo.get_deployment(
             variant.deployment_id
@@ -321,6 +354,58 @@ async def _validate_active_variant_deployments(
                 f"实验环境: {experiment.environment}\n"
                 f"部署环境: {deployment.environment}"
             )
+
+        if deployment.status != str(
+                DeploymentStatus.ACTIVE
+        ):
+            raise InvalidExperimentConfigError(
+                "实验分组绑定的部署未启用\n"
+                f"实验分组 ID: {variant.variant_id}\n"
+                f"部署 ID: {deployment.deployment_id}\n"
+                f"部署状态: {deployment.status}"
+            )
+
+        if not _is_effective_deployment(
+                deployment,
+                now=now,
+        ):
+            raise InvalidExperimentConfigError(
+                "实验分组绑定的部署不在生效时间内\n"
+                f"实验分组 ID: {variant.variant_id}\n"
+                f"部署 ID: {deployment.deployment_id}"
+            )
+
+
+def _is_effective_deployment(
+        deployment: Deployment,
+        *,
+        now: datetime,
+) -> bool:
+    """判断部署是否处于生效时间窗口"""
+    current_time = to_utc(
+        now
+    )
+    effective_from = deployment.effective_from
+
+    if effective_from is not None:
+        start_time = to_utc(
+            effective_from
+        )
+
+        if start_time > current_time:
+            return False
+
+    effective_to = deployment.effective_to
+
+    if effective_to is not None:
+        end_time = to_utc(
+            effective_to
+        )
+
+        if end_time <= current_time:
+            return False
+
+    return True
 
 
 def _get_experiment_strategy(

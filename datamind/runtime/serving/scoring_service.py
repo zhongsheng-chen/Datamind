@@ -358,7 +358,7 @@ class ScoringService(BaseRuntimeService):
         summary_fields = {
             "intercept_score",
             "feature_score",
-            "total_score",
+            "raw_score",
         }
 
         feature_scores = {
@@ -375,7 +375,7 @@ class ScoringService(BaseRuntimeService):
                 explanation["feature_score"]
             ),
             "raw_score": float(
-                explanation["total_score"]
+                explanation["raw_score"]
             ),
             "feature_scores": feature_scores,
         }

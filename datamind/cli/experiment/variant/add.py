@@ -163,6 +163,17 @@ def add_variant(
                         f"实验已存在启用状态的同名分组: {name}"
                     )
 
+                deployment_variant = _find_variant_by_deployment(
+                        variants=variants,
+                        deployment_id=deployment_id,
+                )
+
+                if deployment_variant is not None:
+                    raise InvalidExperimentConfigError(
+                        "实验已存在绑定该部署的分组: "
+                        f"{deployment_variant.variant_id}"
+                    )
+
                 if control and _has_active_control_variant(variants):
                     raise InvalidExperimentConfigError(
                         "实验已存在启用状态的对照组，不能重复添加对照组"
@@ -302,6 +313,22 @@ def _has_active_variant_name(
         _is_active_variant(item)
         and str(item.name or "").strip().lower() == target_name
         for item in variants
+    )
+
+
+def _find_variant_by_deployment(
+        *,
+        variants: list[Variant],
+        deployment_id: str,
+) -> Variant | None:
+    """查找绑定指定部署的分组"""
+    return next(
+        (
+            item
+            for item in variants
+            if item.deployment_id == deployment_id
+        ),
+        None,
     )
 
 

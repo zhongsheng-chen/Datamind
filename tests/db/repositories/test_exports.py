@@ -29,6 +29,7 @@ EXPECTED_EXPORTS = {
     "VersionRepository",
     "DeploymentPatch",
     "DeploymentRepository",
+    "DashboardRepository",
     "ControlRepository",
     "RuntimePatch",
     "RuntimeRepository",
@@ -45,6 +46,7 @@ EXPECTED_EXPORTS = {
     "OutcomeRepository",
     "AuditRepository",
     "ArtifactRepository",
+    "OutboxRepository",
 }
 
 

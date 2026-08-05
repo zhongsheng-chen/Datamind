@@ -54,6 +54,7 @@ def create_request(
                 "age": 35,
             },
         },
+        "response": None,
         "source": "api",
         "status": "received",
         "error": None,
@@ -500,6 +501,7 @@ def test_create_request() -> None:
             "age": 35,
         },
     }
+    assert request.response is None
     assert request.source == "http"
     assert request.status == "received"
     assert request.error is None
@@ -522,6 +524,7 @@ def test_create_request_allows_optional_fields() -> None:
         request
     )
     assert request.payload is None
+    assert request.response is None
     assert request.source is None
     assert request.status == "received"
     assert request.error is None
@@ -584,12 +587,20 @@ def test_mark_success() -> None:
 
     result = repository.mark_success(
         request,
+        response={
+            "success": True,
+            "score": 720,
+        },
         latency_ms=125.5,
     )
 
     assert result is request
     assert request.status == "success"
     assert request.error is None
+    assert request.response == {
+        "success": True,
+        "score": 720,
+    }
     assert request.latency_ms == 125.5
 
 
@@ -660,12 +671,20 @@ def test_mark_failed() -> None:
     result = repository.mark_failed(
         request,
         error="model timeout",
+        response={
+            "success": False,
+            "error": "model timeout",
+        },
         latency_ms=125.5,
     )
 
     assert result is request
     assert request.status == "failed"
     assert request.error == "model timeout"
+    assert request.response == {
+        "success": False,
+        "error": "model timeout",
+    }
     assert request.latency_ms == 125.5
 
 
