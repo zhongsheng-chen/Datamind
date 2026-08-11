@@ -26,6 +26,7 @@ from sqlalchemy import (
     CheckConstraint,
     Boolean,
     Column,
+    DateTime,
     Float,
     Index,
     String,
@@ -70,6 +71,10 @@ class Variant(
             "created_at",
         ),
         Index(
+            "idx_variants_deleted_at",
+            "deleted_at",
+        ),
+        Index(
             "idx_variants_experiment_status",
             "experiment_id",
             "status",
@@ -84,12 +89,18 @@ class Variant(
             "experiment_id",
             "name",
             unique=True,
+            postgresql_where=text(
+                "deleted_at IS NULL"
+            ),
         ),
         Index(
             "uk_variants_experiment_deployment",
             "experiment_id",
             "deployment_id",
             unique=True,
+            postgresql_where=text(
+                "deleted_at IS NULL"
+            ),
         ),
         Index(
             "uk_variants_active_control",
@@ -97,7 +108,8 @@ class Variant(
             unique=True,
             postgresql_where=text(
                 "is_control = true "
-                "AND status = 'active'"
+                "AND status = 'active' "
+                "AND deleted_at IS NULL"
             ),
         ),
         CheckConstraint(
@@ -207,6 +219,32 @@ class Variant(
         String(50),
         nullable=True,
         comment="更新人",
+    )
+
+    deleted_at = Column(
+        DateTime(
+            timezone=True
+        ),
+        nullable=True,
+        comment="逻辑删除时间",
+    )
+
+    deleted_by = Column(
+        String(50),
+        nullable=True,
+        comment="逻辑删除操作人",
+    )
+
+    deletion_id = Column(
+        String(64),
+        nullable=True,
+        comment="逻辑删除批次 ID",
+    )
+
+    deletion_reason = Column(
+        TEXT,
+        nullable=True,
+        comment="逻辑删除原因",
     )
 
     def __repr__(

@@ -208,6 +208,42 @@ def test_parse_datetime_returns_utc_datetime(
     )
 
 
+def test_parse_datetime_uses_explicit_timezone_for_naive_value() -> None:
+    """测试无时区输入按显式指定的本地时区解析"""
+    result = datetime_utils.parse_datetime(
+        "2026-07-23 16:30:15",
+        timezone_name="Asia/Shanghai",
+    )
+
+    assert result == datetime(
+        2026,
+        7,
+        23,
+        8,
+        30,
+        15,
+        tzinfo=timezone.utc,
+    )
+
+
+def test_parse_datetime_preserves_input_timezone_offset() -> None:
+    """测试输入时区优先于无时区输入的默认时区"""
+    result = datetime_utils.parse_datetime(
+        "2026-07-23T16:30:15+02:00",
+        timezone_name="Asia/Shanghai",
+    )
+
+    assert result == datetime(
+        2026,
+        7,
+        23,
+        14,
+        30,
+        15,
+        tzinfo=timezone.utc,
+    )
+
+
 @pytest.mark.parametrize(
     "raw",
     [

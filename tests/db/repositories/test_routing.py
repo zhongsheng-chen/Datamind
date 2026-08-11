@@ -53,6 +53,7 @@ def create_routing(
     """创建路由规则测试对象"""
     values: dict[str, Any] = {
         "routing_id": "rtn_0123456789abcdef",
+        "name": "scorecard-route",
         "deployment_id": "dep_0123456789abcdef",
         "rollout_type": "full",
         "rollout_group": "champion",
@@ -276,15 +277,15 @@ async def test_list_routings_applies_filters_and_pagination() -> None:
         in sql
     )
     assert (
-        "routing.rollout_type = 'canary'"
+        "deployments.rollout_type = 'canary'"
         in sql
     )
     assert (
-        "routing.rollout_group = 'challenger'"
+        "deployments.role = 'challenger'"
         in sql
     )
     assert (
-        "routing.environment = 'staging'"
+        "deployments.environment = 'staging'"
         in sql
     )
     assert "routing.enabled = false" in sql
@@ -400,7 +401,7 @@ async def test_list_enabled_routings() -> None:
         in sql
     )
     assert (
-        "routing.environment = 'production'"
+        "deployments.environment = 'production'"
         in sql
     )
     assert "routing.enabled = true" in sql
@@ -418,18 +419,24 @@ def test_routing_patch_fields_and_defaults() -> None:
             RoutingPatch
         )
     ] == [
+        "name",
         "rollout_type",
         "rollout_group",
         "environment",
         "traffic_ratio",
         "rules",
+        "effective_from",
+        "effective_to",
         "description",
     ]
+    assert patch.name is None
     assert patch.rollout_type is None
     assert patch.rollout_group is None
     assert patch.environment is None
     assert patch.traffic_ratio is None
     assert patch.rules is None
+    assert patch.effective_from is None
+    assert patch.effective_to is None
     assert patch.description is None
     assert not hasattr(
         patch,
@@ -459,6 +466,7 @@ def test_create_routing() -> None:
 
     routing = repository.create_routing(
         routing_id="rtn_0123456789abcdef",
+        name="scorecard-route",
         deployment_id="dep_0123456789abcdef",
         environment=Environment.PRODUCTION,
         rollout_type="canary",
@@ -478,6 +486,7 @@ def test_create_routing() -> None:
     assert routing.routing_id == (
         "rtn_0123456789abcdef"
     )
+    assert routing.name == "scorecard-route"
     assert routing.deployment_id == (
         "dep_0123456789abcdef"
     )
@@ -502,6 +511,7 @@ def test_create_routing_uses_optional_defaults() -> None:
 
     routing = repository.create_routing(
         routing_id="rtn_minimum",
+        name="minimum-routing",
         deployment_id="dep_minimum",
         environment=Environment.TESTING,
     )
@@ -513,7 +523,7 @@ def test_create_routing_uses_optional_defaults() -> None:
     assert routing.rollout_type == "full"
     assert routing.rollout_group is None
     assert routing.traffic_ratio == 0.0
-    assert routing.enabled is True
+    assert routing.enabled is False
     assert routing.rules is None
     assert routing.description is None
     assert routing.created_by is None
@@ -534,6 +544,7 @@ def test_create_routing_accepts_boundary_ratio(
 
     routing = repository.create_routing(
         routing_id="rtn_boundary",
+        name="boundary-routing",
         deployment_id="dep_boundary",
         environment=Environment.PRODUCTION,
         traffic_ratio=traffic_ratio,
@@ -569,6 +580,7 @@ def test_create_routing_rejects_invalid_ratio(
     ):
         repository.create_routing(
             routing_id="rtn_invalid",
+            name="invalid-routing",
             deployment_id="dep_invalid",
             environment=Environment.PRODUCTION,
             traffic_ratio=traffic_ratio,

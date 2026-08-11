@@ -50,6 +50,7 @@ CURRENT_TIME = datetime(
     30,
     tzinfo=timezone.utc,
 )
+TRACE_ID = "0123456789abcdef0123456789abcdef"
 
 
 class FakeUnitOfWork:
@@ -114,6 +115,7 @@ def configure_service(
         "generate_random_id": (
             lambda *, prefix: f"{prefix}_test"
         ),
+        "generate_trace_id": lambda: TRACE_ID,
     }
 
     for name, value in replacements.items():
@@ -189,14 +191,14 @@ async def test_initialize_creates_admin_identity(
         user_id="usr_test",
         username="admin",
         password_hash="password-hash",
-        display_name="系统管理员",
+        display_name="Administrator",
         created_by="system:bootstrap",
     )
     created_user = user_repo.create_user.return_value
     assert created_user.password_changed_at == CURRENT_TIME
     role_repo.create_role.assert_called_once_with(
         role_id="rol_test",
-        name="system-admin",
+        name="administrator",
         description="系统管理员角色",
         permissions=[
             "*"
@@ -223,6 +225,8 @@ async def test_initialize_creates_admin_identity(
         target_type="system",
         target_id="datamind",
         source=AuditSource.CLI,
+        trace_id=TRACE_ID,
+        request_id="req_test",
         user="system:bootstrap",
         ip="10.0.0.10",
         hostname="datamind-host",
@@ -307,7 +311,7 @@ async def test_initialize_rejects_existing_admin_role(
     )
     role = Role(
         role_id="rol_existing",
-        name="system-admin",
+        name="administrator",
         permissions=[
             "*"
         ],
@@ -321,7 +325,7 @@ async def test_initialize_rejects_existing_admin_role(
 
     with pytest.raises(
             InitializationError,
-            match="system-admin 角色已经存在",
+            match="administrator 角色已经存在",
     ):
         await InitializationService().initialize(
             username="admin",

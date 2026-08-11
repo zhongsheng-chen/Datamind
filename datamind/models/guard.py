@@ -78,6 +78,7 @@ class ModelGuard:
         },
         MetadataStatus.INACTIVE: {
             MetadataStatus.ACTIVE,
+            MetadataStatus.DEPRECATED,
             MetadataStatus.ARCHIVED,
         },
         MetadataStatus.ARCHIVED: set(),
@@ -90,6 +91,7 @@ class ModelGuard:
         },
         VersionStatus.INACTIVE: {
             VersionStatus.ACTIVE,
+            VersionStatus.DEPRECATED,
             VersionStatus.ARCHIVED,
         },
         VersionStatus.DEPRECATED: {
@@ -239,6 +241,22 @@ class ModelGuard:
         allowed = cls._EXPERIMENT_TRANSITIONS.get(current, set())
 
         if target not in allowed:
+            if (
+                    current == ExperimentStatus.DRAFT
+                    and target == ExperimentStatus.STOPPED
+            ):
+                raise InvalidExperimentStateError(
+                    "草稿状态的实验无法停止"
+                )
+
+            if (
+                    current == ExperimentStatus.DRAFT
+                    and target == ExperimentStatus.PAUSED
+            ):
+                raise InvalidExperimentStateError(
+                    "草稿状态的实验无法暂停"
+                )
+
             raise InvalidExperimentStateError(
                 f"非法实验状态迁移: {current} -> {target}"
             )

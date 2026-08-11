@@ -111,7 +111,7 @@ class RuntimeControlService:
             deployment = await self._validate_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
-                require_active=True,
+                required_status=DeploymentStatus.ACTIVE,
             )
 
             control = (
@@ -191,6 +191,9 @@ class RuntimeControlService:
             DeploymentNotFoundError:
                 部署不存在
 
+            InvalidDeploymentStateError:
+                部署仍处于启用状态
+
             RuntimeError:
                 Control 与 Deployment 环境不一致
         """
@@ -212,7 +215,7 @@ class RuntimeControlService:
             deployment = await self._validate_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
-                require_active=False,
+                required_status=DeploymentStatus.INACTIVE,
             )
 
             control = (
@@ -316,7 +319,7 @@ class RuntimeControlService:
             deployment = await self._validate_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
-                require_active=True,
+                required_status=DeploymentStatus.ACTIVE,
             )
 
             control = (
@@ -328,7 +331,7 @@ class RuntimeControlService:
             if control is None:
                 raise RuntimeError(
                     "运行控制记录不存在，"
-                    "请先执行 runtime load: "
+                    "请先停用后重新启用部署: "
                     f"{deployment_id}"
                 )
 
@@ -492,14 +495,16 @@ class RuntimeControlService:
           - runtime_count:
               Runtime 记录总数，包括历史记录
 
-          - loading_count:
-              loading 状态的 Runtime 数量
+          - starting_count:
+              starting 状态的 Runtime 数量
 
-          - loaded_count:
-              loaded 状态的 Runtime 数量
+          - running_count:
+              running 状态的 Runtime 数量
 
-          - unloaded_count:
-              unloaded 状态的 Runtime 数量
+          - stopping_count:
+              stopping 状态的 Runtime 数量
+          - stopped_count:
+              stopped 状态的 Runtime 数量
 
           - failed_count:
               failed 状态的 Runtime 数量
@@ -582,9 +587,10 @@ class RuntimeControlService:
                 )
 
                 status_counts = {
-                    "loading": 0,
-                    "loaded": 0,
-                    "unloaded": 0,
+                    "starting": 0,
+                    "running": 0,
+                    "stopping": 0,
+                    "stopped": 0,
                     "failed": 0,
                 }
 
@@ -599,8 +605,9 @@ class RuntimeControlService:
                         ] += 1
 
                 worker_count = (
-                        status_counts["loading"]
-                        + status_counts["loaded"]
+                        status_counts["starting"]
+                        + status_counts["running"]
+                        + status_counts["stopping"]
                         + status_counts["failed"]
                 )
 
@@ -620,9 +627,10 @@ class RuntimeControlService:
                     ),
                     "worker_count": worker_count,
                     "runtime_count": runtime_count,
-                    "loading_count": status_counts["loading"],
-                    "loaded_count": status_counts["loaded"],
-                    "unloaded_count": status_counts["unloaded"],
+                    "starting_count": status_counts["starting"],
+                    "running_count": status_counts["running"],
+                    "stopping_count": status_counts["stopping"],
+                    "stopped_count": status_counts["stopped"],
                     "failed_count": status_counts["failed"],
                     "updated_by": control.updated_by,
                     "updated_at": (
@@ -646,7 +654,7 @@ class RuntimeControlService:
             *,
             deployment_repo: DeploymentRepository,
             deployment_id: str,
-            require_active: bool,
+            required_status: DeploymentStatus,
     ) -> Deployment:
         """校验并返回部署对象
 
@@ -657,8 +665,8 @@ class RuntimeControlService:
             deployment_id:
                 部署 ID
 
-            require_active:
-                是否要求部署必须为 active
+            required_status:
+                要求的部署状态
 
         返回：
             Deployment 对象
@@ -668,7 +676,7 @@ class RuntimeControlService:
                 部署不存在
 
             InvalidDeploymentStateError:
-                部署状态不允许加载
+                部署状态不允许执行控制操作
         """
         deployment = (
             await deployment_repo.get_deployment(
@@ -681,16 +689,23 @@ class RuntimeControlService:
                 f"部署不存在: {deployment_id}"
             )
 
-        if not require_active:
+        current_status = DeploymentStatus(
+            deployment.status
+        )
+
+        if current_status is required_status:
             return deployment
 
-        if deployment.status != str(DeploymentStatus.ACTIVE):
+        if required_status is DeploymentStatus.ACTIVE:
             raise InvalidDeploymentStateError(
                 "部署不是启用状态，不能加载: "
                 f"{deployment_id}"
             )
 
-        return deployment
+        raise InvalidDeploymentStateError(
+            "部署仍处于启用状态，请先禁用部署: "
+            f"{deployment_id}"
+        )
 
     @staticmethod
     def _validate_control_environment(

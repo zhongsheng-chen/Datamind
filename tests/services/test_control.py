@@ -9,6 +9,7 @@
   - test_load_updates_existing_control: 验证加载已有控制记录
   - test_unload_updates_existing_control: 验证卸载已有控制记录
   - test_unload_creates_control: 验证首次卸载创建控制记录
+  - test_unload_rejects_active_deployment: 验证启用部署不能卸载
   - test_reload_requires_existing_control: 验证重载要求控制记录存在
   - test_reload_requests_new_generation: 验证重载递增控制代次
   - test_load_rejects_inactive_deployment: 验证非活动部署不能加载
@@ -258,6 +259,29 @@ async def test_unload_creates_control(
 
 
 @pytest.mark.asyncio
+async def test_unload_rejects_active_deployment(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试启用部署不能卸载"""
+    _, control_repo, _ = configure_service(
+        monkeypatch,
+        deployment=create_deployment(status="active"),
+        control=create_control(desired_status="loaded"),
+    )
+
+    with pytest.raises(
+            InvalidDeploymentStateError,
+            match="部署仍处于启用状态，请先禁用部署",
+    ):
+        await RuntimeControlService().unload(
+            deployment_id="dep_test",
+            operator="operator",
+        )
+
+    control_repo.set_unloaded.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_reload_requires_existing_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -267,7 +291,7 @@ async def test_reload_requires_existing_control(
         deployment=create_deployment(),
     )
 
-    with pytest.raises(RuntimeError, match="请先执行 runtime load"):
+    with pytest.raises(RuntimeError, match="请先停用后重新启用部署"):
         await RuntimeControlService().reload(
             deployment_id="dep_test"
         )
@@ -331,7 +355,7 @@ async def test_get_status_returns_deployment_and_runtimes(
         model_id="mdl_test",
         version_id="ver_test",
         framework="sklearn",
-        status="loaded",
+        status="running",
         worker_id="worker_test",
         loaded_at=None,
         unloaded_at=None,
@@ -397,9 +421,11 @@ async def test_list_services_aggregates_runtime_statuses(
             context=None,
         )
         for status in (
-            "loaded",
+            "starting",
+            "running",
+            "stopping",
+            "stopped",
             "failed",
-            "unloaded",
             "unknown",
         )
     ]
@@ -414,11 +440,13 @@ async def test_list_services_aggregates_runtime_statuses(
         desired_status="loaded",
     )
 
-    assert result[0]["worker_count"] == 2
-    assert result[0]["runtime_count"] == 4
-    assert result[0]["loaded_count"] == 1
+    assert result[0]["worker_count"] == 4
+    assert result[0]["runtime_count"] == 6
+    assert result[0]["starting_count"] == 1
+    assert result[0]["running_count"] == 1
+    assert result[0]["stopping_count"] == 1
     assert result[0]["failed_count"] == 1
-    assert result[0]["unloaded_count"] == 1
+    assert result[0]["stopped_count"] == 1
 
 
 @pytest.mark.asyncio

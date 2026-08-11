@@ -18,10 +18,14 @@
     验证创建用户并加入数据库会话
   - test_update_user:
     验证用户资料更新和认证来源转换
+  - test_replace_profile:
+    验证完整替换用户资料并支持清空可选字段
   - test_update_password:
     验证密码哈希和修改时间更新
   - test_user_status_transitions:
     验证启用、停用、锁定和解锁
+  - test_restore_user:
+    验证恢复逻辑删除用户
   - test_record_login_success:
     验证登录成功状态记录
   - test_record_login_failure:
@@ -493,6 +497,26 @@ def test_update_user_ignores_none_fields() -> None:
     assert user.updated_by == "usr_original"
 
 
+def test_replace_profile() -> None:
+    """验证完整替换用户资料并支持清空可选字段"""
+    repository, _, _ = create_repository()
+    user = create_user()
+
+    result = repository.replace_profile(
+        user,
+        username="alice-new",
+        display_name=None,
+        email=None,
+        updated_by="usr_admin",
+    )
+
+    assert result is user
+    assert user.username == "alice-new"
+    assert user.display_name is None
+    assert user.email is None
+    assert user.updated_by == "usr_admin"
+
+
 def test_update_password_with_explicit_time() -> None:
     """验证使用指定时间更新密码哈希"""
     repository, _, _ = create_repository()
@@ -617,6 +641,38 @@ def test_mark_deleted_user() -> None:
     assert user.deleted_at == CURRENT_TIME
     assert user.deleted_by == "usr_admin"
     assert user.deletion_reason == "员工离职"
+    assert user.updated_by == "usr_admin"
+
+
+# noinspection PyUnreachableCode
+def test_restore_user() -> None:
+    """验证恢复逻辑删除用户"""
+    repository, _, _ = create_repository()
+    user = create_user(
+        status=str(
+            UserStatus.DISABLED
+        ),
+        failed_login_count=5,
+        locked_until=CURRENT_TIME,
+        deleted_at=CURRENT_TIME,
+        deleted_by="usr_admin",
+        deletion_reason="员工离职",
+    )
+
+    result = repository.restore_user(
+        user,
+        restored_at=CURRENT_TIME,
+        restored_by="usr_admin",
+    )
+
+    assert result is user
+    assert user.status == "active"
+    assert user.created_at == CURRENT_TIME
+    assert user.failed_login_count == 0
+    assert user.locked_until is None
+    assert user.deleted_at is None
+    assert user.deleted_by is None
+    assert user.deletion_reason is None
     assert user.updated_by == "usr_admin"
 
 

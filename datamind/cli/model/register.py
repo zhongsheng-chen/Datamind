@@ -10,6 +10,7 @@
 使用示例：
   python -m datamind.cli.main model register scorecard \
     --version 1.0.0 \
+    --display-name "信用评分卡模型" \
     --model-path scorecard.pkl \
     --framework sklearn \
     --model-type logistic_regression \
@@ -25,14 +26,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.models.errors import ModelError
 from datamind.services import ModelRegistrationService
 
 app = typer.Typer(help="注册模型命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -47,6 +49,11 @@ def register_model(
             ...,
             "--version",
             help="模型版本"
+        ),
+        display_name: str | None = typer.Option(
+            None,
+            "--display-name",
+            help="模型显示名称"
         ),
         model_path: str = typer.Option(
             ...,
@@ -141,19 +148,17 @@ def register_model(
                 ) as f:
                     input_schema = json.load(f)
 
-            except FileNotFoundError:
-                console.print(
-                    f"[red]输入 Schema 文件不存在: "
-                    f"{input_schema_file}[/red]"
-                )
-                raise typer.Exit(1)
+            except FileNotFoundError as error:
+                raise typer.BadParameter(
+                    "--input-schema-file 文件不存在："
+                    f"{input_schema_file}"
+                ) from error
 
-            except json.JSONDecodeError as exc:
-                console.print(
-                    f"[red]input-schema-file JSON 解析失败: "
-                    f"{exc}[/red]"
-                )
-                raise typer.Exit(1)
+            except json.JSONDecodeError as error:
+                raise typer.BadParameter(
+                    "--input-schema-file JSON 解析失败："
+                    f"{error}"
+                ) from error
 
         output_schema = None
 
@@ -166,36 +171,46 @@ def register_model(
                 ) as f:
                     output_schema = json.load(f)
 
-            except FileNotFoundError:
-                console.print(
-                    f"[red]输出 Schema 文件不存在: "
-                    f"{output_schema_file}[/red]"
-                )
-                raise typer.Exit(1)
+            except FileNotFoundError as error:
+                raise typer.BadParameter(
+                    "--output-schema-file 文件不存在："
+                    f"{output_schema_file}"
+                ) from error
 
-            except json.JSONDecodeError as exc:
-                console.print(
-                    f"[red]output-schema-file JSON 解析失败: "
-                    f"{exc}[/red]"
-                )
-                raise typer.Exit(1)
+            except json.JSONDecodeError as error:
+                raise typer.BadParameter(
+                    "--output-schema-file JSON 解析失败："
+                    f"{error}"
+                ) from error
 
         register = ModelRegistrationService()
 
-        result = await register.register(
-            name=name,
-            version=version,
-            framework=framework,
-            model_type=model_type,
-            task_type=task_type,
-            model_path=model_path,
-            description=description,
-            version_description=version_description,
-            input_schema=input_schema,
-            output_schema=output_schema,
-            created_by=actor,
-            force=force,
-        )
+        try:
+            result = await register.register(
+                name=name,
+                version=version,
+                framework=framework,
+                model_type=model_type,
+                task_type=task_type,
+                model_path=model_path,
+                display_name=display_name,
+                description=description,
+                version_description=version_description,
+                input_schema=input_schema,
+                output_schema=output_schema,
+                created_by=actor,
+                force=force,
+            )
+        except (
+            ModelError,
+            ValueError,
+        ) as exc:
+            console.error(
+                f"模型注册失败：{exc}",
+                output_format=output,
+                error_type=type(exc).__name__,
+            )
+            raise typer.Exit(code=1) from None
 
         if output == "json":
             console.print_json(
@@ -208,40 +223,38 @@ def register_model(
 
             return result
 
-        console.print(
-            "[green]模型注册成功[/green]\n"
-        )
+        console.info("模型注册成功\n")
 
         console.print(
-            f"[cyan]{'MODEL ID':<16}[/cyan] : "
+            f"{'MODEL ID':<16} : "
             f"{result['model_id']}"
         )
         console.print(
-            f"[cyan]{'VERSION ID':<16}[/cyan] : "
+            f"{'VERSION ID':<16} : "
             f"{result['version_id']}"
         )
         console.print(
-            f"[cyan]{'NAME':<16}[/cyan] : "
+            f"{'NAME':<16} : "
             f"{result['name']}"
         )
         console.print(
-            f"[cyan]{'VERSION':<16}[/cyan] : "
+            f"{'VERSION':<16} : "
             f"{result['version']}"
         )
         console.print(
-            f"[cyan]{'BENTO TAG':<16}[/cyan] : "
+            f"{'BENTO TAG':<16} : "
             f"{result['bento_tag']}"
         )
         console.print(
-            f"[cyan]{'ARTIFACT ID':<16}[/cyan] : "
+            f"{'ARTIFACT ID':<16} : "
             f"{result['artifact_id']}"
         )
         console.print(
-            f"[cyan]{'REVISION':<16}[/cyan] : "
+            f"{'REVISION':<16} : "
             f"{result['artifact_revision']}"
         )
         console.print(
-            f"[cyan]{'ACTION':<16}[/cyan] : "
+            f"{'ACTION':<16} : "
             f"{result['action']}"
         )
 

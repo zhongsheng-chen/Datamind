@@ -31,6 +31,8 @@
     验证敏感状态会跨字典、列表和元组持续传播
   - test_mask_sensitive_handles_non_string_values:
     验证脱敏非字符串敏感值并保留 None
+  - test_mask_sensitive_preserves_explicit_status_keys:
+    验证明确定义的非敏感状态字段保持可读
   - test_mask_sensitive_does_not_modify_original_event:
     验证脱敏处理器不修改原始事件及其嵌套容器
   - test_mask_sensitive_rejects_invalid_parameters:
@@ -368,6 +370,23 @@ def test_mask_sensitive_handles_non_string_values() -> None:
     assert result["token_count"] == "********"
     assert result["authorization"] == "********"
     assert result["secret"] is None
+
+
+def test_mask_sensitive_preserves_explicit_status_keys() -> None:
+    """测试明确的非敏感状态字段保持可读"""
+    result = mask_sensitive()(
+        None,
+        "info",
+        {
+            "refresh_token_revoked": True,
+            "refresh_token": "abcdefgh",
+            "token_count": 1,
+        },
+    )
+
+    assert result["refresh_token_revoked"] is True
+    assert result["refresh_token"] == "ab****gh"
+    assert result["token_count"] == "********"
 
 
 def test_mask_sensitive_does_not_modify_original_event() -> None:

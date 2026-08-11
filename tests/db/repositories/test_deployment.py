@@ -43,6 +43,7 @@ from unittest.mock import (
 import pytest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
 from sqlalchemy.sql import Select
 
 import datamind.db.repositories.deployment as deployment_module
@@ -51,6 +52,7 @@ from datamind.constants import (
     Framework,
 )
 from datamind.db.models.deployments import Deployment
+from datamind.db.models.metadata import Metadata
 from datamind.db.repositories.deployment import (
     DeploymentPatch,
     DeploymentRepository,
@@ -890,3 +892,67 @@ def test_deactivate_deployment_accepts_empty_operator() -> None:
     )
 
     assert deployment.updated_by == ""
+
+
+@pytest.mark.asyncio
+async def test_default_switch_clears_old_target_before_setting_new() -> None:
+    """先清除原目标的标记，再设置新目标，避免唯一索引冲突."""
+    deployment = create_deployment(status="active")
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = "dep_old"
+    session = AsyncMock(spec=AsyncSession)
+    session.execute.side_effect = [result, MagicMock()]
+    repo = DeploymentRepository(session)
+
+    previous_id = await repo.set_default_deployment(deployment, updated_by="operator")
+
+    assert previous_id == "dep_old"
+    assert deployment.is_default is True
+    assert deployment.status == "active"
+    statements = [call.args[0] for call in session.execute.await_args_list]
+    expected_scope = (
+        Deployment.model_id == deployment.model_id,
+        Deployment.environment == deployment.environment,
+        Deployment.deleted_at.is_(None),
+        Deployment.is_default.is_(True),
+    )
+    assert statements[0].compare(
+        select(Deployment.deployment_id).where(*expected_scope).with_for_update()
+    )
+    assert statements[1].compare(
+        update(Deployment).where(*expected_scope).values(is_default=False, updated_by="operator")
+    )
+
+
+@pytest.mark.asyncio
+async def test_default_switch_is_idempotent() -> None:
+    """重复指定同一默认部署不清除其标记."""
+    deployment = create_deployment(status="active", is_default=True)
+    session = AsyncMock(spec=AsyncSession)
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = deployment.deployment_id
+    session.execute.return_value = result
+    previous_id = await DeploymentRepository(session).set_default_deployment(deployment)
+    assert previous_id == deployment.deployment_id
+    session.execute.assert_awaited_once()
+    assert deployment.is_default is True
+
+
+@pytest.mark.asyncio
+async def test_lock_model_serializes_default_switches() -> None:
+    """默认部署切换使用模型行锁串行化并发写入."""
+    session = AsyncMock(spec=AsyncSession)
+    await DeploymentRepository(session).lock_model("mdl_test")
+    assert session.execute.await_args.args[0].compare(
+        select(Metadata.model_id).where(Metadata.model_id == "mdl_test").with_for_update()
+    )
+
+
+def test_disabling_default_deployment_clears_default_flag() -> None:
+    """停用默认部署会清除标记，重新启用不会自动恢复默认流量."""
+    deployment = create_deployment(status="active", is_default=True)
+    repo = DeploymentRepository(AsyncMock(spec=AsyncSession))
+    repo.deactivate_deployment(deployment)
+    assert deployment.is_default is False
+    repo.activate_deployment(deployment)
+    assert deployment.is_default is False

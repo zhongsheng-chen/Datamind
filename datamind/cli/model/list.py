@@ -17,7 +17,7 @@ import json
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
@@ -30,7 +30,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="列出模型命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -145,6 +145,11 @@ def list_models(
                 result.append({
                     "model_id": model.model_id,
                     "name": model.name,
+                    "display_name": getattr(
+                        model,
+                        "display_name",
+                        None,
+                    ),
                     "status": model.status,
                     "framework": model.framework,
                     "model_type": model.model_type,
@@ -189,6 +194,7 @@ def list_models(
         )
 
         table.add_column("NAME")
+        table.add_column("DISPLAY NAME")
         table.add_column("MODEL ID")
         table.add_column("STATUS")
         table.add_column("FRAMEWORK")
@@ -199,6 +205,7 @@ def list_models(
         for item in result:
             table.add_row(
                 item["name"],
+                item["display_name"] or "-",
                 item["model_id"],
                 item["status"],
                 item["framework"],

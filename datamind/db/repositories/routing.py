@@ -13,6 +13,8 @@
   - update_routing: 更新路由规则
   - enable_routing: 启用路由规则
   - disable_routing: 禁用路由规则
+  - mark_deleted: 逻辑删除路由规则
+  - restore_routing: 恢复路由规则
 
 使用示例：
   from datamind.constants import Environment
@@ -29,6 +31,7 @@
 
       routing = repo.create_routing(
           routing_id="rtn_0123456789abcdef",
+          name="scorecard-route",
           deployment_id="dep_0123456789abcdef",
           environment=Environment.PRODUCTION,
           rollout_type="canary",
@@ -50,10 +53,15 @@ from dataclasses import (
     dataclass,
     fields,
 )
+from datetime import (
+    datetime,
+    timezone,
+)
 
 from sqlalchemy import select
 
 from datamind.constants import Environment
+from datamind.db.models.deployments import Deployment
 from datamind.db.models.routing import Routing
 from datamind.db.repositories.base import BaseRepository
 
@@ -67,19 +75,25 @@ class RoutingPatch:
         启用状态由生命周期方法控制。
 
     属性：
+        name: 路由名称
         rollout_type: 发布类型
         rollout_group: 发布分组
         environment: 路由环境
         traffic_ratio: 流量占比
         rules: 路由规则配置
+        effective_from: 生效开始时间
+        effective_to: 生效结束时间
         description: 路由说明
     """
 
+    name: str | None = None
     rollout_type: str | None = None
     rollout_group: str | None = None
     environment: Environment | None = None
     traffic_ratio: float | None = None
     rules: dict | None = None
+    effective_from: datetime | None = None
+    effective_to: datetime | None = None
     description: str | None = None
 
 
@@ -102,11 +116,14 @@ class RoutingRepository(BaseRepository):
     async def get_routing(
             self,
             routing_id: str,
+            *,
+            include_deleted: bool = False,
     ) -> Routing | None:
         """获取路由规则
 
         参数：
             routing_id: 路由 ID
+            include_deleted: 是否包含逻辑删除记录
 
         返回：
             路由规则对象，不存在时返回 None
@@ -118,6 +135,13 @@ class RoutingRepository(BaseRepository):
             == routing_id
         )
 
+        if not include_deleted:
+            stmt = stmt.where(
+                Routing.deleted_at.is_(
+                    None
+                )
+            )
+
         result = await self.session.execute(
             stmt
         )
@@ -128,12 +152,14 @@ class RoutingRepository(BaseRepository):
             self,
             *,
             routing_id: str | None = None,
+            name: str | None = None,
             deployment_id: str | None = None,
             rollout_type: str | None = None,
             rollout_group: str | None = None,
             environment: Environment | None = None,
             enabled: bool | None = None,
             created_by: str | None = None,
+            include_deleted: bool = False,
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Routing]:
@@ -141,12 +167,14 @@ class RoutingRepository(BaseRepository):
 
         参数：
             routing_id: 路由 ID（可选）
+            name: 路由名称（可选）
             deployment_id: 部署 ID（可选）
             rollout_type: 发布类型（可选）
             rollout_group: 发布分组（可选）
             environment: 路由环境（可选）
             enabled: 是否启用（可选）
             created_by: 创建人（可选）
+            include_deleted: 是否包含逻辑删除记录
             limit: 返回数量限制（可选）
             offset: 分页偏移（可选）
 
@@ -172,9 +200,28 @@ class RoutingRepository(BaseRepository):
                 "offset 不能小于 0"
             )
 
-        stmt = select(
-            Routing
-        )
+        stmt = select(Routing)
+
+        if any(
+                value is not None
+                for value in (
+                    environment,
+                    rollout_type,
+                    rollout_group,
+                )
+        ):
+            stmt = stmt.join(
+                Deployment,
+                Deployment.deployment_id
+                == Routing.deployment_id,
+            )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Routing.deleted_at.is_(
+                    None
+                )
+            )
 
         if routing_id is not None:
             stmt = stmt.where(
@@ -190,19 +237,24 @@ class RoutingRepository(BaseRepository):
 
         if rollout_type is not None:
             stmt = stmt.where(
-                Routing.rollout_type
+                Deployment.rollout_type
                 == rollout_type
+            )
+
+        if name is not None:
+            stmt = stmt.where(
+                Routing.name == name
             )
 
         if rollout_group is not None:
             stmt = stmt.where(
-                Routing.rollout_group
+                Deployment.role
                 == rollout_group
             )
 
         if environment is not None:
             stmt = stmt.where(
-                Routing.environment
+                Deployment.environment
                 == str(
                     environment
                 )
@@ -274,13 +326,16 @@ class RoutingRepository(BaseRepository):
             self,
             *,
             routing_id: str,
+            name: str,
             deployment_id: str,
             environment: Environment,
             rollout_type: str = "full",
             rollout_group: str | None = None,
             traffic_ratio: float = 0.0,
-            enabled: bool = True,
+            enabled: bool = False,
             rules: dict | None = None,
+            effective_from: datetime | None = None,
+            effective_to: datetime | None = None,
             description: str | None = None,
             created_by: str | None = None,
     ) -> Routing:
@@ -288,6 +343,7 @@ class RoutingRepository(BaseRepository):
 
         参数：
             routing_id: 路由 ID
+            name: 路由名称
             deployment_id: 部署 ID
             environment: 路由环境
             rollout_type: 发布类型（可选）
@@ -295,6 +351,8 @@ class RoutingRepository(BaseRepository):
             traffic_ratio: 流量占比（可选）
             enabled: 是否启用（可选）
             rules: 路由规则配置（可选）
+            effective_from: 生效开始时间（可选）
+            effective_to: 生效结束时间（可选）
             description: 路由说明（可选）
             created_by: 创建人（可选）
 
@@ -310,6 +368,7 @@ class RoutingRepository(BaseRepository):
 
         new_routing = Routing(
             routing_id=routing_id,
+            name=name,
             deployment_id=deployment_id,
             environment=str(
                 environment
@@ -321,6 +380,12 @@ class RoutingRepository(BaseRepository):
             enabled=enabled,
             rules=rules,
         )
+
+        if effective_from is not None:
+            new_routing.effective_from = effective_from
+
+        if effective_to is not None:
+            new_routing.effective_to = effective_to
 
         if rollout_group is not None:
             new_routing.rollout_group = rollout_group
@@ -439,5 +504,42 @@ class RoutingRepository(BaseRepository):
 
         if updated_by is not None:
             routing.updated_by = updated_by
+
+        return routing
+
+    @staticmethod
+    def mark_deleted(
+            routing: Routing,
+            *,
+            deleted_at: datetime | None = None,
+            deleted_by: str | None = None,
+            deletion_reason: str | None = None,
+    ) -> Routing:
+        """逻辑删除路由规则"""
+        routing.deleted_at = (
+            deleted_at
+            if deleted_at is not None
+            else datetime.now(
+                timezone.utc
+            )
+        )
+        routing.deleted_by = deleted_by
+        routing.deletion_reason = deletion_reason
+        routing.updated_by = deleted_by
+
+        return routing
+
+    @staticmethod
+    def restore_routing(
+            routing: Routing,
+            *,
+            restored_by: str | None = None,
+    ) -> Routing:
+        """恢复逻辑删除的路由规则"""
+        routing.deleted_at = None
+        routing.deleted_by = None
+        routing.deletion_reason = None
+        routing.enabled = False
+        routing.updated_by = restored_by
 
         return routing

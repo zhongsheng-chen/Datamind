@@ -18,10 +18,10 @@ from typing import Any
 import structlog
 import typer
 from rich import box
-from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.models.experiments import Experiment
 from datamind.db.repositories import ExperimentRepository, VariantRepository
@@ -33,7 +33,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="查看实验命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -43,6 +43,11 @@ def show_experiment(
         experiment_id: str = typer.Argument(
             ...,
             help="实验 ID"
+        ),
+        include_deleted: bool = typer.Option(
+            False,
+            "--include-deleted",
+            help="包含已删除实验及分组",
         ),
         output: str = typer.Option(
             "text",
@@ -65,14 +70,21 @@ def show_experiment(
             experiment_repo = ExperimentRepository(uow.session)
             variant_repo = VariantRepository(uow.session)
 
-            experiment = await experiment_repo.get_experiment(experiment_id)
+            experiment = await experiment_repo.get_experiment(
+                experiment_id,
+                include_deleted=include_deleted,
+            )
 
             if experiment is None:
-                console.print(f"[red]实验不存在: {experiment_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"查看实验失败：实验不存在：{experiment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             variants = await variant_repo.list_variants(
                 experiment_id=experiment_id,
+                include_deleted=include_deleted,
             )
 
             config = _get_config(experiment)
@@ -106,6 +118,9 @@ def show_experiment(
                     "created_at": format_iso_utc(experiment.created_at),
                     "updated_by": experiment.updated_by,
                     "updated_at": format_iso_utc(experiment.updated_at),
+                    "deleted_at": format_iso_utc(experiment.deleted_at),
+                    "deleted_by": experiment.deleted_by,
+                    "deletion_reason": experiment.deletion_reason,
                 },
                 "variants": [
                     {
@@ -122,6 +137,7 @@ def show_experiment(
                         "created_at": format_iso_utc(item.created_at),
                         "updated_by": item.updated_by,
                         "updated_at": format_iso_utc(item.updated_at),
+                        "deleted_at": format_iso_utc(item.deleted_at),
                     }
                     for item in variants
                 ],
@@ -137,48 +153,48 @@ def show_experiment(
             )
             return result
 
-        console.print("[green]实验详情[/green]\n")
+        console.info("实验详情\n")
 
         experiment_result = result["experiment"]
 
         console.print(
-            f"[cyan]{'EXPERIMENT ID':<18}[/cyan] : "
+            f"{'EXPERIMENT ID':<18} : "
             f"{experiment_result['experiment_id']}"
         )
         console.print(
-            f"[cyan]{'MODEL ID':<18}[/cyan] : "
+            f"{'MODEL ID':<18} : "
             f"{experiment_result['model_id']}"
         )
         console.print(
-            f"[cyan]{'ENVIRONMENT':<18}[/cyan] : "
+            f"{'ENVIRONMENT':<18} : "
             f"{experiment_result['environment']}"
         )
         console.print(
-            f"[cyan]{'NAME':<18}[/cyan] : "
+            f"{'NAME':<18} : "
             f"{experiment_result['name'] or '-'}"
         )
         console.print(
-            f"[cyan]{'STATUS':<18}[/cyan] : "
+            f"{'STATUS':<18} : "
             f"{experiment_result['status']}"
         )
         console.print(
-            f"[cyan]{'STRATEGY':<18}[/cyan] : "
+            f"{'STRATEGY':<18} : "
             f"{experiment_result['strategy']}"
         )
         console.print(
-            f"[cyan]{'TRAFFIC RATIO':<18}[/cyan] : "
+            f"{'TRAFFIC RATIO':<18} : "
             f"{experiment_result['traffic_ratio']}"
         )
         console.print(
-            f"[cyan]{'BUCKET KEY':<18}[/cyan] : "
+            f"{'BUCKET KEY':<18} : "
             f"{experiment_result['bucket_key']}"
         )
         console.print(
-            f"[cyan]{'DESCRIPTION':<18}[/cyan] : "
+            f"{'DESCRIPTION':<18} : "
             f"{experiment_result['description'] or '-'}"
         )
         console.print(
-            f"[cyan]{'EFFECTIVE FROM':<18}[/cyan] : "
+            f"{'EFFECTIVE FROM':<18} : "
             f"{format_datetime(parse_datetime(experiment_result['effective_from']))}"
         )
         effective_to_text = (
@@ -191,31 +207,45 @@ def show_experiment(
             else "-"
         )
         console.print(
-            f"[cyan]{'EFFECTIVE TO':<18}[/cyan] : "
+            f"{'EFFECTIVE TO':<18} : "
             f"{effective_to_text}"
         )
         console.print(
-            f"[cyan]{'CREATED BY':<18}[/cyan] : "
+            f"{'CREATED BY':<18} : "
             f"{experiment_result['created_by'] or '-'}"
         )
         console.print(
-            f"[cyan]{'CREATED AT':<18}[/cyan] : "
+            f"{'CREATED AT':<18} : "
             f"{format_datetime(parse_datetime(experiment_result['created_at']))}"
         )
         console.print(
-            f"[cyan]{'UPDATED AT':<18}[/cyan] : "
+            f"{'UPDATED AT':<18} : "
             f"{format_datetime(parse_datetime(experiment_result['updated_at']))}"
         )
 
         if experiment_result["config"]:
             console.print(
-                f"[cyan]{'CONFIG':<18}[/cyan] : "
+                f"{'CONFIG':<18} : "
                 f"{json.dumps(experiment_result['config'], ensure_ascii=False)}"
             )
 
+        if experiment_result["deleted_at"]:
+            console.print(
+                f"{'DELETED AT':<18} : "
+                f"{format_datetime(parse_datetime(experiment_result['deleted_at']))}"
+            )
+            console.print(
+                f"{'DELETED BY':<18} : "
+                f"{experiment_result['deleted_by'] or '-'}"
+            )
+            console.print(
+                f"{'DELETE REASON':<18} : "
+                f"{experiment_result['deletion_reason'] or '-'}"
+            )
+
         console.print()
-        console.print(
-            f"[green]实验共包含 {len(result['variants'])} 个分组[/green]\n"
+        console.info(
+            f"实验共包含 {len(result['variants'])} 个分组\n"
         )
 
         if result["variants"]:

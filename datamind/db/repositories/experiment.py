@@ -16,6 +16,8 @@
   - pause_experiment: 暂停实验
   - complete_experiment: 完成实验
   - archive_experiment: 归档实验
+  - mark_deleted: 逻辑删除实验
+  - restore_experiment: 恢复实验
 
 使用示例：
   from datamind.constants import Environment
@@ -178,11 +180,14 @@ class ExperimentRepository(BaseRepository):
     async def get_experiment(
             self,
             experiment_id: str,
+            *,
+            include_deleted: bool = False,
     ) -> Experiment | None:
         """获取实验
 
         参数：
             experiment_id: 实验 ID
+            include_deleted: 是否包含逻辑删除记录
 
         返回：
             实验对象，不存在时返回 None
@@ -193,6 +198,13 @@ class ExperimentRepository(BaseRepository):
             Experiment.experiment_id
             == experiment_id
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Experiment.deleted_at.is_(
+                    None
+                )
+            )
 
         result = await self.session.execute(
             stmt
@@ -236,6 +248,9 @@ class ExperimentRepository(BaseRepository):
             == str(
                 ExperimentStatus.RUNNING
             ),
+            Experiment.deleted_at.is_(
+                None
+            ),
         )
 
         if exclude_experiment_id is not None:
@@ -266,6 +281,7 @@ class ExperimentRepository(BaseRepository):
             name: str | None = None,
             status: ExperimentStatus | None = None,
             created_by: str | None = None,
+            include_deleted: bool = False,
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Experiment]:
@@ -278,6 +294,7 @@ class ExperimentRepository(BaseRepository):
             name: 实验名称（可选）
             status: 实验状态（可选）
             created_by: 创建人（可选）
+            include_deleted: 是否包含逻辑删除记录
             limit: 返回数量限制（可选）
             offset: 分页偏移（可选）
 
@@ -295,6 +312,13 @@ class ExperimentRepository(BaseRepository):
         stmt = select(
             Experiment
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Experiment.deleted_at.is_(
+                    None
+                )
+            )
 
         if experiment_id is not None:
             stmt = stmt.where(
@@ -395,6 +419,9 @@ class ExperimentRepository(BaseRepository):
             Experiment.status
             == str(
                 ExperimentStatus.RUNNING
+            ),
+            Experiment.deleted_at.is_(
+                None
             ),
         )
 
@@ -640,3 +667,42 @@ class ExperimentRepository(BaseRepository):
             ),
             updated_by=updated_by,
         )
+
+    @staticmethod
+    def mark_deleted(
+            experiment: Experiment,
+            *,
+            deletion_id: str,
+            deleted_at: datetime | None = None,
+            deleted_by: str | None = None,
+            deletion_reason: str | None = None,
+    ) -> Experiment:
+        """逻辑删除实验"""
+        experiment.deleted_at = (
+            deleted_at
+            if deleted_at is not None
+            else datetime.now(
+                timezone.utc
+            )
+        )
+        experiment.deleted_by = deleted_by
+        experiment.deletion_id = deletion_id
+        experiment.deletion_reason = deletion_reason
+        experiment.updated_by = deleted_by
+
+        return experiment
+
+    @staticmethod
+    def restore_experiment(
+            experiment: Experiment,
+            *,
+            restored_by: str | None = None,
+    ) -> Experiment:
+        """恢复逻辑删除的实验"""
+        experiment.deleted_at = None
+        experiment.deleted_by = None
+        experiment.deletion_id = None
+        experiment.deletion_reason = None
+        experiment.updated_by = restored_by
+
+        return experiment

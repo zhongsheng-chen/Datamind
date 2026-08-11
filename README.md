@@ -441,6 +441,111 @@ datamind audit export --days 30 --output audit.json
 datamind --help
 datamind model --help
 
+# 管理控制台
+
+管理控制台根据当前用户的权限显示可用页面和操作入口。具备对应写权限时，
+可直接注册模型、创建部署与路由、配置实验及分组、管理用户与角色，并提交
+模型装载、重新装载和卸载请求。危险操作通过二次确认执行，所有写操作均受
+权限校验、CSRF 防护和审计记录约束。
+
+模型注册采用文件上传；其他创建操作使用结构化表单。列表行末的“管理”入口
+只展示当前资源状态允许且当前用户有权执行的操作。
+
+## 查询与导出
+
+管理控制台的列表页面支持普通关键词查询和字段化查询。查询条件在当前
+页面的数据范围内生效，并会同时应用于分页、排序和数据导出。
+
+### 查询方式
+
+| 查询方式 | 格式 | 示例 | 说明 |
+|---|---|---|---|
+| 普通关键词 | `<关键词>` | `scorecard` | 在当前页面支持的文本字段中进行不区分大小写的模糊匹配 |
+| 字段查询 | `<字段>:<值>` | `status:active` | 对指定文本字段进行不区分大小写的完整匹配 |
+| 带空格的值 | `<字段>:"<值>"` | `model:"credit score"` | 使用引号保留值中的空格 |
+| 组合查询 | `<条件> <条件>` | `model:scorecard status:active` | 多个条件之间使用 AND 关系 |
+| 字段与关键词组合 | `<字段>:<值> <关键词>` | `status:active sklearn` | 字段条件与普通关键词同时生效 |
+
+字段名支持连字符和下划线两种写法，例如 `model-name` 与
+`model_name` 等价。输入当前页面不支持的字段时，控制台会返回该页面
+可用的字段列表。
+
+### 时间查询
+
+时间字段支持日期、具体时间、闭合范围和开放范围。`time` 是当前页面
+主要时间字段的别名。
+
+| 查询方式 | 示例 | 说明 |
+|---|---|---|
+| 单日 | `time:2026-08-18` | 查询该本地自然日的全部记录 |
+| 单日（斜线格式） | `time:2026/08/18` | 与 `2026-08-18` 等价 |
+| 日期范围 | `time:2026-08-17..2026-08-18` | 包含起始日和结束日全天 |
+| 时间范围 | `time:2026/08/17 00:00:00..2026/08/18 23:59:59` | 按具体时间查询，范围两端均包含 |
+| 起始时间开放 | `created_at:2026-08-17..` | 查询指定日期及其后的记录 |
+| 结束时间开放 | `occurred_at:..2026-08-18` | 查询截至指定日期结束的记录 |
+| ISO 8601 时间 | `started_at:2026-08-18T09:30:00+08:00..` | 支持 `T`、`Z` 和 `±HH:MM` 时区偏移 |
+
+未提供时区偏移的时间按 `DATAMIND_LOG_TIMEZONE` 配置解析，再统一转换为
+UTC 查询。单独输入具体时间表示匹配该时间点；日期范围的结束日期则
+自动扩展到当天结束。
+
+### 页面查询字段
+
+- 模型：`model_id`、`name`、`framework`、`model_type`、`task_type`、
+  `status`、`created_at`、`updated_at`、`deleted_at`、`restored_at`、
+  `archived_at`。别名：`id`、`model`、`time`；`time` 对应
+  `updated_at`。
+- 版本：`version_id`、`model_id`、`model_name`、`model_version`、
+  `framework`、`status`、`created_at`、`updated_at`、`deleted_at`、
+  `restored_at`、`archived_at`。别名：`id`、`model`、`version`、
+  `time`；`time` 对应 `updated_at`。
+- 部署：`deployment_id`、`model_id`、`version_id`、`model_name`、
+  `model_version`、`environment`、`framework`、`rollout_type`、`role`、
+  `status`、`created_at`、`updated_at`、`effective_from`、
+  `effective_to`。别名：`id`、`model`、`version`、`time`；`time`
+  对应 `updated_at`。
+- 路由：`routing_id`、`deployment_id`、`model_name`、`model_version`、
+  `environment`、`rollout_type`、`rollout_group`、`description`、
+  `created_at`、`updated_at`。别名：`id`、`model`、`version`、
+  `time`；`time` 对应 `updated_at`。
+- 运行实例：`runtime_id`、`deployment_id`、`model_id`、`version_id`、
+  `model_name`、`model_version`、`worker_id`、`framework`、`status`、
+  `created_at`、`updated_at`、`loaded_at`、`unloaded_at`、
+  `last_heartbeat_at`。别名：`id`、`model`、`version`、`worker`、
+  `time`；`time` 对应 `updated_at`。
+- API 调用：`request_id`、`model_id`、`model_name`、`model_version`、
+  `source`、`status`、`user`、`ip`、`created_at`、`updated_at`。
+  别名：`id`、`model`、`version`、`time`；`time` 对应
+  `created_at`。
+- 决策记录：`decision_id`、`request_id`、`model_id`、`version_id`、
+  `deployment_id`、`model_name`、`model_version`、`source`、`strategy`、
+  `subject_key`、`subject_type`、`decision`、`created_at`、`updated_at`、
+  `decided_at`。别名：`id`、`model`、`version`、`subject`、`time`；
+  `time` 对应 `decided_at`。
+- 执行记录：`execution_id`、`decision_id`、`request_id`、`model_id`、
+  `version_id`、`deployment_id`、`model_name`、`model_version`、
+  `execution_type`、`status`、`error_type`、`error`、`created_at`、
+  `updated_at`、`started_at`、`finished_at`。别名：`id`、`model`、
+  `version`、`type`、`time`；`time` 对应 `started_at`。
+- 实验：`experiment_id`、`model_id`、`name`、`model_name`、
+  `environment`、`status`、`created_at`、`updated_at`、
+  `effective_from`、`effective_to`。别名：`id`、`experiment`、`model`、
+  `time`；`time` 对应 `updated_at`。
+- 分组：`variant_id`、`experiment_id`、`experiment_name`、`name`、
+  `deployment_id`、`model_name`、`model_version`、`status`、`created_at`、
+  `updated_at`。别名：`id`、`variant`、`experiment`、`model`、
+  `version`、`time`；`time` 对应 `updated_at`。
+- 审计记录：`audit_id`、`action`、`target_type`、`target_id`、`user`、
+  `source`、`status`、`request_id`、`trace_id`、`created_at`、
+  `updated_at`、`occurred_at`。别名：`id`、`time`；`time` 对应
+  `occurred_at`。
+- 用户：`user_id`、`username`、`display_name`、`email`、`status`、
+  `created_at`、`updated_at`、`deleted_at`、`last_login_at`。别名：
+  `id`、`user`、`time`；`time` 对应 `updated_at`。
+- 角色：`role_id`、`name`、`description`、`status`、`created_at`、
+  `updated_at`、`deleted_at`。别名：`id`、`role`、`time`；`time`
+  对应 `updated_at`。
+
 # 测试
 python -m unittest tests/test_logging_config.py
 python -m unittest tests/test_logging_config.py -v
@@ -683,6 +788,17 @@ Copy-Item .env.example .env
 CLI 登录成功后会在当前操作系统用户目录保存受限凭据，后续命令自动
 认证和续期。`DATAMIND_ACCESS_TOKEN` 仅用于自动化覆盖，不应写入
 共享的 `.env`。
+
+首次初始化前还需要配置管理员凭据：
+
+```dotenv
+DATAMIND_INIT_ADMIN_USERNAME=admin
+DATAMIND_INIT_ADMIN_PASSWORD=<strong-password>
+```
+
+管理员用户名默认使用 `admin`。初始化完成后，应从运行环境中移除
+`DATAMIND_INIT_ADMIN_PASSWORD`。管理员密码未配置时同样使用 `admin`；生产
+环境应在初始化前覆盖该默认值。
 
 ## 启动依赖服务
 
@@ -1636,7 +1752,7 @@ pip install semver -i https://pypi.tuna.tsinghua.edu.cn/simple
 pip install bentoml
 
 # 本地启动评分卡服务
-python scripts/start_bentoml_service.py serve --service scoring --port 3000
+python scripts/start_bentoml_service.py serve --service scoring --port 8700
 
 # 启动反欺诈服务
 python scripts/start_bentoml_service.py serve --service fraud --port 3001
@@ -1648,7 +1764,7 @@ python scripts/start_bentoml_service.py build --service scoring --version 1.0.0
 python scripts/start_bentoml_service.py containerize --service scoring --tag datamind-scoring:latest
 
 # 测试服务
-curl -X POST http://localhost:3000/predict \
+curl -X POST http://localhost:8700/predict \
   -H "Content-Type: application/json" \
   -d '{
     "application_id": "TEST_001",
@@ -1656,7 +1772,7 @@ curl -X POST http://localhost:3000/predict \
   }'
 
 # 健康检查
-curl http://localhost:3000/health
+curl http://localhost:8700/health
 ```
 
 
@@ -1846,10 +1962,10 @@ with get_db() as session:
 
 ## 测试服务
 ```bash
-bentoml serve datamind.serving.scoring_service:ScoringService --reload --port 3000
+bentoml serve datamind.serving.scoring_service:ScoringService --reload --port 8700
 
 # 评分服务
-DATAMIND_LOG_FILE=scoring.log bentoml serve datamind.serving.scoring_service:ScoringService --port 3000
+DATAMIND_LOG_FILE=scoring.log bentoml serve datamind.serving.scoring_service:ScoringService --port 8700
 
 # 反欺诈服务
 DATAMIND_LOG_FILE=fraud.log bentoml serve datamind.serving.fraud_service:FraudService --port 3001
@@ -1863,7 +1979,7 @@ python datamind/scripts/start_bentoml_service.py scoring --dev
 ## 测试服务
 ### 低风险请求
 ```bash
-curl -X POST http://localhost:3000/predict \
+curl -X POST http://localhost:8700/predict \
   -H "Content-Type: application/json" \
   -d '{
     "request": {
@@ -1886,7 +2002,7 @@ curl -X POST http://localhost:3000/predict \
 
 ### 高风险请求
 ```bash
-curl -X POST http://localhost:3000/predict \
+curl -X POST http://localhost:8700/predict \
   -H "Content-Type: application/json" \
   -d '{
     "request": {
@@ -1909,7 +2025,7 @@ curl -X POST http://localhost:3000/predict \
 
 ### 正常请求
 ```bash
-curl -X POST http://localhost:3000/predict \
+curl -X POST http://localhost:8700/predict \
   -H "Content-Type: application/json" \
   -d '{
     "request": {
@@ -1931,17 +2047,17 @@ curl -X POST http://localhost:3000/predict \
 ```
 ### 健康检查
 ```bash
-curl -X POST http://localhost:3000/health -H "Content-Type: application/json" -d '{}'
+curl -X POST http://localhost:8700/health -H "Content-Type: application/json" -d '{}'
 ```
 
 ### 列出模型
 ```bash
-curl -X POST http://localhost:3000/models -H "Content-Type: application/json" -d '{}'
+curl -X POST http://localhost:8700/models -H "Content-Type: application/json" -d '{}'
 ```
 
 ### 列出模型
 ```bash
-curl -X POST http://localhost:3000/models -H "Content-Type: application/json" -d '{}'
+curl -X POST http://localhost:8700/models -H "Content-Type: application/json" -d '{}'
 ```
 
 
@@ -2105,7 +2221,7 @@ bash
 curl http://localhost:8000/health
 
 # 评分卡预测
-curl -X POST http://localhost:3000/predict \
+curl -X POST http://localhost:8700/predict \
   -H "Content-Type: application/json" \
   -d '{
     "application_id": "TEST_001",
@@ -2748,14 +2864,18 @@ datamind version list ...
 
 | deployment_id | rollout_type | deployment_group | role | traffic_ratio |
 |---------------|-------------|------------------|------|---------------|
-| dep_v1 | shadow | prod | champion | 1.0 |
-| dep_v2 | shadow | prod | shadow | NULL |
+| dep_v1 | full | prod | champion | 1.0 |
+| dep_v2 | shadow | shadow | shadow | 1.0 |
 
 说明：
 
 - `champion` 接收正式流量并返回结果
-- `shadow` 接收镜像流量但不返回结果
-- `shadow` 不参与流量分配，因此 `traffic_ratio = NULL`
+- `shadow` 异步接收镜像流量，但其结果不会进入主响应
+- `shadow` 不参与主流量权重求和，`traffic_ratio` 表示独立镜像采样率
+- 每个请求只创建一条最终决策；主模型和影子模型分别写入执行记录，
+  并通过逻辑 `decision_id` 关联同一条决策
+- 执行表不建立数据库外键，记录生命周期由应用事务和表内唯一约束保证
+- 影子执行队列已满、超时或预测失败时，不影响主请求结果
 
 ---
 
@@ -2825,7 +2945,7 @@ shadow
 - Full：固定为 `1.0`
 - Canary：多个 Deployment 之和为 `1.0`
 - AB：多个 Deployment 之和为 `1.0`
-- Shadow：为 `NULL`
+- Shadow：独立镜像采样率，`1.0` 表示镜像全部请求
 
 
 {
@@ -3286,3 +3406,10 @@ Content-Type: application/json
 如果不存在活跃主部署，则使用当前环境下第一个可用的活跃部署作为兜底部署进行推理。
 
 python -c "import secrets; print(secrets.token_urlsafe(64))"
+
+
+启动实验需要：
+- 恰好一个启用的对照组
+- 至少一个启用的实验分组
+- 启用分组的权重合计为 1
+- 每个分组绑定不同且可用的部署

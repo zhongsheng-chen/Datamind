@@ -17,9 +17,9 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import VariantRepository
 from datamind.utils.datetime import (
@@ -29,7 +29,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="查看实验分组命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -63,6 +63,11 @@ def show_variant(
             ...,
             help="实验分组 ID"
         ),
+        include_deleted: bool = typer.Option(
+            False,
+            "--include-deleted",
+            help="包含已删除实验分组",
+        ),
         output: str = typer.Option(
             "text",
             "--format",
@@ -83,11 +88,17 @@ def show_variant(
         async with UnitOfWork() as uow:
             repo = VariantRepository(uow.session)
 
-            variant = await repo.get_variant(variant_id)
+            variant = await repo.get_variant(
+                variant_id,
+                include_deleted=include_deleted,
+            )
 
             if variant is None:
-                console.print(f"[red]实验分组不存在: {variant_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"查看分组失败：分组不存在：{variant_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             result: dict[str, Any] = {
                 "variant_id": variant.variant_id,
@@ -104,6 +115,9 @@ def show_variant(
                 "created_at": format_iso_utc(variant.created_at),
                 "updated_by": variant.updated_by,
                 "updated_at": format_iso_utc(variant.updated_at),
+                "deleted_at": format_iso_utc(variant.deleted_at),
+                "deleted_by": variant.deleted_by,
+                "deletion_reason": variant.deletion_reason,
             }
 
         if output == "json":
@@ -116,40 +130,54 @@ def show_variant(
             )
             return result
 
-        console.print("[green]实验分组详情[/green]\n")
+        console.info("分组详情\n")
 
-        console.print(f"[cyan]{'VARIANT ID':<16}[/cyan] : {result['variant_id']}")
-        console.print(f"[cyan]{'EXPERIMENT ID':<16}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name'] or '-'}")
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
+        console.print(f"{'VARIANT ID':<16} : {result['variant_id']}")
+        console.print(f"{'EXPERIMENT ID':<16} : {result['experiment_id']}")
+        console.print(f"{'NAME':<16} : {result['name'] or '-'}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
         console.print(
-            f"[cyan]{'ENVIRONMENT':<16}[/cyan] : "
+            f"{'ENVIRONMENT':<16} : "
             f"{result['environment'] or '-'}"
         )
-        console.print(f"[cyan]{'WEIGHT':<16}[/cyan] : {result['weight']}")
-        console.print(f"[cyan]{'CONTROL':<16}[/cyan] : {result['is_control']}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
+        console.print(f"{'WEIGHT':<16} : {result['weight']}")
+        console.print(f"{'CONTROL':<16} : {result['is_control']}")
+        console.print(f"{'STATUS':<16} : {result['status']}")
         console.print(
-            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{'DESCRIPTION':<16} : "
             f"{result['description'] or '-'}"
         )
         console.print(
-            f"[cyan]{'CREATED BY':<16}[/cyan] : "
+            f"{'CREATED BY':<16} : "
             f"{result['created_by'] or '-'}"
         )
         console.print(
-            f"[cyan]{'CREATED AT':<16}[/cyan] : "
+            f"{'CREATED AT':<16} : "
             f"{format_datetime(parse_datetime(result['created_at']))}"
         )
         console.print(
-            f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+            f"{'UPDATED AT':<16} : "
             f"{format_datetime(parse_datetime(result['updated_at']))}"
         )
 
         if result["config"]:
             console.print(
-                f"[cyan]{'CONFIG':<16}[/cyan] : "
+                f"{'CONFIG':<16} : "
                 f"{json.dumps(result['config'], ensure_ascii=False)}"
+            )
+
+        if result["deleted_at"]:
+            console.print(
+                f"{'DELETED AT':<16} : "
+                f"{format_datetime(parse_datetime(result['deleted_at']))}"
+            )
+            console.print(
+                f"{'DELETED BY':<16} : "
+                f"{result['deleted_by'] or '-'}"
+            )
+            console.print(
+                f"{'DELETE REASON':<16} : "
+                f"{result['deletion_reason'] or '-'}"
             )
 
         return result

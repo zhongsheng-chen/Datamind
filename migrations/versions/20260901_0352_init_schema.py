@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 7bf7278a76d1
+Revision ID: a25bb0e3d527
 Revises: 
-Create Date: 2026-08-10 08:10:58.073514+00:00
+Create Date: 2026-09-01 03:52:21.122917+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = '7bf7278a76d1'
+revision = 'a25bb0e3d527'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -161,22 +161,15 @@ def upgrade() -> None:
     sa.Column('bucket', sa.String(length=32), nullable=True, comment='分桶标识'),
     sa.Column('group', sa.String(length=32), nullable=True, comment='实验分组名称，例如 control / treatment'),
     sa.Column('weight', sa.Float(), nullable=True, comment='命中权重，取值范围 0.0～1.0'),
-    sa.Column('prediction', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='模型预测结果，JSON 格式。可记录概率、logit 值和评分等信息'),
-    sa.Column('probability', sa.Float(), nullable=True, comment='预测概率，取值范围 0.0～1.0'),
-    sa.Column('score', sa.Float(), nullable=True, comment='评分结果'),
     sa.Column('decision', sa.String(length=32), nullable=True, comment='最终决策结果，例如 approve / reject / review'),
-    sa.Column('latency_ms', sa.Float(), nullable=True, comment='决策耗时，单位毫秒'),
     sa.Column('context', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='决策上下文，JSON 格式。可记录路由、实验、Worker 和运行环境等信息'),
     sa.Column('decided_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='决策时间，请求完成模型决策的实际时间'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
     sa.CheckConstraint("context IS NULL OR jsonb_typeof(context) = 'object'", name=op.f('ck_decisions_context_object')),
-    sa.CheckConstraint("prediction IS NULL OR jsonb_typeof(prediction) = 'object'", name=op.f('ck_decisions_prediction_object')),
     sa.CheckConstraint("source IN ('experiment', 'routing', 'deployment', 'shadow', 'manual')", name=op.f('ck_decisions_source_valid')),
     sa.CheckConstraint("strategy IS NULL OR strategy IN ('manual', 'hash', 'weighted', 'fallback')", name=op.f('ck_decisions_strategy_valid')),
-    sa.CheckConstraint('latency_ms IS NULL OR latency_ms >= 0', name=op.f('ck_decisions_latency_ms_non_negative')),
-    sa.CheckConstraint('probability IS NULL OR (probability >= 0 AND probability <= 1)', name=op.f('ck_decisions_probability_range')),
     sa.CheckConstraint('weight IS NULL OR (weight >= 0 AND weight <= 1)', name=op.f('ck_decisions_weight_range')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_decisions'))
     )
@@ -206,9 +199,13 @@ def upgrade() -> None:
     sa.Column('description', sa.TEXT(), nullable=True, comment='部署说明'),
     sa.Column('deployed_by', sa.String(length=50), nullable=True, comment='部署人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='逻辑删除时间'),
+    sa.Column('deleted_by', sa.String(length=50), nullable=True, comment='逻辑删除操作人'),
+    sa.Column('deletion_reason', sa.TEXT(), nullable=True, comment='逻辑删除原因'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint("(rollout_type = 'shadow' AND role = 'shadow') OR (rollout_type <> 'shadow' AND role <> 'shadow')", name=op.f('ck_deployments_shadow_role_consistent')),
     sa.CheckConstraint("config IS NULL OR jsonb_typeof(config) = 'object'", name=op.f('ck_deployments_config_object')),
     sa.CheckConstraint("environment IN ('production', 'staging', 'development', 'testing')", name=op.f('ck_deployments_environment_valid')),
     sa.CheckConstraint("role IN ('champion', 'challenger', 'shadow')", name=op.f('ck_deployments_role_valid')),
@@ -217,12 +214,52 @@ def upgrade() -> None:
     sa.CheckConstraint('effective_to IS NULL OR effective_from IS NULL OR effective_to > effective_from', name=op.f('ck_deployments_effective_time_valid')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_deployments'))
     )
+    op.create_index('idx_deployments_deleted_at', 'deployments', ['deleted_at'], unique=False)
     op.create_index('idx_deployments_effective_time', 'deployments', ['model_id', 'effective_from', 'effective_to'], unique=False)
     op.create_index('idx_deployments_framework', 'deployments', ['framework'], unique=False)
     op.create_index('idx_deployments_model_id', 'deployments', ['model_id'], unique=False)
     op.create_index('idx_deployments_model_id_environment_status', 'deployments', ['model_id', 'environment', 'status'], unique=False)
     op.create_index('idx_deployments_model_id_version_id', 'deployments', ['model_id', 'version_id'], unique=False)
     op.create_index('uk_deployments_deployment_id', 'deployments', ['deployment_id'], unique=True)
+    op.create_table('executions',
+    sa.Column('execution_id', sa.String(length=64), nullable=False, comment='执行 ID，模型执行记录的唯一标识'),
+    sa.Column('decision_id', sa.String(length=64), nullable=False, comment='关联的决策 ID，不建立数据库外键'),
+    sa.Column('execution_type', sa.String(length=20), nullable=False, comment='执行类型，可选值：primary / shadow'),
+    sa.Column('status', sa.String(length=20), nullable=False, comment='执行状态，可选值：queued / running / success / failed / timeout / rejected / cancelled'),
+    sa.Column('model_id', sa.String(length=64), nullable=False, comment='执行使用的模型 ID'),
+    sa.Column('version_id', sa.String(length=64), nullable=False, comment='执行使用的版本 ID'),
+    sa.Column('deployment_id', sa.String(length=64), nullable=True, comment='执行使用的部署 ID，可选'),
+    sa.Column('routing_id', sa.String(length=64), nullable=True, comment='命中的路由 ID'),
+    sa.Column('prediction', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='模型预测结果，JSON 格式'),
+    sa.Column('probability', sa.Float(), nullable=True, comment='预测概率，取值范围 0.0～1.0'),
+    sa.Column('score', sa.Float(), nullable=True, comment='评分结果'),
+    sa.Column('latency_ms', sa.Float(), nullable=True, comment='执行耗时，单位毫秒'),
+    sa.Column('error_type', sa.String(length=128), nullable=True, comment='执行失败时的错误类型'),
+    sa.Column('error', sa.TEXT(), nullable=True, comment='执行失败时的错误信息'),
+    sa.Column('context', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='模型执行上下文，JSON 格式'),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=True, comment='执行开始时间'),
+    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True, comment='执行结束时间'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint("(status IN ('queued', 'running') AND finished_at IS NULL) OR (status NOT IN ('queued', 'running') AND finished_at IS NOT NULL)", name=op.f('ck_executions_unfinished_status_valid')),
+    sa.CheckConstraint("context IS NULL OR jsonb_typeof(context) = 'object'", name=op.f('ck_executions_context_object')),
+    sa.CheckConstraint("execution_type IN ('primary', 'shadow')", name=op.f('ck_executions_execution_type_valid')),
+    sa.CheckConstraint("prediction IS NULL OR jsonb_typeof(prediction) = 'object'", name=op.f('ck_executions_prediction_object')),
+    sa.CheckConstraint("status IN ('queued', 'running', 'success', 'failed', 'timeout', 'rejected', 'cancelled')", name=op.f('ck_executions_status_valid')),
+    sa.CheckConstraint('latency_ms IS NULL OR latency_ms >= 0', name=op.f('ck_executions_latency_ms_non_negative')),
+    sa.CheckConstraint('probability IS NULL OR (probability >= 0 AND probability <= 1)', name=op.f('ck_executions_probability_range')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_executions'))
+    )
+    op.create_index('idx_executions_created_at', 'executions', ['created_at'], unique=False)
+    op.create_index('idx_executions_decision_id', 'executions', ['decision_id'], unique=False)
+    op.create_index('idx_executions_deployment_id', 'executions', ['deployment_id'], unique=False)
+    op.create_index('idx_executions_model_id', 'executions', ['model_id'], unique=False)
+    op.create_index('idx_executions_status', 'executions', ['status'], unique=False)
+    op.create_index('idx_executions_type_status', 'executions', ['execution_type', 'status'], unique=False)
+    op.create_index('uk_executions_decision_deployment', 'executions', ['decision_id', 'deployment_id'], unique=True)
+    op.create_index('uk_executions_execution_id', 'executions', ['execution_id'], unique=True)
+    op.create_index('uk_executions_primary_decision', 'executions', ['decision_id'], unique=True, postgresql_where=sa.text("execution_type = 'primary'"))
     op.create_table('experiments',
     sa.Column('experiment_id', sa.String(length=64), nullable=False, comment='实验 ID，实验的唯一标识'),
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
@@ -235,6 +272,10 @@ def upgrade() -> None:
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='逻辑删除时间'),
+    sa.Column('deleted_by', sa.String(length=50), nullable=True, comment='逻辑删除操作人'),
+    sa.Column('deletion_id', sa.String(length=64), nullable=True, comment='逻辑删除批次 ID'),
+    sa.Column('deletion_reason', sa.TEXT(), nullable=True, comment='逻辑删除原因'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -245,6 +286,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_experiments'))
     )
     op.create_index('idx_experiments_created_at', 'experiments', ['created_at'], unique=False)
+    op.create_index('idx_experiments_deleted_at', 'experiments', ['deleted_at'], unique=False)
     op.create_index('idx_experiments_effective_time', 'experiments', ['model_id', 'effective_from', 'effective_to'], unique=False)
     op.create_index('idx_experiments_environment', 'experiments', ['environment'], unique=False)
     op.create_index('idx_experiments_model_environment_effective_time', 'experiments', ['model_id', 'environment', 'effective_from', 'effective_to'], unique=False)
@@ -253,7 +295,7 @@ def upgrade() -> None:
     op.create_index('idx_experiments_model_id_status', 'experiments', ['model_id', 'status'], unique=False)
     op.create_index('idx_experiments_status', 'experiments', ['status'], unique=False)
     op.create_index('uk_experiments_experiment_id', 'experiments', ['experiment_id'], unique=True)
-    op.create_index('uk_experiments_running_model_environment', 'experiments', ['model_id', 'environment'], unique=True, postgresql_where=sa.text("status = 'running'"))
+    op.create_index('uk_experiments_running_model_environment', 'experiments', ['model_id', 'environment'], unique=True, postgresql_where=sa.text("status = 'running' AND deleted_at IS NULL"))
     op.create_table('grants',
     sa.Column('grant_id', sa.String(length=64), nullable=False, comment='授予 ID，角色授予记录的唯一标识'),
     sa.Column('user_id', sa.String(length=64), nullable=False, comment='用户 ID'),
@@ -285,6 +327,7 @@ def upgrade() -> None:
     op.create_table('metadata',
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID，模型的唯一标识'),
     sa.Column('name', sa.String(length=100), nullable=False, comment='模型名称，全局唯一业务标识'),
+    sa.Column('display_name', sa.String(length=100), nullable=True, comment='模型显示名称'),
     sa.Column('model_type', sa.String(length=50), nullable=False, comment='模型类型，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost'),
     sa.Column('task_type', sa.String(length=50), nullable=False, comment='任务类型，可选值：classification / scoring'),
     sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值：sklearn / xgboost / lightgbm / catboost'),
@@ -324,7 +367,7 @@ def upgrade() -> None:
     sa.Column('schema_version', sa.Integer(), server_default=sa.text('1'), nullable=False, comment='事件结构版本'),
     sa.Column('occurred_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='事件发生时间'),
     sa.CheckConstraint("action IN ('insert', 'update', 'delete')", name=op.f('ck_outbox_action_valid')),
-    sa.CheckConstraint("topic IN ('models', 'versions', 'deployments', 'runtimes', 'requests', 'experiments', 'audits')", name=op.f('ck_outbox_topic_valid')),
+    sa.CheckConstraint("topic IN ('models', 'versions', 'deployments', 'routings', 'runtimes', 'requests', 'decisions', 'executions', 'experiments', 'variants', 'audits')", name=op.f('ck_outbox_topic_valid')),
     sa.CheckConstraint('schema_version >= 1', name=op.f('ck_outbox_schema_version_positive')),
     sa.PrimaryKeyConstraint('event_id', name=op.f('pk_outbox'))
     )
@@ -366,7 +409,8 @@ def upgrade() -> None:
     op.create_index('uk_outcomes_outcome_id', 'outcomes', ['outcome_id'], unique=True)
     op.create_table('requests',
     sa.Column('request_id', sa.String(length=64), nullable=False, comment='请求 ID，请求的唯一标识'),
-    sa.Column('model_id', sa.String(length=64), nullable=False, comment='目标模型 ID'),
+    sa.Column('model_id', sa.String(length=64), nullable=True, comment='目标模型 ID'),
+    sa.Column('model_name', sa.String(length=255), nullable=True, comment='目标模型名称'),
     sa.Column('payload', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='请求负载，JSON 格式。可记录模型、部署、主体和特征等请求信息'),
     sa.Column('response', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='请求处理结果，JSON 格式。记录返回给调用方的业务响应'),
     sa.Column('source', sa.String(length=50), nullable=True, comment='请求来源，例如 api'),
@@ -386,6 +430,7 @@ def upgrade() -> None:
     )
     op.create_index('idx_requests_created_at', 'requests', ['created_at'], unique=False)
     op.create_index('idx_requests_model_id', 'requests', ['model_id'], unique=False)
+    op.create_index('idx_requests_model_name', 'requests', ['model_name'], unique=False)
     op.create_index('idx_requests_source', 'requests', ['source'], unique=False)
     op.create_index('idx_requests_status', 'requests', ['status'], unique=False)
     op.create_index('idx_requests_user', 'requests', ['user'], unique=False)
@@ -416,16 +461,22 @@ def upgrade() -> None:
     op.create_index('uk_roles_role_id', 'roles', ['role_id'], unique=True)
     op.create_table('routing',
     sa.Column('routing_id', sa.String(length=64), nullable=False, comment='路由 ID，路由规则的唯一标识'),
+    sa.Column('name', sa.String(length=128), nullable=False, comment='路由名称'),
     sa.Column('deployment_id', sa.String(length=64), nullable=False, comment='部署 ID'),
     sa.Column('rollout_type', sa.String(length=20), server_default=sa.text("'full'"), nullable=False, comment='发布类型，可选值：full / canary / shadow'),
     sa.Column('rollout_group', sa.String(length=64), nullable=True, comment='发布分组，可选值：champion / challenger / shadow'),
     sa.Column('environment', sa.String(length=20), server_default=sa.text("'production'"), nullable=False, comment='路由环境，可选值：production / staging / development / testing'),
-    sa.Column('enabled', sa.Boolean(), server_default=sa.text('true'), nullable=False, comment='是否启用'),
+    sa.Column('enabled', sa.Boolean(), server_default=sa.text('false'), nullable=False, comment='是否启用'),
     sa.Column('traffic_ratio', sa.Float(), server_default=sa.text('0'), nullable=False, comment='流量占比，取值范围 0.0～1.0'),
     sa.Column('rules', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='路由规则，JSON 格式。可记录匹配模式、条件列表和路由元信息等'),
+    sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
+    sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
     sa.Column('description', sa.TEXT(), nullable=True, comment='路由说明'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='逻辑删除时间'),
+    sa.Column('deleted_by', sa.String(length=50), nullable=True, comment='逻辑删除操作人'),
+    sa.Column('deletion_reason', sa.TEXT(), nullable=True, comment='逻辑删除原因'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -433,13 +484,16 @@ def upgrade() -> None:
     sa.CheckConstraint("rollout_group IS NULL OR rollout_group IN ('champion', 'challenger', 'shadow')", name=op.f('ck_routing_rollout_group_valid')),
     sa.CheckConstraint("rollout_type IN ('full', 'canary', 'shadow')", name=op.f('ck_routing_rollout_type_valid')),
     sa.CheckConstraint("rules IS NULL OR jsonb_typeof(rules) = 'object'", name=op.f('ck_routing_rules_object')),
+    sa.CheckConstraint('effective_to IS NULL OR effective_from IS NULL OR effective_to > effective_from', name=op.f('ck_routing_effective_time_valid')),
     sa.CheckConstraint('traffic_ratio >= 0 AND traffic_ratio <= 1', name=op.f('ck_routing_traffic_ratio_range')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_routing'))
     )
-    op.create_index('idx_routing_deployment_id', 'routing', ['deployment_id'], unique=False)
+    op.create_index('idx_routing_deleted_at', 'routing', ['deleted_at'], unique=False)
     op.create_index('idx_routing_environment_enabled', 'routing', ['environment', 'enabled'], unique=False)
     op.create_index('idx_routing_rollout_group_enabled', 'routing', ['rollout_group', 'enabled'], unique=False)
     op.create_index('idx_routing_rollout_type_enabled', 'routing', ['rollout_type', 'enabled'], unique=False)
+    op.create_index('uk_routing_deployment_id_not_deleted', 'routing', ['deployment_id'], unique=True, postgresql_where=sa.text('deleted_at IS NULL'))
+    op.create_index('uk_routing_name_not_deleted', 'routing', ['name'], unique=True, postgresql_where=sa.text('deleted_at IS NULL'))
     op.create_index('uk_routing_routing_id', 'routing', ['routing_id'], unique=True)
     op.create_table('runtimes',
     sa.Column('runtime_id', sa.String(length=64), nullable=False, comment='运行 ID，运行记录的唯一标识'),
@@ -447,7 +501,7 @@ def upgrade() -> None:
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('version_id', sa.String(length=64), nullable=False, comment='版本 ID'),
     sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值：sklearn / xgboost / lightgbm / catboost'),
-    sa.Column('status', sa.String(length=20), server_default=sa.text("'unloaded'"), nullable=False, comment='运行状态，可选值：loading / loaded / unloaded / failed'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'stopped'"), nullable=False, comment='运行状态，可选值：starting / running / stopping / stopped / failed'),
     sa.Column('worker_id', sa.String(length=64), server_default=sa.text("'default'"), nullable=False, comment='运行 Worker 标识，单机模式默认 default'),
     sa.Column('loaded_at', sa.DateTime(timezone=True), nullable=True, comment='加载时间'),
     sa.Column('unloaded_at', sa.DateTime(timezone=True), nullable=True, comment='卸载时间'),
@@ -462,7 +516,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
     sa.CheckConstraint("context IS NULL OR jsonb_typeof(context) = 'object'", name=op.f('ck_runtimes_context_object')),
     sa.CheckConstraint("framework IN ('sklearn', 'xgboost', 'lightgbm', 'catboost')", name=op.f('ck_runtimes_framework_valid')),
-    sa.CheckConstraint("status IN ('loading', 'loaded', 'unloaded', 'failed')", name=op.f('ck_runtimes_status_valid')),
+    sa.CheckConstraint("status IN ('starting', 'running', 'stopping', 'stopped', 'failed')", name=op.f('ck_runtimes_status_valid')),
     sa.CheckConstraint('applied_generation IS NULL OR applied_generation >= 1', name=op.f('ck_runtimes_applied_generation_positive')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_runtimes'))
     )
@@ -563,6 +617,10 @@ def upgrade() -> None:
     sa.Column('description', sa.TEXT(), nullable=True, comment='实验分组说明'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='逻辑删除时间'),
+    sa.Column('deleted_by', sa.String(length=50), nullable=True, comment='逻辑删除操作人'),
+    sa.Column('deletion_id', sa.String(length=64), nullable=True, comment='逻辑删除批次 ID'),
+    sa.Column('deletion_reason', sa.TEXT(), nullable=True, comment='逻辑删除原因'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
@@ -572,13 +630,14 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_variants'))
     )
     op.create_index('idx_variants_created_at', 'variants', ['created_at'], unique=False)
+    op.create_index('idx_variants_deleted_at', 'variants', ['deleted_at'], unique=False)
     op.create_index('idx_variants_deployment_id', 'variants', ['deployment_id'], unique=False)
     op.create_index('idx_variants_experiment_id', 'variants', ['experiment_id'], unique=False)
     op.create_index('idx_variants_experiment_status', 'variants', ['experiment_id', 'status'], unique=False)
     op.create_index('idx_variants_status', 'variants', ['status'], unique=False)
-    op.create_index('uk_variants_active_control', 'variants', ['experiment_id'], unique=True, postgresql_where=sa.text("is_control = true AND status = 'active'"))
-    op.create_index('uk_variants_experiment_deployment', 'variants', ['experiment_id', 'deployment_id'], unique=True)
-    op.create_index('uk_variants_experiment_name', 'variants', ['experiment_id', 'name'], unique=True)
+    op.create_index('uk_variants_active_control', 'variants', ['experiment_id'], unique=True, postgresql_where=sa.text("is_control = true AND status = 'active' AND deleted_at IS NULL"))
+    op.create_index('uk_variants_experiment_deployment', 'variants', ['experiment_id', 'deployment_id'], unique=True, postgresql_where=sa.text('deleted_at IS NULL'))
+    op.create_index('uk_variants_experiment_name', 'variants', ['experiment_id', 'name'], unique=True, postgresql_where=sa.text('deleted_at IS NULL'))
     op.create_index('uk_variants_variant_id', 'variants', ['variant_id'], unique=True)
     op.create_table('versions',
     sa.Column('version_id', sa.String(length=64), nullable=False, comment='版本 ID，模型版本的唯一标识'),
@@ -642,13 +701,14 @@ def downgrade() -> None:
     op.drop_index('idx_versions_created_at', table_name='versions')
     op.drop_table('versions')
     op.drop_index('uk_variants_variant_id', table_name='variants')
-    op.drop_index('uk_variants_experiment_name', table_name='variants')
-    op.drop_index('uk_variants_experiment_deployment', table_name='variants')
-    op.drop_index('uk_variants_active_control', table_name='variants', postgresql_where=sa.text("is_control = true AND status = 'active'"))
+    op.drop_index('uk_variants_experiment_name', table_name='variants', postgresql_where=sa.text('deleted_at IS NULL'))
+    op.drop_index('uk_variants_experiment_deployment', table_name='variants', postgresql_where=sa.text('deleted_at IS NULL'))
+    op.drop_index('uk_variants_active_control', table_name='variants', postgresql_where=sa.text("is_control = true AND status = 'active' AND deleted_at IS NULL"))
     op.drop_index('idx_variants_status', table_name='variants')
     op.drop_index('idx_variants_experiment_status', table_name='variants')
     op.drop_index('idx_variants_experiment_id', table_name='variants')
     op.drop_index('idx_variants_deployment_id', table_name='variants')
+    op.drop_index('idx_variants_deleted_at', table_name='variants')
     op.drop_index('idx_variants_created_at', table_name='variants')
     op.drop_table('variants')
     op.drop_index('uk_users_username', table_name='users')
@@ -679,10 +739,12 @@ def downgrade() -> None:
     op.drop_index('idx_runtimes_framework', table_name='runtimes')
     op.drop_table('runtimes')
     op.drop_index('uk_routing_routing_id', table_name='routing')
+    op.drop_index('uk_routing_name_not_deleted', table_name='routing', postgresql_where=sa.text('deleted_at IS NULL'))
+    op.drop_index('uk_routing_deployment_id_not_deleted', table_name='routing', postgresql_where=sa.text('deleted_at IS NULL'))
     op.drop_index('idx_routing_rollout_type_enabled', table_name='routing')
     op.drop_index('idx_routing_rollout_group_enabled', table_name='routing')
     op.drop_index('idx_routing_environment_enabled', table_name='routing')
-    op.drop_index('idx_routing_deployment_id', table_name='routing')
+    op.drop_index('idx_routing_deleted_at', table_name='routing')
     op.drop_table('routing')
     op.drop_index('uk_roles_role_id', table_name='roles')
     op.drop_index('uk_roles_name', table_name='roles')
@@ -694,6 +756,7 @@ def downgrade() -> None:
     op.drop_index('idx_requests_user', table_name='requests')
     op.drop_index('idx_requests_status', table_name='requests')
     op.drop_index('idx_requests_source', table_name='requests')
+    op.drop_index('idx_requests_model_name', table_name='requests')
     op.drop_index('idx_requests_model_id', table_name='requests')
     op.drop_index('idx_requests_created_at', table_name='requests')
     op.drop_table('requests')
@@ -727,7 +790,7 @@ def downgrade() -> None:
     op.drop_index('idx_grants_role_id', table_name='grants')
     op.drop_index('idx_grants_granted_at', table_name='grants')
     op.drop_table('grants')
-    op.drop_index('uk_experiments_running_model_environment', table_name='experiments', postgresql_where=sa.text("status = 'running'"))
+    op.drop_index('uk_experiments_running_model_environment', table_name='experiments', postgresql_where=sa.text("status = 'running' AND deleted_at IS NULL"))
     op.drop_index('uk_experiments_experiment_id', table_name='experiments')
     op.drop_index('idx_experiments_status', table_name='experiments')
     op.drop_index('idx_experiments_model_id_status', table_name='experiments')
@@ -736,14 +799,26 @@ def downgrade() -> None:
     op.drop_index('idx_experiments_model_environment_effective_time', table_name='experiments')
     op.drop_index('idx_experiments_environment', table_name='experiments')
     op.drop_index('idx_experiments_effective_time', table_name='experiments')
+    op.drop_index('idx_experiments_deleted_at', table_name='experiments')
     op.drop_index('idx_experiments_created_at', table_name='experiments')
     op.drop_table('experiments')
+    op.drop_index('uk_executions_primary_decision', table_name='executions', postgresql_where=sa.text("execution_type = 'primary'"))
+    op.drop_index('uk_executions_execution_id', table_name='executions')
+    op.drop_index('uk_executions_decision_deployment', table_name='executions')
+    op.drop_index('idx_executions_type_status', table_name='executions')
+    op.drop_index('idx_executions_status', table_name='executions')
+    op.drop_index('idx_executions_model_id', table_name='executions')
+    op.drop_index('idx_executions_deployment_id', table_name='executions')
+    op.drop_index('idx_executions_decision_id', table_name='executions')
+    op.drop_index('idx_executions_created_at', table_name='executions')
+    op.drop_table('executions')
     op.drop_index('uk_deployments_deployment_id', table_name='deployments')
     op.drop_index('idx_deployments_model_id_version_id', table_name='deployments')
     op.drop_index('idx_deployments_model_id_environment_status', table_name='deployments')
     op.drop_index('idx_deployments_model_id', table_name='deployments')
     op.drop_index('idx_deployments_framework', table_name='deployments')
     op.drop_index('idx_deployments_effective_time', table_name='deployments')
+    op.drop_index('idx_deployments_deleted_at', table_name='deployments')
     op.drop_table('deployments')
     op.drop_index('uk_decisions_request_id', table_name='decisions')
     op.drop_index('uk_decisions_decision_id', table_name='decisions')

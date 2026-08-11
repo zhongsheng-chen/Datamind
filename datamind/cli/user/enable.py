@@ -15,7 +15,7 @@ import asyncio
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
 from datamind.services import IdentityService
@@ -23,7 +23,7 @@ from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="启用用户命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -56,8 +56,8 @@ def enable_user(
                 ),
                 operator=context.user,
             )
-            console.print(
-                f"[green]用户已启用：{result['username']}[/green]"
+            console.info(
+                f"用户已启用：{result['username']}"
             )
 
     try:
@@ -65,8 +65,8 @@ def enable_user(
             runner()
         )
     except IdentityError as exc:
-        console.print(
-            f"[red]启用用户失败：{exc}[/red]"
+        console.error(
+            f"启用用户失败：{exc}"
         )
         raise typer.Exit(
             code=1

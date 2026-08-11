@@ -19,10 +19,11 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.config import get_settings
 from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
@@ -30,19 +31,20 @@ from datamind.db.repositories import (
     RoutingPatch,
     RoutingRepository,
 )
+from datamind.models.enums import DeploymentRole
 from datamind.runtime.routing import RuleMatcher
+from datamind.services.routing import validate_routing_allocation
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
-    parse_datetime
+    parse_datetime,
 )
 
 app = typer.Typer(help="更新路由命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
-CHAMPION_ROLE = "champion"
 CHAMPION_TRAFFIC_WARN_THRESHOLD = 0.7
 
 
@@ -52,10 +54,10 @@ def update_route(
             ...,
             help="路由 ID"
         ),
-        environment: str | None = typer.Option(
+        name: str | None = typer.Option(
             None,
-            "--environment",
-            help="路由环境，可选值：production / staging / development / testing"
+            "--name",
+            help="路由名称",
         ),
         traffic_ratio: float | None = typer.Option(
             None,
@@ -72,13 +74,30 @@ def update_route(
             "--description",
             help="路由描述"
         ),
+        effective_from: str | None = typer.Option(
+            None,
+            "--effective-from",
+            help="生效开始时间"
+        ),
+        effective_to: str | None = typer.Option(
+            None,
+            "--effective-to",
+            help="生效结束时间"
+        ),
         output: str = typer.Option(
             "text",
             "--format",
             help="输出格式：text / json"
         ),
 ):
-    """更新路由规则"""
+    """更新路由规则
+
+    时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
+    时区偏移。未提供时区偏移时，按配置时区解析。
+    """
+    settings = get_settings()
+    timezone_name = settings.logging.timezone
+    service_environment = str(settings.service.environment)
 
     @audit(
         action="route.update",
@@ -88,6 +107,13 @@ def update_route(
     async def _run(
             actor: str,
     ):
+        resolved_name = None
+        if name is not None:
+            resolved_name = name.strip()
+            if not resolved_name:
+                raise typer.BadParameter("--name 不能为空")
+            if len(resolved_name) > 128:
+                raise typer.BadParameter("--name 不能超过 128 个字符")
         if output not in ("text", "json"):
             raise typer.BadParameter("--format 只支持 text 或 json")
 
@@ -97,18 +123,6 @@ def update_route(
             raise typer.BadParameter(
                 "--traffic-ratio 必须在 0 到 1 之间"
             )
-
-        requested_environment: Environment | None = None
-
-        if environment is not None:
-            try:
-                requested_environment = Environment(
-                    environment
-                )
-            except ValueError as exc:
-                raise typer.BadParameter(
-                    f"不支持的路由环境: {environment}"
-                ) from exc
 
         route_rules = None
 
@@ -131,19 +145,16 @@ def update_route(
                     rules=route_rules,
                 )
 
-            except FileNotFoundError:
-                console.print(
-                    "[red]rules 文件不存在: "
-                    f"{rules_file}[/red]"
-                )
-                raise typer.Exit(1)
+            except FileNotFoundError as error:
+                raise typer.BadParameter(
+                    f"--rules-file 文件不存在：{rules_file}"
+                ) from error
 
-            except json.JSONDecodeError as exc:
-                console.print(
-                    "[red]rules-file JSON 解析失败: "
-                    f"{exc}[/red]"
-                )
-                raise typer.Exit(1)
+            except json.JSONDecodeError as error:
+                raise typer.BadParameter(
+                    "--rules-file JSON 解析失败："
+                    f"{error}"
+                ) from error
 
             if not isinstance(
                     route_rules,
@@ -158,17 +169,18 @@ def update_route(
                     route_rules
                 )
 
-            except ValueError as exc:
-                console.print(
-                    "[red]rules 规则校验失败: "
-                    f"{exc}[/red]"
-                )
-                raise typer.Exit(1)
+            except ValueError as error:
+                raise typer.BadParameter(
+                    "--rules-file 规则校验失败："
+                    f"{error}"
+                ) from error
 
         if (
-                environment is None
+                name is None
                 and traffic_ratio is None
                 and rules_file is None
+                and effective_from is None
+                and effective_to is None
                 and description is None
         ):
             raise typer.BadParameter(
@@ -178,7 +190,8 @@ def update_route(
         logger.info(
             "开始更新路由",
             routing_id=routing_id,
-            environment=requested_environment,
+            name=resolved_name,
+            environment=service_environment,
             traffic_ratio=traffic_ratio,
             rules_file=rules_file,
         )
@@ -197,37 +210,64 @@ def update_route(
             )
 
             if route is None:
-                console.print(
-                    f"[red]路由不存在: {routing_id}[/red]"
+                console.error(
+                    f"更新路由失败：路由不存在：{routing_id}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
 
             deployment = await deployment_repo.get_deployment(
                 route.deployment_id
             )
 
             if deployment is None:
-                console.print(
-                    "[red]路由关联的部署不存在: "
-                    f"{route.deployment_id}[/red]"
+                console.error(
+                    "更新路由失败：关联部署不存在："
+                    f"{route.deployment_id}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
 
-            resolved_environment = (
-                requested_environment
-                if requested_environment is not None
-                else Environment(
-                    route.environment
+            if str(deployment.environment) != service_environment:
+                console.error(
+                    "更新路由失败：路由环境与部署环境不一致\n"
+                    f"部署环境：{deployment.environment}\n"
+                    f"路由环境：{route.environment}",
+                    output_format=output,
                 )
-            )
+                raise typer.Exit(code=1) from None
 
-            if deployment.environment != resolved_environment:
-                console.print(
-                    "[red]路由环境与部署环境不一致[/red]\n"
-                    f"部署环境: {deployment.environment}\n"
-                    f"路由环境: {resolved_environment}"
+            try:
+                effective_from_value = (
+                    parse_datetime(
+                        effective_from,
+                        timezone_name=timezone_name,
+                    )
+                    if effective_from is not None
+                    else getattr(route, "effective_from", None)
                 )
-                raise typer.Exit(1)
+                effective_to_value = (
+                    parse_datetime(
+                        effective_to,
+                        timezone_name=timezone_name,
+                    )
+                    if effective_to is not None
+                    else getattr(route, "effective_to", None)
+                )
+            except ValueError as datetime_error:
+                raise typer.BadParameter(
+                    "生效时间格式无效，请使用 "
+                    "YYYY-MM-DD HH:MM:SS 或带时区的 ISO 8601 格式"
+                ) from datetime_error
+
+            if (
+                    effective_from_value is not None
+                    and effective_to_value is not None
+                    and effective_to_value <= effective_from_value
+            ):
+                raise typer.BadParameter(
+                    "--effective-to 必须晚于 --effective-from"
+                )
 
             target_traffic_ratio = (
                 traffic_ratio
@@ -236,13 +276,14 @@ def update_route(
             )
 
             if (
-                    str(deployment.role).lower() == CHAMPION_ROLE
+                    str(deployment.role).lower()
+                    == DeploymentRole.CHAMPION.value
                     and target_traffic_ratio < CHAMPION_TRAFFIC_WARN_THRESHOLD
             ):
                 if output == "text":
-                    console.print(
-                        "[yellow]警告: champion 路由流量比例低于建议值，"
-                        "请确认是否符合预期[/yellow]"
+                    console.warning(
+                        "警告：champion 路由流量比例低于建议值，"
+                        "请确认是否符合预期"
                     )
 
                 logger.warning(
@@ -254,40 +295,68 @@ def update_route(
                     warning_threshold=CHAMPION_TRAFFIC_WARN_THRESHOLD,
                 )
 
-            patch = RoutingPatch(
-                rollout_type=deployment.rollout_type,
-                rollout_group=deployment.role,
-                environment=requested_environment,
-                traffic_ratio=traffic_ratio,
-                rules=route_rules,
-                description=description,
-            )
-
             try:
+                if route.enabled and traffic_ratio is not None:
+                    await validate_routing_allocation(
+                        routing_repo=routing_repo,
+                        deployment_repo=deployment_repo,
+                        deployment=deployment,
+                        traffic_ratio=traffic_ratio,
+                        exclude_routing_id=route.routing_id,
+                    )
+
+                patch = RoutingPatch(
+                    name=resolved_name,
+                    environment=Environment(service_environment),
+                    rollout_type=deployment.rollout_type,
+                    rollout_group=deployment.role,
+                    traffic_ratio=traffic_ratio,
+                    rules=route_rules,
+                    effective_from=(
+                        effective_from_value
+                        if effective_from is not None
+                        else None
+                    ),
+                    effective_to=(
+                        effective_to_value
+                        if effective_to is not None
+                        else None
+                    ),
+                    description=description,
+                )
                 routing_repo.update_routing(
                     route,
                     patch,
                     updated_by=actor,
                 )
 
-            except ValueError as exc:
-                console.print(
-                    f"[red]{exc}[/red]"
+            except ValueError as error:
+                console.error(
+                    f"更新路由失败：{error}",
+                    output_format=output,
+                    error_type=type(error).__name__,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
 
             await uow.session.flush()
             await uow.session.refresh(route)
 
             result: dict[str, Any] = {
                 "routing_id": route.routing_id,
+                "name": route.name,
                 "deployment_id": route.deployment_id,
-                "environment": route.environment,
-                "rollout_type": route.rollout_type,
-                "rollout_group": route.rollout_group,
+                "environment": deployment.environment,
+                "rollout_type": deployment.rollout_type,
+                "rollout_group": deployment.role,
                 "enabled": route.enabled,
                 "traffic_ratio": route.traffic_ratio,
                 "rules": route.rules,
+                "effective_from": format_iso_utc(
+                    getattr(route, "effective_from", None)
+                ),
+                "effective_to": format_iso_utc(
+                    getattr(route, "effective_to", None)
+                ),
                 "description": route.description,
                 "updated_by": route.updated_by,
                 "updated_at": format_iso_utc(route.updated_at),
@@ -303,35 +372,46 @@ def update_route(
             )
             return result
 
-        console.print("[green]路由更新成功[/green]\n")
+        console.info("路由更新成功\n")
 
-        console.print(f"[cyan]{'ROUTING ID':<16}[/cyan] : {result['routing_id']}")
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {result['rollout_type']}")
+        console.print(f"{'ROUTE NAME':<16} : {result['name']}")
+
+        console.print(f"{'ROUTING ID':<16} : {result['routing_id']}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'ROLLOUT TYPE':<16} : {result['rollout_type']}")
         console.print(
-            f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : "
+            f"{'ROLLOUT GROUP':<16} : "
             f"{result['rollout_group'] or '-'}"
         )
-        console.print(f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : {result['traffic_ratio']}")
-        console.print(f"[cyan]{'ENABLED':<16}[/cyan] : {result['enabled']}")
+        console.print(f"{'TRAFFIC RATIO':<16} : {result['traffic_ratio']}")
+        console.print(f"{'ENABLED':<16} : {result['enabled']}")
 
         if result["rules"]:
             console.print(
-                f"[cyan]{'RULES':<16}[/cyan] : "
+                f"{'RULES':<16} : "
                 f"{json.dumps(result['rules'], ensure_ascii=False)}"
             )
 
+        for label, field in (
+                ("EFFECTIVE FROM", "effective_from"),
+                ("EFFECTIVE TO", "effective_to"),
+        ):
+            value = format_datetime(
+                parse_datetime(result[field]),
+                timezone_name=timezone_name,
+            )
+            console.print(f"{label:<16} : {value}")
+
         console.print(
-            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{'DESCRIPTION':<16} : "
             f"{result['description'] or '-'}"
         )
         console.print(
-            f"[cyan]{'UPDATED BY':<16}[/cyan] : "
+            f"{'UPDATED BY':<16} : "
             f"{result['updated_by'] or '-'}"
         )
         console.print(
-            f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+            f"{'UPDATED AT':<16} : "
             f"{format_datetime(parse_datetime(result['updated_at']))}"
         )
 

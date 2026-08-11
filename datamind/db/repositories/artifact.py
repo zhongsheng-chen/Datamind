@@ -209,7 +209,7 @@ class ArtifactRepository(BaseRepository):
     def request_purge(
             artifact: Artifact,
             *,
-            reason: str,
+            reason: str | None = None,
             requested_by: str | None = None,
     ) -> Artifact:
         """请求永久清理模型制品"""
