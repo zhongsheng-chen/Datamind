@@ -7,6 +7,7 @@
 核心功能：
   - ModelType: 模型类型字符串枚举
   - SUPPORTED_MODEL_TYPES: 支持的模型类型集合
+  - SUPPORTED_MODEL_TYPES_BY_FRAMEWORK: 各框架支持的模型类型
 
 使用示例：
   from datamind.constants.model_type import ModelType
@@ -18,7 +19,10 @@
 """
 
 from enum import Enum
-from typing import FrozenSet
+from typing import (
+    FrozenSet,
+    Mapping,
+)
 
 
 class ModelType(str, Enum):
@@ -47,3 +51,15 @@ SUPPORTED_MODEL_TYPES: FrozenSet[str] = frozenset(
     str(model_type)
     for model_type in ModelType
 )
+
+
+SUPPORTED_MODEL_TYPES_BY_FRAMEWORK: Mapping[str, FrozenSet[str]] = {
+    "sklearn": frozenset({
+        ModelType.LOGISTIC_REGRESSION.value,
+        ModelType.DECISION_TREE.value,
+        ModelType.RANDOM_FOREST.value,
+    }),
+    "xgboost": frozenset({ModelType.XGBOOST.value}),
+    "lightgbm": frozenset({ModelType.LIGHTGBM.value}),
+    "catboost": frozenset({ModelType.CATBOOST.value}),
+}

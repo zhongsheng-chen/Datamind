@@ -10,7 +10,6 @@
 使用示例：
   python -m datamind.cli.main deployment create scorecard \
     --version 1.0.0 \
-    --environment production \
     --rollout full \
     --config-file config.json
 """
@@ -20,17 +19,78 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.config import get_settings
+from datamind.models.errors import (
+    DeploymentError,
+    InvalidModelStateError,
+)
 from datamind.services import DeploymentLifecycleService
 
 app = typer.Typer(help="创建部署命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
+
+
+def _resolve_release_options(
+        *,
+        rollout: str,
+        role: str | None,
+) -> tuple[str, str]:
+    """规范化发布方式，并推导或校验部署角色。"""
+    normalized_rollout = rollout.strip().lower()
+
+    if normalized_rollout == "full":
+        if role is not None:
+            raise typer.BadParameter(
+                "全量发布自动使用 champion，无需指定 --role",
+                param_hint="--role",
+            )
+        return normalized_rollout, "champion"
+
+    if normalized_rollout == "shadow":
+        if role is not None:
+            raise typer.BadParameter(
+                "影子发布自动使用 shadow，无需指定 --role",
+                param_hint="--role",
+            )
+        return normalized_rollout, "shadow"
+
+    if normalized_rollout != "canary":
+        try:
+            DeploymentLifecycleService.validate_release_mode(
+                rollout_type=normalized_rollout,
+                role="champion",
+            )
+        except DeploymentError as rollout_error:
+            raise typer.BadParameter(
+                str(rollout_error),
+                param_hint="--rollout",
+            ) from None
+
+    if role is None or role.strip() == "":
+        raise typer.BadParameter(
+            "金丝雀发布必须指定 --role：champion 或 challenger",
+            param_hint="--role",
+        )
+
+    normalized_role = role.strip().lower()
+    try:
+        DeploymentLifecycleService.validate_release_mode(
+            rollout_type=normalized_rollout,
+            role=normalized_role,
+        )
+    except DeploymentError as role_error:
+        raise typer.BadParameter(
+            str(role_error),
+            param_hint="--role",
+        ) from None
+
+    return normalized_rollout, normalized_role
 
 
 @app.command("create")
@@ -54,20 +114,15 @@ def create_deployment(
             "--version-id",
             help="版本 ID"
         ),
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="部署环境，默认使用服务配置"
-        ),
         rollout: str = typer.Option(
             "full",
             "--rollout",
             help="发布方式，可选值：full / canary / shadow"
         ),
-        role: str = typer.Option(
-            "champion",
+        role: str | None = typer.Option(
+            None,
             "--role",
-            help="部署角色"
+            help="金丝雀发布的部署角色：champion / challenger"
         ),
         config_file: str | None = typer.Option(
             None,
@@ -85,14 +140,18 @@ def create_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """创建部署"""
+    """创建部署
+
+    全量发布自动使用 champion，影子发布自动使用 shadow；
+    金丝雀发布需要通过 --role 指定 champion 或 challenger。
+    """
     settings = get_settings()
     service_config = settings.service
 
-    resolved_environment = (
-        environment
-        if environment is not None
-        else service_config.environment
+    environment = service_config.environment
+    normalized_rollout, resolved_role = _resolve_release_options(
+        rollout=rollout,
+        role=role,
     )
 
     @audit(
@@ -118,11 +177,6 @@ def create_deployment(
                 "--version 与 --version-id 只能指定一个"
             )
 
-        if not resolved_environment:
-            raise typer.BadParameter(
-                "--environment 不能为空"
-            )
-
         if output not in ("text", "json"):
             raise typer.BadParameter(
                 "--format 只支持 text 或 json"
@@ -134,9 +188,9 @@ def create_deployment(
             model_id=model_id,
             version=version,
             version_id=version_id,
-            environment=resolved_environment,
-            rollout=rollout,
-            role=role,
+            environment=environment,
+            rollout=normalized_rollout,
+            role=resolved_role,
             config_file=config_file,
         )
 
@@ -161,19 +215,15 @@ def create_deployment(
                     config=cfg,
                 )
 
-            except FileNotFoundError:
-                console.print(
-                    "[red]配置文件不存在: "
-                    f"{config_file}[/red]"
-                )
-                raise typer.Exit(1)
+            except FileNotFoundError as file_error:
+                raise typer.BadParameter(
+                    f"--config-file 文件不存在：{config_file}"
+                ) from file_error
 
-            except json.JSONDecodeError as exc:
-                console.print(
-                    "[red]config-file JSON 解析失败: "
-                    f"{exc}[/red]"
-                )
-                raise typer.Exit(1)
+            except json.JSONDecodeError as json_error:
+                raise typer.BadParameter(
+                    f"--config-file JSON 解析失败：{json_error}"
+                ) from json_error
 
             if not isinstance(
                     cfg,
@@ -185,18 +235,29 @@ def create_deployment(
 
         deployer = DeploymentLifecycleService()
 
-        result = await deployer.create_deployment(
-            name=name,
-            model_id=model_id,
-            version=version,
-            version_id=version_id,
-            environment=resolved_environment,
-            rollout_type=rollout,
-            role=role,
-            config=cfg,
-            description=description,
-            deployed_by=actor,
-        )
+        try:
+            result = await deployer.create_deployment(
+                name=name,
+                model_id=model_id,
+                version=version,
+                version_id=version_id,
+                environment=environment,
+                rollout_type=normalized_rollout,
+                role=resolved_role,
+                config=cfg,
+                description=description,
+                deployed_by=actor,
+            )
+        except (
+            DeploymentError,
+            InvalidModelStateError,
+        ) as deployment_error:
+            console.error(
+                f"创建部署失败：{deployment_error}",
+                output_format=output,
+                error_type=type(deployment_error).__name__,
+            )
+            raise typer.Exit(code=1) from None
 
         if output == "json":
             console.print_json(
@@ -208,36 +269,34 @@ def create_deployment(
             )
             return result
 
-        console.print(
-            "[green]部署创建成功[/green]\n"
-        )
+        console.info("部署创建成功\n")
 
         console.print(
-            f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : "
+            f"{'DEPLOYMENT ID':<16} : "
             f"{result['deployment_id']}"
         )
         console.print(
-            f"[cyan]{'MODEL ID':<16}[/cyan] : "
+            f"{'MODEL ID':<16} : "
             f"{result['model_id']}"
         )
         console.print(
-            f"[cyan]{'VERSION ID':<16}[/cyan] : "
+            f"{'VERSION ID':<16} : "
             f"{result['version_id']}"
         )
         console.print(
-            f"[cyan]{'ENVIRONMENT':<16}[/cyan] : "
+            f"{'ENVIRONMENT':<16} : "
             f"{result['environment']}"
         )
         console.print(
-            f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : "
+            f"{'ROLLOUT TYPE':<16} : "
             f"{result['rollout_type']}"
         )
         console.print(
-            f"[cyan]{'ROLE':<16}[/cyan] : "
+            f"{'ROLE':<16} : "
             f"{result['role']}"
         )
         console.print(
-            f"[cyan]{'STATUS':<16}[/cyan] : "
+            f"{'STATUS':<16} : "
             f"{result['status']}"
         )
 

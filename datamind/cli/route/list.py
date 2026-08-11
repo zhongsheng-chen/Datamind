@@ -17,12 +17,16 @@ import json
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
+from datamind.config import get_settings
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import RoutingRepository
+from datamind.db.repositories import (
+    DeploymentRepository,
+    RoutingRepository,
+)
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
@@ -30,22 +34,22 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="列出路由命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
 
 @app.command("list")
 def list_routes(
+        name: str | None = typer.Option(
+            None,
+            "--name",
+            help="按路由名称过滤",
+        ),
         deployment_id: str | None = typer.Option(
             None,
             "--deployment-id",
             help="按部署 ID 过滤"
-        ),
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="按路由环境过滤，可选值：production / staging / development / testing"
         ),
         rollout: str | None = typer.Option(
             None,
@@ -68,6 +72,11 @@ def list_routes(
             "--created-by",
             help="按创建人过滤"
         ),
+        include_deleted: bool = typer.Option(
+            False,
+            "--include-deleted",
+            help="包含已删除路由",
+        ),
         limit: int = typer.Option(
             10,
             "--limit",
@@ -85,6 +94,7 @@ def list_routes(
         ),
 ):
     """列出路由规则"""
+    environment = get_settings().service.environment
 
     async def _run():
         if output not in ("text", "json"):
@@ -96,53 +106,66 @@ def list_routes(
         if offset < 0:
             raise typer.BadParameter("--offset 不能小于 0")
 
-        filters = {}
-
-        if deployment_id is not None:
-            filters["deployment_id"] = deployment_id
-
-        if environment is not None:
-            filters["environment"] = environment
-
-        if rollout is not None:
-            filters["rollout_type"] = rollout
-
-        if rollout_group is not None:
-            filters["rollout_group"] = rollout_group
-
-        if enabled is not None:
-            filters["enabled"] = enabled
-
-        if created_by is not None:
-            filters["created_by"] = created_by
-
         logger.info(
             "开始列出路由",
-            filters=filters,
+            name=name,
+            deployment_id=deployment_id,
+            environment=environment,
+            rollout_type=rollout,
+            rollout_group=rollout_group,
+            enabled=enabled,
+            created_by=created_by,
             limit=limit,
             offset=offset,
         )
 
         async with UnitOfWork() as uow:
-            repo = RoutingRepository(
+            routing_repo = RoutingRepository(
+                uow.session
+            )
+            deployment_repo = DeploymentRepository(
                 uow.session
             )
 
-            routes = await repo.list_routings(
+            routes = await routing_repo.list_routings(
+                name=name,
+                include_deleted=include_deleted,
                 limit=limit,
                 offset=offset,
-                **filters,
+                deployment_id=deployment_id,
+                environment=environment,
+                rollout_type=rollout,
+                rollout_group=rollout_group,
+                enabled=enabled,
+                created_by=created_by,
             )
 
             result = []
 
             for route in routes:
+                deployment = await deployment_repo.get_deployment(
+                    route.deployment_id,
+                    include_deleted=True,
+                )
                 result.append({
                     "routing_id": route.routing_id,
+                    "name": route.name,
                     "deployment_id": route.deployment_id,
-                    "environment": route.environment,
-                    "rollout_type": route.rollout_type,
-                    "rollout_group": route.rollout_group,
+                    "environment": (
+                        deployment.environment
+                        if deployment is not None
+                        else route.environment
+                    ),
+                    "rollout_type": (
+                        deployment.rollout_type
+                        if deployment is not None
+                        else route.rollout_type
+                    ),
+                    "rollout_group": (
+                        deployment.role
+                        if deployment is not None
+                        else route.rollout_group
+                    ),
                     "enabled": route.enabled,
                     "traffic_ratio": route.traffic_ratio,
                     "rules": route.rules,
@@ -151,6 +174,7 @@ def list_routes(
                     "updated_by": route.updated_by,
                     "created_at": format_iso_utc(route.created_at),
                     "updated_at": format_iso_utc(route.updated_at),
+                    "deleted_at": format_iso_utc(route.deleted_at),
                 })
 
         if output == "json":
@@ -186,26 +210,38 @@ def list_routes(
             pad_edge=False,
         )
 
+        table.add_column("ROUTE NAME")
         table.add_column("ROUTING ID")
         table.add_column("DEPLOYMENT ID")
-        table.add_column("ENVIRONMENT")
         table.add_column("ROLLOUT TYPE")
         table.add_column("GROUP")
         table.add_column("TRAFFIC RATIO")
         table.add_column("ENABLED")
         table.add_column("UPDATED AT")
 
+        if include_deleted:
+            table.add_column("DELETED AT")
+
         for item in result:
-            table.add_row(
+            row = [
+                item["name"],
                 item["routing_id"],
                 item["deployment_id"],
-                item["environment"],
                 item["rollout_type"],
                 item["rollout_group"] or "-",
                 str(item["traffic_ratio"]),
                 str(item["enabled"]),
                 format_datetime(parse_datetime(item["updated_at"])),
-            )
+            ]
+
+            if include_deleted:
+                row.append(
+                    format_datetime(
+                        parse_datetime(item["deleted_at"])
+                    ) or "-"
+                )
+
+            table.add_row(*row)
 
         console.print(table)
 

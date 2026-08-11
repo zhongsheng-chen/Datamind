@@ -10,29 +10,34 @@
 使用示例：
   python -m datamind.cli.main console run \
     --host 0.0.0.0 \
-    --port 3100
+    --port 8701
 """
 
 import subprocess
 import sys
 import time
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from http.client import (
+    HTTPConnection,
+    HTTPException,
+)
+from urllib.parse import urlsplit
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.branding import (
+    build_bind_address,
     build_http_url,
-    print_startup_summary,
+    get_app_version,
+    print_http_server_summary,
 )
 from datamind.config import get_settings
 
 app = typer.Typer(
     help="启动管理控制台命令"
 )
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -40,16 +45,32 @@ CONSOLE_TARGET = (
     "datamind.console.service:"
     "DatamindConsoleService"
 )
+CONSOLE_SERVICE_NAME = "datamind_console_service"
 _STARTUP_TIMEOUT_SECONDS = 30.0
 _READY_CHECK_INTERVAL_SECONDS = 0.2
 _READY_CHECK_TIMEOUT_SECONDS = 1.0
 
 
-def _wait_until_ready(
+def wait_for_console_ready(
         process: subprocess.Popen,
         access_url: str,
 ) -> bool:
     """等待管理控制台能够响应 HTTP 请求"""
+    parsed_url = urlsplit(
+        access_url
+    )
+    host = parsed_url.hostname
+
+    if host is None:
+        return False
+
+    path = parsed_url.path or "/"
+
+    if parsed_url.query:
+        path = (
+            f"{path}?{parsed_url.query}"
+        )
+
     deadline = (
         time.monotonic()
         + _STARTUP_TIMEOUT_SECONDS
@@ -59,20 +80,31 @@ def _wait_until_ready(
         if process.poll() is not None:
             return False
 
-        try:
-            with urlopen(
-                    access_url,
-                    timeout=_READY_CHECK_TIMEOUT_SECONDS,
-            ) as response:
-                if response.status < 500:
-                    return True
+        connection = HTTPConnection(
+            host=host,
+            port=parsed_url.port,
+            timeout=_READY_CHECK_TIMEOUT_SECONDS,
+        )
 
-        except HTTPError as error:
-            if error.code < 500:
+        try:
+            connection.request(
+                "GET",
+                path,
+                headers={
+                    "Connection": "close",
+                },
+            )
+            response = connection.getresponse()
+            response.read()
+
+            if response.status == 200:
                 return True
 
-        except (OSError, URLError):
+        except (HTTPException, OSError):
             pass
+
+        finally:
+            connection.close()
 
         time.sleep(
             _READY_CHECK_INTERVAL_SECONDS
@@ -83,38 +115,53 @@ def _wait_until_ready(
 
 @app.command("run")
 def run_console(
-        host: str = typer.Option(
-            "127.0.0.1",
+        host: str | None = typer.Option(
+            None,
             "--host",
-            help="监听地址",
+            help="监听地址，未指定时读取控制台配置",
         ),
-        port: int = typer.Option(
-            3100,
+        port: int | None = typer.Option(
+            None,
             "--port",
-            help="监听端口",
+            help="监听端口，未指定时读取控制台配置",
         ),
         reload: bool = typer.Option(
             False,
             "--reload",
             help="代码变更时自动重载",
         ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示 BentoML 运行日志",
+        ),
 ) -> None:
     """启动管理控制台"""
-    normalized_host = host.strip()
+    settings = get_settings()
+    console_config = settings.console
+    resolved_host = (
+        host
+        if host is not None
+        else console_config.host
+    )
+    resolved_port = (
+        port
+        if port is not None
+        else console_config.port
+    )
+    normalized_host = resolved_host.strip()
 
     if normalized_host == "":
         raise typer.BadParameter(
             "--host 不能为空"
         )
 
-    if not 1 <= port <= 65535:
+    if not 1 <= resolved_port <= 65535:
         raise typer.BadParameter(
             "--port 必须在 1 到 65535 之间"
         )
 
-    environment = (
-        get_settings().service.environment
-    )
+    environment = settings.service.environment
 
     command = [
         sys.executable,
@@ -125,7 +172,7 @@ def run_console(
         "--host",
         normalized_host,
         "--port",
-        str(port),
+        str(resolved_port),
     ]
 
     if reload:
@@ -133,24 +180,25 @@ def run_console(
             "--reload"
         )
 
+    if not verbose:
+        command.append(
+            "--quiet"
+        )
+
     access_url = build_http_url(
         host=normalized_host,
-        port=port,
+        port=resolved_port,
     )
     readiness_url = build_http_url(
         host=normalized_host,
-        port=port,
+        port=resolved_port,
         path="/health",
     )
-
-    logger.info(
-        "管理控制台启动",
+    app_version = get_app_version()
+    listen_address = build_bind_address(
         host=normalized_host,
-        port=port,
-        reload=reload,
-        service_target=CONSOLE_TARGET,
+        port=resolved_port,
     )
-
     try:
         process = subprocess.Popen(
             command
@@ -158,32 +206,42 @@ def run_console(
     except OSError as exc:
         logger.error(
             "管理控制台启动失败",
-            host=normalized_host,
-            port=port,
+            service_name=CONSOLE_SERVICE_NAME,
+            version=app_version,
+            environment=environment,
+            bind=listen_address,
+            url=access_url,
+            reload=reload,
+            verbose=verbose,
+            service_target=CONSOLE_TARGET,
             error=str(exc),
         )
-        console.print(
-            "[red]管理控制台启动失败："
-            "无法启动 BentoML[/red]"
+        console.error(
+            "管理控制台启动失败："
+            "无法启动 BentoML"
         )
         raise typer.Exit(
             code=1
         ) from None
 
-    print_startup_summary(
-        console,
-        {
-            "NAME": "datamind",
-            "ENVIRONMENT": environment,
-            "HOST": normalized_host,
-            "PORT": port,
-            "RELOAD": reload,
-            "PID": process.pid,
-        },
+    startup_context = {
+        "service_name": CONSOLE_SERVICE_NAME,
+        "version": app_version,
+        "environment": environment,
+        "bind": listen_address,
+        "url": access_url,
+        "reload": reload,
+        "pid": process.pid,
+    }
+    logger.debug(
+        "管理控制台子进程已启动",
+        verbose=verbose,
+        service_target=CONSOLE_TARGET,
+        **startup_context,
     )
 
     try:
-        if not _wait_until_ready(
+        if not wait_for_console_ready(
                 process,
                 readiness_url,
         ):
@@ -194,12 +252,11 @@ def run_console(
                 process.wait()
                 logger.error(
                     "管理控制台启动超时",
-                    host=normalized_host,
-                    port=port,
+                    **startup_context,
                 )
-                console.print(
-                    "[red]管理控制台启动失败："
-                    "等待服务就绪超时[/red]"
+                console.error(
+                    "管理控制台启动失败："
+                    "等待服务就绪超时"
                 )
                 raise typer.Exit(
                     code=1
@@ -207,20 +264,28 @@ def run_console(
 
             logger.error(
                 "管理控制台启动前异常退出",
-                host=normalized_host,
-                port=port,
                 return_code=return_code,
+                **startup_context,
             )
             raise typer.Exit(
                 code=return_code or 1
             )
 
-        console.print(
-            "访问地址："
-            f"[cyan]{access_url}[/cyan]"
+        logger.info(
+            "管理控制台启动完成",
+            **startup_context,
+        )
+        print_http_server_summary(
+            console,
+            app_version=app_version,
+            environment=environment,
+            bind_address=listen_address,
+            access_url=access_url,
+            reload_enabled=reload,
+            pid=process.pid,
         )
         console.print(
-            "按 Ctrl+C 停止\n"
+            "Press Ctrl+C to stop\n"
         )
 
         return_code = process.wait()
@@ -229,29 +294,24 @@ def run_console(
         return_code = process.wait()
         logger.info(
             "管理控制台已停止",
-            host=normalized_host,
-            port=port,
             return_code=return_code,
+            **startup_context,
         )
-        console.print(
-            "\n[yellow]管理控制台已停止[/yellow]"
-        )
+        console.warning("\n管理控制台已停止")
         return
 
     if return_code == 0:
         logger.info(
             "管理控制台进程已退出",
-            host=normalized_host,
-            port=port,
             return_code=return_code,
+            **startup_context,
         )
         return
 
     logger.error(
         "管理控制台异常退出",
-        host=normalized_host,
-        port=port,
         return_code=return_code,
+        **startup_context,
     )
     raise typer.Exit(
         code=return_code

@@ -17,17 +17,17 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import ExperimentRepository
 from datamind.models.errors import ExperimentError
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="归档实验命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -68,8 +68,11 @@ def archive_experiment(
             experiment = await repo.get_experiment(experiment_id)
 
             if experiment is None:
-                console.print(f"[red]实验不存在: {experiment_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"实验归档失败：实验不存在：{experiment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             try:
                 repo.archive_experiment(
@@ -78,8 +81,12 @@ def archive_experiment(
                 )
 
             except ExperimentError as exc:
-                console.print(f"[red]{exc}[/red]")
-                raise typer.Exit(1) from exc
+                console.error(
+                    f"实验归档失败：{exc}",
+                    output_format=output,
+                    error_type=type(exc).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             await uow.session.flush()
             await uow.session.refresh(experiment)
@@ -103,10 +110,10 @@ def archive_experiment(
             )
             return result
 
-        console.print("[green]实验归档成功[/green]\n")
-        console.print(f"[cyan]{'EXPERIMENT ID':<18}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<18}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'STATUS':<18}[/cyan] : {result['status']}")
+        console.info("实验归档成功\n")
+        console.print(f"{'EXPERIMENT ID':<18} : {result['experiment_id']}")
+        console.print(f"{'MODEL ID':<18} : {result['model_id']}")
+        console.print(f"{'STATUS':<18} : {result['status']}")
 
         return result
 

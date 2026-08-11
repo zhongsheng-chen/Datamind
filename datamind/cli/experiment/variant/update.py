@@ -27,10 +27,10 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.models.variants import Variant
 from datamind.db.repositories import (
@@ -47,7 +47,7 @@ from datamind.models.errors import (
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="更新实验分组命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -166,19 +166,23 @@ def update_variant(
             variant = await variant_repo.get_variant(variant_id)
 
             if variant is None:
-                console.print(f"[red]实验分组不存在: {variant_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"分组更新失败：分组不存在：{variant_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             experiment = await experiment_repo.get_experiment(
                 variant.experiment_id
             )
 
             if experiment is None:
-                console.print(
-                    "[red]实验分组关联的实验不存在: "
-                    f"{variant.experiment_id}[/red]"
+                console.error(
+                    "分组更新失败：关联实验不存在："
+                    f"{variant.experiment_id}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
 
             experiment_status = _status_value(experiment.status)
             variant_status = _status_value(variant.status)
@@ -216,8 +220,11 @@ def update_variant(
                     )
 
                     if deployment is None:
-                        console.print(f"[red]部署不存在: {deployment_id}[/red]")
-                        raise typer.Exit(1)
+                        console.error(
+                            f"分组更新失败：部署不存在：{deployment_id}",
+                            output_format=output,
+                        )
+                        raise typer.Exit(code=1) from None
 
                     if deployment.model_id != experiment.model_id:
                         raise InvalidExperimentConfigError(
@@ -274,8 +281,12 @@ def update_variant(
                     )
 
             except ExperimentError as exc:
-                console.print(f"[red]{exc}[/red]")
-                raise typer.Exit(1) from exc
+                console.error(
+                    f"分组更新失败：{exc}",
+                    output_format=output,
+                    error_type=type(exc).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             if name is not None:
                 variant.name = name
@@ -331,23 +342,23 @@ def update_variant(
             )
             return result
 
-        console.print("[green]实验分组更新成功[/green]\n")
+        console.info("分组更新成功\n")
 
-        console.print(f"[cyan]{'VARIANT ID':<16}[/cyan] : {result['variant_id']}")
-        console.print(f"[cyan]{'EXPERIMENT ID':<16}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name'] or '-'}")
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'WEIGHT':<16}[/cyan] : {result['weight']}")
-        console.print(f"[cyan]{'CONTROL':<16}[/cyan] : {result['is_control']}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
+        console.print(f"{'VARIANT ID':<16} : {result['variant_id']}")
+        console.print(f"{'EXPERIMENT ID':<16} : {result['experiment_id']}")
+        console.print(f"{'MODEL ID':<16} : {result['model_id']}")
+        console.print(f"{'ENVIRONMENT':<16} : {result['environment']}")
+        console.print(f"{'NAME':<16} : {result['name'] or '-'}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'WEIGHT':<16} : {result['weight']}")
+        console.print(f"{'CONTROL':<16} : {result['is_control']}")
+        console.print(f"{'STATUS':<16} : {result['status']}")
         console.print(
-            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{'DESCRIPTION':<16} : "
             f"{result['description'] or '-'}"
         )
         console.print(
-            f"[cyan]{'UPDATED BY':<16}[/cyan] : "
+            f"{'UPDATED BY':<16} : "
             f"{result['updated_by'] or '-'}"
         )
 
@@ -402,14 +413,14 @@ def _validate_update_allowed(
 ) -> None:
     """校验实验状态和分组状态是否允许更新"""
     if variant_status == VARIANT_STATUS_ARCHIVED:
-        raise InvalidExperimentStateError("archived 状态下实验分组不允许修改")
+        raise InvalidExperimentStateError("归档状态下不允许修改分组")
 
     if variant_status not in {
         VARIANT_STATUS_ACTIVE,
         VARIANT_STATUS_INACTIVE,
     }:
         raise InvalidExperimentStateError(
-            f"{variant_status} 状态下实验分组不允许修改"
+            f"分组处于 {_variant_status_label(variant_status)}，不允许修改"
         )
 
     if experiment_status == EXPERIMENT_STATUS_DRAFT:
@@ -417,7 +428,7 @@ def _validate_update_allowed(
 
         if disallowed:
             raise InvalidExperimentStateError(
-                "draft 状态不允许修改字段: "
+                "草稿状态下不允许修改字段："
                 f"{', '.join(sorted(disallowed))}"
             )
 
@@ -428,13 +439,49 @@ def _validate_update_allowed(
 
         if disallowed:
             raise InvalidExperimentStateError(
-                "paused 状态下仅允许修改实验分组描述"
+                "暂停状态下仅允许修改分组描述"
             )
 
         return
 
     raise InvalidExperimentStateError(
-        f"{experiment_status} 状态不允许修改实验分组"
+        f"实验处于 {_experiment_status_label(experiment_status)}，"
+        "不允许修改分组"
+    )
+
+
+def _experiment_status_label(
+        status: str,
+) -> str:
+    """获取实验状态的终端显示名称"""
+    labels = {
+        "draft": "草稿状态",
+        "running": "运行状态",
+        "paused": "暂停状态",
+        "stopped": "停止状态",
+        "completed": "完成状态",
+        "archived": "归档状态",
+    }
+
+    return labels.get(
+        status,
+        f"未知状态（{status}）",
+    )
+
+
+def _variant_status_label(
+        status: str,
+) -> str:
+    """获取分组状态的终端显示名称"""
+    labels = {
+        "active": "启用状态",
+        "inactive": "停用状态",
+        "archived": "归档状态",
+    }
+
+    return labels.get(
+        status,
+        f"未知状态（{status}）",
     )
 
 

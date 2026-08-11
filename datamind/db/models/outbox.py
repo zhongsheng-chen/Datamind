@@ -53,9 +53,13 @@ class OutboxEvent(Base):
                 "'models', "
                 "'versions', "
                 "'deployments', "
+                "'routings', "
                 "'runtimes', "
                 "'requests', "
+                "'decisions', "
+                "'executions', "
                 "'experiments', "
+                "'variants', "
                 "'audits'"
                 ")"
             ),

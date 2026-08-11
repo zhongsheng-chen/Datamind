@@ -62,4 +62,4 @@ datamind service load <deployment_id>
 
 ## 预测请求
 
-`predict_request.json` 展示 `/predict` 接口的请求结构。调用前需将 `model_id` 替换为模型注册返回的实际 ID。
+`predict_request.json` 展示 `/predict` 接口的请求结构。调用前需将 `model_name` 替换为已注册模型的名称。

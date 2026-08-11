@@ -51,6 +51,10 @@ def test_experiment_table_and_columns() -> None:
         "effective_to",
         "created_by",
         "updated_by",
+        "deleted_at",
+        "deleted_by",
+        "deletion_id",
+        "deletion_reason",
         "id",
         "created_at",
         "updated_at",
@@ -61,6 +65,7 @@ def test_experiment_indexes() -> None:
     """验证索引集合"""
     assert {index.name for index in TABLE.indexes} == {
         "idx_experiments_created_at",
+        "idx_experiments_deleted_at",
         "idx_experiments_effective_time",
         "idx_experiments_environment",
         "idx_experiments_model_environment_effective_time",

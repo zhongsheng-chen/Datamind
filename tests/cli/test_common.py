@@ -5,6 +5,8 @@
 验证生产环境认证保护和访问令牌身份绑定。
 
 核心功能：
+  - test_cli_command_scope_uses_standard_context:
+    验证 CLI 命令使用标准追踪上下文
   - test_cli_context_uses_configured_logging:
     验证 CLI 上下文使用原始日志配置
   - test_cli_context_requires_auth_in_production:
@@ -15,6 +17,8 @@
     验证读取本地 CLI 登录凭据
   - test_cli_context_refreshes_expired_access_token:
     验证访问令牌失效后自动续期
+  - test_cli_context_reports_database_connection_failure:
+    验证数据库不可用时返回清晰提示
   - test_cli_context_rejects_missing_permission:
     验证拒绝缺少命令权限的用户
   - test_cli_context_allows_development_maintenance_mode:
@@ -26,14 +30,21 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import typer
+from sqlalchemy.exc import SQLAlchemyError
 
 import datamind.cli.common as common_module
 from datamind.auth.errors import InvalidAccessTokenError
 from datamind.auth.schemas import TokenResponse
-from datamind.cli.common import CLIContext
+from datamind.cli.common import (
+    CLIContext,
+    cli_command_scope,
+)
 from datamind.cli.credentials import CLICredentials
 from datamind.constants import Environment
-from datamind.context import get_context
+from datamind.context import (
+    get_context,
+    is_valid_trace_id,
+)
 
 
 class FakeUnitOfWork:
@@ -85,6 +96,27 @@ def patch_common_module(
             name,
             value,
         )
+
+
+def test_cli_command_scope_uses_standard_context() -> None:
+    """测试 CLI 命令作用域生成标准追踪上下文"""
+    with cli_command_scope(
+            ip="127.0.0.1",
+            hostname="datamind-host",
+    ):
+        context = get_context()
+
+        assert is_valid_trace_id(
+            context["trace_id"]
+        )
+        assert context["request_id"].startswith(
+            "req_"
+        )
+        assert len(context["request_id"]) == 20
+        assert context["source"] == "cli"
+        assert context["user"] == "anonymous"
+        assert context["ip"] == "127.0.0.1"
+        assert context["hostname"] == "datamind-host"
 
 
 @pytest.mark.asyncio
@@ -176,6 +208,12 @@ async def test_cli_context_uses_authenticated_identity(
     ) as context:
         assert context.user == "alice"
         assert get_context()["user"] == "alice"
+        assert is_valid_trace_id(
+            get_context()["trace_id"]
+        )
+        assert get_context()["request_id"].startswith(
+            "req_"
+        )
 
     service.authenticate_access_token.assert_awaited_once_with(
         "access-token"
@@ -302,11 +340,71 @@ async def test_cli_context_refreshes_expired_access_token(
     )
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        ConnectionRefusedError(),
+        SQLAlchemyError("database unavailable"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_cli_context_reports_database_connection_failure(
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        error: Exception,
+) -> None:
+    """测试数据库不可用时返回清晰提示并保留登录凭据"""
+    service = MagicMock()
+    service.authenticate_access_token = AsyncMock(
+        side_effect=error
+    )
+    store = MagicMock()
+    store.load.return_value = CLICredentials(
+        access_token="stored-access-token",
+        refresh_token="stored-refresh-token",
+    )
+    monkeypatch.delenv(
+        "DATAMIND_ACCESS_TOKEN",
+        raising=False,
+    )
+    patch_common_module(
+        monkeypatch,
+        get_settings=lambda: create_settings(
+            auth_enabled=True,
+            environment=Environment.PRODUCTION,
+        ),
+        UnitOfWork=FakeUnitOfWork,
+        create_auth_service=lambda **_kwargs: service,
+        CredentialStore=lambda: store,
+    )
+
+    with pytest.raises(
+            typer.Exit,
+    ):
+        await CLIContext(
+            required_permission="runtime.manage",
+            ip="127.0.0.1",
+            hostname="host",
+        ).__aenter__()
+
+    captured = capsys.readouterr()
+    assert "数据库连接失败" in captured.err
+    assert "DATAMIND_DATABASE_URL" in captured.err
+    store.clear.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_cli_context_requires_login_without_credentials(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试认证开启且没有本地凭据时要求登录"""
+    log_contexts: list[dict[str, object]] = []
+    context_logger = MagicMock()
+    context_logger.warning.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
     store = MagicMock()
     store.load.return_value = None
     monkeypatch.delenv(
@@ -320,6 +418,7 @@ async def test_cli_context_requires_login_without_credentials(
             environment=Environment.PRODUCTION,
         ),
         CredentialStore=lambda: store,
+        logger=context_logger,
     )
     context = CLIContext(
         required_permission="model.read",
@@ -331,6 +430,19 @@ async def test_cli_context_requires_login_without_credentials(
             typer.Exit,
     ):
         await context.__aenter__()
+
+    assert len(log_contexts) == 1
+    trace_id = log_contexts[0]["trace_id"]
+    request_id = log_contexts[0]["request_id"]
+    assert isinstance(trace_id, str)
+    assert isinstance(request_id, str)
+    assert is_valid_trace_id(
+        trace_id
+    )
+    assert request_id.startswith("req_")
+    assert log_contexts[0]["source"] == "cli"
+    assert log_contexts[0]["user"] == "anonymous"
+    assert get_context() == {}
 
 
 @pytest.mark.asyncio

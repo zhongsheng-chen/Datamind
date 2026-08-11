@@ -5,8 +5,10 @@
 定义内置角色及其固定权限。
 
 核心功能：
-  - SYSTEM_ADMIN_ROLE_NAME: 系统管理员角色名称
-  - SYSTEM_ADMIN_PERMISSIONS: 系统管理员角色权限
+  - SYSTEM_BOOTSTRAP_ACTOR: 系统初始化操作人
+  - ADMINISTRATOR_DISPLAY_NAME: 管理员默认显示名称
+  - ADMINISTRATOR_ROLE_NAME: 管理员角色名称
+  - ADMINISTRATOR_PERMISSIONS: 管理员角色权限
   - BUILTIN_ROLE_NAMES: 内置角色名称集合
 
 使用示例：
@@ -22,10 +24,12 @@ from typing import (
 )
 
 
-SYSTEM_ADMIN_ROLE_NAME: Final[str] = "system-admin"
-SYSTEM_ADMIN_PERMISSIONS: Final[tuple[str, ...]] = (
+SYSTEM_BOOTSTRAP_ACTOR: Final[str] = "system:bootstrap"
+ADMINISTRATOR_DISPLAY_NAME: Final[str] = "Administrator"
+ADMINISTRATOR_ROLE_NAME: Final[str] = "administrator"
+ADMINISTRATOR_PERMISSIONS: Final[tuple[str, ...]] = (
     "*",
 )
 BUILTIN_ROLE_NAMES: FrozenSet[str] = frozenset({
-    SYSTEM_ADMIN_ROLE_NAME,
+    ADMINISTRATOR_ROLE_NAME,
 })

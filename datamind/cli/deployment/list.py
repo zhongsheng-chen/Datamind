@@ -17,10 +17,11 @@ import json
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
+from datamind.config import get_settings
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories.deployment import DeploymentRepository
 from datamind.utils.datetime import (
@@ -30,7 +31,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="列出部署命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -52,11 +53,6 @@ def list_deployments(
             "--framework",
             help="按模型框架过滤，可选值：sklearn / xgboost / lightgbm / catboost"
         ),
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="按部署环境过滤，可选值：production / staging / development / testing"
-        ),
         rollout: str | None = typer.Option(
             None,
             "--rollout",
@@ -77,6 +73,11 @@ def list_deployments(
             "--deployed-by",
             help="按部署人过滤"
         ),
+        include_deleted: bool = typer.Option(
+            False,
+            "--include-deleted",
+            help="包含已删除部署",
+        ),
         limit: int = typer.Option(
             10,
             "--limit",
@@ -94,6 +95,7 @@ def list_deployments(
         ),
 ):
     """列出部署"""
+    environment = str(get_settings().service.environment)
 
     async def _run():
         if output not in ("text", "json"):
@@ -105,7 +107,7 @@ def list_deployments(
         if offset < 0:
             raise typer.BadParameter("--offset 不能小于 0")
 
-        filters = {}
+        filters = {"environment": environment}
 
         if model_id is not None:
             filters["model_id"] = model_id
@@ -115,9 +117,6 @@ def list_deployments(
 
         if framework is not None:
             filters["framework"] = framework
-
-        if environment is not None:
-            filters["environment"] = environment
 
         if rollout is not None:
             filters["rollout_type"] = rollout
@@ -142,6 +141,7 @@ def list_deployments(
             repo = DeploymentRepository(uow.session)
 
             deployments = await repo.list_deployments(
+                include_deleted=include_deleted,
                 limit=limit,
                 offset=offset,
                 **filters,
@@ -162,6 +162,7 @@ def list_deployments(
                     "deployed_by": deployment.deployed_by,
                     "created_at": format_iso_utc(deployment.created_at),
                     "updated_at": format_iso_utc(deployment.updated_at),
+                    "deleted_at": format_iso_utc(deployment.deleted_at),
                 })
 
         if output == "json":
@@ -206,8 +207,11 @@ def list_deployments(
         table.add_column("STATUS")
         table.add_column("UPDATED AT")
 
+        if include_deleted:
+            table.add_column("DELETED AT")
+
         for item in result:
-            table.add_row(
+            row = [
                 item["deployment_id"],
                 item["model_id"],
                 item["version_id"],
@@ -217,7 +221,16 @@ def list_deployments(
                 item["role"],
                 item["status"],
                 format_datetime(parse_datetime(item["updated_at"])),
-            )
+            ]
+
+            if include_deleted:
+                row.append(
+                    format_datetime(
+                        parse_datetime(item["deleted_at"])
+                    ) or "-"
+                )
+
+            table.add_row(*row)
 
         console.print(table)
 

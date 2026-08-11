@@ -54,6 +54,9 @@ def test_deployment_table_and_columns() -> None:
         "description",
         "deployed_by",
         "updated_by",
+        "deleted_at",
+        "deleted_by",
+        "deletion_reason",
         "id",
         "created_at",
         "updated_at",
@@ -64,6 +67,7 @@ def test_deployment_indexes() -> None:
     """验证索引集合"""
     assert {index.name for index in TABLE.indexes} == {
         "idx_deployments_effective_time",
+        "idx_deployments_deleted_at",
         "idx_deployments_framework",
         "idx_deployments_model_id",
         "idx_deployments_model_id_environment_status",
@@ -84,6 +88,7 @@ def test_deployment_check_constraints() -> None:
         "ck_deployments_environment_valid",
         "ck_deployments_role_valid",
         "ck_deployments_rollout_type_valid",
+        "ck_deployments_shadow_role_consistent",
         "ck_deployments_status_valid",
     }
 

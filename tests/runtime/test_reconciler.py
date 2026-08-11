@@ -70,10 +70,12 @@ def configure_reconciler(
     """配置运行时协调器及仓储替身"""
     manager: Any = MagicMock()
     manager.worker_id = "worker_test"
-    manager.exists.return_value = local_loaded
-    manager.start = AsyncMock()
-    manager.restart = AsyncMock()
-    manager.stop = AsyncMock()
+    manager.registry.__contains__.return_value = (
+        local_loaded
+    )
+    manager.load = AsyncMock()
+    manager.reload = AsyncMock()
+    manager.unload = AsyncMock()
     control_repo = MagicMock()
     control_repo.list_controls = AsyncMock(
         return_value=controls or []
@@ -81,6 +83,10 @@ def configure_reconciler(
     runtime_repo = MagicMock()
     runtime_repo.get_deployment_runtime = AsyncMock(
         return_value=None
+    )
+    runtime_repo.set_applied_generation = AsyncMock()
+    runtime_repo.mark_stale_runtimes_failed = AsyncMock(
+        return_value=[]
     )
     monkeypatch.setitem(
         vars(reconciler_module),
@@ -177,7 +183,7 @@ async def test_reconcile_loads_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试协调器加载本地缺失的部署"""
-    reconciler, manager, control_repo, _ = configure_reconciler(
+    reconciler, manager, control_repo, runtime_repo = configure_reconciler(
         monkeypatch,
         controls=[create_control()],
     )
@@ -187,7 +193,7 @@ async def test_reconcile_loads_missing_deployment(
     control_repo.list_controls.assert_awaited_once_with(
         environment=Environment.PRODUCTION
     )
-    manager.start.assert_awaited_once_with(
+    manager.load.assert_awaited_once_with(
         deployment_id="dep_test",
         operator="operator",
     )
@@ -200,6 +206,11 @@ async def test_reconcile_loads_missing_deployment(
         "failed": 0,
     }
     assert reconciler.get_applied_generation("dep_test") == 1
+    runtime_repo.set_applied_generation.assert_awaited_once_with(
+        deployment_id="dep_test",
+        worker_id="worker_test",
+        generation=1,
+    )
 
 
 @pytest.mark.asyncio
@@ -214,7 +225,7 @@ async def test_reconcile_uses_default_operator(
 
     await reconciler.reconcile_once()
 
-    manager.start.assert_awaited_once_with(
+    manager.load.assert_awaited_once_with(
         deployment_id="dep_test",
         operator="system",
     )
@@ -235,7 +246,7 @@ async def test_reconcile_initializes_loaded_generation(
 
     assert result.unchanged == 1
     assert reconciler.get_applied_generation("dep_test") == 2
-    manager.restart.assert_not_awaited()
+    manager.reload.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -255,7 +266,7 @@ async def test_reconcile_restarts_changed_generation(
 
     result = await reconciler.reconcile_once()
 
-    manager.restart.assert_awaited_once_with(
+    manager.reload.assert_awaited_once_with(
         deployment_id="dep_test",
         operator="operator",
     )
@@ -278,9 +289,9 @@ async def test_reconcile_keeps_same_generation(
     result = await reconciler.reconcile_once()
 
     assert result.unchanged == 1
-    manager.start.assert_not_awaited()
-    manager.restart.assert_not_awaited()
-    manager.stop.assert_not_awaited()
+    manager.load.assert_not_awaited()
+    manager.reload.assert_not_awaited()
+    manager.unload.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -296,7 +307,7 @@ async def test_reconcile_unloads_loaded_deployment(
 
     result = await reconciler.reconcile_once()
 
-    manager.stop.assert_awaited_once_with(
+    manager.unload.assert_awaited_once_with(
         deployment_id="dep_test",
         operator="operator",
     )
@@ -317,7 +328,7 @@ async def test_reconcile_keeps_unloaded_deployment(
     result = await reconciler.reconcile_once()
 
     assert result.unchanged == 1
-    manager.stop.assert_not_awaited()
+    manager.unload.assert_not_awaited()
     assert reconciler.get_applied_generations() == {
         "dep_test": 1,
     }
@@ -332,7 +343,7 @@ async def test_reconcile_isolates_control_failure(
         monkeypatch,
         controls=[create_control()],
     )
-    manager.start.side_effect = BackendError("load failed")
+    manager.load.side_effect = BackendError("load failed")
 
     result = await reconciler.reconcile_once()
 
@@ -383,7 +394,7 @@ async def test_reconcile_heartbeats_loaded_runtime(
         local_loaded=True,
     )
     runtime = SimpleNamespace(
-        status="loaded"
+        status="running"
     )
     runtime_repo.get_deployment_runtime.return_value = runtime
     monkeypatch.setattr(
@@ -398,6 +409,14 @@ async def test_reconcile_heartbeats_loaded_runtime(
     runtime_repo.heartbeat.assert_called_once_with(
         runtime
     )
+    runtime_repo.mark_stale_runtimes_failed.assert_awaited_once()
+    cleanup_arguments = (
+        runtime_repo.mark_stale_runtimes_failed.await_args
+    )
+    assert cleanup_arguments is not None
+    assert cleanup_arguments.kwargs["environment"] == "production"
+    assert cleanup_arguments.kwargs["exclude_worker_id"] == "worker_test"
+    assert cleanup_arguments.kwargs["stale_before"].tzinfo is not None
 
 
 @pytest.mark.asyncio
@@ -414,10 +433,10 @@ async def test_heartbeat_skips_missing_and_unloaded_runtime(
         controls=controls,
         local_loaded=True,
     )
-    manager.exists.return_value = True
+    manager.registry.__contains__.return_value = True
     runtime_repo.get_deployment_runtime.side_effect = [
         None,
-        SimpleNamespace(status="unloaded"),
+        SimpleNamespace(status="stopped"),
     ]
 
     await reconciler.reconcile_once()

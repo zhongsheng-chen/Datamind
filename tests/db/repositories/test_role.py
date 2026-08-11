@@ -579,6 +579,23 @@ def test_deactivate_role() -> None:
     assert role.updated_by == "usr_operator"
 
 
+def test_replace_description_allows_clearing() -> None:
+    """验证角色描述可以更新或清空"""
+    repository, _, _ = create_repository()
+    role = create_role(
+        description="旧描述"
+    )
+
+    repository.replace_description(
+        role,
+        description=None,
+        updated_by="usr_operator",
+    )
+
+    assert role.description is None
+    assert role.updated_by == "usr_operator"
+
+
 # noinspection PyUnreachableCode
 def test_mark_deleted_role() -> None:
     """验证逻辑删除角色并保留授权历史"""

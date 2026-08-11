@@ -5,7 +5,7 @@
 根据请求上下文选择最终命中的部署 ID。
 
 核心功能：
-  - resolve: 解析请求应该命中的部署
+  - resolve: 解析主部署和影子部署路由计划
 
 说明：
   路由按以下优先级解析：
@@ -21,7 +21,7 @@
 
   router = RuntimeRouter()
 
-  route = await router.resolve(
+  plan = await router.resolve(
       model_id="mdl_0123456789abcdef",
       environment="production",
       subject_key="customer_10001",
@@ -35,7 +35,7 @@
       }
   )
 
-  print(route.deployment_id)
+  print(plan.primary.deployment_id)
 """
 
 import hashlib
@@ -60,7 +60,9 @@ from datamind.db.repositories import (
 )
 from datamind.models.enums import (
     DecisionStrategy,
+    DeploymentRole,
     DeploymentStatus,
+    RolloutType,
 )
 from datamind.models.errors import RuntimeRouteError
 from datamind.runtime.routing.matcher import RuleMatcher
@@ -68,9 +70,6 @@ from datamind.runtime.routing.policy import validate_traffic_allocation
 from datamind.utils.datetime import to_utc
 
 logger = structlog.get_logger(__name__)
-
-CHAMPION_ROLE = "champion"
-
 
 @dataclass(slots=True)
 class RouteResult:
@@ -82,7 +81,7 @@ class RouteResult:
         deployment_id: 部署 ID
         framework: 框架类型
         environment: 部署环境
-        source: 路由来源，可选值 experiment / routing / deployment / manual
+        source: 路由来源，可选值 experiment / routing / deployment / shadow / manual
         strategy: 路由策略，可选值 manual / hash / weighted / fallback
         experiment_id: 实验 ID
         variant_id: 实验分组 ID
@@ -141,6 +140,14 @@ class RouteResult:
         }
 
 
+@dataclass(slots=True)
+class RoutingPlan:
+    """主路由与影子路由计划"""
+
+    primary: RouteResult
+    shadows: tuple[RouteResult, ...] = ()
+
+
 class RuntimeRouter:
     """运行时路由器"""
 
@@ -158,32 +165,79 @@ class RuntimeRouter:
             payload: dict | None = None,
             deployment_id: str | None = None,
             now: datetime | None = None,
-    ) -> RouteResult:
-        """解析请求路由
+            include_shadows: bool = True,
+    ) -> RoutingPlan:
+        """解析请求路由计划
 
-        解析优先级：
+        主路由按以下优先级解析：
           - 显式指定 deployment_id
-          - 运行中的实验分流，实验内部根据 strategy 执行 manual 或 hash 分配
+          - 运行中的实验分流
           - 启用状态的路由规则
-          - 默认部署兜底，优先主部署，其次第一个活跃部署
+          - 默认活跃部署
+
+        主路由确定后，独立解析满足条件的影子路由。
 
         参数：
             model_id: 模型 ID
             environment: 部署环境
-            subject_key: 分桶主体标识，例如客户号、订单号、申请单号。
-                如果传入该参数，则 A/B 实验优先使用该值。
-            subject_type: 分桶主体类型，例如 customer / order / application
-            payload: 请求负载。未传 subject_key 时，A/B 实验会根据实验配置中的
-                bucket_key 从 payload 中提取分桶主体标识。
-            deployment_id: 指定部署 ID。传入时直接校验并命中该部署
+            subject_key: 分桶主体标识
+            subject_type: 分桶主体类型
+            payload: 请求负载
+            deployment_id: 指定的主部署 ID
             now: 当前时间，默认 UTC 当前时间
+            include_shadows: 是否解析影子路由
 
         返回：
-            路由结果
+            主路由和影子路由计划
 
         异常：
             RuntimeRouteError: 无可用部署或路由失败
         """
+        current_time = to_utc(
+            now or datetime.now(timezone.utc)
+        )
+        primary = await self._resolve_primary(
+            model_id=model_id,
+            environment=environment,
+            subject_key=subject_key,
+            subject_type=subject_type,
+            payload=payload,
+            deployment_id=deployment_id,
+            now=current_time,
+        )
+
+        if not include_shadows:
+            return RoutingPlan(
+                primary=primary
+            )
+
+        shadows = await self._resolve_shadows(
+            model_id=model_id,
+            environment=environment,
+            subject_key=subject_key,
+            subject_type=subject_type,
+            payload=payload,
+            primary_deployment_id=primary.deployment_id,
+            now=current_time,
+        )
+
+        return RoutingPlan(
+            primary=primary,
+            shadows=tuple(shadows),
+        )
+
+    async def _resolve_primary(
+            self,
+            *,
+            model_id: str,
+            environment: str,
+            subject_key: str | None = None,
+            subject_type: str | None = None,
+            payload: dict | None = None,
+            deployment_id: str | None = None,
+            now: datetime | None = None,
+    ) -> RouteResult:
+        """解析主路由"""
         if not model_id:
             raise RuntimeRouteError("模型 ID 不能为空")
 
@@ -285,6 +339,14 @@ class RuntimeRouter:
                 f"model_id={model_id}, deployment_model_id={deployment.model_id}"
             )
 
+        if self._is_shadow_deployment(
+                deployment
+        ):
+            raise RuntimeRouteError(
+                "影子部署不能作为主预测目标: "
+                f"{deployment_id}"
+            )
+
         if not self._is_routable_deployment(
                 deployment,
                 environment=environment,
@@ -371,6 +433,18 @@ class RuntimeRouter:
             await uow.session.rollback()
             return None
 
+        if self._is_shadow_deployment(
+                deployment
+        ):
+            logger.warning(
+                "实验分组不能使用影子部署，跳过实验路由",
+                experiment_id=result.experiment_id,
+                variant_id=result.variant_id,
+                deployment_id=deployment.deployment_id,
+            )
+            await uow.session.rollback()
+            return None
+
         if not self._is_routable_deployment(
                 deployment,
                 environment=environment,
@@ -417,6 +491,12 @@ class RuntimeRouter:
         candidates: list[tuple[Routing, Deployment]] = []
 
         for routing in routings:
+            if not self._is_effective_routing(
+                    routing,
+                    now=now,
+            ):
+                continue
+
             deployment = await deployment_repo.get_deployment(
                 routing.deployment_id,
             )
@@ -425,6 +505,11 @@ class RuntimeRouter:
                 continue
 
             if deployment.model_id != model_id:
+                continue
+
+            if self._is_shadow_deployment(
+                    deployment
+            ):
                 continue
 
             if not self._is_routable_deployment(
@@ -516,8 +601,8 @@ class RuntimeRouter:
                     weight=weight,
                     context={
                         "routing_id": routing.routing_id,
-                        "rollout_type": routing.rollout_type,
-                        "rollout_group": routing.rollout_group,
+                        "rollout_type": deployment.rollout_type,
+                        "rollout_group": deployment.role,
                         "traffic_ratio": routing.traffic_ratio,
                         "rules": routing.rules,
                         "ratio": ratio,
@@ -547,10 +632,13 @@ class RuntimeRouter:
 
         deployments = [
             item for item in deployments
-            if self._is_routable_deployment(
-                item,
-                environment=environment,
-                now=now,
+            if (
+                not self._is_shadow_deployment(item)
+                and self._is_routable_deployment(
+                    item,
+                    environment=environment,
+                    now=now,
+                )
             )
         ]
 
@@ -559,7 +647,7 @@ class RuntimeRouter:
 
         champion = [
             item for item in deployments
-            if str(item.role).lower() == CHAMPION_ROLE
+            if item.role == DeploymentRole.CHAMPION.value
         ]
 
         if champion:
@@ -579,6 +667,141 @@ class RuntimeRouter:
                 "reason": fallback_reason,
             },
         )
+
+    async def _resolve_shadows(
+            self,
+            *,
+            model_id: str,
+            environment: str,
+            subject_key: str | None,
+            subject_type: str | None,
+            payload: dict | None,
+            primary_deployment_id: str,
+            now: datetime,
+    ) -> list[RouteResult]:
+        """解析本次请求命中的影子部署"""
+        async with UnitOfWork() as uow:
+            deployment_repo = DeploymentRepository(
+                uow.session
+            )
+            routing_repo = RoutingRepository(
+                uow.session
+            )
+            routings = await routing_repo.list_enabled_routings(
+                environment=Environment(
+                    environment
+                ),
+            )
+            route_subject_key = (
+                subject_key
+                or self._payload_key(payload)
+            )
+            routing_key = (
+                route_subject_key
+                or model_id
+            )
+            results: list[RouteResult] = []
+            deployments_seen: set[str] = set()
+
+            for routing in sorted(
+                    routings,
+                    key=lambda item: str(item.routing_id),
+            ):
+                deployment = await deployment_repo.get_deployment(
+                    routing.deployment_id
+                )
+
+                if (
+                        deployment is None
+                        or not self._is_effective_routing(
+                            routing,
+                            now=now,
+                        )
+                        or deployment.model_id != model_id
+                        or deployment.deployment_id
+                        == primary_deployment_id
+                        or deployment.deployment_id
+                        in deployments_seen
+                        or not self._is_shadow_deployment(
+                            deployment
+                        )
+                        or not self._is_routable_deployment(
+                            deployment,
+                            environment=environment,
+                            now=now,
+                        )
+                ):
+                    continue
+
+                if routing.rules:
+                    try:
+                        if not self.matcher.match(
+                                payload=payload or {},
+                                rules=routing.rules,
+                        ):
+                            continue
+                    except ValueError as exc:
+                        logger.warning(
+                            "影子路由规则匹配失败，跳过该路由",
+                            routing_id=routing.routing_id,
+                            deployment_id=(
+                                routing.deployment_id
+                            ),
+                            error=str(exc),
+                        )
+                        continue
+
+                weight = self._clamp(
+                    self._safe_float(
+                        routing.traffic_ratio,
+                        default=0.0,
+                    ),
+                    0.0,
+                    1.0,
+                )
+                ratio, bucket = self._hash_ratio(
+                    "shadow",
+                    model_id,
+                    environment,
+                    str(routing.routing_id),
+                    routing_key,
+                )
+
+                if weight <= 0 or ratio >= weight:
+                    continue
+
+                deployments_seen.add(
+                    deployment.deployment_id
+                )
+                results.append(
+                    self._build_deployment_result(
+                        deployment=deployment,
+                        source=DecisionStrategy.SHADOW,
+                        strategy="weighted",
+                        routing_id=routing.routing_id,
+                        subject_key=route_subject_key,
+                        subject_type=subject_type,
+                        bucket=bucket,
+                        weight=weight,
+                        context={
+                            "routing_id": routing.routing_id,
+                            "rollout_type": (
+                                deployment.rollout_type
+                            ),
+                            "rollout_group": (
+                                deployment.role
+                            ),
+                            "traffic_ratio": (
+                                routing.traffic_ratio
+                            ),
+                            "rules": routing.rules,
+                            "ratio": ratio,
+                            "bucket": bucket,
+                        },
+                    )
+                )
+
+        return results
 
     @staticmethod
     def _build_ab_test_result(
@@ -689,7 +912,6 @@ class RuntimeRouter:
                 "subject_key",
                 "customer_id",
                 "order_id",
-                "apply_id",
                 "application_id",
         ):
             value = payload.get(key)
@@ -719,6 +941,18 @@ class RuntimeRouter:
         return self._is_effective(deployment, now=now)
 
     @staticmethod
+    def _is_shadow_deployment(
+            deployment: Deployment,
+    ) -> bool:
+        """判断部署是否为影子部署"""
+        return (
+            deployment.rollout_type
+            == RolloutType.SHADOW.value
+            or deployment.role
+            == DeploymentRole.SHADOW.value
+        )
+
+    @staticmethod
     def _is_effective(
             deployment: Deployment,
             *,
@@ -740,6 +974,31 @@ class RuntimeRouter:
 
             if effective_to <= current_time:
                 return False
+
+        return True
+
+    @staticmethod
+    def _is_effective_routing(
+            routing: Routing,
+            *,
+            now: datetime,
+    ) -> bool:
+        """判断路由是否处于生效时间范围。"""
+        current_time = to_utc(now)
+        effective_from = getattr(routing, "effective_from", None)
+        effective_to = getattr(routing, "effective_to", None)
+
+        if (
+                isinstance(effective_from, datetime)
+                and to_utc(effective_from) > current_time
+        ):
+            return False
+
+        if (
+                isinstance(effective_to, datetime)
+                and to_utc(effective_to) <= current_time
+        ):
+            return False
 
         return True
 

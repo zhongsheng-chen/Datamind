@@ -17,7 +17,7 @@
       model_id="mdl_0123456789abcdef",
       version_id="ver_0123456789abcdef",
       framework="sklearn",
-      status="unloaded",
+      status="stopped",
       worker_id="worker-1",
       applied_generation=None,
       context={
@@ -111,9 +111,10 @@ class Runtime(
         CheckConstraint(
             (
                 "status IN ("
-                "'loading', "
-                "'loaded', "
-                "'unloaded', "
+                "'starting', "
+                "'running', "
+                "'stopping', "
+                "'stopped', "
                 "'failed'"
                 ")"
             ),
@@ -172,11 +173,11 @@ class Runtime(
         String(20),
         nullable=False,
         server_default=text(
-            "'unloaded'"
+            "'stopped'"
         ),
         comment=(
             "运行状态，可选值："
-            "loading / loaded / unloaded / failed"
+            "starting / running / stopping / stopped / failed"
         ),
     )
 

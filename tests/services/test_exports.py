@@ -18,13 +18,16 @@ import datamind.services.errors as service_errors
 EXPECTED_EXPORTS = {
     "DashboardService",
     "DeploymentLifecycleService",
+    "ExperimentLifecycleService",
     "InitializationService",
     "IdentityService",
     "ModelDeletionService",
     "ModelLifecycleService",
     "ModelRegistrationService",
+    "ModelCatalogService",
     "OutcomeService",
     "RuntimeControlService",
+    "RoutingLifecycleService",
 }
 
 EXPECTED_ERROR_EXPORTS = {

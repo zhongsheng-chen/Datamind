@@ -68,7 +68,7 @@ def test_register_copies_metadata() -> None:
     assert runtime_model.metadata == {
         "task_type": "scoring",
     }
-    assert registry.count() == 1
+    assert len(registry) == 1
 
 
 @pytest.mark.parametrize(
@@ -117,7 +117,7 @@ def test_register_rejects_missing_model() -> None:
         )
 
 
-def test_get_and_get_model_update_access_state() -> None:
+def test_get_updates_access_state() -> None:
     """测试查询运行时模型默认更新访问状态"""
     registry = RuntimeRegistry()
     model = object()
@@ -130,10 +130,10 @@ def test_get_and_get_model_update_access_state() -> None:
     )
 
     assert registry.get("dep_test") is runtime_model
-    assert registry.get_model("dep_test") is model
-    assert runtime_model.access_count == 2
+    assert runtime_model.model is model
+    assert runtime_model.access_count == 1
     assert registry.get("dep_test", touch=False) is runtime_model
-    assert runtime_model.access_count == 2
+    assert runtime_model.access_count == 1
 
 
 def test_missing_or_empty_deployment_returns_empty_result() -> None:
@@ -142,9 +142,8 @@ def test_missing_or_empty_deployment_returns_empty_result() -> None:
 
     assert registry.get("") is None
     assert registry.get("dep_missing") is None
-    assert registry.get_model("dep_missing") is None
-    assert registry.exists("") is False
-    assert registry.exists("dep_missing") is False
+    assert "" not in registry
+    assert "dep_missing" not in registry
     assert registry.unregister("") is None
     assert registry.unregister("dep_missing") is None
 
@@ -167,19 +166,19 @@ def test_registry_collection_operations() -> None:
         model=object(),
     )
 
-    assert registry.exists("dep_1") is True
+    assert "dep_1" in registry
     assert registry.all() == [first, second]
     assert [
         item["deployment_id"]
-        for item in registry.to_dicts()
+        for item in registry.snapshot()
     ] == ["dep_1", "dep_2"]
     assert registry.unregister("dep_1") is first
-    assert registry.count() == 1
+    assert len(registry) == 1
 
     registry.clear()
 
     assert registry.all() == []
-    assert registry.count() == 0
+    assert len(registry) == 0
 
 
 def test_restore_preserves_previous_runtime_model() -> None:

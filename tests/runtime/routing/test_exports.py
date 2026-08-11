@@ -15,6 +15,7 @@ import datamind.runtime.routing as routing
 EXPECTED_EXPORTS = {
     "RouteResult",
     "RuleMatcher",
+    "RoutingPlan",
     "RuntimeRouter",
     "validate_traffic_allocation",
 }

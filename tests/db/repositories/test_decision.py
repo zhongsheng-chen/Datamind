@@ -3,7 +3,7 @@
 """请求决策仓储测试
 
 验证 DecisionRepository 的决策查询、列表筛选、辅助列表方法，
-以及决策记录创建和数值字段校验。
+以及决策记录创建和权重校验。
 
 核心功能：
   - test_get_decision:
@@ -21,7 +21,7 @@
   - test_create_decision:
     验证创建决策记录
   - test_create_decision_validation:
-    验证权重、概率和耗时范围
+    验证权重范围
 """
 
 from datetime import (
@@ -91,14 +91,7 @@ def create_decision(
         "bucket": "bucket_0089",
         "group": "treatment",
         "weight": 0.5,
-        "prediction": {
-            "probability": 0.12,
-            "score": 680,
-        },
-        "probability": 0.12,
-        "score": 680.0,
         "decision": "approve",
-        "latency_ms": 35.6,
         "context": {
             "environment": "production",
         },
@@ -223,6 +216,7 @@ async def test_get_decision() -> None:
         "'req_0123456789abcdef'"
         in sql
     )
+    assert "decisions.source != 'shadow'" not in sql
 
 
 @pytest.mark.asyncio
@@ -593,14 +587,7 @@ def test_create_decision() -> None:
         bucket="bucket_0089",
         group="treatment",
         weight=0.5,
-        prediction={
-            "probability": 0.12,
-            "score": 680,
-        },
-        probability=0.12,
-        score=680.0,
         decision="approve",
-        latency_ms=35.6,
         context={
             "environment": "production",
         },
@@ -643,14 +630,7 @@ def test_create_decision() -> None:
     assert decision.bucket == "bucket_0089"
     assert decision.group == "treatment"
     assert decision.weight == 0.5
-    assert decision.prediction == {
-        "probability": 0.12,
-        "score": 680,
-    }
-    assert decision.probability == 0.12
-    assert decision.score == 680.0
     assert decision.decision == "approve"
-    assert decision.latency_ms == 35.6
     assert decision.context == {
         "environment": "production",
     }
@@ -707,11 +687,7 @@ def test_create_decision_uses_optional_defaults(
     assert decision.bucket is None
     assert decision.group is None
     assert decision.weight is None
-    assert decision.prediction is None
-    assert decision.probability is None
-    assert decision.score is None
     assert decision.decision is None
-    assert decision.latency_ms is None
     assert decision.context is None
     assert decision.decided_at == CURRENT_TIME
 
@@ -729,18 +705,6 @@ def test_create_decision_uses_optional_defaults(
         (
             "weight",
             1.0,
-        ),
-        (
-            "probability",
-            0.0,
-        ),
-        (
-            "probability",
-            1.0,
-        ),
-        (
-            "latency_ms",
-            0.0,
         ),
     ],
 )
@@ -790,21 +754,6 @@ def test_create_decision_accepts_boundary_values(
             "weight",
             1.01,
             "weight 必须在 0 到 1 之间",
-        ),
-        (
-            "probability",
-            -0.01,
-            "probability 必须在 0 到 1 之间",
-        ),
-        (
-            "probability",
-            1.01,
-            "probability 必须在 0 到 1 之间",
-        ),
-        (
-            "latency_ms",
-            -0.01,
-            "latency_ms 不能小于 0",
         ),
     ],
 )

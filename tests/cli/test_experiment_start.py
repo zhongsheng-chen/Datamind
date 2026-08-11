@@ -169,6 +169,34 @@ async def test_validate_rejects_inactive_deployment() -> None:
 
 
 @pytest.mark.asyncio
+async def test_validate_rejects_shadow_deployment() -> None:
+    """验证实验分组不能绑定影子部署"""
+    deployment_repo = MagicMock()
+    deployment_repo.get_deployment = AsyncMock(
+        return_value=create_deployment(
+            rollout_type="shadow",
+            role="shadow",
+        )
+    )
+
+    with pytest.raises(
+            InvalidExperimentConfigError,
+            match="实验分组不能使用影子部署",
+    ):
+        await start_module._validate_active_variant_deployments(
+            deployment_repo=deployment_repo,
+            experiment=create_experiment(),
+            active_variants=[
+                create_variant(
+                    variant_id="var_shadow",
+                    deployment_id="dep_test",
+                )
+            ],
+            now=CURRENT_TIME,
+        )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "overrides",
     [

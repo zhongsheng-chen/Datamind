@@ -61,6 +61,11 @@ _SENSITIVE_KEYS: Final[frozenset[str]] = frozenset(
         "private_key",
     }
 )
+_MASK_EXEMPT_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "refresh_token_revoked",
+    }
+)
 _UNSAMPLED_LEVELS: Final[frozenset[str]] = frozenset(
     {
         "warning",
@@ -181,6 +186,9 @@ def mask_sensitive(
 
     def is_sensitive_key(key: str) -> bool:
         normalized_key = key.lower()
+
+        if normalized_key in _MASK_EXEMPT_KEYS:
+            return False
 
         return any(
             sensitive_key in normalized_key

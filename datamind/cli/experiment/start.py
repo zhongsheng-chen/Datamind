@@ -21,10 +21,10 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.models.deployments import Deployment
@@ -49,7 +49,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="启动实验命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -94,8 +94,11 @@ def start_experiment(
             experiment = await experiment_repo.get_experiment(experiment_id)
 
             if experiment is None:
-                console.print(f"[red]实验不存在: {experiment_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"实验启动失败：实验不存在：{experiment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             try:
                 running_experiment = await experiment_repo.get_running_experiment(
@@ -194,8 +197,8 @@ def start_experiment(
                         warnings.append(warning_message)
 
                         if output == "text":
-                            console.print(
-                                f"[yellow]警告: {warning_message}[/yellow]"
+                            console.warning(
+                                f"警告：{warning_message}"
                             )
 
                         logger.warning(
@@ -220,8 +223,12 @@ def start_experiment(
                 )
 
             except ExperimentError as exc:
-                console.print(f"[red]{exc}[/red]")
-                raise typer.Exit(1) from exc
+                console.error(
+                    f"实验启动失败：{exc}",
+                    output_format=output,
+                    error_type=type(exc).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             await uow.session.flush()
             await uow.session.refresh(experiment)
@@ -263,14 +270,14 @@ def start_experiment(
             )
             return result
 
-        console.print("[green]实验启动成功[/green]\n")
-        console.print(f"[cyan]{'EXPERIMENT ID':<18}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<18}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<18}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'STATUS':<18}[/cyan] : {result['status']}")
-        console.print(f"[cyan]{'STRATEGY':<18}[/cyan] : {result['strategy']}")
+        console.info("实验启动成功\n")
+        console.print(f"{'EXPERIMENT ID':<18} : {result['experiment_id']}")
+        console.print(f"{'MODEL ID':<18} : {result['model_id']}")
+        console.print(f"{'ENVIRONMENT':<18} : {result['environment']}")
+        console.print(f"{'STATUS':<18} : {result['status']}")
+        console.print(f"{'STRATEGY':<18} : {result['strategy']}")
         console.print(
-            f"[cyan]{'EFFECTIVE FROM':<18}[/cyan] : "
+            f"{'EFFECTIVE FROM':<18} : "
             f"{format_datetime(parse_datetime(result['effective_from']))}"
         )
         effective_to_text = (
@@ -283,7 +290,7 @@ def start_experiment(
             else "-"
         )
         console.print(
-            f"[cyan]{'EFFECTIVE TO':<18}[/cyan] : "
+            f"{'EFFECTIVE TO':<18} : "
             f"{effective_to_text}"
         )
 
@@ -353,6 +360,18 @@ async def _validate_active_variant_deployments(
                 f"实验分组 ID: {variant.variant_id}\n"
                 f"实验环境: {experiment.environment}\n"
                 f"部署环境: {deployment.environment}"
+            )
+
+        if (
+                str(deployment.rollout_type).lower()
+                == "shadow"
+                or str(deployment.role).lower()
+                == "shadow"
+        ):
+            raise InvalidExperimentConfigError(
+                "实验分组不能使用影子部署\n"
+                f"实验分组 ID: {variant.variant_id}\n"
+                f"部署 ID: {deployment.deployment_id}"
             )
 
         if deployment.status != str(

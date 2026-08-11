@@ -28,10 +28,15 @@ cp .env.example .env
 - `DATAMIND_SERVICE_ENVIRONMENT`：当前运行环境。
 - `DATAMIND_DATABASE_URL`：PostgreSQL 异步连接地址。
 - `DATAMIND_AUTH_SECRET_KEY`：高强度 JWT 签名密钥。
+- `DATAMIND_INIT_ADMIN_PASSWORD`：首次初始化使用的管理员密码；生产环境应
+  覆盖默认值。
 - `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS`：development 可留空；staging 和
   production 必须配置实际的服务器地址或内网网段。
 - 使用 MinIO 时填写 `DATAMIND_STORAGE_MINIO_ACCESS_KEY` 和
   `DATAMIND_STORAGE_MINIO_SECRET_KEY`。
+
+CLI 采用单环境模式。资源创建、更新、查询和服务启动统一使用
+`DATAMIND_SERVICE_ENVIRONMENT`，不提供 `--environment` 参数。
 
 初始化或升级数据库：
 
@@ -39,17 +44,22 @@ cp .env.example .env
 alembic upgrade head
 ```
 
-首次部署时执行一次性系统初始化，交互设置首个管理员密码：
+首次部署前在 `.env` 中配置管理员凭据：
+
+```dotenv
+DATAMIND_INIT_ADMIN_USERNAME=admin
+DATAMIND_INIT_ADMIN_PASSWORD=<strong-password>
+```
+
+随后执行一次性系统初始化：
 
 ```bash
 datamind init
 ```
 
-生产环境也可以从部署系统挂载的单行 Secret 文件读取密码：
-
-```bash
-datamind init --username admin --password-file <secret-file>
-```
+初始化命令不会在终端读取用户名或密码。用户名和密码未配置时均使用 `admin`。
+生产环境应在初始化前通过环境变量或 `.env` 覆盖密码；初始化完成后，应从
+运行环境中移除 `DATAMIND_INIT_ADMIN_PASSWORD`。
 
 初始化完成后登录：
 
@@ -136,8 +146,9 @@ Datamind 仅支持数据库中的本地用户。密码通过隐藏提示输入�
 datamind login --username alice
 ```
 
-首次管理员由顶层 `datamind init` 命令创建。该命令仅在系统未初始化且
-用户表为空时可执行，不支持强制覆盖或重复初始化。
+首次管理员由顶层 `datamind init` 命令根据初始化配置创建。该命令仅在系统
+未初始化且用户表为空时可执行，不接收用户名或密码参数，也不支持强制覆盖或
+重复初始化。
 预发布和生产环境启用认证时必须配置 LOCAL 认证允许网段。
 
 普通本地账户登录后签发访问令牌和刷新令牌。应急账户使用同一登录命令，
@@ -177,9 +188,9 @@ datamind logout
 | 命令组 | 查询权限 | 变更权限 | 高风险权限 |
 |--------|----------|----------|------------|
 | `model` | `model.read` | `model.write` | `model.delete` |
-| `deployment` | `deployment.read` | `deployment.write` | - |
-| `route` | `routing.read` | `routing.write` | - |
-| `experiment` | `experiment.read` | `experiment.write` | - |
+| `deployment` | `deployment.read` | `deployment.write` | `deployment.delete` |
+| `route` | `routing.read` | `routing.write` | `routing.delete` |
+| `experiment` | `experiment.read` | `experiment.write` | `experiment.delete` |
 | `service` | - | `runtime.manage` | - |
 | `runtime` | `runtime.read` | `runtime.manage` | - |
 | `outcome` | - | `outcome.write` | - |
@@ -230,7 +241,7 @@ datamind user reset-password alice
 
 停用和删除用户同样会撤销已有刷新令牌。删除采用逻辑删除，以保留审计和
 历史关联；不能停用或删除当前登录用户，也不能移除最后一个有效的
-`system-admin` 用户：
+`administrator` 角色的用户：
 
 ```bash
 datamind user disable alice
@@ -238,9 +249,11 @@ datamind user enable alice
 datamind user delete alice --reason "员工离职" --yes
 ```
 
-Datamind 不预置任何用户。`datamind init` 根据部署人员输入创建首个管理员，
-并创建唯一的内置角色 `system-admin`。该角色不能通过普通角色命令创建或删除；
-其他业务角色由管理员按需创建。普通角色仍授予给用户时，必须先撤销角色授予：
+Datamind 不预置任何用户。`datamind init` 根据初始化配置创建首个管理员，
+并创建唯一的内置角色 `administrator`，授予全部权限 `*`。该角色不能通过普通
+角色命令创建、停用或删除；管理员可以将其授予其他受信任用户，但系统始终保留
+至少一个有效管理员。其他业务角色由管理员按需创建。普通角色仍授予给用户时，
+必须先撤销角色授予：
 
 ```bash
 datamind role revoke alice developer
@@ -389,6 +402,9 @@ datamind model activate (<name> | --model-id <model-id>)
   [--format <text|json>]
 ```
 
+未指定版本时，命令会激活模型及其全部 inactive 版本；指定版本时，
+只激活该版本及其模型。deprecated 和 archived 版本不受影响。
+
 #### 使用示例
 
 ```bash
@@ -406,11 +422,37 @@ datamind model deactivate (<name> | --model-id <model-id>)
   [--format <text|json>]
 ```
 
+未指定版本时，命令会停用模型及其全部 active 版本；指定版本时，
+只停用该版本，并在其为最后一个 active 版本时同时停用模型。
+
 #### 使用示例
 
 ```bash
 datamind model deactivate scorecard --version 1.0.0
 datamind model deactivate --model-id mdl_a1b2c3d4 --format json
+```
+
+### 弃用模型：`model deprecate`
+
+#### 命令格式
+
+```bash
+datamind model deprecate (<name> | --model-id <model-id>)
+  [--version <version> | --version-id <version-id>]
+  [--format <text|json>]
+```
+
+未指定版本时，命令会弃用模型及其全部 active、inactive 版本；
+指定版本时，只弃用该版本，并在其为最后一个 active 版本时停用模型。
+存在活动部署时，必须先禁用相关部署。
+
+#### 使用示例
+
+```bash
+datamind model deprecate scorecard
+datamind model deprecate scorecard --version 1.0.0
+datamind model deprecate --model-id mdl_a1b2c3d4 \
+  --version-id ver_a1b2c3d4 --format json
 ```
 
 ### 删除模型：`model delete`
@@ -420,7 +462,7 @@ datamind model deactivate --model-id mdl_a1b2c3d4 --format json
 ```bash
 datamind model delete (<name> | --model-id <model-id>)
   [--version <version> | --version-id <version-id>]
-  [--purge]
+  [--reason <reason>]
   [--yes]
   [--format <text|json>]
 ```
@@ -433,7 +475,7 @@ datamind model delete (<name> | --model-id <model-id>)
 | `--model-id <model-id>` | 模型 ID |
 | `--version <version>` | 删除指定版本，与 `--version-id` 二选一 |
 | `--version-id <version-id>` | 删除指定版本 ID |
-| `--purge` | 执行物理删除；默认执行归档/软删除 |
+| `--reason <reason>` | 删除原因，可选 |
 | `--yes` | 跳过交互确认 |
 | `--format <text|json>` | 输出格式，默认 `text` |
 
@@ -443,8 +485,22 @@ datamind model delete (<name> | --model-id <model-id>)
 datamind model delete scorecard
 datamind model delete scorecard --version 1.0.0
 datamind model delete --model-id mdl_a1b2c3d4 --yes
-datamind model delete --version-id ver_a1b2c3d4 --yes
-datamind model delete scorecard --version 1.0.0 --purge --yes
+datamind model delete --model-id mdl_a1b2c3d4 \
+  --version-id ver_a1b2c3d4 --yes
+```
+
+### 永久清理模型：`model purge`
+
+永久清理是不可恢复操作，只接受已经逻辑删除的模型或版本。
+
+```bash
+datamind model purge (<name> | --model-id <model-id>)
+  [--version <version> | --version-id <version-id>]
+  [--reason <reason>]
+  [--yes]
+  [--format <text|json>]
+
+datamind model purge scorecard --version 1.0.0 --yes
 ```
 
 ---
@@ -458,9 +514,8 @@ datamind model delete scorecard --version 1.0.0 --purge --yes
 ```bash
 datamind deployment create (<name> | --model-id <model-id>)
   [--version <version> | --version-id <version-id>]
-  [--environment <environment>]
   [--rollout <full|canary|shadow>]
-  [--role <champion|challenger>]
+  [--role <champion|challenger|shadow>]
   [--config-file <file>]
   [--description <description>]
   [--format <text|json>]
@@ -474,9 +529,8 @@ datamind deployment create (<name> | --model-id <model-id>)
 | `--model-id <model-id>` | 模型 ID |
 | `--version <version>` | 模型版本号，与 `--version-id` 二选一；不传时由服务层按默认逻辑解析 |
 | `--version-id <version-id>` | 版本 ID |
-| `--environment <environment>` | 部署环境；不传时使用服务配置 |
 | `--rollout <full|canary|shadow>` | 发布方式，默认 `full` |
-| `--role <champion|challenger>` | 部署角色，默认 `champion` |
+| `--role <champion|challenger|shadow>` | 部署角色，默认 `champion`；影子发布必须使用 `shadow` |
 | `--config-file <file>` | 运行时配置文件，JSON 对象 |
 | `--description <description>` | 部署描述 |
 | `--format <text|json>` | 输出格式，默认 `text` |
@@ -505,7 +559,6 @@ datamind deployment create (<name> | --model-id <model-id>)
 ```bash
 datamind deployment create scorecard \
   --version 1.0.0 \
-  --environment production \
   --rollout full \
   --role champion \
   --config-file config.json \
@@ -513,14 +566,12 @@ datamind deployment create scorecard \
 
 datamind deployment create scorecard \
   --version 1.0.0 \
-  --environment production \
   --rollout canary \
   --role challenger \
   --config-file config.json
 
 datamind deployment create --model-id mdl_a1b2c3d4 \
   --version-id ver_a1b2c3d4 \
-  --environment development \
   --format json
 ```
 
@@ -533,7 +584,6 @@ datamind deployment list
   [--model-id <model-id>]
   [--version-id <version-id>]
   [--framework <framework>]
-  [--environment <environment>]
   [--rollout <full|canary|shadow>]
   [--role <champion|challenger>]
   [--status <status>]
@@ -550,7 +600,6 @@ datamind deployment list
 | `--model-id <model-id>` | 按模型 ID 过滤 |
 | `--version-id <version-id>` | 按版本 ID 过滤 |
 | `--framework <framework>` | 按模型框架过滤 |
-| `--environment <environment>` | 按部署环境过滤 |
 | `--rollout <full|canary|shadow>` | 按发布方式过滤 |
 | `--role <champion|challenger>` | 按部署角色过滤 |
 | `--status <status>` | 按部署状态过滤，例如 `active`、`inactive` |
@@ -565,7 +614,6 @@ datamind deployment list
 datamind deployment list
 datamind deployment list --model-id mdl_a1b2c3d4
 datamind deployment list --version-id ver_a1b2c3d4
-datamind deployment list --environment production
 datamind deployment list --rollout canary
 datamind deployment list --role challenger
 datamind deployment list --status active
@@ -619,6 +667,16 @@ datamind deployment disable <deployment-id>
 datamind deployment disable dep_a1b2c3d4
 ```
 
+### 删除与恢复部署
+
+只能删除已经停用、卸载且未被有效路由或实验引用的部署；恢复后的部署
+保持 `inactive`，需要显式启用后才能重新接收流量。
+
+```bash
+datamind deployment delete dep_a1b2c3d4 [--reason <reason>] [--yes]
+datamind deployment restore dep_a1b2c3d4
+```
+
 ---
 
 ## 路由管理
@@ -629,7 +687,6 @@ datamind deployment disable dep_a1b2c3d4
 
 ```bash
 datamind route create <deployment-id>
-  [--environment <environment>]
   --traffic-ratio <ratio>
   [--rules-file <file>]
   [--description <description>]
@@ -642,7 +699,6 @@ datamind route create <deployment-id>
 | 参数 | 说明 |
 |------|------|
 | `<deployment-id>` | 部署 ID |
-| `--environment <environment>` | 路由环境；不传时使用服务配置 |
 | `--traffic-ratio <ratio>` | 路由流量比例，范围 `0~1` |
 | `--rules-file <file>` | 路由规则文件，JSON 对象 |
 | `--description <description>` | 路由描述 |
@@ -653,11 +709,9 @@ datamind route create <deployment-id>
 
 ```bash
 datamind route create dep_a1b2c3d4 \
-  --environment development \
   --traffic-ratio 1.0
 
 datamind route create dep_a1b2c3d4 \
-  --environment production \
   --traffic-ratio 0.2 \
   --rules-file route_rules.json
 
@@ -674,7 +728,6 @@ datamind route create dep_a1b2c3d4 \
 ```bash
 datamind route list
   [--deployment-id <deployment-id>]
-  [--environment <environment>]
   [--rollout <full|canary|shadow>]
   [--group <group> | --rollout-group <group>]
   [--enabled | --disabled]
@@ -689,7 +742,6 @@ datamind route list
 | 参数 | 说明 |
 |------|------|
 | `--deployment-id <deployment-id>` | 按部署 ID 过滤 |
-| `--environment <environment>` | 按路由环境过滤 |
 | `--rollout <full|canary|shadow>` | 按发布方式过滤 |
 | `--group / --rollout-group <group>` | 按发布分组过滤 |
 | `--enabled / --disabled` | 按启用状态过滤 |
@@ -703,7 +755,6 @@ datamind route list
 ```bash
 datamind route list
 datamind route list --deployment-id dep_a1b2c3d4
-datamind route list --environment production
 datamind route list --rollout canary
 datamind route list --group challenger
 datamind route list --enabled
@@ -733,7 +784,6 @@ datamind route show rtn_a1b2c3d4 --format json
 
 ```bash
 datamind route update <routing-id>
-  [--environment <environment>]
   [--traffic-ratio <ratio>]
   [--rules-file <file>]
   [--description <description>]
@@ -745,7 +795,6 @@ datamind route update <routing-id>
 | 参数 | 说明 |
 |------|------|
 | `<routing-id>` | 路由 ID |
-| `--environment <environment>` | 更新路由环境 |
 | `--traffic-ratio <ratio>` | 更新路由流量比例，范围 `0~1` |
 | `--rules-file <file>` | 更新路由规则文件，JSON 对象 |
 | `--description <description>` | 更新路由描述 |
@@ -794,6 +843,15 @@ datamind route disable <routing-id>
 datamind route disable rtn_a1b2c3d4
 ```
 
+### 删除与恢复路由
+
+只能删除已禁用的路由；恢复后的路由保持禁用。
+
+```bash
+datamind route delete rtn_a1b2c3d4 [--reason <reason>] [--yes]
+datamind route restore rtn_a1b2c3d4
+```
+
 ---
 
 ## 实验管理
@@ -817,17 +875,17 @@ datamind experiment create
 
 #### 参数说明
 
-| 参数 | 说明 |
-|------|------|
-| `--model-id <model-id>` | 模型 ID |
-| `--name <name>` | 实验名称 |
-| `--strategy <hash|manual>` | 实验分配策略，默认 `hash` |
-| `--traffic-ratio <ratio>` | 实验流量比例；`hash` 策略范围为 `(0, 1]`，`manual` 策略范围为 `[0, 1]` |
-| `--bucket-key <key>` | 分桶主体字段，例如 `customer_id`、`order_id`、`apply_id`，默认 `customer_id` |
-| `--description <description>` | 实验描述 |
-| `--effective-from <datetime>` | 生效开始时间；默认当前 UTC 时间 |
-| `--effective-to <datetime>` | 生效结束时间；默认不限制结束时间 |
-| `--format <text|json>` | 输出格式，默认 `text` |
+| 参数 | 说明                                                                               |
+|------|------------------------------------------------------------------------------------|
+| `--model-id <model-id>` | 模型 ID                                                                            |
+| `--name <name>` | 实验名称                                                                           |
+| `--strategy <hash| manual>`                                                                           | 实验分配策略，默认 `hash` |
+| `--traffic-ratio <ratio>` | 实验流量比例；`hash` 策略范围为 `(0, 1]`，`manual` 策略范围为 `[0, 1]`             |
+| `--bucket-key <key>` | 分桶主体字段，例如 `customer_id`、`order_id`、`application_id`，默认 `customer_id` |
+| `--description <description>` | 实验描述                                                                           |
+| `--effective-from <datetime>` | 生效开始时间；默认当前 UTC 时间                                                    |
+| `--effective-to <datetime>` | 生效结束时间；默认不限制结束时间                                                   |
+| `--format <text| json>`                                                                             | 输出格式，默认 `text` |
 
 #### 补充说明
 
@@ -1039,6 +1097,16 @@ datamind experiment archive exp_a1b2c3d4
 draft -> running -> completed -> archived
 draft -> running -> paused -> running -> completed -> archived
 draft -> running -> stopped -> archived
+```
+
+### 删除与恢复实验
+
+只能删除 `draft` 或 `archived` 实验。删除实验会以同一批次逻辑删除其
+分组，恢复实验时同步恢复该批次分组。
+
+```bash
+datamind experiment delete exp_a1b2c3d4 [--reason <reason>] [--yes]
+datamind experiment restore exp_a1b2c3d4
 ```
 
 ### 分析实验：`experiment analyze`
@@ -1254,6 +1322,16 @@ datamind experiment variant archive <variant-id>
 datamind experiment variant archive var_a1b2c3d4
 ```
 
+### 删除与恢复实验分组
+
+实验分组只能在所属实验处于 `draft` 时单独删除或恢复。
+
+```bash
+datamind experiment variant delete var_a1b2c3d4 \
+  [--reason <reason>] [--yes]
+datamind experiment variant restore var_a1b2c3d4
+```
+
 ---
 
 ## 服务进程管理
@@ -1264,7 +1342,6 @@ datamind experiment variant archive var_a1b2c3d4
 
 ```bash
 datamind service run
-  [--environment <environment>]
   [--host <host>]
   [--port <port>]
   [--reload]
@@ -1274,7 +1351,6 @@ datamind service run
 
 | 参数 | 说明 |
 |------|------|
-| `--environment <environment>` | 运行环境；不传时使用服务配置 |
 | `--host <host>` | 监听地址；不传时使用服务配置 |
 | `--port <port>` | 监听端口；不传时使用服务配置 |
 | `--reload` | 代码变更时自动重载，适合开发环境 |
@@ -1285,60 +1361,13 @@ datamind service run
 datamind service run
 
 datamind service run \
-  --environment development \
   --host 0.0.0.0 \
-  --port 3000
+  --port 8700
 
 datamind service run --reload
 ```
 
-## 运行状态管理
-
-### 请求加载部署模型：`runtime load`
-
-#### 命令格式
-
-```bash
-datamind runtime load <deployment-id>
-  [--format <text|json>]
-```
-
-#### 使用示例
-
-```bash
-datamind runtime load dep_a1b2c3d4
-datamind runtime load dep_a1b2c3d4 --format json
-```
-
-### 请求卸载部署模型：`runtime unload`
-
-#### 命令格式
-
-```bash
-datamind runtime unload <deployment-id>
-  [--format <text|json>]
-```
-
-#### 使用示例
-
-```bash
-datamind runtime unload dep_a1b2c3d4
-```
-
-### 请求重新加载部署模型：`runtime reload`
-
-#### 命令格式
-
-```bash
-datamind runtime reload <deployment-id>
-  [--format <text|json>]
-```
-
-#### 使用示例
-
-```bash
-datamind runtime reload dep_a1b2c3d4
-```
+## 运行实例查询
 
 ### 列出运行状态：`runtime list`
 
@@ -1346,7 +1375,6 @@ datamind runtime reload dep_a1b2c3d4
 
 ```bash
 datamind runtime list
-  [--environment <environment>]
   [--desired-status <loaded|unloaded>]
   [--limit <n>]
   [--offset <n>]
@@ -1357,7 +1385,6 @@ datamind runtime list
 
 | 参数 | 说明 |
 |------|------|
-| `--environment <environment>` | 按运行环境过滤 |
 | `--desired-status <loaded|unloaded>` | 按期望运行状态过滤 |
 | `--limit <n>` | 返回记录数量限制，默认 `10` |
 | `--offset <n>` | 分页偏移量，默认 `0` |
@@ -1367,7 +1394,6 @@ datamind runtime list
 
 ```bash
 datamind runtime list
-datamind runtime list --environment development
 datamind runtime list --desired-status loaded
 datamind runtime list --format json
 ```
@@ -1412,29 +1438,26 @@ datamind model show scorecard --version 1.0.0
 ```bash
 datamind deployment create scorecard \
   --version 1.0.0 \
-  --environment development \
   --rollout full \
   --role champion \
   --config-file config.json
 
-datamind deployment list --environment development
+datamind deployment list
 
 datamind route create dep_a1b2c3d4 \
-  --environment development \
   --traffic-ratio 1.0
 
-datamind route list --environment development
+datamind route list
 ```
 
-### 3. 设置运行状态并启动 Runtime Service
+### 3. 启用部署并启动 Runtime Service
 
 ```bash
-datamind runtime load dep_a1b2c3d4
+datamind deployment enable dep_a1b2c3d4
 
 datamind service run \
-  --environment development \
   --host 0.0.0.0 \
-  --port 3000
+  --port 8700
 
 datamind runtime show dep_a1b2c3d4
 ```
@@ -1521,6 +1544,7 @@ datamind model list --help
 datamind model show --help
 datamind model activate --help
 datamind model deactivate --help
+datamind model deprecate --help
 datamind model delete --help
 
 datamind deployment create --help
@@ -1555,9 +1579,6 @@ datamind experiment variant deactivate --help
 datamind experiment variant archive --help
 
 datamind service run --help
-datamind runtime load --help
-datamind runtime unload --help
-datamind runtime reload --help
 datamind runtime list --help
 datamind runtime show --help
 ```

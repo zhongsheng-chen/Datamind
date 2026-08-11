@@ -42,6 +42,7 @@ def test_metadata_table_and_columns() -> None:
     assert set(TABLE.columns.keys()) == {
         "model_id",
         "name",
+        "display_name",
         "model_type",
         "task_type",
         "framework",

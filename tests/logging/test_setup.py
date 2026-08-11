@@ -150,11 +150,11 @@ def test_logger_factory_uses_default_name() -> None:
 def test_logger_factory_preserves_explicit_name() -> None:
     """测试日志工厂保留指定名称"""
     logger = logging_setup._logger_factory(
-        "datamind.services.model"
+        "datamind.services.catalog"
     )
 
     assert logger is logging.getLogger(
-        "datamind.services.model"
+        "datamind.services.catalog"
     )
 
 

@@ -31,9 +31,12 @@ from datamind.audit.enums import (
 )
 from datamind.auth.password import hash_password
 from datamind.constants.identity import (
-    SYSTEM_ADMIN_PERMISSIONS,
-    SYSTEM_ADMIN_ROLE_NAME,
+    ADMINISTRATOR_DISPLAY_NAME,
+    ADMINISTRATOR_PERMISSIONS,
+    ADMINISTRATOR_ROLE_NAME,
+    SYSTEM_BOOTSTRAP_ACTOR,
 )
+from datamind.context import generate_trace_id
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     AuditRepository,
@@ -50,7 +53,7 @@ from datamind.utils import generate_random_id
 
 
 SYSTEM_ID = "datamind"
-SYSTEM_ACTOR = "system:bootstrap"
+SYSTEM_ACTOR = SYSTEM_BOOTSTRAP_ACTOR
 
 
 @dataclass(
@@ -99,7 +102,7 @@ class InitializationService:
     ) -> InitializationResult:
         """一次性初始化系统
 
-        创建首个管理员、拥有全部权限的 system-admin 角色及角色授予，
+        创建首个管理员、拥有全部权限的 administrator 角色及角色授予，
         同时写入初始化状态和审计记录。所有变更由同一个工作单元提交。
 
         参数：
@@ -126,6 +129,10 @@ class InitializationService:
         initialized_at = self._normalize_time(
             current_time
         )
+        request_id = generate_random_id(
+            prefix="req"
+        )
+        trace_id = generate_trace_id()
 
         async with UnitOfWork() as uow:
             state_repo = SystemStateRepository(
@@ -161,12 +168,12 @@ class InitializationService:
                 )
 
             existing_role = await role_repo.get_role(
-                name=SYSTEM_ADMIN_ROLE_NAME
+                name=ADMINISTRATOR_ROLE_NAME
             )
 
             if existing_role is not None:
                 raise InitializationError(
-                    "system-admin 角色已经存在，拒绝初始化"
+                    "administrator 角色已经存在，拒绝初始化"
                 )
 
             user_id = generate_random_id(
@@ -182,17 +189,17 @@ class InitializationService:
                 password_hash=hash_password(
                     password
                 ),
-                display_name="系统管理员",
+                display_name=ADMINISTRATOR_DISPLAY_NAME,
                 created_by=SYSTEM_ACTOR,
             )
             user.password_changed_at = initialized_at
 
             role_repo.create_role(
                 role_id=role_id,
-                name=SYSTEM_ADMIN_ROLE_NAME,
+                name=ADMINISTRATOR_ROLE_NAME,
                 description="系统管理员角色",
                 permissions=list(
-                    SYSTEM_ADMIN_PERMISSIONS
+                    ADMINISTRATOR_PERMISSIONS
                 ),
                 created_by=SYSTEM_ACTOR,
             )
@@ -223,6 +230,8 @@ class InitializationService:
                 target_type="system",
                 target_id=SYSTEM_ID,
                 source=AuditSource.CLI,
+                trace_id=trace_id,
+                request_id=request_id,
                 user=SYSTEM_ACTOR,
                 ip=ip,
                 hostname=hostname,

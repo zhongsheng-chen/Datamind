@@ -29,6 +29,10 @@
   )
 """
 
+from datamind.db.models import (
+    Metadata,
+    Version,
+)
 from datamind.db.repositories import MetadataRepository, VersionRepository
 from datamind.models.errors import ModelNotFoundError, VersionNotFoundError
 
@@ -51,7 +55,7 @@ class ModelResolver:
             *,
             model_id: str | None = None,
             name: str | None = None,
-    ):
+    ) -> Metadata:
         """解析模型
 
         优先按 model_id 查询模型。未找到且提供 name 时，
@@ -93,7 +97,7 @@ class ModelResolver:
             model_id: str,
             version_id: str | None = None,
             version: str | None = None,
-    ):
+    ) -> Version:
         """解析版本
 
         提供 version_id 时优先按版本 ID 查询，并校验版本是否

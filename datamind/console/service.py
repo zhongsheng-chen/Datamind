@@ -11,7 +11,7 @@
   bentoml serve \
     datamind.console.service:DatamindConsoleService \
     --host 0.0.0.0 \
-    --port 3100
+    --port 8701
 """
 
 import bentoml

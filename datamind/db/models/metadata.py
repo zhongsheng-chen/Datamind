@@ -131,6 +131,12 @@ class Metadata(
         comment="模型名称，全局唯一业务标识",
     )
 
+    display_name = Column(
+        String(100),
+        nullable=True,
+        comment="模型显示名称",
+    )
+
     model_type = Column(
         String(50),
         nullable=False,

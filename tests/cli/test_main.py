@@ -25,10 +25,14 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+import typer
+from typer.core import TyperGroup
 from typer.testing import CliRunner
 
 import datamind.cli.main as main_module
 from datamind.cli.main import app
+from datamind.cli.runtime import app as runtime_app
+from datamind.cli.service import app as service_app
 
 runner = CliRunner()
 
@@ -38,6 +42,7 @@ BUSINESS_COMMANDS = [
     "model show",
     "model activate",
     "model deactivate",
+    "model deprecate",
     "model delete",
     "model restore",
     "model purge",
@@ -46,12 +51,16 @@ BUSINESS_COMMANDS = [
     "deployment show",
     "deployment enable",
     "deployment disable",
+    "deployment delete",
+    "deployment restore",
     "route create",
     "route list",
     "route show",
     "route update",
     "route enable",
     "route disable",
+    "route delete",
+    "route restore",
     "experiment create",
     "experiment list",
     "experiment show",
@@ -62,6 +71,8 @@ BUSINESS_COMMANDS = [
     "experiment complete",
     "experiment archive",
     "experiment analyze",
+    "experiment delete",
+    "experiment restore",
     "experiment variant add",
     "experiment variant list",
     "experiment variant show",
@@ -69,12 +80,11 @@ BUSINESS_COMMANDS = [
     "experiment variant activate",
     "experiment variant deactivate",
     "experiment variant archive",
+    "experiment variant delete",
+    "experiment variant restore",
     "service run",
     "runtime list",
     "runtime show",
-    "runtime load",
-    "runtime unload",
-    "runtime reload",
     "console run",
     "outcome submit",
     "user create",
@@ -90,6 +100,19 @@ BUSINESS_COMMANDS = [
     "role grant",
     "role revoke",
     "role delete",
+]
+
+SERVICE_ENVIRONMENT_COMMANDS = [
+    "deployment create",
+    "deployment list",
+    "route create",
+    "route list",
+    "route update",
+    "experiment create",
+    "experiment list",
+    "experiment update",
+    "runtime list",
+    "service run",
 ]
 
 
@@ -136,33 +159,34 @@ def test_main_help_lists_command_groups() -> None:
 
 
 def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
-    """测试服务进程与运行状态命令分别注册"""
-    service_result = runner.invoke(
+    """测试服务进程与运行状态命令边界清晰"""
+    service_group = typer.main.get_command(service_app)
+    runtime_group = typer.main.get_command(runtime_app)
+
+    assert isinstance(service_group, TyperGroup)
+    assert isinstance(runtime_group, TyperGroup)
+
+    service_commands = set(service_group.commands)
+    runtime_commands = set(runtime_group.commands)
+
+    assert service_commands == {"run"}
+    assert runtime_commands == {"list", "show"}
+
+
+@pytest.mark.parametrize("command", SERVICE_ENVIRONMENT_COMMANDS)
+def test_cli_uses_configured_service_environment(command: str) -> None:
+    """测试单环境 CLI 不公开环境参数。"""
+    result = runner.invoke(
         app,
-        ["service", "--help"],
-    )
-    runtime_result = runner.invoke(
-        app,
-        ["runtime", "--help"],
+        [*command.split(), "--help"],
     )
 
-    assert service_result.exit_code == 0
-    assert runtime_result.exit_code == 0
-    assert "run" in service_result.stdout
-
-    for command in (
-            "load",
-            "unload",
-            "reload",
-            "list",
-            "show",
-    ):
-        assert command not in service_result.stdout
-        assert command in runtime_result.stdout
+    assert result.exit_code == 0
+    assert "--environment" not in result.stdout
 
 
-def test_init_help_lists_initialization_options() -> None:
-    """测试系统初始化命令公开管理员和密码文件参数"""
+def test_init_help_does_not_list_credential_options() -> None:
+    """测试系统初始化命令不公开管理员凭据参数"""
     result = runner.invoke(
         app,
         [
@@ -172,8 +196,8 @@ def test_init_help_lists_initialization_options() -> None:
     )
 
     assert result.exit_code == 0
-    assert "--username" in result.stdout
-    assert "--password-file" in result.stdout
+    assert "--username" not in result.stdout
+    assert "--password-file" not in result.stdout
 
 
 def test_main_help_lists_session_commands() -> None:

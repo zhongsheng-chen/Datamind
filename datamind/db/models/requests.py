@@ -14,8 +14,9 @@
   request = Request(
       request_id="req_0123456789abcdef",
       model_id="mdl_0123456789abcdef",
+      model_name="scorecard",
       payload={
-          "model_id": "mdl_0123456789abcdef",
+          "model_name": "scorecard",
           "environment": "production",
           "deployment_id": "dep_0123456789abcdef",
           "subject_key": "customer_10001",
@@ -74,6 +75,10 @@ class Request(
         Index(
             "idx_requests_model_id",
             "model_id",
+        ),
+        Index(
+            "idx_requests_model_name",
+            "model_name",
         ),
         Index(
             "idx_requests_created_at",
@@ -137,8 +142,14 @@ class Request(
 
     model_id = Column(
         String(64),
-        nullable=False,
+        nullable=True,
         comment="目标模型 ID",
+    )
+
+    model_name = Column(
+        String(255),
+        nullable=True,
+        comment="目标模型名称",
     )
 
     payload = Column(

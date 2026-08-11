@@ -1,5 +1,5 @@
 {
-  "model_id": "mdl_replace_me",
+  "model_name": "fraud",
   "subject_key": "txn_10001",
   "subject_type": "transaction",
   "features": {

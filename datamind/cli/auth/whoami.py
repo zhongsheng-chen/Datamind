@@ -16,12 +16,12 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.auth.errors import AuthError
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -45,81 +45,78 @@ def whoami() -> None:
             logger.info(
                 "开始查询当前 CLI 身份",
                 username=context.user,
-                authentication_enabled=(
+                identity_verified=(
                     user is not None
                 ),
             )
+            console.info("当前登录身份\n")
 
-        console.print(
-            "[green]当前登录身份[/green]\n"
-        )
-
-        if user is None:
-            console.print(
-                f"[cyan]{'USERNAME':<16}[/cyan] : "
-                f"{result['username']}"
-            )
-            console.print(
-                f"[cyan]{'AUTHENTICATION':<16}[/cyan] : "
-                "未启用"
-            )
-        else:
-            roles = (
-                ", ".join(
-                    result["roles"]
+            if user is None:
+                console.print(
+                    f"{'USERNAME':<16} : "
+                    f"{result['username']}"
                 )
-                or "-"
-            )
-            permissions = (
-                ", ".join(
-                    result["permissions"]
+                console.print(
+                    f"{'AUTHENTICATION':<16} : "
+                    "未启用"
                 )
-                or "-"
-            )
+            else:
+                roles = (
+                    ", ".join(
+                        result["roles"]
+                    )
+                    or "-"
+                )
+                permissions = (
+                    ", ".join(
+                        result["permissions"]
+                    )
+                    or "-"
+                )
 
-            console.print(
-                f"[cyan]{'USER ID':<16}[/cyan] : "
-                f"{result['user_id']}"
-            )
-            console.print(
-                f"[cyan]{'USERNAME':<16}[/cyan] : "
-                f"{result['username']}"
-            )
-            console.print(
-                f"[cyan]{'DISPLAY NAME':<16}[/cyan] : "
-                f"{result['display_name'] or '-'}"
-            )
-            console.print(
-                f"[cyan]{'EMAIL':<16}[/cyan] : "
-                f"{result['email'] or '-'}"
-            )
-            console.print(
-                f"[cyan]{'STATUS':<16}[/cyan] : "
-                f"{result['status']}"
-            )
-            console.print(
-                f"[cyan]{'ROLES':<16}[/cyan] : "
-                f"{roles}"
-            )
-            console.print(
-                f"[cyan]{'PERMISSIONS':<16}[/cyan] : "
-                f"{permissions}"
-            )
+                console.print(
+                    f"{'USER ID':<16} : "
+                    f"{result['user_id']}"
+                )
+                console.print(
+                    f"{'USERNAME':<16} : "
+                    f"{result['username']}"
+                )
+                console.print(
+                    f"{'DISPLAY NAME':<16} : "
+                    f"{result['display_name'] or '-'}"
+                )
+                console.print(
+                    f"{'EMAIL':<16} : "
+                    f"{result['email'] or '-'}"
+                )
+                console.print(
+                    f"{'STATUS':<16} : "
+                    f"{result['status']}"
+                )
+                console.print(
+                    f"{'ROLES':<16} : "
+                    f"{roles}"
+                )
+                console.print(
+                    f"{'PERMISSIONS':<16} : "
+                    f"{permissions}"
+                )
 
-        logger.info(
-            "当前 CLI 身份输出完成",
-            username=result.get(
-                "username"
-            ),
-        )
+            logger.info(
+                "当前 CLI 身份输出完成",
+                username=result.get(
+                    "username"
+                ),
+            )
 
     try:
         asyncio.run(
             runner()
         )
     except AuthError as exc:
-        console.print(
-            f"[red]身份认证失败：{exc}[/red]"
+        console.error(
+            f"认证失败：{exc}",
         )
         raise typer.Exit(
             code=1

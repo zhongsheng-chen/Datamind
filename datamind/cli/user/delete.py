@@ -8,16 +8,14 @@
   - delete_user: 删除用户
 
 使用示例：
-  python -m datamind.cli.main user delete alice \
-    --reason "员工离职" \
-    --yes
+  python -m datamind.cli.main user delete alice --yes
 """
 
 import asyncio
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
 from datamind.services import IdentityService
@@ -25,7 +23,7 @@ from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="删除用户命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -36,8 +34,8 @@ def delete_user(
             ...,
             help="登录用户名",
         ),
-        reason: str = typer.Option(
-            ...,
+        reason: str | None = typer.Option(
+            None,
             "--reason",
             help="删除原因",
         ),
@@ -75,8 +73,8 @@ def delete_user(
                 ),
                 operator=context.user,
             )
-            console.print(
-                f"[green]用户已删除：{result['username']}[/green]"
+            console.info(
+                f"用户已删除：{result['username']}"
             )
 
     try:
@@ -87,8 +85,8 @@ def delete_user(
         IdentityError,
         ValueError,
     ) as exc:
-        console.print(
-            f"[red]删除用户失败：{exc}[/red]"
+        console.error(
+            f"删除用户失败：{exc}"
         )
         raise typer.Exit(
             code=1

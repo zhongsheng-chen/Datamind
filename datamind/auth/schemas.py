@@ -64,7 +64,7 @@
   current_user = AuthenticatedUser(
       user_id=token_claims.sub,
       username="admin",
-      display_name="系统管理员",
+      display_name="Administrator",
       email="admin@example.com",
       status=UserStatus.ACTIVE,
       roles=token_claims.roles,

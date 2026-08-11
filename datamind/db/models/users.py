@@ -14,7 +14,7 @@
       user_id="usr_0123456789abcdef",
       username="admin",
       password_hash="$argon2id$...",
-      display_name="系统管理员",
+      display_name="Administrator",
       email="admin@example.com",
       status="active",
       created_by="usr_fedcba9876543210",

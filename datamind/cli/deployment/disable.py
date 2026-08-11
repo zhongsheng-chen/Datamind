@@ -2,7 +2,7 @@
 
 """禁用部署命令
 
-提供部署禁用功能。
+提供部署禁用功能，并自动请求 Worker 停止运行实例。
 
 核心功能：
   - disable_deployment: 禁用部署
@@ -16,14 +16,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.models.errors import DeploymentError
 from datamind.services import DeploymentLifecycleService
 
-app = typer.Typer(help="禁用部署命令")
-console = Console()
+app = typer.Typer(help="停用部署并停止运行实例")
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -40,7 +41,7 @@ def disable_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """禁用部署"""
+    """停用部署并停止运行实例"""
 
     @audit(
         action="deploy.disable",
@@ -60,10 +61,23 @@ def disable_deployment(
 
         deployer = DeploymentLifecycleService()
 
-        result = await deployer.disable_deployment(
-            deployment_id=deployment_id,
-            updated_by=actor,
-        )
+        try:
+            result = await deployer.disable_deployment(
+                deployment_id=deployment_id,
+                updated_by=actor,
+            )
+        except DeploymentError as error:
+            logger.warning(
+                "禁用部署失败",
+                deployment_id=deployment_id,
+                error=str(error),
+            )
+            console.error(
+                f"部署禁用失败：{error}",
+                output_format=output,
+                error_type=type(error).__name__,
+            )
+            raise typer.Exit(code=1) from None
 
         if output == "json":
             console.print_json(
@@ -75,13 +89,13 @@ def disable_deployment(
             )
             return result
 
-        console.print("[green]部署禁用成功[/green]\n")
+        console.info("部署禁用成功\n")
 
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'MODEL ID':<16} : {result['model_id']}")
+        console.print(f"{'VERSION ID':<16} : {result['version_id']}")
+        console.print(f"{'ENVIRONMENT':<16} : {result['environment']}")
+        console.print(f"{'STATUS':<16} : {result['status']}")
 
         return result
 

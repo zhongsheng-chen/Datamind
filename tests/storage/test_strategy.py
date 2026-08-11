@@ -11,10 +11,10 @@
     验证模型目录接受合法标识
   - test_validate_model_dir_rejects_invalid_values:
     验证模型目录拒绝非法值
-  - test_validate_model_id_accepts_valid_identifiers:
-    验证模型 ID 接受合法标识
-  - test_validate_model_id_rejects_invalid_values:
-    验证模型 ID 拒绝非法值
+  - test_validate_model_name_accepts_valid_identifiers:
+    验证模型名称接受合法标识
+  - test_validate_model_name_rejects_invalid_values:
+    验证模型名称拒绝非法值
   - test_validate_version_accepts_valid_values:
     验证版本号接受合法值
   - test_validate_version_rejects_invalid_values:
@@ -101,47 +101,47 @@ def test_validate_model_dir_rejects_invalid_values(
 
 
 @pytest.mark.parametrize(
-    "model_id",
+    "model_name",
     [
-        "mdl_0123456789abcdef",
         "scorecard",
         "model-2026",
-        "MODEL_001",
+        "model_001",
+        "risk.score",
     ],
 )
-def test_validate_model_id_accepts_valid_identifiers(
-    model_id: str,
+def test_validate_model_name_accepts_valid_identifiers(
+    model_name: str,
 ) -> None:
-    """测试接受合法模型 ID"""
-    StorageKeyStrategy.validate_model_id(
-        model_id
+    """测试接受合法模型名称"""
+    StorageKeyStrategy.validate_model_name(
+        model_name
     )
 
 
 @pytest.mark.parametrize(
-    "model_id",
+    "model_name",
     [
         "",
         " ",
         "model id",
         "model/id",
         r"model\id",
-        "model.id",
+        "MODEL_001",
         "模型",
         None,
         123,
     ],
 )
-def test_validate_model_id_rejects_invalid_values(
-    model_id: Any,
+def test_validate_model_name_rejects_invalid_values(
+    model_name: Any,
 ) -> None:
-    """测试拒绝非法模型 ID"""
+    """测试拒绝非法模型名称"""
     with pytest.raises(
         ValueError,
-        match="非法的模型 ID",
+        match="非法的模型名称",
     ):
-        StorageKeyStrategy.validate_model_id(
-            model_id
+        StorageKeyStrategy.validate_model_name(
+            model_name
         )
 
 
@@ -246,14 +246,14 @@ def test_model_key_builds_expected_key() -> None:
     )
 
     key = strategy.model_key(
-        model_id="mdl_0123456789abcdef",
+        model_name="scorecard",
         version="1.0.0",
         artifact_id="art_0123456789abcdef",
         filename="scorecard.pkl",
     )
 
     assert key == (
-        "models/mdl_0123456789abcdef/"
+        "models/scorecard/"
         "1.0.0/"
         "artifacts/art_0123456789abcdef/scorecard.pkl"
     )
@@ -273,7 +273,7 @@ def test_model_key_builds_expected_key() -> None:
             "1.0.0",
             "art_0123456789abcdef",
             "model.pkl",
-            "非法的模型 ID",
+            "非法的模型名称",
         ),
         (
             "mdl_0123456789abcdef",
@@ -287,7 +287,7 @@ def test_model_key_builds_expected_key() -> None:
             "1.0.0",
             "artifact/id",
             "model.pkl",
-            "非法的模型 ID",
+            "非法的模型制品 ID",
         ),
         (
             "mdl_0123456789abcdef",
@@ -315,7 +315,7 @@ def test_model_key_validates_components(
         match=error_message,
     ):
         strategy.model_key(
-            model_id=model_id,
+            model_name=model_id,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -329,10 +329,10 @@ def test_model_prefix_builds_expected_prefix() -> None:
     )
 
     prefix = strategy.model_prefix(
-        model_id="mdl_0123456789abcdef"
+        model_name="scorecard"
     )
 
-    assert prefix == "models/mdl_0123456789abcdef/"
+    assert prefix == "models/scorecard/"
 
 
 def test_model_prefix_validates_model_id() -> None:
@@ -343,10 +343,10 @@ def test_model_prefix_validates_model_id() -> None:
 
     with pytest.raises(
         ValueError,
-        match="非法的模型 ID",
+        match="非法的模型名称",
     ):
         strategy.model_prefix(
-            model_id="model/id"
+            model_name="model/id"
         )
 
 

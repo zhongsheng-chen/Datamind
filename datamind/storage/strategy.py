@@ -9,7 +9,7 @@
   - model_prefix: 构造模型目录的 key 前缀
   - extract_filename: 从 key 中提取文件名
   - validate_model_dir: 校验模型目录名合法性
-  - validate_model_id: 校验模型 ID 合法性
+  - validate_model_name: 校验模型名称合法性
   - validate_version: 校验模型版本号合法性
   - validate_filename: 校验文件名合法性
 
@@ -21,14 +21,14 @@
   )
 
   key = strategy.model_key(
-      model_id="mdl_0123456789abcdef",
+      model_name="scorecard",
       version="1.0.0",
       artifact_id="art_0123456789abcdef",
       filename="model.pkl",
   )
 
   prefix = strategy.model_prefix(
-      model_id="mdl_0123456789abcdef"
+      model_name="scorecard"
   )
 
   filename = strategy.extract_filename(
@@ -37,6 +37,10 @@
 """
 
 import re
+
+from datamind.constants.model_name import (
+    SUPPORTED_MODEL_NAME_PATTERN,
+)
 
 
 class StorageKeyStrategy:
@@ -88,25 +92,34 @@ class StorageKeyStrategy:
             )
 
     @classmethod
-    def validate_model_id(
+    def validate_model_name(
             cls,
-            model_id: str,
+            model_name: str,
     ) -> None:
-        """校验模型 ID 合法性
-
-        参数：
-            model_id: 模型 ID
-
-        异常：
-            ValueError: 模型 ID 不合法
-        """
+        """校验模型名称合法性"""
         if (
-                not isinstance(model_id, str)
-                or cls._VALID_IDENTIFIER_PATTERN.fullmatch(model_id) is None
+                not isinstance(model_name, str)
+                or re.fullmatch(
+                    SUPPORTED_MODEL_NAME_PATTERN,
+                    model_name,
+                ) is None
         ):
             raise ValueError(
-                f"非法的模型 ID: {model_id}，"
-                "只能包含字母、数字、下划线和连字符"
+                f"非法的模型名称: {model_name}"
+            )
+
+    @classmethod
+    def validate_artifact_id(
+            cls,
+            artifact_id: str,
+    ) -> None:
+        """校验模型制品 ID 合法性"""
+        if (
+                not isinstance(artifact_id, str)
+                or cls._VALID_IDENTIFIER_PATTERN.fullmatch(artifact_id) is None
+        ):
+            raise ValueError(
+                f"非法的模型制品 ID: {artifact_id}"
             )
 
     @classmethod
@@ -160,7 +173,7 @@ class StorageKeyStrategy:
 
     def model_key(
             self,
-            model_id: str,
+            model_name: str,
             version: str,
             artifact_id: str,
             filename: str,
@@ -168,27 +181,27 @@ class StorageKeyStrategy:
         """构造模型文件的完整 key
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
             version: 模型版本号
             artifact_id: 模型制品 ID
             filename: 文件名
 
         返回：
             完整 key，格式为：
-            {model_dir}/{model_id}/{version}/
+            {model_dir}/{model_name}/{version}/
             artifacts/{artifact_id}/{filename}
 
         异常：
             ValueError: 参数不合法
         """
-        self.validate_model_id(model_id)
+        self.validate_model_name(model_name)
         self.validate_version(version)
-        self.validate_model_id(artifact_id)
+        self.validate_artifact_id(artifact_id)
         self.validate_filename(filename)
 
         return (
             f"{self.model_dir}/"
-            f"{model_id}/"
+            f"{model_name}/"
             f"{version}/artifacts/"
             f"{artifact_id}/"
             f"{filename}"
@@ -196,20 +209,20 @@ class StorageKeyStrategy:
 
     def model_prefix(
             self,
-            model_id: str,
+            model_name: str,
     ) -> str:
         """构造模型目录的 key 前缀
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
 
         返回：
             key 前缀，格式为：
-            {model_dir}/{model_id}/
+            {model_dir}/{model_name}/
         """
-        self.validate_model_id(model_id)
+        self.validate_model_name(model_name)
 
-        return f"{self.model_dir}/{model_id}/"
+        return f"{self.model_dir}/{model_name}/"
 
     @classmethod
     def extract_filename(

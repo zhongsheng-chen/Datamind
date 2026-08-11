@@ -222,7 +222,7 @@ def test_save_with_model_fields_builds_key_and_writes_data(
     data = b"model data"
 
     key = storage_admin.save(
-        model_id="mdl_0123456789abcdef",
+        model_name="scorecard",
         version="1.0.0",
         artifact_id="art_0123456789abcdef",
         filename="model.pkl",
@@ -230,7 +230,7 @@ def test_save_with_model_fields_builds_key_and_writes_data(
     )
 
     assert key == (
-        "models/mdl_0123456789abcdef/"
+        "models/scorecard/"
         "1.0.0/artifacts/"
         "art_0123456789abcdef/model.pkl"
     )
@@ -253,7 +253,7 @@ def test_save_prefers_explicit_key(
 
     key = storage_admin.save(
         key=explicit_key,
-        model_id="mdl_0123456789abcdef",
+        model_name="scorecard",
         version="1.0.0",
         filename="model.pkl",
         data=b"data",
@@ -273,10 +273,10 @@ def test_save_prefers_explicit_key(
     [
         {},
         {
-            "model_id": "mdl_0123456789abcdef",
+            "model_name": "scorecard",
         },
         {
-            "model_id": "mdl_0123456789abcdef",
+            "model_name": "scorecard",
             "version": "1.0.0",
         },
         {
@@ -285,7 +285,7 @@ def test_save_prefers_explicit_key(
             "filename": "model.pkl",
         },
         {
-            "model_id": "mdl_0123456789abcdef",
+            "model_name": "scorecard",
             "version": "1.0.0",
             "filename": "model.pkl",
         },
@@ -304,7 +304,7 @@ def test_structured_operations_require_complete_key_fields(
         ValueError,
         match=(
             "必须提供 key 或 "
-            "\\(model_id, version, artifact_id, filename\\) 四参数"
+            "\\(model_name, version, artifact_id, filename\\) 四参数"
         ),
     ):
         storage_admin.save(
@@ -368,13 +368,13 @@ def test_load_with_model_fields_returns_backend_data(
         monkeypatch
     )
     key = (
-        "models/mdl_0123456789abcdef/1.0.0/"
+        "models/scorecard/1.0.0/"
         "artifacts/art_0123456789abcdef/model.pkl"
     )
     backend.objects[key] = b"model data"
 
     data = storage_admin.load(
-        model_id="mdl_0123456789abcdef",
+        model_name="scorecard",
         version="1.0.0",
         artifact_id="art_0123456789abcdef",
         filename="model.pkl",
@@ -483,7 +483,7 @@ def test_list_returns_relative_model_keys(
     storage_admin, backend = create_admin(
         monkeypatch
     )
-    prefix = "models/mdl_0123456789abcdef/"
+    prefix = "models/scorecard/"
     backend.list_result = [
         f"{prefix}2.0.0/artifacts/art_002/model.pkl",
         "models/mdl_other/1.0.0/artifacts/art_other/model.pkl",
@@ -491,7 +491,7 @@ def test_list_returns_relative_model_keys(
     ]
 
     keys = storage_admin.list(
-        "mdl_0123456789abcdef"
+        "scorecard"
     )
 
     assert backend.list_calls == [
@@ -513,7 +513,7 @@ def test_list_rejects_invalid_model_id(
 
     with pytest.raises(
         ValueError,
-        match="非法的模型 ID",
+        match="非法的模型名称",
     ):
         storage_admin.list(
             "model/id"
@@ -577,7 +577,7 @@ def test_structured_save_uses_configured_model_dir(
     )
 
     key = storage_admin.save(
-        model_id="mdl_0123456789abcdef",
+        model_name="scorecard",
         version="1.0.0",
         artifact_id="art_0123456789abcdef",
         filename="model.pkl",
@@ -585,7 +585,7 @@ def test_structured_save_uses_configured_model_dir(
     )
 
     assert key == (
-        "model_registry/mdl_0123456789abcdef/1.0.0/"
+        "model_registry/scorecard/1.0.0/"
         "artifacts/art_0123456789abcdef/model.pkl"
     )
     assert backend.put_calls == [

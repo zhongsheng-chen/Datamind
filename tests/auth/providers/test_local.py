@@ -363,7 +363,9 @@ async def test_authenticate_validates_user_status(
     provider = LocalAuthProvider(
         user_repo=user_repo
     )
-    verify_password = MagicMock()
+    verify_password = MagicMock(
+        return_value=True
+    )
 
     monkeypatch.setitem(
         vars(local_module),
@@ -382,7 +384,48 @@ async def test_authenticate_validates_user_status(
             current_time=CURRENT_TIME,
         )
 
-    verify_password.assert_not_called()
+    verify_password.assert_called_once_with(
+        password="P@ssw1rd",
+        password_hash=user.password_hash,
+    )
+    user_repo.record_login_success.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_authenticate_does_not_disclose_disabled_user_for_wrong_password(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证密码错误时不暴露用户停用状态"""
+    user = create_user(
+        status=str(
+            UserStatus.DISABLED
+        )
+    )
+    user_repo = create_user_repo(
+        user=user
+    )
+    provider = LocalAuthProvider(
+        user_repo=user_repo
+    )
+
+    monkeypatch.setitem(
+        vars(local_module),
+        "verify_password",
+        lambda **_kwargs: False,
+    )
+
+    with pytest.raises(
+            InvalidCredentialsError
+    ):
+        await provider.authenticate(
+            PasswordCredentials(
+                username="alice",
+                password="wrong-password",
+            ),
+            current_time=CURRENT_TIME,
+        )
+
+    user_repo.record_login_failure.assert_not_called()
     user_repo.record_login_success.assert_not_called()
 
 

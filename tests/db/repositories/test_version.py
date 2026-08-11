@@ -971,6 +971,27 @@ def test_deprecate_version() -> None:
     assert version.updated_by == "operator"
 
 
+def test_deprecate_inactive_version() -> None:
+    """验证从 inactive 状态废弃版本"""
+    repository, _, _ = create_repository()
+    version = create_version(
+        status=str(
+            VersionStatus.INACTIVE
+        )
+    )
+
+    result = repository.deprecate_version(
+        version,
+        updated_by="operator",
+    )
+
+    assert result is version
+    assert version.status == str(
+        VersionStatus.DEPRECATED
+    )
+    assert version.updated_by == "operator"
+
+
 def test_deprecate_version_is_idempotent() -> None:
     """验证重复废弃保持幂等"""
     repository, _, _ = create_repository()
@@ -995,14 +1016,13 @@ def test_deprecate_version_is_idempotent() -> None:
 @pytest.mark.parametrize(
     "current_status",
     [
-        VersionStatus.INACTIVE,
         VersionStatus.ARCHIVED,
     ],
 )
 def test_deprecate_version_rejects_invalid_transition(
         current_status: VersionStatus,
 ) -> None:
-    """验证 inactive 和 archived 状态不能废弃"""
+    """验证 archived 状态不能废弃"""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(

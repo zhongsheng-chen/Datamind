@@ -41,6 +41,7 @@ def test_routing_table_and_columns() -> None:
     assert TABLE.name == "routing"
     assert set(TABLE.columns.keys()) == {
         "routing_id",
+        "name",
         "deployment_id",
         "rollout_type",
         "rollout_group",
@@ -48,9 +49,14 @@ def test_routing_table_and_columns() -> None:
         "enabled",
         "traffic_ratio",
         "rules",
+        "effective_from",
+        "effective_to",
         "description",
         "created_by",
         "updated_by",
+        "deleted_at",
+        "deleted_by",
+        "deletion_reason",
         "id",
         "created_at",
         "updated_at",
@@ -60,10 +66,12 @@ def test_routing_table_and_columns() -> None:
 def test_routing_indexes() -> None:
     """验证索引集合"""
     assert {index.name for index in TABLE.indexes} == {
-        "idx_routing_deployment_id",
+        "idx_routing_deleted_at",
         "idx_routing_environment_enabled",
         "idx_routing_rollout_group_enabled",
         "idx_routing_rollout_type_enabled",
+        "uk_routing_deployment_id_not_deleted",
+        "uk_routing_name_not_deleted",
         "uk_routing_routing_id",
     }
 
@@ -76,6 +84,7 @@ def test_routing_check_constraints() -> None:
         if isinstance(constraint, CheckConstraint)
     } == {
         "ck_routing_environment_valid",
+        "ck_routing_effective_time_valid",
         "ck_routing_rollout_group_valid",
         "ck_routing_rollout_type_valid",
         "ck_routing_rules_object",

@@ -29,8 +29,10 @@ from datamind.auth.errors import (
     InvalidCredentialsError,
     InvalidRefreshTokenError,
 )
+from datamind.audit.errors import AuditWriteError
 from datamind.auth.schemas import TokenResponse
 from datamind.models.errors import RuntimeRouteError
+from datamind.config import get_settings
 
 
 def load_service_module(
@@ -41,10 +43,20 @@ def load_service_module(
         "DATAMIND_SERVICE_ENVIRONMENT",
         "testing",
     )
+    get_settings.cache_clear()
+    service_config = get_settings().service
 
-    return import_module(
+    service_module = import_module(
         "datamind.runtime.server.service"
     )
+    monkeypatch.setitem(
+        vars(service_module),
+        "service_config",
+        service_config,
+    )
+    get_settings.cache_clear()
+
+    return service_module
 
 
 def create_service(
@@ -57,13 +69,18 @@ def create_service(
     )
     service.manager = MagicMock()
     service.manager.worker_id = "worker_test"
-    service.manager.all.return_value = []
-    service.manager.count.return_value = 0
-    service.manager.to_dicts.return_value = []
-    service.manager.status = AsyncMock(return_value={})
-    service.manager.stop = AsyncMock()
+    service.manager.registry.all.return_value = []
+    service.manager.registry.__len__.return_value = 0
+    service.manager.registry.snapshot.return_value = []
+    service.manager.get_status = AsyncMock(return_value={})
+    service.manager.unload = AsyncMock()
     service.router = MagicMock()
     service.router.resolve = AsyncMock()
+    service._resolve_model_id = AsyncMock(
+        return_value="mdl_test"
+    )
+    service.executor = MagicMock()
+    service.executor.execute = AsyncMock()
     service.controller = MagicMock()
     service.controller.load = AsyncMock()
     service.controller.unload = AsyncMock()
@@ -78,6 +95,12 @@ def create_service(
     service.reconciler.get_applied_generations.return_value = {}
     audit_recorder = MagicMock()
     audit_recorder.record = AsyncMock()
+    service.shadow_dispatcher = MagicMock()
+    service.shadow_dispatcher.is_running = True
+    service.shadow_dispatcher.pending_count = 0
+    service.shadow_dispatcher.start = AsyncMock()
+    service.shadow_dispatcher.stop = AsyncMock()
+    service.shadow_dispatcher.submit.return_value = True
     vars(service).update({
         "_service_cache": {},
         "_service_lock": asyncio.Lock(),
@@ -159,11 +182,13 @@ def install_repositories(
         *,
         request_repo: MagicMock | None = None,
         decision_repo: MagicMock | None = None,
+        execution_repo: MagicMock | None = None,
         deployment_repo: MagicMock | None = None,
-) -> tuple[MagicMock, MagicMock, MagicMock]:
+) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
     """安装运行时服务仓储替身"""
     request_repository = request_repo or MagicMock()
     decision_repository = decision_repo or MagicMock()
+    execution_repository = execution_repo or MagicMock()
     deployment_repository = deployment_repo or MagicMock()
 
     if not isinstance(
@@ -177,6 +202,12 @@ def install_repositories(
             AsyncMock,
     ):
         deployment_repository.get_deployment = AsyncMock()
+
+    if not isinstance(
+            execution_repository.get_execution,
+            AsyncMock,
+    ):
+        execution_repository.get_execution = AsyncMock()
 
     monkeypatch.setitem(
         vars(service_module),
@@ -195,6 +226,11 @@ def install_repositories(
     )
     monkeypatch.setitem(
         vars(service_module),
+        "ExecutionRepository",
+        lambda _session: execution_repository,
+    )
+    monkeypatch.setitem(
+        vars(service_module),
         "DeploymentRepository",
         lambda _session: deployment_repository,
     )
@@ -202,6 +238,7 @@ def install_repositories(
     return (
         request_repository,
         decision_repository,
+        execution_repository,
         deployment_repository,
     )
 
@@ -716,6 +753,7 @@ async def test_startup_reconciles_and_marks_worker_ready(
 
     service.reconciler.reconcile_once.assert_awaited_once()
     service.reconciler.start.assert_awaited_once()
+    service.shadow_dispatcher.start.assert_awaited_once()
     write_marker.assert_called_once_with(
         worker_id="worker_test",
         environment="testing",
@@ -729,11 +767,11 @@ async def test_shutdown_stops_models_and_clears_cache(
     """测试 Worker 关闭时停止协调器、卸载模型并清理缓存"""
     service_module = load_service_module(monkeypatch)
     service = create_service(service_module)
-    service.manager.all.return_value = [
+    service.manager.registry.all.return_value = [
         SimpleNamespace(deployment_id="dep_1"),
         SimpleNamespace(deployment_id="dep_2"),
     ]
-    service.manager.stop.side_effect = [
+    service.manager.unload.side_effect = [
         None,
         RuntimeError("stop failed"),
     ]
@@ -743,7 +781,8 @@ async def test_shutdown_stops_models_and_clears_cache(
     await service.shutdown()
 
     service.reconciler.stop.assert_awaited_once()
-    assert service.manager.stop.await_count == 2
+    service.shadow_dispatcher.stop.assert_awaited_once()
+    assert service.manager.unload.await_count == 2
     assert service_cache == {}
 
 
@@ -753,7 +792,7 @@ def test_health_returns_worker_state(
     """测试健康检查返回 Worker 当前状态"""
     service_module = load_service_module(monkeypatch)
     service = create_service(service_module)
-    service.manager.count.return_value = 2
+    service.manager.registry.__len__.return_value = 2
     get_service_cache(service).update({
         "dep_1": object(),
         "dep_2": object(),
@@ -768,6 +807,8 @@ def test_health_returns_worker_state(
         "reconciler_running": True,
         "runtime_count": 2,
         "service_cache_count": 2,
+        "shadow_dispatcher_running": True,
+        "shadow_pending_count": 0,
         "configured_workers": service_module.service_config.workers,
     }
 
@@ -957,6 +998,32 @@ async def test_control_operation_returns_validation_error(
 
 
 @pytest.mark.asyncio
+async def test_unload_returns_deployment_state_error(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试卸载启用部署时返回部署状态错误"""
+    service_module = load_service_module(monkeypatch)
+    service = create_service(service_module)
+    service._validate_service_environment = AsyncMock()
+    service.controller.unload.side_effect = (
+        service_module.InvalidDeploymentStateError(
+            "部署仍处于启用状态，请先禁用部署: dep_test"
+        )
+    )
+
+    result = await service._unload(
+        request=service_module.ControlRequest(
+            deployment_id="dep_test"
+        ),
+        request_id="req_test",
+        operator="alice",
+    )
+
+    assert result["success"] is False
+    assert result["error_type"] == "InvalidDeploymentStateError"
+
+
+@pytest.mark.asyncio
 async def test_status_combines_control_and_local_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -968,7 +1035,7 @@ async def test_status_combines_control_and_local_state(
         "control": {"desired_status": "loaded"},
         "runtimes": [{"worker_id": "worker_test"}],
     }
-    service.manager.status.return_value = {
+    service.manager.get_status.return_value = {
         "loaded_in_memory": True,
     }
     service.reconciler.get_applied_generation.return_value = 3
@@ -1010,8 +1077,8 @@ async def test_services_returns_cached_service_information(
         generation=1,
         runtime_identity=100,
     )
-    service.manager.count.return_value = 1
-    service.manager.to_dicts.return_value = [
+    service.manager.registry.__len__.return_value = 1
+    service.manager.registry.snapshot.return_value = [
         {"deployment_id": "dep_test"}
     ]
     service.reconciler.get_applied_generations.return_value = {
@@ -1048,17 +1115,54 @@ async def test_predict_records_successful_decision(
         source="deployment",
         strategy="fallback",
     )
-    runtime_service = MagicMock()
-    runtime_service.predict.return_value = {
-        "score": 720.0,
-        "probability": 0.8,
-    }
-    service._create_request_record = AsyncMock()
-    service.router.resolve.return_value = route
-    service._get_service = AsyncMock(
-        return_value=runtime_service
+    shadow_route = service_module.RouteResult(
+        model_id="mdl_test",
+        version_id="ver_shadow",
+        deployment_id="dep_shadow",
+        framework="sklearn",
+        environment="testing",
+        source="shadow",
+        strategy="weighted",
+        routing_id="rtn_shadow",
     )
-    service._record_prediction_success = AsyncMock()
+    service._create_request_record = AsyncMock()
+    routing_plan = SimpleNamespace(
+        primary=route,
+        shadows=(shadow_route,),
+    )
+    service.router.resolve.return_value = routing_plan
+    execution_plan = service_module.ExecutionPlan(
+        route=route,
+        execution_type=(
+            service_module.ExecutionType.PRIMARY
+        ),
+    )
+    service.executor.execute.return_value = (
+        service_module.ExecutionResult(
+            plan=execution_plan,
+            prediction={
+                "score": 720.0,
+                "probability": 0.8,
+            },
+            latency_ms=8.5,
+        )
+    )
+    shadow_task = service_module.ShadowTask(
+        execution_id="exe_shadow",
+        request_id="req_test",
+        decision_id="dcs_test",
+        plan=service_module.ExecutionPlan(
+            route=shadow_route,
+            execution_type=(
+                service_module.ExecutionType.SHADOW
+            ),
+            timeout=5.0,
+        ),
+        features={"age": 35},
+    )
+    service._record_prediction_success = AsyncMock(
+        return_value=(shadow_task,)
+    )
     service._mark_prediction_failed = AsyncMock()
     monkeypatch.setitem(
         vars(service_module),
@@ -1066,7 +1170,7 @@ async def test_predict_records_successful_decision(
         lambda **_kwargs: "dcs_test",
     )
     request = service_module.PredictRequest(
-        model_id="mdl_test",
+        model_name="scorecard",
         features={"age": 35},
     )
 
@@ -1078,6 +1182,7 @@ async def test_predict_records_successful_decision(
     assert result["success"] is True
     assert result["decision_id"] == "dcs_test"
     assert result["score"] == 720.0
+    assert "shadows" not in result
     assert result["route"] == {
         "source": "deployment",
         "strategy": "fallback",
@@ -1087,8 +1192,28 @@ async def test_predict_records_successful_decision(
         "assignment_id": None,
     }
     service._create_request_record.assert_awaited_once()
+    service._resolve_model_id.assert_awaited_once_with(
+        model_name="scorecard"
+    )
+    assert (
+        service.router.resolve.await_args.kwargs["model_id"]
+        == "mdl_test"
+    )
     service._record_prediction_success.assert_awaited_once()
     service._mark_prediction_failed.assert_not_awaited()
+    service.executor.execute.assert_awaited_once_with(
+        plan=execution_plan,
+        features={"age": 35},
+    )
+    service.shadow_dispatcher.submit.assert_called_once()
+    submitted_task = (
+        service.shadow_dispatcher.submit.call_args.args[0]
+    )
+    assert isinstance(
+        submitted_task,
+        service_module.ShadowTask,
+    )
+    assert submitted_task is shadow_task
 
 
 @pytest.mark.asyncio
@@ -1122,16 +1247,15 @@ async def test_predict_returns_error_and_marks_request_failed(
     if failure_source == "route":
         service.router.resolve.side_effect = error
     else:
-        service.router.resolve.return_value = route
-        runtime_service = MagicMock()
-        runtime_service.predict.side_effect = error
-        service._get_service = AsyncMock(
-            return_value=runtime_service
+        service.router.resolve.return_value = SimpleNamespace(
+            primary=route,
+            shadows=(),
         )
+        service.executor.execute.side_effect = error
 
     result = await service._predict(
         request=service_module.PredictRequest(
-            model_id="mdl_test",
+            model_name="scorecard",
             features={"age": 35},
         ),
         request_id="req_test",
@@ -1141,6 +1265,55 @@ async def test_predict_returns_error_and_marks_request_failed(
     assert result["decision_id"] is None
     assert result["error_type"] == error.__class__.__name__
     service._mark_prediction_failed.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_predict_returns_error_for_unknown_model_name(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试模型名称不存在时保留失败请求记录"""
+    service_module = load_service_module(monkeypatch)
+    service = create_service(service_module)
+    service._resolve_model_id.side_effect = ValueError(
+        "模型不存在: missing-model"
+    )
+    service._create_request_record = AsyncMock()
+    service._mark_prediction_failed = AsyncMock()
+
+    result = await service._predict(
+        request=service_module.PredictRequest(
+            model_name="missing-model",
+            features={"age": 35},
+        ),
+        request_id="req_test",
+    )
+
+    assert result["success"] is False
+    assert result["error_type"] == "ValueError"
+    service._create_request_record.assert_awaited_once_with(
+        request_id="req_test",
+        model_id=None,
+        model_name="missing-model",
+        payload={
+            "model_name": "missing-model",
+            "environment": "testing",
+            "deployment_id": None,
+            "subject_key": None,
+            "subject_type": None,
+            "features": {"age": 35},
+        },
+    )
+    service._mark_prediction_failed.assert_awaited_once()
+    failure_call = (
+        service._mark_prediction_failed.await_args
+    )
+    assert failure_call is not None
+    failure_kwargs = failure_call.kwargs
+    assert failure_kwargs["model_id"] is None
+    assert failure_kwargs["request_record_created"] is True
+    assert failure_kwargs["error"] == (
+        "模型不存在: missing-model"
+    )
 
 
 @pytest.mark.asyncio
@@ -1193,7 +1366,7 @@ async def test_create_batch_request_records(
 ) -> None:
     """测试批量请求记录包含批次索引和调用上下文"""
     service_module = load_service_module(monkeypatch)
-    request_repo, _, _ = install_repositories(
+    request_repo, _, _, _ = install_repositories(
         service_module,
         monkeypatch,
     )
@@ -1243,11 +1416,13 @@ async def test_record_batch_success_creates_decisions(
         return_value=request_record
     )
     decision_repo = MagicMock()
+    execution_repo = MagicMock()
     install_repositories(
         service_module,
         monkeypatch,
         request_repo=request_repo,
         decision_repo=decision_repo,
+        execution_repo=execution_repo,
     )
     route = service_module.RouteResult(
         model_id="mdl_test",
@@ -1287,11 +1462,18 @@ async def test_record_batch_success_creates_decisions(
         latency_ms=10.0,
     )
     assert decision_repo.create_decision.call_args.kwargs[
-        "probability"
-    ] == 0.8
-    assert decision_repo.create_decision.call_args.kwargs[
         "decision"
     ] == "approved"
+    execution = execution_repo.create_execution.call_args.kwargs
+    assert execution["decision_id"] == "dcs_1"
+    assert execution["execution_type"] == (
+        service_module.ExecutionType.PRIMARY
+    )
+    assert execution["status"] == (
+        service_module.ExecutionStatus.SUCCESS
+    )
+    assert execution["probability"] == 0.8
+    assert execution["score"] == 720.0
 
 
 @pytest.mark.asyncio
@@ -1398,11 +1580,16 @@ async def test_create_and_mark_single_request_record(
 
     await service_class._create_request_record(
         request_id="req_test",
-        model_id="mdl_test",
-        payload={"features": {"age": 35}},
+        model_id=None,
+        model_name="scorecard",
+        payload={
+            "model_name": "scorecard",
+            "features": {"age": 35},
+        },
     )
     await service_class._mark_request_failed(
         request_id="req_test",
+        model_id="mdl_test",
         error="prediction failed",
         response={
             "success": False,
@@ -1415,6 +1602,7 @@ async def test_create_and_mark_single_request_record(
     request_repo.mark_failed.assert_called_once_with(
         request_record,
         error="prediction failed",
+        model_id="mdl_test",
         response={
             "success": False,
             "error": "prediction failed",
@@ -1436,11 +1624,13 @@ async def test_record_prediction_success_creates_decision(
         return_value=request_record
     )
     decision_repo = MagicMock()
+    execution_repo = MagicMock()
     install_repositories(
         service_module,
         monkeypatch,
         request_repo=request_repo,
         decision_repo=decision_repo,
+        execution_repo=execution_repo,
     )
     route = service_module.RouteResult(
         model_id="mdl_test",
@@ -1452,21 +1642,50 @@ async def test_record_prediction_success_creates_decision(
         strategy="fallback",
         subject_key="customer_10001",
     )
+    shadow_route = service_module.RouteResult(
+        model_id="mdl_test",
+        version_id="ver_shadow",
+        deployment_id="dep_shadow",
+        framework="sklearn",
+        environment="testing",
+        source="shadow",
+        strategy="weighted",
+        routing_id="rtn_shadow",
+    )
+    execution_ids = iter([
+        "exe_primary",
+        "exe_shadow",
+    ])
+    monkeypatch.setitem(
+        vars(service_module),
+        "generate_random_id",
+        lambda **_kwargs: next(execution_ids),
+    )
 
-    await service._record_prediction_success(
+    tasks = await service._record_prediction_success(
         request_id="req_test",
         decision_id="dcs_test",
-        route=route,
-        result={
-            "deployment_id": "dep_test",
-            "model_id": "mdl_test",
-            "version_id": "ver_test",
-            "framework": "sklearn",
-            "service_type": "scoring",
-            "probability": "0.8",
-            "score": 720,
-            "decision": "approved",
-        },
+        result=service_module.ExecutionResult(
+            plan=service_module.ExecutionPlan(
+                route=route,
+                execution_type=(
+                    service_module.ExecutionType.PRIMARY
+                ),
+            ),
+            prediction={
+                "deployment_id": "dep_test",
+                "model_id": "mdl_test",
+                "version_id": "ver_test",
+                "framework": "sklearn",
+                "service_type": "scoring",
+                "probability": "0.8",
+                "score": 720,
+                "decision": "approved",
+            },
+            latency_ms=8.5,
+        ),
+        shadow_routes=(shadow_route,),
+        features={"age": 35},
         response={
             "success": True,
             "request_id": "req_test",
@@ -1478,6 +1697,7 @@ async def test_record_prediction_success_creates_decision(
 
     request_repo.mark_success.assert_called_once_with(
         request_record,
+        model_id="mdl_test",
         response={
             "success": True,
             "request_id": "req_test",
@@ -1487,19 +1707,58 @@ async def test_record_prediction_success_creates_decision(
         latency_ms=10.0,
     )
     decision = decision_repo.create_decision.call_args.kwargs
-    assert decision["prediction"] == {
-        "service_type": "scoring",
-        "probability": "0.8",
-        "score": 720,
-        "decision": "approved",
-    }
-    assert decision["probability"] == 0.8
-    assert decision["score"] == 720.0
+    assert decision["decision"] == "approved"
     assert decision["context"] == {
         "framework": "sklearn",
         "environment": "testing",
         "worker_id": "worker_test",
     }
+    executions = [
+        call.kwargs
+        for call in execution_repo.create_execution.call_args_list
+    ]
+    assert executions[0]["execution_id"] == "exe_primary"
+    assert executions[0]["execution_type"] == (
+        service_module.ExecutionType.PRIMARY
+    )
+    assert executions[0]["status"] == (
+        service_module.ExecutionStatus.SUCCESS
+    )
+    assert executions[0]["prediction"] == {
+        "service_type": "scoring",
+        "probability": "0.8",
+        "score": 720,
+        "decision": "approved",
+    }
+    assert executions[0]["probability"] == 0.8
+    assert executions[0]["score"] == 720.0
+    assert executions[0]["latency_ms"] == 8.5
+    assert executions[1]["execution_id"] == "exe_shadow"
+    assert executions[1]["execution_type"] == (
+        service_module.ExecutionType.SHADOW
+    )
+    assert executions[1]["status"] == (
+        service_module.ExecutionStatus.QUEUED
+    )
+    assert tasks == (
+        service_module.ShadowTask(
+            execution_id="exe_shadow",
+            request_id="req_test",
+            decision_id="dcs_test",
+            plan=service_module.ExecutionPlan(
+                route=shadow_route,
+                execution_type=(
+                    service_module.ExecutionType.SHADOW
+                ),
+                timeout=(
+                    service_module
+                    .runtime_config
+                    .shadow_timeout
+                ),
+            ),
+            features={"age": 35},
+        ),
+    )
 
 
 @pytest.mark.asyncio
@@ -1524,21 +1783,263 @@ async def test_record_prediction_success_requires_request_record(
         await service._record_prediction_success(
             request_id="req_test",
             decision_id="dcs_test",
-            route=service_module.RouteResult(
-                model_id="mdl_test",
-                version_id="ver_test",
-                deployment_id="dep_test",
-                framework="sklearn",
-                environment="testing",
-                source="deployment",
-                strategy="fallback",
+            result=service_module.ExecutionResult(
+                plan=service_module.ExecutionPlan(
+                    route=service_module.RouteResult(
+                        model_id="mdl_test",
+                        version_id="ver_test",
+                        deployment_id="dep_test",
+                        framework="sklearn",
+                        environment="testing",
+                        source="deployment",
+                        strategy="fallback",
+                    ),
+                    execution_type=(
+                        service_module.ExecutionType.PRIMARY
+                    ),
+                ),
+                prediction={},
+                latency_ms=8.5,
             ),
-            result={},
+            shadow_routes=(),
+            features={"age": 35},
             response={
                 "success": True,
             },
             latency_ms=10.0,
         )
+
+
+@pytest.mark.asyncio
+async def test_record_shadow_success_updates_execution(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试影子预测成功后更新对应执行记录"""
+    service_module = load_service_module(monkeypatch)
+    service = create_service(service_module)
+    execution = MagicMock()
+    execution_repo = MagicMock()
+    execution_repo.get_execution = AsyncMock(
+        return_value=execution
+    )
+    install_repositories(
+        service_module,
+        monkeypatch,
+        execution_repo=execution_repo,
+    )
+    task = service_module.ShadowTask(
+        execution_id="exe_shadow",
+        request_id="req_test",
+        decision_id="dcs_primary",
+        plan=service_module.ExecutionPlan(
+            route=service_module.RouteResult(
+                model_id="mdl_test",
+                version_id="ver_shadow",
+                deployment_id="dep_shadow",
+                framework="sklearn",
+                environment="testing",
+                source="shadow",
+                strategy="weighted",
+                routing_id="rtn_shadow",
+                subject_key="customer_10001",
+                weight=0.25,
+            ),
+            execution_type=(
+                service_module.ExecutionType.SHADOW
+            ),
+        ),
+        features={"age": 35},
+    )
+
+    await service._record_shadow_success(
+        task=task,
+        result=service_module.ExecutionResult(
+            plan=task.plan,
+            prediction={
+                "score": 710,
+                "probability": 0.7,
+                "service_type": "scoring",
+            },
+            latency_ms=8.5,
+        ),
+    )
+
+    execution_repo.get_execution.assert_awaited_once_with(
+        "exe_shadow"
+    )
+    updated = execution_repo.mark_success.call_args.kwargs
+    assert updated["prediction"] == {
+        "score": 710,
+        "probability": 0.7,
+        "service_type": "scoring",
+    }
+    assert updated["probability"] == 0.7
+    assert updated["score"] == 710.0
+    assert updated["latency_ms"] == 8.5
+
+
+@pytest.mark.asyncio
+async def test_execute_shadow_records_success_without_response(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试影子预测成功时只更新影子执行记录"""
+    service_module = load_service_module(monkeypatch)
+    service = create_service(service_module)
+    service._record_shadow_success = AsyncMock()
+    service._record_shadow_running = AsyncMock()
+    route = service_module.RouteResult(
+        model_id="mdl_test",
+        version_id="ver_shadow",
+        deployment_id="dep_shadow",
+        framework="sklearn",
+        environment="testing",
+        source="shadow",
+        strategy="weighted",
+    )
+    plan = service_module.ExecutionPlan(
+        route=route,
+        execution_type=(
+            service_module.ExecutionType.SHADOW
+        ),
+        timeout=5.0,
+    )
+    result = service_module.ExecutionResult(
+        plan=plan,
+        prediction={
+            "score": 710.0,
+        },
+        latency_ms=8.5,
+    )
+    service.executor.execute.return_value = result
+    task = service_module.ShadowTask(
+        execution_id="exe_shadow",
+        request_id="req_test",
+        decision_id="dcs_primary",
+        plan=plan,
+        features={"age": 35},
+    )
+
+    await service._execute_shadow(
+        task
+    )
+
+    service._record_shadow_running.assert_awaited_once_with(
+        task
+    )
+    service.executor.execute.assert_awaited_once_with(
+        plan=plan,
+        features={"age": 35},
+    )
+    service._record_shadow_success.assert_awaited_once_with(
+        task=task,
+        result=result,
+    )
+
+
+@pytest.mark.asyncio
+async def test_execute_shadow_isolates_failure_and_writes_audit(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试影子预测失败不向主调用方传播"""
+    service_module = load_service_module(monkeypatch)
+    service = create_service(service_module)
+    service.executor.execute.side_effect = RuntimeError(
+        "shadow unavailable"
+    )
+    service._record_shadow_success = AsyncMock()
+    service._record_shadow_running = AsyncMock()
+    service._record_shadow_failure = AsyncMock()
+    task = service_module.ShadowTask(
+        execution_id="exe_shadow",
+        request_id="req_test",
+        decision_id="dcs_primary",
+        plan=service_module.ExecutionPlan(
+            route=service_module.RouteResult(
+                model_id="mdl_test",
+                version_id="ver_shadow",
+                deployment_id="dep_shadow",
+                framework="sklearn",
+                environment="testing",
+                source="shadow",
+                strategy="weighted",
+                routing_id="rtn_shadow",
+            ),
+            execution_type=(
+                service_module.ExecutionType.SHADOW
+            ),
+            timeout=5.0,
+        ),
+        features={"age": 35},
+    )
+
+    await service._execute_shadow(
+        task
+    )
+
+    service._record_shadow_success.assert_not_awaited()
+    failure = service._record_shadow_failure.await_args
+    assert failure is not None
+    assert failure.kwargs["task"] is task
+    assert failure.kwargs["status"] == (
+        service_module.ExecutionStatus.FAILED
+    )
+    assert failure.kwargs["error"] == "shadow unavailable"
+    audit = get_audit_recorder(service)
+    audit.record.assert_awaited_once_with(
+        action="prediction.shadow",
+        target_type="deployment",
+        target_id="dep_shadow",
+        status="failed",
+        error="shadow unavailable",
+        context={
+            "request_id": "req_test",
+            "decision_id": "dcs_primary",
+            "execution_id": "exe_shadow",
+            "routing_id": "rtn_shadow",
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_execute_shadow_isolates_audit_error(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试影子预测失败不受审计写入异常影响"""
+    service_module = load_service_module(monkeypatch)
+    service = create_service(service_module)
+    service.executor.execute.side_effect = RuntimeError(
+        "shadow unavailable"
+    )
+    service._record_shadow_running = AsyncMock()
+    service._record_shadow_failure = AsyncMock()
+    audit = get_audit_recorder(service)
+    audit.record.side_effect = AuditWriteError()
+    task = service_module.ShadowTask(
+        execution_id="exe_shadow",
+        request_id="req_test",
+        decision_id="dcs_primary",
+        plan=service_module.ExecutionPlan(
+            route=service_module.RouteResult(
+                model_id="mdl_test",
+                version_id="ver_shadow",
+                deployment_id="dep_shadow",
+                framework="sklearn",
+                environment="testing",
+                source="shadow",
+                strategy="weighted",
+            ),
+            execution_type=(
+                service_module.ExecutionType.SHADOW
+            ),
+        ),
+        features={"age": 35},
+    )
+
+    await service._execute_shadow(
+        task
+    )
+
+    audit.record.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -1584,7 +2085,7 @@ def test_prediction_payload_and_optional_values(
     service_module = load_service_module(monkeypatch)
     service_class = service_module.DatamindRuntimeService.inner
     request = service_module.PredictRequest(
-        model_id="mdl_test",
+        model_name="scorecard",
         deployment_id="dep_test",
         subject_key="customer_10001",
         subject_type="customer",
@@ -1592,7 +2093,7 @@ def test_prediction_payload_and_optional_values(
     )
 
     assert service_class._build_request_payload(request) == {
-        "model_id": "mdl_test",
+        "model_name": "scorecard",
         "environment": "testing",
         "deployment_id": "dep_test",
         "subject_key": "customer_10001",
@@ -1619,6 +2120,58 @@ def test_prediction_payload_and_optional_values(
     assert service_class._optional_string(1) is None
 
 
+def test_predict_request_rejects_internal_model_id(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试公开预测请求不再接受内部模型 ID"""
+    service_module = load_service_module(monkeypatch)
+
+    with pytest.raises(ValidationError):
+        service_module.PredictRequest(
+            model_id="mdl_test",
+            features={"age": 35},
+        )
+
+
+@pytest.mark.asyncio
+async def test_resolve_model_id_uses_model_name(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试运行时按公开模型名称解析内部模型 ID"""
+    service_module = load_service_module(monkeypatch)
+    repo = MagicMock()
+    repo.get_model = AsyncMock(
+        return_value=SimpleNamespace(
+            model_id="mdl_test"
+        )
+    )
+    repository_factory = MagicMock(
+        return_value=repo
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "MetadataRepository",
+        repository_factory,
+    )
+
+    model_id = await (
+        service_module.DatamindRuntimeService.inner
+        ._resolve_model_id(
+            model_name="scorecard"
+        )
+    )
+
+    assert model_id == "mdl_test"
+    repo.get_model.assert_awaited_once_with(
+        name="scorecard"
+    )
+
+
 @pytest.mark.asyncio
 async def test_get_service_reconciles_and_caches_runtime_service(
         monkeypatch: pytest.MonkeyPatch,
@@ -1627,7 +2180,7 @@ async def test_get_service_reconciles_and_caches_runtime_service(
     service_module = load_service_module(monkeypatch)
     service = create_service(service_module)
     runtime_model = object()
-    service.manager.get.side_effect = [
+    service.manager.registry.get.side_effect = [
         None,
         runtime_model,
         runtime_model,
@@ -1660,7 +2213,7 @@ async def test_get_service_rejects_unloaded_runtime(
     """测试状态收敛后仍未加载模型时拒绝服务"""
     service_module = load_service_module(monkeypatch)
     service = create_service(service_module)
-    service.manager.get.return_value = None
+    service.manager.registry.get.return_value = None
     service_cache = get_service_cache(service)
     service_cache["dep_test"] = object()
 

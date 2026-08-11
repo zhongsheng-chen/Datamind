@@ -5,7 +5,7 @@
 只负责日志输出，不包含日志加工逻辑。
 
 核心功能：
-  - create_file_handler: 创建文件日志 handler，支持时间和大小轮转
+  - create_file_handler: 创建支持多进程并发轮转的文件日志 handler
   - create_console_handler: 创建控制台日志 handler
   - create_async_handler: 创建基于队列的异步日志 handler
 
@@ -36,10 +36,13 @@ import sys
 from logging.handlers import (
     QueueHandler,
     QueueListener,
-    RotatingFileHandler,
-    TimedRotatingFileHandler,
 )
 from queue import Queue
+
+from concurrent_log_handler import (
+    ConcurrentRotatingFileHandler,
+    ConcurrentTimedRotatingFileHandler,
+)
 
 from datamind.config.logging import LoggingConfig
 from datamind.constants import RotationType
@@ -64,7 +67,7 @@ def create_file_handler(config: LoggingConfig) -> logging.Handler:
     )
 
     if config.rotation == RotationType.TIME:
-        return TimedRotatingFileHandler(
+        return ConcurrentTimedRotatingFileHandler(
             filename=path,
             when=str(config.rotation_when),
             interval=config.rotation_interval,
@@ -73,7 +76,7 @@ def create_file_handler(config: LoggingConfig) -> logging.Handler:
         )
 
     if config.rotation == RotationType.SIZE:
-        return RotatingFileHandler(
+        return ConcurrentRotatingFileHandler(
             filename=path,
             maxBytes=config.max_bytes,
             backupCount=config.backup_count,

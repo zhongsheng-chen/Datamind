@@ -15,6 +15,8 @@
     验证认证失败不显示 traceback
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from types import (
     ModuleType,
     SimpleNamespace,
@@ -34,6 +36,11 @@ from datamind.auth.errors import InvalidCredentialsError
 from datamind.auth.schemas import TokenResponse
 from datamind.cli.credentials import CLICredentials
 from datamind.cli.errors import CredentialError
+from datamind.context import (
+    get_context,
+    is_valid_trace_id,
+)
+from datamind.context.scope import context_scope
 from datamind.cli.main import app
 
 
@@ -43,36 +50,54 @@ runner = CliRunner()
 class FakeUnitOfWork:
     """认证命令测试工作单元"""
 
+    exit_exception_type: type[BaseException] | None = None
+
     def __init__(self) -> None:
         self.session = MagicMock()
 
     async def __aenter__(self) -> "FakeUnitOfWork":
         return self
 
-    async def __aexit__(self, *_args: object) -> bool:
-        return False
-
-
-class FakeCLIContext:
-    """身份查询命令测试上下文"""
-
-    def __init__(
+    async def __aexit__(
             self,
-            user: object | None = None,
-            error: Exception | None = None,
-    ) -> None:
-        self.authenticated_user = user
-        self.user = "system"
-        self.error = error
-
-    async def __aenter__(self) -> "FakeCLIContext":
-        if self.error is not None:
-            raise self.error
-
-        return self
-
-    async def __aexit__(self, *_args: object) -> bool:
+            exception_type: type[BaseException] | None,
+            *_args: object,
+    ) -> bool:
+        type(self).exit_exception_type = exception_type
         return False
+
+
+@asynccontextmanager
+async def fake_cli_context(
+        *,
+        user: object | None = None,
+        error: Exception | None = None,
+) -> AsyncIterator[SimpleNamespace]:
+    """创建身份查询命令测试上下文"""
+    if error is not None:
+        raise error
+
+    context_user = getattr(
+        user,
+        "username",
+        "system",
+    )
+    if not isinstance(context_user, str):
+        context_user = "system"
+
+    context = SimpleNamespace(
+        authenticated_user=user,
+        user=context_user,
+    )
+    with context_scope(
+            trace_id="1" * 32,
+            request_id="req_0123456789abcdef",
+            source="cli",
+            user=context_user,
+            ip="127.0.0.1",
+            hostname="datamind-host",
+    ):
+        yield context
 
 
 @pytest.fixture(autouse=True)
@@ -115,6 +140,7 @@ def install_auth_service(
         service: MagicMock,
 ) -> None:
     """安装认证服务替身"""
+    FakeUnitOfWork.exit_exception_type = None
     monkeypatch.setitem(
         vars(command_module),
         "UnitOfWork",
@@ -125,6 +151,16 @@ def install_auth_service(
         "create_auth_service",
         lambda **_kwargs: service,
     )
+
+    if command_module in (
+            login_module,
+            logout_module,
+    ):
+        service.authenticate_access_token = AsyncMock(
+            return_value=SimpleNamespace(
+                username="current-user"
+            )
+        )
 
     if command_module is login_module:
         monkeypatch.setitem(
@@ -173,6 +209,12 @@ def test_login_saves_session_without_rendering_tokens(
         login_module,
         store,
     )
+    log_contexts: list[dict[str, object]] = []
+    login_module.logger.info.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
 
     result = runner.invoke(
         app,
@@ -203,6 +245,24 @@ def test_login_saves_session_without_rendering_tokens(
         "hostname": "datamind-host",
         "user_agent": "datamind-cli",
     }
+    assert len(log_contexts) == 2
+    start_context, success_context = log_contexts
+    trace_id = start_context["trace_id"]
+    assert isinstance(trace_id, str)
+    assert is_valid_trace_id(
+        trace_id
+    )
+    assert start_context["request_id"] == (
+        success_context["request_id"]
+    )
+    assert start_context["trace_id"] == (
+        success_context["trace_id"]
+    )
+    assert start_context["user"] == "anonymous"
+    assert success_context["user"] == "alice"
+    assert success_context["source"] == "cli"
+    assert success_context["ip"] == "127.0.0.1"
+    assert success_context["hostname"] == "datamind-host"
 
 
 def test_login_revokes_previous_session_before_saving_new_session(
@@ -229,6 +289,12 @@ def test_login_revokes_previous_session_before_saving_new_session(
         login_module,
         store,
     )
+    log_contexts: list[dict[str, object]] = []
+    login_module.logger.info.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
 
     result = runner.invoke(
         app,
@@ -250,6 +316,11 @@ def test_login_revokes_previous_session_before_saving_new_session(
     store.save.assert_called_once_with(
         tokens
     )
+    service.authenticate_access_token.assert_awaited_once_with(
+        "access-token"
+    )
+    assert log_contexts[0]["user"] == "current-user"
+    assert log_contexts[1]["user"] == "alice"
 
 
 def test_login_replaces_invalid_stored_session(
@@ -330,6 +401,7 @@ def test_login_failure_preserves_previous_session(
     assert result.exit_code == 1
     service.logout.assert_not_awaited()
     store.save.assert_not_called()
+    assert FakeUnitOfWork.exit_exception_type is None
 
 
 def test_whoami_uses_cli_context(
@@ -337,6 +409,7 @@ def test_whoami_uses_cli_context(
 ) -> None:
     """测试身份查询使用当前 CLI 登录会话"""
     user = SimpleNamespace(
+        username="alice",
         model_dump=lambda **_kwargs: {
             "user_id": "usr_alice",
             "username": "alice",
@@ -355,9 +428,15 @@ def test_whoami_uses_cli_context(
     monkeypatch.setitem(
         vars(whoami_module),
         "cli_context",
-        lambda: FakeCLIContext(
+        lambda: fake_cli_context(
             user=user
         ),
+    )
+    log_contexts: list[dict[str, object]] = []
+    whoami_module.logger.info.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
     )
 
     result = runner.invoke(
@@ -378,6 +457,19 @@ def test_whoami_uses_cli_context(
     assert "PERMISSIONS" in result.output
     assert "model.read, model.write" in result.output
     assert '"username"' not in result.output
+    assert len(log_contexts) == 2
+    assert log_contexts[0]["trace_id"] == (
+        log_contexts[1]["trace_id"]
+    )
+    assert log_contexts[0]["request_id"] == (
+        log_contexts[1]["request_id"]
+    )
+    whoami_start = (
+        whoami_module.logger.info.call_args_list[0]
+    )
+    assert whoami_start.kwargs[
+        "identity_verified"
+    ] is True
 
 
 def test_whoami_does_not_expose_format_option() -> None:
@@ -414,6 +506,12 @@ def test_logout_revokes_and_clears_session(
         logout_module,
         store,
     )
+    log_contexts: list[dict[str, object]] = []
+    logout_module.logger.info.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
 
     result = runner.invoke(
         app,
@@ -431,6 +529,27 @@ def test_logout_revokes_and_clears_session(
         "refresh-token"
     )
     store.clear.assert_called_once_with()
+    assert len(log_contexts) == 2
+    trace_id = log_contexts[0]["trace_id"]
+    assert isinstance(trace_id, str)
+    assert is_valid_trace_id(
+        trace_id
+    )
+    assert log_contexts[0]["trace_id"] == (
+        log_contexts[1]["trace_id"]
+    )
+    assert log_contexts[0]["request_id"] == (
+        log_contexts[1]["request_id"]
+    )
+    assert log_contexts[0]["source"] == "cli"
+    assert log_contexts[0]["user"] == "current-user"
+    assert log_contexts[1]["user"] == "current-user"
+    logout_complete = (
+        logout_module.logger.info.call_args_list[-1]
+    )
+    assert logout_complete.kwargs[
+        "refresh_token_revoked"
+    ] is True
 
 
 @pytest.mark.parametrize(
@@ -495,6 +614,12 @@ def test_auth_commands_render_clean_error(
         command_module,
         store,
     )
+    log_contexts: list[dict[str, object]] = []
+    command_module.logger.warning.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
 
     result = runner.invoke(
         app,
@@ -505,6 +630,17 @@ def test_auth_commands_render_clean_error(
     assert result.exit_code == 1
     assert expected_message in result.output
     assert "Traceback" not in result.output
+    assert len(log_contexts) == 1
+    trace_id = log_contexts[0]["trace_id"]
+    request_id = log_contexts[0]["request_id"]
+    assert isinstance(trace_id, str)
+    assert isinstance(request_id, str)
+    assert is_valid_trace_id(
+        trace_id
+    )
+    assert request_id.startswith("req_")
+    assert log_contexts[0]["source"] == "cli"
+    assert log_contexts[0]["user"] == "current-user"
 
 
 def test_whoami_renders_clean_error(
@@ -514,7 +650,7 @@ def test_whoami_renders_clean_error(
     monkeypatch.setitem(
         vars(whoami_module),
         "cli_context",
-        lambda: FakeCLIContext(
+        lambda: fake_cli_context(
             error=InvalidCredentialsError(
                 "认证被拒绝"
             )
@@ -529,5 +665,5 @@ def test_whoami_renders_clean_error(
     )
 
     assert result.exit_code == 1
-    assert "身份认证失败：认证被拒绝" in result.output
+    assert "认证失败：认证被拒绝" in result.output
     assert "Traceback" not in result.output

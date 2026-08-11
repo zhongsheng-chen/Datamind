@@ -18,10 +18,11 @@ from typing import Any
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
+from datamind.models.errors import DeploymentError
 from datamind.services import RuntimeControlService
 from datamind.utils.datetime import (
     format_datetime,
@@ -30,7 +31,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="查看运行状态命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -141,77 +142,73 @@ def show_runtime(
 
             return result
 
-        console.print(
-            "[green]运行状态详情[/green]\n"
-        )
+        console.info("运行状态详情\n")
 
         console.print(
-            f"[cyan]{'DEPLOYMENT ID':<18}[/cyan] : "
+            f"{'DEPLOYMENT ID':<18} : "
             f"{deployment['deployment_id']}"
         )
         console.print(
-            f"[cyan]{'MODEL ID':<18}[/cyan] : "
+            f"{'MODEL ID':<18} : "
             f"{deployment['model_id']}"
         )
         console.print(
-            f"[cyan]{'VERSION ID':<18}[/cyan] : "
+            f"{'VERSION ID':<18} : "
             f"{deployment['version_id']}"
         )
         console.print(
-            f"[cyan]{'FRAMEWORK':<18}[/cyan] : "
+            f"{'FRAMEWORK':<18} : "
             f"{deployment['framework']}"
         )
         console.print(
-            f"[cyan]{'ENVIRONMENT':<18}[/cyan] : "
+            f"{'ENVIRONMENT':<18} : "
             f"{deployment['environment']}"
         )
         console.print(
-            f"[cyan]{'ROLLOUT TYPE':<18}[/cyan] : "
+            f"{'ROLLOUT TYPE':<18} : "
             f"{deployment['rollout_type']}"
         )
         console.print(
-            f"[cyan]{'ROLE':<18}[/cyan] : "
+            f"{'ROLE':<18} : "
             f"{deployment['role']}"
         )
         console.print(
-            f"[cyan]{'STATUS':<18}[/cyan] : "
+            f"{'STATUS':<18} : "
             f"{deployment['status']}"
         )
 
         console.print()
 
         if control is None:
-            console.print(
-                "[yellow]暂无运行控制记录[/yellow]\n"
-            )
+            console.warning("暂无运行控制记录\n")
 
         else:
             console.print(
-                f"[cyan]{'CONTROL ID':<18}[/cyan] : "
+                f"{'CONTROL ID':<18} : "
                 f"{control['control_id']}"
             )
             console.print(
-                f"[cyan]{'DESIRED STATUS':<18}[/cyan] : "
+                f"{'DESIRED STATUS':<18} : "
                 f"{control['desired_status']}"
             )
             console.print(
-                f"[cyan]{'GENERATION':<18}[/cyan] : "
+                f"{'GENERATION':<18} : "
                 f"{control['generation']}"
             )
             console.print(
-                f"[cyan]{'CREATED BY':<18}[/cyan] : "
+                f"{'CREATED BY':<18} : "
                 f"{control['created_by'] or '-'}"
             )
             console.print(
-                f"[cyan]{'CREATED AT':<18}[/cyan] : "
+                f"{'CREATED AT':<18} : "
                 f"{format_datetime(parse_datetime(control['created_at']))}"
             )
             console.print(
-                f"[cyan]{'UPDATED BY':<18}[/cyan] : "
+                f"{'UPDATED BY':<18} : "
                 f"{control['updated_by'] or '-'}"
             )
             console.print(
-                f"[cyan]{'UPDATED AT':<18}[/cyan] : "
+                f"{'UPDATED AT':<18} : "
                 f"{format_datetime(parse_datetime(control['updated_at']))}"
             )
 
@@ -270,6 +267,19 @@ def show_runtime(
         async with cli_context(
                 required_permission="runtime.read",
         ):
-            await _run()
+            try:
+                await _run()
+            except DeploymentError as error:
+                logger.warning(
+                    "部署运行状态查询失败",
+                    deployment_id=deployment_id,
+                    error=str(error),
+                )
+                console.error(
+                    f"运行状态查询失败：{error}",
+                    output_format=output,
+                    error_type=type(error).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
     asyncio.run(runner())

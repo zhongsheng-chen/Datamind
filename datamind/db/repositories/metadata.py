@@ -75,6 +75,7 @@ class MetadataPatch:
 
     属性：
         name: 模型名称
+        display_name: 模型显示名称
         model_type: 模型类型
         task_type: 任务类型
         framework: 框架类型
@@ -82,6 +83,7 @@ class MetadataPatch:
     """
 
     name: str | None = None
+    display_name: str | None = None
     model_type: ModelType | None = None
     task_type: TaskType | None = None
     framework: Framework | None = None
@@ -298,6 +300,7 @@ class MetadataRepository(BaseRepository):
             model_type: ModelType,
             task_type: TaskType,
             framework: Framework,
+            display_name: str | None = None,
             description: str | None = None,
             created_by: str | None = None,
             updated_by: str | None = None,
@@ -308,7 +311,8 @@ class MetadataRepository(BaseRepository):
 
         参数：
             model_id: 模型 ID
-            name: 模型名称
+            name: 模型机器名称
+            display_name: 模型显示名称（可选）
             model_type: 模型类型
             task_type: 任务类型
             framework: 框架类型
@@ -338,6 +342,9 @@ class MetadataRepository(BaseRepository):
 
         if description is not None:
             new_model.description = description
+
+        if display_name is not None:
+            new_model.display_name = display_name
 
         if created_by is not None:
             new_model.created_by = created_by

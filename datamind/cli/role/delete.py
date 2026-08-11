@@ -8,24 +8,22 @@
   - delete_role: 删除角色
 
 使用示例：
-  python -m datamind.cli.main role delete developer \
-    --reason "角色停用" \
-    --yes
+  python -m datamind.cli.main role delete developer --yes
 """
 
 import asyncio
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.services import IdentityService
 from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="删除角色命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -36,8 +34,8 @@ def delete_role(
             ...,
             help="角色名称",
         ),
-        reason: str = typer.Option(
-            ...,
+        reason: str | None = typer.Option(
+            None,
             "--reason",
             help="删除原因",
         ),
@@ -75,8 +73,8 @@ def delete_role(
                 ),
                 operator=context.user,
             )
-            console.print(
-                f"[green]角色已删除：{result['name']}[/green]"
+            console.info(
+                f"角色已删除：{result['name']}"
             )
 
     try:
@@ -87,8 +85,8 @@ def delete_role(
         IdentityError,
         ValueError,
     ) as exc:
-        console.print(
-            f"[red]删除角色失败：{exc}[/red]"
+        console.error(
+            f"删除角色失败：{exc}"
         )
         raise typer.Exit(
             code=1

@@ -12,6 +12,8 @@
   - activate: 启用实验分组
   - deactivate: 停用实验分组
   - archive: 归档实验分组
+  - delete: 删除实验分组
+  - restore: 恢复实验分组
 """
 
 import typer
@@ -20,8 +22,10 @@ from datamind.cli.experiment.variant.activate import app as activate_app
 from datamind.cli.experiment.variant.add import app as add_app
 from datamind.cli.experiment.variant.archive import app as archive_app
 from datamind.cli.experiment.variant.deactivate import app as deactivate_app
+from datamind.cli.experiment.variant.delete import app as delete_app
 from datamind.cli.experiment.variant.list import app as list_app
 from datamind.cli.experiment.variant.show import app as show_app
+from datamind.cli.experiment.variant.restore import app as restore_app
 from datamind.cli.experiment.variant.update import app as update_app
 
 app = typer.Typer(
@@ -35,3 +39,5 @@ app.add_typer(show_app)
 app.add_typer(activate_app)
 app.add_typer(deactivate_app)
 app.add_typer(archive_app)
+app.add_typer(delete_app)
+app.add_typer(restore_app)

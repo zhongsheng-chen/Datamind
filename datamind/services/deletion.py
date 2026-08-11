@@ -38,6 +38,10 @@ import bentoml
 import structlog
 
 from datamind.db.core.uow import UnitOfWork
+from datamind.db.models import (
+    Metadata,
+    Version,
+)
 from datamind.db.repositories import (
     ArtifactRepository,
     DeploymentRepository,
@@ -47,8 +51,13 @@ from datamind.db.repositories import (
 )
 from datamind.models.enums import (
     ArtifactStatus,
+    MetadataStatus,
+    VersionStatus,
 )
-from datamind.models.errors import InvalidModelStateError
+from datamind.models.errors import (
+    InvalidModelStateError,
+    VersionNotFoundError,
+)
 from datamind.models.resolver import ModelResolver
 from datamind.storage import get_storage
 from datamind.utils.generator import generate_random_id
@@ -74,6 +83,47 @@ class ModelDeletionService:
         """初始化模型删除服务"""
         self.storage = get_storage()
 
+    @staticmethod
+    async def _resolve_model_and_version(
+            *,
+            resolver: ModelResolver,
+            version_repo: VersionRepository,
+            model_id: str | None,
+            name: str | None,
+            version: str | None,
+            version_id: str | None,
+    ) -> tuple[Metadata, Version | None]:
+        """解析删除操作的模型及可选版本"""
+        if version_id is not None and model_id is None and name is None:
+            version_record = await version_repo.get_version(version_id)
+
+            if version_record is None:
+                raise VersionNotFoundError(
+                    f"版本不存在: {version_id}"
+                )
+
+            metadata = await resolver.resolve_model(
+                model_id=version_record.model_id,
+            )
+
+            return metadata, version_record
+
+        metadata = await resolver.resolve_model(
+            model_id=model_id,
+            name=name,
+        )
+
+        if version_id is None and version is None:
+            return metadata, None
+
+        version_record = await resolver.resolve_version(
+            model_id=metadata.model_id,
+            version_id=version_id,
+            version=version,
+        )
+
+        return metadata, version_record
+
     async def delete(
             self,
             *,
@@ -93,11 +143,6 @@ class ModelDeletionService:
         deletion_id = generate_random_id(
             prefix="del"
         )
-        target_version = (
-            version_id is not None
-            or version is not None
-        )
-
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
             version_repo = VersionRepository(uow.session)
@@ -106,23 +151,26 @@ class ModelDeletionService:
                 metadata_repo,
                 version_repo,
             )
-            metadata = await resolver.resolve_model(
+            metadata, target = await self._resolve_model_and_version(
+                resolver=resolver,
+                version_repo=version_repo,
                 model_id=model_id,
                 name=name,
+                version=version,
+                version_id=version_id,
             )
 
             result: dict[str, Any]
 
-            if target_version:
-                target = await resolver.resolve_version(
-                    model_id=metadata.model_id,
-                    version_id=version_id,
-                    version=version,
-                )
+            if target is not None:
                 await self._ensure_no_active_deployments(
                     deployment_repo,
                     model_id=metadata.model_id,
                     version_id=target.version_id,
+                )
+                active_versions = await version_repo.list_versions(
+                    model_id=metadata.model_id,
+                    status=VersionStatus.ACTIVE,
                 )
                 version_repo.mark_deleted(
                     target,
@@ -131,6 +179,27 @@ class ModelDeletionService:
                     deletion_id=deletion_id,
                     deletion_reason=reason,
                 )
+
+                if (
+                        getattr(
+                            metadata,
+                            "status",
+                            None,
+                        ) == str(
+                            MetadataStatus.ACTIVE
+                        )
+                        and not any(
+                            item.version_id
+                            != target.version_id
+                            for item in active_versions
+                        )
+                ):
+                    metadata.status = str(
+                        MetadataStatus.INACTIVE
+                    )
+
+                    if operator is not None:
+                        metadata.updated_by = operator
 
                 result = {
                     "model_id": metadata.model_id,
@@ -188,11 +257,6 @@ class ModelDeletionService:
             operator: str | None = None,
     ) -> dict[str, Any]:
         """恢复尚未永久清理的逻辑删除模型或版本"""
-        target_version = (
-            version_id is not None
-            or version is not None
-        )
-
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
             version_repo = VersionRepository(uow.session)
@@ -201,24 +265,23 @@ class ModelDeletionService:
                 metadata_repo,
                 version_repo,
             )
-            metadata = await resolver.resolve_model(
+            metadata, target = await self._resolve_model_and_version(
+                resolver=resolver,
+                version_repo=version_repo,
                 model_id=model_id,
                 name=name,
+                version=version,
+                version_id=version_id,
             )
 
             result: dict[str, Any]
 
-            if target_version:
-                if metadata.deleted_at is not None:
+            if target is not None:
+                if getattr(metadata, "deleted_at", None) is not None:
                     raise InvalidModelStateError(
                         "模型已被整体删除，请先恢复模型"
                     )
 
-                target = await resolver.resolve_version(
-                    model_id=metadata.model_id,
-                    version_id=version_id,
-                    version=version,
-                )
                 await self._ensure_version_restorable(
                     artifact_repo,
                     target,
@@ -237,7 +300,7 @@ class ModelDeletionService:
                 }
 
             else:
-                if metadata.deleted_at is None:
+                if getattr(metadata, "deleted_at", None) is None:
                     raise InvalidModelStateError(
                         "模型未被逻辑删除"
                     )
@@ -248,20 +311,50 @@ class ModelDeletionService:
                     include_archived=True,
                 )
                 restored_count = 0
+                batch_versions = [
+                    item
+                    for item in versions
+                    if item.deletion_id == deletion_id
+                ]
 
-                for item in versions:
-                    if item.deletion_id != deletion_id:
-                        continue
+                for item in batch_versions:
+                    try:
+                        await self._ensure_version_restorable(
+                            artifact_repo,
+                            item,
+                        )
+                    except InvalidModelStateError as error:
+                        raise InvalidModelStateError(
+                            "模型无法恢复，相关模型版本的制品"
+                            "不存在或已永久清理"
+                        ) from error
 
-                    await self._ensure_version_restorable(
-                        artifact_repo,
-                        item,
-                    )
+                for item in batch_versions:
                     version_repo.restore_version(
                         item,
                         restored_by=operator,
                     )
                     restored_count += 1
+
+                if not batch_versions:
+                    has_restorable_version = False
+
+                    for item in versions:
+                        artifact = (
+                            await artifact_repo.get_current_artifact(
+                                item.version_id
+                            )
+                        )
+
+                        if artifact is not None:
+                            has_restorable_version = True
+                            break
+
+                    if not has_restorable_version:
+                        raise InvalidModelStateError(
+                            "模型无法恢复，相关模型版本的制品"
+                            "不存在或已永久清理"
+                        )
 
                 metadata_repo.restore_model(
                     metadata,
@@ -284,7 +377,7 @@ class ModelDeletionService:
             name: str | None = None,
             version: str | None = None,
             version_id: str | None = None,
-            reason: str,
+            reason: str | None = None,
             operator: str | None = None,
     ) -> dict[str, Any]:
         """永久清理已逻辑删除对象的全部物理制品
@@ -292,20 +385,27 @@ class ModelDeletionService:
         清理前先将数据库状态持久化为 purge_pending。每个制品的成功或
         失败结果随后独立写回，因此进程异常退出后可再次调用本方法重试。
         """
-        if not reason.strip():
-            raise ValueError(
-                "永久清理必须提供原因"
-            )
+        normalized_reason = (
+            reason.strip()
+            if reason is not None and reason.strip()
+            else None
+        )
 
         target_info, targets = await self._request_purge(
             model_id=model_id,
             name=name,
             version=version,
             version_id=version_id,
-            reason=reason,
+            reason=normalized_reason,
             operator=operator,
         )
         errors: list[dict[str, str]] = []
+        already_purged_count = int(
+            target_info.get(
+                "already_purged_count",
+                0,
+            )
+        )
 
         for target in targets:
             try:
@@ -330,15 +430,20 @@ class ModelDeletionService:
 
         return {
             **target_info,
-            "reason": reason,
+            "reason": normalized_reason,
             "artifact_count": len(targets),
             "purged_count": len(targets) - len(errors),
+            "already_purged_count": already_purged_count,
             "failed_count": len(errors),
             "errors": errors,
             "action": (
                 "purge_failed"
                 if errors
-                else "purge_completed"
+                else (
+                    "purge_completed"
+                    if targets
+                    else "purge_unchanged"
+                )
             ),
         }
 
@@ -349,7 +454,7 @@ class ModelDeletionService:
             name: str | None,
             version: str | None,
             version_id: str | None,
-            reason: str,
+            reason: str | None,
             operator: str | None,
     ) -> tuple[dict[str, Any], list[_ArtifactTarget]]:
         """持久化清理请求并返回待清理制品快照"""
@@ -363,20 +468,18 @@ class ModelDeletionService:
                 metadata_repo,
                 version_repo,
             )
-            metadata = await resolver.resolve_model(
+            metadata, target_version = await self._resolve_model_and_version(
+                resolver=resolver,
+                version_repo=version_repo,
                 model_id=model_id,
                 name=name,
+                version=version,
+                version_id=version_id,
             )
             info: dict[str, Any]
 
-            if version_id is not None or version is not None:
-                target_version = await resolver.resolve_version(
-                    model_id=metadata.model_id,
-                    version_id=version_id,
-                    version=version,
-                )
-
-                if target_version.deleted_at is None:
+            if target_version is not None:
+                if getattr(target_version, "deleted_at", None) is None:
                     raise InvalidModelStateError(
                         "模型版本必须先逻辑删除才能永久清理"
                     )
@@ -395,7 +498,7 @@ class ModelDeletionService:
                     "version": target_version.version,
                 }
             else:
-                if metadata.deleted_at is None:
+                if getattr(metadata, "deleted_at", None) is None:
                     raise InvalidModelStateError(
                         "模型必须先逻辑删除才能永久清理"
                     )
@@ -416,6 +519,7 @@ class ModelDeletionService:
                 }
 
             targets: list[_ArtifactTarget] = []
+            already_purged_count = 0
 
             for item in versions:
                 all_artifacts = await artifact_repo.list_artifacts(
@@ -432,6 +536,7 @@ class ModelDeletionService:
 
                 for artifact in all_artifacts:
                     if artifact.status == str(ArtifactStatus.PURGED):
+                        already_purged_count += 1
                         continue
 
                     artifact_repo.request_purge(
@@ -446,6 +551,15 @@ class ModelDeletionService:
                         output_schema_key=artifact.output_schema_key,
                         bento_tag=artifact.bento_tag,
                     ))
+
+            if not targets and already_purged_count == 0:
+                raise InvalidModelStateError(
+                    "模型没有可永久清理的制品"
+                )
+
+            info["already_purged_count"] = (
+                already_purged_count
+            )
 
         return info, targets
 
@@ -540,7 +654,7 @@ class ModelDeletionService:
         )
 
         if any(
-                runtime.status in {"loading", "loaded"}
+                runtime.status in {"starting", "running", "stopping"}
                 for runtime in runtimes
         ):
             raise InvalidModelStateError(
@@ -550,10 +664,10 @@ class ModelDeletionService:
     @staticmethod
     async def _ensure_version_restorable(
             repository: ArtifactRepository,
-            version_record: Any,
+            version_record: Version,
     ) -> None:
         """确认版本已删除且当前制品仍完整"""
-        if version_record.deleted_at is None:
+        if getattr(version_record, "deleted_at", None) is None:
             raise InvalidModelStateError(
                 "模型版本未被逻辑删除"
             )

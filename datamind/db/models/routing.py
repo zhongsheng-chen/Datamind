@@ -13,6 +13,7 @@
 
   routing = Routing(
       routing_id="rtn_0123456789abcdef",
+      name="scorecard-route",
       deployment_id="dep_0123456789abcdef",
       rollout_type="canary",
       rollout_group="challenger",
@@ -43,6 +44,7 @@ from sqlalchemy import (
     CheckConstraint,
     Boolean,
     Column,
+    DateTime,
     Float,
     Index,
     String,
@@ -71,8 +73,16 @@ class Routing(
 
     __table_args__ = (
         Index(
-            "idx_routing_deployment_id",
+            "uk_routing_name_not_deleted",
+            "name",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "uk_routing_deployment_id_not_deleted",
             "deployment_id",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
         ),
         Index(
             "idx_routing_rollout_type_enabled",
@@ -88,6 +98,10 @@ class Routing(
             "idx_routing_environment_enabled",
             "environment",
             "enabled",
+        ),
+        Index(
+            "idx_routing_deleted_at",
+            "deleted_at",
         ),
         Index(
             "uk_routing_routing_id",
@@ -137,12 +151,26 @@ class Routing(
             ),
             name="rules_object",
         ),
+        CheckConstraint(
+            (
+                "effective_to IS NULL "
+                "OR effective_from IS NULL "
+                "OR effective_to > effective_from"
+            ),
+            name="effective_time_valid",
+        ),
     )
 
     routing_id = Column(
         String(64),
         nullable=False,
         comment="路由 ID，路由规则的唯一标识",
+    )
+
+    name = Column(
+        String(128),
+        nullable=False,
+        comment="路由名称",
     )
 
     deployment_id = Column(
@@ -187,9 +215,7 @@ class Routing(
     enabled = Column(
         Boolean,
         nullable=False,
-        server_default=text(
-            "true"
-        ),
+        server_default=text("false"),
         comment="是否启用",
     )
 
@@ -213,6 +239,22 @@ class Routing(
         ),
     )
 
+    effective_from = Column(
+        DateTime(
+            timezone=True
+        ),
+        nullable=True,
+        comment="生效开始时间",
+    )
+
+    effective_to = Column(
+        DateTime(
+            timezone=True
+        ),
+        nullable=True,
+        comment="生效结束时间",
+    )
+
     description = Column(
         TEXT,
         nullable=True,
@@ -231,6 +273,26 @@ class Routing(
         comment="更新人",
     )
 
+    deleted_at = Column(
+        DateTime(
+            timezone=True
+        ),
+        nullable=True,
+        comment="逻辑删除时间",
+    )
+
+    deleted_by = Column(
+        String(50),
+        nullable=True,
+        comment="逻辑删除操作人",
+    )
+
+    deletion_reason = Column(
+        TEXT,
+        nullable=True,
+        comment="逻辑删除原因",
+    )
+
     def __repr__(
             self,
     ) -> str:
@@ -238,6 +300,7 @@ class Routing(
         return (
             f"<Routing("
             f"routing_id='{self.routing_id}', "
+            f"name='{self.name}', "
             f"deployment_id='{self.deployment_id}', "
             f"environment='{self.environment}', "
             f"rollout_type='{self.rollout_type}', "

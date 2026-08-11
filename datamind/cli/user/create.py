@@ -17,7 +17,7 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
 from datamind.services import IdentityService
@@ -25,7 +25,7 @@ from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="创建用户命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -106,19 +106,22 @@ def create_user(
                 or "-"
             )
 
-            console.print(
-                "[green]用户创建成功[/green]\n"
+            success_message = (
+                "用户恢复成功"
+                if result.get("action") == "restore"
+                else "用户创建成功"
             )
+            console.info(f"{success_message}\n")
             console.print(
-                f"[cyan]{'USER ID':<16}[/cyan] : "
+                f"{'USER ID':<16} : "
                 f"{result['user_id']}"
             )
             console.print(
-                f"[cyan]{'USERNAME':<16}[/cyan] : "
+                f"{'USERNAME':<16} : "
                 f"{result['username']}"
             )
             console.print(
-                f"[cyan]{'ROLES':<16}[/cyan] : "
+                f"{'ROLES':<16} : "
                 f"{roles}"
             )
 
@@ -130,8 +133,10 @@ def create_user(
         IdentityError,
         ValueError,
     ) as exc:
-        console.print(
-            f"[red]创建用户失败：{exc}[/red]"
+        console.error(
+            f"创建用户失败：{exc}",
+            output_format=output,
+            error_type=type(exc).__name__,
         )
         raise typer.Exit(
             code=1

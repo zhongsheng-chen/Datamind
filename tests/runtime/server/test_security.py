@@ -197,7 +197,7 @@ async def test_authenticate_validates_required_permission(
 
 
 @pytest.mark.asyncio
-async def test_authenticate_accepts_system_admin_permission(
+async def test_authenticate_accepts_administrator_permission(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试系统管理员通配权限可调用预测接口"""

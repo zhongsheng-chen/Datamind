@@ -20,10 +20,10 @@ import json
 from typing import Any
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.models.experiments import Experiment
 from datamind.db.models.variants import Variant
@@ -32,7 +32,11 @@ from datamind.db.repositories import (
     ExperimentRepository,
     VariantRepository,
 )
-from datamind.models.enums import ExperimentStatus, ExperimentVariantStatus
+from datamind.models.enums import (
+    AssignmentStrategy,
+    ExperimentStatus,
+    ExperimentVariantStatus,
+)
 from datamind.models.errors import (
     ExperimentError,
     InvalidExperimentConfigError,
@@ -42,7 +46,7 @@ from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
 
 app = typer.Typer(help="添加实验分组命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -123,14 +127,20 @@ def add_variant(
             experiment = await experiment_repo.get_experiment(experiment_id)
 
             if experiment is None:
-                console.print(f"[red]实验不存在: {experiment_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"添加分组失败：实验不存在：{experiment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             deployment = await deployment_repo.get_deployment(deployment_id)
 
             if deployment is None:
-                console.print(f"[red]部署不存在: {deployment_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"添加分组失败：部署不存在：{deployment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             try:
                 _validate_experiment_can_add_variant(
@@ -151,8 +161,24 @@ def add_variant(
                         f"部署环境: {deployment.environment}"
                     )
 
+                if (
+                        str(deployment.rollout_type).lower()
+                        == "shadow"
+                        or str(deployment.role).lower()
+                        == "shadow"
+                ):
+                    raise InvalidExperimentConfigError(
+                        "影子部署不能绑定实验分组: "
+                        f"{deployment.deployment_id}"
+                    )
+
                 variants = await variant_repo.list_variants(
                     experiment_id=experiment_id,
+                )
+                _validate_active_weight_sum(
+                    experiment=experiment,
+                    variants=variants,
+                    added_weight=weight,
                 )
 
                 if _has_active_variant_name(
@@ -180,8 +206,12 @@ def add_variant(
                     )
 
             except ExperimentError as exc:
-                console.print(f"[red]{exc}[/red]")
-                raise typer.Exit(1) from exc
+                console.error(
+                    f"添加分组失败：{exc}",
+                    output_format=output,
+                    error_type=type(exc).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             config = _build_variant_config(
                 name=name,
@@ -235,17 +265,17 @@ def add_variant(
             )
             return result
 
-        console.print("[green]实验分组创建成功[/green]\n")
+        console.info("分组创建成功\n")
 
-        console.print(f"[cyan]{'VARIANT ID':<16}[/cyan] : {result['variant_id']}")
-        console.print(f"[cyan]{'EXPERIMENT ID':<16}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name'] or '-'}")
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'WEIGHT':<16}[/cyan] : {result['weight']}")
-        console.print(f"[cyan]{'CONTROL':<16}[/cyan] : {result['is_control']}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
+        console.print(f"{'VARIANT ID':<16} : {result['variant_id']}")
+        console.print(f"{'EXPERIMENT ID':<16} : {result['experiment_id']}")
+        console.print(f"{'MODEL ID':<16} : {result['model_id']}")
+        console.print(f"{'ENVIRONMENT':<16} : {result['environment']}")
+        console.print(f"{'NAME':<16} : {result['name'] or '-'}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'WEIGHT':<16} : {result['weight']}")
+        console.print(f"{'CONTROL':<16} : {result['is_control']}")
+        console.print(f"{'STATUS':<16} : {result['status']}")
 
         return result
 
@@ -270,6 +300,65 @@ def _validate_experiment_can_add_variant(
         raise InvalidExperimentStateError(
             "只有 draft 状态的实验允许添加实验分组"
         )
+
+
+def _validate_active_weight_sum(
+        *,
+        experiment: Experiment,
+        variants: list[Variant],
+        added_weight: float,
+) -> None:
+    """校验新增后的启用分组权重总和"""
+    if _get_assignment_strategy(
+            experiment
+    ) != AssignmentStrategy.HASH:
+        return
+
+    current_weight = sum(
+        float(item.weight or 0)
+        for item in variants
+        if _is_active_variant(item)
+    )
+    target_weight = current_weight + added_weight
+
+    if target_weight > 1.0 + 1e-8:
+        raise InvalidExperimentConfigError(
+            "启用状态分组的权重之和不能大于 1\n"
+            f"当前权重之和: {current_weight:g}\n"
+            f"添加后权重之和: {target_weight:g}"
+        )
+
+
+def _get_assignment_strategy(
+        experiment: Experiment,
+) -> AssignmentStrategy:
+    """获取实验分配策略"""
+    config = experiment.config or {}
+
+    if not isinstance(
+            config,
+            dict,
+    ):
+        raise InvalidExperimentConfigError(
+            "实验配置 config 必须是 JSON 对象"
+        )
+
+    value = str(
+        config.get(
+            "strategy",
+            AssignmentStrategy.HASH,
+        )
+        or AssignmentStrategy.HASH
+    ).lower()
+
+    try:
+        return AssignmentStrategy(
+            value
+        )
+    except ValueError as exc:
+        raise InvalidExperimentConfigError(
+            f"不支持的实验分配策略: {value}"
+        ) from exc
 
 
 def _build_variant_config(

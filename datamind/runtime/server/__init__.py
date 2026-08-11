@@ -19,7 +19,7 @@
   from datamind.runtime.server import PredictRequest
 
   request = PredictRequest(
-      model_id="mdl_0123456789abcdef",
+      model_name="scorecard",
       features={
           "age": 35,
           "annual_income": 120000,

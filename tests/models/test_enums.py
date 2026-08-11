@@ -20,10 +20,14 @@ from datamind.models.enums import (
     ArtifactStatus,
     BaseEnum,
     DecisionStrategy,
+    DeploymentRole,
     DeploymentStatus,
     ExperimentStatus,
     ExperimentVariantStatus,
+    ExecutionStatus,
+    ExecutionType,
     MetadataStatus,
+    RolloutType,
     RuntimeControlStatus,
     VersionStatus,
 )
@@ -49,6 +53,14 @@ ENUM_CONTRACTS: list[
         {"active", "inactive"},
     ),
     (
+        RolloutType,
+        {"full", "canary", "shadow"},
+    ),
+    (
+        DeploymentRole,
+        {"champion", "challenger", "shadow"},
+    ),
+    (
         RuntimeControlStatus,
         {"loaded", "unloaded"},
     ),
@@ -67,6 +79,22 @@ ENUM_CONTRACTS: list[
     (
         DecisionStrategy,
         {"experiment", "routing", "deployment", "shadow", "manual"},
+    ),
+    (
+        ExecutionType,
+        {"primary", "shadow"},
+    ),
+    (
+        ExecutionStatus,
+        {
+            "queued",
+            "running",
+            "success",
+            "failed",
+            "timeout",
+            "rejected",
+            "cancelled",
+        },
     ),
 ]
 

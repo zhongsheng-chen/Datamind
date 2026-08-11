@@ -9,9 +9,9 @@
   - Storage: 存储门面类，对外提供统一 API
 
 实际存储路径：
-  - 本地：{base_dir}/models/{model_id}/{version}/
+  - 本地：{base_dir}/models/{model_name}/{version}/
     artifacts/{artifact_id}/{filename}
-  - MinIO：{bucket}/{base_prefix}/models/{model_id}/{version}/
+  - MinIO：{bucket}/{base_prefix}/models/{model_name}/{version}/
     artifacts/{artifact_id}/{filename}
 
 使用示例：
@@ -21,7 +21,7 @@
 
   # 基于模型信息保存
   storage.save(
-      "mdl_0123456789abcdef",
+      "scorecard",
       "1.0.0",
       "art_0123456789abcdef",
       "scorecard.pkl",
@@ -57,7 +57,7 @@ class Storage:
 
     def save(
             self,
-            model_id: str,
+            model_name: str,
             version: str,
             artifact_id: str,
             filename: str,
@@ -66,7 +66,7 @@ class Storage:
         """保存模型文件
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
             version: 模型版本号
             artifact_id: 模型制品 ID
             filename: 文件名
@@ -76,7 +76,7 @@ class Storage:
             存储键
         """
         return self._admin.save(
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -85,7 +85,7 @@ class Storage:
 
     def load(
             self,
-            model_id: str,
+            model_name: str,
             version: str,
             artifact_id: str,
             filename: str,
@@ -93,7 +93,7 @@ class Storage:
         """加载模型文件
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
             version: 模型版本号
             artifact_id: 模型制品 ID
             filename: 文件名
@@ -102,7 +102,7 @@ class Storage:
             二进制数据
         """
         return self._admin.load(
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -110,7 +110,7 @@ class Storage:
 
     def delete(
             self,
-            model_id: str,
+            model_name: str,
             version: str,
             artifact_id: str,
             filename: str,
@@ -118,7 +118,7 @@ class Storage:
         """删除模型文件
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
             version: 模型版本号
             artifact_id: 模型制品 ID
             filename: 文件名
@@ -127,7 +127,7 @@ class Storage:
             删除成功返回 True
         """
         return self._admin.delete(
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -135,7 +135,7 @@ class Storage:
 
     def exists(
             self,
-            model_id: str,
+            model_name: str,
             version: str,
             artifact_id: str,
             filename: str,
@@ -143,7 +143,7 @@ class Storage:
         """检查模型文件是否存在
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
             version: 模型版本号
             artifact_id: 模型制品 ID
             filename: 文件名
@@ -152,7 +152,7 @@ class Storage:
             存在返回 True，否则返回 False
         """
         return self._admin.exists(
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -160,18 +160,18 @@ class Storage:
 
     def list(
             self,
-            model_id: str,
+            model_name: str,
     ) -> list[str]:
         """列出模型的所有文件
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
 
         返回：
             文件名列表
         """
         return self._admin.list(
-            model_id
+            model_name
         )
 
     def save_by_key(

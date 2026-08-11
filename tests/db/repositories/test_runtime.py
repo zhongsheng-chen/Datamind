@@ -12,19 +12,23 @@
     验证按部署和 Worker 查询
   - test_list_runtimes:
     验证框架、状态、操作人筛选和分页
-  - test_list_loaded_runtimes:
+  - test_list_running_runtimes:
     验证获取已加载运行记录
+  - test_mark_stale_runtimes_failed:
+    验证失联活动实例自动收敛为失败
   - test_runtime_patch:
     验证更新结构和框架枚举
   - test_create_runtime:
     验证创建运行记录并设置 unloaded 状态
   - test_update_runtime:
     验证普通运行字段更新
-  - test_mark_loading:
+  - test_set_applied_generation:
+    验证持久化已应用控制版本号
+  - test_mark_starting:
     验证标记加载中
-  - test_mark_loaded:
+  - test_mark_running:
     验证标记已加载
-  - test_mark_unloaded:
+  - test_mark_stopped:
     验证标记已卸载
   - test_mark_failed:
     验证标记加载失败
@@ -100,7 +104,7 @@ def create_runtime(
         "model_id": "mdl_0123456789abcdef",
         "version_id": "ver_0123456789abcdef",
         "framework": "sklearn",
-        "status": "unloaded",
+        "status": "stopped",
         "worker_id": "worker-1",
         "loaded_at": None,
         "unloaded_at": None,
@@ -345,7 +349,7 @@ async def test_list_runtimes_applies_filters_and_pagination() -> None:
     runtimes = [
         create_runtime(
             framework="xgboost",
-            status="loaded",
+            status="running",
             worker_id="worker-2",
         )
     ]
@@ -359,7 +363,7 @@ async def test_list_runtimes_applies_filters_and_pagination() -> None:
         model_id="mdl_0123456789abcdef",
         version_id="ver_0123456789abcdef",
         framework=Framework.XGBOOST,
-        status="loaded",
+        status="running",
         worker_id="worker-2",
         started_by="starter",
         stopped_by="stopper",
@@ -399,7 +403,7 @@ async def test_list_runtimes_applies_filters_and_pagination() -> None:
         "runtimes.framework = 'xgboost'"
         in sql
     )
-    assert "runtimes.status = 'loaded'" in sql
+    assert "runtimes.status = 'running'" in sql
     assert (
         "runtimes.worker_id = 'worker-2'"
         in sql
@@ -488,19 +492,19 @@ async def test_list_runtimes_rejects_negative_pagination(
 
 
 @pytest.mark.asyncio
-async def test_list_loaded_runtimes() -> None:
+async def test_list_running_runtimes() -> None:
     """验证获取已加载运行记录"""
     runtimes = [
         create_runtime(
             framework="sklearn",
-            status="loaded",
+            status="running",
         )
     ]
     repository, execute, _ = create_repository(
         list_result=runtimes
     )
 
-    result = await repository.list_loaded_runtimes(
+    result = await repository.list_running_runtimes(
         model_id="mdl_0123456789abcdef",
         version_id="ver_0123456789abcdef",
         framework=Framework.SKLEARN,
@@ -531,7 +535,7 @@ async def test_list_loaded_runtimes() -> None:
         "runtimes.framework = 'sklearn'"
         in sql
     )
-    assert "runtimes.status = 'loaded'" in sql
+    assert "runtimes.status = 'running'" in sql
     assert (
         "runtimes.worker_id = 'worker-1'"
         in sql
@@ -539,6 +543,40 @@ async def test_list_loaded_runtimes() -> None:
     assert "LIMIT 50" in sql
     assert "OFFSET 5" in sql
 
+
+@pytest.mark.asyncio
+async def test_mark_stale_runtimes_failed() -> None:
+    """验证按环境和心跳期限收敛失联活动实例。"""
+    stale_runtime = create_runtime(
+        status="running",
+        worker_id="worker-stale",
+    )
+    repository, execute, _ = create_repository(
+        list_result=[stale_runtime]
+    )
+
+    runtime_ids = await repository.mark_stale_runtimes_failed(
+        environment="production",
+        stale_before=CURRENT_TIME,
+        exclude_worker_id="worker-current",
+    )
+
+    awaited_call = execute.await_args
+    assert awaited_call is not None
+    sql = str(
+        awaited_call.args[0].compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+    assert "JOIN deployments" in sql
+    assert "deployments.environment = 'production'" in sql
+    assert "runtimes.status IN ('starting', 'running', 'stopping')" in sql
+    assert "coalesce(runtimes.last_heartbeat_at, runtimes.updated_at)" in sql
+    assert "runtimes.worker_id != 'worker-current'" in sql
+    assert runtime_ids == ["rtm_0123456789abcdef"]
+    assert stale_runtime.status == "failed"
+    assert stale_runtime.error == "运行实例心跳超时，Worker 已失联"
 
 def test_runtime_patch_fields_and_defaults() -> None:
     """验证更新结构字段和默认值"""
@@ -590,6 +628,42 @@ def test_runtime_patch_accepts_framework_enum() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_set_applied_generation() -> None:
+    """验证按部署和 Worker 持久化已应用控制版本号"""
+    runtime = create_runtime()
+    repository, execute, _ = create_repository(
+        scalar_result=runtime
+    )
+
+    result = await repository.set_applied_generation(
+        deployment_id="dep_0123456789abcdef",
+        worker_id="worker-1",
+        generation=4,
+    )
+
+    awaited_call = execute.await_args
+    assert awaited_call is not None
+    statement = awaited_call.args[0]
+    sql = str(
+        statement.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={
+                "literal_binds": True
+            },
+        )
+    )
+    assert "FROM runtimes" in sql
+    assert (
+        "runtimes.deployment_id = "
+        "'dep_0123456789abcdef'"
+        in sql
+    )
+    assert "runtimes.worker_id = 'worker-1'" in sql
+    assert result is runtime
+    assert runtime.applied_generation == 4
+
+
 def test_create_runtime() -> None:
     """验证创建运行记录并显式设置 unloaded 状态"""
     repository, _, add = create_repository()
@@ -629,7 +703,7 @@ def test_create_runtime() -> None:
         "ver_0123456789abcdef"
     )
     assert runtime.framework == "sklearn"
-    assert runtime.status == "unloaded"
+    assert runtime.status == "stopped"
     assert runtime.worker_id == "worker-1"
     assert runtime.loaded_at == EARLIER_TIME
     assert runtime.unloaded_at == LATER_TIME
@@ -663,7 +737,7 @@ def test_create_runtime_uses_optional_defaults() -> None:
         runtime
     )
     assert runtime.framework == "sklearn"
-    assert runtime.status == "unloaded"
+    assert runtime.status == "stopped"
     assert runtime.worker_id == "default"
     assert runtime.loaded_at is None
     assert runtime.unloaded_at is None
@@ -733,7 +807,7 @@ def test_update_runtime_ignores_none_fields() -> None:
 
 
 # noinspection PyUnreachableCode
-def test_mark_loading() -> None:
+def test_mark_starting() -> None:
     """验证标记加载中并清理旧错误和卸载时间"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
@@ -742,7 +816,7 @@ def test_mark_loading() -> None:
         unloaded_at=LATER_TIME,
     )
 
-    result = repository.mark_loading(
+    result = repository.mark_starting(
         runtime,
         started_by="operator",
         context={
@@ -751,7 +825,7 @@ def test_mark_loading() -> None:
     )
 
     assert result is runtime
-    assert runtime.status == "loading"
+    assert runtime.status == "starting"
     assert runtime.error is None
     assert runtime.unloaded_at is None
     assert runtime.started_by == "operator"
@@ -760,12 +834,12 @@ def test_mark_loading() -> None:
     }
 
 
-def test_mark_loading_accepts_empty_operator() -> None:
+def test_mark_starting_accepts_empty_operator() -> None:
     """验证加载中状态允许写入空字符串操作人"""
     repository, _, _ = create_repository()
     runtime = create_runtime()
 
-    repository.mark_loading(
+    repository.mark_starting(
         runtime,
         started_by="",
     )
@@ -774,16 +848,16 @@ def test_mark_loading_accepts_empty_operator() -> None:
 
 
 # noinspection PyUnreachableCode
-def test_mark_loaded_with_explicit_time() -> None:
+def test_mark_running_with_explicit_time() -> None:
     """验证标记已加载并同步首次心跳时间"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loading",
+        status="starting",
         unloaded_at=LATER_TIME,
         error="old error",
     )
 
-    result = repository.mark_loaded(
+    result = repository.mark_running(
         runtime,
         started_by="operator",
         context={
@@ -794,7 +868,7 @@ def test_mark_loaded_with_explicit_time() -> None:
     )
 
     assert result is runtime
-    assert runtime.status == "loaded"
+    assert runtime.status == "running"
     assert runtime.loaded_at == CURRENT_TIME
     assert runtime.unloaded_at is None
     assert runtime.error is None
@@ -809,7 +883,7 @@ def test_mark_loaded_with_explicit_time() -> None:
     assert runtime.applied_generation == 5
 
 
-def test_mark_loaded_uses_current_time(
+def test_mark_running_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """验证未提供时间时使用同一个当前时间"""
@@ -830,7 +904,7 @@ def test_mark_loaded_uses_current_time(
 
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loading"
+        status="starting"
     )
 
     monkeypatch.setitem(
@@ -839,7 +913,7 @@ def test_mark_loaded_uses_current_time(
         FrozenDateTime,
     )
 
-    repository.mark_loaded(
+    repository.mark_running(
         runtime
     )
 
@@ -848,16 +922,14 @@ def test_mark_loaded_uses_current_time(
         runtime.last_heartbeat_at
         == CURRENT_TIME
     )
-
-
-def test_mark_loaded_accepts_empty_operator() -> None:
+def test_mark_running_accepts_empty_operator() -> None:
     """验证已加载状态允许写入空字符串操作人"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loading"
+        status="starting"
     )
 
-    repository.mark_loaded(
+    repository.mark_running(
         runtime,
         started_by="",
         loaded_at=CURRENT_TIME,
@@ -866,15 +938,15 @@ def test_mark_loaded_accepts_empty_operator() -> None:
     assert runtime.started_by == ""
 
 
-def test_mark_unloaded_with_explicit_time() -> None:
+def test_mark_stopped_with_explicit_time() -> None:
     """验证标记已卸载并记录控制版本"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loaded",
+        status="running",
         loaded_at=EARLIER_TIME,
     )
 
-    result = repository.mark_unloaded(
+    result = repository.mark_stopped(
         runtime,
         stopped_by="operator",
         context={
@@ -885,7 +957,7 @@ def test_mark_unloaded_with_explicit_time() -> None:
     )
 
     assert result is runtime
-    assert runtime.status == "unloaded"
+    assert runtime.status == "stopped"
     assert runtime.loaded_at == EARLIER_TIME
     assert runtime.unloaded_at == CURRENT_TIME
     assert runtime.stopped_by == "operator"
@@ -895,7 +967,7 @@ def test_mark_unloaded_with_explicit_time() -> None:
     assert runtime.applied_generation == 6
 
 
-def test_mark_unloaded_uses_current_time(
+def test_mark_stopped_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """验证未提供卸载时间时使用当前时间"""
@@ -916,7 +988,7 @@ def test_mark_unloaded_uses_current_time(
 
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loaded"
+        status="running"
     )
 
     monkeypatch.setitem(
@@ -925,21 +997,21 @@ def test_mark_unloaded_uses_current_time(
         FrozenDateTime,
     )
 
-    repository.mark_unloaded(
+    repository.mark_stopped(
         runtime
     )
 
     assert runtime.unloaded_at == CURRENT_TIME
 
 
-def test_mark_unloaded_accepts_empty_operator() -> None:
+def test_mark_stopped_accepts_empty_operator() -> None:
     """验证卸载状态允许写入空字符串操作人"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loaded"
+        status="running"
     )
 
-    repository.mark_unloaded(
+    repository.mark_stopped(
         runtime,
         stopped_by="",
         unloaded_at=CURRENT_TIME,
@@ -952,7 +1024,7 @@ def test_mark_failed() -> None:
     """验证标记加载失败"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loading"
+        status="starting"
     )
 
     result = repository.mark_failed(
@@ -979,7 +1051,7 @@ def test_mark_failed_accepts_empty_operator() -> None:
     """验证失败状态允许写入空字符串操作人"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loading"
+        status="starting"
     )
 
     repository.mark_failed(
@@ -995,7 +1067,7 @@ def test_heartbeat_with_explicit_time() -> None:
     """验证使用指定时间更新运行心跳"""
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loaded"
+        status="running"
     )
 
     result = repository.heartbeat(
@@ -1008,7 +1080,6 @@ def test_heartbeat_with_explicit_time() -> None:
         runtime.last_heartbeat_at
         == CURRENT_TIME
     )
-
 
 def test_heartbeat_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,
@@ -1031,7 +1102,7 @@ def test_heartbeat_uses_current_time(
 
     repository, _, _ = create_repository()
     runtime = create_runtime(
-        status="loaded"
+        status="running"
     )
 
     monkeypatch.setitem(

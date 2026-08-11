@@ -17,17 +17,17 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import VariantRepository
 from datamind.models.errors import ExperimentError
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="归档实验分组命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -68,8 +68,11 @@ def archive_variant(
             variant = await repo.get_variant(variant_id)
 
             if variant is None:
-                console.print(f"[red]实验分组不存在: {variant_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"分组归档失败：分组不存在：{variant_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             try:
                 repo.archive_variant(
@@ -78,8 +81,12 @@ def archive_variant(
                 )
 
             except ExperimentError as exc:
-                console.print(f"[red]{exc}[/red]")
-                raise typer.Exit(1) from exc
+                console.error(
+                    f"分组归档失败：{exc}",
+                    output_format=output,
+                    error_type=type(exc).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             await uow.session.flush()
             await uow.session.refresh(variant)
@@ -106,12 +113,12 @@ def archive_variant(
             )
             return result
 
-        console.print("[green]实验分组归档成功[/green]\n")
+        console.info("分组归档成功\n")
 
-        console.print(f"[cyan]{'VARIANT ID':<16}[/cyan] : {result['variant_id']}")
-        console.print(f"[cyan]{'EXPERIMENT ID':<16}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name'] or '-'}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
+        console.print(f"{'VARIANT ID':<16} : {result['variant_id']}")
+        console.print(f"{'EXPERIMENT ID':<16} : {result['experiment_id']}")
+        console.print(f"{'NAME':<16} : {result['name'] or '-'}")
+        console.print(f"{'STATUS':<16} : {result['status']}")
 
         return result
 

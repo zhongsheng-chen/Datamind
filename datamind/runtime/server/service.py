@@ -23,7 +23,7 @@
   bentoml serve \
     datamind.runtime.server.service:DatamindRuntimeService \
     --host 0.0.0.0 \
-    --port 3000
+    --port 8700
 """
 
 import asyncio
@@ -31,8 +31,9 @@ import json
 import os
 import socket
 import time
+from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -44,6 +45,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.audit import AuditRecorder
+from datamind.audit.errors import AuditError
 from datamind.auth.errors import (
     AuthError,
     InvalidCredentialsError,
@@ -63,17 +65,31 @@ from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DecisionRepository,
     DeploymentRepository,
+    ExecutionRepository,
+    MetadataRepository,
     RequestRepository,
 )
 from datamind.logging import setup_logging
-from datamind.models.enums import DecisionStrategy, DeploymentStatus
+from datamind.models.enums import (
+    DecisionStrategy,
+    DeploymentStatus,
+    ExecutionStatus,
+    ExecutionType,
+)
 from datamind.models.errors import (
     BackendError,
+    InvalidDeploymentStateError,
     RuntimeRouteError,
+)
+from datamind.runtime.executor import (
+    ExecutionPlan,
+    ExecutionResult,
+    PredictionExecutor,
 )
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
 from datamind.runtime.routing import RouteResult, RuntimeRouter
+from datamind.runtime.shadow import ShadowDispatcher, ShadowTask
 from datamind.runtime.server.errors import (
     ServiceDeploymentNotFoundError,
     ServiceEnvironmentMismatchError,
@@ -93,6 +109,7 @@ from datamind.utils.generator import generate_random_id
 logger = structlog.get_logger(__name__)
 
 service_config = get_settings().service
+runtime_config = get_settings().runtime
 
 
 def _get_service_instance_id() -> str | None:
@@ -226,8 +243,9 @@ class DeploymentRequest(RuntimeRequest):
 class PredictRequest(RuntimeRequest):
     """单条预测请求"""
 
-    model_id: str = Field(
+    model_name: str = Field(
         min_length=1,
+        max_length=100,
     )
 
     features: dict[str, Any] = Field(
@@ -344,10 +362,10 @@ class DatamindRuntimeService:
                 service_config.environment
             ),
             interval_seconds=(
-                service_config.reconcile_interval
+                runtime_config.reconcile_interval
             ),
             heartbeat_interval_seconds=(
-                service_config.heartbeat_interval
+                runtime_config.heartbeat_interval
             ),
         )
 
@@ -360,6 +378,22 @@ class DatamindRuntimeService:
 
         self._audit_recorder = AuditRecorder()
 
+        self.executor = PredictionExecutor(
+            service_loader=self._get_service,
+        )
+
+        self.shadow_dispatcher = ShadowDispatcher(
+            handler=self._execute_shadow,
+            enabled=runtime_config.shadow_enabled,
+            queue_size=runtime_config.shadow_queue_size,
+            worker_count=(
+                runtime_config.shadow_worker_count
+            ),
+            shutdown_timeout=(
+                runtime_config.shadow_timeout
+            ),
+        )
+
         logger.info(
             "运行时 Worker 初始化完成",
             worker_id=worker_id,
@@ -370,10 +404,10 @@ class DatamindRuntimeService:
                 service_config.workers
             ),
             reconcile_interval=(
-                service_config.reconcile_interval
+                runtime_config.reconcile_interval
             ),
             heartbeat_interval=(
-                service_config.heartbeat_interval
+                runtime_config.heartbeat_interval
             ),
         )
 
@@ -392,6 +426,7 @@ class DatamindRuntimeService:
         )
 
         await self.reconciler.start()
+        await self.shadow_dispatcher.start()
 
         logger.info(
             "运行时 Worker 启动完成",
@@ -414,20 +449,22 @@ class DatamindRuntimeService:
         """关闭当前 Worker
 
         关闭流程：
+          - 等待影子预测队列停止
           - 停止 Reconciler
           - 卸载当前 Worker 已加载模型
           - 清理 RuntimeService 缓存
         """
+        await self.shadow_dispatcher.stop()
         await self.reconciler.stop()
 
         deployment_ids = [
             runtime_model.deployment_id
-            for runtime_model in self.manager.all()
+            for runtime_model in self.manager.registry.all()
         ]
 
         for deployment_id in deployment_ids:
             try:
-                await self.manager.stop(
+                await self.manager.unload(
                     deployment_id=deployment_id,
                     operator="system",
                 )
@@ -479,10 +516,16 @@ class DatamindRuntimeService:
                 self.reconciler.is_running
             ),
             "runtime_count": (
-                self.manager.count()
+                len(self.manager.registry)
             ),
             "service_cache_count": len(
                 self._service_cache
+            ),
+            "shadow_dispatcher_running": (
+                self.shadow_dispatcher.is_running
+            ),
+            "shadow_pending_count": (
+                self.shadow_dispatcher.pending_count
             ),
             "configured_workers": (
                 service_config.workers
@@ -805,6 +848,7 @@ class DatamindRuntimeService:
         status_by_error = {
             "ServiceDeploymentNotFoundError": 404,
             "ServiceEnvironmentMismatchError": 409,
+            "InvalidDeploymentStateError": 409,
             "RuntimeRouteError": 400,
             "ValueError": 400,
         }
@@ -889,6 +933,7 @@ class DatamindRuntimeService:
         except (
                 ServiceDeploymentNotFoundError,
                 ServiceEnvironmentMismatchError,
+                InvalidDeploymentStateError,
                 RuntimeRouteError,
                 RuntimeError,
                 ValueError,
@@ -990,6 +1035,7 @@ class DatamindRuntimeService:
         except (
                 ServiceDeploymentNotFoundError,
                 ServiceEnvironmentMismatchError,
+                InvalidDeploymentStateError,
                 RuntimeRouteError,
                 RuntimeError,
                 ValueError,
@@ -1094,6 +1140,7 @@ class DatamindRuntimeService:
         except (
                 ServiceDeploymentNotFoundError,
                 ServiceEnvironmentMismatchError,
+                InvalidDeploymentStateError,
                 RuntimeRouteError,
                 RuntimeError,
                 ValueError,
@@ -1186,7 +1233,7 @@ class DatamindRuntimeService:
                 deployment_id=deployment_id,
             )
 
-            local_status = await self.manager.status(
+            local_status = await self.manager.get_status(
                 deployment_id
             )
 
@@ -1278,7 +1325,7 @@ class DatamindRuntimeService:
                 service_config.environment
             ),
             "runtime_count": (
-                self.manager.count()
+                len(self.manager.registry)
             ),
             "service_cache_count": len(
                 self._service_cache
@@ -1287,7 +1334,7 @@ class DatamindRuntimeService:
                 self.reconciler.get_applied_generations()
             ),
             "runtimes": (
-                self.manager.to_dicts()
+                self.manager.registry.snapshot()
             ),
             "services": [
                 self._build_service_info(
@@ -1410,6 +1457,7 @@ class DatamindRuntimeService:
         started_at = time.perf_counter()
 
         request_record_created = False
+        model_id: str | None = None
 
         try:
             payload = self._build_request_payload(
@@ -1418,19 +1466,25 @@ class DatamindRuntimeService:
 
             await self._create_request_record(
                 request_id=request_id,
-                model_id=request.model_id,
+                model_id=None,
+                model_name=request.model_name,
                 payload=payload,
             )
 
             request_record_created = True
+
+            resolved_model_id = await self._resolve_model_id(
+                model_name=request.model_name,
+            )
+            model_id = resolved_model_id
 
             if not request.features:
                 raise ValueError(
                     "features 不能为空"
                 )
 
-            route = await self.router.resolve(
-                model_id=request.model_id,
+            routing_plan = await self.router.resolve(
+                model_id=resolved_model_id,
                 environment=(
                     service_config.environment
                 ),
@@ -1438,16 +1492,20 @@ class DatamindRuntimeService:
                 subject_type=request.subject_type,
                 payload=request.features,
                 deployment_id=request.deployment_id,
+                include_shadows=(
+                    runtime_config.shadow_enabled
+                ),
             )
-
-            service = await self._get_service(
-                route.deployment_id
+            plan = ExecutionPlan(
+                route=routing_plan.primary,
+                execution_type=ExecutionType.PRIMARY,
             )
-
-            result = await asyncio.to_thread(
-                service.predict,
-                request.features,
+            result = await self.executor.execute(
+                plan=plan,
+                features=request.features,
             )
+            route = result.route
+            prediction = result.prediction
 
             latency_ms = (
                                  time.perf_counter() - started_at
@@ -1461,7 +1519,7 @@ class DatamindRuntimeService:
                 "success": True,
                 "request_id": request_id,
                 "decision_id": decision_id,
-                **result,
+                **prediction,
                 "route": self._build_route_response(
                     route
                 ),
@@ -1469,13 +1527,18 @@ class DatamindRuntimeService:
                 "worker_id": self.manager.worker_id,
             }
 
-            await self._record_prediction_success(
+            shadow_tasks = await self._record_prediction_success(
                 request_id=request_id,
                 decision_id=decision_id,
-                route=route,
                 result=result,
+                shadow_routes=routing_plan.shadows,
+                features=request.features,
                 response=response,
                 latency_ms=latency_ms,
+            )
+
+            await self._submit_shadow_predictions(
+                shadow_tasks
             )
 
             return response
@@ -1497,7 +1560,7 @@ class DatamindRuntimeService:
 
             await self._mark_prediction_failed(
                 request_id=request_id,
-                model_id=request.model_id,
+                model_id=model_id,
                 request_record_created=request_record_created,
                 error=str(exc),
                 response=response,
@@ -1507,7 +1570,8 @@ class DatamindRuntimeService:
             logger.warning(
                 "预测请求处理失败",
                 request_id=request_id,
-                model_id=request.model_id,
+                model_name=request.model_name,
+                model_id=model_id,
                 deployment_id=request.deployment_id,
                 subject_key=request.subject_key,
                 subject_type=request.subject_type,
@@ -1532,7 +1596,7 @@ class DatamindRuntimeService:
 
             await self._mark_prediction_failed(
                 request_id=request_id,
-                model_id=request.model_id,
+                model_id=model_id,
                 request_record_created=request_record_created,
                 error=str(exc),
                 response=response,
@@ -1542,7 +1606,8 @@ class DatamindRuntimeService:
             logger.exception(
                 "预测请求处理异常",
                 request_id=request_id,
-                model_id=request.model_id,
+                model_name=request.model_name,
+                model_id=model_id,
                 deployment_id=request.deployment_id,
                 subject_key=request.subject_key,
                 subject_type=request.subject_type,
@@ -1814,6 +1879,15 @@ class DatamindRuntimeService:
             decision_repo = DecisionRepository(
                 uow.session
             )
+            execution_repo = ExecutionRepository(
+                uow.session
+            )
+            finished_at = datetime.now(
+                timezone.utc
+            )
+            started_at = finished_at - timedelta(
+                milliseconds=latency_ms
+            )
 
             for index, (
                     request_id,
@@ -1855,15 +1929,36 @@ class DatamindRuntimeService:
                     source=DecisionStrategy.DEPLOYMENT,
                     deployment_id=route.deployment_id,
                     strategy=route.strategy,
-                    prediction=prediction,
-                    probability=self._optional_float(
-                        prediction.get("probability")
-                    ),
-                    score=self._optional_float(
-                        prediction.get("score")
-                    ),
                     decision=self._optional_string(
                         prediction.get("decision")
+                    ),
+                    context=self._build_decision_context(
+                        route,
+                        batch_id=batch_id,
+                        batch_index=index,
+                    ),
+                )
+                execution_repo.create_execution(
+                    execution_id=generate_random_id(
+                        prefix="exe"
+                    ),
+                    decision_id=decision_id,
+                    execution_type=ExecutionType.PRIMARY,
+                    status=ExecutionStatus.SUCCESS,
+                    model_id=route.model_id,
+                    version_id=route.version_id,
+                    deployment_id=route.deployment_id,
+                    routing_id=route.routing_id,
+                    prediction=prediction,
+                    probability=self._optional_float(
+                        prediction.get(
+                            "probability"
+                        )
+                    ),
+                    score=self._optional_float(
+                        prediction.get(
+                            "score"
+                        )
                     ),
                     latency_ms=latency_ms,
                     context=self._build_decision_context(
@@ -1871,6 +1966,8 @@ class DatamindRuntimeService:
                         batch_id=batch_id,
                         batch_index=index,
                     ),
+                    started_at=started_at,
+                    finished_at=finished_at,
                 )
 
     @staticmethod
@@ -1949,7 +2046,7 @@ class DatamindRuntimeService:
             self,
             *,
             request_id: str,
-            model_id: str,
+            model_id: str | None,
             request_record_created: bool,
             error: str,
             response: dict[str, Any],
@@ -1971,6 +2068,7 @@ class DatamindRuntimeService:
         try:
             await self._mark_request_failed(
                 request_id=request_id,
+                model_id=model_id,
                 error=error,
                 response=response,
                 latency_ms=latency_ms,
@@ -1985,6 +2083,37 @@ class DatamindRuntimeService:
             )
 
     @staticmethod
+    async def _resolve_model_id(
+            *,
+            model_name: str,
+    ) -> str:
+        """将公开模型名称解析为内部模型 ID
+
+        参数：
+            model_name: 全局唯一模型名称
+
+        返回：
+            内部模型 ID
+
+        异常：
+            ValueError: 模型不存在
+        """
+        async with UnitOfWork() as uow:
+            repo = MetadataRepository(
+                uow.session
+            )
+            model = await repo.get_model(
+                name=model_name,
+            )
+
+        if model is None:
+            raise ValueError(
+                f"模型不存在: {model_name}"
+            )
+
+        return str(model.model_id)
+
+    @staticmethod
     def _build_request_payload(
             request: PredictRequest,
     ) -> dict[str, Any]:
@@ -1997,7 +2126,7 @@ class DatamindRuntimeService:
             请求负载字典
         """
         return {
-            "model_id": request.model_id,
+            "model_name": request.model_name,
             "environment": service_config.environment,
             "deployment_id": request.deployment_id,
             "subject_key": request.subject_key,
@@ -2009,7 +2138,8 @@ class DatamindRuntimeService:
     async def _create_request_record(
             *,
             request_id: str,
-            model_id: str,
+            model_id: str | None,
+            model_name: str | None,
             payload: dict[str, Any],
     ) -> None:
         """创建原始请求记录
@@ -2017,6 +2147,7 @@ class DatamindRuntimeService:
         参数：
             request_id: 请求 ID
             model_id: 模型 ID
+            model_name: 模型名称
             payload: 请求负载
         """
         request_context = get_context()
@@ -2029,6 +2160,7 @@ class DatamindRuntimeService:
             repo.create_request(
                 request_id=request_id,
                 model_id=model_id,
+                model_name=model_name,
                 payload=payload,
                 source="http",
                 user=request_context.get(
@@ -2044,24 +2176,29 @@ class DatamindRuntimeService:
             *,
             request_id: str,
             decision_id: str,
-            route: RouteResult,
-            result: dict[str, Any],
+            result: ExecutionResult,
+            shadow_routes: tuple[RouteResult, ...],
+            features: dict[str, Any],
             response: dict[str, Any],
             latency_ms: float,
-    ) -> None:
-        """记录成功请求和决策结果
+    ) -> tuple[ShadowTask, ...]:
+        """记录成功请求、最终决策和模型执行
 
-        Request 状态更新和 Decision 创建
+        Request 状态更新、Decision 创建和 Execution 创建
         在同一个事务中完成。
 
         参数：
             request_id: 请求 ID
             decision_id: 决策 ID
-            route: 路由结果
-            result: 模型预测结果
+            result: 主模型执行结果
+            shadow_routes: 命中的影子路由
+            features: 模型输入特征
             response: 返回给调用方的业务响应
             latency_ms: 处理耗时
         """
+        route = result.route
+        prediction = result.prediction
+
         async with UnitOfWork() as uow:
             request_repo = RequestRepository(
                 uow.session
@@ -2070,7 +2207,9 @@ class DatamindRuntimeService:
             decision_repo = DecisionRepository(
                 uow.session
             )
-
+            execution_repo = ExecutionRepository(
+                uow.session
+            )
             request_record = await request_repo.get_request(
                 request_id
             )
@@ -2082,6 +2221,7 @@ class DatamindRuntimeService:
 
             request_repo.mark_success(
                 request_record,
+                model_id=route.model_id,
                 response=response,
                 latency_ms=latency_ms,
             )
@@ -2104,36 +2244,360 @@ class DatamindRuntimeService:
                 bucket=route.bucket,
                 group=route.group,
                 weight=route.weight,
+                decision=self._optional_string(
+                    prediction.get(
+                        "decision"
+                    )
+                ),
+                context=self._build_decision_context(
+                    route
+                ),
+            )
+
+            finished_at = datetime.now(
+                timezone.utc
+            )
+            started_at = finished_at - timedelta(
+                milliseconds=result.latency_ms
+            )
+            execution_repo.create_execution(
+                execution_id=generate_random_id(
+                    prefix="exe"
+                ),
+                decision_id=decision_id,
+                execution_type=(
+                    result.plan.execution_type
+                ),
+                status=ExecutionStatus.SUCCESS,
+                model_id=route.model_id,
+                version_id=route.version_id,
+                deployment_id=route.deployment_id,
+                routing_id=route.routing_id,
                 prediction=(
                     self._build_prediction_payload(
-                        result
+                        prediction
                     )
                 ),
                 probability=self._optional_float(
-                    result.get(
+                    prediction.get(
                         "probability"
                     )
                 ),
                 score=self._optional_float(
-                    result.get(
+                    prediction.get(
                         "score"
                     )
                 ),
-                decision=self._optional_string(
-                    result.get(
-                        "decision"
-                    )
-                ),
-                latency_ms=latency_ms,
+                latency_ms=result.latency_ms,
                 context=self._build_decision_context(
                     route
                 ),
+                started_at=started_at,
+                finished_at=finished_at,
+            )
+
+            shadow_tasks: list[ShadowTask] = []
+
+            for shadow_route in shadow_routes:
+                execution_id = generate_random_id(
+                    prefix="exe"
+                )
+                shadow_plan = ExecutionPlan(
+                    route=shadow_route,
+                    execution_type=(
+                        ExecutionType.SHADOW
+                    ),
+                    timeout=(
+                        runtime_config.shadow_timeout
+                    ),
+                )
+                execution_repo.create_execution(
+                    execution_id=execution_id,
+                    decision_id=decision_id,
+                    execution_type=(
+                        shadow_plan.execution_type
+                    ),
+                    status=ExecutionStatus.QUEUED,
+                    model_id=shadow_route.model_id,
+                    version_id=shadow_route.version_id,
+                    deployment_id=(
+                        shadow_route.deployment_id
+                    ),
+                    routing_id=shadow_route.routing_id,
+                    context=self._build_decision_context(
+                        shadow_route
+                    ),
+                )
+                shadow_tasks.append(
+                    ShadowTask(
+                        execution_id=execution_id,
+                        request_id=request_id,
+                        decision_id=decision_id,
+                        plan=shadow_plan,
+                        features=deepcopy(features),
+                    )
+                )
+
+        return tuple(
+            shadow_tasks
+        )
+
+    async def _submit_shadow_predictions(
+            self,
+            tasks: tuple[ShadowTask, ...],
+    ) -> None:
+        """提交本次请求命中的影子预测"""
+        for task in tasks:
+            accepted = self.shadow_dispatcher.submit(
+                task
+            )
+
+            if not accepted:
+                logger.warning(
+                    "影子预测任务未进入执行队列",
+                    execution_id=task.execution_id,
+                    request_id=task.request_id,
+                    decision_id=task.decision_id,
+                    deployment_id=(
+                        task.plan.route.deployment_id
+                    ),
+                    routing_id=(
+                        task.plan.route.routing_id
+                    ),
+                )
+                await self._record_shadow_failure(
+                    task=task,
+                    status=ExecutionStatus.REJECTED,
+                    error="影子预测执行队列不可用或已满",
+                    error_type="ShadowQueueRejected",
+                    latency_ms=0.0,
+                )
+
+    async def _execute_shadow(
+            self,
+            task: ShadowTask,
+    ) -> None:
+        """执行并记录单个影子预测"""
+        started_at = time.perf_counter()
+
+        try:
+            await self._record_shadow_running(
+                task
+            )
+
+            result = await self.executor.execute(
+                plan=task.plan,
+                features=task.features,
+            )
+            await self._record_shadow_success(
+                task=task,
+                result=result,
+            )
+
+            logger.info(
+                "影子预测执行完成",
+                execution_id=task.execution_id,
+                request_id=task.request_id,
+                decision_id=task.decision_id,
+                deployment_id=(
+                    task.plan.route.deployment_id
+                ),
+                routing_id=(
+                    task.plan.route.routing_id
+                ),
+                latency_ms=result.latency_ms,
+            )
+        except asyncio.CancelledError:
+            latency_ms = (
+                                 time.perf_counter()
+                                 - started_at
+                         ) * 1000
+            await asyncio.shield(
+                self._record_shadow_failure(
+                    task=task,
+                    status=ExecutionStatus.CANCELLED,
+                    error="影子预测执行已取消",
+                    error_type="CancelledError",
+                    latency_ms=latency_ms,
+                )
+            )
+            raise
+        except Exception as exc:
+            latency_ms = (
+                                 time.perf_counter()
+                                 - started_at
+                         ) * 1000
+            error = (
+                str(exc)
+                or exc.__class__.__name__
+            )
+            status = (
+                ExecutionStatus.TIMEOUT
+                if isinstance(
+                    exc,
+                    TimeoutError,
+                )
+                else ExecutionStatus.FAILED
+            )
+            await self._record_shadow_failure(
+                task=task,
+                status=status,
+                error=error,
+                error_type=exc.__class__.__name__,
+                latency_ms=latency_ms,
+            )
+            logger.warning(
+                "影子预测执行失败",
+                execution_id=task.execution_id,
+                request_id=task.request_id,
+                decision_id=task.decision_id,
+                deployment_id=(
+                    task.plan.route.deployment_id
+                ),
+                routing_id=(
+                    task.plan.route.routing_id
+                ),
+                error=error,
+            )
+
+            try:
+                await self._audit_recorder.record(
+                    action="prediction.shadow",
+                    target_type="deployment",
+                    target_id=(
+                        task.plan.route.deployment_id
+                    ),
+                    status="failed",
+                    error=error,
+                    context={
+                        "request_id": task.request_id,
+                        "decision_id": task.decision_id,
+                        "execution_id": task.execution_id,
+                        "routing_id": (
+                            task.plan.route.routing_id
+                        ),
+                    },
+                )
+            except AuditError:
+                logger.exception(
+                    "影子预测失败审计记录写入失败",
+                    request_id=task.request_id,
+                    deployment_id=(
+                        task.plan.route.deployment_id
+                    ),
+                )
+
+    async def _record_shadow_success(
+            self,
+            *,
+            task: ShadowTask,
+            result: ExecutionResult,
+    ) -> None:
+        """记录成功的影子模型执行"""
+        async with UnitOfWork() as uow:
+            repo = ExecutionRepository(
+                uow.session
+            )
+            execution = await repo.get_execution(
+                task.execution_id
+            )
+
+            if execution is None:
+                raise RuntimeError(
+                    "影子模型执行记录不存在: "
+                    f"{task.execution_id}"
+                )
+
+            repo.mark_success(
+                execution,
+                prediction=(
+                    self._build_prediction_payload(
+                        result.prediction
+                    )
+                ),
+                probability=self._optional_float(
+                    result.prediction.get(
+                        "probability"
+                    )
+                ),
+                score=self._optional_float(
+                    result.prediction.get(
+                        "score"
+                    )
+                ),
+                latency_ms=result.latency_ms,
+            )
+
+    @staticmethod
+    async def _record_shadow_running(
+            task: ShadowTask,
+    ) -> None:
+        """标记影子模型执行开始"""
+        async with UnitOfWork() as uow:
+            repo = ExecutionRepository(
+                uow.session
+            )
+            execution = await repo.get_execution(
+                task.execution_id
+            )
+
+            if execution is None:
+                raise RuntimeError(
+                    "影子模型执行记录不存在: "
+                    f"{task.execution_id}"
+                )
+
+            repo.mark_running(
+                execution
+            )
+
+    @staticmethod
+    async def _record_shadow_failure(
+            *,
+            task: ShadowTask,
+            status: ExecutionStatus,
+            error: str,
+            error_type: str,
+            latency_ms: float,
+    ) -> None:
+        """记录未成功的影子模型执行"""
+        try:
+            async with UnitOfWork() as uow:
+                repo = ExecutionRepository(
+                    uow.session
+                )
+                execution = await repo.get_execution(
+                    task.execution_id
+                )
+
+                if execution is None:
+                    logger.warning(
+                        "影子模型执行记录不存在",
+                        execution_id=task.execution_id,
+                        decision_id=task.decision_id,
+                    )
+                    return
+
+                repo.mark_failed(
+                    execution,
+                    status=status,
+                    error=error,
+                    error_type=error_type,
+                    latency_ms=latency_ms,
+                )
+        except Exception as exc:
+            logger.exception(
+                "影子模型执行失败状态写入失败",
+                execution_id=task.execution_id,
+                decision_id=task.decision_id,
+                error=str(exc),
             )
 
     @staticmethod
     async def _mark_request_failed(
             *,
             request_id: str,
+            model_id: str | None,
             error: str,
             response: dict[str, Any],
             latency_ms: float,
@@ -2142,6 +2606,7 @@ class DatamindRuntimeService:
 
         参数：
             request_id: 请求 ID
+            model_id: 模型 ID
             error: 错误信息
             response: 返回给调用方的错误响应
             latency_ms: 处理耗时
@@ -2165,6 +2630,7 @@ class DatamindRuntimeService:
             repo.mark_failed(
                 request_record,
                 error=error,
+                model_id=model_id,
                 response=response,
                 latency_ms=latency_ms,
             )
@@ -2247,7 +2713,7 @@ class DatamindRuntimeService:
     def _build_prediction_payload(
             result: dict[str, Any],
     ) -> dict[str, Any]:
-        """构造决策表中的模型预测结果
+        """构造执行表中的模型预测结果
 
         去除模型和部署标识字段，
         保留服务类型和实际预测输出。
@@ -2332,7 +2798,7 @@ class DatamindRuntimeService:
             RuntimeError:
                 当前 Worker 无法提供该部署服务
         """
-        runtime_model = self.manager.get(
+        runtime_model = self.manager.registry.get(
             deployment_id,
             touch=False,
         )
@@ -2340,7 +2806,7 @@ class DatamindRuntimeService:
         if runtime_model is None:
             await self.reconciler.reconcile_once()
 
-            runtime_model = self.manager.get(
+            runtime_model = self.manager.registry.get(
                 deployment_id,
                 touch=False,
             )

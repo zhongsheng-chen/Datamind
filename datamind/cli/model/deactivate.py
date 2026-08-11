@@ -2,10 +2,10 @@
 
 """停用模型命令
 
-提供模型和模型版本停用功能。
+负责模型及模型版本的停用。
 
 核心功能：
-  - deactivate_model: 停用模型或模型版本
+  - deactivate_model: 停用模型或指定模型版本
 
 使用示例：
   python -m datamind.cli.main model deactivate scorecard \
@@ -17,14 +17,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.models.errors import ModelError
 from datamind.services import ModelLifecycleService
 
 app = typer.Typer(help="停用模型命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -56,7 +57,10 @@ def deactivate_model(
             help="输出格式：text / json"
         ),
 ):
-    """停用模型或模型版本"""
+    """停用模型或模型版本
+
+    未指定版本时，同时停用模型的全部 active 版本。
+    """
 
     @audit(
         action="model.deactivate",
@@ -88,13 +92,21 @@ def deactivate_model(
 
         lifecycle = ModelLifecycleService()
 
-        result = await lifecycle.deactivate(
-            name=name,
-            model_id=model_id,
-            version=version,
-            version_id=version_id,
-            updated_by=actor,
-        )
+        try:
+            result = await lifecycle.deactivate(
+                name=name,
+                model_id=model_id,
+                version=version,
+                version_id=version_id,
+                updated_by=actor,
+            )
+        except ModelError as error:
+            console.error(
+                f"模型停用失败：{error}",
+                output_format=output,
+                error_type=type(error).__name__,
+            )
+            raise typer.Exit(code=1) from None
 
         if output == "json":
             console.print_json(
@@ -106,18 +118,23 @@ def deactivate_model(
             )
             return result
 
-        console.print("[green]模型停用成功[/green]\n")
+        console.info("模型停用成功\n")
 
-        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name']}")
-        console.print(f"[cyan]{'MODEL STATUS':<16}[/cyan] : {result['model_status']}")
+        console.print(f"{'MODEL ID':<16} : {result['model_id']}")
+        console.print(f"{'NAME':<16} : {result['name']}")
+        console.print(f"{'MODEL STATUS':<16} : {result['model_status']}")
 
         if result.get("version_id"):
-            console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
-            console.print(f"[cyan]{'VERSION':<16}[/cyan] : {result['version']}")
+            console.print(f"{'VERSION ID':<16} : {result['version_id']}")
+            console.print(f"{'VERSION':<16} : {result['version']}")
             console.print(
-                f"[cyan]{'VERSION STATUS':<16}[/cyan] : "
+                f"{'VERSION STATUS':<16} : "
                 f"{result['version_status']}"
+            )
+        else:
+            console.print(
+                f"{'VERSION CHANGES':<16} : "
+                f"{result['deactivated_version_count']}"
             )
 
         return result

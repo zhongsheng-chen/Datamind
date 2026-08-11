@@ -17,10 +17,11 @@ import json
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
+from datamind.config import get_settings
 from datamind.services import RuntimeControlService
 from datamind.utils.datetime import (
     format_datetime,
@@ -29,18 +30,13 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="运行状态列表命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
 
 @app.command("list")
 def list_runtimes(
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="按运行环境过滤，可选值：production / staging / development / testing"
-        ),
         desired_status: str | None = typer.Option(
             None,
             "--desired-status",
@@ -63,16 +59,12 @@ def list_runtimes(
         ),
 ):
     """查询部署运行状态列表"""
+    environment = str(get_settings().service.environment)
 
     async def _run():
         if output not in ("text", "json"):
             raise typer.BadParameter(
                 "--format 只支持 text 或 json"
-            )
-
-        if environment is not None and not environment:
-            raise typer.BadParameter(
-                "--environment 不能为空"
             )
 
         if desired_status not in (
@@ -176,9 +168,10 @@ def list_runtimes(
         table.add_column("GENERATION")
         table.add_column("WORKERS")
         table.add_column("RUNTIMES")
-        table.add_column("LOADING")
-        table.add_column("LOADED")
-        table.add_column("UNLOADED")
+        table.add_column("STARTING")
+        table.add_column("RUNNING")
+        table.add_column("STOPPING")
+        table.add_column("STOPPED")
         table.add_column("FAILED")
         table.add_column("UPDATED BY")
         table.add_column("UPDATED AT")
@@ -192,9 +185,10 @@ def list_runtimes(
                 str(item["generation"]),
                 str(item["worker_count"]),
                 str(item["runtime_count"]),
-                str(item["loading_count"]),
-                str(item["loaded_count"]),
-                str(item["unloaded_count"]),
+                str(item["starting_count"]),
+                str(item["running_count"]),
+                str(item["stopping_count"]),
+                str(item["stopped_count"]),
                 str(item["failed_count"]),
                 str(item["updated_by"] or "-"),
                 format_datetime(
@@ -212,6 +206,20 @@ def list_runtimes(
         async with cli_context(
                 required_permission="runtime.read",
         ):
-            await _run()
+            try:
+                await _run()
+            except ValueError as error:
+                logger.warning(
+                    "运行状态列表查询失败",
+                    environment=environment,
+                    desired_status=desired_status,
+                    error=str(error),
+                )
+                console.error(
+                    f"运行状态查询失败：{error}",
+                    output_format=output,
+                    error_type=type(error).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
     asyncio.run(runner())

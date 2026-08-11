@@ -55,11 +55,7 @@ def test_decision_table_and_columns() -> None:
         "bucket",
         "group",
         "weight",
-        "prediction",
-        "probability",
-        "score",
         "decision",
-        "latency_ms",
         "context",
         "decided_at",
         "id",
@@ -76,13 +72,20 @@ def test_decision_indexes() -> None:
         "idx_decisions_deployment_id",
         "idx_decisions_experiment_id",
         "idx_decisions_model_id",
+        "uk_decisions_request_id",
         "idx_decisions_source",
         "idx_decisions_subject_key",
         "idx_decisions_variant_id",
         "idx_decisions_version_id",
         "uk_decisions_decision_id",
-        "uk_decisions_request_id",
     }
+
+    request_index = next(
+        index
+        for index in TABLE.indexes
+        if index.name == "uk_decisions_request_id"
+    )
+    assert request_index.unique is True
 
 
 def test_decision_check_constraints() -> None:
@@ -93,9 +96,6 @@ def test_decision_check_constraints() -> None:
         if isinstance(constraint, CheckConstraint)
     } == {
         "ck_decisions_context_object",
-        "ck_decisions_latency_ms_non_negative",
-        "ck_decisions_prediction_object",
-        "ck_decisions_probability_range",
         "ck_decisions_source_valid",
         "ck_decisions_strategy_valid",
         "ck_decisions_weight_range",

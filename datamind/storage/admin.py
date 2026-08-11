@@ -25,7 +25,7 @@
   storage = get_storage()
 
   storage_key = storage.save(
-      model_id="mdl_0123456789abcdef",
+      model_name="scorecard",
       version="1.0.0",
       artifact_id="art_0123456789abcdef",
       filename="scorecard.pkl",
@@ -77,7 +77,7 @@ class StorageAdmin:
             self,
             *,
             key: str | None = None,
-            model_id: str | None = None,
+            model_name: str | None = None,
             version: str | None = None,
             artifact_id: str | None = None,
             filename: str | None = None,
@@ -86,7 +86,7 @@ class StorageAdmin:
 
         参数：
             key: 存储键，优先使用
-            model_id: 模型 ID
+            model_name: 模型名称
             version: 模型版本号
             artifact_id: 模型制品 ID
             filename: 文件名
@@ -101,13 +101,13 @@ class StorageAdmin:
             return key
 
         if (
-                model_id is not None
+                model_name is not None
                 and version is not None
                 and artifact_id is not None
                 and filename is not None
         ):
             return self._strategy.model_key(
-                model_id,
+                model_name,
                 version,
                 artifact_id,
                 filename,
@@ -115,7 +115,7 @@ class StorageAdmin:
 
         raise ValueError(
             "必须提供 key 或 "
-            "(model_id, version, artifact_id, filename) 四参数"
+            "(model_name, version, artifact_id, filename) 四参数"
         )
 
     def _validate_data(
@@ -189,7 +189,7 @@ class StorageAdmin:
             *,
             data: bytes,
             key: str | None = None,
-            model_id: str | None = None,
+            model_name: str | None = None,
             version: str | None = None,
             artifact_id: str | None = None,
             filename: str | None = None,
@@ -199,7 +199,7 @@ class StorageAdmin:
         参数：
             data: 二进制数据
             key: 存储键（可选）
-            model_id: 模型 ID（可选）
+            model_name: 模型名称（可选）
             version: 模型版本号（可选）
             artifact_id: 模型制品 ID（可选）
             filename: 文件名（可选）
@@ -217,7 +217,7 @@ class StorageAdmin:
 
         resolved_key = self._resolve_key(
             key=key,
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -235,7 +235,7 @@ class StorageAdmin:
             self,
             *,
             key: str | None = None,
-            model_id: str | None = None,
+            model_name: str | None = None,
             version: str | None = None,
             artifact_id: str | None = None,
             filename: str | None = None,
@@ -244,7 +244,7 @@ class StorageAdmin:
 
         参数：
             key: 存储键（可选）
-            model_id: 模型 ID（可选）
+            model_name: 模型名称（可选）
             version: 模型版本号（可选）
             artifact_id: 模型制品 ID（可选）
             filename: 文件名（可选）
@@ -257,7 +257,7 @@ class StorageAdmin:
         """
         resolved_key = self._resolve_key(
             key=key,
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -272,7 +272,7 @@ class StorageAdmin:
             self,
             *,
             key: str | None = None,
-            model_id: str | None = None,
+            model_name: str | None = None,
             version: str | None = None,
             artifact_id: str | None = None,
             filename: str | None = None,
@@ -282,7 +282,7 @@ class StorageAdmin:
 
         参数：
             key: 存储键（可选）
-            model_id: 模型 ID（可选）
+            model_name: 模型名称（可选）
             version: 模型版本号（可选）
             artifact_id: 模型制品 ID（可选）
             filename: 文件名（可选）
@@ -297,7 +297,7 @@ class StorageAdmin:
         """
         resolved_key = self._resolve_key(
             key=key,
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -313,7 +313,7 @@ class StorageAdmin:
             self,
             *,
             key: str | None = None,
-            model_id: str | None = None,
+            model_name: str | None = None,
             version: str | None = None,
             artifact_id: str | None = None,
             filename: str | None = None,
@@ -322,7 +322,7 @@ class StorageAdmin:
 
         参数：
             key: 存储键（可选）
-            model_id: 模型 ID（可选）
+            model_name: 模型名称（可选）
             version: 模型版本号（可选）
             artifact_id: 模型制品 ID（可选）
             filename: 文件名（可选）
@@ -335,7 +335,7 @@ class StorageAdmin:
         """
         resolved_key = self._resolve_key(
             key=key,
-            model_id=model_id,
+            model_name=model_name,
             version=version,
             artifact_id=artifact_id,
             filename=filename,
@@ -348,19 +348,19 @@ class StorageAdmin:
     @observe_storage("list")
     def list(
             self,
-            model_id: str,
+            model_name: str,
     ) -> list[str]:
         """列出模型的所有文件
 
         参数：
-            model_id: 模型 ID
+            model_name: 模型名称
 
         返回：
             相对于模型目录的文件键列表，
             格式为 {version}/artifacts/{artifact_id}/{filename}
         """
         prefix = self._strategy.model_prefix(
-            model_id
+            model_name
         )
 
         keys = self.backend.list_objects(

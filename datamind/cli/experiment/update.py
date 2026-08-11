@@ -10,12 +10,11 @@
 使用示例：
   python -m datamind.cli.main experiment update exp_0123456789abcdef \
     --name scorecard_ab_test_v2 \
-    --environment development \
     --traffic-ratio 0.3 \
     --bucket-key customer_id
 
 说明：
-  - 实验处于 draft 状态时，允许修改 environment、name、description、
+  - 实验处于 draft 状态时，允许修改 name、description、
     strategy、traffic_ratio、bucket_key、effective_from 和 effective_to。
   - 实验处于 paused 状态时，仅允许修改 description 和 effective_to。
   - 实验处于 running、stopped、completed 或 archived 状态时，不允许修改。
@@ -27,14 +26,14 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.config import get_settings
 from datamind.db.core import UnitOfWork
 from datamind.db.models.experiments import Experiment
-from datamind.db.models.variants import Variant
-from datamind.db.repositories import ExperimentRepository, VariantRepository
+from datamind.db.repositories import ExperimentRepository
 from datamind.models.enums import AssignmentStrategy
 from datamind.models.errors import (
     ExperimentError,
@@ -48,7 +47,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="更新实验命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -56,7 +55,6 @@ EXPERIMENT_STATUS_DRAFT = "draft"
 EXPERIMENT_STATUS_PAUSED = "paused"
 
 DRAFT_UPDATE_FIELDS = {
-    "environment",
     "name",
     "description",
     "strategy",
@@ -78,11 +76,6 @@ def update_experiment(
             ...,
             help="实验 ID"
         ),
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="实验环境"
-        ),
         name: str | None = typer.Option(
             None,
             "--name",
@@ -101,7 +94,7 @@ def update_experiment(
         bucket_key: str | None = typer.Option(
             None,
             "--bucket-key",
-            help="分桶主体字段，例如 customer_id / order_id / apply_id"
+            help="分桶主体字段，例如 customer_id / order_id / application_id"
         ),
         description: str | None = typer.Option(
             None,
@@ -111,12 +104,12 @@ def update_experiment(
         effective_from: str | None = typer.Option(
             None,
             "--effective-from",
-            help="生效开始时间，ISO 格式，例如 2026-07-01T09:00:00+08:00"
+            help="生效开始时间"
         ),
         effective_to: str | None = typer.Option(
             None,
             "--effective-to",
-            help="生效结束时间，ISO 格式，例如 2026-07-31T23:59:59+08:00"
+            help="生效结束时间"
         ),
         output: str = typer.Option(
             "text",
@@ -124,7 +117,14 @@ def update_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """更新实验"""
+    """更新实验
+
+    时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
+    时区偏移。未提供时区偏移时，按配置时区解析。
+    """
+    settings = get_settings()
+    timezone_name = settings.logging.timezone
+    service_environment = str(settings.service.environment)
 
     @audit(
         action="experiment.update",
@@ -138,7 +138,6 @@ def update_experiment(
             raise typer.BadParameter("--format 只支持 text 或 json")
 
         requested_fields = _get_requested_fields(
-            environment=environment,
             name=name,
             strategy=strategy,
             traffic_ratio=traffic_ratio,
@@ -151,9 +150,6 @@ def update_experiment(
         if not requested_fields:
             raise typer.BadParameter("至少需要提供一个更新参数")
 
-        if environment is not None and not environment:
-            raise typer.BadParameter("--environment 不能为空")
-
         if name is not None and not name:
             raise typer.BadParameter("--name 不能为空")
 
@@ -163,28 +159,41 @@ def update_experiment(
         parsed_effective_from = _parse_optional_datetime(
             value=effective_from,
             option_name="--effective-from",
+            timezone_name=timezone_name,
         )
         parsed_effective_to = _parse_optional_datetime(
             value=effective_to,
             option_name="--effective-to",
+            timezone_name=timezone_name,
         )
 
         logger.info(
             "开始更新实验",
             experiment_id=experiment_id,
             requested_fields=sorted(requested_fields),
-            environment=environment,
+            environment=service_environment,
         )
 
         async with UnitOfWork() as uow:
             experiment_repo = ExperimentRepository(uow.session)
-            variant_repo = VariantRepository(uow.session)
 
             experiment = await experiment_repo.get_experiment(experiment_id)
 
             if experiment is None:
-                console.print(f"[red]实验不存在: {experiment_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"实验更新失败：实验不存在：{experiment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
+
+            if str(experiment.environment) != service_environment:
+                console.error(
+                    "实验更新失败：实验不属于当前服务环境\n"
+                    f"服务环境：{service_environment}\n"
+                    f"实验环境：{experiment.environment}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             experiment_status = str(experiment.status).lower()
 
@@ -193,18 +202,6 @@ def update_experiment(
                     experiment_status=experiment_status,
                     requested_fields=requested_fields,
                 )
-
-                if (
-                        environment is not None
-                        and environment != experiment.environment
-                ):
-                    variants = await variant_repo.list_variants(
-                        experiment_id=experiment_id,
-                    )
-
-                    _validate_experiment_can_update_environment(
-                        variants=variants,
-                    )
 
                 config = _get_config(experiment)
 
@@ -224,8 +221,12 @@ def update_experiment(
                     )
 
             except ExperimentError as exc:
-                console.print(f"[red]{exc}[/red]")
-                raise typer.Exit(1) from exc
+                console.error(
+                    f"实验更新失败：{exc}",
+                    output_format=output,
+                    error_type=type(exc).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             target_effective_from = (
                 parsed_effective_from
@@ -246,9 +247,6 @@ def update_experiment(
                 raise typer.BadParameter(
                     "--effective-to 必须晚于 --effective-from"
                 )
-
-            if environment is not None:
-                experiment.environment = environment
 
             if name is not None:
                 experiment.name = name
@@ -301,27 +299,27 @@ def update_experiment(
             )
             return result
 
-        console.print("[green]实验更新成功[/green]\n")
+        console.info("实验更新成功\n")
 
-        console.print(f"[cyan]{'EXPERIMENT ID':<18}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<18}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<18}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'NAME':<18}[/cyan] : {result['name'] or '-'}")
-        console.print(f"[cyan]{'STATUS':<18}[/cyan] : {result['status']}")
+        console.print(f"{'EXPERIMENT ID':<18} : {result['experiment_id']}")
+        console.print(f"{'MODEL ID':<18} : {result['model_id']}")
+        console.print(f"{'ENVIRONMENT':<18} : {result['environment']}")
+        console.print(f"{'NAME':<18} : {result['name'] or '-'}")
+        console.print(f"{'STATUS':<18} : {result['status']}")
         console.print(
-            f"[cyan]{'STRATEGY':<18}[/cyan] : "
+            f"{'STRATEGY':<18} : "
             f"{result['config'].get('strategy', '-')}"
         )
         console.print(
-            f"[cyan]{'TRAFFIC RATIO':<18}[/cyan] : "
+            f"{'TRAFFIC RATIO':<18} : "
             f"{result['config'].get('traffic_ratio', '-')}"
         )
         console.print(
-            f"[cyan]{'BUCKET KEY':<18}[/cyan] : "
+            f"{'BUCKET KEY':<18} : "
             f"{result['config'].get('bucket_key', '-')}"
         )
         console.print(
-            f"[cyan]{'DESCRIPTION':<18}[/cyan] : "
+            f"{'DESCRIPTION':<18} : "
             f"{result['description'] or '-'}"
         )
         for label, field in (
@@ -338,11 +336,11 @@ def update_experiment(
                 else "-"
             )
             console.print(
-                f"[cyan]{label:<18}[/cyan] : "
+                f"{label:<18} : "
                 f"{value}"
             )
         console.print(
-            f"[cyan]{'UPDATED BY':<18}[/cyan] : "
+            f"{'UPDATED BY':<18} : "
             f"{result['updated_by'] or '-'}"
         )
 
@@ -361,7 +359,6 @@ def update_experiment(
 
 def _get_requested_fields(
         *,
-        environment: str | None,
         name: str | None,
         strategy: str | None,
         traffic_ratio: float | None,
@@ -372,9 +369,6 @@ def _get_requested_fields(
 ) -> set[str]:
     """获取本次请求更新的字段"""
     fields = set()
-
-    if environment is not None:
-        fields.add("environment")
 
     if name is not None:
         fields.add("name")
@@ -411,7 +405,7 @@ def _validate_update_allowed(
 
         if disallowed:
             raise InvalidExperimentStateError(
-                "draft 状态不允许修改字段: "
+                "草稿状态下不允许修改字段："
                 f"{', '.join(sorted(disallowed))}"
             )
 
@@ -422,27 +416,32 @@ def _validate_update_allowed(
 
         if disallowed:
             raise InvalidExperimentStateError(
-                "paused 状态只允许修改 description 和 effective_to"
+                "暂停状态下只允许修改 description 和 effective_to"
             )
 
         return
 
     raise InvalidExperimentStateError(
-        f"{experiment_status} 状态不允许修改实验"
+        f"实验处于 {_status_label(experiment_status)}，不允许修改"
     )
 
 
-def _validate_experiment_can_update_environment(
-        *,
-        variants: list[Variant],
-) -> None:
-    """校验实验是否允许修改环境"""
-    if not variants:
-        return
+def _status_label(
+        status: str,
+) -> str:
+    """获取实验状态的终端显示名称"""
+    labels = {
+        "draft": "草稿状态",
+        "running": "运行状态",
+        "paused": "暂停状态",
+        "stopped": "停止状态",
+        "completed": "完成状态",
+        "archived": "归档状态",
+    }
 
-    raise InvalidExperimentConfigError(
-        "实验已存在分组，不允许修改 environment；"
-        "如需更换环境，请新建实验"
+    return labels.get(
+        status,
+        f"未知状态（{status}）",
     )
 
 
@@ -532,15 +531,21 @@ def _parse_optional_datetime(
         *,
         value: str | None,
         option_name: str,
+        timezone_name: str,
 ):
     """解析可选日期时间参数"""
     if value is None:
         return None
 
     try:
-        return parse_datetime(value)
+        return parse_datetime(
+            value,
+            timezone_name=timezone_name,
+        )
 
     except ValueError as exc:
         raise typer.BadParameter(
-            f"{option_name} 时间格式错误，请使用 ISO 格式"
+            f"{option_name} 时间格式错误，例如："
+            "2026-07-01 09:00:00 或 "
+            "2026-07-01T09:00:00+08:00"
         ) from exc

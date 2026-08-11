@@ -351,12 +351,27 @@ class RoleRepository(BaseRepository):
 
         return role
 
+    def replace_description(
+            self,
+            role: Role,
+            *,
+            description: str | None,
+            updated_by: str | None = None,
+    ) -> Role:
+        """替换角色描述，允许清空现有描述"""
+        role.description = description
+
+        if updated_by is not None:
+            role.updated_by = updated_by
+
+        return role
+
     def mark_deleted(
             self,
             role: Role,
             *,
             deleted_by: str,
-            deletion_reason: str,
+            deletion_reason: str | None = None,
             deleted_at: datetime | None = None,
     ) -> Role:
         """逻辑删除角色
@@ -366,7 +381,7 @@ class RoleRepository(BaseRepository):
         参数：
             role: 角色对象
             deleted_by: 删除操作人
-            deletion_reason: 删除原因
+            deletion_reason: 删除原因（可选）
             deleted_at: 删除时间（可选）
 
         返回：

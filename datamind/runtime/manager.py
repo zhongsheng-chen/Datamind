@@ -2,30 +2,25 @@
 
 """运行时管理器
 
-编排模型运行生命周期，负责加载、注册、卸载和查询运行时模型。
+负责协调部署模型的加载、卸载与重载。
 
 核心功能：
-  - start: 加载指定部署对应的模型
-  - stop: 卸载指定部署对应的模型
-  - restart: 重启指定部署对应的模型
-  - status: 查看指定部署的运行状态
-  - get: 获取已加载运行时模型
-  - get_model: 获取已加载模型对象
-  - exists: 判断部署是否已加载
+  - load: 加载指定部署对应的模型
+  - unload: 卸载指定部署对应的模型
+  - reload: 重新加载指定部署对应的模型
+  - get_status: 获取指定部署的运行状态
 
 使用示例：
   from datamind.runtime.manager import RuntimeManager
 
   manager = RuntimeManager()
 
-  runtime_model = await manager.start(
+  runtime_model = await manager.load(
       deployment_id="dep_0123456789abcdef",
       operator="admin",
   )
 
-  model = manager.get_model("dep_0123456789abcdef")
-
-  await manager.stop(
+  await manager.unload(
       deployment_id="dep_0123456789abcdef",
       operator="admin",
   )
@@ -85,24 +80,23 @@ class RuntimeManager:
         self._operation_locks: dict[str, asyncio.Lock] = {}
         self._operation_locks_guard = asyncio.Lock()
 
-    async def start(
+    async def load(
             self,
             deployment_id: str,
             *,
             operator: str = "system",
-            force: bool = False,
     ) -> RuntimeModel:
-        """串行加载或重新加载指定部署模型"""
+        """串行加载指定部署模型"""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
-            return await self._start(
+            return await self._load(
                 deployment_id,
                 operator=operator,
-                force=force,
+                force=False,
             )
 
-    async def _start(
+    async def _load(
             self,
             deployment_id: str,
             *,
@@ -157,7 +151,7 @@ class RuntimeManager:
         task_type = ""
         bento_tag = ""
         model_path = None
-        model_key = None
+        model_key = ""
         environment = ""
         rollout_type = ""
         role = None
@@ -202,12 +196,15 @@ class RuntimeManager:
                     f"版本不存在: {deployment.version_id}"
                 )
 
-            if (
-                    not version.bento_tag
-                    and not version.model_key
-            ):
+            if not version.model_key:
                 raise VersionNotFoundError(
-                    "版本缺少可加载的模型制品: "
+                    "版本缺少模型制品存储键: "
+                    f"{deployment.version_id}"
+                )
+
+            if not version.bento_tag:
+                raise VersionNotFoundError(
+                    "版本缺少 BentoML 模型标签: "
                     f"{deployment.version_id}"
                 )
 
@@ -226,10 +223,7 @@ class RuntimeManager:
             framework = deployment.framework
             model_type = metadata.model_type
             task_type = metadata.task_type
-            bento_tag = (
-                version.bento_tag
-                or ""
-            )
+            bento_tag = version.bento_tag
             model_path = version.model_path
             model_key = version.model_key
             environment = deployment.environment
@@ -250,7 +244,7 @@ class RuntimeManager:
                 "config": config,
             }
 
-            runtime_repo.mark_loading(
+            runtime_repo.mark_starting(
                 runtime,
                 started_by=operator,
                 context=runtime_context,
@@ -263,7 +257,7 @@ class RuntimeManager:
             model = await asyncio.to_thread(
                 self.loader.load,
                 framework=framework,
-                tag=bento_tag,
+                bento_tag=bento_tag,
                 model_key=model_key,
             )
 
@@ -297,7 +291,7 @@ class RuntimeManager:
                 )
 
                 if runtime is not None:
-                    runtime_repo.mark_loaded(
+                    runtime_repo.mark_running(
                         runtime,
                         started_by=operator,
                         context=runtime_context,
@@ -309,6 +303,7 @@ class RuntimeManager:
                 model_id=model_id,
                 version_id=version_id,
                 bento_tag=bento_tag,
+                model_key=model_key,
             )
 
         except Exception as exc:
@@ -340,7 +335,7 @@ class RuntimeManager:
                             context=runtime_context,
                         )
                     else:
-                        runtime_repo.mark_loaded(
+                        runtime_repo.mark_running(
                             runtime,
                             started_by=operator,
                             context={
@@ -354,6 +349,7 @@ class RuntimeManager:
                 deployment_id=deployment_id,
                 version_id=version_id,
                 bento_tag=bento_tag,
+                model_key=model_key,
             )
 
         if load_error is not None:
@@ -368,7 +364,7 @@ class RuntimeManager:
 
         return runtime_model
 
-    async def stop(
+    async def unload(
             self,
             deployment_id: str,
             *,
@@ -378,12 +374,12 @@ class RuntimeManager:
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
-            return await self._stop(
+            return await self._unload(
                 deployment_id,
                 operator=operator,
             )
 
-    async def _stop(
+    async def _unload(
             self,
             deployment_id: str,
             *,
@@ -410,10 +406,6 @@ class RuntimeManager:
             worker_id=self.worker_id,
         )
 
-        runtime_model = self.registry.unregister(
-            deployment_id,
-        )
-
         async with UnitOfWork() as uow:
             runtime_repo = RuntimeRepository(uow.session)
 
@@ -423,7 +415,24 @@ class RuntimeManager:
             )
 
             if runtime is not None:
-                runtime_repo.mark_unloaded(
+                runtime_repo.mark_stopping(
+                    runtime,
+                    stopped_by=operator,
+                )
+
+        runtime_model = self.registry.unregister(
+            deployment_id,
+        )
+
+        async with UnitOfWork() as uow:
+            runtime_repo = RuntimeRepository(uow.session)
+            runtime = await runtime_repo.get_deployment_runtime(
+                deployment_id=deployment_id,
+                worker_id=self.worker_id,
+            )
+
+            if runtime is not None:
+                runtime_repo.mark_stopped(
                     runtime,
                     stopped_by=operator,
                     context={
@@ -439,13 +448,13 @@ class RuntimeManager:
 
         return runtime_model
 
-    async def restart(
+    async def reload(
             self,
             deployment_id: str,
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """重启指定部署对应的模型
+        """重新加载指定部署对应的模型
 
         参数：
             deployment_id: 部署 ID
@@ -454,13 +463,16 @@ class RuntimeManager:
         返回：
             重新加载后的运行时模型对象
         """
-        return await self.start(
-            deployment_id,
-            operator=operator,
-            force=True,
-        )
+        operation_lock = await self._get_operation_lock(deployment_id)
 
-    async def status(
+        async with operation_lock:
+            return await self._load(
+                deployment_id,
+                operator=operator,
+                force=True,
+            )
+
+    async def get_status(
             self,
             deployment_id: str,
     ) -> dict:
@@ -519,125 +531,6 @@ class RuntimeManager:
             "memory": runtime_model.to_dict() if runtime_model is not None else None,
             "runtime": runtime_info,
         }
-
-    def get(
-            self,
-            deployment_id: str,
-            *,
-            touch: bool = True,
-    ) -> RuntimeModel | None:
-        """获取运行时模型
-
-        参数：
-            deployment_id: 部署 ID
-            touch: 是否记录访问时间和访问次数，默认 True
-
-        返回：
-            运行时模型对象；不存在时返回 None
-        """
-        return self.registry.get(
-            deployment_id,
-            touch=touch,
-        )
-
-    def get_model(
-            self,
-            deployment_id: str,
-            *,
-            touch: bool = True,
-    ) -> Any | None:
-        """获取已加载模型对象
-
-        参数：
-            deployment_id: 部署 ID
-            touch: 是否记录访问时间和访问次数，默认 True
-
-        返回：
-            已加载模型对象；不存在时返回 None
-        """
-        return self.registry.get_model(
-            deployment_id,
-            touch=touch,
-        )
-
-    def exists(
-            self,
-            deployment_id: str,
-    ) -> bool:
-        """判断部署是否已加载
-
-        参数：
-            deployment_id: 部署 ID
-
-        返回：
-            是否已加载
-        """
-        return self.registry.exists(
-            deployment_id,
-        )
-
-    def all(
-            self,
-    ) -> list[RuntimeModel]:
-        """获取所有已加载模型
-
-        返回：
-            运行时模型对象列表
-        """
-        return self.registry.all()
-
-    def to_dicts(
-            self,
-    ) -> list[dict]:
-        """获取所有已加载模型的字典信息
-
-        返回：
-            运行时模型字典列表
-        """
-        return self.registry.to_dicts()
-
-    def count(
-            self,
-    ) -> int:
-        """获取已加载模型数量
-
-        返回：
-            已加载模型数量
-        """
-        return self.registry.count()
-
-    def clear(
-            self,
-    ) -> None:
-        """清空内存注册表"""
-        self.registry.clear()
-
-    async def ensure_loaded(
-            self,
-            deployment_id: str,
-            *,
-            operator: str = "system",
-    ) -> RuntimeModel:
-        """确保指定部署已经加载
-
-        参数：
-            deployment_id: 部署 ID
-            operator: 操作人
-
-        返回：
-            运行时模型对象
-        """
-        runtime_model = self.registry.get(
-            deployment_id,
-        )
-
-        if runtime_model is not None:
-            return runtime_model
-
-        return await self.start(
-            deployment_id,
-            operator=operator,
-        )
 
     async def _get_or_create_runtime(
             self,

@@ -12,6 +12,8 @@
   - update_deployment: 更新部署
   - activate_deployment: 启用部署
   - deactivate_deployment: 停用部署
+  - mark_deleted: 逻辑删除部署
+  - restore_deployment: 恢复部署
 
 使用示例：
   from datamind.constants import (
@@ -95,11 +97,14 @@ class DeploymentRepository(BaseRepository):
     async def get_deployment(
             self,
             deployment_id: str,
+            *,
+            include_deleted: bool = False,
     ) -> Deployment | None:
         """获取部署记录
 
         参数：
             deployment_id: 部署 ID
+            include_deleted: 是否包含逻辑删除记录
 
         返回：
             部署记录对象，不存在时返回 None
@@ -110,6 +115,13 @@ class DeploymentRepository(BaseRepository):
             Deployment.deployment_id
             == deployment_id
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Deployment.deleted_at.is_(
+                    None
+                )
+            )
 
         result = await self.session.execute(
             stmt
@@ -128,6 +140,7 @@ class DeploymentRepository(BaseRepository):
             role: str | None = None,
             status: DeploymentStatus | None = None,
             deployed_by: str | None = None,
+            include_deleted: bool = False,
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Deployment]:
@@ -142,6 +155,7 @@ class DeploymentRepository(BaseRepository):
             role: 部署角色（可选）
             status: 部署状态（可选）
             deployed_by: 部署人（可选）
+            include_deleted: 是否包含逻辑删除记录
             limit: 返回数量限制（可选）
             offset: 分页偏移（可选）
 
@@ -170,6 +184,13 @@ class DeploymentRepository(BaseRepository):
         stmt = select(
             Deployment
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Deployment.deleted_at.is_(
+                    None
+                )
+            )
 
         if model_id is not None:
             stmt = stmt.where(
@@ -477,5 +498,44 @@ class DeploymentRepository(BaseRepository):
 
         if updated_by is not None:
             deployment.updated_by = updated_by
+
+        return deployment
+
+    @staticmethod
+    def mark_deleted(
+            deployment: Deployment,
+            *,
+            deleted_at: datetime | None = None,
+            deleted_by: str | None = None,
+            deletion_reason: str | None = None,
+    ) -> Deployment:
+        """逻辑删除部署记录"""
+        deployment.deleted_at = (
+            deleted_at
+            if deleted_at is not None
+            else datetime.now(
+                timezone.utc
+            )
+        )
+        deployment.deleted_by = deleted_by
+        deployment.deletion_reason = deletion_reason
+        deployment.updated_by = deleted_by
+
+        return deployment
+
+    @staticmethod
+    def restore_deployment(
+            deployment: Deployment,
+            *,
+            restored_by: str | None = None,
+    ) -> Deployment:
+        """恢复逻辑删除的部署记录"""
+        deployment.deleted_at = None
+        deployment.deleted_by = None
+        deployment.deletion_reason = None
+        deployment.status = str(
+            DeploymentStatus.INACTIVE
+        )
+        deployment.updated_by = restored_by
 
         return deployment

@@ -2,10 +2,10 @@
 
 """授予角色命令
 
-提供向用户授予角色的功能。
+提供授予用户角色的功能。
 
 核心功能：
-  - grant_role: 向用户授予角色
+  - grant_role: 授予用户角色
 
 使用示例：
   python -m datamind.cli.main role grant alice developer
@@ -15,15 +15,15 @@ import asyncio
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.services import IdentityService
 from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="授予角色命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +39,7 @@ def grant_role(
             help="角色名称",
         ),
 ) -> None:
-    """向用户授予角色"""
+    """授予用户角色"""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",
@@ -62,9 +62,9 @@ def grant_role(
                 ),
                 operator=context.user,
             )
-            console.print(
-                "[green]角色授予成功："
-                f"{result['username']} -> {result['role']}[/green]"
+            console.info(
+                "角色授予成功："
+                f"{result['username']} -> {result['role']}"
             )
 
     try:
@@ -72,8 +72,8 @@ def grant_role(
             runner()
         )
     except IdentityError as exc:
-        console.print(
-            f"[red]授予角色失败：{exc}[/red]"
+        console.error(
+            f"授予角色失败：{exc}"
         )
         raise typer.Exit(
             code=1

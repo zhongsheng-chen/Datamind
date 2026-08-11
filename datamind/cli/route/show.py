@@ -17,19 +17,22 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import RoutingRepository
+from datamind.db.repositories import (
+    DeploymentRepository,
+    RoutingRepository,
+)
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
-    parse_datetime
+    parse_datetime,
 )
 
 app = typer.Typer(help="查看路由命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -39,6 +42,11 @@ def show_route(
         routing_id: str = typer.Argument(
             ...,
             help="路由 ID"
+        ),
+        include_deleted: bool = typer.Option(
+            False,
+            "--include-deleted",
+            help="包含已删除路由",
         ),
         output: str = typer.Option(
             "text",
@@ -58,34 +66,62 @@ def show_route(
         )
 
         async with UnitOfWork() as uow:
-            repo = RoutingRepository(
+            routing_repo = RoutingRepository(
+                uow.session
+            )
+            deployment_repo = DeploymentRepository(
                 uow.session
             )
 
-            route = await repo.get_routing(
-                routing_id
+            route = await routing_repo.get_routing(
+                routing_id,
+                include_deleted=include_deleted,
             )
 
             if route is None:
-                console.print(
-                    f"[red]路由不存在: {routing_id}[/red]"
+                console.error(
+                    f"查看路由失败：路由不存在：{routing_id}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
+
+            deployment = await deployment_repo.get_deployment(
+                route.deployment_id,
+                include_deleted=True,
+            )
+
+            if deployment is None:
+                console.error(
+                    "查看路由失败：关联部署不存在："
+                    f"{route.deployment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             result: dict[str, Any] = {
                 "routing_id": route.routing_id,
+                "name": route.name,
                 "deployment_id": route.deployment_id,
-                "environment": route.environment,
-                "rollout_type": route.rollout_type,
-                "rollout_group": route.rollout_group,
+                "environment": deployment.environment,
+                "rollout_type": deployment.rollout_type,
+                "rollout_group": deployment.role,
                 "enabled": route.enabled,
                 "traffic_ratio": route.traffic_ratio,
                 "rules": route.rules,
+                "effective_from": format_iso_utc(
+                    getattr(route, "effective_from", None)
+                ),
+                "effective_to": format_iso_utc(
+                    getattr(route, "effective_to", None)
+                ),
                 "description": route.description,
                 "created_by": route.created_by,
                 "updated_by": route.updated_by,
                 "created_at": format_iso_utc(route.created_at),
                 "updated_at": format_iso_utc(route.updated_at),
+                "deleted_at": format_iso_utc(route.deleted_at),
+                "deleted_by": route.deleted_by,
+                "deletion_reason": route.deletion_reason,
             }
 
         if output == "json":
@@ -105,45 +141,67 @@ def show_route(
 
             return result
 
-        console.print("[green]路由详情[/green]\n")
+        console.info("路由详情\n")
 
-        console.print(f"[cyan]{'ROUTING ID':<16}[/cyan] : {result['routing_id']}")
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {result['rollout_type']}")
+        console.print(f"{'ROUTE NAME':<16} : {result['name']}")
+        console.print(f"{'ROUTING ID':<16} : {result['routing_id']}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'ROLLOUT TYPE':<16} : {result['rollout_type']}")
         console.print(
-            f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : "
+            f"{'ROLLOUT GROUP':<16} : "
             f"{result['rollout_group'] or '-'}"
         )
-        console.print(f"[cyan]{'ENABLED':<16}[/cyan] : {result['enabled']}")
-        console.print(f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : {result['traffic_ratio']}")
+        console.print(f"{'ENABLED':<16} : {result['enabled']}")
+        console.print(f"{'TRAFFIC RATIO':<16} : {result['traffic_ratio']}")
+        console.print(
+            f"{'EFFECTIVE FROM':<16} : "
+            f"{format_datetime(parse_datetime(result['effective_from']))}"
+        )
+        console.print(
+            f"{'EFFECTIVE TO':<16} : "
+            f"{format_datetime(parse_datetime(result['effective_to']))}"
+        )
 
         if result["rules"]:
             console.print(
-                f"[cyan]{'RULES':<16}[/cyan] : "
+                f"{'RULES':<16} : "
                 f"{json.dumps(result['rules'], ensure_ascii=False)}"
             )
 
         console.print(
-            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{'DESCRIPTION':<16} : "
             f"{result['description'] or '-'}"
         )
         console.print(
-            f"[cyan]{'CREATED BY':<16}[/cyan] : "
+            f"{'CREATED BY':<16} : "
             f"{result['created_by'] or '-'}"
         )
         console.print(
-            f"[cyan]{'UPDATED BY':<16}[/cyan] : "
+            f"{'UPDATED BY':<16} : "
             f"{result['updated_by'] or '-'}"
         )
         console.print(
-            f"[cyan]{'CREATED AT':<16}[/cyan] : "
+            f"{'CREATED AT':<16} : "
             f"{format_datetime(parse_datetime(result['created_at']))}"
         )
         console.print(
-            f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+            f"{'UPDATED AT':<16} : "
             f"{format_datetime(parse_datetime(result['updated_at']))}"
         )
+
+        if result["deleted_at"]:
+            console.print(
+                f"{'DELETED AT':<16} : "
+                f"{format_datetime(parse_datetime(result['deleted_at']))}"
+            )
+            console.print(
+                f"{'DELETED BY':<16} : "
+                f"{result['deleted_by'] or '-'}"
+            )
+            console.print(
+                f"{'DELETE REASON':<16} : "
+                f"{result['deletion_reason'] or '-'}"
+            )
 
         logger.info(
             "路由详情输出完成",

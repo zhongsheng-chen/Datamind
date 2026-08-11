@@ -18,15 +18,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.services import IdentityService
 from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="创建角色命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -42,6 +42,11 @@ def create_role(
             "--permission",
             help="权限标识，可重复指定",
         ),
+        all_permissions: bool = typer.Option(
+            False,
+            "--all-permissions",
+            help="授予全部权限",
+        ),
         description: str | None = typer.Option(
             None,
             "--description",
@@ -54,6 +59,19 @@ def create_role(
         ),
 ) -> None:
     """创建角色"""
+    if all_permissions and permissions:
+        raise typer.BadParameter(
+            "--all-permissions 与 --permission 不能同时指定"
+        )
+
+    resolved_permissions = (
+        [
+            "*"
+        ]
+        if all_permissions
+        else permissions or []
+    )
+
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",
@@ -63,12 +81,12 @@ def create_role(
             logger.info(
                 "开始创建角色",
                 name=name,
-                permissions=permissions or [],
+                permissions=resolved_permissions,
             )
 
             result = await IdentityService().create_role(
                 name=name,
-                permissions=permissions or [],
+                permissions=resolved_permissions,
                 description=description,
                 operator_id=(
                     identity.user_id
@@ -94,15 +112,13 @@ def create_role(
             or "-"
         )
 
+        console.info("角色创建成功\n")
         console.print(
-            "[green]角色创建成功[/green]\n"
-        )
-        console.print(
-            f"[cyan]{'NAME':<16}[/cyan] : "
+            f"{'NAME':<16} : "
             f"{result['name']}"
         )
         console.print(
-            f"[cyan]{'PERMISSIONS':<16}[/cyan] : "
+            f"{'PERMISSIONS':<16} : "
             f"{permission_values}"
         )
 
@@ -114,8 +130,10 @@ def create_role(
         IdentityError,
         ValueError,
     ) as exc:
-        console.print(
-            f"[red]创建角色失败：{exc}[/red]"
+        console.error(
+            f"创建角色失败：{exc}",
+            output_format=output,
+            error_type=type(exc).__name__,
         )
         raise typer.Exit(
             code=1

@@ -1,6 +1,6 @@
 # datamind/runtime/server/errors.py
 
-"""Datamind 运行时模型服务异常
+"""运行时模型服务异常
 
 定义运行时模型服务对外接口使用的异常类型。
 

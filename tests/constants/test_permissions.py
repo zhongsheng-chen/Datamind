@@ -20,18 +20,22 @@ EXPECTED_PERMISSIONS = {
     "model.delete",
     "deployment.read",
     "deployment.write",
+    "deployment.delete",
     "experiment.read",
     "experiment.write",
+    "experiment.delete",
     "identity.read",
     "identity.manage",
     "routing.read",
     "routing.write",
+    "routing.delete",
     "runtime.read",
     "runtime.manage",
     "outcome.write",
     "prediction.invoke",
     "request.read",
     "audit.read",
+    "data.export",
 }
 
 

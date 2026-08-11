@@ -10,11 +10,15 @@
   - VersionStatus: 模型版本生命周期状态
   - ArtifactStatus: 模型制品生命周期状态
   - DeploymentStatus: 模型部署状态
+  - RolloutType: 模型发布类型
+  - DeploymentRole: 模型部署角色
   - RuntimeControlStatus: 运行控制目标状态
   - ExperimentStatus: 实验生命周期状态
   - ExperimentVariantStatus: 实验分组状态
   - AssignmentStrategy: 实验分桶策略
   - DecisionStrategy: 请求决策策略
+  - ExecutionType: 模型执行类型
+  - ExecutionStatus: 模型执行状态
 
 使用示例：
   from datamind.models.enums import (
@@ -80,6 +84,22 @@ class DeploymentStatus(BaseEnum):
 
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class RolloutType(BaseEnum):
+    """模型发布类型"""
+
+    FULL = "full"
+    CANARY = "canary"
+    SHADOW = "shadow"
+
+
+class DeploymentRole(BaseEnum):
+    """模型部署角色"""
+
+    CHAMPION = "champion"
+    CHALLENGER = "challenger"
+    SHADOW = "shadow"
 
 
 class RuntimeControlStatus(BaseEnum):
@@ -149,15 +169,38 @@ class DecisionStrategy(BaseEnum):
     MANUAL = "manual"
 
 
+class ExecutionType(BaseEnum):
+    """模型执行类型"""
+
+    PRIMARY = "primary"
+    SHADOW = "shadow"
+
+
+class ExecutionStatus(BaseEnum):
+    """模型执行状态"""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+
+
 __all__ = [
     "BaseEnum",
     "MetadataStatus",
     "VersionStatus",
     "ArtifactStatus",
     "DeploymentStatus",
+    "RolloutType",
+    "DeploymentRole",
     "RuntimeControlStatus",
     "ExperimentStatus",
     "ExperimentVariantStatus",
     "AssignmentStrategy",
     "DecisionStrategy",
+    "ExecutionType",
+    "ExecutionStatus",
 ]

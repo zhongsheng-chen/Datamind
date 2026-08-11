@@ -79,6 +79,10 @@ def test_variant_table_and_columns() -> None:
         "description",
         "created_by",
         "updated_by",
+        "deleted_at",
+        "deleted_by",
+        "deletion_id",
+        "deletion_reason",
         "id",
         "created_at",
         "updated_at",
@@ -89,6 +93,7 @@ def test_variant_indexes() -> None:
     """验证索引集合"""
     assert {index.name for index in TABLE.indexes} == {
         "idx_variants_created_at",
+        "idx_variants_deleted_at",
         "idx_variants_deployment_id",
         "idx_variants_experiment_id",
         "idx_variants_experiment_status",

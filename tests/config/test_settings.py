@@ -43,8 +43,11 @@ import pytest
 from datamind.config.audit import AuditConfig
 from datamind.config.auth import AuthConfig
 from datamind.config.classification import ClassificationConfig
+from datamind.config.console import ConsoleConfig
 from datamind.config.database import DatabaseConfig
+from datamind.config.initialization import InitializationConfig
 from datamind.config.logging import LoggingConfig
+from datamind.config.runtime import RuntimeConfig
 from datamind.config.scorecard import ScorecardConfig
 from datamind.config.service import ServiceConfig
 from datamind.config.settings import (
@@ -63,8 +66,11 @@ CONFIG_ENV_PREFIXES: Final[tuple[str, ...]] = (
     "DATAMIND_AUDIT_",
     "DATAMIND_AUTH_",
     "DATAMIND_CLASSIFICATION_",
+    "DATAMIND_CONSOLE_",
     "DATAMIND_DATABASE_",
+    "DATAMIND_INIT_",
     "DATAMIND_LOG_",
+    "DATAMIND_RUNTIME_",
     "DATAMIND_SCORECARD_",
     "DATAMIND_SERVICE_",
     "DATAMIND_STORAGE_",
@@ -114,6 +120,10 @@ def test_settings_contains_all_child_configs() -> None:
         StorageConfig,
     )
     assert isinstance(
+        settings.initialization,
+        InitializationConfig,
+    )
+    assert isinstance(
         settings.logging,
         LoggingConfig,
     )
@@ -134,8 +144,16 @@ def test_settings_contains_all_child_configs() -> None:
         ClassificationConfig,
     )
     assert isinstance(
+        settings.console,
+        ConsoleConfig,
+    )
+    assert isinstance(
         settings.service,
         ServiceConfig,
+    )
+    assert isinstance(
+        settings.runtime,
+        RuntimeConfig,
     )
 
 
@@ -143,13 +161,16 @@ def test_settings_annotations_match_child_configs() -> None:
     """验证配置总入口类型标注完整且准确"""
     assert get_type_hints(Settings) == {
         "database": DatabaseConfig,
+        "initialization": InitializationConfig,
         "storage": StorageConfig,
         "logging": LoggingConfig,
         "audit": AuditConfig,
         "auth": AuthConfig,
         "scorecard": ScorecardConfig,
         "classification": ClassificationConfig,
+        "console": ConsoleConfig,
         "service": ServiceConfig,
+        "runtime": RuntimeConfig,
     }
 
 
@@ -168,6 +189,7 @@ def test_direct_settings_creation_returns_independent_instances() -> None:
 
     assert first is not second
     assert first.database is not second.database
+    assert first.initialization is not second.initialization
     assert first.storage is not second.storage
     assert first.logging is not second.logging
     assert first.audit is not second.audit
@@ -176,7 +198,9 @@ def test_direct_settings_creation_returns_independent_instances() -> None:
     assert first.auth.local is not second.auth.local
     assert first.scorecard is not second.scorecard
     assert first.classification is not second.classification
+    assert first.console is not second.console
     assert first.service is not second.service
+    assert first.runtime is not second.runtime
 
 
 def test_get_settings_returns_cached_singleton() -> None:
@@ -199,6 +223,7 @@ def test_get_settings_cache_clear_creates_new_instance() -> None:
     assert second is not first
     assert second.database is not first.database
     assert second.auth is not first.auth
+    assert second.console is not first.console
     assert second.service is not first.service
 
 
@@ -234,6 +259,10 @@ def test_get_settings_reads_environment_on_first_call(
         "DATAMIND_SERVICE_PORT",
         "3100",
     )
+    monkeypatch.setenv(
+        "DATAMIND_CONSOLE_PORT",
+        "4100",
+    )
 
     settings = get_settings()
 
@@ -245,6 +274,7 @@ def test_get_settings_reads_environment_on_first_call(
     assert settings.classification.threshold == 0.65
     assert settings.service.environment == Environment.PRODUCTION
     assert settings.service.port == 3100
+    assert settings.console.port == 4100
 
 
 def test_get_settings_keeps_cached_values_after_environment_changes(
