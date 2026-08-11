@@ -17,14 +17,21 @@ import datamind.runtime as runtime
 EXPECTED_EXPORTS = {
     "BentoBackend",
     "ControlSnapshot",
+    "ExecutionPlan",
+    "ExecutionResult",
     "ModelLoader",
+    "PredictionExecutor",
     "ReconcileResult",
     "RouteResult",
+    "RoutingPlan",
     "RuntimeManager",
     "RuntimeModel",
+    "RuntimePresence",
     "RuntimeReconciler",
     "RuntimeRegistry",
     "RuntimeRouter",
+    "ShadowDispatcher",
+    "ShadowTask",
 }
 
 

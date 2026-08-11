@@ -1,16 +1,14 @@
 # datamind/cli/model/purge.py
 
-"""永久清理模型制品命令
+"""永久清理模型命令
 
-仅清理已经逻辑删除的模型或模型版本制品。
+仅清理已经逻辑删除的模型或模型版本。
 
 核心功能：
-  - purge_model: 永久清理模型制品
+  - purge_model: 永久清理模型或模型版本
 
 使用示例：
-  python -m datamind.cli.main model purge scorecard \
-    --reason "模型已停止使用" \
-    --yes
+  python -m datamind.cli.main model purge scorecard
 """
 
 import asyncio
@@ -18,14 +16,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.models.errors import ModelError
 from datamind.services import ModelDeletionService
 
-app = typer.Typer(help="永久清理模型制品命令")
-console = Console()
+app = typer.Typer(help="永久清理模型命令")
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -39,9 +38,14 @@ def _validate_target(
         output: str,
 ) -> None:
     """校验模型清理目标和输出格式"""
-    if bool(name) == bool(model_id):
+    if not (name or model_id):
         raise typer.BadParameter(
-            "必须且只能提供 <name> 或 --model-id"
+            "必须提供 <name> 或 --model-id"
+        )
+
+    if name and model_id:
+        raise typer.BadParameter(
+            "<name> 与 --model-id 只能指定一个"
         )
 
     if version and version_id:
@@ -76,8 +80,8 @@ def purge_model(
             "--version-id",
             help="版本 ID"
         ),
-        reason: str = typer.Option(
-            ...,
+        reason: str | None = typer.Option(
+            None,
             "--reason",
             help="永久清理原因"
         ),
@@ -92,7 +96,7 @@ def purge_model(
             help="输出格式：text / json"
         ),
 ) -> None:
-    """永久清理已逻辑删除的模型制品"""
+    """永久清理已逻辑删除的模型或模型版本"""
 
     @audit(
         action="model.purge",
@@ -115,13 +119,13 @@ def purge_model(
         if (
                 not yes
                 and not typer.confirm(
-                    "该操作不可恢复，确认永久清理制品？"
+                    "该操作不可恢复，确认永久清理模型？"
                 )
         ):
             raise typer.Exit(0)
 
         logger.info(
-            "开始永久清理模型制品",
+            "开始永久清理模型",
             name=name,
             model_id=model_id,
             version=version,
@@ -148,14 +152,14 @@ def purge_model(
         else:
             color = "green" if result["failed_count"] == 0 else "yellow"
             console.print(
-                f"[{color}]模型制品清理完成[/{color}]"
+                f"[{color}]模型永久清理完成[/{color}]"
             )
             console.print(
-                f"[cyan]{'PURGED':<16}[/cyan] : "
+                f"{'PURGED':<16} : "
                 f"{result['purged_count']}"
             )
             console.print(
-                f"[cyan]{'FAILED':<16}[/cyan] : "
+                f"{'FAILED':<16} : "
                 f"{result['failed_count']}"
             )
 
@@ -169,6 +173,19 @@ def purge_model(
                 context.user
             )
 
-    asyncio.run(
-        runner()
-    )
+    try:
+        asyncio.run(
+            runner()
+        )
+    except (
+        ModelError,
+        ValueError,
+    ) as error:
+        console.error(
+            f"模型永久清理失败：{error}",
+            output_format=output,
+            error_type=type(error).__name__,
+        )
+        raise typer.Exit(
+            code=1
+        ) from None

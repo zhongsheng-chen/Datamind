@@ -47,11 +47,11 @@ def test_get_logger_passes_name(
     )
 
     logger = get_logger(
-        "datamind.services.model"
+        "datamind.services.catalog"
     )
 
     assert logger is expected_logger
-    assert captured["name"] == "datamind.services.model"
+    assert captured["name"] == "datamind.services.catalog"
 
 
 def test_get_logger_passes_none_by_default(

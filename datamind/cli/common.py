@@ -5,11 +5,20 @@
 提供 CLI 命令的通用上下文管理。
 
 核心功能：
+  - cli_command_scope: CLI 命令级追踪上下文
   - cli_context: CLI 上下文管理器
 
 使用示例：
-  from datamind.cli.common import cli_context
+  from datamind.cli.common import (
+      cli_command_scope,
+      cli_context,
+  )
 
+  # 登录等无需既有身份的命令
+  with cli_command_scope():
+      run_auth_command()
+
+  # 需要身份认证和权限校验的命令
   async with cli_context(
       required_permission="model.read",
       ip="10.0.0.1",
@@ -18,13 +27,17 @@
 """
 
 import os
-import uuid
-from contextlib import AbstractContextManager
+from collections.abc import Iterator
+from contextlib import (
+    AbstractContextManager,
+    contextmanager,
+)
+from types import TracebackType
 
 import structlog
 import typer
 from pydantic import SecretStr
-from rich.console import Console
+from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.auth.errors import (
     AuthenticationRequiredError,
@@ -41,16 +54,49 @@ from datamind.auth.schemas import (
 )
 from datamind.cli.credentials import CredentialStore
 from datamind.cli.errors import CredentialError
+from datamind.cli.output import CLIConsole
 from datamind.config import get_settings
 from datamind.constants import Environment
+from datamind.context import (
+    generate_trace_id,
+    update_context,
+)
 from datamind.context.scope import context_scope
 from datamind.db.core import UnitOfWork
 from datamind.logging import setup_logging
+from datamind.utils import generate_random_id
 from datamind.utils.network import get_host_ip, get_hostname
 
 
-console = Console()
+console = CLIConsole()
 logger = structlog.get_logger(__name__)
+
+
+@contextmanager
+def cli_command_scope(
+        *,
+        user: str = "anonymous",
+        ip: str | None = None,
+        hostname: str | None = None,
+) -> Iterator[None]:
+    """为单次 CLI 命令绑定追踪上下文
+
+    参数：
+        user: 当前操作用户，认证前默认为 anonymous
+        ip: 客户端 IP，默认自动获取
+        hostname: 客户端主机名，默认自动获取
+    """
+    with context_scope(
+            user=user,
+            ip=ip or get_host_ip(),
+            hostname=hostname or get_hostname(),
+            trace_id=generate_trace_id(),
+            request_id=generate_random_id(
+                prefix="req"
+            ),
+            source="cli",
+    ):
+        yield
 
 
 class CLIContext:
@@ -71,7 +117,7 @@ class CLIContext:
             hostname: 客户端名称，默认自动获取
         """
         self.required_permission = required_permission
-        self.user = "system"
+        self.user = "anonymous"
         self.ip = ip or get_host_ip()
         self.hostname = hostname or get_hostname()
 
@@ -94,6 +140,14 @@ class CLIContext:
             logging_config
         )
 
+        scope = cli_command_scope(
+            user=self.user,
+            ip=self.ip,
+            hostname=self.hostname,
+        )
+        scope.__enter__()
+        self.scope = scope
+
         try:
             await self._authenticate()
         except (
@@ -105,24 +159,42 @@ class CLIContext:
                 required_permission=self.required_permission,
                 error=str(exc),
             )
-            console.print(
-                f"[red]认证失败：{exc}[/red]"
+            console.error(
+                f"认证失败：{exc}",
+            )
+            self._close_scope(
+                type(exc),
+                exc,
+                exc.__traceback__,
+            )
+            raise typer.Exit(
+                code=1
+            ) from None
+        except (
+            SQLAlchemyError,
+            OSError,
+        ) as exc:
+            logger.error(
+                "CLI 数据库连接失败",
+                required_permission=self.required_permission,
+                error=str(exc),
+            )
+            console.error(
+                "数据库连接失败：请确认数据库服务已启动，"
+                "并检查 DATAMIND_DATABASE_URL 配置",
+            )
+            self._close_scope(
+                type(exc),
+                exc,
+                exc.__traceback__,
             )
             raise typer.Exit(
                 code=1
             ) from None
 
-        # 创建上下文作用域
-        scope = context_scope(
+        update_context(
             user=self.user,
-            ip=self.ip,
-            hostname=self.hostname,
-            trace_id=str(uuid.uuid4()),
-            request_id=str(uuid.uuid4()),
-            source="cli",
         )
-        scope.__enter__()
-        self.scope = scope
 
         return self
 
@@ -146,6 +218,7 @@ class CLIContext:
                     "预发布和生产环境必须启用认证"
                 )
 
+            self.user = "system"
             return
 
         environment_token = os.environ.get(
@@ -274,13 +347,39 @@ class CLIContext:
 
         return authenticated_user
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: TracebackType | None,
+    ) -> None:
         """退出上下文
 
         恢复上下文作用域。
         """
-        if self.scope is not None:
-            self.scope.__exit__(exc_type, exc, tb)
+        self._close_scope(
+            exc_type,
+            exc,
+            tb,
+        )
+
+    def _close_scope(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: TracebackType | None,
+    ) -> None:
+        """关闭并清除当前 CLI 命令上下文"""
+        if self.scope is None:
+            return
+
+        scope = self.scope
+        self.scope = None
+        scope.__exit__(
+            exc_type,
+            exc,
+            tb,
+        )
 
 
 def cli_context(

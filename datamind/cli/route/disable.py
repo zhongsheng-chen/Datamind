@@ -17,16 +17,19 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
-from datamind.db.repositories import RoutingRepository
+from datamind.db.repositories import (
+    DeploymentRepository,
+    RoutingRepository,
+)
 from datamind.utils.datetime import format_iso_utc
 
 app = typer.Typer(help="禁用路由命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -62,21 +65,37 @@ def disable_route(
         )
 
         async with UnitOfWork() as uow:
-            repo = RoutingRepository(
+            routing_repo = RoutingRepository(
+                uow.session
+            )
+            deployment_repo = DeploymentRepository(
                 uow.session
             )
 
-            route = await repo.get_routing(
+            route = await routing_repo.get_routing(
                 routing_id
             )
 
             if route is None:
-                console.print(
-                    f"[red]路由不存在: {routing_id}[/red]"
+                console.error(
+                    f"禁用路由失败：路由不存在：{routing_id}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
 
-            repo.disable_routing(
+            deployment = await deployment_repo.get_deployment(
+                route.deployment_id
+            )
+
+            if deployment is None:
+                console.error(
+                    "禁用路由失败：关联部署不存在："
+                    f"{route.deployment_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
+
+            routing_repo.disable_routing(
                 route,
                 updated_by=actor,
             )
@@ -87,9 +106,9 @@ def disable_route(
             result: dict[str, Any] = {
                 "routing_id": route.routing_id,
                 "deployment_id": route.deployment_id,
-                "environment": route.environment,
-                "rollout_type": route.rollout_type,
-                "rollout_group": route.rollout_group,
+                "environment": deployment.environment,
+                "rollout_type": deployment.rollout_type,
+                "rollout_group": deployment.role,
                 "enabled": route.enabled,
                 "traffic_ratio": route.traffic_ratio,
                 "updated_by": route.updated_by,
@@ -106,18 +125,17 @@ def disable_route(
             )
             return result
 
-        console.print("[green]路由禁用成功[/green]\n")
+        console.info("路由禁用成功\n")
 
-        console.print(f"[cyan]{'ROUTING ID':<16}[/cyan] : {result['routing_id']}")
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : {result['rollout_type']}")
+        console.print(f"{'ROUTING ID':<16} : {result['routing_id']}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'ROLLOUT TYPE':<16} : {result['rollout_type']}")
         console.print(
-            f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : "
+            f"{'ROLLOUT GROUP':<16} : "
             f"{result['rollout_group'] or '-'}"
         )
-        console.print(f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : {result['traffic_ratio']}")
-        console.print(f"[cyan]{'ENABLED':<16}[/cyan] : {result['enabled']}")
+        console.print(f"{'TRAFFIC RATIO':<16} : {result['traffic_ratio']}")
+        console.print(f"{'ENABLED':<16} : {result['enabled']}")
 
         return result
 

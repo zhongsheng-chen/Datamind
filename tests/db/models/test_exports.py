@@ -31,6 +31,7 @@ EXPECTED_EXPORTS = {
     "Assignment",
     "Request",
     "Decision",
+    "Execution",
     "Outcome",
     "Audit",
     "Artifact",

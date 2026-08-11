@@ -29,6 +29,7 @@
 """
 
 import datamind.db.models
+import datamind.db.events
 
 from datamind.db.core import (
     create_engine,

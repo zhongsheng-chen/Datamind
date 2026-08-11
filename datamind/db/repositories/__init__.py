@@ -33,6 +33,7 @@
   - AssignmentRepository: 实验分配仓储
   - RequestRepository: 请求仓储
   - DecisionRepository: 请求决策仓储
+  - ExecutionRepository: 模型执行仓储
   - OutcomePatch: 实验结果更新字段
   - OutcomeRepository: 实验结果仓储
   - AuditRepository: 审计日志仓储
@@ -61,6 +62,7 @@ from datamind.db.repositories.artifact import ArtifactRepository
 from datamind.db.repositories.base import BaseRepository
 from datamind.db.repositories.control import ControlRepository
 from datamind.db.repositories.decision import DecisionRepository
+from datamind.db.repositories.execution import ExecutionRepository
 from datamind.db.repositories.deployment import (
     DeploymentPatch,
     DeploymentRepository,
@@ -137,6 +139,7 @@ __all__ = [
     "AssignmentRepository",
     "RequestRepository",
     "DecisionRepository",
+    "ExecutionRepository",
     "OutcomePatch",
     "OutcomeRepository",
     "AuditRepository",

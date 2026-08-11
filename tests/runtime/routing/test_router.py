@@ -18,10 +18,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from datamind.ab_test.engine import ABTestResult
+from datamind.db.models.routing import Routing
 from datamind.models.enums import DecisionStrategy
 from datamind.models.errors import RuntimeRouteError
 import datamind.runtime.routing.router as router_module
-from datamind.runtime.routing import RouteResult, RuntimeRouter
+from datamind.runtime.routing import (
+    RouteResult,
+    RoutingPlan,
+    RuntimeRouter,
+)
 
 
 class FakeUnitOfWork:
@@ -56,6 +61,18 @@ def create_deployment(deployment_id: str) -> SimpleNamespace:
         effective_to=None,
         config=None,
     )
+
+
+def create_shadow_deployment(
+        deployment_id: str,
+) -> SimpleNamespace:
+    """创建影子部署测试对象"""
+    deployment = create_deployment(
+        deployment_id
+    )
+    deployment.rollout_type = "shadow"
+    deployment.role = "shadow"
+    return deployment
 
 
 def create_ab_test_result(
@@ -156,16 +173,37 @@ def create_routing(
         routing_id: str,
         deployment_id: str,
         ratio: float,
-) -> SimpleNamespace:
+) -> Routing:
     """创建路由规则测试对象"""
-    return SimpleNamespace(
+    return Routing(
         routing_id=routing_id,
+        name=f"{routing_id}-route",
         deployment_id=deployment_id,
         rollout_type="canary",
         rollout_group="challenger",
-        traffic_ratio=ratio,
+        environment="production",
+        enabled=True,
+        traffic_ratio=float(ratio),
         rules=None,
     )
+
+
+def test_routing_effective_window_controls_eligibility() -> None:
+    """测试路由仅在自身生效区间内参与流量分配。"""
+    now = datetime(2026, 8, 29, 0, 0, tzinfo=timezone.utc)
+    routing = create_routing("rtn_test", "dep_test", 1.0)
+    one_minute = timedelta(minutes=1.0)
+
+    routing.effective_from = now - one_minute
+    routing.effective_to = now + one_minute
+    assert RuntimeRouter._is_effective_routing(routing, now=now)
+
+    routing.effective_from = now + one_minute
+    assert not RuntimeRouter._is_effective_routing(routing, now=now)
+
+    routing = create_routing("rtn_test", "dep_test", 1.0)
+    routing.effective_to = now
+    assert not RuntimeRouter._is_effective_routing(routing, now=now)
 
 
 async def resolve_routing(
@@ -223,13 +261,16 @@ async def resolve_routing(
         AsyncMock(return_value=None),
     )
 
-    return await router.resolve(
+    plan = await router.resolve(
         model_id="mdl_test",
         subject_key=subject_key,
         subject_type="customer",
         payload=payload,
         environment="production",
+        include_shadows=False,
     )
+
+    return plan.primary
 
 
 @pytest.mark.asyncio
@@ -387,13 +428,14 @@ async def test_resolve_uses_manual_deployment(
         deployment=deployment,
     )
 
-    result = await router.resolve(
+    plan = await router.resolve(
         model_id="mdl_test",
         environment="production",
         deployment_id="dep_manual",
         subject_key="customer_10001",
         subject_type="customer",
     )
+    result = plan.primary
 
     deployment_repo.get_deployment.assert_awaited_once_with(
         "dep_manual"
@@ -423,6 +465,12 @@ async def test_resolve_uses_manual_deployment(
                 "status": "inactive",
             }),
             "部署不可用",
+        ),
+        (
+            create_shadow_deployment(
+                "dep_manual"
+            ),
+            "影子部署不能作为主预测目标",
         ),
     ],
 )
@@ -498,13 +546,14 @@ async def test_resolve_uses_ab_test_deployment(
         ab_result=create_ab_test_result(),
     )
 
-    result = await router.resolve(
+    plan = await router.resolve(
         model_id="mdl_test",
         environment="production",
         subject_key="customer_10001",
         subject_type="customer",
         payload={"age": 35},
     )
+    result = plan.primary
 
     engine_assign.assert_awaited_once()
     assert result.deployment_id == "dep_experiment"
@@ -572,10 +621,12 @@ async def test_invalid_ab_test_deployment_falls_back(
         else experiment_deployment
     )
 
-    result = await router.resolve(
+    plan = await router.resolve(
         model_id="mdl_test",
         environment="production",
+        include_shadows=False,
     )
+    result = plan.primary
 
     assert result.deployment_id == "dep_default"
     assert FakeUnitOfWork.latest is not None
@@ -594,10 +645,11 @@ async def test_resolve_uses_first_active_deployment_without_champion(
         active_deployments=[deployment],
     )
 
-    result = await router.resolve(
+    plan = await router.resolve(
         model_id="mdl_test",
         environment="production",
     )
+    result = plan.primary
 
     assert result.deployment_id == "dep_first"
     assert result.context["reason"] == "first_active_deployment"
@@ -618,3 +670,158 @@ async def test_resolve_rejects_missing_available_deployment(
             model_id="mdl_test",
             environment="production",
         )
+
+
+@pytest.mark.asyncio
+async def test_resolve_skips_shadow_routing_for_primary_result(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试影子路由不参与主路由流量分配"""
+    primary = create_deployment(
+        "dep_primary"
+    )
+    shadow = create_shadow_deployment(
+        "dep_shadow"
+    )
+    router, deployment_repo, routing_repo, _ = configure_router(
+        monkeypatch,
+    )
+    shadow_routing = create_routing(
+        "rtn_0",
+        "dep_shadow",
+        1.0,
+    )
+    shadow_routing.rollout_type = "full"
+    shadow_routing.rollout_group = "champion"
+    primary_routing = create_routing(
+        "rtn_1",
+        "dep_primary",
+        1.0,
+    )
+    routing_repo.list_enabled_routings.return_value = [
+        shadow_routing,
+        primary_routing,
+    ]
+    deployments = {
+        "dep_primary": primary,
+        "dep_shadow": shadow,
+    }
+    deployment_repo.get_deployment.side_effect = (
+        deployments.get
+    )
+    monkeypatch.setattr(
+        router,
+        "_hash_ratio",
+        lambda *_parts: (0.5, "bucket_test"),
+    )
+
+    plan = await router.resolve(
+        model_id="mdl_test",
+        environment="production",
+        subject_key="customer_10001",
+    )
+    result = plan.primary
+
+    assert result.deployment_id == "dep_primary"
+    assert result.source == str(
+        DecisionStrategy.ROUTING
+    )
+
+
+@pytest.mark.asyncio
+async def test_resolve_includes_independently_matched_shadow(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试路由计划包含独立命中的影子部署"""
+    router, deployment_repo, routing_repo, _ = configure_router(
+        monkeypatch,
+    )
+    primary = RouteResult(
+        model_id="mdl_test",
+        version_id="ver_primary",
+        deployment_id="dep_primary",
+        framework="sklearn",
+        environment="production",
+        source="deployment",
+        strategy="fallback",
+    )
+    shadow = create_shadow_deployment(
+        "dep_shadow"
+    )
+    shadow.version_id = "ver_shadow"
+    routing = create_routing(
+        "rtn_shadow",
+        "dep_shadow",
+        1.0,
+    )
+    routing.rollout_type = "full"
+    routing.rollout_group = "champion"
+    routing_repo.list_enabled_routings.return_value = [
+        routing
+    ]
+    deployment_repo.get_deployment.return_value = shadow
+    resolve = AsyncMock(
+        return_value=primary
+    )
+    monkeypatch.setattr(
+        router,
+        "_resolve_primary",
+        resolve,
+    )
+
+    plan = await router.resolve(
+        model_id="mdl_test",
+        environment="production",
+        subject_key="customer_10001",
+        subject_type="customer",
+        payload={"age": 35},
+    )
+
+    assert isinstance(plan, RoutingPlan)
+    assert plan.primary is primary
+    assert len(plan.shadows) == 1
+    shadow_result = plan.shadows[0]
+    assert shadow_result.deployment_id == "dep_shadow"
+    assert shadow_result.version_id == "ver_shadow"
+    assert shadow_result.source == str(
+        DecisionStrategy.SHADOW
+    )
+    assert shadow_result.routing_id == "rtn_shadow"
+    assert shadow_result.subject_key == "customer_10001"
+    assert shadow_result.context["rollout_type"] == "shadow"
+    assert shadow_result.context["rollout_group"] == "shadow"
+
+
+@pytest.mark.asyncio
+async def test_resolve_can_disable_shadow_resolution(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试配置关闭时不查询影子路由"""
+    router, _, routing_repo, _ = configure_router(
+        monkeypatch,
+    )
+    primary = RouteResult(
+        model_id="mdl_test",
+        version_id="ver_primary",
+        deployment_id="dep_primary",
+        framework="sklearn",
+        environment="production",
+        source="deployment",
+        strategy="fallback",
+    )
+    monkeypatch.setattr(
+        router,
+        "_resolve_primary",
+        AsyncMock(return_value=primary),
+    )
+
+    plan = await router.resolve(
+        model_id="mdl_test",
+        environment="production",
+        include_shadows=False,
+    )
+
+    assert plan == RoutingPlan(
+        primary=primary
+    )
+    routing_repo.list_enabled_routings.assert_not_awaited()

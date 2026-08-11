@@ -40,10 +40,7 @@
           bucket="bucket_0089",
           group="treatment",
           weight=0.5,
-          probability=0.12,
-          score=680,
           decision="approve",
-          latency_ms=35.6,
           context={
               "experiment_id": "exp_0123456789abcdef",
               "group": "treatment",
@@ -131,19 +128,6 @@ class DecisionRepository(BaseRepository):
         ):
             raise ValueError(
                 f"{field_name} 必须在 0 到 1 之间"
-            )
-
-    @staticmethod
-    def _validate_latency_ms(
-            latency_ms: float | None,
-    ) -> None:
-        """校验决策耗时"""
-        if (
-                latency_ms is not None
-                and latency_ms < 0
-        ):
-            raise ValueError(
-                "latency_ms 不能小于 0"
             )
 
     async def get_decision(
@@ -417,11 +401,7 @@ class DecisionRepository(BaseRepository):
             bucket: str | None = None,
             group: str | None = None,
             weight: float | None = None,
-            prediction: dict | None = None,
-            probability: float | None = None,
-            score: float | None = None,
             decision: str | None = None,
-            latency_ms: float | None = None,
             context: dict | None = None,
             decided_at: datetime | None = None,
     ) -> Decision:
@@ -443,11 +423,7 @@ class DecisionRepository(BaseRepository):
             bucket: 分桶标识（可选）
             group: 实验组别（可选）
             weight: 分组权重（可选）
-            prediction: 模型预测结果（可选）
-            probability: 预测概率（可选）
-            score: 评分结果（可选）
             decision: 最终决策结果（可选）
-            latency_ms: 决策耗时（可选）
             context: 决策上下文（可选）
             decided_at: 决策时间（可选）
 
@@ -455,20 +431,12 @@ class DecisionRepository(BaseRepository):
             创建后的决策记录对象
 
         异常：
-            ValueError: weight、probability 或 latency_ms 不合法
+            ValueError: weight 不合法
         """
         self._validate_ratio(
             weight,
             field_name="weight",
         )
-        self._validate_ratio(
-            probability,
-            field_name="probability",
-        )
-        self._validate_latency_ms(
-            latency_ms
-        )
-
         new_decision = Decision(
             decision_id=decision_id,
             request_id=request_id,
@@ -477,7 +445,6 @@ class DecisionRepository(BaseRepository):
             source=str(
                 source
             ),
-            prediction=prediction,
             context=context,
             decided_at=(
                 decided_at
@@ -518,17 +485,8 @@ class DecisionRepository(BaseRepository):
         if weight is not None:
             new_decision.weight = weight
 
-        if probability is not None:
-            new_decision.probability = probability
-
-        if score is not None:
-            new_decision.score = score
-
         if decision is not None:
             new_decision.decision = decision
-
-        if latency_ms is not None:
-            new_decision.latency_ms = latency_ms
 
         self.add(
             new_decision

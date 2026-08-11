@@ -18,7 +18,7 @@ from typing import Any
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.ab_test.analyzer import ABTestAnalyzer
@@ -32,7 +32,7 @@ from datamind.db.repositories import (
 )
 
 app = typer.Typer(help="实验分析命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -110,19 +110,19 @@ def _print_analysis(result: dict[str, Any]) -> None:
     参数：
         result: 实验分析结果
     """
-    console.print("[green]实验分析结果[/green]\n")
+    console.info("实验分析结果\n")
 
-    console.print(f"[cyan]{'EXPERIMENT ID':<20}[/cyan] : {result['experiment_id']}")
-    console.print(f"[cyan]{'MODEL ID':<20}[/cyan] : {result['model_id']}")
-    console.print(f"[cyan]{'ENVIRONMENT':<20}[/cyan] : {result['environment']}")
-    console.print(f"[cyan]{'NAME':<20}[/cyan] : {result['name'] or '-'}")
-    console.print(f"[cyan]{'STATUS':<20}[/cyan] : {result['status']}")
-    console.print(f"[cyan]{'STRATEGY':<20}[/cyan] : {result['strategy']}")
+    console.print(f"{'EXPERIMENT ID':<20} : {result['experiment_id']}")
+    console.print(f"{'MODEL ID':<20} : {result['model_id']}")
+    console.print(f"{'ENVIRONMENT':<20} : {result['environment']}")
+    console.print(f"{'NAME':<20} : {result['name'] or '-'}")
+    console.print(f"{'STATUS':<20} : {result['status']}")
+    console.print(f"{'STRATEGY':<20} : {result['strategy']}")
     console.print(
-        f"[cyan]{'BASELINE VARIANT':<20}[/cyan] : "
+        f"{'BASELINE VARIANT':<20} : "
         f"{result['baseline_variant_id'] or '-'}"
     )
-    console.print(f"[cyan]{'OUTCOME COUNT':<20}[/cyan] : {result['outcome_count']}")
+    console.print(f"{'OUTCOME COUNT':<20} : {result['outcome_count']}")
 
     console.print()
     _print_metrics_table(result["metrics"]["variants"])
@@ -137,7 +137,7 @@ def _print_analysis(result: dict[str, Any]) -> None:
 
     if warnings:
         console.print()
-        console.print("[yellow]提示[/yellow]")
+        console.warning("提示")
 
         for item in warnings:
             console.print(f"- {item}")

@@ -571,12 +571,14 @@ def test_metadata_patch_fields_and_defaults() -> None:
         )
     ] == [
         "name",
+        "display_name",
         "model_type",
         "task_type",
         "framework",
         "description",
     ]
     assert patch.name is None
+    assert patch.display_name is None
     assert patch.model_type is None
     assert patch.task_type is None
     assert patch.framework is None

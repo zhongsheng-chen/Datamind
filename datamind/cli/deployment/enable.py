@@ -2,7 +2,7 @@
 
 """启用部署命令
 
-提供部署启用功能。
+提供部署启用功能，并自动请求 Worker 装载模型。
 
 核心功能：
   - enable_deployment: 启用部署
@@ -16,14 +16,18 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.models.errors import (
+    DeploymentError,
+    InvalidModelStateError,
+)
 from datamind.services import DeploymentLifecycleService
 
-app = typer.Typer(help="启用部署命令")
-console = Console()
+app = typer.Typer(help="启用部署并启动运行实例")
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -40,7 +44,7 @@ def enable_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """启用部署"""
+    """启用部署并启动运行实例"""
 
     @audit(
         action="deploy.enable",
@@ -60,10 +64,26 @@ def enable_deployment(
 
         deployer = DeploymentLifecycleService()
 
-        result = await deployer.enable_deployment(
-            deployment_id=deployment_id,
-            updated_by=actor,
-        )
+        try:
+            result = await deployer.enable_deployment(
+                deployment_id=deployment_id,
+                updated_by=actor,
+            )
+        except (
+            DeploymentError,
+            InvalidModelStateError,
+        ) as error:
+            logger.warning(
+                "启用部署失败",
+                deployment_id=deployment_id,
+                error=str(error),
+            )
+            console.error(
+                f"部署启用失败：{error}",
+                output_format=output,
+                error_type=type(error).__name__,
+            )
+            raise typer.Exit(code=1) from None
 
         if output == "json":
             console.print_json(
@@ -75,13 +95,13 @@ def enable_deployment(
             )
             return result
 
-        console.print("[green]部署启用成功[/green]\n")
+        console.info("部署启用成功\n")
 
-        console.print(f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : {result['deployment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<16}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'STATUS':<16}[/cyan] : {result['status']}")
+        console.print(f"{'DEPLOYMENT ID':<16} : {result['deployment_id']}")
+        console.print(f"{'MODEL ID':<16} : {result['model_id']}")
+        console.print(f"{'VERSION ID':<16} : {result['version_id']}")
+        console.print(f"{'ENVIRONMENT':<16} : {result['environment']}")
+        console.print(f"{'STATUS':<16} : {result['status']}")
 
         return result
 

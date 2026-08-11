@@ -15,15 +15,15 @@ import asyncio
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.services import IdentityService
 from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="撤销角色命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -62,9 +62,9 @@ def revoke_role(
                 ),
                 operator=context.user,
             )
-            console.print(
-                "[green]角色已撤销："
-                f"{result['username']} -> {result['role']}[/green]"
+            console.info(
+                "角色已撤销："
+                f"{result['username']} -> {result['role']}"
             )
 
     try:
@@ -72,8 +72,8 @@ def revoke_role(
             runner()
         )
     except IdentityError as exc:
-        console.print(
-            f"[red]撤销角色失败：{exc}[/red]"
+        console.error(
+            f"撤销角色失败：{exc}"
         )
         raise typer.Exit(
             code=1

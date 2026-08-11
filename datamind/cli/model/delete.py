@@ -18,14 +18,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.models.errors import ModelError
 from datamind.services import ModelDeletionService
 
 app = typer.Typer(help="删除模型命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -39,9 +40,14 @@ def _validate_target(
         output: str,
 ) -> None:
     """校验模型删除目标和输出格式"""
-    if bool(name) == bool(model_id):
+    if not (name or model_id):
         raise typer.BadParameter(
-            "必须且只能提供 <name> 或 --model-id"
+            "必须提供 <name> 或 --model-id"
+        )
+
+    if name and model_id:
+        raise typer.BadParameter(
+            "<name> 与 --model-id 只能指定一个"
         )
 
     if version and version_id:
@@ -148,17 +154,17 @@ def delete_model(
             return result
 
         if result["action"] == "delete_version":
-            console.print("[green]模型版本删除成功[/green]\n")
-            console.print(f"[cyan]{'VERSION ID':<16}[/cyan] : {result['version_id']}")
-            console.print(f"[cyan]{'VERSION':<16}[/cyan] : {result['version']}")
-            console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
+            console.info("模型版本删除成功\n")
+            console.print(f"{'VERSION ID':<16} : {result['version_id']}")
+            console.print(f"{'VERSION':<16} : {result['version']}")
+            console.print(f"{'MODEL ID':<16} : {result['model_id']}")
         else:
-            console.print("[green]模型删除成功[/green]\n")
-            console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {result['model_id']}")
-            console.print(f"[cyan]{'NAME':<16}[/cyan] : {result['name']}")
+            console.info("模型删除成功\n")
+            console.print(f"{'MODEL ID':<16} : {result['model_id']}")
+            console.print(f"{'NAME':<16} : {result['name']}")
 
         console.print(
-            f"[cyan]{'DELETION ID':<16}[/cyan] : "
+            f"{'DELETION ID':<16} : "
             f"{result['deletion_id']}"
         )
 
@@ -172,4 +178,16 @@ def delete_model(
                 context.user
             )
 
-    asyncio.run(runner())
+    try:
+        asyncio.run(
+            runner()
+        )
+    except ModelError as error:
+        console.error(
+            f"模型删除失败：{error}",
+            output_format=output,
+            error_type=type(error).__name__,
+        )
+        raise typer.Exit(
+            code=1
+        ) from None

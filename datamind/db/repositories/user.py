@@ -10,10 +10,12 @@
   - list_active_users: 获取活跃用户列表
   - create_user: 创建用户
   - update_user: 更新用户
+  - replace_profile: 替换用户资料
   - update_password: 更新密码哈希
   - activate_user: 启用用户
   - disable_user: 停用用户
   - mark_deleted: 逻辑删除用户
+  - restore_user: 恢复用户
   - lock_user: 锁定用户
   - unlock_user: 解锁用户
   - record_login_success: 记录登录成功
@@ -30,7 +32,7 @@
           user_id="usr_0123456789abcdef",
           username="admin",
           password_hash="$argon2id$...",
-          display_name="系统管理员",
+          display_name="Administrator",
           email="admin@example.com",
           created_by="usr_fedcba9876543210",
       )
@@ -295,6 +297,36 @@ class UserRepository(BaseRepository):
 
         return user
 
+    def replace_profile(
+            self,
+            user: User,
+            *,
+            username: str,
+            display_name: str | None,
+            email: str | None,
+            updated_by: str | None = None,
+    ) -> User:
+        """替换用户资料
+
+        参数：
+            user: 用户对象
+            username: 新用户名
+            display_name: 新显示名称
+            email: 新邮箱
+            updated_by: 更新用户 ID（可选）
+
+        返回：
+            更新后的用户对象
+        """
+        user.username = username
+        user.display_name = display_name
+        user.email = email
+
+        if updated_by is not None:
+            user.updated_by = updated_by
+
+        return user
+
     def update_password(
             self,
             user: User,
@@ -383,7 +415,7 @@ class UserRepository(BaseRepository):
             user: User,
             *,
             deleted_by: str,
-            deletion_reason: str,
+            deletion_reason: str | None = None,
             deleted_at: datetime | None = None,
     ) -> User:
         """逻辑删除用户
@@ -393,7 +425,7 @@ class UserRepository(BaseRepository):
         参数：
             user: 用户对象
             deleted_by: 删除操作人
-            deletion_reason: 删除原因
+            deletion_reason: 删除原因（可选）
             deleted_at: 删除时间（可选）
 
         返回：
@@ -421,6 +453,47 @@ class UserRepository(BaseRepository):
         user.deleted_by = deleted_by
         user.deletion_reason = deletion_reason
         user.updated_by = deleted_by
+
+        return user
+
+    def restore_user(
+            self,
+            user: User,
+            *,
+            restored_at: datetime | None = None,
+            restored_by: str | None = None,
+    ) -> User:
+        """恢复已逻辑删除的用户
+
+        恢复后用户重新处于 active 状态，更新创建时间，
+        并清除原删除和锁定信息。
+
+        参数：
+            user: 用户对象
+            restored_at: 恢复时间（可选）
+            restored_by: 恢复操作人（可选）
+
+        返回：
+            恢复后的用户对象
+        """
+        user.status = str(
+            UserStatus.ACTIVE
+        )
+        user.created_at = (
+            restored_at
+            if restored_at is not None
+            else datetime.now(
+                timezone.utc
+            )
+        )
+        user.failed_login_count = 0
+        user.locked_until = None
+        user.deleted_at = None
+        user.deleted_by = None
+        user.deletion_reason = None
+
+        if restored_by is not None:
+            user.updated_by = restored_by
 
         return user
 

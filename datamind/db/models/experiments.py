@@ -72,6 +72,10 @@ class Experiment(
             "created_at",
         ),
         Index(
+            "idx_experiments_deleted_at",
+            "deleted_at",
+        ),
+        Index(
             "idx_experiments_effective_time",
             "model_id",
             "effective_from",
@@ -101,7 +105,8 @@ class Experiment(
             "environment",
             unique=True,
             postgresql_where=text(
-                "status = 'running'"
+                "status = 'running' "
+                "AND deleted_at IS NULL"
             ),
         ),
         Index(
@@ -235,6 +240,32 @@ class Experiment(
         String(50),
         nullable=True,
         comment="更新人",
+    )
+
+    deleted_at = Column(
+        DateTime(
+            timezone=True
+        ),
+        nullable=True,
+        comment="逻辑删除时间",
+    )
+
+    deleted_by = Column(
+        String(50),
+        nullable=True,
+        comment="逻辑删除操作人",
+    )
+
+    deletion_id = Column(
+        String(64),
+        nullable=True,
+        comment="逻辑删除批次 ID",
+    )
+
+    deletion_reason = Column(
+        TEXT,
+        nullable=True,
+        comment="逻辑删除原因",
     )
 
     def __repr__(

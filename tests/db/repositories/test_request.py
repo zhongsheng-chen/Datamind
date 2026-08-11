@@ -524,6 +524,7 @@ def test_create_request_allows_optional_fields() -> None:
         request
     )
     assert request.payload is None
+    assert request.model_name is None
     assert request.response is None
     assert request.source is None
     assert request.status == "received"
@@ -531,6 +532,25 @@ def test_create_request_allows_optional_fields() -> None:
     assert request.latency_ms is None
     assert request.user is None
     assert request.ip is None
+
+
+def test_create_request_allows_unresolved_model() -> None:
+    """验证模型解析前可保存原始请求"""
+    repository, _, add = create_repository()
+
+    request = repository.create_request(
+        request_id="req_unresolved",
+        model_name="missing-model",
+        payload={
+            "model_name": "missing-model",
+            "features": {"age": 35},
+        },
+    )
+
+    add.assert_called_once_with(request)
+    assert vars(request).get("model_id") is None
+    assert request.model_name == "missing-model"
+    assert request.status == "received"
 
 
 @pytest.mark.parametrize(
@@ -580,6 +600,7 @@ def test_mark_success() -> None:
     """验证标记请求处理成功"""
     repository, _, _ = create_repository()
     request = create_request(
+        model_id=None,
         status="failed",
         error="old error",
         latency_ms=100.0,
@@ -587,6 +608,7 @@ def test_mark_success() -> None:
 
     result = repository.mark_success(
         request,
+        model_id="mdl_resolved",
         response={
             "success": True,
             "score": 720,
@@ -596,6 +618,7 @@ def test_mark_success() -> None:
 
     assert result is request
     assert request.status == "success"
+    assert request.model_id == "mdl_resolved"
     assert request.error is None
     assert request.response == {
         "success": True,
@@ -609,6 +632,7 @@ def test_mark_success_preserves_latency_when_omitted() -> None:
     """验证成功时未提供耗时则保留原值"""
     repository, _, _ = create_repository()
     request = create_request(
+        model_id=None,
         status="received",
         latency_ms=100.0,
     )
@@ -671,6 +695,7 @@ def test_mark_failed() -> None:
     result = repository.mark_failed(
         request,
         error="model timeout",
+        model_id="mdl_resolved",
         response={
             "success": False,
             "error": "model timeout",
@@ -680,6 +705,7 @@ def test_mark_failed() -> None:
 
     assert result is request
     assert request.status == "failed"
+    assert request.model_id == "mdl_resolved"
     assert request.error == "model timeout"
     assert request.response == {
         "success": False,

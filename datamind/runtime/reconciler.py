@@ -2,7 +2,8 @@
 
 """运行时状态协调器
 
-根据 controls 表中的期望状态，协调当前 Worker 的模型运行状态。
+负责根据运行控制状态，
+协调当前 Worker 的模型加载、重载与卸载。
 
 核心功能：
   - start: 启动后台协调循环
@@ -58,6 +59,7 @@ from datamind.models.errors import (
     VersionNotFoundError,
 )
 from datamind.runtime.manager import RuntimeManager
+from datamind.runtime.presence import RuntimePresence
 
 logger = structlog.get_logger(__name__)
 
@@ -568,8 +570,9 @@ class RuntimeReconciler:
                 or self.operator
         )
 
-        local_loaded = self.manager.exists(
+        local_loaded = (
             deployment_id
+            in self.manager.registry
         )
 
         applied_generation = (
@@ -583,9 +586,14 @@ class RuntimeReconciler:
                 == RuntimeControlStatus.LOADED
         ):
             if not local_loaded:
-                await self.manager.start(
+                await self.manager.load(
                     deployment_id=deployment_id,
                     operator=operator,
+                )
+
+                await self._record_applied_generation(
+                    deployment_id=deployment_id,
+                    generation=generation,
                 )
 
                 self._applied_generations[
@@ -603,6 +611,11 @@ class RuntimeReconciler:
                 return "loaded"
 
             if applied_generation is None:
+                await self._record_applied_generation(
+                    deployment_id=deployment_id,
+                    generation=generation,
+                )
+
                 self._applied_generations[
                     deployment_id
                 ] = generation
@@ -618,9 +631,14 @@ class RuntimeReconciler:
                 return "unchanged"
 
             if applied_generation != generation:
-                await self.manager.restart(
+                await self.manager.reload(
                     deployment_id=deployment_id,
                     operator=operator,
+                )
+
+                await self._record_applied_generation(
+                    deployment_id=deployment_id,
+                    generation=generation,
                 )
 
                 self._applied_generations[
@@ -647,9 +665,14 @@ class RuntimeReconciler:
                 == RuntimeControlStatus.UNLOADED
         ):
             if local_loaded:
-                await self.manager.stop(
+                await self.manager.unload(
                     deployment_id=deployment_id,
                     operator=operator,
+                )
+
+                await self._record_applied_generation(
+                    deployment_id=deployment_id,
+                    generation=generation,
                 )
 
                 self._applied_generations[
@@ -666,6 +689,11 @@ class RuntimeReconciler:
 
                 return "unloaded"
 
+            await self._record_applied_generation(
+                deployment_id=deployment_id,
+                generation=generation,
+            )
+
             self._applied_generations[
                 deployment_id
             ] = generation
@@ -676,6 +704,22 @@ class RuntimeReconciler:
             "不支持的运行控制状态: "
             f"{desired_status}"
         )
+
+    async def _record_applied_generation(
+            self,
+            *,
+            deployment_id: str,
+            generation: int,
+    ) -> None:
+        """持久化当前 Worker 已应用的控制版本号"""
+        async with UnitOfWork() as uow:
+            await RuntimeRepository(
+                uow.session
+            ).set_applied_generation(
+                deployment_id=deployment_id,
+                worker_id=self.worker_id,
+                generation=generation,
+            )
 
     async def _heartbeat_if_due(
             self,
@@ -704,6 +748,7 @@ class RuntimeReconciler:
             await self._heartbeat_loaded_runtimes(
                 controls
             )
+            await self._mark_stale_runtimes_failed()
 
             self._last_heartbeat_at = now
 
@@ -719,6 +764,28 @@ class RuntimeReconciler:
                 worker_id=self.worker_id,
                 environment=self.environment,
                 error=str(exc),
+            )
+
+    async def _mark_stale_runtimes_failed(
+            self,
+    ) -> None:
+        """将当前环境中已失联的其他 Worker 实例收敛为失败。"""
+        async with UnitOfWork() as uow:
+            runtime_ids = await RuntimeRepository(
+                uow.session
+            ).mark_stale_runtimes_failed(
+                environment=self.environment,
+                stale_before=RuntimePresence.current().stale_at,
+                exclude_worker_id=self.worker_id,
+            )
+
+        if runtime_ids:
+            logger.warning(
+                "失联运行实例已标记为失败",
+                worker_id=self.worker_id,
+                environment=self.environment,
+                runtime_ids=runtime_ids,
+                count=len(runtime_ids),
             )
 
     async def _heartbeat_loaded_runtimes(
@@ -737,9 +804,8 @@ class RuntimeReconciler:
             if (
                     control.desired_status
                     == RuntimeControlStatus.LOADED
-                    and self.manager.exists(
-                control.deployment_id
-            )
+                    and control.deployment_id
+                    in self.manager.registry
             )
         ]
 
@@ -764,7 +830,7 @@ class RuntimeReconciler:
                 if runtime is None:
                     continue
 
-                if runtime.status != "loaded":
+                if runtime.status != "running":
                     continue
 
                 repo.heartbeat(

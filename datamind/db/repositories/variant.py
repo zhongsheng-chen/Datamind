@@ -14,6 +14,8 @@
   - activate_variant: 启用实验分组
   - deactivate_variant: 停用实验分组
   - archive_variant: 归档实验分组
+  - mark_deleted: 逻辑删除实验分组
+  - restore_variant: 恢复实验分组
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -41,6 +43,10 @@
 from dataclasses import (
     dataclass,
     fields,
+)
+from datetime import (
+    datetime,
+    timezone,
 )
 
 from sqlalchemy import select
@@ -126,11 +132,14 @@ class VariantRepository(BaseRepository):
     async def get_variant(
             self,
             variant_id: str,
+            *,
+            include_deleted: bool = False,
     ) -> Variant | None:
         """获取实验分组
 
         参数：
             variant_id: 实验分组 ID
+            include_deleted: 是否包含逻辑删除记录
 
         返回：
             实验分组对象，不存在时返回 None
@@ -141,6 +150,13 @@ class VariantRepository(BaseRepository):
             Variant.variant_id
             == variant_id
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Variant.deleted_at.is_(
+                    None
+                )
+            )
 
         result = await self.session.execute(
             stmt
@@ -174,6 +190,9 @@ class VariantRepository(BaseRepository):
                 == str(
                     ExperimentVariantStatus.ACTIVE
                 ),
+                Variant.deleted_at.is_(
+                    None
+                ),
             )
             .order_by(
                 Variant.created_at.asc()
@@ -199,6 +218,7 @@ class VariantRepository(BaseRepository):
             status: ExperimentVariantStatus | None = None,
             is_control: bool | None = None,
             created_by: str | None = None,
+            include_deleted: bool = False,
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Variant]:
@@ -212,6 +232,7 @@ class VariantRepository(BaseRepository):
             status: 实验分组状态（可选）
             is_control: 是否为对照组（可选）
             created_by: 创建人（可选）
+            include_deleted: 是否包含逻辑删除记录
             limit: 返回数量限制（可选）
             offset: 分页偏移（可选）
 
@@ -240,6 +261,13 @@ class VariantRepository(BaseRepository):
         stmt = select(
             Variant
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Variant.deleted_at.is_(
+                    None
+                )
+            )
 
         if variant_id is not None:
             stmt = stmt.where(
@@ -500,3 +528,42 @@ class VariantRepository(BaseRepository):
             ),
             updated_by=updated_by,
         )
+
+    @staticmethod
+    def mark_deleted(
+            variant: Variant,
+            *,
+            deletion_id: str,
+            deleted_at: datetime | None = None,
+            deleted_by: str | None = None,
+            deletion_reason: str | None = None,
+    ) -> Variant:
+        """逻辑删除实验分组"""
+        variant.deleted_at = (
+            deleted_at
+            if deleted_at is not None
+            else datetime.now(
+                timezone.utc
+            )
+        )
+        variant.deleted_by = deleted_by
+        variant.deletion_id = deletion_id
+        variant.deletion_reason = deletion_reason
+        variant.updated_by = deleted_by
+
+        return variant
+
+    @staticmethod
+    def restore_variant(
+            variant: Variant,
+            *,
+            restored_by: str | None = None,
+    ) -> Variant:
+        """恢复逻辑删除的实验分组"""
+        variant.deleted_at = None
+        variant.deleted_by = None
+        variant.deletion_id = None
+        variant.deletion_reason = None
+        variant.updated_by = restored_by
+
+        return variant

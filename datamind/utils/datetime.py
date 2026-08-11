@@ -89,20 +89,24 @@ def get_timezone(
 
 def parse_datetime(
         raw: str | None,
+        *,
+        timezone_name: str | None = None,
 ) -> datetime | None:
-    """解析 ISO 8601 日期时间字符串
+    """解析日期时间并转换为 UTC
 
-    解析完成后统一转换为 UTC。
-    不带时区的日期时间按 UTC 处理。
+    支持使用空格或 T 分隔日期与时间，以及 Z 或
+    数值时区偏移。输入不含时区信息时使用 timezone_name，
+    timezone_name 未提供时按 UTC 处理。
 
     参数：
-        raw: ISO 8601 日期时间字符串
+        raw: 待解析的日期时间文本
+        timezone_name: 无时区信息时使用的 IANA 时区名称（可选）
 
     返回：
-        UTC 日期时间，输入为 None 时返回 None
+        UTC 日期时间；raw 为 None 时返回 None
 
     异常：
-        ValueError: 日期时间字符串格式错误
+        ValueError: raw 不是有效的日期时间
     """
     if raw is None:
         return None
@@ -118,6 +122,13 @@ def parse_datetime(
     dt = datetime.fromisoformat(
         normalized
     )
+
+    if dt.tzinfo is None and timezone_name is not None:
+        dt = dt.replace(
+            tzinfo=get_timezone(
+                timezone_name
+            )
+        )
 
     return to_utc(
         dt

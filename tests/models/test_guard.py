@@ -41,6 +41,7 @@ from datamind.models.guard import ModelGuard
         (MetadataStatus.ACTIVE, MetadataStatus.ACTIVE),
         (MetadataStatus.ACTIVE, MetadataStatus.DEPRECATED),
         (MetadataStatus.INACTIVE, MetadataStatus.ACTIVE),
+        (MetadataStatus.INACTIVE, MetadataStatus.DEPRECATED),
         (MetadataStatus.DEPRECATED, MetadataStatus.ARCHIVED),
     ],
 )
@@ -80,6 +81,7 @@ def test_metadata_transition_rejects_invalid_transition(
         (VersionStatus.ACTIVE, VersionStatus.ACTIVE),
         (VersionStatus.ACTIVE, VersionStatus.DEPRECATED),
         (VersionStatus.INACTIVE, VersionStatus.ACTIVE),
+        (VersionStatus.INACTIVE, VersionStatus.DEPRECATED),
         (VersionStatus.DEPRECATED, VersionStatus.ARCHIVED),
     ],
 )
@@ -162,6 +164,34 @@ def test_experiment_transition_rejects_invalid_transition() -> None:
         ModelGuard.validate_experiment_transition(
             current=ExperimentStatus.ARCHIVED,
             target=ExperimentStatus.RUNNING,
+        )
+
+
+@pytest.mark.parametrize(
+    ("target", "message"),
+    [
+        (
+            ExperimentStatus.STOPPED,
+            "草稿状态的实验无法停止",
+        ),
+        (
+            ExperimentStatus.PAUSED,
+            "草稿状态的实验无法暂停",
+        ),
+    ],
+)
+def test_draft_experiment_transition_uses_actionable_message(
+        target: ExperimentStatus,
+        message: str,
+) -> None:
+    """测试草稿实验使用明确的操作错误"""
+    with pytest.raises(
+            InvalidExperimentStateError,
+            match=message,
+    ):
+        ModelGuard.validate_experiment_transition(
+            current=ExperimentStatus.DRAFT,
+            target=target,
         )
 
 

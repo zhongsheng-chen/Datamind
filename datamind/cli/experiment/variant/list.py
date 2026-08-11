@@ -17,7 +17,7 @@ import json
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
@@ -30,7 +30,7 @@ from datamind.utils.datetime import (
 )
 
 app = typer.Typer(help="列出实验分组命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -83,6 +83,11 @@ def list_variants(
             None,
             "--created-by",
             help="按创建人过滤"
+        ),
+        include_deleted: bool = typer.Option(
+            False,
+            "--include-deleted",
+            help="包含已删除实验分组",
         ),
         limit: int = typer.Option(
             10,
@@ -140,6 +145,7 @@ def list_variants(
             repo = VariantRepository(uow.session)
 
             variants = await repo.list_variants(
+                include_deleted=include_deleted,
                 limit=limit,
                 offset=offset,
                 **filters,
@@ -163,6 +169,7 @@ def list_variants(
                     "created_at": format_iso_utc(item.created_at),
                     "updated_by": item.updated_by,
                     "updated_at": format_iso_utc(item.updated_at),
+                    "deleted_at": format_iso_utc(item.deleted_at),
                 })
 
         if output == "json":
@@ -197,8 +204,11 @@ def list_variants(
         table.add_column("STATUS")
         table.add_column("UPDATED AT")
 
+        if include_deleted:
+            table.add_column("DELETED AT")
+
         for item in result:
-            table.add_row(
+            row = [
                 item["variant_id"],
                 item["experiment_id"],
                 item["name"] or "-",
@@ -208,7 +218,16 @@ def list_variants(
                 str(item["is_control"]),
                 item["status"],
                 format_datetime(parse_datetime(item["updated_at"])),
-            )
+            ]
+
+            if include_deleted:
+                row.append(
+                    format_datetime(
+                        parse_datetime(item["deleted_at"])
+                    ) or "-"
+                )
+
+            table.add_row(*row)
 
         console.print(table)
 

@@ -15,7 +15,7 @@ import asyncio
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
 from datamind.cli.credentials import CredentialStore
@@ -24,7 +24,7 @@ from datamind.services.errors import IdentityError
 
 
 app = typer.Typer(help="重置用户密码命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -74,20 +74,20 @@ def reset_password(
 
         if reset_current_user:
             CredentialStore().clear()
-            console.print(
-                "[yellow]当前用户密码已重置，"
-                "本地会话已清除，请重新登录[/yellow]"
+            console.warning(
+                "当前用户密码已重置，"
+                "本地会话已清除，请重新登录"
             )
         else:
-            console.print(
-                f"[green]用户密码已重置：{username}[/green]"
+            console.info(
+                f"用户密码已重置：{username}"
             )
     except (
         IdentityError,
         ValueError,
     ) as exc:
-        console.print(
-            f"[red]重置密码失败：{exc}[/red]"
+        console.error(
+            f"重置密码失败：{exc}"
         )
         raise typer.Exit(
             code=1

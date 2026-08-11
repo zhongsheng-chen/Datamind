@@ -78,6 +78,10 @@ class Deployment(
             "effective_to",
         ),
         Index(
+            "idx_deployments_deleted_at",
+            "deleted_at",
+        ),
+        Index(
             "uk_deployments_deployment_id",
             "deployment_id",
             unique=True,
@@ -116,6 +120,14 @@ class Deployment(
                 ")"
             ),
             name="role_valid",
+        ),
+        CheckConstraint(
+            (
+                "(rollout_type = 'shadow' AND role = 'shadow') "
+                "OR "
+                "(rollout_type <> 'shadow' AND role <> 'shadow')"
+            ),
+            name="shadow_role_consistent",
         ),
         CheckConstraint(
             (
@@ -246,6 +258,26 @@ class Deployment(
         String(50),
         nullable=True,
         comment="更新人",
+    )
+
+    deleted_at = Column(
+        DateTime(
+            timezone=True
+        ),
+        nullable=True,
+        comment="逻辑删除时间",
+    )
+
+    deleted_by = Column(
+        String(50),
+        nullable=True,
+        comment="逻辑删除操作人",
+    )
+
+    deletion_reason = Column(
+        TEXT,
+        nullable=True,
+        comment="逻辑删除原因",
     )
 
     def __repr__(

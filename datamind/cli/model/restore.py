@@ -16,14 +16,15 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
+from datamind.models.errors import ModelError
 from datamind.services import ModelDeletionService
 
 app = typer.Typer(help="恢复模型命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -37,9 +38,14 @@ def _validate_target(
         output: str,
 ) -> None:
     """校验模型恢复目标和输出格式"""
-    if bool(name) == bool(model_id):
+    if not (name or model_id):
         raise typer.BadParameter(
-            "必须且只能提供 <name> 或 --model-id"
+            "必须提供 <name> 或 --model-id"
+        )
+
+    if name and model_id:
+        raise typer.BadParameter(
+            "<name> 与 --model-id 只能指定一个"
         )
 
     if version and version_id:
@@ -125,13 +131,13 @@ def restore_model(
                 )
             )
         else:
-            console.print("[green]模型恢复成功[/green]")
+            console.info("模型恢复成功")
             console.print(
-                f"[cyan]{'MODEL ID':<16}[/cyan] : "
+                f"{'MODEL ID':<16} : "
                 f"{result['model_id']}"
             )
             console.print(
-                f"[cyan]{'ACTION':<16}[/cyan] : "
+                f"{'ACTION':<16} : "
                 f"{result['action']}"
             )
 
@@ -145,6 +151,16 @@ def restore_model(
                 context.user
             )
 
-    asyncio.run(
-        runner()
-    )
+    try:
+        asyncio.run(
+            runner()
+        )
+    except ModelError as error:
+        console.error(
+            f"模型恢复失败：{error}",
+            output_format=output,
+            error_type=type(error).__name__,
+        )
+        raise typer.Exit(
+            code=1
+        ) from None
