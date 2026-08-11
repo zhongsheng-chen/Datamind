@@ -7,14 +7,22 @@
 核心功能：
   - test_create_user_uses_authenticated_operator:
     验证创建用户使用当前认证操作人
+  - test_create_user_renders_restore_result:
+    验证恢复已删除用户时显示恢复结果
   - test_reset_current_user_password_clears_session:
     验证重置当前用户密码后清理会话
-  - test_delete_user_passes_required_reason:
-    验证删除用户传递删除原因
+  - test_delete_user_accepts_optional_reason:
+    验证删除用户允许省略删除原因
+  - test_delete_role_accepts_optional_reason:
+    验证删除角色允许省略删除原因
+  - test_role_status_command_uses_authenticated_operator:
+    验证角色启停命令使用当前认证操作人
   - test_grant_role_uses_authenticated_operator:
     验证角色授予使用当前认证操作人
   - test_create_role_renders_colored_result_fields:
     验证创建角色使用标准结果字段布局
+  - test_create_role_supports_all_permissions:
+    验证创建角色可以显式授予全部权限
   - test_user_list_renders_count_and_updated_at:
     验证用户列表显示总数和更新时间
   - test_role_list_renders_count_and_updated_at:
@@ -36,6 +44,9 @@ from rich.text import Text
 from typer.testing import CliRunner
 
 import datamind.cli.role.create as role_create_module
+import datamind.cli.role.delete as role_delete_module
+import datamind.cli.role.disable as role_disable_module
+import datamind.cli.role.enable as role_enable_module
 import datamind.cli.role.grant as grant_module
 import datamind.cli.role.list as role_list_module
 import datamind.cli.role.show as role_show_module
@@ -138,6 +149,39 @@ def test_create_user_uses_authenticated_operator(
     )
 
 
+def test_create_user_renders_restore_result(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试恢复已删除用户时显示恢复结果"""
+    service = MagicMock()
+    service.create_user = AsyncMock(
+        return_value={
+            "user_id": "usr_analyst",
+            "username": "analyst",
+            "roles": [],
+            "action": "restore",
+        }
+    )
+    install_command(
+        monkeypatch,
+        create_module,
+        service,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "user",
+            "create",
+            "analyst",
+        ],
+        input="new-secret\nnew-secret\n",
+    )
+
+    assert result.exit_code == 0
+    assert "用户恢复成功" in result.output
+
+
 def test_reset_current_user_password_clears_session(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -175,10 +219,10 @@ def test_reset_current_user_password_clears_session(
     store.clear.assert_called_once_with()
 
 
-def test_delete_user_passes_required_reason(
+def test_delete_user_accepts_optional_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除用户传递删除原因"""
+    """测试删除用户允许省略删除原因"""
     service = MagicMock()
     service.delete_user = AsyncMock(
         return_value={
@@ -197,8 +241,6 @@ def test_delete_user_passes_required_reason(
             "user",
             "delete",
             "analyst",
-            "--reason",
-            "员工离职",
             "--yes",
         ],
     )
@@ -206,7 +248,98 @@ def test_delete_user_passes_required_reason(
     assert result.exit_code == 0
     service.delete_user.assert_awaited_once_with(
         username="analyst",
-        reason="员工离职",
+        reason=None,
+        operator_id="usr_admin",
+        operator="admin",
+    )
+
+
+def test_delete_role_accepts_optional_reason(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试删除角色允许省略删除原因"""
+    service = MagicMock()
+    service.delete_role = AsyncMock(
+        return_value={
+            "name": "developer"
+        }
+    )
+    install_command(
+        monkeypatch,
+        role_delete_module,
+        service,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "role",
+            "delete",
+            "developer",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    service.delete_role.assert_awaited_once_with(
+        name="developer",
+        reason=None,
+        operator_id="usr_admin",
+        operator="admin",
+    )
+
+
+@pytest.mark.parametrize(
+    ("command", "command_module", "service_method"),
+    [
+        (
+            "enable",
+            role_enable_module,
+            "enable_role",
+        ),
+        (
+            "disable",
+            role_disable_module,
+            "disable_role",
+        ),
+    ],
+)
+def test_role_status_command_uses_authenticated_operator(
+        monkeypatch: pytest.MonkeyPatch,
+        command: str,
+        command_module: object,
+        service_method: str,
+) -> None:
+    """测试角色状态命令使用当前认证操作人"""
+    service = MagicMock()
+    method = AsyncMock(
+        return_value={
+            "name": "developer"
+        }
+    )
+    setattr(
+        service,
+        service_method,
+        method,
+    )
+    install_command(
+        monkeypatch,
+        command_module,
+        service,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "role",
+            command,
+            "developer",
+        ],
+    )
+
+    assert result.exit_code == 0
+    method.assert_awaited_once_with(
+        name="developer",
         operator_id="usr_admin",
         operator="admin",
     )
@@ -287,6 +420,68 @@ def test_create_role_renders_colored_result_fields(
     assert "developer" in result.output
     assert "PERMISSIONS" in result.output
     assert "model.read, model.write" in result.output
+
+
+def test_create_role_supports_all_permissions(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试创建角色可以显式授予全部权限"""
+    service = MagicMock()
+    service.create_role = AsyncMock(
+        return_value={
+            "name": "administrator",
+            "permissions": [
+                "*"
+            ],
+        }
+    )
+    install_command(
+        monkeypatch,
+        role_create_module,
+        service,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "role",
+            "create",
+            "administrator",
+            "--all-permissions",
+        ],
+    )
+
+    assert result.exit_code == 0
+    service.create_role.assert_awaited_once_with(
+        name="administrator",
+        permissions=[
+            "*"
+        ],
+        description=None,
+        operator_id="usr_admin",
+        operator="admin",
+    )
+
+
+def test_create_role_rejects_mixed_permission_options() -> None:
+    """测试全部权限选项不能与单项权限混用"""
+    result = runner.invoke(
+        app,
+        [
+            "role",
+            "create",
+            "administrator",
+            "--all-permissions",
+            "--permission",
+            "model.read",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert (
+        "--all-permissions 与 --permission 不能同时指定"
+        in result.output
+    )
 
 
 def test_user_list_renders_count_and_updated_at(

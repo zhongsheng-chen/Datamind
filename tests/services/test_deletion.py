@@ -14,8 +14,8 @@
     验证清理存储对象和 BentoML 模型
   - test_delete_version_rejects_active_deployment:
     验证存在活动部署时拒绝删除版本
-  - test_purge_requires_reason:
-    验证永久清理必须提供原因
+  - test_purge_allows_missing_reason:
+    验证永久清理原因可以省略
   - test_purge_rejects_loaded_runtime:
     验证存在已加载运行实例时拒绝永久清理
   - test_request_purge_builds_artifact_targets:
@@ -24,8 +24,14 @@
     验证记录制品清理结果
   - test_restore_rejects_invalid_deletion_state:
     验证拒绝恢复状态不正确的模型或版本
+  - test_restore_model_rejects_permanently_purged_versions:
+    验证模型版本均已永久清理时拒绝恢复模型
 """
 
+from datetime import (
+    datetime,
+    timezone,
+)
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -33,6 +39,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 import datamind.services.deletion as deleter_module
+from datamind.db.models import Version
 from datamind.models.errors import InvalidModelStateError
 from datamind.services import ModelDeletionService
 
@@ -64,6 +71,9 @@ def configure_repositories(
     """配置删除服务仓储替身"""
     metadata_repo = MagicMock()
     version_repo = MagicMock()
+    version_repo.get_version = AsyncMock(
+        return_value=version_record
+    )
     version_repo.list_versions = AsyncMock(
         return_value=versions or []
     )
@@ -147,6 +157,7 @@ async def test_delete_version(
         name="scorecard",
     )
     version_record = SimpleNamespace(
+        model_id="mdl_test",
         version_id="ver_test",
         version="1.0.0",
         deletion_id=None,
@@ -169,7 +180,6 @@ async def test_delete_version(
     )
 
     result = await ModelDeletionService().delete(
-        model_id="mdl_test",
         version_id="ver_test",
         reason="版本停用",
         operator="operator",
@@ -177,7 +187,59 @@ async def test_delete_version(
 
     assert result["action"] == "delete_version"
     assert result["deletion_id"] == "del_test"
+    version_repo.get_version.assert_awaited_once_with(
+        "ver_test"
+    )
     version_repo.mark_deleted.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_last_active_version_deactivates_model(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试删除最后一个激活版本时同步停用模型"""
+    metadata = SimpleNamespace(
+        model_id="mdl_test",
+        name="scorecard",
+        status="active",
+    )
+    version_record = SimpleNamespace(
+        version_id="ver_test",
+        version="1.0.0",
+        status="active",
+        deletion_id=None,
+    )
+    _, version_repo, _, _ = configure_repositories(
+        monkeypatch,
+        metadata=metadata,
+        version_record=version_record,
+        versions=[version_record],
+    )
+    version_repo.mark_deleted.side_effect = mark_deleted
+    monkeypatch.setitem(
+        vars(deleter_module),
+        "generate_random_id",
+        lambda *, prefix: f"{prefix}_test",
+    )
+    monkeypatch.setitem(
+        vars(deleter_module),
+        "get_storage",
+        MagicMock(),
+    )
+
+    await ModelDeletionService().delete(
+        model_id="mdl_test",
+        version_id="ver_test",
+        reason="版本停用",
+        operator="operator",
+    )
+
+    assert metadata.status == "inactive"
+    assert metadata.updated_by == "operator"
+    version_repo.list_versions.assert_awaited_once_with(
+        model_id="mdl_test",
+        status=deleter_module.VersionStatus.ACTIVE,
+    )
 
 
 @pytest.mark.asyncio
@@ -314,6 +376,50 @@ async def test_restore_model(
         metadata,
         restored_by="operator",
     )
+
+
+@pytest.mark.asyncio
+async def test_restore_model_rejects_permanently_purged_versions(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试模型版本均已永久清理时拒绝恢复模型"""
+    metadata = SimpleNamespace(
+        model_id="mdl_test",
+        name="scorecard",
+        deleted_at=object(),
+        deletion_id="del_model",
+    )
+    version_record = SimpleNamespace(
+        version_id="ver_test",
+        deleted_at=object(),
+        deletion_id="del_model",
+    )
+    metadata_repo, version_repo, artifact_repo, _ = configure_repositories(
+        monkeypatch,
+        metadata=metadata,
+        versions=[version_record],
+        artifact=None,
+    )
+    monkeypatch.setitem(
+        vars(deleter_module),
+        "get_storage",
+        MagicMock(),
+    )
+
+    with pytest.raises(
+            InvalidModelStateError,
+            match="相关模型版本的制品不存在或已永久清理",
+    ):
+        await ModelDeletionService().restore(
+            model_id="mdl_test",
+            operator="operator",
+        )
+
+    artifact_repo.get_current_artifact.assert_awaited_once_with(
+        "ver_test"
+    )
+    version_repo.restore_version.assert_not_called()
+    metadata_repo.restore_model.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -545,32 +651,51 @@ async def test_delete_version_rejects_active_deployment(
 
 
 @pytest.mark.asyncio
-async def test_purge_requires_reason(
+async def test_purge_allows_missing_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试永久清理必须提供原因"""
-    monkeypatch.setitem(
-        vars(deleter_module),
-        "get_storage",
-        MagicMock(),
-    )
+    """测试永久清理原因可以省略"""
     service = ModelDeletionService()
-
-    with pytest.raises(ValueError, match="必须提供原因"):
-        await service.purge(
-            model_id="mdl_test",
-            reason="  ",
+    request_purge = AsyncMock(
+        return_value=(
+            {
+                "model_id": "mdl_test",
+                "name": "scorecard",
+            },
+            [],
         )
+    )
+    monkeypatch.setattr(
+        service,
+        "_request_purge",
+        request_purge,
+    )
+
+    result = await service.purge(
+        model_id="mdl_test",
+        reason="  ",
+    )
+
+    request_purge.assert_awaited_once_with(
+        model_id="mdl_test",
+        name=None,
+        version=None,
+        version_id=None,
+        reason=None,
+        operator=None,
+    )
+    assert result["reason"] is None
+    assert result["purged_count"] == 0
 
 
 @pytest.mark.asyncio
-async def test_purge_rejects_loaded_runtime() -> None:
+async def test_purge_rejects_running_runtime() -> None:
     """测试仍有已加载运行实例时拒绝永久清理"""
     deployment_repo = MagicMock()
     deployment_repo.list_active_deployments = AsyncMock(return_value=[])
     runtime_repo = MagicMock()
     runtime_repo.list_runtimes = AsyncMock(
-        return_value=[SimpleNamespace(status="loaded")]
+        return_value=[SimpleNamespace(status="running")]
     )
 
     with pytest.raises(InvalidModelStateError, match="运行实例"):
@@ -658,6 +783,7 @@ async def test_request_purge_builds_artifact_targets(
     )
 
     assert info["model_id"] == "mdl_test"
+    assert info["already_purged_count"] == 1
     if target_version:
         assert info["version_id"] == "ver_test"
     else:
@@ -907,6 +1033,16 @@ async def test_restore_rejects_invalid_deletion_state(
     configure_repositories(
         monkeypatch,
         metadata=metadata,
+        version_record=(
+            SimpleNamespace(
+                model_id="mdl_test",
+                version_id="ver_test",
+                version="1.0.0",
+                deleted_at=object(),
+            )
+            if target_version
+            else None
+        ),
     )
     monkeypatch.setitem(
         vars(deleter_module),
@@ -939,14 +1075,14 @@ async def test_restore_rejects_invalid_deletion_state(
             "模型版本未被逻辑删除",
         ),
         (
-            object(),
+            datetime.now(timezone.utc),
             None,
             "当前制品不存在",
         ),
     ],
 )
 async def test_restore_version_requires_restorable_artifact(
-        deleted_at: object | None,
+        deleted_at: datetime | None,
         artifact: object | None,
         message: str,
 ) -> None:
@@ -955,10 +1091,12 @@ async def test_restore_version_requires_restorable_artifact(
     repository.get_current_artifact = AsyncMock(
         return_value=artifact
     )
-    version_record = SimpleNamespace(
+    version_record = Version(
         version_id="ver_test",
-        deleted_at=deleted_at,
     )
+
+    if deleted_at is not None:
+        version_record.deleted_at = deleted_at
 
     with pytest.raises(InvalidModelStateError, match=message):
         await ModelDeletionService._ensure_version_restorable(

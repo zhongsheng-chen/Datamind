@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "datamind"
 version = "0.1.0"
-description = "Datamind 模型部署平台"
+description = "开放式模型服务管理平台"
 readme = "README.md"
 requires-python = ">=3.10"
 
@@ -20,11 +20,13 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "structlog>=24.0.0",
+    "concurrent-log-handler>=0.9.29",
     "minio>=7.2.0",
     "numpy>=1.26.0",
     "argon2-cffi>=25.1.0",
     "PyJWT[crypto]>=2.10.0",
     "starlette>=0.40.0",
+    "python-multipart>=0.0.20",
 ]
 
 

@@ -21,7 +21,7 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
@@ -30,7 +30,7 @@ from datamind.utils.datetime import format_iso_utc, parse_datetime
 from datamind.utils.generator import generate_random_id
 
 app = typer.Typer(help="实验结果提交命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -207,15 +207,13 @@ def submit_outcome(
             if result["created"]
             else "更新"
         )
+        console.info(f"实验结果{action}成功")
         console.print(
-            f"[green]实验结果{action}成功[/green]"
-        )
-        console.print(
-            f"[cyan]{'OUTCOME ID':<18}[/cyan] : "
+            f"{'OUTCOME ID':<18} : "
             f"{outcome['outcome_id']}"
         )
         console.print(
-            f"[cyan]{'DECISION ID':<18}[/cyan] : "
+            f"{'DECISION ID':<18} : "
             f"{outcome['decision_id']}"
         )
 

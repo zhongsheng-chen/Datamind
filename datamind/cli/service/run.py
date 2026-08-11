@@ -9,9 +9,8 @@
 
 使用示例：
   python -m datamind.cli.main service run \
-    --environment production \
     --host 0.0.0.0 \
-    --port 3000
+    --port 8700
 """
 
 import asyncio
@@ -24,24 +23,26 @@ import tempfile
 import uuid
 from pathlib import Path
 from types import FrameType
-from typing import Callable
+from typing import (
+    Callable,
+    TypedDict,
+)
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
-from datamind.audit import audit
 from datamind.cli.branding import (
+    build_bind_address,
     build_http_url,
     get_app_version,
-    print_startup_summary,
+    print_http_server_summary,
 )
-from datamind.cli.common import cli_context
 from datamind.config import get_settings
 from datamind.logging import setup_logging, shutdown_logging
 
 app = typer.Typer(help="运行服务命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -50,48 +51,18 @@ SERVICE_TARGET = (
     "DatamindRuntimeService"
 )
 
-def _print_startup_summary(
-        result: dict,
-) -> None:
-    """打印启动摘要到终端
 
-    参数：
-        result: 服务启动结果
-    """
-    print_startup_summary(
-        console,
-        {
-            "NAME": result["name"],
-            "ENVIRONMENT": result["environment"],
-            "HOST": result["host"],
-            "PORT": result["port"],
-            "WORKERS": result["workers"],
-            "RELOAD": result["reload"],
-            "PID": result["pid"],
-        },
-        app_version=result["version"],
-    )
+class ServiceStartupResult(TypedDict):
+    """模型服务启动结果"""
 
-
-def _log_startup_summary(
-        result: dict,
-) -> None:
-    """记录服务启动事件
-
-    参数：
-        result: 服务启动结果
-    """
-    logger.info(
-        "Datamind 服务启动",
-        service_name=result["name"],
-        version=result["version"],
-        environment=result["environment"],
-        host=result["host"],
-        port=result["port"],
-        workers=result["workers"],
-        reload=result["reload"],
-        pid=result["pid"],
-    )
+    name: str
+    version: str
+    environment: str
+    bind: str
+    url: str
+    workers: int
+    reload: bool
+    pid: int
 
 
 def _build_ready_dir(
@@ -285,25 +256,25 @@ async def _wait_for_workers_ready(
 
 @app.command("run")
 def run_service(
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="运行环境，默认使用服务配置"
-        ),
         host: str | None = typer.Option(
             None,
             "--host",
-            help="监听地址，默认使用服务配置"
+            help="监听地址，未指定时读取服务配置"
         ),
         port: int | None = typer.Option(
             None,
             "--port",
-            help="监听端口，默认使用服务配置"
+            help="监听端口，未指定时读取服务配置"
         ),
         reload: bool = typer.Option(
             False,
             "--reload",
             help="代码变更时自动重载"
+        ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            help="显示 BentoML 运行日志",
         ),
 ):
     """启动 Datamind 模型服务"""
@@ -316,11 +287,7 @@ def run_service(
     service_config = settings.service
     expected_workers = int(service_config.workers)
 
-    resolved_environment = (
-        environment
-        if environment is not None
-        else service_config.environment
-    )
+    environment = service_config.environment
 
     resolved_host = (
         host
@@ -342,11 +309,6 @@ def run_service(
     service_started = False
     stop_requested = False
 
-    @audit(
-        action="service.run",
-        target_type="service",
-        target_id_from="service_name",
-    )
     async def _start_service(
             *,
             service_name: str,
@@ -354,8 +316,8 @@ def run_service(
             run_host: str,
             run_port: int,
             reload_enabled: bool,
-            actor: str,
-    ) -> dict:
+            verbose_logs: bool,
+    ) -> ServiceStartupResult:
         """启动服务子进程并等待 Worker 就绪"""
         nonlocal process
         nonlocal ready_dir
@@ -364,7 +326,7 @@ def run_service(
 
         if not run_environment:
             raise typer.BadParameter(
-                "--environment 不能为空"
+                "DATAMIND_SERVICE_ENVIRONMENT 不能为空"
             )
 
         if not run_host:
@@ -391,6 +353,9 @@ def run_service(
 
         if reload_enabled:
             command.append("--reload")
+
+        if not verbose_logs:
+            command.append("--quiet")
 
         current_service_instance_id: str = uuid.uuid4().hex
 
@@ -444,33 +409,36 @@ def run_service(
 
         process = started_process
 
-        result = {
+        bind_address = build_bind_address(
+            host=run_host,
+            port=run_port,
+        )
+        service_url = build_http_url(
+            host=run_host,
+            port=run_port,
+        )
+
+        result: ServiceStartupResult = {
             "name": service_name,
             "version": app_version,
             "environment": run_environment,
-            "host": run_host,
-            "port": run_port,
+            "bind": bind_address,
+            "url": service_url,
             "workers": expected_workers,
             "reload": reload_enabled,
             "pid": started_process.pid,
         }
 
-        _print_startup_summary(result)
-
-        _log_startup_summary(
-            result=result,
-        )
-
-        logger.info(
+        logger.debug(
             "Datamind 服务子进程启动成功",
             service_name=result["name"],
             version=result["version"],
             environment=result["environment"],
-            host=result["host"],
-            port=result["port"],
+            bind=result["bind"],
+            url=result["url"],
             workers=result["workers"],
             reload=result["reload"],
-            operator=actor,
+            verbose=verbose_logs,
             service_target=SERVICE_TARGET,
             service_instance_id=current_service_instance_id,
             ready_dir=str(current_ready_dir),
@@ -478,7 +446,7 @@ def run_service(
         )
 
         try:
-            ready_workers = await _wait_for_workers_ready(
+            await _wait_for_workers_ready(
                 ready_dir=current_ready_dir,
                 service_instance_id=current_service_instance_id,
                 process=started_process,
@@ -490,8 +458,8 @@ def run_service(
                 "Datamind 服务启动失败",
                 service_name=result["name"],
                 environment=result["environment"],
-                host=result["host"],
-                port=result["port"],
+                bind=result["bind"],
+                url=result["url"],
                 workers=result["workers"],
                 expected_workers=expected_workers,
                 service_instance_id=current_service_instance_id,
@@ -512,8 +480,8 @@ def run_service(
                 "Datamind 服务启动失败",
                 service_name=result["name"],
                 environment=result["environment"],
-                host=result["host"],
-                port=result["port"],
+                bind=result["bind"],
+                url=result["url"],
                 workers=result["workers"],
                 service_instance_id=current_service_instance_id,
                 ready_dir=str(current_ready_dir),
@@ -528,26 +496,27 @@ def run_service(
         logger.info(
             "Datamind 服务启动完成",
             service_name=result["name"],
+            version=result["version"],
             environment=result["environment"],
-            host=result["host"],
-            port=result["port"],
+            bind=result["bind"],
+            url=result["url"],
             workers=result["workers"],
-            ready_workers=len(ready_workers),
-            service_instance_id=current_service_instance_id,
-            ready_dir=str(current_ready_dir),
+            reload=result["reload"],
             pid=result["pid"],
         )
 
-        service_url = build_http_url(
-            host=run_host,
-            port=run_port,
+        print_http_server_summary(
+            console,
+            app_version=result["version"],
+            environment=result["environment"],
+            bind_address=result["bind"],
+            access_url=result["url"],
+            workers=result["workers"],
+            reload_enabled=result["reload"],
+            pid=result["pid"],
         )
         console.print(
-            "服务地址："
-            f"[cyan]{service_url}[/cyan]"
-        )
-        console.print(
-            "按 Ctrl+C 停止\n"
+            "Press Ctrl+C to stop\n"
         )
 
         return result
@@ -574,7 +543,7 @@ def run_service(
         logger.info(
             "Datamind 服务已停止",
             service_name=configured_service_name,
-            environment=resolved_environment,
+            environment=environment,
             host=resolved_host,
             port=resolved_port,
             service_instance_id=service_instance_id,
@@ -592,7 +561,7 @@ def run_service(
         logger.warning(
             "Datamind 服务进程已退出",
             service_name=configured_service_name,
-            environment=resolved_environment,
+            environment=environment,
             host=resolved_host,
             port=resolved_port,
             service_instance_id=service_instance_id,
@@ -636,100 +605,93 @@ def run_service(
         except ValueError:
             previous_sigint_handler = None
 
-        async with cli_context(
-                required_permission="runtime.manage",
-        ) as context:
-            setup_logging(
-                settings.logging
+        try:
+            await _start_service(
+                service_name=configured_service_name,
+                run_environment=environment,
+                run_host=resolved_host,
+                run_port=resolved_port,
+                reload_enabled=reload,
+                verbose_logs=verbose,
             )
 
-            try:
-                await _start_service(
-                    service_name=configured_service_name,
-                    run_environment=resolved_environment,
-                    run_host=resolved_host,
-                    run_port=resolved_port,
-                    reload_enabled=reload,
-                    actor=context.user,
+            if process is None:
+                raise typer.Exit(1)
+
+            service_process = process
+
+            while True:
+                return_code = await asyncio.to_thread(
+                    service_process.wait
                 )
 
-                if process is None:
-                    raise typer.Exit(1)
-
-                service_process = process
-
-                while True:
-                    return_code = await asyncio.to_thread(
-                        service_process.wait
-                    )
-
-                    if stop_requested:
-                        _record_service_stopped(
-                            service_process=service_process,
-                            return_code=return_code,
-                            stop_reason="keyboard_interrupt",
-                        )
-
-                        break
-
-                    if return_code != 0:
-                        logger.error(
-                            "Datamind 服务异常退出",
-                            service_name=configured_service_name,
-                            environment=resolved_environment,
-                            host=resolved_host,
-                            port=resolved_port,
-                            service_instance_id=service_instance_id,
-                            pid=service_process.pid,
-                            return_code=return_code,
-                        )
-
-                        raise typer.Exit(return_code)
-
-                    _record_service_process_exited(
+                if stop_requested:
+                    _record_service_stopped(
                         service_process=service_process,
                         return_code=return_code,
+                        stop_reason="keyboard_interrupt",
                     )
 
                     break
 
-            except (
-                    KeyboardInterrupt,
-                    asyncio.CancelledError,
-            ):
-                stop_requested = True
-
-                if process is not None:
-                    return_code = await _stop_process(
-                        process
-                    )
-
-                    stop_reason = (
-                        "keyboard_interrupt"
-                        if service_started
-                        else "startup_interrupted"
-                    )
-
-                    _record_service_stopped(
-                        service_process=process,
+                if return_code != 0:
+                    logger.error(
+                        "Datamind 服务异常退出",
+                        service_name=configured_service_name,
+                        environment=environment,
+                        host=resolved_host,
+                        port=resolved_port,
+                        service_instance_id=service_instance_id,
+                        pid=service_process.pid,
                         return_code=return_code,
-                        stop_reason=stop_reason,
                     )
 
-            finally:
-                _cleanup_ready_dir(
-                    ready_dir
+                    raise typer.Exit(return_code)
+
+                _record_service_process_exited(
+                    service_process=service_process,
+                    return_code=return_code,
                 )
 
-                if previous_sigint_handler is not None:
-                    try:
-                        signal.signal(
-                            signal.SIGINT,
-                            previous_sigint_handler
-                        )
+                break
 
-                    except ValueError:
-                        pass
+        except (
+                KeyboardInterrupt,
+                asyncio.CancelledError,
+        ):
+            stop_requested = True
+
+            if process is not None:
+                return_code = await _stop_process(
+                    process
+                )
+
+                stop_reason = (
+                    "keyboard_interrupt"
+                    if service_started
+                    else "startup_interrupted"
+                )
+
+                _record_service_stopped(
+                    service_process=process,
+                    return_code=return_code,
+                    stop_reason=stop_reason,
+                )
+
+        finally:
+            _cleanup_ready_dir(
+                ready_dir
+            )
+
+            if previous_sigint_handler is not None:
+                try:
+                    signal.signal(
+                        signal.SIGINT,
+                        previous_sigint_handler
+                    )
+
+                except ValueError:
+                    pass
 
     try:
         asyncio.run(runner())

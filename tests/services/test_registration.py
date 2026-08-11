@@ -61,6 +61,44 @@ class FakeUnitOfWork:
 
 
 @pytest.mark.asyncio
+async def test_register_rejects_invalid_semantic_version() -> None:
+    """测试拒绝不符合语义化版本规范的模型版本"""
+    with pytest.raises(
+            ValueError,
+            match=(
+                "无效的模型版本「latest」，"
+                "请输入主版本.次版本.修订版本，"
+                "例如 1.0.0"
+            ),
+    ):
+        await ModelRegistrationService().register(
+            name="scorecard",
+            version="latest",
+            model_path=str(Path(__file__)),
+            framework="sklearn",
+            model_type="logistic_regression",
+            task_type="scoring",
+        )
+
+
+@pytest.mark.asyncio
+async def test_register_rejects_invalid_model_name() -> None:
+    """测试在处理制品前拒绝无效的模型机器名称"""
+    with pytest.raises(
+            ValueError,
+            match="无效的模型名称",
+    ):
+        await ModelRegistrationService().register(
+            name="中文模型",
+            version="1.0.0",
+            framework="sklearn",
+            model_type="logistic_regression",
+            task_type="scoring",
+            model_path="missing.pkl",
+        )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "existing_model",
     [
@@ -210,13 +248,21 @@ async def test_register_creates_model_version_and_artifact(
         "output_schema.json",
     ]
     backend.save.assert_called_once()
+    save_kwargs = backend.save.call_args.kwargs
+    assert save_kwargs["name"] == "scorecard"
+    assert "name" not in save_kwargs["labels"]
 
 
+@pytest.mark.parametrize(
+    "force",
+    [False, True],
+)
 @pytest.mark.asyncio
 async def test_register_returns_unchanged_for_same_digest(
         monkeypatch: pytest.MonkeyPatch,
+        force: bool,
 ) -> None:
-    """测试已有版本制品摘要相同时幂等返回"""
+    """测试已有版本制品摘要相同时始终幂等返回"""
     model_path = Path(__file__)
     storage = MagicMock()
     backend = MagicMock()
@@ -323,6 +369,7 @@ async def test_register_returns_unchanged_for_same_digest(
         model_type="logistic_regression",
         task_type="scoring",
         model_path=str(model_path),
+        force=force,
     )
 
     assert result["action"] == "unchanged"
@@ -353,7 +400,7 @@ def test_save_artifact_registers_rollback_cleanup(
 
     key = service._save_artifact_object(
         uow=uow,
-        model_id="mdl_test",
+        model_name="scorecard",
         version="1.0.0",
         artifact_id="art_test",
         filename="model.pkl",
@@ -385,7 +432,7 @@ def test_save_artifact_registers_rollback_cleanup(
             False,
             "inactive",
             None,
-            "显式指定 force",
+            "请创建新的制品修订",
         ),
         (
             True,
@@ -502,8 +549,9 @@ async def test_register_rejects_existing_version(
 async def test_register_force_creates_new_artifact_revision(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 force 为未发布版本创建新制品修订"""
+    """测试 force 为内容变化的未发布版本创建新制品修订"""
     model_path = Path(__file__)
+    current_digest = "old-digest"
     metadata = SimpleNamespace(status="active")
     version = SimpleNamespace(
         model_id="mdl_test",
@@ -511,11 +559,11 @@ async def test_register_force_creates_new_artifact_revision(
         status="inactive",
         deleted_at=None,
         artifact_revision=1,
-        artifact_digest="old-digest",
+        artifact_digest=current_digest,
     )
     current = SimpleNamespace(
         artifact_id="art_old",
-        digest="old-digest",
+        digest=current_digest,
         status="active",
     )
     storage = MagicMock()
@@ -583,6 +631,13 @@ async def test_register_force_creates_new_artifact_revision(
         "extract",
         lambda **_kwargs: None,
     )
+    monkeypatch.setattr(
+        ModelRegistrationService,
+        "_build_digest",
+        staticmethod(
+            lambda **_kwargs: "same-digest"
+        ),
+    )
     monkeypatch.setitem(
         vars(register_module),
         "generate_id",
@@ -645,7 +700,7 @@ async def test_register_force_creates_new_artifact_revision(
     saved_call = storage.save.call_args
     assert saved_call is not None
     assert saved_call.args[:4] == (
-        "mdl_test",
+            "scorecard",
         "1.0.0",
         "art_new",
         "test_registration.py",
@@ -707,6 +762,13 @@ def test_registration_wraps_artifact_errors(
         tmp_path: Path,
 ) -> None:
     """测试统一转换模型文件读取和加载异常"""
+    test_logger = MagicMock()
+    monkeypatch.setattr(
+        register_module,
+        "logger",
+        test_logger,
+    )
+
     with pytest.raises(
             ArtifactError,
             match="模型文件读取失败",
@@ -733,6 +795,23 @@ def test_registration_wraps_artifact_errors(
             framework="sklearn",
         )
 
+    read_log = test_logger.exception.call_args_list[0]
+    assert read_log.args == ("模型文件读取失败",)
+    assert read_log.kwargs["model_path"] == str(tmp_path)
+    assert read_log.kwargs["error_type"] in {
+        "IsADirectoryError",
+        "PermissionError",
+    }
+    assert read_log.kwargs["error_message"]
+
+    load_log = test_logger.exception.call_args_list[1]
+    assert load_log.args == ("模型文件加载失败",)
+    assert load_log.kwargs == {
+        "framework": "sklearn",
+        "error_type": "ValueError",
+        "error_message": "invalid artifact",
+    }
+
 
 @pytest.mark.parametrize(
     (
@@ -748,7 +827,7 @@ def test_registration_wraps_artifact_errors(
             None,
             False,
             InvalidModelStateError,
-            "模型已归档",
+            "模型已归档，不允许注册模型版本",
         ),
         (
             "active",
@@ -768,7 +847,8 @@ def test_validate_metadata_rejects_invalid_registration(
 ) -> None:
     """测试拒绝归档模型和已有模型描述变更"""
     metadata = SimpleNamespace(
-        status=status
+        status=status,
+        description=None,
     )
 
     with pytest.raises(error_type, match=message):
@@ -778,6 +858,19 @@ def test_validate_metadata_rejects_invalid_registration(
             description=description,
             is_new_version=is_new_version,
         )
+
+
+def test_validate_metadata_accepts_unchanged_description() -> None:
+    """测试注册新版本时允许重复提供相同模型描述"""
+    ModelRegistrationService._validate_metadata(
+        metadata=SimpleNamespace(
+            status="inactive",
+            description="信用评分卡模型",
+        ),
+        name="scorecard",
+        description="信用评分卡模型",
+        is_new_version=True,
+    )
 
 
 @pytest.mark.parametrize(

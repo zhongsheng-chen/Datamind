@@ -131,7 +131,7 @@ def configure_manager(
 
 
 @pytest.mark.asyncio
-async def test_concurrent_ensure_loaded_loads_model_once(
+async def test_concurrent_load_requests_load_model_once(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试并发请求只加载一次模型"""
@@ -143,17 +143,17 @@ async def test_concurrent_ensure_loaded_loads_model_once(
     )
 
     first, second = await asyncio.gather(
-        manager.ensure_loaded("dep_test"),
-        manager.ensure_loaded("dep_test"),
+        manager.load("dep_test"),
+        manager.load("dep_test"),
     )
 
     assert first is second
     loader.load.assert_called_once_with(
         framework="sklearn",
-        tag="scorecard:test",
+        bento_tag="scorecard:test",
         model_key="models/mdl_test/1.0.0/model.pkl",
     )
-    runtime_repo.mark_loaded.assert_called_once()
+    runtime_repo.mark_running.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -176,15 +176,15 @@ async def test_failed_reload_preserves_previous_runtime(
     )
 
     with pytest.raises(BackendError, match="模型加载失败"):
-        await manager.start("dep_test", force=True)
+        await manager.reload("dep_test")
 
     assert manager.registry.get("dep_test", touch=False) is previous
     runtime_repo.mark_failed.assert_not_called()
-    runtime_repo.mark_loaded.assert_called_once()
+    runtime_repo.mark_running.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_start_returns_loaded_runtime_without_reloading(
+async def test_load_returns_loaded_runtime_without_reloading(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试已加载部署直接返回内存运行时模型"""
@@ -201,7 +201,7 @@ async def test_start_returns_loaded_runtime_without_reloading(
         model=object(),
     )
 
-    result = await manager.start("dep_test")
+    result = await manager.load("dep_test")
 
     assert result is existing
     loader.load.assert_not_called()
@@ -221,10 +221,11 @@ async def test_start_returns_loaded_runtime_without_reloading(
         ),
         ("metadata", None, ModelNotFoundError, "模型元数据不存在"),
         ("version", None, VersionNotFoundError, "版本不存在"),
-        ("artifact", None, VersionNotFoundError, "缺少可加载的模型制品"),
+        ("model_key", None, VersionNotFoundError, "缺少模型制品存储键"),
+        ("bento_tag", None, VersionNotFoundError, "缺少 BentoML 模型标签"),
     ],
 )
-async def test_start_validates_deployment_artifact(
+async def test_load_validates_deployment_artifact(
         monkeypatch: pytest.MonkeyPatch,
         repository: str,
         value: object | None,
@@ -248,17 +249,16 @@ async def test_start_validates_deployment_artifact(
         metadata_repo.get_model.return_value = value
     elif repository == "version":
         version_repo.get_version.return_value = value
+    elif repository == "model_key":
+        version_repo.get_version.return_value.model_key = value
     else:
-        version_repo.get_version.return_value = SimpleNamespace(
-            bento_tag=None,
-            model_key=None,
-        )
+        version_repo.get_version.return_value.bento_tag = value
 
     with pytest.raises(
             error_type,
             match=message,
     ):
-        await manager.start("dep_test")
+        await manager.load("dep_test")
 
     loader.load.assert_not_called()
 
@@ -279,15 +279,15 @@ async def test_failed_initial_load_marks_runtime_failed(
             BackendError,
             match="模型加载失败",
     ):
-        await manager.start("dep_test")
+        await manager.load("dep_test")
 
-    assert manager.registry.exists("dep_test") is False
+    assert "dep_test" not in manager.registry
     runtime_repo.mark_failed.assert_called_once()
-    runtime_repo.mark_loaded.assert_not_called()
+    runtime_repo.mark_running.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_start_creates_missing_runtime_record(
+async def test_load_creates_missing_runtime_record(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试加载时创建缺失的运行记录"""
@@ -311,7 +311,7 @@ async def test_start_creates_missing_runtime_record(
         lambda **_kwargs: "rtm_created",
     )
 
-    result = await manager.start(
+    result = await manager.load(
         "dep_test",
         operator="operator",
     )
@@ -329,11 +329,11 @@ async def test_start_creates_missing_runtime_record(
             "worker_id": "worker_test",
         },
     )
-    runtime_repo.mark_loaded.assert_called_once()
+    runtime_repo.mark_running.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_stop_unregisters_model_and_marks_runtime_unloaded(
+async def test_unload_unregisters_model_and_marks_runtime_unloaded(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试卸载模型并更新运行记录"""
@@ -349,14 +349,14 @@ async def test_stop_unregisters_model_and_marks_runtime_unloaded(
         model=object(),
     )
 
-    result = await manager.stop(
+    result = await manager.unload(
         "dep_test",
         operator="operator",
     )
 
     assert result is runtime_model
-    assert manager.registry.exists("dep_test") is False
-    runtime_repo.mark_unloaded.assert_called_once_with(
+    assert "dep_test" not in manager.registry
+    runtime_repo.mark_stopped.assert_called_once_with(
         runtime_repo.get_deployment_runtime.return_value,
         stopped_by="operator",
         context={
@@ -366,7 +366,7 @@ async def test_stop_unregisters_model_and_marks_runtime_unloaded(
 
 
 @pytest.mark.asyncio
-async def test_stop_ignores_missing_runtime_record(
+async def test_unload_ignores_missing_runtime_record(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试数据库运行记录不存在时仍可完成卸载"""
@@ -376,34 +376,34 @@ async def test_stop_ignores_missing_runtime_record(
     )
     runtime_repo.get_deployment_runtime.return_value = None
 
-    assert await manager.stop("dep_missing") is None
-    runtime_repo.mark_unloaded.assert_not_called()
+    assert await manager.unload("dep_missing") is None
+    runtime_repo.mark_stopped.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_restart_forces_model_reload(
+async def test_reload_forces_model_reload(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重启通过强制加载实现"""
+    """测试重新加载使用强制加载流程"""
     manager, _, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),
     )
     expected = MagicMock()
-    start = AsyncMock(return_value=expected)
+    load = AsyncMock(return_value=expected)
     monkeypatch.setattr(
         manager,
-        "start",
-        start,
+        "_load",
+        load,
     )
 
-    result = await manager.restart(
+    result = await manager.reload(
         "dep_test",
         operator="operator",
     )
 
     assert result is expected
-    start.assert_awaited_once_with(
+    load.assert_awaited_once_with(
         "dep_test",
         operator="operator",
         force=True,
@@ -411,7 +411,7 @@ async def test_restart_forces_model_reload(
 
 
 @pytest.mark.asyncio
-async def test_status_combines_memory_and_database_state(
+async def test_get_status_combines_memory_and_database_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试运行状态合并内存和数据库信息"""
@@ -426,7 +426,7 @@ async def test_status_combines_memory_and_database_state(
         model_id="mdl_test",
         version_id="ver_test",
         framework="sklearn",
-        status="loaded",
+        status="running",
         worker_id="worker_test",
         loaded_at=loaded_at,
         unloaded_at=None,
@@ -442,7 +442,7 @@ async def test_status_combines_memory_and_database_state(
         model=object(),
     )
 
-    result = await manager.status("dep_test")
+    result = await manager.get_status("dep_test")
 
     assert result["loaded_in_memory"] is True
     assert result["memory"]["deployment_id"] == "dep_test"
@@ -452,7 +452,7 @@ async def test_status_combines_memory_and_database_state(
         "model_id": "mdl_test",
         "version_id": "ver_test",
         "framework": "sklearn",
-        "status": "loaded",
+        "status": "running",
         "worker_id": "worker_test",
         "loaded_at": loaded_at.isoformat(),
         "unloaded_at": None,
@@ -463,7 +463,7 @@ async def test_status_combines_memory_and_database_state(
 
 
 @pytest.mark.asyncio
-async def test_status_returns_empty_runtime_state(
+async def test_get_status_returns_empty_runtime_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试未知部署返回空运行状态"""
@@ -473,7 +473,7 @@ async def test_status_returns_empty_runtime_state(
     )
     runtime_repo.get_deployment_runtime.return_value = None
 
-    result = await manager.status("dep_missing")
+    result = await manager.get_status("dep_missing")
 
     assert result["loaded_in_memory"] is False
     assert result["memory"] is None
@@ -481,68 +481,13 @@ async def test_status_returns_empty_runtime_state(
 
 
 @pytest.mark.asyncio
-async def test_ensure_loaded_returns_existing_runtime(
-        monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """测试确保加载直接返回已有运行时模型"""
-    manager, _, _, _, _ = configure_manager(
-        monkeypatch,
-        loader=MagicMock(),
-    )
-    runtime_model = manager.registry.register(
-        deployment_id="dep_test",
-        model_id="mdl_test",
-        version_id="ver_test",
-        framework="sklearn",
-        model=object(),
-    )
-    start = AsyncMock()
-    monkeypatch.setattr(
-        manager,
-        "start",
-        start,
-    )
-
-    assert await manager.ensure_loaded("dep_test") is runtime_model
-    start.assert_not_awaited()
-
-
-def test_manager_delegates_registry_operations(
-        monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """测试管理器查询操作委托给运行时注册表"""
-    manager, _, _, _, _ = configure_manager(
-        monkeypatch,
-        loader=MagicMock(),
-    )
-    model = object()
-    runtime_model = manager.registry.register(
-        deployment_id="dep_test",
-        model_id="mdl_test",
-        version_id="ver_test",
-        framework="sklearn",
-        model=model,
-    )
-
-    assert manager.get("dep_test", touch=False) is runtime_model
-    assert manager.get_model("dep_test", touch=False) is model
-    assert manager.exists("dep_test") is True
-    assert manager.all() == [runtime_model]
-    assert manager.to_dicts()[0]["deployment_id"] == "dep_test"
-    assert manager.count() == 1
-
-    manager.clear()
-
-    assert manager.count() == 0
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "operation",
     [
-        "start",
-        "stop",
-        "status",
+        "load",
+        "unload",
+        "reload",
+        "get_status",
     ],
 )
 async def test_manager_rejects_empty_deployment_id(

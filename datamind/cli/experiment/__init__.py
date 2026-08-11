@@ -15,6 +15,8 @@
   - complete: 完成实验
   - archive: 归档实验
   - analyze: 分析实验效果
+  - delete: 删除实验
+  - restore: 恢复实验
   - variant: 实验分组管理
 """
 
@@ -24,10 +26,12 @@ from datamind.cli.experiment.analyze import app as analyze_app
 from datamind.cli.experiment.archive import app as archive_app
 from datamind.cli.experiment.complete import app as complete_app
 from datamind.cli.experiment.create import app as create_app
+from datamind.cli.experiment.delete import app as delete_app
 from datamind.cli.experiment.list import app as list_app
 from datamind.cli.experiment.pause import app as pause_app
 from datamind.cli.experiment.show import app as show_app
 from datamind.cli.experiment.start import app as start_app
+from datamind.cli.experiment.restore import app as restore_app
 from datamind.cli.experiment.stop import app as stop_app
 from datamind.cli.experiment.update import app as update_app
 from datamind.cli.experiment.variant import app as variant_app
@@ -46,6 +50,8 @@ app.add_typer(stop_app)
 app.add_typer(complete_app)
 app.add_typer(archive_app)
 app.add_typer(analyze_app)
+app.add_typer(delete_app)
+app.add_typer(restore_app)
 
 app.add_typer(
     variant_app,

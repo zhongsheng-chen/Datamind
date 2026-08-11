@@ -16,7 +16,7 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
 from datamind.config import get_settings
@@ -29,7 +29,7 @@ from datamind.utils.datetime import (
 
 
 app = typer.Typer(help="查看角色命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -104,31 +104,29 @@ def show_role(
             timezone_name=timezone_name,
         )
 
+        console.info("角色详情\n")
         console.print(
-            "[green]角色详情[/green]\n"
-        )
-        console.print(
-            f"[cyan]{'ROLE ID':<16}[/cyan] : "
+            f"{'ROLE ID':<16} : "
             f"{result['role_id']}"
         )
         console.print(
-            f"[cyan]{'NAME':<16}[/cyan] : "
+            f"{'NAME':<16} : "
             f"{result['name']}"
         )
         console.print(
-            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{'DESCRIPTION':<16} : "
             f"{result['description'] or '-'}"
         )
         console.print(
-            f"[cyan]{'STATUS':<16}[/cyan] : "
+            f"{'STATUS':<16} : "
             f"{result['status']}"
         )
         console.print(
-            f"[cyan]{'PERMISSIONS':<16}[/cyan] : "
+            f"{'PERMISSIONS':<16} : "
             f"{permission_values}"
         )
         console.print(
-            f"[cyan]{'CREATED AT':<16}[/cyan] : "
+            f"{'CREATED AT':<16} : "
             f"{created_at or '-'}"
         )
 
@@ -143,8 +141,10 @@ def show_role(
             runner()
         )
     except IdentityError as exc:
-        console.print(
-            f"[red]查看角色失败：{exc}[/red]"
+        console.error(
+            f"查看角色失败：{exc}",
+            output_format=output,
+            error_type=type(exc).__name__,
         )
         raise typer.Exit(
             code=1

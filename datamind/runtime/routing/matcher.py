@@ -2,7 +2,8 @@
 
 """规则匹配器
 
-提供规则配置的校验与匹配能力，用于判断请求 payload 是否满足指定 rules。
+提供规则配置的校验与匹配能力，
+用于判断请求 payload 是否满足指定 rules。
 
 核心功能：
   - match: 判断 payload 是否匹配 rules

@@ -2,16 +2,17 @@
 
 """系统初始化 CLI 测试
 
-验证交互式密码、密码文件、成功输出和简洁错误处理。
+验证配置驱动的非交互初始化、成功输出和简洁错误处理。
 
 核心功能：
   - test_init_rejects_initialized_system_before_prompt:
-    验证系统已初始化时不读取管理员凭据
-  - test_init_prompts_for_credentials: 验证交互式初始化
-  - test_init_rejects_password_confirmation_mismatch:
-    验证两次密码输入必须一致
-  - test_init_reads_password_file: 验证从单行文件读取密码
-  - test_init_rejects_multiline_password_file: 验证拒绝多行密码文件
+    验证系统已初始化时不读取管理员配置
+  - test_init_uses_configured_credentials:
+    验证使用配置中的管理员凭据完成初始化
+  - test_init_rejects_missing_admin_password:
+    验证未配置管理员密码时拒绝初始化
+  - test_init_help_does_not_accept_credentials:
+    验证初始化命令不接收管理员凭据参数
   - test_init_renders_clean_error: 验证初始化失败不显示 traceback
 """
 
@@ -19,10 +20,12 @@ from datetime import (
     datetime,
     timezone,
 )
-from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
 import pytest
+from pydantic import SecretStr
 from sqlalchemy.exc import SQLAlchemyError
 from typer.testing import CliRunner
 
@@ -47,8 +50,21 @@ CURRENT_TIME = datetime(
 def install_service(
         monkeypatch: pytest.MonkeyPatch,
         service: AsyncMock,
-) -> None:
+        *,
+        username: str = "admin",
+        password: str = "secret",
+) -> MagicMock:
     """替换系统初始化服务和主机信息"""
+    settings_loader = MagicMock(
+        return_value=SimpleNamespace(
+            initialization=SimpleNamespace(
+                admin_username=username,
+                admin_password=SecretStr(
+                    password
+                ),
+            )
+        )
+    )
     monkeypatch.setitem(
         vars(init_module),
         "InitializationService",
@@ -64,6 +80,13 @@ def install_service(
         "get_hostname",
         lambda: "datamind-host",
     )
+    monkeypatch.setitem(
+        vars(init_module),
+        "get_settings",
+        settings_loader,
+    )
+
+    return settings_loader
 
 
 def create_service() -> AsyncMock:
@@ -80,14 +103,16 @@ def create_service() -> AsyncMock:
     return service
 
 
-def test_init_prompts_for_credentials(
+def test_init_uses_configured_credentials(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证交互式初始化并隐藏密码"""
+    """验证使用配置中的管理员凭据完成初始化"""
     service = create_service()
     install_service(
         monkeypatch,
         service,
+        username="configured-admin",
+        password="configured-secret",
     )
 
     result = runner.invoke(
@@ -95,122 +120,63 @@ def test_init_prompts_for_credentials(
         [
             "init"
         ],
-        input="\nsecret\nsecret\n",
     )
 
     assert result.exit_code == 0
     assert "初始化完成" in result.output
     assert "Datamind 初始化完成" not in result.output
-    assert "管理员用户名（默认：admin）:" in result.output
-    assert result.output.count(
-        "管理员用户名"
-    ) == 1
-    assert "[admin]" not in result.output
+    assert "管理员用户名" not in result.output
+    assert "管理员密码" not in result.output
     assert "初始化时间" not in result.output
     assert "2026-08-02 16:30:00" not in result.output
-    assert "secret" not in result.output
-    assert result.output.count(
-        "管理员密码:"
-    ) == 2
+    assert "configured-secret" not in result.output
     service.initialize.assert_awaited_once_with(
-        username="admin",
-        password="secret",
+        username="configured-admin",
+        password="configured-secret",
         ip="10.0.0.10",
         hostname="datamind-host",
     )
 
 
-def test_init_rejects_password_confirmation_mismatch(
+def test_init_rejects_missing_admin_password(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证两次密码输入必须一致"""
+    """验证未配置管理员密码时拒绝初始化"""
     service = create_service()
     install_service(
         monkeypatch,
         service,
+        password="",
     )
 
     result = runner.invoke(
         app,
         [
             "init",
-            "--username",
-            "admin",
         ],
-        input="first-secret\nsecond-secret\n",
     )
 
     assert result.exit_code == 1
-    assert "两次输入的管理员密码不一致" in result.output
+    assert (
+        "未配置管理员密码，请设置 "
+        "DATAMIND_INIT_ADMIN_PASSWORD"
+    ) in result.output
     service.initialize.assert_not_awaited()
 
 
-def test_init_reads_password_file(
-        monkeypatch: pytest.MonkeyPatch,
-        tmp_path: Path,
-) -> None:
-    """验证从单行文件读取管理员密码"""
-    password_file = tmp_path / "initial-admin-password"
-    password_file.write_text(
-        "file-secret\n",
-        encoding="utf-8",
-    )
-    service = create_service()
-    install_service(
-        monkeypatch,
-        service,
-    )
-
+def test_init_help_does_not_accept_credentials() -> None:
+    """验证初始化命令不接收管理员凭据参数"""
     result = runner.invoke(
         app,
         [
             "init",
-            "--username",
-            "admin",
-            "--password-file",
-            str(password_file),
+            "--help",
         ],
     )
 
     assert result.exit_code == 0
-    assert "file-secret" not in result.output
-    service.initialize.assert_awaited_once_with(
-        username="admin",
-        password="file-secret",
-        ip="10.0.0.10",
-        hostname="datamind-host",
-    )
-
-
-def test_init_rejects_multiline_password_file(
-        monkeypatch: pytest.MonkeyPatch,
-        tmp_path: Path,
-) -> None:
-    """验证拒绝包含多行内容的密码文件"""
-    password_file = tmp_path / "initial-admin-password"
-    password_file.write_text(
-        "first\nsecond\n",
-        encoding="utf-8",
-    )
-    install_service(
-        monkeypatch,
-        create_service(),
-    )
-
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "--username",
-            "admin",
-            "--password-file",
-            str(password_file),
-        ],
-    )
-
-    assert result.exit_code == 1
-    assert "密码文件只能包含一行" in result.output
-    assert "Traceback" not in result.output
+    assert "--username" not in result.output
+    assert "--password-file" not in result.output
 
 
 def test_init_renders_clean_error(
@@ -219,7 +185,7 @@ def test_init_renders_clean_error(
     """验证系统已初始化时输出简洁错误"""
     service = create_service()
     service.is_initialized.return_value = True
-    install_service(
+    settings_loader = install_service(
         monkeypatch,
         service,
     )
@@ -228,8 +194,6 @@ def test_init_renders_clean_error(
         app,
         [
             "init",
-            "--username",
-            "admin",
         ],
     )
 
@@ -238,6 +202,7 @@ def test_init_renders_clean_error(
     assert "Traceback" not in result.output
     assert "管理员密码" not in result.output
     service.initialize.assert_not_awaited()
+    settings_loader.assert_not_called()
 
 
 def test_init_renders_clean_database_error(
@@ -257,8 +222,6 @@ def test_init_renders_clean_database_error(
         app,
         [
             "init",
-            "--username",
-            "admin",
         ],
     )
 

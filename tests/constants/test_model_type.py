@@ -26,6 +26,7 @@ import pytest
 from datamind.constants.model_type import (
     ModelType,
     SUPPORTED_MODEL_TYPES,
+    SUPPORTED_MODEL_TYPES_BY_FRAMEWORK,
 )
 
 
@@ -126,6 +127,18 @@ def test_supported_model_types_matches_enum_values() -> None:
     } == set(
         EXPECTED_MODEL_TYPES.values()
     )
+
+
+def test_model_types_match_frameworks() -> None:
+    """测试框架仅接受对应的模型类型"""
+    assert SUPPORTED_MODEL_TYPES_BY_FRAMEWORK["sklearn"] == frozenset({
+        "logistic_regression",
+        "decision_tree",
+        "random_forest",
+    })
+    assert SUPPORTED_MODEL_TYPES_BY_FRAMEWORK["catboost"] == frozenset({
+        "catboost",
+    })
 
 
 @pytest.mark.parametrize(

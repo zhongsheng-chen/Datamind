@@ -26,6 +26,7 @@
       request = repo.create_request(
           request_id="req_0123456789abcdef",
           model_id="mdl_0123456789abcdef",
+          model_name="scorecard",
           payload={
               "features": {
                   "age": 35,
@@ -265,7 +266,8 @@ class RequestRepository(BaseRepository):
             self,
             *,
             request_id: str,
-            model_id: str,
+            model_id: str | None = None,
+            model_name: str | None = None,
             payload: dict | None = None,
             source: str | None = None,
             latency_ms: float | None = None,
@@ -278,7 +280,8 @@ class RequestRepository(BaseRepository):
 
         参数：
             request_id: 请求 ID
-            model_id: 模型 ID
+            model_id: 模型 ID（可选）
+            model_name: 模型名称（可选）
             payload: 请求输入数据（可选）
             source: 请求来源（可选）
             latency_ms: 处理耗时（可选）
@@ -297,10 +300,15 @@ class RequestRepository(BaseRepository):
 
         new_request = Request(
             request_id=request_id,
-            model_id=model_id,
             payload=payload,
             status="received",
         )
+
+        if model_id is not None:
+            new_request.model_id = model_id
+
+        if model_name is not None:
+            new_request.model_name = model_name
 
         if source is not None:
             new_request.source = source
@@ -324,6 +332,7 @@ class RequestRepository(BaseRepository):
             self,
             request: Request,
             *,
+            model_id: str | None = None,
             response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
@@ -331,6 +340,7 @@ class RequestRepository(BaseRepository):
 
         参数：
             request: 请求记录对象
+            model_id: 模型 ID（可选）
             response: 请求处理结果（可选）
             latency_ms: 处理耗时（可选）
 
@@ -347,6 +357,9 @@ class RequestRepository(BaseRepository):
         request.status = "success"
         request.error = None
 
+        if model_id is not None:
+            request.model_id = model_id
+
         if response is not None:
             request.response = response
 
@@ -360,6 +373,7 @@ class RequestRepository(BaseRepository):
             request: Request,
             *,
             error: str,
+            model_id: str | None = None,
             response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
@@ -368,6 +382,7 @@ class RequestRepository(BaseRepository):
         参数：
             request: 请求记录对象
             error: 错误信息
+            model_id: 模型 ID（可选）
             response: 请求处理结果（可选）
             latency_ms: 处理耗时（可选）
 
@@ -383,6 +398,9 @@ class RequestRepository(BaseRepository):
 
         request.status = "failed"
         request.error = error
+
+        if model_id is not None:
+            request.model_id = model_id
 
         if response is not None:
             request.response = response

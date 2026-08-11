@@ -27,15 +27,21 @@
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import structlog
 
 from datamind.constants import (
+    SUPPORTED_MODEL_NAME_PATTERN,
+    SUPPORTED_MODEL_TYPES_BY_FRAMEWORK,
     Framework,
     ModelType,
     TaskType,
+)
+from datamind.constants.version import (
+    SUPPORTED_MODEL_VERSION_PATTERN,
 )
 from datamind.db.core.uow import UnitOfWork
 from datamind.db.repositories import (
@@ -84,6 +90,7 @@ class ModelRegistrationService:
             model_type: str,
             task_type: str,
             model_path: str,
+            display_name: str | None = None,
             description: str | None = None,
             version_description: str | None = None,
             input_schema: dict | None = None,
@@ -96,11 +103,13 @@ class ModelRegistrationService:
         """注册模型或模型制品修订
 
         首次提交创建模型版本及 revision 1 制品。版本已存在时，
-        相同摘要按幂等成功返回；不同摘要只有在 force=True、版本处于
-        inactive、从未部署且未删除时，才创建新的制品修订。
+        未指定 force 且摘要相同则按幂等成功返回；指定 force
+        后，只有版本处于 inactive、从未部署且未删除时，
+        才创建新的制品修订。
 
         参数：
-            name: 模型名称
+            name: 模型机器名称
+            display_name: 模型显示名称（可选）
             version: 模型版本号
             framework: 模型框架
             model_type: 模型类型
@@ -124,6 +133,26 @@ class ModelRegistrationService:
             InvalidModelStateError: 已有版本不允许创建新制品修订
             ValueError: 已有模型注册新版本时尝试修改模型描述
         """
+        if re.fullmatch(
+                SUPPORTED_MODEL_NAME_PATTERN,
+                name,
+        ) is None:
+            raise ValueError(
+                f"无效的模型名称「{name}」，"
+                "请使用小写字母、数字、点、下划线或连字符，"
+                "并以字母或数字开头和结尾"
+            )
+
+        if re.fullmatch(
+                SUPPORTED_MODEL_VERSION_PATTERN,
+                version,
+        ) is None:
+            raise ValueError(
+                f"无效的模型版本「{version}」，"
+                "请输入主版本.次版本.修订版本，"
+                "例如 1.0.0"
+            )
+
         model_id = generate_id(
             prefix="mdl",
             keys=(name,),
@@ -133,10 +162,26 @@ class ModelRegistrationService:
             keys=(model_id, version),
         )
         path = Path(model_path)
-        framework_value = Framework(framework.lower())
-        model_type_value = ModelType(model_type.lower())
-        task_type_value = TaskType(task_type.lower())
-        framework_text = str(framework_value)
+        framework = Framework(
+            framework.lower()
+        )
+        model_type = ModelType(
+            model_type.lower()
+        )
+        task_type = TaskType(
+            task_type.lower()
+        )
+
+        if (
+                model_type.value
+                not in SUPPORTED_MODEL_TYPES_BY_FRAMEWORK[
+                    framework.value
+                ]
+        ):
+            raise ValueError(
+                f"框架 {framework.value} 不支持模型类型 "
+                f"{model_type.value}"
+            )
 
         if not path.is_file():
             raise ArtifactError(
@@ -146,11 +191,11 @@ class ModelRegistrationService:
         data = self._read_artifact(path)
         model = self._load_artifact(
             data=data,
-            framework=framework_text,
+            framework=framework,
         )
         extracted_schema = SchemaExtractor.extract(
             model=model,
-            framework=framework_text,
+            framework=framework,
         )
 
         if input_schema is None:
@@ -158,7 +203,7 @@ class ModelRegistrationService:
 
         sha256 = hashlib.sha256(data).hexdigest()
         digest = self._build_digest(
-            framework=framework_text,
+            framework=framework,
             sha256=sha256,
             input_schema=input_schema,
             output_schema=output_schema,
@@ -227,9 +272,8 @@ class ModelRegistrationService:
 
                 if not force:
                     raise ModelAlreadyExistsError(
-                        "模型版本已存在；如需替换未发布制品，"
-                        "请显式指定 force: "
-                        f"{name}:{version}"
+                        "模型版本已存在，且上传文件与当前制品不同。"
+                        "如需继续，请创建新的制品修订。"
                     )
 
                 await self._validate_force_registration(
@@ -240,12 +284,30 @@ class ModelRegistrationService:
                     existing_version.artifact_revision or 1
                 ) + 1
 
+                if (
+                        metadata is not None
+                        and description is not None
+                        and description
+                        != getattr(
+                            metadata,
+                            "description",
+                            None,
+                        )
+                ):
+                    metadata_repo.update_model(
+                        metadata,
+                        patch=MetadataPatch(
+                            description=description,
+                        ),
+                        updated_by=created_by,
+                    )
+
             artifact_id = generate_random_id(
                 prefix="art"
             )
             model_key = self._save_artifact_object(
                 uow=uow,
-                model_id=model_id,
+                model_name=name,
                 version=version,
                 artifact_id=artifact_id,
                 filename=path.name,
@@ -257,7 +319,7 @@ class ModelRegistrationService:
             if input_schema is not None:
                 input_schema_key = self._save_artifact_object(
                     uow=uow,
-                    model_id=model_id,
+                    model_name=name,
                     version=version,
                     artifact_id=artifact_id,
                     filename="input_schema.json",
@@ -269,7 +331,7 @@ class ModelRegistrationService:
             if output_schema is not None:
                 output_schema_key = self._save_artifact_object(
                     uow=uow,
-                    model_id=model_id,
+                    model_name=name,
                     version=version,
                     artifact_id=artifact_id,
                     filename="output_schema.json",
@@ -281,16 +343,16 @@ class ModelRegistrationService:
             )
             bento_model = self.backend.save(
                 name=name,
-                framework=framework_text,
+                framework=framework,
                 model=model,
                 labels={
                     "model_id": model_id,
                     "version_id": version_id,
                     "artifact_id": artifact_id,
                     "revision": str(revision),
-                    "model_type": str(model_type_value),
-                    "task_type": str(task_type_value),
-                    "framework": framework_text,
+                    "model_type": model_type,
+                    "task_type": task_type,
+                    "framework": framework,
                     "version": version,
                     "sha256": sha256,
                 },
@@ -304,9 +366,10 @@ class ModelRegistrationService:
                 metadata_repo.create_model(
                     model_id=model_id,
                     name=name,
-                    model_type=model_type_value,
-                    task_type=task_type_value,
-                    framework=framework_value,
+                    display_name=display_name,
+                    model_type=model_type,
+                    task_type=task_type,
+                    framework=framework,
                     description=description,
                     created_by=created_by,
                 )
@@ -315,9 +378,9 @@ class ModelRegistrationService:
                     metadata,
                     patch=MetadataPatch(
                         name=name,
-                        model_type=model_type_value,
-                        task_type=task_type_value,
-                        framework=framework_value,
+                        model_type=model_type,
+                        task_type=task_type,
+                        framework=framework,
                     ),
                     updated_by=created_by,
                 )
@@ -348,7 +411,7 @@ class ModelRegistrationService:
                     version_id=version_id,
                     model_id=model_id,
                     version=version,
-                    framework=framework_value,
+                    framework=framework,
                     bento_tag=bento_tag,
                     model_path=resolved_model_path,
                     model_key=model_key,
@@ -410,6 +473,12 @@ class ModelRegistrationService:
         try:
             return path.read_bytes()
         except OSError as exc:
+            logger.exception(
+                "模型文件读取失败",
+                model_path=str(path),
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
             raise ArtifactError(
                 f"模型文件读取失败: {path}"
             ) from exc
@@ -427,6 +496,12 @@ class ModelRegistrationService:
                 framework=framework,
             )
         except Exception as exc:
+            logger.exception(
+                "模型文件加载失败",
+                framework=str(framework),
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
             raise ArtifactError(
                 "模型文件加载失败"
             ) from exc
@@ -467,7 +542,7 @@ class ModelRegistrationService:
             self,
             *,
             uow: UnitOfWork,
-            model_id: str,
+            model_name: str,
             version: str,
             artifact_id: str,
             filename: str,
@@ -475,7 +550,7 @@ class ModelRegistrationService:
     ) -> str:
         """保存制品对象并注册事务回滚补偿"""
         key = self.storage.save(
-            model_id,
+            model_name,
             version,
             artifact_id,
             filename,
@@ -501,10 +576,19 @@ class ModelRegistrationService:
 
         if MetadataStatus(metadata.status) == MetadataStatus.ARCHIVED:
             raise InvalidModelStateError(
-                f"模型已归档，不允许注册制品: {name}"
+                f"模型已归档，不允许注册模型版本: {name}"
             )
 
-        if is_new_version and description is not None:
+        if (
+                is_new_version
+                and description is not None
+                and description
+                != getattr(
+                    metadata,
+                    "description",
+                    None,
+                )
+        ):
             raise ValueError(
                 "模型已存在，注册新版本时不能修改模型描述"
             )

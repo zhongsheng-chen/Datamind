@@ -8,12 +8,15 @@
   - get_runtime: 获取运行记录
   - get_deployment_runtime: 获取部署对应的运行记录
   - list_runtimes: 获取运行记录列表
-  - list_loaded_runtimes: 获取已加载运行记录
+  - list_running_runtimes: 获取运行中实例
+  - mark_stale_runtimes_failed: 收敛失联的活动实例
   - create_runtime: 创建运行记录
   - update_runtime: 更新运行记录
-  - mark_loading: 标记加载中
-  - mark_loaded: 标记已加载
-  - mark_unloaded: 标记已卸载
+  - set_applied_generation: 更新已应用控制版本号
+  - mark_starting: 标记启动中
+  - mark_running: 标记运行中
+  - mark_stopping: 标记停止中
+  - mark_stopped: 标记已停止
   - mark_failed: 标记加载失败
   - heartbeat: 更新运行心跳
 
@@ -50,9 +53,16 @@ from datetime import (
     timezone,
 )
 
-from sqlalchemy import select
+from sqlalchemy import (
+    and_,
+    func,
+    or_,
+    select,
+)
 
 from datamind.constants import Framework
+from datamind.constants.runtime_status import ACTIVE_RUNTIME_STATUSES
+from datamind.db.models import Deployment
 from datamind.db.models.runtimes import Runtime
 from datamind.db.repositories.base import BaseRepository
 
@@ -273,7 +283,7 @@ class RuntimeRepository(BaseRepository):
             result.scalars().all()
         )
 
-    async def list_loaded_runtimes(
+    async def list_running_runtimes(
             self,
             *,
             model_id: str | None = None,
@@ -283,7 +293,7 @@ class RuntimeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Runtime]:
-        """获取已加载运行记录
+        """获取运行中实例
 
         参数：
             model_id: 模型 ID（可选）
@@ -294,17 +304,76 @@ class RuntimeRepository(BaseRepository):
             offset: 分页偏移（可选）
 
         返回：
-            已加载运行记录列表
+            运行中实例列表
         """
         return await self.list_runtimes(
             model_id=model_id,
             version_id=version_id,
             framework=framework,
-            status="loaded",
+            status="running",
             worker_id=worker_id,
             limit=limit,
             offset=offset,
         )
+
+    async def mark_stale_runtimes_failed(
+            self,
+            *,
+            environment: str,
+            stale_before: datetime,
+            exclude_worker_id: str | None = None,
+    ) -> list[str]:
+        """将指定环境中失联的活动实例标记为失败。"""
+        if not environment:
+            raise ValueError(
+                "environment 不能为空"
+            )
+
+        stale = or_(
+            and_(
+                Runtime.status.in_(("starting", "stopping")),
+                Runtime.updated_at < stale_before,
+            ),
+            and_(
+                Runtime.status == "running",
+                func.coalesce(
+                    Runtime.last_heartbeat_at,
+                    Runtime.updated_at,
+                ) < stale_before,
+            ),
+        )
+        stmt = (
+            select(Runtime)
+            .join(
+                Deployment,
+                Deployment.deployment_id
+                == Runtime.deployment_id,
+            )
+            .where(
+                Deployment.environment == environment,
+                Runtime.status.in_(ACTIVE_RUNTIME_STATUSES),
+                stale,
+            )
+        )
+
+        if exclude_worker_id is not None:
+            stmt = stmt.where(
+                Runtime.worker_id != exclude_worker_id
+            )
+
+        result = await self.session.execute(stmt)
+        runtimes = list(result.scalars().all())
+
+        for runtime in runtimes:
+            self.mark_failed(
+                runtime,
+                error="运行实例心跳超时，Worker 已失联",
+            )
+
+        return [
+            runtime.runtime_id
+            for runtime in runtimes
+        ]
 
     def create_runtime(
             self,
@@ -326,7 +395,7 @@ class RuntimeRepository(BaseRepository):
     ) -> Runtime:
         """创建运行记录
 
-        新建运行记录默认处于 unloaded 状态。
+        新建运行记录默认处于 stopped 状态。
 
         参数：
             runtime_id: 运行 ID
@@ -355,7 +424,7 @@ class RuntimeRepository(BaseRepository):
             framework=str(
                 framework
             ),
-            status="unloaded",
+            status="stopped",
             worker_id=worker_id,
             context=context,
         )
@@ -432,14 +501,43 @@ class RuntimeRepository(BaseRepository):
 
         return runtime
 
-    def mark_loading(
+    async def set_applied_generation(
+            self,
+            *,
+            deployment_id: str,
+            worker_id: str,
+            generation: int,
+    ) -> Runtime | None:
+        """更新部署运行记录已应用的控制版本号
+
+        参数：
+            deployment_id: 部署 ID
+            worker_id: Worker 标识
+            generation: 已应用控制版本号
+
+        返回：
+            更新后的运行记录对象，不存在时返回 None
+        """
+        runtime = await self.get_deployment_runtime(
+            deployment_id=deployment_id,
+            worker_id=worker_id,
+        )
+
+        if runtime is None:
+            return None
+
+        runtime.applied_generation = generation
+
+        return runtime
+
+    def mark_starting(
             self,
             runtime: Runtime,
             *,
             started_by: str | None = None,
             context: dict | None = None,
     ) -> Runtime:
-        """标记运行记录为加载中
+        """标记运行实例为启动中
 
         参数：
             runtime: 运行记录对象
@@ -449,7 +547,7 @@ class RuntimeRepository(BaseRepository):
         返回：
             更新后的运行记录对象
         """
-        runtime.status = "loading"
+        runtime.status = "starting"
         runtime.error = None
         runtime.unloaded_at = None
 
@@ -461,7 +559,7 @@ class RuntimeRepository(BaseRepository):
 
         return runtime
 
-    def mark_loaded(
+    def mark_running(
             self,
             runtime: Runtime,
             *,
@@ -470,7 +568,7 @@ class RuntimeRepository(BaseRepository):
             loaded_at: datetime | None = None,
             applied_generation: int | None = None,
     ) -> Runtime:
-        """标记运行记录为已加载
+        """标记运行实例为运行中
 
         参数：
             runtime: 运行记录对象
@@ -489,7 +587,7 @@ class RuntimeRepository(BaseRepository):
             )
         )
 
-        runtime.status = "loaded"
+        runtime.status = "running"
         runtime.loaded_at = timestamp
         runtime.unloaded_at = None
         runtime.error = None
@@ -508,7 +606,22 @@ class RuntimeRepository(BaseRepository):
 
         return runtime
 
-    def mark_unloaded(
+    def mark_stopping(
+            self,
+            runtime: Runtime,
+            *,
+            stopped_by: str | None = None,
+    ) -> Runtime:
+        """标记运行实例为停止中"""
+        runtime.status = "stopping"
+        runtime.error = None
+
+        if stopped_by is not None:
+            runtime.stopped_by = stopped_by
+
+        return runtime
+
+    def mark_stopped(
             self,
             runtime: Runtime,
             *,
@@ -517,7 +630,7 @@ class RuntimeRepository(BaseRepository):
             unloaded_at: datetime | None = None,
             applied_generation: int | None = None,
     ) -> Runtime:
-        """标记运行记录为已卸载
+        """标记运行实例为已停止
 
         参数：
             runtime: 运行记录对象
@@ -529,7 +642,7 @@ class RuntimeRepository(BaseRepository):
         返回：
             更新后的运行记录对象
         """
-        runtime.status = "unloaded"
+        runtime.status = "stopped"
         runtime.unloaded_at = (
             unloaded_at
             or datetime.now(

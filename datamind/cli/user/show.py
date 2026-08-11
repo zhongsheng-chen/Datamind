@@ -16,7 +16,7 @@ import json
 
 import structlog
 import typer
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
 from datamind.config import get_settings
@@ -29,7 +29,7 @@ from datamind.utils.datetime import (
 
 
 app = typer.Typer(help="查看用户命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -110,39 +110,37 @@ def show_user(
             timezone_name=timezone_name,
         )
 
+        console.info("用户详情\n")
         console.print(
-            "[green]用户详情[/green]\n"
-        )
-        console.print(
-            f"[cyan]{'USER ID':<16}[/cyan] : "
+            f"{'USER ID':<16} : "
             f"{result['user_id']}"
         )
         console.print(
-            f"[cyan]{'USERNAME':<16}[/cyan] : "
+            f"{'USERNAME':<16} : "
             f"{result['username']}"
         )
         console.print(
-            f"[cyan]{'DISPLAY NAME':<16}[/cyan] : "
+            f"{'DISPLAY NAME':<16} : "
             f"{result['display_name'] or '-'}"
         )
         console.print(
-            f"[cyan]{'EMAIL':<16}[/cyan] : "
+            f"{'EMAIL':<16} : "
             f"{result['email'] or '-'}"
         )
         console.print(
-            f"[cyan]{'STATUS':<16}[/cyan] : "
+            f"{'STATUS':<16} : "
             f"{result['status']}"
         )
         console.print(
-            f"[cyan]{'ROLES':<16}[/cyan] : "
+            f"{'ROLES':<16} : "
             f"{roles}"
         )
         console.print(
-            f"[cyan]{'LAST LOGIN AT':<16}[/cyan] : "
+            f"{'LAST LOGIN AT':<16} : "
             f"{last_login_at or '-'}"
         )
         console.print(
-            f"[cyan]{'CREATED AT':<16}[/cyan] : "
+            f"{'CREATED AT':<16} : "
             f"{created_at or '-'}"
         )
 
@@ -157,8 +155,10 @@ def show_user(
             runner()
         )
     except IdentityError as exc:
-        console.print(
-            f"[red]查看用户失败：{exc}[/red]"
+        console.error(
+            f"查看用户失败：{exc}",
+            output_format=output,
+            error_type=type(exc).__name__,
         )
         raise typer.Exit(
             code=1

@@ -2,11 +2,16 @@
 
 """运行时模型注册表
 
-管理已经加载到内存中的模型对象。
+负责维护当前进程中已加载的运行时模型。
 
 核心功能：
-  - RuntimeModel: 已加载模型运行对象
-  - RuntimeRegistry: 运行时模型注册表
+  - register: 注册运行时模型
+  - get: 获取运行时模型
+  - unregister: 注销运行时模型
+  - restore: 恢复先前的运行时模型
+  - all: 获取全部运行时模型
+  - snapshot: 获取注册表状态快照
+  - clear: 清空注册表
 
 使用示例：
   from datamind.runtime.registry import RuntimeRegistry
@@ -21,6 +26,10 @@
       model=model,
       metadata={
           "bento_tag": "scorecard:abc123def",
+          "model_key": (
+              "models/mdl_0123456789abcdef/1.0.0/"
+              "artifacts/art_0123456789abcdef/model.pkl"
+          ),
       },
   )
 
@@ -30,7 +39,7 @@
       model = runtime_model.model
 
   runtime_models = registry.all()
-  runtime_infos = registry.to_dicts()
+  runtime_snapshot = registry.snapshot()
 """
 
 from dataclasses import dataclass, field
@@ -118,7 +127,7 @@ class RuntimeRegistry:
             version_id: 版本 ID
             framework: 模型框架
             model: 已加载的模型对象
-            metadata: 运行时元数据，可记录 bento_tag、model_path 等信息
+            metadata: 运行时元数据，可记录 bento_tag、model_key 等信息
 
         返回：
             运行时模型对象
@@ -174,34 +183,9 @@ class RuntimeRegistry:
 
             return runtime_model
 
-    def get_model(
+    def __contains__(
             self,
-            deployment_id: str,
-            *,
-            touch: bool = True,
-    ) -> Any | None:
-        """获取已加载模型对象
-
-        参数：
-            deployment_id: 部署 ID
-            touch: 是否记录访问时间和访问次数，默认 True
-
-        返回：
-            已加载模型对象；不存在时返回 None
-        """
-        runtime_model = self.get(
-            deployment_id,
-            touch=touch,
-        )
-
-        if runtime_model is None:
-            return None
-
-        return runtime_model.model
-
-    def exists(
-            self,
-            deployment_id: str,
+            deployment_id: object,
     ) -> bool:
         """判断部署是否已加载
 
@@ -211,7 +195,10 @@ class RuntimeRegistry:
         返回：
             是否已加载
         """
-        if not deployment_id:
+        if (
+                not isinstance(deployment_id, str)
+                or not deployment_id
+        ):
             return False
 
         with self._lock:
@@ -243,7 +230,7 @@ class RuntimeRegistry:
     def all(
             self,
     ) -> list[RuntimeModel]:
-        """获取所有已加载模型
+        """获取全部运行时模型
 
         返回：
             运行时模型对象列表
@@ -251,10 +238,10 @@ class RuntimeRegistry:
         with self._lock:
             return list(self._models.values())
 
-    def to_dicts(
+    def snapshot(
             self,
     ) -> list[dict]:
-        """转换为字典列表
+        """获取注册表状态快照
 
         返回：
             运行时模型字典列表
@@ -265,12 +252,8 @@ class RuntimeRegistry:
                 for runtime_model in self._models.values()
             ]
 
-    def count(self) -> int:
-        """获取已加载模型数量
-
-        返回：
-            已加载模型数量
-        """
+    def __len__(self) -> int:
+        """获取运行时模型数量"""
         with self._lock:
             return len(self._models)
 

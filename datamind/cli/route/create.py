@@ -9,7 +9,7 @@
 
 使用示例：
   python -m datamind.cli.main route create dep_0123456789abcdef \
-    --environment development \
+    --name scorecard-route \
     --traffic-ratio 0.8 \
     --rules-file route_rules.json
 """
@@ -20,26 +20,34 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.config import get_settings
-from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DeploymentRepository,
     RoutingRepository,
 )
+from datamind.models.enums import DeploymentRole
 from datamind.runtime.routing import RuleMatcher
+from datamind.services.routing import (
+    ensure_deployment_has_no_routing,
+    validate_routing_allocation,
+)
+from datamind.utils.datetime import (
+    format_datetime,
+    format_iso_utc,
+    parse_datetime,
+)
 from datamind.utils.generator import generate_random_id
 
 app = typer.Typer(help="创建路由命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
-CHAMPION_ROLE = "champion"
 CHAMPION_TRAFFIC_RATIO_WARN_THRESHOLD = 0.7
 
 
@@ -49,10 +57,10 @@ def create_route(
             ...,
             help="部署 ID"
         ),
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="路由环境，默认使用服务配置"
+        name: str = typer.Option(
+            ...,
+            "--name",
+            help="路由名称",
         ),
         traffic_ratio: float = typer.Option(
             ...,
@@ -69,8 +77,18 @@ def create_route(
             "--description",
             help="路由描述"
         ),
+        effective_from: str | None = typer.Option(
+            None,
+            "--effective-from",
+            help="生效开始时间。默认不设置"
+        ),
+        effective_to: str | None = typer.Option(
+            None,
+            "--effective-to",
+            help="生效结束时间。默认不设置"
+        ),
         enabled: bool = typer.Option(
-            True,
+            False,
             "--enabled/--disabled",
             help="是否启用路由"
         ),
@@ -80,26 +98,16 @@ def create_route(
             help="输出格式：text / json"
         ),
 ):
-    """创建路由规则"""
+    """创建路由规则
+
+    时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
+    时区偏移。未提供时区偏移时，按配置时区解析。
+    """
     settings = get_settings()
     service_config = settings.service
+    timezone_name = settings.logging.timezone
 
-    environment_value = (
-        environment
-        if environment is not None
-        else str(
-            service_config.environment
-        )
-    )
-
-    try:
-        resolved_environment = Environment(
-            environment_value
-        )
-    except ValueError as exc:
-        raise typer.BadParameter(
-            f"不支持的路由环境: {environment_value}"
-        ) from exc
+    environment = service_config.environment
 
     @audit(
         action="route.create",
@@ -109,6 +117,11 @@ def create_route(
     async def _run(
             actor: str,
     ):
+        resolved_name = name.strip()
+        if not resolved_name:
+            raise typer.BadParameter("--name 不能为空")
+        if len(resolved_name) > 128:
+            raise typer.BadParameter("--name 不能超过 128 个字符")
         if output not in ("text", "json"):
             raise typer.BadParameter(
                 "--format 只支持 text 或 json"
@@ -118,6 +131,29 @@ def create_route(
             raise typer.BadParameter(
                 "--traffic-ratio 必须在 0 到 1 之间"
             )
+
+        try:
+            effective_from_value = parse_datetime(
+                effective_from,
+                timezone_name=timezone_name,
+            )
+            effective_to_value = parse_datetime(
+                effective_to,
+                timezone_name=timezone_name,
+            )
+
+        except ValueError as datetime_error:
+            raise typer.BadParameter(
+                "生效时间格式无效，请使用 "
+                "YYYY-MM-DD HH:MM:SS 或带时区的 ISO 8601 格式"
+            ) from datetime_error
+
+        if (
+                effective_from_value is not None
+                and effective_to_value is not None
+                and effective_to_value <= effective_from_value
+        ):
+            raise typer.BadParameter("--effective-to 必须晚于 --effective-from")
 
         route_rules = None
 
@@ -140,19 +176,16 @@ def create_route(
                     rules=route_rules,
                 )
 
-            except FileNotFoundError:
-                console.print(
-                    "[red]rules 文件不存在: "
-                    f"{rules_file}[/red]"
-                )
-                raise typer.Exit(1)
+            except FileNotFoundError as error:
+                raise typer.BadParameter(
+                    f"--rules-file 文件不存在：{rules_file}"
+                ) from error
 
-            except json.JSONDecodeError as json_error:
-                console.print(
-                    "[red]rules-file JSON 解析失败: "
-                    f"{json_error}[/red]"
-                )
-                raise typer.Exit(1)
+            except json.JSONDecodeError as error:
+                raise typer.BadParameter(
+                    "--rules-file JSON 解析失败："
+                    f"{error}"
+                ) from error
 
             if not isinstance(
                     route_rules,
@@ -167,20 +200,22 @@ def create_route(
                     route_rules
                 )
 
-            except ValueError as validation_error:
-                console.print(
-                    "[red]rules 规则校验失败: "
-                    f"{validation_error}[/red]"
-                )
-                raise typer.Exit(1)
+            except ValueError as error:
+                raise typer.BadParameter(
+                    "--rules-file 规则校验失败："
+                    f"{error}"
+                ) from error
 
         logger.info(
             "开始创建路由",
+            name=resolved_name,
             deployment_id=deployment_id,
-            environment=resolved_environment,
+            environment=environment,
             traffic_ratio=traffic_ratio,
             rules_file=rules_file,
             enabled=enabled,
+            effective_from=effective_from_value,
+            effective_to=effective_to_value,
         )
 
         async with UnitOfWork() as uow:
@@ -197,27 +232,50 @@ def create_route(
             )
 
             if deployment is None:
-                console.print(
-                    f"[red]部署不存在: {deployment_id}[/red]"
+                console.error(
+                    f"创建路由失败：部署不存在：{deployment_id}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
 
-            if deployment.environment != resolved_environment:
-                console.print(
-                    "[red]路由环境与部署环境不一致[/red]\n"
-                    f"部署环境: {deployment.environment}\n"
-                    f"路由环境: {resolved_environment}"
+            if deployment.environment != environment:
+                console.error(
+                    "创建路由失败：路由环境与部署环境不一致\n"
+                    f"部署环境：{deployment.environment}\n"
+                    f"路由环境：{environment}",
+                    output_format=output,
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(code=1) from None
+
+            try:
+                await ensure_deployment_has_no_routing(
+                    routing_repo=routing_repo,
+                    deployment_id=deployment_id,
+                )
+                if enabled:
+                    await validate_routing_allocation(
+                        routing_repo=routing_repo,
+                        deployment_repo=deployment_repo,
+                        deployment=deployment,
+                        traffic_ratio=traffic_ratio,
+                    )
+            except ValueError as error:
+                console.error(
+                    f"创建路由失败：{error}",
+                    output_format=output,
+                    error_type=type(error).__name__,
+                )
+                raise typer.Exit(code=1) from None
 
             if (
-                    str(deployment.role).lower() == CHAMPION_ROLE
+                    str(deployment.role).lower()
+                    == DeploymentRole.CHAMPION.value
                     and traffic_ratio < CHAMPION_TRAFFIC_RATIO_WARN_THRESHOLD
             ):
                 if output == "text":
-                    console.print(
-                        "[yellow]警告: champion 路由流量比例低于 0.7，"
-                        "请确认是否符合预期[/yellow]"
+                    console.warning(
+                        "警告：champion 路由流量比例低于 0.7，"
+                        "请确认是否符合预期"
                     )
 
                 logger.warning(
@@ -232,19 +290,23 @@ def create_route(
                 routing_id=generate_random_id(
                     prefix="rtn"
                 ),
+                name=resolved_name,
                 deployment_id=deployment_id,
-                environment=resolved_environment,
+                environment=environment,
                 rollout_type=deployment.rollout_type,
                 rollout_group=deployment.role,
                 traffic_ratio=traffic_ratio,
                 enabled=enabled,
                 rules=route_rules,
+                effective_from=effective_from_value,
+                effective_to=effective_to_value,
                 description=description,
                 created_by=actor,
             )
 
             result: dict[str, Any] = {
                 "routing_id": route.routing_id,
+                "name": route.name,
                 "deployment_id": route.deployment_id,
                 "environment": route.environment,
                 "rollout_type": route.rollout_type,
@@ -252,6 +314,8 @@ def create_route(
                 "traffic_ratio": route.traffic_ratio,
                 "enabled": route.enabled,
                 "rules": route.rules,
+                "effective_from": format_iso_utc(route.effective_from),
+                "effective_to": format_iso_utc(route.effective_to),
                 "description": route.description,
                 "created_by": route.created_by,
             }
@@ -266,47 +330,56 @@ def create_route(
             )
             return result
 
+        console.info("路由创建成功\n")
+
         console.print(
-            "[green]路由创建成功[/green]\n"
+            f"{'ROUTE NAME':<16} : "
+            f"{result['name']}"
         )
 
         console.print(
-            f"[cyan]{'ROUTING ID':<16}[/cyan] : "
+            f"{'ROUTING ID':<16} : "
             f"{result['routing_id']}"
         )
         console.print(
-            f"[cyan]{'DEPLOYMENT ID':<16}[/cyan] : "
+            f"{'DEPLOYMENT ID':<16} : "
             f"{result['deployment_id']}"
         )
         console.print(
-            f"[cyan]{'ENVIRONMENT':<16}[/cyan] : "
-            f"{result['environment']}"
-        )
-        console.print(
-            f"[cyan]{'ROLLOUT TYPE':<16}[/cyan] : "
+            f"{'ROLLOUT TYPE':<16} : "
             f"{result['rollout_type']}"
         )
         console.print(
-            f"[cyan]{'ROLLOUT GROUP':<16}[/cyan] : "
+            f"{'ROLLOUT GROUP':<16} : "
             f"{result['rollout_group'] or '-'}"
         )
         console.print(
-            f"[cyan]{'TRAFFIC RATIO':<16}[/cyan] : "
+            f"{'TRAFFIC RATIO':<16} : "
             f"{result['traffic_ratio']}"
         )
         console.print(
-            f"[cyan]{'ENABLED':<16}[/cyan] : "
+            f"{'ENABLED':<16} : "
             f"{result['enabled']}"
         )
 
         if result["rules"]:
             console.print(
-                f"[cyan]{'RULES':<16}[/cyan] : "
+                f"{'RULES':<16} : "
                 f"{json.dumps(result['rules'], ensure_ascii=False)}"
             )
 
+        for label, field in (
+                ("EFFECTIVE FROM", "effective_from"),
+                ("EFFECTIVE TO", "effective_to"),
+        ):
+            value = format_datetime(
+                parse_datetime(result[field]),
+                timezone_name=timezone_name,
+            )
+            console.print(f"{label:<16} : {value}")
+
         console.print(
-            f"[cyan]{'DESCRIPTION':<16}[/cyan] : "
+            f"{'DESCRIPTION':<16} : "
             f"{result['description'] or '-'}"
         )
 

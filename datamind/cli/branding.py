@@ -6,8 +6,10 @@
 
 核心功能：
   - get_app_version: 获取应用版本
+  - build_bind_address: 构建服务监听地址
   - build_http_url: 构建本地访问地址
   - print_startup_summary: 打印启动摘要
+  - print_http_server_summary: 打印 HTTP 服务启动摘要
 """
 
 from collections.abc import Mapping
@@ -79,6 +81,22 @@ def build_http_url(
     ))
 
 
+def build_bind_address(
+        *,
+        host: str,
+        port: int,
+) -> str:
+    """构建包含端口的服务监听地址"""
+    displayed_host = (
+        f"[{host}]"
+        if ":" in host
+        and not host.startswith("[")
+        else host
+    )
+
+    return f"{displayed_host}:{port}"
+
+
 def print_startup_summary(
         console: Console,
         details: Mapping[
@@ -102,15 +120,55 @@ def print_startup_summary(
     console.print()
     console.print(
         "[bold]Datamind[/bold] "
-        f"[cyan]v{displayed_version}[/cyan] "
+        f"v{displayed_version} "
         f"[dim]· Powered by {POWERED_BY}[/dim]"
     )
     console.print()
 
     for label, value in details.items():
         console.print(
-            f"[cyan]{label:<16}[/cyan] : "
+            f"{label:<16} : "
             f"{value}"
         )
 
     console.print()
+
+
+def print_http_server_summary(
+        console: Console,
+        *,
+        app_version: str,
+        environment: str,
+        bind_address: str,
+        access_url: str,
+        reload_enabled: bool,
+        pid: int,
+        workers: int | None = None,
+) -> None:
+    """打印 Datamind HTTP 服务的统一启动摘要"""
+    details: dict[
+        str,
+        str | int | float | bool,
+    ] = {
+        "ENVIRONMENT": environment,
+        "BIND": bind_address,
+        "URL": access_url,
+    }
+
+    if workers is not None:
+        details["WORKERS"] = workers
+
+    details.update({
+        "RELOAD": (
+            "enabled"
+            if reload_enabled
+            else "disabled"
+        ),
+        "PID": pid,
+    })
+
+    print_startup_summary(
+        console,
+        details,
+        app_version=app_version,
+    )

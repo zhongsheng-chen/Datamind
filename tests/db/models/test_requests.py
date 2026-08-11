@@ -42,6 +42,7 @@ def test_request_table_and_columns() -> None:
     assert set(TABLE.columns.keys()) == {
         "request_id",
         "model_id",
+        "model_name",
         "payload",
         "response",
         "source",
@@ -56,11 +57,18 @@ def test_request_table_and_columns() -> None:
     }
 
 
+def test_request_allows_unresolved_model() -> None:
+    """验证请求可在模型解析前持久化"""
+    assert TABLE.columns["model_id"].nullable is True
+    assert TABLE.columns["model_name"].nullable is True
+
+
 def test_request_indexes() -> None:
     """验证索引集合"""
     assert {index.name for index in TABLE.indexes} == {
         "idx_requests_created_at",
         "idx_requests_model_id",
+        "idx_requests_model_name",
         "idx_requests_source",
         "idx_requests_status",
         "idx_requests_user",

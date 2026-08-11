@@ -139,24 +139,44 @@ class LocalAuthProvider(
         ):
             raise InvalidCredentialsError()
 
-        self._validate_user_status(
-            user,
-            current_time=now,
-        )
-
         password_hash = user.password_hash
 
         if password_hash is None:
             raise InvalidCredentialsError()
 
+        status_error: (
+            InvalidCredentialsError
+            | UserDisabledError
+            | UserLockedError
+            | None
+        ) = None
+
+        try:
+            self._validate_user_status(
+                user,
+                current_time=now,
+            )
+        except (
+                InvalidCredentialsError,
+                UserDisabledError,
+                UserLockedError,
+        ) as error:
+            status_error = error
+
         if not verify_password(
                 password=credentials.password,
                 password_hash=password_hash,
         ):
-            self._record_login_failure(
-                user,
-                current_time=now,
-            )
+            if status_error is None:
+                self._record_login_failure(
+                    user,
+                    current_time=now,
+                )
+
+            raise InvalidCredentialsError()
+
+        if status_error is not None:
+            raise status_error
 
         password_rehashed = (
             self._upgrade_password_hash(

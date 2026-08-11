@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="auth-pending">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Datamind 管理控制台</title>
   <meta name="description" content="开放式模型服务管理平台，连接模型交付与生产服务，让模型注册、版本管理、部署上线、API 调用、实验评估与审计追踪更加简单可靠。">
-  <link rel="stylesheet" href="./assets/style.css?v=1">
-  <script src="./assets/app.js?v=1" defer></script>
+  <link rel="stylesheet" href="./assets/style.css?v=20260903-1">
+  <script type="module" src="./assets/app.js?v=20260903-4"></script>
 </head>
 <body>
   <div id="login-view" class="login-shell">
@@ -73,77 +73,146 @@
       </div>
       <nav id="navigation" class="navigation" aria-label="控制台导航"></nav>
       <div class="sidebar-footer">
-        <button id="console-home-button" class="environment-badge" type="button" aria-label="返回概览">
+        <button id="console-home-button" class="console-home-button" type="button" aria-label="返回控制台首页">
           <span class="pulse-dot"></span>
           <span>控制台</span>
         </button>
+        <span class="sr-only auto-refresh-status" aria-live="polite">
+          <span id="realtime-status">正在建立实时连接</span>
+          <span>，最近更新时间</span>
+          <strong id="snapshot-time">-</strong>
+        </span>
       </div>
     </aside>
 
     <div class="workspace">
       <header class="topbar">
         <button id="menu-button" class="icon-button menu-button" type="button" aria-label="打开导航">☰</button>
-        <div>
+        <div class="page-heading">
           <h1 id="page-title">概览</h1>
         </div>
-        <div class="account">
-          <div class="account-copy">
-            <strong id="account-name">-</strong>
-            <span id="account-roles">-</span>
+        <div class="topbar-actions">
+          <span id="service-environment" class="service-environment topbar-environment" role="status">-</span>
+          <div class="account">
+            <button
+              id="account-menu-button"
+              class="account-trigger"
+              type="button"
+              aria-label="打开账户菜单"
+              aria-expanded="false"
+              aria-controls="account-menu"
+            >
+              <span id="account-avatar" class="account-avatar" aria-hidden="true">-</span>
+              <span id="account-name" class="account-name">-</span>
+              <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m8 10 4 4 4-4" />
+              </svg>
+            </button>
+            <div id="account-menu" class="account-menu" hidden>
+              <div class="account-menu-profile">
+                <strong id="account-menu-name">-</strong>
+                <span id="account-menu-username">-</span>
+              </div>
+              <div class="account-menu-roles">
+                <span>角色</span>
+                <div id="account-role-list"></div>
+              </div>
+              <div class="account-security">
+                <span>账户安全</span>
+                <button id="change-password-button" type="button">修改密码</button>
+              </div>
+              <div id="account-management" class="account-management" hidden>
+                <span>访问管理</span>
+                <button type="button" data-account-section="users">用户管理</button>
+                <button type="button" data-account-section="roles">角色管理</button>
+              </div>
+              <button id="logout-button" class="account-logout" type="button">退出登录</button>
+            </div>
           </div>
-          <button id="logout-button" class="secondary-button" type="button">退出</button>
         </div>
       </header>
 
       <main class="content">
-        <section class="hero-card">
-          <div>
-            <h2>服务状态</h2>
-          </div>
-          <div class="snapshot-meta">
-            <div class="auto-refresh-status">
-              <span class="pulse-dot"></span>
-              <span id="realtime-status">正在建立实时连接</span>
-            </div>
-            <div class="snapshot-time">
-              <span>最近更新时间</span>
-              <strong id="snapshot-time">-</strong>
-            </div>
-          </div>
-        </section>
-
-        <section id="summary-grid" class="summary-grid" aria-label="数据摘要"></section>
+        <section id="summary-grid" class="overview-metrics" aria-label="API 调用核心指标"></section>
 
         <section id="request-trend" class="trend-panel" hidden>
           <div class="trend-heading">
             <div>
               <h2>API 调用趋势</h2>
-              <p>最近 24 小时</p>
+              <p id="trend-range-description">最近 24 小时 · 每 5 分钟聚合</p>
             </div>
-            <div class="trend-metrics">
-              <span>调用总量 <strong id="request-trend-total">0</strong></span>
-              <span class="success">成功调用 <strong id="request-trend-success">0</strong></span>
-              <span class="failed">失败调用 <strong id="request-trend-failed">0</strong></span>
+            <div class="trend-heading-aside">
+              <div id="trend-range-selector" class="trend-range-selector" role="group" aria-label="API 调用趋势时间范围">
+                <button type="button" data-trend-range="1h" aria-pressed="false">1 小时</button>
+                <button class="active" type="button" data-trend-range="24h" aria-pressed="true">24 小时</button>
+                <button type="button" data-trend-range="7d" aria-pressed="false">7 天</button>
+                <button type="button" data-trend-range="30d" aria-pressed="false">30 天</button>
+              </div>
+              <div class="trend-legend" aria-label="图例">
+                <div class="trend-legend-item">
+                  <i class="volume"></i>
+                  <span>调用量</span>
+                  <strong id="trend-volume-total">—</strong>
+                </div>
+                <div class="trend-legend-item">
+                  <i class="error-rate"></i>
+                  <span>失败率</span>
+                  <strong id="trend-failure-rate">—</strong>
+                </div>
+              </div>
             </div>
           </div>
-          <div id="request-trend-chart" class="trend-chart" aria-label="最近 24 小时 API 成功与失败调用量折线图"></div>
+          <div id="request-trend-chart" class="trend-chart" aria-label="API 调用量与失败率趋势图"></div>
+        </section>
+
+        <section id="model-usage" class="model-usage-overview" hidden>
+          <div class="model-usage-grid">
+            <article class="model-usage-panel model-usage-recent">
+              <div class="model-usage-section-heading">
+                <h2>近 24 小时模型调用</h2>
+                <p>调用量、成功率、平均耗时与流量占比</p>
+              </div>
+              <div id="recent-model-usage" class="model-usage-content"></div>
+            </article>
+            <article class="model-usage-panel model-usage-total">
+              <div class="model-usage-section-heading">
+                <h2>累计调用排行</h2>
+                <p>各模型的历史调用规模</p>
+              </div>
+              <div id="total-model-usage" class="model-usage-ranking"></div>
+            </article>
+          </div>
         </section>
 
         <section class="data-panel">
           <div class="panel-heading">
-            <div>
-              <h2 id="section-title">最近记录</h2>
-              <p id="section-caption" class="section-caption" hidden></p>
+            <div class="panel-heading-main">
+              <div>
+                <h2 id="section-title">最近记录</h2>
+                <p id="section-caption" class="section-caption" hidden></p>
+              </div>
+              <button id="create-button" class="primary-button" type="button" hidden>创建</button>
             </div>
-            <div class="panel-actions">
-              <form id="search-form" class="search-form" role="search">
-                <input id="search-input" type="search" maxlength="100" placeholder="输入关键词查询" aria-label="查询关键词">
-                <button class="secondary-button" type="submit">查询</button>
-                <button id="clear-search-button" class="text-button" type="button" hidden>清除</button>
-              </form>
-              <button id="back-button" class="secondary-button" type="button" hidden>返回模型</button>
-              <button id="refresh-button" class="secondary-button" type="button">刷新数据</button>
-            </div>
+          </div>
+          <div class="panel-actions">
+            <button id="search-toggle-button" class="secondary-button search-toggle-button" type="button" aria-expanded="false" aria-controls="search-form">
+              <span class="search-toggle-icon" aria-hidden="true"></span>
+              <span>查询</span>
+              <span class="search-active-label">已筛选</span>
+            </button>
+            <form id="search-form" class="search-form" role="search" hidden>
+              <input id="search-input" type="search" maxlength="100" placeholder="输入关键词查询" aria-label="查询关键词">
+              <button class="secondary-button" type="submit">应用</button>
+              <button id="clear-search-button" class="text-button" type="button" hidden>清除</button>
+              <button id="collapse-search-button" class="text-button search-collapse-button" type="button">收起</button>
+            </form>
+            <button id="resource-view-toggle" class="secondary-button resource-view-toggle" type="button" hidden>回收站</button>
+            <button id="back-button" class="secondary-button" type="button" hidden>返回模型</button>
+            <span id="selection-summary" class="selection-summary" hidden>
+              <span id="selection-count"></span>
+              <button id="selected-export-button" class="text-button" type="button" hidden>下载已选</button>
+              <button id="clear-selection-button" class="text-button" type="button">清除选择</button>
+            </span>
           </div>
           <div id="table-container" class="table-container"></div>
         </section>

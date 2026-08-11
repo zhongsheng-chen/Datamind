@@ -10,32 +10,9 @@
 使用示例：
   python -m datamind.cli.main experiment create \
     --model-id mdl_0123456789abcdef \
-    --environment development \
     --name scorecard_ab_test \
     --traffic-ratio 0.5 \
     --bucket-key customer_id
-
-  python -m datamind.cli.main experiment create \
-    --model-id mdl_0123456789abcdef \
-    --environment development \
-    --name scorecard_manual_test \
-    --strategy manual \
-    --bucket-key customer_id
-
-  python -m datamind.cli.main experiment create \
-    --model-id mdl_0123456789abcdef \
-    --environment development \
-    --name scorecard_ab_test \
-    --effective-from 2026-07-01T09:00:00+08:00 \
-    --effective-to 2026-07-31T23:59:59+08:00
-
-说明：
-  - effective_from 未指定时，在启动实验时设置
-  - effective_to 默认 None，表示不限制结束时间
-  - effective_from / effective_to 使用 ISO 日期时间格式
-  - bucket_key 表示分桶主体字段，用于从请求数据中提取 subject_key
-  - hash 策略使用 traffic_ratio 进行实验曝光判断
-  - manual 策略不使用 traffic_ratio 进行自动分配
 """
 
 import asyncio
@@ -44,12 +21,11 @@ from typing import Any
 
 import structlog
 import typer
-from rich.console import Console
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.config import get_settings
-from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import ExperimentRepository, MetadataRepository
 from datamind.models.enums import AssignmentStrategy
@@ -61,7 +37,7 @@ from datamind.utils.datetime import (
 from datamind.utils.generator import generate_random_id
 
 app = typer.Typer(help="创建实验命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -72,11 +48,6 @@ def create_experiment(
             ...,
             "--model-id",
             help="模型 ID"
-        ),
-        environment: str | None = typer.Option(
-            None,
-            "--environment",
-            help="实验环境，默认使用服务配置"
         ),
         name: str | None = typer.Option(
             None,
@@ -91,7 +62,7 @@ def create_experiment(
         bucket_key: str = typer.Option(
             "customer_id",
             "--bucket-key",
-            help="分桶主体字段，例如 customer_id / order_id / apply_id"
+            help="分桶主体字段，例如 customer_id / order_id / application_id"
         ),
         strategy: str = typer.Option(
             AssignmentStrategy.HASH,
@@ -106,16 +77,12 @@ def create_experiment(
         effective_from: str | None = typer.Option(
             None,
             "--effective-from",
-            help=(
-                "生效开始时间，ISO 格式，"
-                "例如 2026-07-01T09:00:00+08:00；"
-                "未指定时在启动实验时设置"
-            )
+            help="生效开始时间。默认在实验启动时确定"
         ),
         effective_to: str | None = typer.Option(
             None,
             "--effective-to",
-            help="生效结束时间，ISO 格式，例如 2026-07-31T23:59:59+08:00；默认不限制结束时间"
+            help="生效结束时间。默认不设置"
         ),
         output: str = typer.Option(
             "text",
@@ -123,26 +90,16 @@ def create_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """创建实验"""
+    """创建实验
+
+    时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
+    时区偏移。未提供时区偏移时，按配置时区解析。
+    """
     settings = get_settings()
     service_config = settings.service
+    timezone_name = settings.logging.timezone
 
-    environment_value = (
-        environment
-        if environment is not None
-        else str(
-            service_config.environment
-        )
-    )
-
-    try:
-        resolved_environment = Environment(
-            environment_value
-        )
-    except ValueError as exc:
-        raise typer.BadParameter(
-            f"不支持的实验环境: {environment_value}"
-        ) from exc
+    environment = service_config.environment
 
     @audit(
         action="experiment.create",
@@ -172,12 +129,20 @@ def create_experiment(
         )
 
         try:
-            effective_from_value = parse_datetime(effective_from)
-            effective_to_value = parse_datetime(effective_to)
+            effective_from_value = parse_datetime(
+                effective_from,
+                timezone_name=timezone_name,
+            )
+            effective_to_value = parse_datetime(
+                effective_to,
+                timezone_name=timezone_name,
+            )
 
-        except ValueError:
-            console.print("[red]时间格式错误，请使用 ISO 格式[/red]")
-            raise typer.Exit(1)
+        except ValueError as datetime_error:
+            raise typer.BadParameter(
+                "生效时间格式无效，请使用 "
+                "YYYY-MM-DD HH:MM:SS 或带时区的 ISO 8601 格式"
+            ) from datetime_error
 
         if (
                 effective_from_value is not None
@@ -189,7 +154,7 @@ def create_experiment(
         logger.info(
             "开始创建实验",
             model_id=model_id,
-            environment=resolved_environment,
+            environment=environment,
             name=name,
             traffic_ratio=traffic_ratio,
             bucket_key=bucket_key,
@@ -207,15 +172,18 @@ def create_experiment(
             )
 
             if model is None:
-                console.print(f"[red]模型不存在: {model_id}[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    f"创建实验失败：模型不存在：{model_id}",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             experiment = experiment_repo.create_experiment(
                 experiment_id=generate_random_id(
                     prefix="exp"
                 ),
                 model_id=model_id,
-                environment=resolved_environment,
+                environment=environment,
                 name=name,
                 description=description,
                 config=config,
@@ -251,41 +219,48 @@ def create_experiment(
             )
             return result
 
-        console.print("[green]实验创建成功[/green]\n")
+        console.info("实验创建成功\n")
 
-        console.print(f"[cyan]{'EXPERIMENT ID':<18}[/cyan] : {result['experiment_id']}")
-        console.print(f"[cyan]{'MODEL ID':<18}[/cyan] : {result['model_id']}")
-        console.print(f"[cyan]{'ENVIRONMENT':<18}[/cyan] : {result['environment']}")
-        console.print(f"[cyan]{'NAME':<18}[/cyan] : {result['name'] or '-'}")
-        console.print(f"[cyan]{'STATUS':<18}[/cyan] : {result['status']}")
-        console.print(f"[cyan]{'STRATEGY':<18}[/cyan] : {result['config']['strategy']}")
+        console.print(f"{'EXPERIMENT ID':<18} : {result['experiment_id']}")
+        console.print(f"{'MODEL ID':<18} : {result['model_id']}")
+        console.print(f"{'ENVIRONMENT':<18} : {result['environment']}")
+        console.print(f"{'NAME':<18} : {result['name'] or '-'}")
+        console.print(f"{'STATUS':<18} : {result['status']}")
+        console.print(f"{'STRATEGY':<18} : {result['config']['strategy']}")
         console.print(
-            f"[cyan]{'TRAFFIC RATIO':<18}[/cyan] : "
+            f"{'TRAFFIC RATIO':<18} : "
             f"{result['config']['traffic_ratio']}"
         )
         console.print(
-            f"[cyan]{'BUCKET KEY':<18}[/cyan] : "
+            f"{'BUCKET KEY':<18} : "
             f"{result['config']['bucket_key']}"
         )
+        effective_from_text = format_datetime(
+            parse_datetime(
+                result["effective_from"]
+            ),
+            timezone_name=timezone_name,
+        )
         console.print(
-            f"[cyan]{'EFFECTIVE FROM':<18}[/cyan] : "
-            f"{format_datetime(parse_datetime(result['effective_from']))}"
+            f"{'EFFECTIVE FROM':<18} : "
+            f"{effective_from_text}"
         )
         effective_to_text = (
             format_datetime(
                 parse_datetime(
                     result["effective_to"]
-                )
+                ),
+                timezone_name=timezone_name,
             )
             if result["effective_to"]
             else "-"
         )
         console.print(
-            f"[cyan]{'EFFECTIVE TO':<18}[/cyan] : "
+            f"{'EFFECTIVE TO':<18} : "
             f"{effective_to_text}"
         )
         console.print(
-            f"[cyan]{'CREATED BY':<18}[/cyan] : "
+            f"{'CREATED BY':<18} : "
             f"{result['created_by'] or '-'}"
         )
 
@@ -313,10 +288,10 @@ def _parse_strategy(
     try:
         return AssignmentStrategy(value)
 
-    except ValueError as exc:
+    except ValueError as strategy_error:
         raise typer.BadParameter(
             "--strategy 只支持 hash 或 manual"
-        ) from exc
+        ) from strategy_error
 
 
 def _validate_traffic_ratio(

@@ -8,10 +8,14 @@
   - get_deployment: 获取部署记录
   - list_deployments: 获取部署记录列表
   - list_active_deployments: 获取活跃部署记录列表
+  - lock_model: 串行化同一模型的默认部署切换
+  - set_default_deployment: 切换默认部署
   - create_deployment: 创建部署
   - update_deployment: 更新部署
   - activate_deployment: 启用部署
   - deactivate_deployment: 停用部署
+  - mark_deleted: 逻辑删除部署
+  - restore_deployment: 恢复部署
 
 使用示例：
   from datamind.constants import (
@@ -49,13 +53,14 @@ from datetime import (
     timezone,
 )
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from datamind.constants import (
     Environment,
     Framework,
 )
 from datamind.db.models.deployments import Deployment
+from datamind.db.models.metadata import Metadata
 from datamind.db.repositories.base import BaseRepository
 from datamind.models.enums import DeploymentStatus
 
@@ -95,11 +100,16 @@ class DeploymentRepository(BaseRepository):
     async def get_deployment(
             self,
             deployment_id: str,
+            *,
+            include_deleted: bool = False,
+            for_update: bool = False,
     ) -> Deployment | None:
         """获取部署记录
 
         参数：
             deployment_id: 部署 ID
+            include_deleted: 是否包含逻辑删除记录
+            for_update: 是否锁定记录并刷新已有对象
 
         返回：
             部署记录对象，不存在时返回 None
@@ -110,6 +120,16 @@ class DeploymentRepository(BaseRepository):
             Deployment.deployment_id
             == deployment_id
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Deployment.deleted_at.is_(
+                    None
+                )
+            )
+
+        if for_update:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
 
         result = await self.session.execute(
             stmt
@@ -128,6 +148,7 @@ class DeploymentRepository(BaseRepository):
             role: str | None = None,
             status: DeploymentStatus | None = None,
             deployed_by: str | None = None,
+            include_deleted: bool = False,
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Deployment]:
@@ -142,6 +163,7 @@ class DeploymentRepository(BaseRepository):
             role: 部署角色（可选）
             status: 部署状态（可选）
             deployed_by: 部署人（可选）
+            include_deleted: 是否包含逻辑删除记录
             limit: 返回数量限制（可选）
             offset: 分页偏移（可选）
 
@@ -170,6 +192,13 @@ class DeploymentRepository(BaseRepository):
         stmt = select(
             Deployment
         )
+
+        if not include_deleted:
+            stmt = stmt.where(
+                Deployment.deleted_at.is_(
+                    None
+                )
+            )
 
         if model_id is not None:
             stmt = stmt.where(
@@ -276,6 +305,42 @@ class DeploymentRepository(BaseRepository):
             limit=limit,
             offset=offset,
         )
+
+    async def lock_model(self, model_id: str) -> None:
+        """锁定模型记录，串行化默认部署切换."""
+        await self.session.execute(
+            select(Metadata.model_id)
+            .where(Metadata.model_id == model_id)
+            .with_for_update()
+        )
+
+    async def set_default_deployment(
+            self, deployment: Deployment, *, updated_by: str | None = None,
+    ) -> str | None:
+        """切换已锁定模型的默认部署，返回原默认部署 ID."""
+        scope = (
+            Deployment.model_id == deployment.model_id,
+            Deployment.environment == deployment.environment,
+            Deployment.deleted_at.is_(None),
+            Deployment.is_default.is_(True),
+        )
+        result = await self.session.execute(
+            select(Deployment.deployment_id).where(*scope).with_for_update()
+        )
+        previous_id = result.scalar_one_or_none()
+        if previous_id == deployment.deployment_id:
+            return previous_id
+
+        values: dict[str, bool | str] = {"is_default": False}
+        if updated_by is not None:
+            values["updated_by"] = updated_by
+        await self.session.execute(
+            update(Deployment).where(*scope).values(**values)
+        )
+        deployment.is_default = True
+        if updated_by is not None:
+            deployment.updated_by = updated_by
+        return previous_id
 
     def create_deployment(
             self,
@@ -460,6 +525,7 @@ class DeploymentRepository(BaseRepository):
         返回：
             停用后的部署记录对象
         """
+        deployment.is_default = False
         deployment.status = str(
             DeploymentStatus.INACTIVE
         )
@@ -477,5 +543,44 @@ class DeploymentRepository(BaseRepository):
 
         if updated_by is not None:
             deployment.updated_by = updated_by
+
+        return deployment
+
+    @staticmethod
+    def mark_deleted(
+            deployment: Deployment,
+            *,
+            deleted_at: datetime | None = None,
+            deleted_by: str | None = None,
+            deletion_reason: str | None = None,
+    ) -> Deployment:
+        """逻辑删除部署记录"""
+        deployment.deleted_at = (
+            deleted_at
+            if deleted_at is not None
+            else datetime.now(
+                timezone.utc
+            )
+        )
+        deployment.deleted_by = deleted_by
+        deployment.deletion_reason = deletion_reason
+        deployment.updated_by = deleted_by
+
+        return deployment
+
+    @staticmethod
+    def restore_deployment(
+            deployment: Deployment,
+            *,
+            restored_by: str | None = None,
+    ) -> Deployment:
+        """恢复逻辑删除的部署记录"""
+        deployment.deleted_at = None
+        deployment.deleted_by = None
+        deployment.deletion_reason = None
+        deployment.status = str(
+            DeploymentStatus.INACTIVE
+        )
+        deployment.updated_by = restored_by
 
         return deployment

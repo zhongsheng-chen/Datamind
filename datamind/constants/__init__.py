@@ -10,6 +10,7 @@
   - framework: 模型框架枚举
   - model_type: 模型类型枚举
   - task_type: 模型任务类型枚举
+  - version: 模型版本格式
   - environment: 服务环境枚举
   - identity: 身份管理常量
   - permissions: 权限常量
@@ -50,9 +51,10 @@ from datamind.constants.framework import (
     SUPPORTED_FRAMEWORKS,
 )
 from datamind.constants.identity import (
+    ADMINISTRATOR_DISPLAY_NAME,
+    ADMINISTRATOR_PERMISSIONS,
+    ADMINISTRATOR_ROLE_NAME,
     BUILTIN_ROLE_NAMES,
-    SYSTEM_ADMIN_PERMISSIONS,
-    SYSTEM_ADMIN_ROLE_NAME,
 )
 from datamind.constants.logging_format import (
     LogFormat,
@@ -71,7 +73,9 @@ from datamind.constants.logging_rotation import (
 from datamind.constants.model_type import (
     ModelType,
     SUPPORTED_MODEL_TYPES,
+    SUPPORTED_MODEL_TYPES_BY_FRAMEWORK,
 )
+from datamind.constants.model_name import SUPPORTED_MODEL_NAME_PATTERN
 from datamind.constants.permissions import SUPPORTED_PERMISSIONS
 from datamind.constants.size import (
     GB,
@@ -86,6 +90,9 @@ from datamind.constants.task_type import (
     SUPPORTED_TASK_TYPES,
     TaskType,
 )
+from datamind.constants.version import (
+    SUPPORTED_MODEL_VERSION_PATTERN,
+)
 
 __all__ = [
     "DataType",
@@ -96,12 +103,16 @@ __all__ = [
     "SUPPORTED_FRAMEWORKS",
     "ModelType",
     "SUPPORTED_MODEL_TYPES",
+    "SUPPORTED_MODEL_TYPES_BY_FRAMEWORK",
+    "SUPPORTED_MODEL_NAME_PATTERN",
     "TaskType",
     "SUPPORTED_TASK_TYPES",
+    "SUPPORTED_MODEL_VERSION_PATTERN",
     "Environment",
     "SUPPORTED_ENVIRONMENTS",
-    "SYSTEM_ADMIN_ROLE_NAME",
-    "SYSTEM_ADMIN_PERMISSIONS",
+    "ADMINISTRATOR_DISPLAY_NAME",
+    "ADMINISTRATOR_ROLE_NAME",
+    "ADMINISTRATOR_PERMISSIONS",
     "BUILTIN_ROLE_NAMES",
     "SUPPORTED_PERMISSIONS",
     "LogLevel",

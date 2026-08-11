@@ -709,7 +709,7 @@ class VersionRepository(BaseRepository):
     ) -> Version:
         """废弃版本
 
-        仅允许从 active 状态废弃。
+        允许从 active 或 inactive 状态废弃。
 
         参数：
             version: 版本对象

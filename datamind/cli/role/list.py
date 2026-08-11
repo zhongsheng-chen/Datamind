@@ -17,7 +17,7 @@ import json
 import structlog
 import typer
 from rich import box
-from rich.console import Console
+from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.auth.enums import RoleStatus
@@ -31,7 +31,7 @@ from datamind.utils.datetime import (
 
 
 app = typer.Typer(help="列出角色命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -159,8 +159,10 @@ def list_roles(
             runner()
         )
     except ValueError as exc:
-        console.print(
-            f"[red]列出角色失败：{exc}[/red]"
+        console.error(
+            f"列出角色失败：{exc}",
+            output_format=output,
+            error_type=type(exc).__name__,
         )
         raise typer.Exit(
             code=1

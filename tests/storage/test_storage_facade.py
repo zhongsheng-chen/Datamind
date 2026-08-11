@@ -66,7 +66,7 @@ def test_save_delegates_structured_arguments() -> None:
     )
 
     storage_key = storage.save(
-        "mdl_001",
+        "scorecard",
         "1.0.0",
         "art_001",
         "model.pkl",
@@ -77,7 +77,7 @@ def test_save_delegates_structured_arguments() -> None:
         "models/mdl_001/1.0.0/artifacts/art_001/model.pkl"
     )
     storage_admin.save.assert_called_once_with(
-        model_id="mdl_001",
+        model_name="scorecard",
         version="1.0.0",
         artifact_id="art_001",
         filename="model.pkl",

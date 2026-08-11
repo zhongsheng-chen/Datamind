@@ -19,17 +19,18 @@ from typing import Any
 import structlog
 import typer
 from rich import box
-from rich.console import Console
 from rich.table import Table
 
 from datamind.cli.common import cli_context
+from datamind.cli.output import CLIConsole
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import MetadataRepository, VersionRepository
+from datamind.models.errors import ModelError
 from datamind.models.resolver import ModelResolver
 from datamind.utils.datetime import format_datetime, format_iso_utc, parse_datetime
 
 app = typer.Typer(help="查看模型命令")
-console = Console()
+console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
 
@@ -105,8 +106,11 @@ def show_model(
             )
 
             if not model:
-                console.print("[red]模型不存在[/red]")
-                raise typer.Exit(1)
+                console.error(
+                    "查看模型失败：模型不存在",
+                    output_format=output,
+                )
+                raise typer.Exit(code=1) from None
 
             if version or version_id:
                 ver = await resolver.resolve_version(
@@ -116,8 +120,11 @@ def show_model(
                 )
 
                 if not ver:
-                    console.print("[red]模型版本不存在[/red]")
-                    raise typer.Exit(1)
+                    console.error(
+                        "查看模型失败：模型版本不存在",
+                        output_format=output,
+                    )
+                    raise typer.Exit(code=1) from None
 
                 result = {
                     "model": _model_to_dict(model),
@@ -164,7 +171,19 @@ def show_model(
         ):
             await _run()
 
-    asyncio.run(runner())
+    try:
+        asyncio.run(
+            runner()
+        )
+    except ModelError as error:
+        console.error(
+            f"查看模型失败：{error}",
+            output_format=output,
+            error_type=type(error).__name__,
+        )
+        raise typer.Exit(
+            code=1
+        ) from None
 
 
 def _model_to_dict(model: Any) -> dict[str, Any]:
@@ -179,6 +198,11 @@ def _model_to_dict(model: Any) -> dict[str, Any]:
     return {
         "model_id": model.model_id,
         "name": model.name,
+        "display_name": getattr(
+            model,
+            "display_name",
+            None,
+        ),
         "model_type": model.model_type,
         "task_type": model.task_type,
         "framework": model.framework,
@@ -259,23 +283,27 @@ def _print_model_detail(model: dict[str, Any]) -> None:
     参数：
         model: 模型元数据字典
     """
-    console.print("[green]模型详情[/green]\n")
+    console.info("模型详情\n")
 
-    console.print(f"[cyan]{'MODEL ID':<16}[/cyan] : {model['model_id']}")
-    console.print(f"[cyan]{'NAME':<16}[/cyan] : {model['name']}")
-    console.print(f"[cyan]{'MODEL TYPE':<16}[/cyan] : {model['model_type']}")
-    console.print(f"[cyan]{'TASK TYPE':<16}[/cyan] : {model['task_type']}")
-    console.print(f"[cyan]{'FRAMEWORK':<16}[/cyan] : {model['framework']}")
-    console.print(f"[cyan]{'STATUS':<16}[/cyan] : {model['status']}")
-    console.print(f"[cyan]{'DESCRIPTION':<16}[/cyan] : {model['description'] or '-'}")
-    console.print(f"[cyan]{'CREATED BY':<16}[/cyan] : {model['created_by'] or '-'}")
+    console.print(f"{'MODEL ID':<16} : {model['model_id']}")
+    console.print(f"{'NAME':<16} : {model['name']}")
     console.print(
-        f"[cyan]{'CREATED AT':<16}[/cyan] : "
+        f"{'DISPLAY NAME':<16} : "
+        f"{model['display_name'] or '-'}"
+    )
+    console.print(f"{'MODEL TYPE':<16} : {model['model_type']}")
+    console.print(f"{'TASK TYPE':<16} : {model['task_type']}")
+    console.print(f"{'FRAMEWORK':<16} : {model['framework']}")
+    console.print(f"{'STATUS':<16} : {model['status']}")
+    console.print(f"{'DESCRIPTION':<16} : {model['description'] or '-'}")
+    console.print(f"{'CREATED BY':<16} : {model['created_by'] or '-'}")
+    console.print(
+        f"{'CREATED AT':<16} : "
         f"{format_datetime(parse_datetime(model['created_at']))}"
     )
-    console.print(f"[cyan]{'UPDATED BY':<16}[/cyan] : {model['updated_by'] or '-'}")
+    console.print(f"{'UPDATED BY':<16} : {model['updated_by'] or '-'}")
     console.print(
-        f"[cyan]{'UPDATED AT':<16}[/cyan] : "
+        f"{'UPDATED AT':<16} : "
         f"{format_datetime(parse_datetime(model['updated_at']))}"
     )
 
@@ -286,32 +314,32 @@ def _print_version_detail(ver: dict[str, Any]) -> None:
     参数：
         ver: 模型版本字典
     """
-    console.print("[green]版本详情[/green]\n")
+    console.info("版本详情\n")
 
-    console.print(f"[cyan]{'VERSION ID':<18}[/cyan] : {ver['version_id']}")
-    console.print(f"[cyan]{'VERSION':<18}[/cyan] : {ver['version']}")
-    console.print(f"[cyan]{'FRAMEWORK':<18}[/cyan] : {ver['framework']}")
-    console.print(f"[cyan]{'STATUS':<18}[/cyan] : {ver['status']}")
-    console.print(f"[cyan]{'BENTO TAG':<18}[/cyan] : {ver['bento_tag'] or '-'}")
-    console.print(f"[cyan]{'MODEL PATH':<18}[/cyan] : {ver['model_path'] or '-'}")
-    console.print(f"[cyan]{'MODEL KEY':<18}[/cyan] : {ver['model_key'] or '-'}")
+    console.print(f"{'VERSION ID':<18} : {ver['version_id']}")
+    console.print(f"{'VERSION':<18} : {ver['version']}")
+    console.print(f"{'FRAMEWORK':<18} : {ver['framework']}")
+    console.print(f"{'STATUS':<18} : {ver['status']}")
+    console.print(f"{'BENTO TAG':<18} : {ver['bento_tag'] or '-'}")
+    console.print(f"{'MODEL PATH':<18} : {ver['model_path'] or '-'}")
+    console.print(f"{'MODEL KEY':<18} : {ver['model_key'] or '-'}")
     console.print(
-        f"[cyan]{'INPUT SCHEMA KEY':<18}[/cyan] : "
+        f"{'INPUT SCHEMA KEY':<18} : "
         f"{ver['input_schema_key'] or '-'}"
     )
     console.print(
-        f"[cyan]{'OUTPUT SCHEMA KEY':<18}[/cyan] : "
+        f"{'OUTPUT SCHEMA KEY':<18} : "
         f"{ver['output_schema_key'] or '-'}"
     )
-    console.print(f"[cyan]{'DESCRIPTION':<18}[/cyan] : {ver['description'] or '-'}")
-    console.print(f"[cyan]{'CREATED BY':<18}[/cyan] : {ver['created_by'] or '-'}")
+    console.print(f"{'DESCRIPTION':<18} : {ver['description'] or '-'}")
+    console.print(f"{'CREATED BY':<18} : {ver['created_by'] or '-'}")
     console.print(
-        f"[cyan]{'CREATED AT':<18}[/cyan] : "
+        f"{'CREATED AT':<18} : "
         f"{format_datetime(parse_datetime(ver['created_at']))}"
     )
-    console.print(f"[cyan]{'UPDATED BY':<18}[/cyan] : {ver['updated_by'] or '-'}")
+    console.print(f"{'UPDATED BY':<18} : {ver['updated_by'] or '-'}")
     console.print(
-        f"[cyan]{'UPDATED AT':<18}[/cyan] : "
+        f"{'UPDATED AT':<18} : "
         f"{format_datetime(parse_datetime(ver['updated_at']))}"
     )
 
@@ -322,10 +350,10 @@ def _print_version_list(versions: list[dict[str, Any]]) -> None:
     参数：
         versions: 模型版本摘要字典列表
     """
-    console.print(f"[green]模型共包含 {len(versions)} 个版本[/green]\n")
+    console.info(f"模型共包含 {len(versions)} 个版本\n")
 
     if not versions:
-        console.print("[yellow]暂无模型版本[/yellow]")
+        console.warning("暂无模型版本")
         return
 
     table = Table(

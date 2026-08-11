@@ -118,11 +118,9 @@ def test_service_config_default_optional_values() -> None:
     assert config.version == "1.0.0"
     assert config.environment == Environment.DEVELOPMENT
     assert config.host == "0.0.0.0"
-    assert config.port == 3000
+    assert config.port == 8700
     assert config.workers == 4
     assert config.timeout == 30
-    assert config.reconcile_interval == 2.0
-    assert config.heartbeat_interval == 30.0
     assert config.enable_docs is True
     assert config.enable_health_check is True
 
@@ -148,7 +146,7 @@ def test_service_config_ignores_external_sources(
 
     assert config.environment == Environment.DEVELOPMENT
     assert config.name == "datamind"
-    assert config.port == 3000
+    assert config.port == 8700
 
 
 def test_service_config_reads_environment_variables(
@@ -163,8 +161,6 @@ def test_service_config_reads_environment_variables(
         "DATAMIND_SERVICE_PORT": "8080",
         "DATAMIND_SERVICE_WORKERS": "8",
         "DATAMIND_SERVICE_TIMEOUT": "60",
-        "DATAMIND_SERVICE_RECONCILE_INTERVAL": "1.5",
-        "DATAMIND_SERVICE_HEARTBEAT_INTERVAL": "15.0",
         "DATAMIND_SERVICE_ENABLE_DOCS": "false",
         "DATAMIND_SERVICE_ENABLE_HEALTH_CHECK": "false",
     }
@@ -184,8 +180,6 @@ def test_service_config_reads_environment_variables(
     assert config.port == 8080
     assert config.workers == 8
     assert config.timeout == 60
-    assert config.reconcile_interval == 1.5
-    assert config.heartbeat_interval == 15.0
     assert config.enable_docs is False
     assert config.enable_health_check is False
 
@@ -200,8 +194,6 @@ def test_service_config_accepts_custom_values() -> None:
         port=8080,
         workers=8,
         timeout=60,
-        reconcile_interval=1.5,
-        heartbeat_interval=15.0,
         enable_docs=False,
         enable_health_check=False,
     )
@@ -213,8 +205,6 @@ def test_service_config_accepts_custom_values() -> None:
     assert config.port == 8080
     assert config.workers == 8
     assert config.timeout == 60
-    assert config.reconcile_interval == 1.5
-    assert config.heartbeat_interval == 15.0
     assert config.enable_docs is False
     assert config.enable_health_check is False
 
@@ -309,26 +299,6 @@ def test_service_config_rejects_invalid_port(
             "timeout",
             0,
             "timeout 必须大于等于 1",
-        ),
-        (
-            "reconcile_interval",
-            0,
-            "reconcile_interval 必须大于 0",
-        ),
-        (
-            "reconcile_interval",
-            -1,
-            "reconcile_interval 必须大于 0",
-        ),
-        (
-            "heartbeat_interval",
-            0,
-            "heartbeat_interval 必须大于 0",
-        ),
-        (
-            "heartbeat_interval",
-            -1,
-            "heartbeat_interval 必须大于 0",
         ),
     ],
 )

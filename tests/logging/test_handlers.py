@@ -9,6 +9,8 @@
     验证创建按时间轮转的文件日志 handler
   - test_create_size_rotating_file_handler:
     验证创建按大小轮转的文件日志 handler
+  - test_file_handlers_coordinate_shared_log_rotation:
+    验证多个文件日志 handler 协调同一日志文件轮转
   - test_create_file_handler_rejects_unknown_rotation:
     验证拒绝未知日志轮转策略
   - test_create_console_handler:
@@ -24,12 +26,14 @@ import sys
 from logging.handlers import (
     QueueHandler,
     QueueListener,
-    RotatingFileHandler,
-    TimedRotatingFileHandler,
 )
 from pathlib import Path
 
 import pytest
+from concurrent_log_handler import (
+    ConcurrentRotatingFileHandler,
+    ConcurrentTimedRotatingFileHandler,
+)
 
 from datamind.config.logging import LoggingConfig
 from datamind.constants import (
@@ -84,7 +88,7 @@ def test_create_time_rotating_file_handler(
     try:
         assert isinstance(
             handler,
-            TimedRotatingFileHandler,
+            ConcurrentTimedRotatingFileHandler,
         )
         assert Path(handler.baseFilename) == (
             config.dir / config.filename
@@ -114,7 +118,7 @@ def test_create_size_rotating_file_handler(
     try:
         assert isinstance(
             handler,
-            RotatingFileHandler,
+            ConcurrentRotatingFileHandler,
         )
         assert handler.maxBytes == 2048
         assert handler.backupCount == 5
@@ -124,6 +128,60 @@ def test_create_size_rotating_file_handler(
 
     finally:
         handler.close()
+
+
+def test_file_handlers_coordinate_shared_log_rotation(
+        tmp_path: Path,
+) -> None:
+    """测试多个 handler 协调同一日志文件轮转"""
+    config = create_config(
+        tmp_path,
+        rotation=RotationType.SIZE,
+        max_bytes=1,
+        backup_count=3,
+    )
+    first_handler = create_file_handler(
+        config
+    )
+    second_handler = create_file_handler(
+        config
+    )
+    formatter = logging.Formatter(
+        "%(message)s"
+    )
+    first_handler.setFormatter(
+        formatter
+    )
+    second_handler.setFormatter(
+        formatter
+    )
+
+    try:
+        first_handler.emit(
+            logging.makeLogRecord({
+                "msg": "first",
+                "levelno": logging.INFO,
+                "levelname": "INFO",
+            })
+        )
+        second_handler.emit(
+            logging.makeLogRecord({
+                "msg": "second",
+                "levelno": logging.INFO,
+                "levelname": "INFO",
+            })
+        )
+
+    finally:
+        first_handler.close()
+        second_handler.close()
+
+    assert (
+        config.dir / config.filename
+    ).exists()
+    assert (
+        config.dir / f"{config.filename}.1"
+    ).exists()
 
 
 def test_create_file_handler_rejects_unknown_rotation(

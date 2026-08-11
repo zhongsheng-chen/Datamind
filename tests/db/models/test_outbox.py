@@ -71,6 +71,29 @@ def test_outbox_check_constraints() -> None:
         "ck_outbox_topic_valid",
     }
 
+    topic_constraint = next(
+        constraint
+        for constraint in TABLE.constraints
+        if constraint.name
+        == "ck_outbox_topic_valid"
+    )
+    assert isinstance(
+        topic_constraint,
+        CheckConstraint,
+    )
+
+    topic_expression = str(
+        topic_constraint.sqltext
+    )
+
+    for topic in (
+            "routings",
+            "decisions",
+            "executions",
+            "variants",
+    ):
+        assert f"'{topic}'" in topic_expression
+
 
 def test_outbox_column_comments() -> None:
     """验证字段注释"""

@@ -2,8 +2,8 @@
 
 """请求决策表
 
-记录每个请求最终命中的模型版本、部署、实验分组和模型输出，
-用于在线推理、A/B 测试、灰度发布和决策审计。
+记录请求的最终路由结果和业务决策，
+用于追踪模型版本、部署及实验分组的选择过程。
 
 核心功能：
   - Decision: 请求决策记录
@@ -27,16 +27,7 @@
       bucket="bucket_0089",
       group="treatment",
       weight=0.5,
-      prediction={
-          "probability": 0.12,
-          "logit": -1.9924,
-          "score": 680,
-          ...
-      },
-      probability=0.12,
-      score=680,
       decision="approve",
-      latency_ms=35.6,
       context={
           "worker_id": "worker-1",
           "environment": "production",
@@ -152,27 +143,6 @@ class Decision(
         ),
         CheckConstraint(
             (
-                "probability IS NULL "
-                "OR (probability >= 0 AND probability <= 1)"
-            ),
-            name="probability_range",
-        ),
-        CheckConstraint(
-            (
-                "latency_ms IS NULL "
-                "OR latency_ms >= 0"
-            ),
-            name="latency_ms_non_negative",
-        ),
-        CheckConstraint(
-            (
-                "prediction IS NULL "
-                "OR jsonb_typeof(prediction) = 'object'"
-            ),
-            name="prediction_object",
-        ),
-        CheckConstraint(
-            (
                 "context IS NULL "
                 "OR jsonb_typeof(context) = 'object'"
             ),
@@ -279,29 +249,6 @@ class Decision(
         comment="命中权重，取值范围 0.0～1.0",
     )
 
-    prediction = Column(
-        JSONB(
-            none_as_null=True
-        ),
-        nullable=True,
-        comment=(
-            "模型预测结果，JSON 格式。"
-            "可记录概率、logit 值和评分等信息"
-        ),
-    )
-
-    probability = Column(
-        Float,
-        nullable=True,
-        comment="预测概率，取值范围 0.0～1.0",
-    )
-
-    score = Column(
-        Float,
-        nullable=True,
-        comment="评分结果",
-    )
-
     decision = Column(
         String(32),
         nullable=True,
@@ -309,12 +256,6 @@ class Decision(
             "最终决策结果，例如 "
             "approve / reject / review"
         ),
-    )
-
-    latency_ms = Column(
-        Float,
-        nullable=True,
-        comment="决策耗时，单位毫秒",
     )
 
     context = Column(

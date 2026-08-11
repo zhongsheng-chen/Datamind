@@ -14,6 +14,9 @@
   settings = get_settings()
 
   print(settings.service.environment)
+  print(settings.console.port)
+  print(settings.initialization.admin_username)
+  print(settings.runtime.shadow_enabled)
   print(settings.database.url)
   print(settings.storage.type)
 """
@@ -23,33 +26,42 @@ from functools import lru_cache
 from datamind.config.audit import AuditConfig
 from datamind.config.auth import AuthConfig
 from datamind.config.classification import ClassificationConfig
+from datamind.config.console import ConsoleConfig
 from datamind.config.database import DatabaseConfig
+from datamind.config.initialization import InitializationConfig
 from datamind.config.logging import LoggingConfig
+from datamind.config.runtime import RuntimeConfig
 from datamind.config.scorecard import ScorecardConfig
-from datamind.config.service import ServiceConfig
 from datamind.config.storage import StorageConfig
+from datamind.config.service import ServiceConfig
 
 
 class Settings:
     """配置总入口类"""
 
-    database: DatabaseConfig
-    storage: StorageConfig
-    logging: LoggingConfig
     audit: AuditConfig
     auth: AuthConfig
-    scorecard: ScorecardConfig
     classification: ClassificationConfig
+    console: ConsoleConfig
+    database: DatabaseConfig
+    initialization: InitializationConfig
+    logging: LoggingConfig
+    runtime: RuntimeConfig
+    scorecard: ScorecardConfig
+    storage: StorageConfig
     service: ServiceConfig
 
     def __init__(self) -> None:
-        self.database = DatabaseConfig()
-        self.storage = StorageConfig()
-        self.logging = LoggingConfig()
         self.audit = AuditConfig()
         self.auth = AuthConfig()
-        self.scorecard = ScorecardConfig()
         self.classification = ClassificationConfig()
+        self.console = ConsoleConfig()
+        self.database = DatabaseConfig()
+        self.initialization = InitializationConfig()
+        self.logging = LoggingConfig()
+        self.runtime = RuntimeConfig()
+        self.scorecard = ScorecardConfig()
+        self.storage = StorageConfig()
         self.service = ServiceConfig(**{})
 
 
