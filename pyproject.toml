@@ -33,7 +33,8 @@ dependencies = [
 [project.optional-dependencies]
 sklearn = [
     "joblib>=1.3.0",
-    "scikit-learn>=1.5.0",
+    "scikit-learn>=1.6.0",
+    "optbinning>=0.21.0",
 ]
 
 xgboost = [
@@ -50,7 +51,8 @@ catboost = [
 
 full = [
     "joblib>=1.3.0",
-    "scikit-learn>=1.5.0",
+    "scikit-learn>=1.6.0",
+    "optbinning>=0.21.0",
     "xgboost>=2.0.0",
     "lightgbm>=4.0.0",
     "catboost>=1.2.0",
