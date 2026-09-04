@@ -31,7 +31,8 @@
 
 from typing import Any
 
-from datamind.config.scorecard import ScorecardConfig
+from datamind.config.classification import ClassificationConfig
+from datamind.config.scoring import ScoringConfig
 from datamind.constants import DataType
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.base import BaseRuntimeService
@@ -63,7 +64,6 @@ class RuntimeServiceFactory:
             feature_names: list[str] | None = None,
             data_types: dict[str, DataType] | None = None,
             threshold: float | None = None,
-            scorecard_config: ScorecardConfig | dict[str, Any] | None = None,
     ) -> BaseRuntimeService:
         """创建运行时服务
 
@@ -73,7 +73,6 @@ class RuntimeServiceFactory:
             feature_names: 特征名称列表
             data_types: 特征类型映射
             threshold: 分类阈值
-            scorecard_config: 评分配置
 
         返回：
             具体运行时服务实例
@@ -97,18 +96,11 @@ class RuntimeServiceFactory:
         )
 
         if resolved_task_type == "classification":
-            resolved_threshold = (
-                cls._parse_threshold(
-                    threshold
-                )
-                if threshold is not None
-                else cls._resolve_threshold(
-                    runtime_model
-                )
+            resolved_threshold = cls._resolve_threshold(
+                runtime_model=runtime_model,
+                threshold=threshold,
+                config_type=ClassificationConfig,
             )
-
-            if resolved_threshold is None:
-                resolved_threshold = 0.5
 
             return ClassificationService(
                 runtime_model=runtime_model,
@@ -118,11 +110,16 @@ class RuntimeServiceFactory:
             )
 
         if resolved_task_type == "scoring":
+            resolved_threshold = cls._resolve_threshold(
+                runtime_model=runtime_model,
+                threshold=threshold,
+                config_type=ScoringConfig,
+            )
             return ScoringService(
                 runtime_model=runtime_model,
                 feature_names=feature_names,
                 data_types=data_types,
-                scorecard_config=scorecard_config,
+                threshold=resolved_threshold,
             )
 
         raise ValueError(
@@ -197,113 +194,45 @@ class RuntimeServiceFactory:
     @classmethod
     def _resolve_threshold(
             cls,
+            *,
             runtime_model: RuntimeModel,
+            threshold: float | None,
+            config_type: type[
+                ClassificationConfig | ScoringConfig
+            ],
     ) -> float:
-        """解析分类阈值
+        """解析任务决策阈值
 
         优先级：
-          - metadata.threshold
-          - metadata.config.threshold
-          - 默认值 0.5
+          - 显式传入的 threshold
+          - RuntimeModel metadata.config.threshold
+          - 任务配置默认值
 
         参数：
             runtime_model: 运行时模型
+            threshold: 显式传入的决策阈值
+            config_type: 任务配置类型
 
         返回：
-            分类阈值
+            决策阈值
 
         异常：
             ValueError:
-                threshold 类型错误
-                threshold 无法转换为浮点数
-                threshold 超出合法范围
+                threshold 类型或取值错误
         """
-        metadata = (
-                runtime_model.metadata
-                or {}
-        )
+        if isinstance(threshold, bool):
+            raise ValueError("threshold 不能是布尔值")
 
-        threshold = cls._parse_threshold(
-            metadata.get(
-                "threshold"
-            )
-        )
+        metadata = runtime_model.metadata or {}
+        config = metadata.get("config")
+
+        if not isinstance(config, dict):
+            config = {}
 
         if threshold is not None:
-            return threshold
+            config = {
+                **config,
+                "threshold": threshold,
+            }
 
-        config = metadata.get(
-            "config"
-        )
-
-        if isinstance(
-                config,
-                dict,
-        ):
-            threshold = cls._parse_threshold(
-                config.get(
-                    "threshold"
-                )
-            )
-
-            if threshold is not None:
-                return threshold
-
-        return 0.5
-
-    @staticmethod
-    def _parse_threshold(
-            value: Any,
-    ) -> float | None:
-        """解析分类阈值
-
-        参数：
-            value: 原始阈值
-
-        返回：
-            浮点型阈值；
-            值为 None 时返回 None
-
-        异常：
-            ValueError:
-                阈值类型错误
-                阈值无法转换为浮点数
-                阈值不在 0 到 1 范围内
-        """
-        if value is None:
-            return None
-
-        if isinstance(
-                value,
-                bool,
-        ):
-            raise ValueError(
-                "threshold 不能是布尔值"
-            )
-
-        if not isinstance(
-                value,
-                (int, float, str),
-        ):
-            raise ValueError(
-                "threshold 类型无效: "
-                f"{type(value).__name__}"
-            )
-
-        try:
-            threshold = float(
-                value
-            )
-        except ValueError as exc:
-            raise ValueError(
-                "threshold 无法转换为浮点数: "
-                f"{value}"
-            ) from exc
-
-        if not 0 <= threshold <= 1:
-            raise ValueError(
-                "threshold 必须在 0 到 1 之间，"
-                f"当前值: {threshold}"
-            )
-
-        return threshold
+        return config_type(**config).threshold

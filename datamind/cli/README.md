@@ -275,8 +275,6 @@ datamind model register <name>
   --framework <framework>
   --model-type <model-type>
   --task-type <task-type>
-  [--input-schema-file <file>]
-  [--output-schema-file <file>]
   [--description <description>]
   [--version-description <description>]
   [--force]
@@ -293,8 +291,6 @@ datamind model register <name>
 | `--framework <framework>` | 模型框架，例如 `sklearn`、`xgboost`、`lightgbm`、`catboost` |
 | `--model-type <model-type>` | 模型类型，例如 `logistic_regression`、`random_forest`、`xgboost` |
 | `--task-type <task-type>` | 任务类型，例如 `classification`、`scoring` |
-| `--input-schema-file <file>` | 输入 Schema 文件，JSON 格式 |
-| `--output-schema-file <file>` | 输出 Schema 文件，JSON 格式 |
 | `--description <description>` | 模型描述 |
 | `--version-description <description>` | 模型版本描述 |
 | `--force` | 强制覆盖已有版本 |
@@ -537,15 +533,6 @@ datamind deployment create (<name> | --model-id <model-id>)
 
 #### config 示例
 
-评分任务：
-
-```json
-{
-  "pdo": 50,
-  "base_score": 600
-}
-```
-
 分类任务：
 
 ```json
@@ -553,6 +540,9 @@ datamind deployment create (<name> | --model-id <model-id>)
   "threshold": 0.5
 }
 ```
+
+评分任务同样使用 `threshold`，表示通过决策的最低信用分。PDO、
+基准分和赔率等评分刻度参数仍保存在 Scorecard 模型中。
 
 #### 使用示例
 

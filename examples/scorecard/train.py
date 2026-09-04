@@ -80,8 +80,6 @@ SCORING_CONFIG = {
     "base_score": 650.0,
     "base_odds": 45.0,
     "pdo": 40.0,
-    "min_score": 90.0,
-    "max_score": 900.0,
 }
 
 

@@ -5,10 +5,16 @@
 验证认证状态枚举的成员、字符串语义和序列化行为。
 
 核心功能：
-  - 验证各枚举包含预期成员
-  - 验证枚举兼容字符串值
-  - 验证非法枚举值被拒绝
-"""
+  - test_enum_members:
+    验证枚举成员和值
+  - test_enum_uses_string_semantics:
+    验证枚举具有一致的字符串语义
+  - test_enum_can_be_created_from_string:
+    验证可通过字符串值创建枚举
+  - test_enum_rejects_invalid_value:
+    验证枚举拒绝非法字符串
+  - test_enum_works_as_dictionary_key:
+    验证枚举与字符串具有相同的字典键语义"""
 
 import json
 

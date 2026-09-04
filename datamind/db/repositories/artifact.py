@@ -149,8 +149,6 @@ class ArtifactRepository(BaseRepository):
             source_path: str,
             model_key: str,
             bento_tag: str,
-            input_schema_key: str | None = None,
-            output_schema_key: str | None = None,
             created_by: str | None = None,
     ) -> Artifact:
         """创建 active 模型制品修订"""
@@ -166,16 +164,6 @@ class ArtifactRepository(BaseRepository):
             status=str(ArtifactStatus.ACTIVE),
             purge_attempts=0,
         )
-
-        if input_schema_key is not None:
-            artifact.input_schema_key = (
-                input_schema_key
-            )
-
-        if output_schema_key is not None:
-            artifact.output_schema_key = (
-                output_schema_key
-            )
 
         if created_by is not None:
             artifact.created_by = created_by

@@ -32,11 +32,7 @@ export function createDeploymentDetailController({
   runRecordAction,
 }) {
   const deploymentConfigLabels = {
-    pdo: "PDO",
-    base_odds: "基础赔率",
-    base_score: "基准分",
-    min_score: "最低分",
-    max_score: "最高分",
+    threshold: "决策阈值",
   };
 
   function createDeploymentRolloutBadge(value) {
@@ -50,9 +46,7 @@ export function createDeploymentDetailController({
   function formatDeploymentConfigValue(key, value) {
     if (value === null || value === undefined || value === "") return "—";
     if (typeof value === "number") {
-      return ["base_score", "min_score", "max_score"].includes(key)
-        ? value.toFixed(2)
-        : String(value);
+      return String(value);
     }
     if (typeof value === "object") return JSON.stringify(value);
     return String(value);
@@ -63,13 +57,7 @@ export function createDeploymentDetailController({
       return [["配置", config]];
     }
 
-    const preferredOrder = [
-      "pdo",
-      "base_odds",
-      "base_score",
-      "min_score",
-      "max_score",
-    ];
+    const preferredOrder = ["threshold"];
     const keys = Object.keys(config).sort((left, right) => {
       const leftIndex = preferredOrder.indexOf(left);
       const rightIndex = preferredOrder.indexOf(right);

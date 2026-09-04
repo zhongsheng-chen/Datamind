@@ -5,11 +5,16 @@
 验证规则结构校验、字段解析、组合条件和操作符匹配行为。
 
 核心功能：
-  - 验证空规则及路由元信息规则
-  - 验证非法规则结构被拒绝
-  - 验证 all、any 和 negate 组合条件
-  - 验证嵌套字段和数组索引解析
-  - 验证比较、集合、范围、存在性和字符串操作符
+  - test_empty_rules_match:
+    验证空规则能够匹配
+  - test_validate_rejects_invalid_rules:
+    验证拒绝无效规则
+  - test_match_supports_all_any_and_negate:
+    验证组合与取反条件
+  - test_match_resolves_compatible_feature_paths:
+    验证解析兼容的特征路径
+  - test_match_supports_value_operators:
+    验证值比较操作符
 """
 
 from typing import Any

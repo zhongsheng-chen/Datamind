@@ -5,11 +5,40 @@
 验证控制状态加载、模型状态收敛、失败隔离、心跳和后台循环生命周期。
 
 核心功能：
-  - 验证协调结果统计
-  - 验证加载、重载、卸载和无变化分支
-  - 验证单部署失败不影响协调结果
-  - 验证运行时心跳更新
-  - 验证后台协调循环启动和停止
+  - test_reconcile_result_records_actions:
+    验证协调结果记录各类操作
+  - test_reconcile_result_rejects_unknown_action:
+    验证协调结果拒绝未知操作
+  - test_reconciler_rejects_invalid_configuration:
+    验证协调器拒绝无效配置
+  - test_reconcile_loads_missing_deployment:
+    验证协调器加载缺失部署
+  - test_reconcile_uses_default_operator:
+    验证协调器使用默认操作人
+  - test_reconcile_initializes_loaded_generation:
+    验证协调器初始化已加载代次
+  - test_reconcile_restarts_changed_generation:
+    验证协调器重启已变更代次
+  - test_reconcile_keeps_same_generation:
+    验证协调器保留相同代次
+  - test_reconcile_unloads_loaded_deployment:
+    验证协调器卸载已加载部署
+  - test_reconcile_keeps_unloaded_deployment:
+    验证协调器保留已卸载部署状态
+  - test_reconcile_isolates_control_failure:
+    验证单个控制状态失败相互隔离
+  - test_reconcile_rejects_control_from_other_environment:
+    验证拒绝其他环境的控制状态
+  - test_reconcile_rejects_invalid_control_status:
+    验证拒绝无效控制状态
+  - test_reconcile_heartbeats_loaded_runtime:
+    验证协调器更新已加载运行实例心跳
+  - test_heartbeat_skips_missing_and_unloaded_runtime:
+    验证心跳跳过缺失和已卸载实例
+  - test_heartbeat_failure_does_not_fail_reconciliation:
+    验证心跳失败不影响协调过程
+  - test_reconciler_start_and_stop_are_idempotent:
+    验证协调器启停操作具有幂等性
 """
 
 import asyncio

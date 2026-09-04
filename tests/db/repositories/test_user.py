@@ -512,8 +512,14 @@ def test_replace_profile() -> None:
 
     assert result is user
     assert user.username == "alice-new"
-    assert user.display_name is None
-    assert user.email is None
+    assert getattr(
+        user,
+        "display_name",
+    ) is None
+    assert getattr(
+        user,
+        "email",
+    ) is None
     assert user.updated_by == "usr_admin"
 
 
