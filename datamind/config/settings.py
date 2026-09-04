@@ -31,7 +31,7 @@ from datamind.config.database import DatabaseConfig
 from datamind.config.initialization import InitializationConfig
 from datamind.config.logging import LoggingConfig
 from datamind.config.runtime import RuntimeConfig
-from datamind.config.scorecard import ScorecardConfig
+from datamind.config.scoring import ScoringConfig
 from datamind.config.storage import StorageConfig
 from datamind.config.service import ServiceConfig
 
@@ -47,7 +47,7 @@ class Settings:
     initialization: InitializationConfig
     logging: LoggingConfig
     runtime: RuntimeConfig
-    scorecard: ScorecardConfig
+    scoring: ScoringConfig
     storage: StorageConfig
     service: ServiceConfig
 
@@ -60,7 +60,7 @@ class Settings:
         self.initialization = InitializationConfig()
         self.logging = LoggingConfig()
         self.runtime = RuntimeConfig()
-        self.scorecard = ScorecardConfig()
+        self.scoring = ScoringConfig()
         self.storage = StorageConfig()
         self.service = ServiceConfig(**{})
 

@@ -130,19 +130,19 @@ class Artifact(
     revision = Column(
         Integer,
         nullable=False,
-        comment="版本内部制品修订号",
+        comment="修订号",
     )
 
     sha256 = Column(
         String(64),
         nullable=True,
-        comment="模型文件 SHA-256；历史制品可能为空",
+        comment="模型文件 SHA-256",
     )
 
     digest = Column(
         String(64),
         nullable=True,
-        comment="模型与 Schema 组合摘要；历史制品可能为空",
+        comment="模型摘要",
     )
 
     source_path = Column(
@@ -155,18 +155,6 @@ class Artifact(
         String(255),
         nullable=False,
         comment="模型文件存储键",
-    )
-
-    input_schema_key = Column(
-        String(255),
-        nullable=True,
-        comment="输入 Schema 文件存储键",
-    )
-
-    output_schema_key = Column(
-        String(255),
-        nullable=True,
-        comment="输出 Schema 文件存储键",
     )
 
     bento_tag = Column(

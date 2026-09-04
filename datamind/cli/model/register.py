@@ -15,8 +15,6 @@
     --framework sklearn \
     --model-type logistic_regression \
     --task-type scoring \
-    --input-schema-file input_schema.json \
-    --output-schema-file output_schema.json \
     --description "信用评分卡模型" \
     --version-description "信用评分卡模型 v1.0.0"
 """
@@ -75,16 +73,6 @@ def register_model(
             "--task-type",
             help="任务类型"
         ),
-        input_schema_file: str | None = typer.Option(
-            None,
-            "--input-schema-file",
-            help="输入 Schema 文件(JSON)"
-        ),
-        output_schema_file: str | None = typer.Option(
-            None,
-            "--output-schema-file",
-            help="输出 Schema 文件(JSON)"
-        ),
         description: str | None = typer.Option(
             None,
             "--description",
@@ -137,52 +125,6 @@ def register_model(
             force=force,
         )
 
-        input_schema = None
-
-        if input_schema_file:
-            try:
-                with open(
-                        input_schema_file,
-                        "r",
-                        encoding="utf-8",
-                ) as f:
-                    input_schema = json.load(f)
-
-            except FileNotFoundError as error:
-                raise typer.BadParameter(
-                    "--input-schema-file 文件不存在："
-                    f"{input_schema_file}"
-                ) from error
-
-            except json.JSONDecodeError as error:
-                raise typer.BadParameter(
-                    "--input-schema-file JSON 解析失败："
-                    f"{error}"
-                ) from error
-
-        output_schema = None
-
-        if output_schema_file:
-            try:
-                with open(
-                        output_schema_file,
-                        "r",
-                        encoding="utf-8",
-                ) as f:
-                    output_schema = json.load(f)
-
-            except FileNotFoundError as error:
-                raise typer.BadParameter(
-                    "--output-schema-file 文件不存在："
-                    f"{output_schema_file}"
-                ) from error
-
-            except json.JSONDecodeError as error:
-                raise typer.BadParameter(
-                    "--output-schema-file JSON 解析失败："
-                    f"{error}"
-                ) from error
-
         register = ModelRegistrationService()
 
         try:
@@ -196,8 +138,6 @@ def register_model(
                 display_name=display_name,
                 description=description,
                 version_description=version_description,
-                input_schema=input_schema,
-                output_schema=output_schema,
                 created_by=actor,
                 force=force,
             )

@@ -5,10 +5,22 @@
 验证任务类型解析、分类阈值解析和具体服务创建行为。
 
 核心功能：
-  - 验证显式及元数据任务类型解析
-  - 验证分类和评分服务创建参数
-  - 验证分类阈值来源优先级
-  - 验证非法任务类型和阈值被拒绝
+  - test_create_classification_service_from_explicit_task_type:
+    验证根据显式任务类型创建分类服务
+  - test_create_classification_service_resolves_metadata_threshold:
+    验证分类服务解析元数据阈值
+  - test_create_scoring_service:
+    验证创建评分服务
+  - test_create_scoring_service_uses_deployment_threshold:
+    验证评分服务使用部署阈值
+  - test_create_rejects_invalid_task_type:
+    验证拒绝无效任务类型
+  - test_create_rejects_missing_runtime_model:
+    验证拒绝缺失运行时模型
+  - test_create_rejects_invalid_threshold:
+    验证拒绝无效阈值
+  - test_explicit_threshold_takes_precedence_over_config:
+    验证显式阈值优先于配置阈值
 """
 
 from typing import Any
@@ -17,7 +29,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import datamind.runtime.serving.factory as factory_module
-from datamind.config.scorecard import ScorecardConfig
 from datamind.constants import DataType
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.factory import RuntimeServiceFactory
@@ -94,7 +105,6 @@ def test_create_classification_service_from_explicit_task_type(
 @pytest.mark.parametrize(
     ("metadata", "expected_threshold"),
     [
-        ({"task_type": "classification", "threshold": "0.7"}, 0.7),
         (
             {
                 "task_type": "classification",
@@ -128,19 +138,16 @@ def test_create_classification_service_resolves_metadata_threshold(
 def test_create_scoring_service(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建评分服务并传递评分卡配置"""
+    """测试创建评分服务并传递评分决策阈值"""
     _, scoring_factory = install_service_factories(
         monkeypatch
     )
     runtime_model = create_runtime_model({
         "task_type": "classification",
     })
-    config = ScorecardConfig()
-
     result = RuntimeServiceFactory.create(
         runtime_model=runtime_model,
         task_type="scoring",
-        scorecard_config=config,
     )
 
     assert result is scoring_factory.return_value
@@ -148,8 +155,23 @@ def test_create_scoring_service(
         runtime_model=runtime_model,
         feature_names=None,
         data_types=None,
-        scorecard_config=config,
+        threshold=600.0,
     )
+
+
+def test_create_scoring_service_uses_deployment_threshold(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试评分服务读取部署配置中的阈值"""
+    _, scoring_factory = install_service_factories(monkeypatch)
+    runtime_model = create_runtime_model({
+        "task_type": "scoring",
+        "config": {"threshold": 650.0},
+    })
+
+    RuntimeServiceFactory.create(runtime_model=runtime_model)
+
+    assert scoring_factory.call_args.kwargs["threshold"] == 650.0
 
 
 @pytest.mark.parametrize(
@@ -197,8 +219,8 @@ def test_create_rejects_missing_runtime_model() -> None:
     ("threshold", "message"),
     [
         (True, "不能是布尔值"),
-        ([0.5], "类型无效"),
-        ("invalid", "无法转换为浮点数"),
+        ([0.5], "valid number"),
+        ("invalid", "unable to parse string"),
         (-0.1, "必须在 0 到 1 之间"),
         (1.1, "必须在 0 到 1 之间"),
     ],
@@ -222,10 +244,10 @@ def test_create_rejects_invalid_threshold(
         )
 
 
-def test_metadata_threshold_takes_precedence_over_config(
+def test_explicit_threshold_takes_precedence_over_config(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试顶层元数据阈值优先于配置字典"""
+    """测试显式阈值优先于部署配置"""
     classification_factory, _ = install_service_factories(
         monkeypatch
     )
@@ -233,9 +255,9 @@ def test_metadata_threshold_takes_precedence_over_config(
     RuntimeServiceFactory.create(
         runtime_model=create_runtime_model({
             "task_type": "classification",
-            "threshold": 0.7,
             "config": {"threshold": 0.6},
-        })
+        }),
+        threshold=0.7,
     )
 
     assert classification_factory.call_args.kwargs[

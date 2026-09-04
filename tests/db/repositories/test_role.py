@@ -592,7 +592,10 @@ def test_replace_description_allows_clearing() -> None:
         updated_by="usr_operator",
     )
 
-    assert role.description is None
+    assert getattr(
+        role,
+        "description",
+    ) is None
     assert role.updated_by == "usr_operator"
 
 

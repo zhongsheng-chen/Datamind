@@ -39,8 +39,6 @@ def test_artifact_table_and_columns() -> None:
         "digest",
         "source_path",
         "model_key",
-        "input_schema_key",
-        "output_schema_key",
         "bento_tag",
         "status",
         "created_by",

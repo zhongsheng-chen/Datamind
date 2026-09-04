@@ -5,13 +5,32 @@
 验证本地认证凭证、身份对象和提供方抽象接口。
 
 核心功能：
-  - 验证用户名密码凭证的规范化和保护
-  - 验证认证身份的规范化和不可变语义
-  - 验证认证提供方抽象接口
-"""
+  - test_password_credentials_normalizes_username:
+    验证凭证规范化用户名
+  - test_password_credentials_hides_password:
+    验证凭证字符串表示隐藏密码
+  - test_password_credentials_validates_fields:
+    验证凭证拒绝空必填字段
+  - test_password_credentials_is_frozen:
+    验证凭证不可修改
+  - test_provider_credentials_aliases_password_credentials:
+    验证提供方凭证仅接受密码凭证
+  - test_provider_identity_normalizes_fields:
+    验证认证身份规范化文本字段
+  - test_provider_identity_normalizes_empty_optional_fields:
+    验证认证身份将空可选字段规范化为 None
+  - test_provider_identity_validates_required_fields:
+    验证认证身份拒绝空必填字段
+  - test_provider_identity_copies_and_protects_claims:
+    验证认证声明为只读快照
+  - test_base_auth_provider_is_abstract:
+    验证认证提供方基类不能直接实例化
+  - test_base_auth_provider_contract:
+    验证实现类遵循认证接口"""
 
 from dataclasses import FrozenInstanceError
 from datetime import datetime
+import inspect
 
 import pytest
 
@@ -78,7 +97,11 @@ def test_password_credentials_is_frozen() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        credentials.username = "bob"  # type: ignore[misc]
+        setattr(
+            credentials,
+            "username",
+            "bob",
+        )
 
 
 def test_provider_credentials_aliases_password_credentials() -> None:
@@ -171,8 +194,7 @@ def test_provider_identity_copies_and_protects_claims() -> None:
 
 def test_base_auth_provider_is_abstract() -> None:
     """验证认证提供方基类不能直接实例化"""
-    with pytest.raises(TypeError):
-        BaseAuthProvider()  # type: ignore[abstract]
+    assert inspect.isabstract(BaseAuthProvider)
 
 
 @pytest.mark.asyncio

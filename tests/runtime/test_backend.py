@@ -5,9 +5,14 @@
 验证框架后端选择以及模型保存和加载委托行为。
 
 核心功能：
-  - 验证支持的框架后端解析
-  - 验证模型保存和加载参数传递
-  - 验证不受支持的框架被拒绝
+  - test_backend_resolves_supported_framework:
+    验证解析受支持的框架后端
+  - test_backend_rejects_unsupported_framework:
+    验证拒绝不受支持的框架
+  - test_save_delegates_to_framework_backend:
+    验证模型保存委托给框架后端
+  - test_load_delegates_to_framework_backend:
+    验证模型加载委托给框架后端
 """
 
 from unittest.mock import MagicMock

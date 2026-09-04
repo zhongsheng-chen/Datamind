@@ -1,11 +1,11 @@
 # datamind/runtime/serving/scoring_service.py
 
-"""评分模型运行服务
+"""评分卡运行服务
 
-提供评分模型的在线推理、评分和特征贡献分解能力。
+提供评分卡的在线评分和决策能力。
 
 核心功能：
-  - ScoringService: 评分模型运行服务
+  - ScoringService: 评分卡运行服务
   - predict: 单条评分
   - predict_batch: 批量评分
 
@@ -14,6 +14,7 @@
 
   service = ScoringService(
       runtime_model=runtime_model,
+      threshold=600.0,
   )
 
   result = service.predict({
@@ -23,51 +24,30 @@
       "credit_utilization_ratio": 0.45,
       "delinquency_count": 0,
   })
-
-  batch_result = service.predict_batch([
-      {
-          "age": 35,
-          "annual_income": 120000,
-          "debt_to_income_ratio": 0.32,
-          "credit_utilization_ratio": 0.45,
-          "delinquency_count": 0,
-      },
-      {
-          "age": 35,
-          "annual_income": 120000,
-          "debt_to_income_ratio": 0.32,
-          "credit_utilization_ratio": 0.45,
-          "delinquency_count": 0,
-      },
-  ])
 """
 
+import math
 from typing import Any
 
-from datamind.config.scorecard import ScorecardConfig
+import numpy as np
+import pandas as pd
+from optbinning import Scorecard
+
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
-from datamind.core.scoring import (
-    LRContrib,
-    Scorer,
-    ScoreTransformer,
-)
+from datamind.models.enums import DecisionResult
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.base import BaseRuntimeService
 
 
 class ScoringService(BaseRuntimeService):
-    """评分模型运行服务
+    """评分卡运行服务
 
-    基于模型概率和 Logit 输出生成评分结果。
-
-    对 Logistic Regression 模型提供特征贡献分解能力。
+    输出违约概率和信用分，并根据评分决策阈值生成通过或拒绝结果。
 
     属性：
         SERVICE_TYPE: 服务类型
-        transformer: 评分转换器
-        scorer: 评分器
-        contrib: 特征贡献分解器
+        threshold: 评分决策阈值
     """
 
     SERVICE_TYPE = "scoring"
@@ -78,61 +58,41 @@ class ScoringService(BaseRuntimeService):
             runtime_model: RuntimeModel,
             feature_names: list[str] | None = None,
             data_types: dict[str, DataType] | None = None,
-            scorecard_config: ScorecardConfig | dict[str, Any] | None = None,
-    ):
-        """初始化评分模型服务
+            threshold: float = 600.0,
+    ) -> None:
+        """初始化评分卡运行服务
 
         参数：
-            runtime_model: 已加载运行时模型
+            runtime_model: 已加载的运行时模型
             feature_names: 特征名称列表
             data_types: 特征类型映射
-            scorecard_config: 评分配置
+            threshold: 评分决策阈值
 
         异常：
-            NotImplementedError:
-                模型不支持概率预测或 Logit 输出
+            TypeError: 模型类型不匹配
+            ValueError: threshold 不是有限数值
+            NotImplementedError: 模型不支持概率预测
         """
         super().__init__(
             runtime_model=runtime_model,
             feature_names=feature_names,
             data_types=data_types,
         )
+        self.require_capability(ModelCapability.PREDICT_PROBA)
 
-        self.require_capability(
-            ModelCapability.PREDICT_PROBA
-        )
+        model = runtime_model.model
 
-        self.require_capability(
-            ModelCapability.PREDICT_LOG_ODDS
-        )
-
-        config = self._resolve_scorecard_config(
-            scorecard_config
-        )
-
-        self.transformer = ScoreTransformer(
-            config=config,
-        )
-
-        self.scorer = Scorer(
-            inference=self.inference,
-            transformer=self.transformer,
-        )
-
-        self.contrib: LRContrib | None = None
-
-        model_type = str(
-            self.metadata.get(
-                "model_type",
-                ""
+        if not isinstance(model, Scorecard):
+            raise TypeError(
+                "模型类型不匹配："
+                f"期望 {Scorecard.__name__}，实际 "
+                f"{type(model).__name__}"
             )
-        ).strip().lower()
 
-        if model_type == "logistic_regression":
-            self.contrib = LRContrib(
-                inference=self.inference,
-                transformer=self.transformer,
-            )
+        self.threshold = float(threshold)
+
+        if not math.isfinite(self.threshold):
+            raise ValueError("threshold 必须是有限数值")
 
     def predict(
             self,
@@ -144,74 +104,28 @@ class ScoringService(BaseRuntimeService):
             features: 特征字典
 
         返回：
-            评分结果，包含：
-              - probability
-              - logit
-              - score
-              - score_detail
-              - deployment_id
-              - model_id
-              - version_id
-              - framework
-              - service_type
+            评分结果，包含违约概率、信用分、决策和决策阈值
 
         异常：
             ValueError: features 为空
-            TypeError: 推理结果类型异常
+            TypeError: 概率预测结果类型异常
         """
         if not features:
-            raise ValueError(
-                "features 不能为空"
-            )
+            raise ValueError("features 不能为空")
 
-        probability = self.inference.predict(
-            features
-        )
-
-        logit = self.inference.predict_logit(
-            features
-        )
+        probability = self.inference.predict(features)
 
         if isinstance(probability, list):
-            raise TypeError(
-                "单条评分返回了批量概率结果"
-            )
+            raise TypeError("单条评分返回了批量概率结果")
 
-        if isinstance(logit, list):
-            raise TypeError(
-                "单条评分返回了批量 Logit 结果"
-            )
-
-        probability_value = float(
-            probability
-        )
-
-        logit_value = float(
-            logit
-        )
-
-        score = self.scorer.logit_to_score(
-            logit_value
-        )
-
-        score_detail = None
-
-        if self.contrib is not None:
-            explanation = self.contrib.explain(
-                features
-            )
-
-            score_detail = self._build_score_detail(
-                explanation
-            )
-
+        score = self._score([features])[0]
         self.touch()
 
         return self.build_result({
-            "probability": probability_value,
-            "logit": logit_value,
-            "score": float(score),
-            "score_detail": score_detail,
+            "probability": float(probability),
+            "score": score,
+            "decision": self._decide(score),
+            "threshold": self.threshold,
         })
 
     def predict_batch(
@@ -224,25 +138,14 @@ class ScoringService(BaseRuntimeService):
             features_list: 特征字典列表
 
         返回：
-            批量评分结果，包含：
-              - count
-              - predictions
-              - deployment_id
-              - model_id
-              - version_id
-              - framework
-              - service_type
+            批量评分结果及样本数量
 
         异常：
-            TypeError: 批量推理结果类型异常
-            RuntimeError:
-                概率、Logit 或贡献分解结果数量不一致
-            NotImplementedError:
-                模型不支持批量推理
+            TypeError: 概率预测结果类型异常
+            RuntimeError: 概率和评分结果数量不一致
+            NotImplementedError: 模型不支持批量推理
         """
-        self.require_capability(
-            ModelCapability.BATCH_PREDICT
-        )
+        self.require_capability(ModelCapability.BATCH_PREDICT)
 
         if not features_list:
             return self.build_result({
@@ -250,88 +153,25 @@ class ScoringService(BaseRuntimeService):
                 "predictions": [],
             })
 
-        probabilities = self.inference.predict(
-            features_list
-        )
+        probabilities = self.inference.predict(features_list)
 
-        logits = self.inference.predict_logit(
-            features_list
-        )
+        if not isinstance(probabilities, list):
+            raise TypeError("批量评分未返回概率列表")
 
-        if not isinstance(
-                probabilities,
-                list,
-        ):
-            raise TypeError(
-                "批量评分未返回概率列表"
-            )
+        scores = self._score(features_list)
 
-        if not isinstance(
-                logits,
-                list,
-        ):
-            raise TypeError(
-                "批量评分未返回 Logit 列表"
-            )
+        if len(probabilities) != len(scores):
+            raise RuntimeError("概率与评分结果数量不一致")
 
-        if len(probabilities) != len(logits):
-            raise RuntimeError(
-                "概率预测结果数量与 Logit 结果数量不一致"
-            )
-
-        score_details: list[
-            dict[str, Any] | None
-            ]
-
-        if self.contrib is not None:
-            explanations = self.contrib.explain_batch(
-                features_list
-            )
-
-            if len(explanations) != len(probabilities):
-                raise RuntimeError(
-                    "特征贡献分解结果数量与预测结果数量不一致"
-                )
-
-            score_details = [
-                self._build_score_detail(
-                    explanation
-                )
-                for explanation in explanations
-            ]
-
-        else:
-            score_details = [
-                None
-                for _ in probabilities
-            ]
-
-        predictions = []
-
-        for probability, logit, score_detail in zip(
-                probabilities,
-                logits,
-                score_details,
-        ):
-            probability_value = float(
-                probability
-            )
-
-            logit_value = float(
-                logit
-            )
-
-            score = self.scorer.logit_to_score(
-                logit_value
-            )
-
-            predictions.append({
-                "probability": probability_value,
-                "logit": logit_value,
-                "score": float(score),
-                "score_detail": score_detail,
-            })
-
+        predictions = [
+            {
+                "probability": float(probability),
+                "score": score,
+                "decision": self._decide(score),
+                "threshold": self.threshold,
+            }
+            for probability, score in zip(probabilities, scores)
+        ]
         self.touch()
 
         return self.build_result({
@@ -339,88 +179,39 @@ class ScoringService(BaseRuntimeService):
             "predictions": predictions,
         })
 
-    @staticmethod
-    def _build_score_detail(
-            explanation: dict[str, float],
-    ) -> dict[str, Any]:
-        """构造评分明细
-
-        参数：
-            explanation: LR 特征贡献分解结果
-
-        返回：
-            评分明细，包含：
-              - intercept_score
-              - feature_score
-              - raw_score
-              - feature_scores
-        """
-        summary_fields = {
-            "intercept_score",
-            "feature_score",
-            "raw_score",
-        }
-
-        feature_scores = {
-            name: float(value)
-            for name, value in explanation.items()
-            if name not in summary_fields
-        }
-
-        return {
-            "intercept_score": float(
-                explanation["intercept_score"]
-            ),
-            "feature_score": float(
-                explanation["feature_score"]
-            ),
-            "raw_score": float(
-                explanation["raw_score"]
-            ),
-            "feature_scores": feature_scores,
-        }
-
-    def _resolve_scorecard_config(
+    def _score(
             self,
-            config: ScorecardConfig | dict[str, Any] | None,
-    ) -> ScorecardConfig:
-        """解析评分配置
-
-        优先级：
-          - 显式传入 scorecard_config
-          - RuntimeModel metadata 中的 config
-          - ScorecardConfig 默认配置
+            features_list: list[dict[str, Any]],
+    ) -> list[float]:
+        """调用模型评分接口
 
         参数：
-            config: 显式评分配置
+            features_list: 特征字典列表
 
         返回：
-            ScorecardConfig 实例
+            信用分列表
         """
-        if isinstance(
-                config,
-                ScorecardConfig,
-        ):
-            return config
-
-        if isinstance(
-                config,
-                dict,
-        ):
-            return ScorecardConfig(
-                **config
-            )
-
-        runtime_config = self.metadata.get(
-            "config"
+        frame = pd.DataFrame(
+            features_list,
+            columns=self.feature_names,
         )
+        values = np.asarray(
+            self.runtime_model.model.score(frame),
+            dtype=float,
+        ).reshape(-1)
+        return [float(value) for value in values]
 
-        if isinstance(
-                runtime_config,
-                dict,
-        ):
-            return ScorecardConfig(
-                **runtime_config
-            )
+    def _decide(self, score: float) -> str:
+        """根据评分阈值生成业务决策
 
-        return ScorecardConfig()
+        参数：
+            score: 信用分
+
+        返回：
+            approve 或 reject
+        """
+        return (
+            DecisionResult.APPROVE.value
+            if score >= self.threshold
+            else DecisionResult.REJECT.value
+        )

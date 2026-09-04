@@ -17,6 +17,7 @@
   - ExperimentVariantStatus: 实验分组状态
   - AssignmentStrategy: 实验分桶策略
   - DecisionStrategy: 请求决策策略
+  - DecisionResult: 业务决策结果
   - ExecutionType: 模型执行类型
   - ExecutionStatus: 模型执行状态
 
@@ -169,6 +170,13 @@ class DecisionStrategy(BaseEnum):
     MANUAL = "manual"
 
 
+class DecisionResult(BaseEnum):
+    """业务决策结果"""
+
+    APPROVE = "approve"
+    REJECT = "reject"
+
+
 class ExecutionType(BaseEnum):
     """模型执行类型"""
 
@@ -201,6 +209,7 @@ __all__ = [
     "ExperimentVariantStatus",
     "AssignmentStrategy",
     "DecisionStrategy",
+    "DecisionResult",
     "ExecutionType",
     "ExecutionStatus",
 ]

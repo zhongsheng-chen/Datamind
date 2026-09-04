@@ -3,6 +3,22 @@
 """资源逻辑删除服务测试
 
 验证部署、路由、实验和实验分组的删除边界与恢复行为。
+
+核心功能：
+  - test_delete_deployment_*:
+    验证部署删除的状态、加载和运行约束
+  - test_restore_deployment_keeps_deployment_inactive:
+    验证恢复部署后保持未启用状态
+  - test_delete_routing_requires_disabled_route:
+    验证仅允许删除已禁用路由
+  - test_restore_routing_reads_deleted_record:
+    验证从已删除记录恢复路由
+  - test_delete_experiment_*:
+    验证实验及实验分组的级联删除约束
+  - test_restore_experiment_restores_same_batch_variants:
+    验证恢复实验时恢复同批次分组
+  - test_delete_variant_requires_draft_experiment:
+    验证仅允许删除草稿实验的分组
 """
 
 from datetime import datetime, timedelta, timezone

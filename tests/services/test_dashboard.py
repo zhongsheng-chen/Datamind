@@ -1464,12 +1464,6 @@ async def test_get_version_detail_includes_model_metadata(
         artifact_digest="digest_test",
         bento_tag="scorecard:test",
         model_key="models/scorecard/1.0.0/model.pkl",
-        input_schema_key="models/scorecard/1.0.0/input_schema.json",
-        output_schema_key=None,
-        input_schema={
-            "type": "object",
-        },
-        output_schema=None,
         description="版本说明",
         created_by="admin",
         updated_by="admin",
