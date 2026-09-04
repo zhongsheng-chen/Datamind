@@ -64,8 +64,6 @@ class ModelRegistrationMetadata(_ConsoleRequest):
     task_type: str = Field(min_length=1, max_length=64)
     description: str | None = Field(default=None, max_length=2000)
     version_description: str | None = Field(default=None, max_length=2000)
-    input_schema: dict[str, Any] | None = None
-    output_schema: dict[str, Any] | None = None
     params: dict[str, Any] | None = None
     metrics: dict[str, Any] | None = None
     force: bool = False

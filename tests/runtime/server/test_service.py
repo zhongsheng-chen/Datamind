@@ -5,11 +5,18 @@
 验证 Worker 生命周期、运行控制、预测执行、持久化和错误响应行为。
 
 核心功能：
-  - 验证 Worker 启动、关闭、健康和就绪状态
-  - 验证认证执行包装和 HTTP 状态映射
-  - 验证加载、卸载、重载和状态查询
-  - 验证单条及批量预测的成功和失败处理
-  - 验证请求、决策记录和运行时服务缓存
+  - test_startup_reconciles_and_marks_worker_ready:
+    验证 Worker 启动协调并进入就绪状态
+  - test_execute_secured_applies_status_and_records_audit:
+    验证安全执行设置状态并记录审计信息
+  - test_control_operation_updates_desired_state:
+    验证控制操作更新期望状态
+  - test_predict_records_successful_decision:
+    验证单条预测记录成功决策
+  - test_predict_batch_records_each_request_and_decision:
+    验证批量预测逐条记录请求与决策
+  - test_get_service_reconciles_and_caches_runtime_service:
+    验证获取运行服务时执行协调并缓存服务
 """
 
 import asyncio

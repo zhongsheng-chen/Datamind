@@ -31,6 +31,23 @@ from datamind.constants.framework import Framework
 from datamind.models.schema import SchemaExtractor
 
 
+class ScorecardModel:
+    """模拟 OptBinning Scorecard"""
+
+    __module__ = "optbinning.scorecard.scorecard"
+
+    def __init__(self) -> None:
+        self.binning_process_ = SimpleNamespace(
+            variable_names=[
+                "age",
+                "employment_type",
+            ],
+            categorical_variables=[
+                "employment_type",
+            ],
+        )
+
+
 def test_extract_sklearn_schema() -> None:
     """测试提取 Sklearn Schema 完整结构"""
     result = SchemaExtractor.extract(
@@ -48,6 +65,27 @@ def test_extract_sklearn_schema() -> None:
         },
         "inferred": True,
         "source": "model.feature_names_in_",
+    }
+
+
+def test_extract_optbinning_scorecard_schema() -> None:
+    """测试从评分卡分箱过程提取特征类型"""
+    result = SchemaExtractor.extract(
+        model=ScorecardModel(),
+        framework=str(Framework.SKLEARN),
+    )
+
+    assert result == {
+        "feature_names": [
+            "age",
+            "employment_type",
+        ],
+        "data_types": {
+            "age": "numeric",
+            "employment_type": "categorical",
+        },
+        "inferred": True,
+        "source": "model.binning_process_",
     }
 
 
@@ -133,6 +171,21 @@ def test_extract_prefers_lightgbm_feature_name_attribute() -> None:
     assert result is not None
     assert result["feature_names"] == ["preferred"]
     assert result["source"] == "model.feature_name_"
+
+
+def test_extract_prefers_lightgbm_sklearn_feature_names() -> None:
+    """测试优先使用 LightGBM 的 sklearn 标准特征名称"""
+    result = SchemaExtractor.extract(
+        model=SimpleNamespace(
+            feature_names_in_=["preferred"],
+            feature_name_=["fallback"],
+        ),
+        framework=str(Framework.LIGHTGBM),
+    )
+
+    assert result is not None
+    assert result["feature_names"] == ["preferred"]
+    assert result["source"] == "model.feature_names_in_"
 
 
 def test_extract_catboost_schema() -> None:

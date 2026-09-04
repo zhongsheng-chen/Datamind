@@ -50,39 +50,6 @@ export function createVersionDetailController({
     return identifier;
   }
 
-  function schemaFieldCount(schema) {
-    if (!schema || typeof schema !== "object") return null;
-    if (Array.isArray(schema.feature_names)) return schema.feature_names.length;
-    if (Array.isArray(schema.fields)) return schema.fields.length;
-    if (Array.isArray(schema.columns)) return schema.columns.length;
-    if (schema.properties && typeof schema.properties === "object") {
-      return Object.keys(schema.properties).length;
-    }
-    if (schema.data_types && typeof schema.data_types === "object") {
-      return Object.keys(schema.data_types).length;
-    }
-    return null;
-  }
-
-  function createSchemaFileValue(label, storageKey, schema) {
-    if (!storageKey && !schema) return "未配置";
-    const value = document.createElement("span");
-    value.className = "registry-version-schema-value";
-    const count = schemaFieldCount(schema);
-    const summary = document.createElement("span");
-    summary.textContent = count === null ? "已配置" : `${count} 个字段`;
-    value.append(summary);
-    if (schema) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "registry-json-view-button";
-      button.textContent = "查看";
-      button.addEventListener("click", () => showJsonDialog(label, schema));
-      value.append(button);
-    }
-    return value;
-  }
-
   function createFileInformationSection(version, dialog) {
     return createDetailSection(
       "文件信息",
@@ -104,16 +71,6 @@ export function createVersionDetailController({
           version.artifact_sha256,
           "SHA-256 校验值",
           true,
-        )],
-        ["输入 Schema", createSchemaFileValue(
-          "输入 Schema",
-          version.input_schema_key,
-          version.input_schema,
-        )],
-        ["输出 Schema", createSchemaFileValue(
-          "输出 Schema",
-          version.output_schema_key,
-          version.output_schema,
         )],
       ],
       dialog,

@@ -16,12 +16,7 @@ import datamind.core as core
 
 EXPECTED_EXPORTS = {
     "Inference",
-    "BaseScorer",
-    "LRContrib",
-    "Scorer",
-    "ScoreTransformer",
     "ModelCapability",
-    "ScorecardCapability",
 }
 
 

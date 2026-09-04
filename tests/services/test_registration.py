@@ -61,8 +61,15 @@ class FakeUnitOfWork:
 
 
 @pytest.mark.asyncio
-async def test_register_rejects_invalid_semantic_version() -> None:
+async def test_register_rejects_invalid_semantic_version(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """测试拒绝不符合语义化版本规范的模型版本"""
+    monkeypatch.setitem(
+        vars(register_module),
+        "get_storage",
+        MagicMock(),
+    )
     with pytest.raises(
             ValueError,
             match=(
@@ -82,8 +89,15 @@ async def test_register_rejects_invalid_semantic_version() -> None:
 
 
 @pytest.mark.asyncio
-async def test_register_rejects_invalid_model_name() -> None:
+async def test_register_rejects_invalid_model_name(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """测试在处理制品前拒绝无效的模型机器名称"""
+    monkeypatch.setitem(
+        vars(register_module),
+        "get_storage",
+        MagicMock(),
+    )
     with pytest.raises(
             ValueError,
             match="无效的模型名称",
@@ -216,12 +230,6 @@ async def test_register_creates_model_version_and_artifact(
         model_type="logistic_regression",
         task_type="scoring",
         model_path=str(model_path),
-        input_schema={
-            "feature_names": ["age"],
-        },
-        output_schema={
-            "name": "score",
-        },
         created_by="operator",
     )
 
@@ -244,8 +252,6 @@ async def test_register_creates_model_version_and_artifact(
         for call in storage.save.call_args_list
     ] == [
         "test_registration.py",
-        "input_schema.json",
-        "output_schema.json",
     ]
     backend.save.assert_called_once()
     save_kwargs = backend.save.call_args.kwargs
@@ -278,8 +284,6 @@ async def test_register_returns_unchanged_for_same_digest(
         bento_tag="scorecard:existing",
         model_key="models/model.pkl",
         model_path="storage://models/model.pkl",
-        input_schema_key=None,
-        output_schema_key=None,
     )
     artifact = SimpleNamespace(
         artifact_id="art_test",
@@ -601,8 +605,6 @@ async def test_register_force_creates_new_artifact_revision(
         record.bento_tag = values["bento_tag"]
         record.model_key = values["model_key"]
         record.model_path = values["model_path"]
-        record.input_schema_key = values["input_schema_key"]
-        record.output_schema_key = values["output_schema_key"]
         return record
 
     version_repo.set_current_artifact.side_effect = set_current_artifact

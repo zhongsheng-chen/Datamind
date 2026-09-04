@@ -1,6 +1,14 @@
+# tests/cli/test_output.py
+
 """CLI 终端输出测试
 
 验证常规信息与错误信息的输出边界。
+
+核心功能：
+  - test_cli_console_writes_status_to_stdout:
+    验证状态和常规内容写入标准输出
+  - test_cli_console_writes_errors_to_stderr:
+    验证错误信息写入标准错误
 """
 
 import json

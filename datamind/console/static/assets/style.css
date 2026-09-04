@@ -1107,8 +1107,6 @@ button.registry-related-item:hover { background: #f1f6fb; }
 .registry-schema-value button { flex: 0 0 auto; padding: 3px 8px; border: 1px solid #cdd8e3; border-radius: 6px; color: #176fe5; background: white; font: inherit; font-size: 11px; cursor: pointer; }
 .registry-schema-value button:hover { border-color: #9cb8d6; background: #edf4ff; }
 .version-detail-drawer .registry-summary-icon { color: #246cba; background: #edf5ff; }
-.registry-version-schema-value { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
-.registry-version-schema-value > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .registry-json-view-button { flex: 0 0 auto; padding: 2px 5px; border: 0; border-radius: 5px; color: #176fe5; background: transparent; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
 .registry-json-view-button:hover { background: #edf4ff; }
 .registry-version-file-identifier { display: inline-flex; max-width: 100%; align-items: center; gap: 6px; }

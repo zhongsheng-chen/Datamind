@@ -1,6 +1,21 @@
 # tests/services/test_routing.py
 
-"""路由生命周期与流量约束测试。"""
+"""路由生命周期与流量约束测试
+
+验证部署路由唯一性、流量分配和启用状态约束。
+
+核心功能：
+  - test_duplicate_deployment_routing_is_rejected:
+    验证拒绝重复的部署路由
+  - test_primary_routing_allocation_over_100_percent_is_rejected:
+    验证主路由流量不得超过百分之百
+  - test_full_deployment_requires_100_percent_traffic:
+    验证全量部署必须分配百分之百流量
+  - test_shadow_routing_does_not_use_primary_traffic_budget:
+    验证影子路由不占用主路由流量
+  - test_inactive_deployment_routing_cannot_be_enabled:
+    验证未启用部署的路由不能启用
+"""
 
 from unittest.mock import AsyncMock, MagicMock
 

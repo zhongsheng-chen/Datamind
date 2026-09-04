@@ -240,7 +240,10 @@ class Decision(
     group = Column(
         String(32),
         nullable=True,
-        comment="实验分组名称，例如 control / treatment",
+        comment=(
+            "实验分组名称，例如 "
+            "control / treatment"
+        ),
     )
 
     weight = Column(
@@ -253,8 +256,8 @@ class Decision(
         String(32),
         nullable=True,
         comment=(
-            "最终决策结果，例如 "
-            "approve / reject / review"
+            "最终决策结果，可选值："
+            "approve / reject"
         ),
     )
 

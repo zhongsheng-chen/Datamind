@@ -1678,7 +1678,7 @@ export function createResourceManager({
         {
           type: "section",
           label: "文件上传",
-          help: "上传模型文件及可选的输入、输出 Schema。",
+          help: "上传模型文件。",
         },
         {
           name: "file",
@@ -1688,20 +1688,6 @@ export function createResourceManager({
           wide: true,
           acceptByField: "framework",
           acceptByValue: modelFileExtensionsByFramework,
-        },
-        {
-          name: "input_schema_file",
-          label: "输入 Schema",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
-        },
-        {
-          name: "output_schema_file",
-          label: "输出 Schema",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
         },
         {
           type: "section",
@@ -1764,14 +1750,6 @@ export function createResourceManager({
         const body = new FormData();
         body.append("metadata", JSON.stringify(metadata));
         body.append("file", file);
-        const inputSchema = formData.get("input_schema_file");
-        if (inputSchema instanceof File && inputSchema.size > 0) {
-          body.append("input_schema", inputSchema);
-        }
-        const outputSchema = formData.get("output_schema_file");
-        if (outputSchema instanceof File && outputSchema.size > 0) {
-          body.append("output_schema", outputSchema);
-        }
         await request("models", { method: "POST", body });
       },
     });

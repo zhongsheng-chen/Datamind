@@ -5,11 +5,28 @@
 验证 LOCAL 登录、网络限制、令牌生命周期和应急账户行为。
 
 核心功能：
-  - 验证本地登录和令牌签发
-  - 验证允许网段和用户状态
-  - 验证刷新令牌轮换与退出登录
-  - 验证访问令牌认证
-"""
+  - test_login_issues_tokens:
+    验证本地登录签发访问令牌和刷新令牌
+  - test_login_enforces_allowed_networks:
+    验证本地登录限制客户端网段
+  - test_login_matches_user_by_email:
+    验证用户名未匹配时使用邮箱匹配本地用户
+  - test_break_glass_login_issues_access_token_only:
+    验证应急账户只签发短期访问令牌
+  - test_login_validates_user_status:
+    验证登录拒绝已停用用户
+  - test_refresh_rotates_refresh_token:
+    验证刷新令牌成功轮换
+  - test_refresh_rejects_invalid_token_state:
+    验证刷新令牌拒绝无效状态
+  - test_refresh_rejects_break_glass_user:
+    验证应急账户不能使用刷新令牌
+  - test_logout_is_idempotent:
+    验证退出登录撤销令牌且重复调用保持幂等
+  - test_authenticate_access_token_returns_user:
+    验证访问令牌认证返回本地用户
+  - test_authenticate_access_token_rejects_invalid_token:
+    验证访问令牌认证拒绝无效令牌"""
 
 from datetime import (
     datetime,
@@ -246,10 +263,10 @@ async def test_login_issues_tokens(
     )
 
     response = await service.login(
-        LoginRequest(
-            username="alice",
-            password="P@ssw1rd",
-        ),
+        LoginRequest.model_validate({
+            "username": "alice",
+            "password": "P@ssw1rd",
+        }),
         ip="10.1.2.3",
         hostname="client",
         user_agent="datamind-cli",
@@ -295,10 +312,10 @@ async def test_login_enforces_allowed_networks(
             match=message,
     ):
         await service.login(
-            LoginRequest(
-                username="alice",
-                password="password",
-            ),
+            LoginRequest.model_validate({
+                "username": "alice",
+                "password": "password",
+            }),
             ip=ip,
             current_time=CURRENT_TIME,
         )
@@ -331,10 +348,10 @@ async def test_login_matches_user_by_email(
     )
 
     await service.login(
-        LoginRequest(
-            username="alice",
-            password="password",
-        ),
+        LoginRequest.model_validate({
+            "username": "alice",
+            "password": "password",
+        }),
         current_time=CURRENT_TIME,
     )
 
@@ -366,10 +383,10 @@ async def test_break_glass_login_issues_access_token_only(
     )
 
     response = await service.login(
-        LoginRequest(
-            username="alice",
-            password="password",
-        ),
+        LoginRequest.model_validate({
+            "username": "alice",
+            "password": "password",
+        }),
         current_time=CURRENT_TIME,
     )
 
@@ -392,10 +409,10 @@ async def test_login_validates_user_status() -> None:
 
     with pytest.raises(UserDisabledError):
         await service.login(
-            LoginRequest(
-                username="alice",
-                password="password",
-            ),
+            LoginRequest.model_validate({
+                "username": "alice",
+                "password": "password",
+            }),
             current_time=CURRENT_TIME,
         )
 
@@ -420,9 +437,9 @@ async def test_refresh_rotates_refresh_token(
     )
 
     response = await service.refresh(
-        RefreshTokenRequest(
-            refresh_token="old-refresh-token"
-        ),
+        RefreshTokenRequest.model_validate({
+            "refresh_token": "old-refresh-token",
+        }),
         current_time=CURRENT_TIME,
     )
 
@@ -481,9 +498,9 @@ async def test_refresh_rejects_invalid_token_state(
 
     with pytest.raises(error_type):
         await service.refresh(
-            RefreshTokenRequest(
-                refresh_token="refresh-token"
-            ),
+            RefreshTokenRequest.model_validate({
+                "refresh_token": "refresh-token",
+            }),
             current_time=CURRENT_TIME,
         )
 
@@ -515,9 +532,9 @@ async def test_refresh_rejects_break_glass_user(
             match="应急账户不允许使用刷新令牌",
     ):
         await service.refresh(
-            RefreshTokenRequest(
-                refresh_token="refresh-token"
-            ),
+            RefreshTokenRequest.model_validate({
+                "refresh_token": "refresh-token",
+            }),
             current_time=CURRENT_TIME,
         )
 
@@ -540,9 +557,9 @@ async def test_logout_is_idempotent(
         "hash_refresh_token",
         lambda _token: "token-hash",
     )
-    request = LogoutRequest(
-        refresh_token="refresh-token"
-    )
+    request = LogoutRequest.model_validate({
+        "refresh_token": "refresh-token",
+    })
 
     assert await service.logout(
         request,

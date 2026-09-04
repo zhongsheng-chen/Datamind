@@ -5,10 +5,16 @@
 验证环境保护、Bearer 令牌解析、权限校验和可信请求上下文。
 
 核心功能：
-  - 验证生产环境认证保护和测试环境匿名策略
-  - 验证 Bearer 令牌解析和认证异常转换
-  - 验证接口权限校验
-  - 验证可信日志及审计请求上下文
+  - test_production_rejects_disabled_auth:
+    验证生产环境拒绝关闭认证
+  - test_testing_allows_local_anonymous_identity:
+    验证测试环境允许本地匿名身份
+  - test_extract_bearer_token_normalizes_valid_header:
+    验证解析并规范化 Bearer 令牌
+  - test_authenticate_validates_required_permission:
+    验证认证过程校验所需权限
+  - test_request_scope_establishes_trusted_context:
+    验证请求作用域建立可信上下文
 """
 
 from types import SimpleNamespace

@@ -1826,7 +1826,7 @@ async def _create_model(
 
     try:
         form = await request.form(
-            max_files=3,
+            max_files=1,
             max_fields=2,
             max_part_size=_MAX_MODEL_UPLOAD_BYTES,
         )
@@ -1835,12 +1835,6 @@ async def _create_model(
         )
         upload = form.get(
             "file"
-        )
-        input_schema_upload = form.get(
-            "input_schema"
-        )
-        output_schema_upload = form.get(
-            "output_schema"
         )
 
         if not isinstance(raw_metadata, str):
@@ -1857,51 +1851,6 @@ async def _create_model(
             raw_metadata
         )
 
-        async def read_schema(
-                schema_upload: object,
-                label: str,
-        ) -> dict[str, Any] | None:
-            if schema_upload is None:
-                return None
-
-            if not isinstance(schema_upload, UploadFile):
-                raise ValueError(
-                    f"{label}必须是 JSON 文件"
-                )
-
-            try:
-                schema = json.loads(
-                    (await schema_upload.read()).decode(
-                        "utf-8"
-                    )
-                )
-            except (
-                    UnicodeDecodeError,
-                    json.JSONDecodeError,
-            ) as schema_error:
-                raise ValueError(
-                    f"{label}文件必须包含有效的 JSON"
-                ) from schema_error
-
-            if not isinstance(schema, dict):
-                raise ValueError(
-                    f"{label}文件的根节点必须是 JSON 对象"
-                )
-
-            return schema
-
-        metadata = metadata.model_copy(
-            update={
-                "input_schema": await read_schema(
-                    input_schema_upload,
-                    "输入 Schema",
-                ),
-                "output_schema": await read_schema(
-                    output_schema_upload,
-                    "输出 Schema",
-                ),
-            }
-        )
         suffix = Path(
             upload.filename or "model.bin"
         ).suffix[:20]

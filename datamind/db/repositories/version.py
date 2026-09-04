@@ -86,13 +86,9 @@ class VersionPatch:
     属性：
         version: 版本号
         framework: 框架类型
-        input_schema: 输入 Schema
-        output_schema: 输出 Schema
         bento_tag: BentoML 标签
         model_path: 模型文件原始路径
         model_key: 模型文件存储键
-        input_schema_key: 输入 Schema 文件存储键
-        output_schema_key: 输出 Schema 文件存储键
         params: 模型参数
         metrics: 评估指标
         description: 版本说明
@@ -100,13 +96,9 @@ class VersionPatch:
 
     version: str | None = None
     framework: Framework | None = None
-    input_schema: dict | None = None
-    output_schema: dict | None = None
     bento_tag: str | None = None
     model_path: str | None = None
     model_key: str | None = None
-    input_schema_key: str | None = None
-    output_schema_key: str | None = None
     params: dict | None = None
     metrics: dict | None = None
     description: str | None = None
@@ -316,10 +308,6 @@ class VersionRepository(BaseRepository):
             current_artifact_id: str,
             artifact_sha256: str,
             artifact_digest: str,
-            input_schema: dict | None = None,
-            output_schema: dict | None = None,
-            input_schema_key: str | None = None,
-            output_schema_key: str | None = None,
             params: dict | None = None,
             metrics: dict | None = None,
             description: str | None = None,
@@ -338,10 +326,6 @@ class VersionRepository(BaseRepository):
             bento_tag: BentoML 标签
             model_path: 模型文件原始路径
             model_key: 模型文件存储键
-            input_schema: 输入 Schema（可选）
-            output_schema: 输出 Schema（可选）
-            input_schema_key: 输入 Schema 文件存储键（可选）
-            output_schema_key: 输出 Schema 文件存储键（可选）
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             description: 版本说明（可选）
@@ -349,7 +333,7 @@ class VersionRepository(BaseRepository):
             current_artifact_id: 当前制品 ID
             artifact_revision: 当前制品修订号
             artifact_sha256: 当前模型文件 SHA-256
-            artifact_digest: 当前模型与 Schema 组合摘要
+            artifact_digest: 当前模型摘要
 
         返回：
             创建后的版本对象
@@ -361,8 +345,6 @@ class VersionRepository(BaseRepository):
             framework=str(
                 framework
             ),
-            input_schema=input_schema,
-            output_schema=output_schema,
             status=str(
                 VersionStatus.INACTIVE
             ),
@@ -376,16 +358,6 @@ class VersionRepository(BaseRepository):
             artifact_sha256=artifact_sha256,
             artifact_digest=artifact_digest,
         )
-
-        if input_schema_key is not None:
-            new_version.input_schema_key = (
-                input_schema_key
-            )
-
-        if output_schema_key is not None:
-            new_version.output_schema_key = (
-                output_schema_key
-            )
 
         if description is not None:
             new_version.description = description
@@ -561,10 +533,6 @@ class VersionRepository(BaseRepository):
             bento_tag: str,
             model_path: str,
             model_key: str,
-            input_schema: dict | None,
-            output_schema: dict | None,
-            input_schema_key: str | None,
-            output_schema_key: str | None,
             params: dict | None,
             metrics: dict | None,
             description: str | None,
@@ -573,21 +541,17 @@ class VersionRepository(BaseRepository):
         """切换当前制品
 
         将版本切换到指定制品修订，并同步制品位置、
-        Schema、模型参数、评估指标和版本说明。
+        模型参数、评估指标和版本说明。
 
         参数：
             version: 模型版本对象
             artifact_id: 制品 ID
             revision: 制品修订号
             sha256: 模型文件 SHA-256
-            digest: 模型与 Schema 组合摘要
+            digest: 模型摘要
             bento_tag: BentoML 标签
             model_path: 模型文件解析路径
             model_key: 模型文件存储键
-            input_schema: 输入 Schema（可选）
-            output_schema: 输出 Schema（可选）
-            input_schema_key: 输入 Schema 文件存储键（可选）
-            output_schema_key: 输出 Schema 文件存储键（可选）
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             description: 版本说明（可选）
@@ -603,10 +567,6 @@ class VersionRepository(BaseRepository):
         version.bento_tag = bento_tag
         version.model_path = model_path
         version.model_key = model_key
-        version.input_schema = input_schema
-        version.output_schema = output_schema
-        version.input_schema_key = input_schema_key
-        version.output_schema_key = output_schema_key
         version.params = params
         version.metrics = metrics
         version.description = description

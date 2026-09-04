@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: a25bb0e3d527
+Revision ID: b76925d52749
 Revises: 
-Create Date: 2026-09-01 03:52:21.122917+00:00
+Create Date: 2026-09-04 06:38:14.662693+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'a25bb0e3d527'
+revision = 'b76925d52749'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -27,13 +27,11 @@ def upgrade() -> None:
     op.create_table('artifacts',
     sa.Column('artifact_id', sa.String(length=64), nullable=False, comment='制品 ID'),
     sa.Column('version_id', sa.String(length=64), nullable=False, comment='模型版本 ID'),
-    sa.Column('revision', sa.Integer(), nullable=False, comment='版本内部制品修订号'),
-    sa.Column('sha256', sa.String(length=64), nullable=True, comment='模型文件 SHA-256；历史制品可能为空'),
-    sa.Column('digest', sa.String(length=64), nullable=True, comment='模型与 Schema 组合摘要；历史制品可能为空'),
+    sa.Column('revision', sa.Integer(), nullable=False, comment='修订号'),
+    sa.Column('sha256', sa.String(length=64), nullable=True, comment='模型文件 SHA-256'),
+    sa.Column('digest', sa.String(length=64), nullable=True, comment='模型摘要'),
     sa.Column('source_path', sa.String(length=255), nullable=False, comment='模型文件原始路径'),
     sa.Column('model_key', sa.String(length=255), nullable=False, comment='模型文件存储键'),
-    sa.Column('input_schema_key', sa.String(length=255), nullable=True, comment='输入 Schema 文件存储键'),
-    sa.Column('output_schema_key', sa.String(length=255), nullable=True, comment='输出 Schema 文件存储键'),
     sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 模型标签'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'active'"), nullable=False, comment='制品状态'),
     sa.Column('created_by', sa.String(length=50), nullable=True, comment='创建人'),
@@ -644,18 +642,14 @@ def upgrade() -> None:
     sa.Column('model_id', sa.String(length=64), nullable=False, comment='模型 ID'),
     sa.Column('version', sa.String(length=50), nullable=False, comment='版本号'),
     sa.Column('framework', sa.String(length=50), nullable=False, comment='框架类型，可选值：sklearn / xgboost / lightgbm / catboost'),
-    sa.Column('input_schema', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='输入 Schema，JSON 对象'),
-    sa.Column('output_schema', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='输出 Schema，JSON 对象'),
     sa.Column('status', sa.String(length=20), server_default=sa.text("'inactive'"), nullable=False, comment='版本状态，可选值：active / inactive / deprecated / archived'),
     sa.Column('current_artifact_id', sa.String(length=64), nullable=False, comment='当前生效制品 ID'),
     sa.Column('artifact_revision', sa.Integer(), server_default=sa.text('1'), nullable=False, comment='当前制品修订号'),
     sa.Column('artifact_sha256', sa.String(length=64), nullable=True, comment='当前模型文件 SHA-256'),
-    sa.Column('artifact_digest', sa.String(length=64), nullable=True, comment='当前模型与 Schema 组合摘要'),
+    sa.Column('artifact_digest', sa.String(length=64), nullable=True, comment='当前模型摘要'),
     sa.Column('bento_tag', sa.String(length=100), nullable=False, comment='BentoML 标签，由模型名称和 BentoML 版本组成，格式为 模型名:版本'),
     sa.Column('model_path', sa.String(length=255), nullable=False, comment='模型文件原始路径'),
     sa.Column('model_key', sa.String(length=255), nullable=False, comment='模型文件存储键'),
-    sa.Column('input_schema_key', sa.String(length=255), nullable=True, comment='输入 Schema 文件存储键'),
-    sa.Column('output_schema_key', sa.String(length=255), nullable=True, comment='输出 Schema 文件存储键'),
     sa.Column('params', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='模型参数，JSON 对象'),
     sa.Column('metrics', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='模型评估指标，JSON 对象'),
     sa.Column('description', sa.TEXT(), nullable=True, comment='版本说明'),
@@ -673,9 +667,7 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
     sa.CheckConstraint("framework IN ('sklearn', 'xgboost', 'lightgbm', 'catboost')", name=op.f('ck_versions_framework_valid')),
-    sa.CheckConstraint("input_schema IS NULL OR jsonb_typeof(input_schema) = 'object'", name=op.f('ck_versions_input_schema_object')),
     sa.CheckConstraint("metrics IS NULL OR jsonb_typeof(metrics) = 'object'", name=op.f('ck_versions_metrics_object')),
-    sa.CheckConstraint("output_schema IS NULL OR jsonb_typeof(output_schema) = 'object'", name=op.f('ck_versions_output_schema_object')),
     sa.CheckConstraint("params IS NULL OR jsonb_typeof(params) = 'object'", name=op.f('ck_versions_params_object')),
     sa.CheckConstraint("status IN ('active', 'inactive', 'deprecated', 'archived')", name=op.f('ck_versions_status_valid')),
     sa.CheckConstraint('artifact_revision >= 1', name=op.f('ck_versions_artifact_revision_positive')),

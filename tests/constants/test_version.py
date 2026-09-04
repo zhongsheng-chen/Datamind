@@ -1,6 +1,15 @@
 # tests/constants/test_version.py
 
-"""模型版本常量测试"""
+"""模型版本常量测试
+
+验证模型版本正则表达式接受和拒绝的版本格式。
+
+核心功能：
+  - test_model_version_pattern_accepts_semantic_versions:
+    验证接受合法的语义化版本
+  - test_model_version_pattern_rejects_invalid_versions:
+    验证拒绝不合法的版本格式
+"""
 
 import re
 

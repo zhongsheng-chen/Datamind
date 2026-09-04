@@ -44,8 +44,6 @@ def test_version_table_and_columns() -> None:
         "model_id",
         "version",
         "framework",
-        "input_schema",
-        "output_schema",
         "status",
         "current_artifact_id",
         "artifact_revision",
@@ -54,8 +52,6 @@ def test_version_table_and_columns() -> None:
         "bento_tag",
         "model_path",
         "model_key",
-        "input_schema_key",
-        "output_schema_key",
         "params",
         "metrics",
         "description",
@@ -96,9 +92,7 @@ def test_version_check_constraints() -> None:
     } == {
         "ck_versions_artifact_revision_positive",
         "ck_versions_framework_valid",
-        "ck_versions_input_schema_object",
         "ck_versions_metrics_object",
-        "ck_versions_output_schema_object",
         "ck_versions_params_object",
         "ck_versions_status_valid",
     }

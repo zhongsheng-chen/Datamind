@@ -5,10 +5,30 @@
 验证登录、令牌和已认证用户数据结构的校验与默认行为。
 
 核心功能：
-  - 验证登录密码和刷新令牌受到保护
-  - 验证令牌响应及访问令牌声明
-  - 验证已认证用户信息
-"""
+  - test_login_request_normalizes_username:
+    验证登录请求规范化用户名
+  - test_login_request_protects_password:
+    验证登录请求不会暴露密码
+  - test_login_request_validates_fields:
+    验证登录请求拒绝空字段
+  - test_refresh_token_requests_protect_token:
+    验证刷新令牌请求保护原始令牌
+  - test_token_response_uses_defaults:
+    验证令牌响应默认使用 bearer 类型
+  - test_token_response_allows_missing_refresh_token:
+    验证应急账户响应可以不含刷新令牌
+  - test_token_response_validates_fields:
+    验证令牌响应拒绝非法字段
+  - test_access_token_claims_uses_defaults:
+    验证访问令牌声明使用独立的列表默认值
+  - test_access_token_claims_validates_fields:
+    验证访问令牌声明拒绝非法字段
+  - test_authenticated_user_maps_status:
+    验证已认证用户映射状态枚举
+  - test_authenticated_user_uses_defaults:
+    验证已认证用户使用空权限默认值
+  - test_removed_provider_fields_are_rejected:
+    验证已移除的认证来源字段不再被接受"""
 
 import pytest
 from pydantic import ValidationError
@@ -26,10 +46,10 @@ from datamind.auth.schemas import (
 
 def test_login_request_normalizes_username() -> None:
     """验证登录请求规范化用户名"""
-    request = LoginRequest(
-        username="  admin  ",
-        password="P@ssw1rd",
-    )
+    request = LoginRequest.model_validate({
+        "username": "  admin  ",
+        "password": "P@ssw1rd",
+    })
 
     assert request.username == "admin"
     assert request.password.get_secret_value() == "P@ssw1rd"
@@ -37,10 +57,10 @@ def test_login_request_normalizes_username() -> None:
 
 def test_login_request_protects_password() -> None:
     """验证登录请求不会暴露密码"""
-    request = LoginRequest(
-        username="admin",
-        password="P@ssw1rd",
-    )
+    request = LoginRequest.model_validate({
+        "username": "admin",
+        "password": "P@ssw1rd",
+    })
 
     assert "P@ssw1rd" not in repr(request)
     assert request.model_dump()["password"] != "P@ssw1rd"
@@ -83,9 +103,9 @@ def test_refresh_token_requests_protect_token(
         ],
 ) -> None:
     """验证刷新令牌请求保护原始令牌"""
-    request = schema_class(
-        refresh_token="refresh-token"
-    )
+    request = schema_class.model_validate({
+        "refresh_token": "refresh-token",
+    })
 
     assert request.refresh_token.get_secret_value() == (
         "refresh-token"
@@ -194,15 +214,15 @@ def test_access_token_claims_validates_fields(
 
 def test_authenticated_user_maps_status() -> None:
     """验证已认证用户映射状态枚举"""
-    user = AuthenticatedUser(
-        user_id="usr_test",
-        username="admin",
-        display_name="系统管理员",
-        email="admin@example.com",
-        status="active",
-        roles=["admin"],
-        permissions=["model.*"],
-    )
+    user = AuthenticatedUser.model_validate({
+        "user_id": "usr_test",
+        "username": "admin",
+        "display_name": "系统管理员",
+        "email": "admin@example.com",
+        "status": "active",
+        "roles": ["admin"],
+        "permissions": ["model.*"],
+    })
 
     assert user.status == UserStatus.ACTIVE
     assert user.roles == ["admin"]

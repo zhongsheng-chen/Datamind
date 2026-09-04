@@ -1,4 +1,17 @@
-"""部署相关管理资源更新测试。"""
+# tests/services/test_management_updates.py
+
+"""部署相关管理资源更新测试
+
+验证路由、实验和实验分组更新时的参数传递与状态约束。
+
+核心功能：
+  - test_update_routing_passes_patch:
+    验证路由更新传递变更字段
+  - test_update_experiment_only_edits_draft:
+    验证仅允许更新草稿实验
+  - test_update_variant_checks_sibling_weight:
+    验证实验分组更新校验同级权重
+"""
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock

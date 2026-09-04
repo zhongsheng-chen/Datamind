@@ -5,7 +5,6 @@
 ## 目录内容
 
 - `train.py`：训练并保存示例模型。
-- `input_schema.json`：模型输入 Schema。
 - `deployment_config.json`：分类阈值配置。
 - `predict_request.json`：单条预测请求示例。
 - `artifacts/`：训练生成的模型制品，不纳入版本管理。
@@ -31,7 +30,6 @@ datamind model register fraud \
   --framework sklearn \
   --model-type random_forest \
   --task-type classification \
-  --input-schema-file examples/classification/input_schema.json \
   --description "风险分类模型" \
   --version-description "风险分类模型 v1.0.0"
 ```

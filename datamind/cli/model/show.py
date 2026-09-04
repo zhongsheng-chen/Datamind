@@ -237,10 +237,6 @@ def _version_to_dict(ver: Any) -> dict[str, Any]:
         "bento_tag": ver.bento_tag,
         "model_path": ver.model_path,
         "model_key": ver.model_key,
-        "input_schema": ver.input_schema,
-        "output_schema": ver.output_schema,
-        "input_schema_key": ver.input_schema_key,
-        "output_schema_key": ver.output_schema_key,
         "params": ver.params,
         "metrics": ver.metrics,
         "description": ver.description,
@@ -323,14 +319,6 @@ def _print_version_detail(ver: dict[str, Any]) -> None:
     console.print(f"{'BENTO TAG':<18} : {ver['bento_tag'] or '-'}")
     console.print(f"{'MODEL PATH':<18} : {ver['model_path'] or '-'}")
     console.print(f"{'MODEL KEY':<18} : {ver['model_key'] or '-'}")
-    console.print(
-        f"{'INPUT SCHEMA KEY':<18} : "
-        f"{ver['input_schema_key'] or '-'}"
-    )
-    console.print(
-        f"{'OUTPUT SCHEMA KEY':<18} : "
-        f"{ver['output_schema_key'] or '-'}"
-    )
     console.print(f"{'DESCRIPTION':<18} : {ver['description'] or '-'}")
     console.print(f"{'CREATED BY':<18} : {ver['created_by'] or '-'}")
     console.print(

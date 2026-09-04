@@ -81,12 +81,6 @@ def create_version(
         "model_id": "mdl_0123456789abcdef",
         "version": "1.0.0",
         "framework": "sklearn",
-        "input_schema": {
-            "type": "object",
-        },
-        "output_schema": {
-            "type": "object",
-        },
         "status": str(
             VersionStatus.INACTIVE
         ),
@@ -100,16 +94,6 @@ def create_version(
             "models/"
             "mdl_0123456789abcdef/"
             "1.0.0/scorecard.pkl"
-        ),
-        "input_schema_key": (
-            "schemas/"
-            "mdl_0123456789abcdef/"
-            "1.0.0/input.json"
-        ),
-        "output_schema_key": (
-            "schemas/"
-            "mdl_0123456789abcdef/"
-            "1.0.0/output.json"
         ),
         "params": {
             "solver": "lbfgs",
@@ -515,26 +499,18 @@ def test_version_patch_fields_and_defaults() -> None:
     ] == [
         "version",
         "framework",
-        "input_schema",
-        "output_schema",
         "bento_tag",
         "model_path",
         "model_key",
-        "input_schema_key",
-        "output_schema_key",
         "params",
         "metrics",
         "description",
     ]
     assert patch.version is None
     assert patch.framework is None
-    assert patch.input_schema is None
-    assert patch.output_schema is None
     assert patch.bento_tag is None
     assert patch.model_path is None
     assert patch.model_key is None
-    assert patch.input_schema_key is None
-    assert patch.output_schema_key is None
     assert patch.params is None
     assert patch.metrics is None
     assert patch.description is None
@@ -599,14 +575,6 @@ def test_create_version() -> None:
         artifact_revision=1,
         artifact_sha256="a" * 64,
         artifact_digest="b" * 64,
-        input_schema={
-            "type": "object",
-        },
-        output_schema={
-            "type": "object",
-        },
-        input_schema_key="schemas/input.json",
-        output_schema_key="schemas/output.json",
         params={
             "solver": "lbfgs",
         },
@@ -669,8 +637,6 @@ def test_create_version_allows_optional_fields() -> None:
     assert version.status == str(
         VersionStatus.INACTIVE
     )
-    assert version.input_schema is None
-    assert version.output_schema is None
     assert version.params is None
     assert version.metrics is None
     assert version.description is None
@@ -694,23 +660,9 @@ def test_update_version() -> None:
         VersionPatch(
             version="2.0.0",
             framework=Framework.XGBOOST,
-            input_schema={
-                "type": "object",
-                "required": [
-                    "income",
-                ],
-            },
-            output_schema={
-                "type": "object",
-                "required": [
-                    "probability",
-                ],
-            },
             bento_tag="scorecard:ijklmnop",
             model_path="/models/scorecard-v2.pkl",
             model_key="models/scorecard-v2.pkl",
-            input_schema_key="schemas/input-v2.json",
-            output_schema_key="schemas/output-v2.json",
             params={
                 "max_depth": 6,
             },

@@ -61,7 +61,6 @@ from datamind.models.errors import (
     InvalidModelStateError,
     ModelAlreadyExistsError,
 )
-from datamind.models.schema import SchemaExtractor
 from datamind.runtime.backend import BentoBackend
 from datamind.storage import get_storage
 from datamind.storage.resolver import StorageResolver
@@ -93,8 +92,6 @@ class ModelRegistrationService:
             display_name: str | None = None,
             description: str | None = None,
             version_description: str | None = None,
-            input_schema: dict | None = None,
-            output_schema: dict | None = None,
             params: dict | None = None,
             metrics: dict | None = None,
             created_by: str | None = None,
@@ -117,8 +114,6 @@ class ModelRegistrationService:
             model_path: 本地模型文件路径
             description: 模型描述（可选）
             version_description: 模型版本描述（可选）
-            input_schema: 输入 Schema（可选）
-            output_schema: 输出 Schema（可选）
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             created_by: 创建人（可选）
@@ -193,20 +188,10 @@ class ModelRegistrationService:
             data=data,
             framework=framework,
         )
-        extracted_schema = SchemaExtractor.extract(
-            model=model,
-            framework=framework,
-        )
-
-        if input_schema is None:
-            input_schema = extracted_schema
-
         sha256 = hashlib.sha256(data).hexdigest()
         digest = self._build_digest(
             framework=framework,
             sha256=sha256,
-            input_schema=input_schema,
-            output_schema=output_schema,
         )
 
         logger.info(
@@ -314,30 +299,6 @@ class ModelRegistrationService:
                 data=data,
             )
 
-            input_schema_key = None
-
-            if input_schema is not None:
-                input_schema_key = self._save_artifact_object(
-                    uow=uow,
-                    model_name=name,
-                    version=version,
-                    artifact_id=artifact_id,
-                    filename="input_schema.json",
-                    data=self._encode_schema(input_schema),
-                )
-
-            output_schema_key = None
-
-            if output_schema is not None:
-                output_schema_key = self._save_artifact_object(
-                    uow=uow,
-                    model_name=name,
-                    version=version,
-                    artifact_id=artifact_id,
-                    filename="output_schema.json",
-                    data=self._encode_schema(output_schema),
-                )
-
             resolved_model_path = StorageResolver().resolve(
                 model_key
             )
@@ -400,8 +361,6 @@ class ModelRegistrationService:
                 digest=digest,
                 source_path=str(path),
                 model_key=model_key,
-                input_schema_key=input_schema_key,
-                output_schema_key=output_schema_key,
                 bento_tag=bento_tag,
                 created_by=created_by,
             )
@@ -415,10 +374,6 @@ class ModelRegistrationService:
                     bento_tag=bento_tag,
                     model_path=resolved_model_path,
                     model_key=model_key,
-                    input_schema=input_schema,
-                    output_schema=output_schema,
-                    input_schema_key=input_schema_key,
-                    output_schema_key=output_schema_key,
                     params=params,
                     metrics=metrics,
                     description=version_description,
@@ -439,10 +394,6 @@ class ModelRegistrationService:
                     bento_tag=bento_tag,
                     model_path=resolved_model_path,
                     model_key=model_key,
-                    input_schema=input_schema,
-                    output_schema=output_schema,
-                    input_schema_key=input_schema_key,
-                    output_schema_key=output_schema_key,
                     params=params,
                     metrics=metrics,
                     description=version_description,
@@ -511,16 +462,12 @@ class ModelRegistrationService:
             *,
             framework: str,
             sha256: str,
-            input_schema: dict | None,
-            output_schema: dict | None,
     ) -> str:
-        """生成模型与 Schema 的组合摘要"""
+        """生成模型摘要"""
         content = json.dumps(
             {
                 "framework": framework.lower(),
                 "sha256": sha256,
-                "input_schema": input_schema,
-                "output_schema": output_schema,
             },
             ensure_ascii=False,
             sort_keys=True,
@@ -528,15 +475,6 @@ class ModelRegistrationService:
         ).encode("utf-8")
 
         return hashlib.sha256(content).hexdigest()
-
-    @staticmethod
-    def _encode_schema(schema: dict) -> bytes:
-        """编码 Schema 文件"""
-        return json.dumps(
-            schema,
-            ensure_ascii=False,
-            indent=2,
-        ).encode("utf-8")
 
     def _save_artifact_object(
             self,
@@ -652,8 +590,6 @@ class ModelRegistrationService:
             "bento_tag": version_record.bento_tag,
             "model_key": version_record.model_key,
             "model_path": version_record.model_path,
-            "input_schema_key": version_record.input_schema_key,
-            "output_schema_key": version_record.output_schema_key,
             "action": action,
         }
 

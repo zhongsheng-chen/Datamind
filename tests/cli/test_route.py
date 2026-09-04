@@ -1,6 +1,17 @@
 # tests/cli/test_route.py
 
-"""路由 CLI 测试。"""
+"""路由 CLI 测试
+
+验证路由列表、详情和文本摘要的输出契约。
+
+核心功能：
+  - test_route_list_filters_and_displays_current_deployment_release:
+    验证路由列表筛选并展示当前部署发布信息
+  - test_route_show_displays_current_deployment_release:
+    验证路由详情展示当前部署发布信息
+  - test_route_text_summary_omits_environment:
+    验证路由文本摘要不重复展示环境
+"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager

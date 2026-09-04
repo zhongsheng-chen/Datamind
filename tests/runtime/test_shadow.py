@@ -5,10 +5,14 @@
 验证调度器启停、有界队列、异步消费和异常隔离行为。
 
 核心功能：
-  - 验证关闭影子预测时不接收任务
-  - 验证后台 Worker 消费影子预测任务
-  - 验证队列满时立即拒绝新任务
-  - 验证单个任务失败不会停止后续消费
+  - test_disabled_dispatcher_rejects_tasks:
+    验证已关闭的调度器拒绝任务
+  - test_dispatcher_processes_submitted_task:
+    验证调度器处理已提交任务
+  - test_dispatcher_rejects_task_when_queue_is_full:
+    验证队列已满时拒绝新任务
+  - test_dispatcher_continues_after_handler_error:
+    验证单个任务失败后继续处理任务
 """
 
 import asyncio

@@ -1,6 +1,21 @@
 # tests/console/test_actions.py
 
-"""管理控制台资源动作分派测试。"""
+"""管理控制台资源动作分派测试
+
+验证资源动作到生命周期服务的映射及参数传递。
+
+核心功能：
+  - test_dispatch_restore_actions:
+    验证恢复动作分派到对应服务
+  - test_dispatch_version_purge_keeps_reason:
+    验证版本清除动作保留操作原因
+  - test_dispatch_model_deletion_actions_use_model_id:
+    验证模型删除动作使用模型 ID
+  - test_dispatch_model_lifecycle_actions_use_model_id:
+    验证模型生命周期动作使用模型 ID
+  - test_dispatch_variant_toggle_maps_active_flag:
+    验证实验分组开关映射启用状态
+"""
 
 from unittest.mock import AsyncMock, MagicMock
 

@@ -1790,26 +1790,6 @@ class DashboardService:
                 "model_key",
                 None,
             ),
-            "input_schema_key": getattr(
-                version,
-                "input_schema_key",
-                None,
-            ),
-            "output_schema_key": getattr(
-                version,
-                "output_schema_key",
-                None,
-            ),
-            "input_schema": getattr(
-                version,
-                "input_schema",
-                None,
-            ),
-            "output_schema": getattr(
-                version,
-                "output_schema",
-                None,
-            ),
             "description": getattr(
                 version,
                 "description",

@@ -5,10 +5,24 @@
 验证仅支持 LOCAL 认证后的用户表字段、索引、约束和对象行为。
 
 核心功能：
-  - 验证用户表字段和默认值
-  - 验证用户表索引和检查约束
-  - 验证用户对象构造与字符串表示
-"""
+  - test_user_table_name:
+    验证用户表名称
+  - test_user_business_columns:
+    验证用户表业务字段完整
+  - test_password_hash_is_required:
+    验证所有用户必须保存密码哈希
+  - test_user_status_defaults_to_active:
+    验证用户状态默认值
+  - test_break_glass_defaults_to_false:
+    验证应急账户标识默认值
+  - test_user_indexes:
+    验证用户表索引
+  - test_user_check_constraints:
+    验证用户表检查约束
+  - test_user_constructor:
+    验证用户对象构造
+  - test_user_repr:
+    验证用户字符串表示不泄露密码"""
 
 from sqlalchemy import (
     CheckConstraint,

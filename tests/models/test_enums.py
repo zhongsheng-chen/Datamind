@@ -19,6 +19,7 @@ from datamind.models.enums import (
     AssignmentStrategy,
     ArtifactStatus,
     BaseEnum,
+    DecisionResult,
     DecisionStrategy,
     DeploymentRole,
     DeploymentStatus,
@@ -79,6 +80,10 @@ ENUM_CONTRACTS: list[
     (
         DecisionStrategy,
         {"experiment", "routing", "deployment", "shadow", "manual"},
+    ),
+    (
+        DecisionResult,
+        {"approve", "reject"},
     ),
     (
         ExecutionType,

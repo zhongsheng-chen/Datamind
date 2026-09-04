@@ -5,11 +5,30 @@
 验证模型加载、卸载、查询、错误处理、并发单飞和重载失败回退能力。
 
 核心功能：
-  - 验证部署和模型制品加载前置条件
-  - 验证运行记录创建及状态迁移
-  - 验证卸载、重启和运行状态查询
-  - 验证并发请求只加载一次模型
-  - 验证重载失败时继续保留旧模型
+  - test_concurrent_load_requests_load_model_once:
+    验证并发请求只加载一次模型
+  - test_failed_reload_preserves_previous_runtime:
+    验证重载失败时保留原运行模型
+  - test_load_returns_loaded_runtime_without_reloading:
+    验证重复加载直接返回已有运行模型
+  - test_load_validates_deployment_artifact:
+    验证加载前校验部署与模型制品
+  - test_failed_initial_load_marks_runtime_failed:
+    验证首次加载失败时记录失败状态
+  - test_load_creates_missing_runtime_record:
+    验证加载时创建缺失的运行记录
+  - test_unload_unregisters_model_and_marks_runtime_unloaded:
+    验证卸载时注销模型并更新运行状态
+  - test_unload_ignores_missing_runtime_record:
+    验证卸载时忽略缺失的运行记录
+  - test_reload_forces_model_reload:
+    验证重载操作强制重新加载模型
+  - test_get_status_combines_memory_and_database_state:
+    验证运行状态合并内存与数据库信息
+  - test_get_status_returns_empty_runtime_state:
+    验证缺少运行记录时返回空状态
+  - test_manager_rejects_empty_deployment_id:
+    验证运行时管理器拒绝空部署 ID
 """
 
 import asyncio

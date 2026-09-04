@@ -5,10 +5,22 @@
 验证 LOCAL 认证、JWT 和应急账户配置的默认值、环境变量和校验规则。
 
 核心功能：
-  - 验证本地认证配置
-  - 验证认证服务配置
-  - 验证配置不可变且忽略无关字段
-"""
+  - test_local_auth_config_defaults:
+    验证本地认证配置默认值
+  - test_local_auth_config_reads_environment:
+    验证本地认证配置读取环境变量
+  - test_local_auth_config_validates_parameters:
+    验证本地认证配置拒绝非法参数
+  - test_auth_config_defaults:
+    验证认证服务配置默认值
+  - test_auth_config_reads_environment:
+    验证认证服务配置读取环境变量
+  - test_auth_config_validates_parameters:
+    验证认证服务配置拒绝非法参数
+  - test_auth_configs_are_frozen:
+    验证认证配置不可修改
+  - test_auth_configs_ignore_extra_fields:
+    验证认证配置忽略无关字段"""
 
 from typing import Any
 

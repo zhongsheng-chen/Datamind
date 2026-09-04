@@ -4,7 +4,7 @@
 模型部署工具考虑用bentoml实现，支持模型注册、注销，支持模型文件热更换，支持模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。
 支持模型类型：模型类型：decision_tree|random_forest|xgboost|lightgbm|logistic_regression。
 能支持AB test.能跑评分卡任务也能跑分类任务，并提供API服务。对于评分卡模型，应该返回模型总评分和模型的特征分.不要直接输出决策结果。决策交给下游的内评系统
-只跑模型，不管模型规则。能实现跑不同模型能按任务类型配置运行参数，比如评分任务能配置PDO参数，分类任务能配置阈值参数
+只负责模型注册、部署与推理。评分刻度参数保存在 Scorecard 模型中，分类与评分的决策阈值属于部署配置。
 模型ID应该是Datamind后台维护的识别模型的唯一主键。不应该作为模型注册参数。
 模型元数据保存在数据库,金融场景要能审计，要有完善的日志系统。
 只对LR才有评分能力呀，其他的decision_tree / random_forest / xgboost / lightgbm / catboost，应该没有评分能力
@@ -686,7 +686,7 @@ from core.logging import LogManager
 
 ##
 ``` model_registry 使用示例
-# 注册评分卡模型并配置评分卡参数
+# 注册评分卡模型
 model_id = model_registry.register_model(
     model_name="credit_score_v2",
     model_version="1.0.0",
@@ -694,16 +694,8 @@ model_id = model_registry.register_model(
     model_type="xgboost",
     framework="xgboost",
     input_features=["age", "income", "credit_history"],
-    output_schema={"score": "float"},
     created_by="admin",
-    model_file=open("model.json", "rb"),
-    scorecard_params={
-        "base_score": 600,
-        "pdo": 50,
-        "min_score": 320,
-        "max_score": 960,
-        "direction": "lower_better"
-    }
+    model_file=open("scorecard.pkl", "rb")
 )
 
 # 注册反欺诈模型并配置风险等级
@@ -714,7 +706,6 @@ model_id = model_registry.register_model(
     model_type="lightgbm",
     framework="lightgbm",
     input_features=["ip_address", "device_id", "amount"],
-    output_schema={"fraud_probability": "float"},
     created_by="admin",
     model_file=open("model.txt", "rb"),
     risk_config={
@@ -727,21 +718,6 @@ model_id = model_registry.register_model(
     }
 )
 
-# 获取模型参数
-params = model_registry.get_model_params(model_id)
-print(params['scorecard'])  # 获取评分卡配置
-
-# 更新模型配置
-model_registry.update_model_params(
-    model_id=model_id,
-    operator="admin",
-    scorecard_params={
-        "base_score": 650,
-        "pdo": 60,
-        "direction": "higher_better"
-    },
-    reason="根据业务需求调整评分卡参数"
-)
 ```
 
 # 启动 Datamind 服务
@@ -2953,11 +2929,6 @@ shadow
     "classification": {
       "threshold": 0.5,
       "calibration": "isotonic"
-    },
-    "scoring": {
-      "pdo": 50,
-      "base_score": 600,
-      "base_odds": 20
     }
   }
 }
@@ -2966,12 +2937,7 @@ shadow
 {
   "classification": {
     "threshold": 0.5
-  },
-    "scoring": {
-      "pdo": 50,
-      "base_score": 600,
-      "base_odds": 20
-    }
+  }
 }
 
 
@@ -3017,13 +2983,10 @@ if rollout_type in {"canary", "shadow"} and not rollout_group:
 
 ## 创建部署
 
-$config = '{\"pdo\": 50, \"base_score\": 600}'
-
 python -m datamind.cli.main deploy create scorecard `
   --version 1.0.0 `
   --environment production `
   --rollout full `
-  --config $config `
   --description "创建部署" `
   --owner admin
 

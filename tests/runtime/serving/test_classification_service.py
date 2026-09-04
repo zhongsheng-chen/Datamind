@@ -5,10 +5,16 @@
 验证分类阈值、单条预测、批量预测和异常结果处理。
 
 核心功能：
-  - 验证分类阈值校验
-  - 验证单条概率转换为分类结果
-  - 验证批量分类结果和空批次
-  - 验证非法推理结果被拒绝
+  - test_service_rejects_invalid_threshold:
+    验证服务拒绝无效分类阈值
+  - test_predict_classifies_probability:
+    验证单条概率转换为分类结果
+  - test_predict_rejects_batch_result:
+    验证单条预测拒绝批量结果
+  - test_predict_batch_returns_classifications:
+    验证批量预测返回分类结果
+  - test_predict_batch_rejects_scalar_result:
+    验证批量预测拒绝标量结果
 """
 
 from typing import Any

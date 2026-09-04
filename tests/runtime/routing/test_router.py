@@ -5,10 +5,16 @@
 验证手工部署、实验、灰度路由和默认部署的解析优先级及边界条件。
 
 核心功能：
-  - 验证显式部署校验和路由结果
-  - 验证 A/B 实验命中及失效回退
-  - 验证灰度绝对流量比例和稳定分桶
-  - 验证默认部署选择和无可用部署错误
+  - test_resolve_uses_manual_deployment:
+    验证使用显式指定的部署
+  - test_resolve_uses_ab_test_deployment:
+    验证使用 A/B 实验分配的部署
+  - test_routing_uses_stable_payload_identifier:
+    验证路由使用稳定的请求标识分桶
+  - test_resolve_uses_first_active_deployment_without_champion:
+    验证缺少冠军部署时选择首个启用部署
+  - test_resolve_includes_independently_matched_shadow:
+    验证路由结果包含独立匹配的影子部署
 """
 
 from datetime import datetime, timedelta, timezone

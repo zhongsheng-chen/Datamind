@@ -18,7 +18,6 @@
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from typing import Any
 
 from datamind.constants import DataType
@@ -27,6 +26,7 @@ from datamind.core.capability import (
     get_model_capability_list,
 )
 from datamind.core.inference import Inference
+from datamind.models.schema import SchemaExtractor
 from datamind.runtime.registry import RuntimeModel
 
 
@@ -69,24 +69,24 @@ class BaseRuntimeService(ABC):
 
         self.runtime_model = runtime_model
 
-        metadata = runtime_model.metadata or {}
+        model_schema = SchemaExtractor.extract(
+            model=runtime_model.model,
+            framework=runtime_model.framework,
+        ) or {}
 
         self.feature_names = (
-                feature_names
-                or self._get_metadata_feature_names(
-            metadata
-        )
-                or self._infer_feature_names(
-            runtime_model.model
-        )
+            feature_names
+            or self._get_schema_feature_names(
+                model_schema
+            )
         )
 
         self.data_types = (
-                data_types
-                or self._get_metadata_data_types(
-            metadata
-        )
-                or {}
+            data_types
+            or self._get_schema_data_types(
+                model_schema
+            )
+            or {}
         )
 
         self.inference = Inference(
@@ -256,55 +256,37 @@ class BaseRuntimeService(ABC):
         self.runtime_model.touch()
 
     @staticmethod
-    def _get_metadata_feature_names(
-            metadata: dict[str, Any],
+    def _get_schema_feature_names(
+            schema: dict[str, Any],
     ) -> list[str] | None:
-        """从运行时元数据获取特征名称
+        """从模型 Schema 获取特征名称
 
         参数：
-            metadata: 运行时元数据
+            schema: 从模型提取的 Schema
 
         返回：
             特征名称列表；
             不存在或类型不正确时返回 None
         """
-        feature_names = metadata.get(
+        feature_names = schema.get(
             "feature_names"
         )
-
-        if isinstance(
-                feature_names,
-                str,
-        ):
-            return None
-
-        if not isinstance(
-                feature_names,
-                Iterable,
-        ):
-            return None
-
-        names = [
-            str(name)
-            for name in feature_names
-        ]
-
-        return names or None
+        return feature_names or None
 
     @staticmethod
-    def _get_metadata_data_types(
-            metadata: dict[str, Any],
+    def _get_schema_data_types(
+            schema: dict[str, Any],
     ) -> dict[str, DataType] | None:
-        """从运行时元数据获取特征类型
+        """从模型 Schema 获取特征类型
 
         参数：
-            metadata: 运行时元数据
+            schema: 从模型提取的 Schema
 
         返回：
             特征类型映射；
             不存在或类型不正确时返回 None
         """
-        data_types = metadata.get(
+        data_types = schema.get(
             "data_types"
         )
 
@@ -341,93 +323,3 @@ class BaseRuntimeService(ABC):
                 continue
 
         return result or None
-
-    @staticmethod
-    def _infer_feature_names(
-            model: Any,
-    ) -> list[str] | None:
-        """尝试从模型对象推断特征名称
-
-        当前支持：
-          - sklearn feature_names_in_
-          - LightGBM feature_name_
-          - CatBoost feature_names_
-          - XGBoost Booster feature_names
-
-        参数：
-            model: 原始模型对象
-
-        返回：
-            特征名称列表；
-            无法获取时返回 None
-        """
-        attribute_names = (
-            "feature_names_in_",
-            "feature_name_",
-            "feature_names_",
-        )
-
-        for attribute_name in attribute_names:
-            value = getattr(
-                model,
-                attribute_name,
-                None,
-            )
-
-            if isinstance(
-                    value,
-                    str,
-            ):
-                continue
-
-            if not isinstance(
-                    value,
-                    Iterable,
-            ):
-                continue
-
-            names = [
-                str(name)
-                for name in value
-            ]
-
-            if names:
-                return names
-
-        get_booster = getattr(
-            model,
-            "get_booster",
-            None,
-        )
-
-        if not callable(
-                get_booster
-        ):
-            return None
-
-        booster = get_booster()
-
-        feature_names = getattr(
-            booster,
-            "feature_names",
-            None,
-        )
-
-        if isinstance(
-                feature_names,
-                str,
-        ):
-            return None
-
-        if not isinstance(
-                feature_names,
-                Iterable,
-        ):
-            return None
-
-        names = [
-            str(name)
-            for name in feature_names
-        ]
-
-        return names or None
