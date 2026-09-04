@@ -5,10 +5,22 @@
 验证模型注册、查询、访问统计、卸载和失败重载恢复能力。
 
 核心功能：
-  - 验证运行时模型注册和参数校验
-  - 验证模型查询及访问统计
-  - 验证注册表集合操作
-  - 验证失败重载后恢复原模型
+  - test_runtime_model_touch_and_to_dict:
+    验证运行时模型记录访问并转换为字典
+  - test_register_copies_metadata:
+    验证注册模型时复制元数据
+  - test_register_rejects_missing_required_field:
+    验证注册模型时拒绝缺失必填字段
+  - test_register_rejects_missing_model:
+    验证注册模型时拒绝缺失模型对象
+  - test_get_updates_access_state:
+    验证获取模型时更新访问状态
+  - test_missing_or_empty_deployment_returns_empty_result:
+    验证部署缺失或为空时返回空结果
+  - test_registry_collection_operations:
+    验证注册表集合操作
+  - test_restore_preserves_previous_runtime_model:
+    验证恢复操作保留原运行模型
 """
 
 from datetime import datetime, timezone

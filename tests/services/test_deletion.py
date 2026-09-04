@@ -527,8 +527,6 @@ async def test_purge_deletes_storage_and_bento_artifacts(
     target = SimpleNamespace(
         artifact_id="art_test",
         model_key="models/model.pkl",
-        input_schema_key="models/input_schema.json",
-        output_schema_key="models/output_schema.json",
         bento_tag="scorecard:old",
     )
     request_purge = AsyncMock(
@@ -561,17 +559,9 @@ async def test_purge_deletes_storage_and_bento_artifacts(
     assert result["action"] == "purge_completed"
     assert result["purged_count"] == 1
     list_models.assert_called_once_with()
-    assert storage.delete_by_key.call_count == 3
+    assert storage.delete_by_key.call_count == 1
     storage.delete_by_key.assert_any_call(
         key="models/model.pkl",
-        strict=False,
-    )
-    storage.delete_by_key.assert_any_call(
-        key="models/input_schema.json",
-        strict=False,
-    )
-    storage.delete_by_key.assert_any_call(
-        key="models/output_schema.json",
         strict=False,
     )
     delete_model.assert_called_once_with(
@@ -655,6 +645,11 @@ async def test_purge_allows_missing_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试永久清理原因可以省略"""
+    monkeypatch.setitem(
+        vars(deleter_module),
+        "get_storage",
+        MagicMock(),
+    )
     service = ModelDeletionService()
     request_purge = AsyncMock(
         return_value=(
@@ -733,8 +728,6 @@ async def test_request_purge_builds_artifact_targets(
         artifact_id="art_active",
         status="active",
         model_key="models/model.pkl",
-        input_schema_key="models/input_schema.json",
-        output_schema_key=None,
         bento_tag="scorecard:active",
     )
     purged_artifact = SimpleNamespace(
@@ -1129,8 +1122,6 @@ async def test_purge_ignores_absent_optional_objects(
     target = SimpleNamespace(
         artifact_id="art_test",
         model_key="models/model.pkl",
-        input_schema_key=None,
-        output_schema_key=None,
         bento_tag="scorecard:missing",
     )
     service = ModelDeletionService()

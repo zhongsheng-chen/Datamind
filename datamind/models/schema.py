@@ -39,7 +39,10 @@
       print(schema["feature_names"])
 """
 
-from collections.abc import Iterable
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 from operator import methodcaller
 from typing import Any
 
@@ -71,15 +74,6 @@ def _call_method(
 class SchemaExtractor:
     """Schema 提取器"""
 
-    DEFAULT_DATA_TYPE = DataType.NUMERIC.value
-
-    SOURCE_MAPPING = {
-        Framework.SKLEARN: "model.feature_names_in_",
-        Framework.XGBOOST: "model.feature_names",
-        Framework.LIGHTGBM: "model.feature_name()",
-        Framework.CATBOOST: "model.feature_names_",
-    }
-
     @classmethod
     def extract(
             cls,
@@ -99,188 +93,209 @@ class SchemaExtractor:
         异常：
             KeyError: 不支持的框架
         """
-        feature_names = cls._extract_feature_names(
-            model=model,
-            framework=framework,
+        try:
+            framework_enum = Framework(framework.lower())
+        except ValueError as exc:
+            raise KeyError(
+                f"不支持的框架: {framework.lower()}"
+            ) from exc
+
+        extractors: dict[
+            Framework,
+            Callable[[Any], dict | None],
+        ] = {
+            Framework.SKLEARN: cls._extract_sklearn,
+            Framework.XGBOOST: cls._extract_xgboost,
+            Framework.LIGHTGBM: cls._extract_lightgbm,
+            Framework.CATBOOST: cls._extract_catboost,
+        }
+        return extractors[framework_enum](model)
+
+    @classmethod
+    def _extract_sklearn(
+            cls,
+            model: Any,
+    ) -> dict | None:
+        """提取 sklearn 模型 Schema"""
+        binning_process = getattr(model, "binning_process_", None)
+
+        if binning_process is not None:
+            feature_names = cls._normalize_feature_names(
+                getattr(binning_process, "variable_names", None)
+            )
+
+            if not feature_names:
+                return None
+
+            categorical_features = {
+                str(name)
+                for name in (
+                    getattr(
+                        binning_process,
+                        "categorical_variables",
+                        None,
+                    ) or []
+                )
+            }
+            data_types = {
+                name: (
+                    DataType.CATEGORICAL.value
+                    if name in categorical_features
+                    else DataType.NUMERIC.value
+                )
+                for name in feature_names
+            }
+            return cls._build_schema(
+                feature_names=feature_names,
+                data_types=data_types,
+                source="model.binning_process_",
+            )
+
+        return cls._build_schema(
+            feature_names=cls._normalize_feature_names(
+                getattr(model, "feature_names_in_", None)
+            ),
+            source="model.feature_names_in_",
         )
 
+    @classmethod
+    def _extract_xgboost(
+            cls,
+            model: Any,
+    ) -> dict | None:
+        """提取 XGBoost 模型 Schema"""
+        schema = cls._build_first_available([
+            (
+                getattr(model, "feature_names_in_", None),
+                "model.feature_names_in_",
+            ),
+            (
+                getattr(model, "feature_names", None),
+                "model.feature_names",
+            ),
+        ])
+
+        if schema is not None:
+            return schema
+
+        booster = _call_method(model, "get_booster")
+
+        return cls._build_schema(
+            feature_names=cls._normalize_feature_names(
+                getattr(booster, "feature_names", None)
+            ),
+            source="model.get_booster().feature_names",
+        )
+
+    @classmethod
+    def _extract_lightgbm(
+            cls,
+            model: Any,
+    ) -> dict | None:
+        """提取 LightGBM 模型 Schema"""
+        schema = cls._build_first_available([
+            (
+                getattr(model, "feature_names_in_", None),
+                "model.feature_names_in_",
+            ),
+            (
+                getattr(model, "feature_name_", None),
+                "model.feature_name_",
+            ),
+        ])
+
+        if schema is not None:
+            return schema
+
+        schema = cls._build_schema(
+            feature_names=cls._normalize_feature_names(
+                _call_method(model, "feature_name")
+            ),
+            source="model.feature_name()",
+        )
+
+        if schema is not None:
+            return schema
+
+        booster = getattr(model, "booster_", None)
+        return cls._build_schema(
+            feature_names=cls._normalize_feature_names(
+                _call_method(booster, "feature_name")
+            ),
+            source="model.booster_.feature_name()",
+        )
+
+    @classmethod
+    def _extract_catboost(
+            cls,
+            model: Any,
+    ) -> dict | None:
+        """提取 CatBoost 模型 Schema"""
+        return cls._build_schema(
+            feature_names=cls._normalize_feature_names(
+                getattr(model, "feature_names_", None)
+            ),
+            source="model.feature_names_",
+        )
+
+    @classmethod
+    def _build_first_available(
+            cls,
+            candidates: list[tuple[Any, str]],
+    ) -> dict | None:
+        """使用第一个有效的特征名称来源构造 Schema"""
+        for value, source in candidates:
+            feature_names = cls._normalize_feature_names(value)
+
+            if feature_names:
+                return cls._build_schema(
+                    feature_names=feature_names,
+                    source=source,
+                )
+
+        return None
+
+    @classmethod
+    def _build_schema(
+            cls,
+            *,
+            feature_names: list[str] | None,
+            source: str,
+            data_types: dict[str, str] | None = None,
+    ) -> dict | None:
+        """构造统一的模型 Schema"""
         if not feature_names:
             return None
 
-        data_types = {
-            feature_name: cls.DEFAULT_DATA_TYPE
-            for feature_name in feature_names
-        }
-
         return {
             "feature_names": feature_names,
-            "data_types": data_types,
+            "data_types": data_types or {
+                name: DataType.NUMERIC.value
+                for name in feature_names
+            },
             "inferred": True,
-            "source": cls._get_source(
-                framework=framework,
-                model=model,
-            ),
+            "source": source,
         }
 
     @staticmethod
-    def _extract_feature_names(
-            *,
-            model: Any,
-            framework: str,
+    def _normalize_feature_names(
+            feature_names: Any,
     ) -> list[str] | None:
-        """提取特征名称
-
-        参数：
-            model: 模型对象
-            framework: 模型框架
-
-        返回：
-            特征名称列表，如果无法提取则返回 None
-
-        异常：
-            KeyError: 不支持的框架
-        """
-        framework = framework.lower()
-
-        if framework == Framework.SKLEARN:
-            feature_names = getattr(
-                model,
-                "feature_names_in_",
-                None,
-            )
-
-        elif framework == Framework.XGBOOST:
-            feature_names = getattr(
-                model,
-                "feature_names_in_",
-                None,
-            )
-
-            if feature_names is None:
-                feature_names = getattr(
-                    model,
-                    "feature_names",
-                    None,
-                )
-
-            if feature_names is None:
-                booster_obj = _call_method(
-                    model,
-                    "get_booster",
-                )
-
-                if booster_obj is not None:
-                    feature_names = getattr(
-                        booster_obj,
-                        "feature_names",
-                        None,
-                    )
-
-        elif framework == Framework.LIGHTGBM:
-            feature_names = getattr(
-                model,
-                "feature_name_",
-                None,
-            )
-
-            if feature_names is None:
-                feature_names = _call_method(
-                    model,
-                    "feature_name",
-                )
-
-            if feature_names is None:
-                booster = getattr(
-                    model,
-                    "booster_",
-                    None,
-                )
-
-                if booster is not None:
-                    feature_names = _call_method(
-                        booster,
-                        "feature_name",
-                    )
-
-        elif framework == Framework.CATBOOST:
-            feature_names = getattr(
-                model,
-                "feature_names_",
-                None,
-            )
-
-        else:
-            raise KeyError(f"不支持的框架: {framework}")
-
+        """规范化模型提供的特征名称"""
         if feature_names is None:
             return None
 
-        feature_name_values = _call_method(
+        values = _call_method(
             feature_names,
             "tolist",
             default=feature_names,
         )
 
-        if isinstance(feature_name_values, str):
-            return [feature_name_values]
+        if isinstance(values, str):
+            return [values]
 
-        if not isinstance(feature_name_values, Iterable):
+        if not isinstance(values, Iterable):
             return None
 
-        return [
-            str(feature_name)
-            for feature_name in feature_name_values
-        ]
-
-    @classmethod
-    def _get_source(
-            cls,
-            *,
-            framework: str,
-            model: Any,
-    ) -> str:
-        """返回 Schema 来源
-
-        参数：
-            framework: 模型框架
-            model: 模型对象
-
-        返回：
-            来源描述字符串
-
-        异常：
-            KeyError: 不支持的框架
-        """
-        framework_value = framework.lower()
-
-        try:
-            framework_enum = Framework(framework_value)
-        except ValueError as exc:
-            raise KeyError(
-                f"不支持的框架: {framework_value}"
-            ) from exc
-
-        if framework_enum == Framework.XGBOOST:
-            if getattr(model, "feature_names_in_", None) is not None:
-                return "model.feature_names_in_"
-
-            if getattr(model, "feature_names", None) is not None:
-                return "model.feature_names"
-
-            return "model.get_booster().feature_names"
-
-        if framework_enum == Framework.LIGHTGBM:
-            if getattr(model, "feature_name_", None) is not None:
-                return "model.feature_name_"
-
-            if callable(getattr(model, "feature_name", None)):
-                return "model.feature_name()"
-
-            return "model.booster_.feature_name()"
-
-        try:
-            return cls.SOURCE_MAPPING[framework_enum]
-        except KeyError as exc:
-            raise KeyError(
-                f"不支持的框架: {framework_value}"
-            ) from exc
+        names = [str(name) for name in values]
+        return names or None

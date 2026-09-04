@@ -10,8 +10,8 @@
   - test_create_deployment_rejects_missing_model: 验证模型不存在
   - test_create_deployment_rejects_missing_version: 验证版本不存在
   - test_create_deployment_rejects_invalid_environment: 验证非法环境
-  - test_create_deployment_uses_global_scorecard_config:
-    验证部署保存全局评分卡配置
+  - test_create_scoring_deployment_without_config:
+    验证评分部署不保存重复的评分参数
   - test_resolve_config_accepts_supported_tasks:
     验证分类和评分配置
   - test_resolve_config_rejects_unsupported_task:
@@ -299,14 +299,10 @@ async def test_create_shadow_deployment_passes_normalized_values(
 
 
 @pytest.mark.asyncio
-async def test_create_deployment_uses_global_scorecard_config(
+async def test_create_scoring_deployment_uses_default_threshold(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试评分部署保存创建时的全局配置快照"""
-    monkeypatch.setenv(
-        "DATAMIND_SCORECARD_BASE_SCORE",
-        "650",
-    )
+    """测试评分部署保存默认决策阈值"""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         task_type="scoring",
@@ -320,13 +316,7 @@ async def test_create_deployment_uses_global_scorecard_config(
 
     call = deployment_repo.create_deployment.call_args
     assert call is not None
-    assert call.kwargs["config"] == {
-        "base_score": 650.0,
-        "base_odds": 50.0,
-        "pdo": 20.0,
-        "min_score": 0.0,
-        "max_score": 1000.0,
-    }
+    assert call.kwargs["config"] == {"threshold": 600.0}
 
 
 @pytest.mark.parametrize(
@@ -433,16 +423,7 @@ async def test_create_deployment_rejects_invalid_environment(
     ("task_type", "config"),
     [
         ("classification", {"threshold": 0.5}),
-        (
-            "scoring",
-            {
-                "base_score": 600.0,
-                "base_odds": 50.0,
-                "pdo": 20.0,
-                "min_score": 0,
-                "max_score": 1000,
-            },
-        ),
+        ("scoring", {"threshold": 650.0}),
     ],
 )
 def test_resolve_config_accepts_supported_tasks(

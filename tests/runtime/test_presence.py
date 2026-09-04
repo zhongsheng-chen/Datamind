@@ -5,8 +5,12 @@
 验证运行实例使用统一的心跳判定边界。
 
 核心功能：
-  - 验证心跳失联判定
-  - 验证根据配置生成在线状态判定
+  - test_runtime_presence_detects_stale_active_instance:
+    验证根据最近活动时间识别失联实例
+  - test_runtime_presence_uses_heartbeat_grace_period:
+    验证在线状态使用心跳宽限期
+  - test_runtime_presence_returns_derived_health_status:
+    验证返回推导后的健康状态
 """
 
 from datetime import datetime, timedelta, timezone

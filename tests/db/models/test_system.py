@@ -5,10 +5,18 @@
 验证系统状态表字段、索引、约束和对象行为。
 
 核心功能：
-  - 验证系统状态表字段和默认值
-  - 验证系统状态表索引和检查约束
-  - 验证系统状态对象构造与字符串表示
-"""
+  - test_system_state_table_name:
+    验证系统状态表名称
+  - test_system_state_business_columns:
+    验证系统状态表业务字段完整
+  - test_system_state_defaults_to_uninitialized:
+    验证系统状态默认未初始化
+  - test_system_state_indexes:
+    验证系统状态表唯一索引
+  - test_system_state_check_constraints:
+    验证系统状态表检查约束
+  - test_system_state_constructor_and_repr:
+    验证系统状态对象构造与字符串表示"""
 
 from sqlalchemy import (
     Boolean,

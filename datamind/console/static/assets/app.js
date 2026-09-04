@@ -185,10 +185,6 @@ import {
  * @property {string | null} artifact_digest
  * @property {string | null} bento_tag
  * @property {string | null} model_key
- * @property {string | null} input_schema_key
- * @property {string | null} output_schema_key
- * @property {Object | null} input_schema
- * @property {Object | null} output_schema
  * @property {string | null} description
  * @property {string | null} created_by
  * @property {string | null} updated_by

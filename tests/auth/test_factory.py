@@ -5,10 +5,14 @@
 验证认证工厂仅创建 LOCAL 认证服务，并执行生产网络安全校验。
 
 核心功能：
-  - 验证停用认证时拒绝创建服务
-  - 验证生产环境必须配置允许网段
-  - 验证本地认证配置和仓储依赖正确传递
-"""
+  - test_create_auth_service_rejects_disabled_auth:
+    验证认证功能停用时拒绝创建服务
+  - test_protected_environment_requires_allowed_networks:
+    验证预发布和生产环境必须配置允许网段
+  - test_create_auth_service_builds_local_dependencies:
+    验证认证工厂创建并配置本地认证服务
+  - test_production_does_not_force_break_glass_mode:
+    验证生产环境允许配置普通本地用户登录"""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock

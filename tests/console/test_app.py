@@ -1099,9 +1099,7 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '["SHA-256 校验值", () => createFileIdentifier(' in version_source
     assert '"registry-version-file-identifier-truncated"' in version_source
     assert '.registry-version-file-identifier-truncated {' in stylesheet.text
-    assert 'if (!storageKey && !schema) return "未配置";' in version_source
     assert 'createDetailBadge(version.framework, "framework")' in version_source
-    assert 'createSchemaFileValue(' in version_source
     assert '["显示名称", version.display_name]' in version_source
     assert '["类型", version.model_type]' in version_source
     assert '["任务类型", version.task_type]' in version_source
@@ -1698,7 +1696,7 @@ async def test_create_deployment_requires_csrf_and_permission(
 
 
 @pytest.mark.asyncio
-async def test_register_model_accepts_schema_files(
+async def test_register_model_uploads_model_file(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试模型注册接口接收并解析 Schema 文件"""
@@ -1763,22 +1761,6 @@ async def test_register_model_accepts_schema_files(
                     b"model-data",
                     "application/octet-stream",
                 ),
-                "input_schema": (
-                    "input_schema.json",
-                    json.dumps({
-                        "feature_names": [
-                            "age",
-                        ],
-                    }),
-                    "application/json",
-                ),
-                "output_schema": (
-                    "output_schema.json",
-                    json.dumps({
-                        "type": "number",
-                    }),
-                    "application/json",
-                ),
             },
             headers={
                 "Origin": "http://testserver",
@@ -1790,14 +1772,6 @@ async def test_register_model_accepts_schema_files(
     register_call = service.register.await_args
     assert register_call is not None
     register_kwargs = register_call.kwargs
-    assert register_kwargs["input_schema"] == {
-        "feature_names": [
-            "age",
-        ],
-    }
-    assert register_kwargs["output_schema"] == {
-        "type": "number",
-    }
     assert register_kwargs["created_by"] == "alice"
     assert register_kwargs["model_path"].endswith(
         "model.pkl"

@@ -6,14 +6,38 @@
 特征转换、特征校验、特征重要性和能力查询。
 
 核心功能：
-  - 验证模型适配器创建
-  - 验证概率和批量概率预测
-  - 验证 Logit 和批量 Logit 预测
-  - 验证正类方向处理
-  - 验证特征转换和特征校验
-  - 验证特征重要性
-  - 验证能力查询和能力校验
-"""
+  - test_init_creates_sklearn_adapter:
+    验证初始化时创建 Sklearn 适配器
+  - test_predict_matches_model:
+    验证概率预测与原始模型一致
+  - test_predict_batch_matches_model:
+    验证批量概率预测与原始模型一致
+  - test_predict_logit_matches_model:
+    验证 Logit 预测与原始模型一致
+  - test_predict_logit_batch_matches_model:
+    验证批量 Logit 预测与原始模型一致
+  - test_positive_class_zero_reverses_logit_direction:
+    验证正类为类别零时反转 Logit 方向
+  - test_transform_uses_configured_feature_order:
+    验证特征转换使用配置顺序
+  - test_transform_fills_missing_feature_with_nan:
+    验证特征转换填充缺失值
+  - test_transform_batch_uses_configured_feature_order:
+    验证批量特征转换使用配置顺序
+  - test_transform_requires_feature_names:
+    验证特征转换必须配置特征名称
+  - test_validate_features_delegates_to_adapter:
+    验证特征校验结果
+  - test_get_feature_importance_matches_coefficients:
+    验证特征重要性与逻辑回归系数一致
+  - test_capability_query_and_requirement:
+    验证能力查询和能力校验
+  - test_random_forest_does_not_support_logit:
+    验证非逻辑回归模型不提供 Logit 能力
+  - test_invalid_prediction_input_is_delegated:
+    验证非法推理输入由适配器校验
+  - test_unsupported_model_is_rejected:
+    验证拒绝未支持的模型框架"""
 
 from typing import Any
 

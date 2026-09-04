@@ -48,7 +48,7 @@ from datamind.config.database import DatabaseConfig
 from datamind.config.initialization import InitializationConfig
 from datamind.config.logging import LoggingConfig
 from datamind.config.runtime import RuntimeConfig
-from datamind.config.scorecard import ScorecardConfig
+from datamind.config.scoring import ScoringConfig
 from datamind.config.service import ServiceConfig
 from datamind.config.settings import (
     Settings,
@@ -71,7 +71,7 @@ CONFIG_ENV_PREFIXES: Final[tuple[str, ...]] = (
     "DATAMIND_INIT_",
     "DATAMIND_LOG_",
     "DATAMIND_RUNTIME_",
-    "DATAMIND_SCORECARD_",
+    "DATAMIND_SCORING_",
     "DATAMIND_SERVICE_",
     "DATAMIND_STORAGE_",
 )
@@ -136,12 +136,12 @@ def test_settings_contains_all_child_configs() -> None:
         AuthConfig,
     )
     assert isinstance(
-        settings.scorecard,
-        ScorecardConfig,
-    )
-    assert isinstance(
         settings.classification,
         ClassificationConfig,
+    )
+    assert isinstance(
+        settings.scoring,
+        ScoringConfig,
     )
     assert isinstance(
         settings.console,
@@ -166,8 +166,8 @@ def test_settings_annotations_match_child_configs() -> None:
         "logging": LoggingConfig,
         "audit": AuditConfig,
         "auth": AuthConfig,
-        "scorecard": ScorecardConfig,
         "classification": ClassificationConfig,
+        "scoring": ScoringConfig,
         "console": ConsoleConfig,
         "service": ServiceConfig,
         "runtime": RuntimeConfig,
@@ -196,8 +196,8 @@ def test_direct_settings_creation_returns_independent_instances() -> None:
     assert first.auth is not second.auth
     assert first.auth.local is not second.auth.local
     assert first.auth.local is not second.auth.local
-    assert first.scorecard is not second.scorecard
     assert first.classification is not second.classification
+    assert first.scoring is not second.scoring
     assert first.console is not second.console
     assert first.service is not second.service
     assert first.runtime is not second.runtime

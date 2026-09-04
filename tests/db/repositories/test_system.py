@@ -160,8 +160,13 @@ async def test_get_or_create_state() -> None:
     select_sql = compile_statement(
         select_call.args[0]
     )
+    expected_insert = " ".join((
+        "INSERT",
+        "INTO",
+        SystemState.__tablename__,
+    ))
     assert result is state
-    assert "INSERT INTO systems" in insert_sql
+    assert expected_insert in insert_sql
     assert "ON CONFLICT (system_id) DO NOTHING" in insert_sql
     assert "FOR UPDATE" in select_sql
 

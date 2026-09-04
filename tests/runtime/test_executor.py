@@ -3,6 +3,12 @@
 """模型预测执行器测试
 
 验证统一执行器的服务加载、模型调用、结果封装和超时控制。
+
+核心功能：
+  - test_execute_loads_service_and_returns_prediction:
+    验证执行器加载服务并返回预测结果
+  - test_execute_applies_plan_timeout:
+    验证执行器应用执行计划的超时限制
 """
 
 import asyncio

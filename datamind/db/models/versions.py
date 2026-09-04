@@ -2,8 +2,7 @@
 
 """模型版本表
 
-存储模型版本信息，包括模型产物、输入输出 Schema、
-模型参数、评估指标、运行框架和生命周期状态。
+存储模型版本信息，包括模型文件、参数、指标、运行框架和生命周期状态。
 
 核心功能：
   - Version: 模型版本记录
@@ -114,20 +113,6 @@ class Version(
         ),
         CheckConstraint(
             (
-                "input_schema IS NULL "
-                "OR jsonb_typeof(input_schema) = 'object'"
-            ),
-            name="input_schema_object",
-        ),
-        CheckConstraint(
-            (
-                "output_schema IS NULL "
-                "OR jsonb_typeof(output_schema) = 'object'"
-            ),
-            name="output_schema_object",
-        ),
-        CheckConstraint(
-            (
                 "params IS NULL "
                 "OR jsonb_typeof(params) = 'object'"
             ),
@@ -173,22 +158,6 @@ class Version(
         ),
     )
 
-    input_schema = Column(
-        JSONB(
-            none_as_null=True
-        ),
-        nullable=True,
-        comment="输入 Schema，JSON 对象",
-    )
-
-    output_schema = Column(
-        JSONB(
-            none_as_null=True
-        ),
-        nullable=True,
-        comment="输出 Schema，JSON 对象",
-    )
-
     status = Column(
         String(20),
         nullable=False,
@@ -223,7 +192,7 @@ class Version(
     artifact_digest = Column(
         String(64),
         nullable=True,
-        comment="当前模型与 Schema 组合摘要",
+        comment="当前模型摘要",
     )
 
     bento_tag = Column(
@@ -245,18 +214,6 @@ class Version(
         String(255),
         nullable=False,
         comment="模型文件存储键",
-    )
-
-    input_schema_key = Column(
-        String(255),
-        nullable=True,
-        comment="输入 Schema 文件存储键",
-    )
-
-    output_schema_key = Column(
-        String(255),
-        nullable=True,
-        comment="输出 Schema 文件存储键",
     )
 
     params = Column(

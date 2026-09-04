@@ -71,8 +71,6 @@ class _ArtifactTarget:
 
     artifact_id: str
     model_key: str
-    input_schema_key: str | None
-    output_schema_key: str | None
     bento_tag: str
 
 
@@ -547,8 +545,6 @@ class ModelDeletionService:
                     targets.append(_ArtifactTarget(
                         artifact_id=artifact.artifact_id,
                         model_key=artifact.model_key,
-                        input_schema_key=artifact.input_schema_key,
-                        output_schema_key=artifact.output_schema_key,
                         bento_tag=artifact.bento_tag,
                     ))
 
@@ -599,16 +595,10 @@ class ModelDeletionService:
             target: _ArtifactTarget,
     ) -> None:
         """幂等清理单个物理制品"""
-        for key in (
-                target.model_key,
-                target.input_schema_key,
-                target.output_schema_key,
-        ):
-            if key is not None:
-                self.storage.delete_by_key(
-                    key=key,
-                    strict=False,
-                )
+        self.storage.delete_by_key(
+            key=target.model_key,
+            strict=False,
+        )
 
         for model in bentoml.models.list():
             if str(model.tag) == target.bento_tag:
