@@ -5,7 +5,6 @@
 根据模型任务类型创建对应的运行时服务。
 
 核心功能：
-  - RuntimeServiceFactory: 运行时服务工厂
   - create: 根据 task_type 创建运行时服务
 
 支持的任务类型：
@@ -205,7 +204,7 @@ class RuntimeServiceFactory:
 
         优先级：
           - 显式传入的 threshold
-          - RuntimeModel metadata.config.threshold
+          - RuntimeModel metadata.threshold
           - 任务配置默认值
 
         参数：
@@ -224,15 +223,15 @@ class RuntimeServiceFactory:
             raise ValueError("threshold 不能是布尔值")
 
         metadata = runtime_model.metadata or {}
-        config = metadata.get("config")
+        resolved_threshold = (
+            threshold
+            if threshold is not None
+            else metadata.get("threshold")
+        )
 
-        if not isinstance(config, dict):
-            config = {}
+        if resolved_threshold is None:
+            return config_type().threshold
 
-        if threshold is not None:
-            config = {
-                **config,
-                "threshold": threshold,
-            }
-
-        return config_type(**config).threshold
+        return config_type(
+            threshold=resolved_threshold
+        ).threshold

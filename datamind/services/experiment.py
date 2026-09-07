@@ -45,6 +45,7 @@ from datamind.models.errors import (
     InvalidExperimentConfigError,
     InvalidExperimentStateError,
 )
+from datamind.services.mutation import MutationResult
 from datamind.utils.datetime import (
     format_iso_utc,
     parse_datetime,
@@ -131,9 +132,8 @@ class ExperimentLifecycleService:
                 created_by=created_by,
             )
 
-            return self._experiment_result(
-                experiment
-            )
+            result = self._experiment_result(experiment)
+            return MutationResult(result, after=result)
 
     async def update_experiment(
             self,
@@ -183,6 +183,7 @@ class ExperimentLifecycleService:
                     "生效结束时间必须晚于生效开始时间"
                 )
 
+            before = self._experiment_result(experiment)
             repo.update_experiment(
                 experiment,
                 ExperimentPatch(
@@ -194,7 +195,10 @@ class ExperimentLifecycleService:
                 ),
                 updated_by=updated_by,
             )
-            return self._experiment_result(experiment)
+            result = self._experiment_result(experiment)
+            return MutationResult.changed(
+                result, before=before, after=result
+            )
 
     async def create_variant(
             self,
@@ -321,9 +325,8 @@ class ExperimentLifecycleService:
                 created_by=created_by,
             )
 
-            return self._variant_result(
-                variant
-            )
+            result = self._variant_result(variant)
+            return MutationResult(result, after=result)
 
     async def update_variant(
             self,
@@ -393,6 +396,7 @@ class ExperimentLifecycleService:
                         "启用分组的权重总和不能超过 1"
                     )
 
+            before = self._variant_result(variant)
             variant_repo.update_variant(
                 variant,
                 VariantPatch(
@@ -404,7 +408,10 @@ class ExperimentLifecycleService:
                 ),
                 updated_by=updated_by,
             )
-            return self._variant_result(variant)
+            result = self._variant_result(variant)
+            return MutationResult.changed(
+                result, before=before, after=result
+            )
 
     async def transition_experiment(
             self,
@@ -505,6 +512,7 @@ class ExperimentLifecycleService:
                         "hash 策略下启用状态分组的权重之和必须等于 1"
                     )
 
+            before = self._experiment_result(experiment)
             operation = getattr(
                 experiment_repo,
                 operations[action],
@@ -514,8 +522,9 @@ class ExperimentLifecycleService:
                 updated_by=updated_by,
             )
 
-            return self._experiment_result(
-                experiment
+            result = self._experiment_result(experiment)
+            return MutationResult.changed(
+                result, before=before, after=result
             )
 
     @staticmethod
@@ -623,6 +632,7 @@ class ExperimentLifecycleService:
                     f"实验分组不存在: {variant_id}"
                 )
 
+            before = self._variant_result(variant)
             if active:
                 repo.activate_variant(
                     variant,
@@ -634,8 +644,9 @@ class ExperimentLifecycleService:
                     updated_by=updated_by,
                 )
 
-            return self._variant_result(
-                variant
+            result = self._variant_result(variant)
+            return MutationResult.changed(
+                result, before=before, after=result
             )
 
     @staticmethod

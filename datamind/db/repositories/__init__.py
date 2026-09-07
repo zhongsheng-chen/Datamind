@@ -18,6 +18,7 @@
   - MetadataRepository: 模型元数据仓储
   - VersionPatch: 模型版本更新字段
   - VersionRepository: 模型版本仓储
+  - ScorecardRepository: 评分卡仓储
   - DeploymentPatch: 部署更新字段
   - DeploymentRepository: 部署仓储
   - DashboardRepository: 管理控制台统计仓储
@@ -109,6 +110,7 @@ from datamind.db.repositories.version import (
     VersionPatch,
     VersionRepository,
 )
+from datamind.db.repositories.scorecard import ScorecardRepository
 
 
 __all__ = [
@@ -124,6 +126,7 @@ __all__ = [
     "MetadataRepository",
     "VersionPatch",
     "VersionRepository",
+    "ScorecardRepository",
     "DeploymentPatch",
     "DeploymentRepository",
     "DashboardRepository",

@@ -2,7 +2,7 @@
 
 """统一推理接口测试
 
-验证统一推理入口的适配器创建、概率预测、Logit 预测、
+验证统一推理入口的适配器创建、概率预测、对数几率预测、
 特征转换、特征校验、特征重要性和能力查询。
 
 核心功能：
@@ -13,11 +13,11 @@
   - test_predict_batch_matches_model:
     验证批量概率预测与原始模型一致
   - test_predict_logit_matches_model:
-    验证 Logit 预测与原始模型一致
+    验证对数几率预测与原始模型一致
   - test_predict_logit_batch_matches_model:
-    验证批量 Logit 预测与原始模型一致
+    验证批量对数几率预测与原始模型一致
   - test_positive_class_zero_reverses_logit_direction:
-    验证正类为类别零时反转 Logit 方向
+    验证正类为类别零时反转对数几率方向
   - test_transform_uses_configured_feature_order:
     验证特征转换使用配置顺序
   - test_transform_fills_missing_feature_with_nan:
@@ -33,7 +33,7 @@
   - test_capability_query_and_requirement:
     验证能力查询和能力校验
   - test_random_forest_does_not_support_logit:
-    验证非逻辑回归模型不提供 Logit 能力
+    验证非逻辑回归模型不提供对数几率能力
   - test_invalid_prediction_input_is_delegated:
     验证非法推理输入由适配器校验
   - test_unsupported_model_is_rejected:
@@ -49,7 +49,7 @@ from sklearn.linear_model import LogisticRegression
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
 from datamind.core.inference import Inference
-from datamind.core.model.adapters.sklearn import SklearnAdapter
+from datamind.core.inference.adapters.sklearn import SklearnAdapter
 
 
 FEATURE_NAMES = [
@@ -257,7 +257,7 @@ def test_predict_logit_matches_model(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试 Logit 预测与原始模型一致"""
+    """测试对数几率预测与原始模型一致"""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -288,7 +288,7 @@ def test_predict_logit_batch_matches_model(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试批量 Logit 预测与原始模型一致"""
+    """测试批量对数几率预测与原始模型一致"""
     features = [
         {
             "feature_b": 0.25,
@@ -323,7 +323,7 @@ def test_predict_logit_batch_matches_model(
 def test_positive_class_zero_reverses_logit_direction(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试正类为类别零时反转 Logit 方向"""
+    """测试正类为类别零时反转对数几率方向"""
     inference = Inference(
         model=logistic_model,
         feature_names=FEATURE_NAMES,
@@ -567,7 +567,7 @@ def test_random_forest_does_not_support_logit(
             np.ndarray,
         ],
 ) -> None:
-    """测试非逻辑回归模型不提供 Logit 能力"""
+    """测试非逻辑回归模型不提供对数几率能力"""
     X, y = binary_training_data
 
     model = RandomForestClassifier(

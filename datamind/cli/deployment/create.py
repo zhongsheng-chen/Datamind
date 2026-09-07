@@ -11,7 +11,7 @@
   python -m datamind.cli.main deployment create scorecard \
     --version 1.0.0 \
     --rollout full \
-    --config-file config.json
+    --threshold 600
 """
 
 import asyncio
@@ -124,10 +124,10 @@ def create_deployment(
             "--role",
             help="金丝雀发布的部署角色：champion / challenger"
         ),
-        config_file: str | None = typer.Option(
+        threshold: float | None = typer.Option(
             None,
-            "--config-file",
-            help="运行时配置文件(JSON)"
+            "--threshold",
+            help="决策阈值"
         ),
         description: str | None = typer.Option(
             None,
@@ -191,47 +191,8 @@ def create_deployment(
             environment=environment,
             rollout=normalized_rollout,
             role=resolved_role,
-            config_file=config_file,
+            threshold=threshold,
         )
-
-        cfg = None
-
-        if config_file:
-            logger.debug(
-                "读取部署配置文件",
-                config_file=config_file,
-            )
-
-            try:
-                with open(
-                        config_file,
-                        "r",
-                        encoding="utf-8",
-                ) as f:
-                    cfg = json.load(f)
-
-                logger.debug(
-                    "部署配置文件解析成功",
-                    config=cfg,
-                )
-
-            except FileNotFoundError as file_error:
-                raise typer.BadParameter(
-                    f"--config-file 文件不存在：{config_file}"
-                ) from file_error
-
-            except json.JSONDecodeError as json_error:
-                raise typer.BadParameter(
-                    f"--config-file JSON 解析失败：{json_error}"
-                ) from json_error
-
-            if not isinstance(
-                    cfg,
-                    dict,
-            ):
-                raise typer.BadParameter(
-                    "--config-file 必须是 JSON 对象"
-                )
 
         deployer = DeploymentLifecycleService()
 
@@ -244,7 +205,7 @@ def create_deployment(
                 environment=environment,
                 rollout_type=normalized_rollout,
                 role=resolved_role,
-                config=cfg,
+                threshold=threshold,
                 description=description,
                 deployed_by=actor,
             )

@@ -89,7 +89,7 @@ class DeploymentCreateRequest(_ConsoleRequest):
     version_id: str = Field(min_length=1, max_length=64)
     rollout_type: str = Field(default="full", min_length=1, max_length=32)
     role: str = Field(default="champion", min_length=1, max_length=32)
-    config: dict[str, Any] | None = None
+    threshold: float | None = None
     description: str | None = Field(default=None, max_length=2000)
 
 
@@ -98,7 +98,7 @@ class DeploymentUpdateRequest(_ConsoleRequest):
 
     rollout_type: str | None = Field(default=None, min_length=1, max_length=32)
     role: str | None = Field(default=None, min_length=1, max_length=32)
-    config: dict[str, Any] | None = None
+    threshold: float | None = None
     description: str | None = Field(default=None, max_length=2000)
 
 

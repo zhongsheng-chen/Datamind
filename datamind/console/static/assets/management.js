@@ -78,6 +78,18 @@ const deploymentRoleOptionsByRollout = {
 
 const standardFieldValidators = new WeakMap();
 
+function createWizardCheckIcon() {
+  const namespace = "http://www.w3.org/2000/svg";
+  const icon = document.createElementNS(namespace, "svg");
+  icon.classList.add("management-wizard-check-icon");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(namespace, "path");
+  path.setAttribute("d", "M5 12.5 9.2 17 19 7");
+  icon.append(path);
+  return icon;
+}
+
 const modelTypeLabels = {
   logistic_regression: "逻辑回归",
   decision_tree: "决策树",
@@ -1291,7 +1303,15 @@ export function createResourceManager({
     stepNavigation.hidden = !wizard;
     for (const [index, field] of stepFields.entries()) {
       const item = document.createElement("li");
-      item.innerHTML = `<span>${index + 1}</span><strong>${field.label}</strong>`;
+      const marker = document.createElement("span");
+      marker.className = "management-wizard-step-marker";
+      marker.append(
+        document.createTextNode(String(index + 1)),
+        createWizardCheckIcon(),
+      );
+      const label = document.createElement("strong");
+      label.textContent = field.label;
+      item.append(marker, label);
       stepNavigation.append(item);
     }
 
@@ -1380,6 +1400,50 @@ export function createResourceManager({
       };
       source.addEventListener("change", updateAccept);
       updateAccept();
+    }
+
+    for (const field of fields) {
+      if (!field.helpByField || !field.helpByValue) continue;
+      const source = body.querySelector(
+        `[name="${field.helpByField}"]`,
+      );
+      const target = body.querySelector(
+        `[name="${field.name}"]`,
+      );
+      if (
+        !(source instanceof HTMLSelectElement)
+        || !(target instanceof HTMLInputElement)
+      ) continue;
+      const help = target.closest("label")?.querySelector("small");
+      if (!(help instanceof HTMLElement)) continue;
+      const updateHelp = () => {
+        help.textContent = field.helpByValue[source.value] || "";
+      };
+      source.addEventListener("change", updateHelp);
+      updateHelp();
+    }
+
+    for (const field of fields) {
+      if (!field.visibleByField || !Array.isArray(field.visibleValues)) continue;
+      const source = body.querySelector(
+        `[name="${field.visibleByField}"]`,
+      );
+      const target = body.querySelector(
+        `[name="${field.name}"]`,
+      );
+      if (
+        !(source instanceof HTMLSelectElement)
+        || !(target instanceof HTMLInputElement)
+      ) continue;
+      const container = target.closest("label");
+      if (!(container instanceof HTMLElement)) continue;
+      const updateVisibility = () => {
+        const visible = field.visibleValues.includes(source.value);
+        container.hidden = !visible;
+        target.disabled = !visible;
+      };
+      source.addEventListener("change", updateVisibility);
+      updateVisibility();
     }
 
     const error = document.createElement("p");
@@ -1939,20 +2003,26 @@ export function createResourceManager({
         },
         { name: "description", label: "描述", type: "textarea", rows: 3, wide: true },
         {
-          name: "config_file",
-          label: "部署配置",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
+          name: "threshold",
+          label: "决策阈值",
+          type: "number",
+          step: "any",
+          help: "可选；默认 0.5。",
+          helpByField: "model_id",
+          helpByValue: Object.fromEntries(deployableModels.map(
+            (model) => [
+              model.model_id,
+              model.task_type === "scoring"
+                ? "可选；默认 600。"
+                : "可选；默认 0.5。",
+            ],
+          )),
+          visibleByField: "rollout_type",
+          visibleValues: ["full", "canary"],
           wide: true,
         },
       ],
       onSubmit: async (formData) => {
-        const config = await parseJsonFile(
-          formData,
-          "config_file",
-          "部署配置",
-        );
         return request("deployments", {
           method: "POST",
           body: JSON.stringify({
@@ -1960,8 +2030,8 @@ export function createResourceManager({
           version_id: optionalValue(formData, "version_id"),
           rollout_type: optionalValue(formData, "rollout_type"),
           role: optionalValue(formData, "role"),
+          threshold: optionalValue(formData, "threshold"),
           description: optionalValue(formData, "description"),
-            config,
           }),
         });
       },
@@ -2165,16 +2235,12 @@ export function createResourceManager({
   }
 
   async function openVariantCreateDialog() {
-    const experimentId = state.selectedExperimentId;
-
-    if (experimentId === null) {
-      throw new Error("请先选择实验");
-    }
+    const selectedExperimentId = state.selectedExperimentId;
 
     const [experimentResponse, deploymentResponse, modelResponse, variantResponse] = (
       await Promise.all([
         request(
-          `sections/experiments?page=1&page_size=100&q=${encodeURIComponent(experimentId)}`,
+          "sections/experiments?page=1&page_size=100&sort_by=updated_at&sort_order=desc",
         ),
         request(
           "sections/deployments?page=1&page_size=100&sort_by=updated_at&sort_order=desc",
@@ -2183,33 +2249,27 @@ export function createResourceManager({
           "sections/models?page=1&page_size=100&sort_by=name&sort_order=asc",
         ),
         request(
-          `experiments/${encodeURIComponent(experimentId)}/variants?page=1&page_size=100`,
+          selectedExperimentId === null
+            ? "sections/variants?page=1&page_size=100&sort_by=updated_at&sort_order=desc"
+            : `experiments/${encodeURIComponent(selectedExperimentId)}/variants?page=1&page_size=100`,
         ),
       ])
     );
-    const experiment = (
+    const experiments = (
       Array.isArray(experimentResponse?.items) ? experimentResponse.items : []
-    ).find((item) => item.experiment_id === experimentId);
+    );
+    const experiment = selectedExperimentId === null
+      ? null
+      : experiments.find((item) => item.experiment_id === selectedExperimentId);
 
-    if (!experiment) {
+    if (selectedExperimentId !== null && !experiment) {
       throw new Error("无法读取当前实验信息");
     }
 
-    const existingDeploymentIds = new Set(
-      (Array.isArray(variantResponse?.items) ? variantResponse.items : [])
-        .map((variant) => variant.deployment_id)
-        .filter(Boolean),
-    );
-    const deployments = (
-      Array.isArray(deploymentResponse?.items) ? deploymentResponse.items : []
-    ).filter((deployment) => (
-      deployment.model_id === experiment.model_id
-      && deployment.environment === experiment.environment
-      && deployment.status === "active"
-      && String(deployment.rollout_type).toLowerCase() !== "shadow"
-      && String(deployment.role).toLowerCase() !== "shadow"
-      && !existingDeploymentIds.has(deployment.deployment_id)
-    ));
+    const variants = Array.isArray(variantResponse?.items) ? variantResponse.items : [];
+    const allDeployments = Array.isArray(deploymentResponse?.items)
+      ? deploymentResponse.items
+      : [];
     const modelsById = new Map(
       (Array.isArray(modelResponse?.items) ? modelResponse.items : [])
         .map((model) => [model.model_id, model]),
@@ -2218,37 +2278,78 @@ export function createResourceManager({
       champion: "Champion",
       challenger: "Challenger",
     };
+    const deploymentOptionsByExperiment = Object.fromEntries(experiments.map((item) => {
+      const existingDeploymentIds = new Set(
+        variants
+          .filter((variant) => variant.experiment_id === item.experiment_id)
+          .map((variant) => variant.deployment_id)
+          .filter(Boolean),
+      );
+      const options = allDeployments.filter((deployment) => (
+        deployment.model_id === item.model_id
+        && deployment.environment === item.environment
+        && deployment.status === "active"
+        && String(deployment.rollout_type).toLowerCase() !== "shadow"
+        && String(deployment.role).toLowerCase() !== "shadow"
+        && !existingDeploymentIds.has(deployment.deployment_id)
+      )).map((deployment) => {
+        const model = modelsById.get(deployment.model_id);
+        const modelName = model?.name || deployment.model_name || "未命名模型";
+        const modelLabel = model?.display_name
+          ? `${model.display_name} (${modelName})`
+          : modelName;
+        const roleLabel = roleLabels[
+          String(deployment.role).toLowerCase()
+        ] || deployment.role || "未标注角色";
+        return {
+          value: deployment.deployment_id,
+          label: `${modelLabel} · ${deployment.model_version || "未标注版本"} · ${roleLabel}`,
+        };
+      });
+      return [item.experiment_id, options];
+    }));
+    const availableExperiments = experiments.filter((item) => (
+      (deploymentOptionsByExperiment[item.experiment_id] || []).length > 0
+    ));
 
-    if (deployments.length === 0) {
+    if (selectedExperimentId !== null && (
+      deploymentOptionsByExperiment[selectedExperimentId] || []
+    ).length === 0) {
       throw new Error("当前实验暂无可添加的部署");
     }
+    if (selectedExperimentId === null && availableExperiments.length === 0) {
+      throw new Error("暂无可添加分组的实验");
+    }
+
+    const experimentField = experiment
+      ? { name: "experiment", label: "实验名称", type: "display", value: experiment.name }
+      : {
+          name: "experiment_id",
+          label: "实验",
+          type: "select",
+          required: true,
+          options: availableExperiments.map((item) => ({
+            value: item.experiment_id,
+            label: item.name,
+          })),
+        };
+    const initialExperimentId = selectedExperimentId || availableExperiments[0].experiment_id;
 
     createManagementDialog({
       title: "添加分组",
       description: "选择部署并配置分组权重。",
       submitLabel: "添加分组",
       fields: [
-        { name: "experiment", label: "实验名称", type: "display", value: experiment.name },
+        experimentField,
         { name: "name", label: "分组名称", required: true },
         {
           name: "deployment_id",
           label: "部署",
           type: "select",
           required: true,
-          options: deployments.map((deployment) => {
-            const model = modelsById.get(deployment.model_id);
-            const modelName = model?.name || deployment.model_name || "未命名模型";
-            const modelLabel = model?.display_name
-              ? `${model.display_name} (${modelName})`
-              : modelName;
-            const roleLabel = roleLabels[
-              String(deployment.role).toLowerCase()
-            ] || deployment.role || "未标注角色";
-            return {
-              value: deployment.deployment_id,
-              label: `${modelLabel} · ${deployment.model_version || "未标注版本"} · ${roleLabel}`,
-            };
-          }),
+          options: deploymentOptionsByExperiment[initialExperimentId],
+          optionsByField: experiment ? undefined : "experiment_id",
+          optionsByValue: deploymentOptionsByExperiment,
         },
         { name: "weight", label: "权重", type: "number", min: 0.01, max: 1, step: 0.01, value: 0.5, required: true },
         { name: "is_control", label: "设为对照组", type: "checkbox" },
@@ -2263,6 +2364,8 @@ export function createResourceManager({
         },
       ],
       onSubmit: async (formData) => {
+        const experimentId = selectedExperimentId
+          || optionalValue(formData, "experiment_id");
         const config = await parseJsonFile(
           formData,
           "variant_config_file",
@@ -2831,7 +2934,7 @@ export function createResourceManager({
   function openDeploymentEditDialog(record) {
     createManagementDialog({
       title: "编辑部署",
-      description: "修改已停用部署的发布方式、部署配置和说明。",
+      description: "修改已停用部署的发布方式、决策阈值和说明。",
       submitLabel: "保存修改",
       fields: [
         { name: "rollout_type", label: "发布类型", type: "select", options: deploymentRolloutOptions, value: record.rollout_type },
@@ -2847,23 +2950,24 @@ export function createResourceManager({
         },
         { name: "description", label: "描述", type: "textarea", rows: 3, value: record.description || "", wide: true },
         {
-          name: "config_file",
-          label: "部署配置",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
+          name: "threshold",
+          label: "决策阈值",
+          type: "number",
+          step: "any",
+          value: record.threshold,
+          visibleByField: "rollout_type",
+          visibleValues: ["full", "canary"],
           wide: true,
         },
       ],
       onSubmit: async (formData) => {
-        const config = await parseJsonFile(formData, "config_file", "部署配置");
         return request(`deployments/${encodeURIComponent(record.deployment_id)}`, {
           method: "PATCH",
           body: JSON.stringify({
             rollout_type: optionalValue(formData, "rollout_type"),
             role: optionalValue(formData, "role"),
+            threshold: optionalValue(formData, "threshold"),
             description: optionalValue(formData, "description"),
-            config,
           }),
         });
       },
@@ -3006,7 +3110,7 @@ export function createResourceManager({
           label: "分组配置",
           type: "file",
           accept: ".json,application/json",
-          help: "可选，上传后替换当前配置；不上传则保留原配置。",
+          help: "可选，仅支持 JSON 文件。",
           wide: true,
         },
       ],

@@ -590,15 +590,15 @@ tbody tr:last-child td { border-bottom: 0; }
 .management-wizard-steps[hidden] { display: none; }
 .management-wizard-steps li { position: relative; display: grid; min-width: 0; justify-items: center; gap: 7px; color: #8491a2; font-size: 11px; text-align: center; }
 .management-wizard-steps li:not(:last-child)::after { position: absolute; z-index: 0; top: 14px; left: calc(50% + 21px); width: calc(100% - 42px); height: 1px; background: #dce3ea; content: ""; }
-.management-wizard-steps span { position: relative; z-index: 1; display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #cfd8e2; border-radius: 50%; background: white; font-weight: 750; transition: border-color .15s ease, box-shadow .15s ease, color .15s ease, background .15s ease; }
+.management-wizard-step-marker { position: relative; z-index: 1; display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #cfd8e2; border-radius: 50%; background: white; font-weight: 750; transition: border-color .15s ease, box-shadow .15s ease, color .15s ease, background .15s ease; }
+.management-wizard-check-icon { display: none; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transform: translate(1px, -1px); }
 .management-wizard-steps strong { overflow: hidden; max-width: 100%; padding: 0 5px; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .management-wizard-steps li.active { color: #087f76; }
-.management-wizard-steps li.active span { border-color: #4db1a7; color: white; background: #149b90; box-shadow: 0 0 0 4px rgba(20,155,144,.1); }
+.management-wizard-steps li.active .management-wizard-step-marker { border-color: #4db1a7; color: white; background: #149b90; box-shadow: 0 0 0 4px rgba(20,155,144,.1); }
 .management-wizard-steps li.active strong { font-weight: 750; }
 .management-wizard-steps li.complete { color: #536274; }
-.management-wizard-steps li.complete span { border-color: #9fc9c3; color: #087f76; background: #edf8f6; }
-.management-wizard-steps li.complete span { font-size: 0; }
-.management-wizard-steps li.complete span::before { font-size: 13px; content: "✓"; }
+.management-wizard-steps li.complete .management-wizard-step-marker { border-color: #9fc9c3; color: #087f76; background: #edf8f6; font-size: 0; }
+.management-wizard-steps li.complete .management-wizard-check-icon { display: block; }
 .management-wizard-steps li.complete::after { background: #9fc9c3; }
 .management-form-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 22px 24px 26px; overflow-y: auto; }
 .management-form-section { display: grid; grid-column: 1 / -1; gap: 4px; margin-top: 6px; padding-top: 18px; border-top: 1px solid #e7ecf1; }
@@ -1021,6 +1021,31 @@ tbody tr:last-child td { border-bottom: 0; }
 .execution-detail-drawer .registry-summary-icon { color: #176fe5; background: #edf5ff; }
 .audit-detail-drawer .registry-summary-icon { color: #9b6218; background: #fff7e9; }
 .registry-detail-section { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.scorecard-binning-section { min-width: 0; }
+.scorecard-variable { min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.scorecard-variable + .scorecard-variable { margin-top: 10px; }
+.scorecard-variable > summary { display: grid; grid-template-columns: minmax(0, 1fr) 18px; align-items: center; gap: 10px 12px; padding: 13px 14px; border-radius: 10px; cursor: pointer; list-style: none; }
+.scorecard-variable > summary:hover { background: #f7f9fb; }
+.scorecard-variable > summary:focus-visible, .scorecard-binning-table-scroll:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+.scorecard-variable > summary::-webkit-details-marker { display: none; }
+.scorecard-variable-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; min-width: 0; }
+.scorecard-variable-identity strong { min-width: 0; max-width: 100%; overflow-wrap: anywhere; color: #20344c; line-height: 1.5; }
+.scorecard-variable-identity span { flex: 0 0 auto; padding: 2px 7px; border-radius: 999px; color: #53677d; background: #edf2f6; font-size: 10px; }
+.scorecard-variable-toggle { width: 18px; height: 18px; color: #64758a; }
+.scorecard-variable[open] > summary .scorecard-variable-toggle { transform: rotate(90deg); }
+.scorecard-variable-metrics { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 16px; min-width: 0; color: #64758a; font-size: 11px; line-height: 1.6; }
+.scorecard-variable-metrics > span { max-width: 100%; overflow-wrap: anywhere; }
+.scorecard-variable-statistics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; margin: 0; padding: 14px; border-top: 1px solid var(--line); background: #fbfcfd; }
+.scorecard-variable-statistics > div { display: grid; min-width: 0; gap: 4px; }
+.scorecard-variable-statistics dt { margin: 0; color: #718196; font-size: 11px; line-height: 1.5; }
+.scorecard-variable-statistics dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: #334054; font-size: 13px; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.scorecard-binning-table-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; }
+.scorecard-binning-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.scorecard-binning-table th, .scorecard-binning-table td { padding: 9px 11px; border-bottom: 1px solid #edf1f4; text-align: right; white-space: nowrap; }
+.scorecard-binning-table th:first-child, .scorecard-binning-table td:first-child { position: sticky; left: 0; z-index: 1; min-width: 140px; max-width: 200px; background: #fff; box-shadow: 1px 0 #edf1f4; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.scorecard-binning-table th { color: #607187; background: #f7f9fb; font-size: inherit; font-weight: 600; letter-spacing: normal; }
+.scorecard-binning-table th:first-child { background: #f7f9fb; }
+.scorecard-binning-table tbody tr:last-child td { border-bottom: 0; }
 .registry-detail-section > h4, .registry-section-heading h4 { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; color: #1f334b; font-size: 14px; font-weight: 700; }
 .registry-section-icon { width: 20px; height: 20px; color: #294a6c; }
 .registry-detail-list { display: grid; gap: 11px; margin: 0; }

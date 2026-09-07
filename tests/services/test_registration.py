@@ -40,6 +40,7 @@ from datamind.models.errors import (
     ModelAlreadyExistsError,
 )
 from datamind.models.schema import SchemaExtractor
+from datamind.models.inspection import ScorecardInspector
 from datamind.services import ModelRegistrationService
 
 
@@ -58,6 +59,26 @@ class FakeUnitOfWork:
 
     def on_rollback(self, _callback: object) -> None:
         """记录回滚补偿"""
+
+
+@pytest.fixture(autouse=True)
+def configure_scorecard_details(
+        monkeypatch: pytest.MonkeyPatch,
+) -> MagicMock:
+    """配置评分卡详情提取与仓储替身"""
+    repository = MagicMock()
+    repository.get_scorecard = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        ScorecardInspector,
+        "extract",
+        lambda _model: {"schema": "scorecard"},
+    )
+    monkeypatch.setitem(
+        vars(register_module),
+        "ScorecardRepository",
+        lambda _session: repository,
+    )
+    return repository
 
 
 @pytest.mark.asyncio
@@ -123,6 +144,7 @@ async def test_register_rejects_invalid_model_name(
 async def test_register_creates_model_version_and_artifact(
         monkeypatch: pytest.MonkeyPatch,
         existing_model: bool,
+        configure_scorecard_details: MagicMock,
 ) -> None:
     """测试注册创建模型版本及制品记录"""
     model_path = Path(__file__)
@@ -247,6 +269,11 @@ async def test_register_creates_model_version_and_artifact(
 
     version_repo.create_version.assert_called_once()
     artifact_repo.create_artifact.assert_called_once()
+    configure_scorecard_details.create_scorecard.assert_called_once_with(
+        scorecard_id="scr_test",
+        version_id="ver_test",
+        details={"schema": "scorecard"},
+    )
     assert [
         call.args[3]
         for call in storage.save.call_args_list

@@ -50,7 +50,7 @@ def test_deployment_table_and_columns() -> None:
         "role",
         "effective_from",
         "effective_to",
-        "config",
+        "threshold",
         "description",
         "deployed_by",
         "updated_by",
@@ -83,7 +83,6 @@ def test_deployment_check_constraints() -> None:
         for constraint in TABLE.constraints
         if isinstance(constraint, CheckConstraint)
     } == {
-        "ck_deployments_config_object",
         "ck_deployments_effective_time_valid",
         "ck_deployments_environment_valid",
         "ck_deployments_role_valid",

@@ -87,6 +87,7 @@ export function createResourceListController({
   let versionRequestKey = null;
   let variantRequestKey = null;
   let detailRequestKey = null;
+  const tableScrollPositions = new Map();
 
   function renderSection() {
     const snapshot = state.snapshot;
@@ -989,6 +990,49 @@ export function createResourceListController({
     scrollContainer.className = "table-scroll";
     scrollContainer.append(table);
     tableContainer.append(scrollContainer);
+    const scope = getTableScrollScope();
+    scrollContainer.scrollLeft = tableScrollPositions.get(scope) || 0;
+    scrollContainer.addEventListener("scroll", () => {
+      tableScrollPositions.set(scope, scrollContainer.scrollLeft);
+    }, { passive: true });
+  }
+
+  function getTableScrollScope() {
+    if (state.selectedModelId !== null) {
+      return [
+        "versions",
+        state.selectedModelId,
+        state.versionView,
+        state.versionPage,
+        state.versionPageSize,
+        state.versionQuery,
+        state.versionSort,
+        state.versionOrder,
+      ].join(":");
+    }
+
+    if (state.selectedExperimentId !== null) {
+      return [
+        "variants",
+        state.selectedExperimentId,
+        state.variantView,
+        state.variantPage,
+        state.variantPageSize,
+        state.variantQuery,
+        state.variantSort,
+        state.variantOrder,
+      ].join(":");
+    }
+
+    return [
+      state.active,
+      state.sectionView,
+      state.sectionPage,
+      state.sectionPageSize,
+      state.sectionQuery,
+      state.sectionSort,
+      state.sectionOrder,
+    ].join(":");
   }
   
   function getSelectionScope() {

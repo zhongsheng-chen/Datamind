@@ -11,23 +11,16 @@
   from datamind.core.inference import Inference
 
   inference = Inference(
-      model=model,
+      model=trained_model,
       feature_names=[
           "age",
-          "annual_income",
-          "debt_to_income_ratio",
-          "credit_utilization_ratio",
-          "delinquency_count",
+          "employment_type",
       ],
-      positive_class=1,
   )
 
   probability = inference.predict({
       "age": 35,
-      "annual_income": 120000,
-      "debt_to_income_ratio": 0.32,
-      "credit_utilization_ratio": 0.45,
-      "delinquency_count": 0,
+      "employment_type": "salaried",
   })
 """
 

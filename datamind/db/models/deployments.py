@@ -26,14 +26,12 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     Index,
     String,
     text,
 )
-from sqlalchemy.dialects.postgresql import (
-    JSONB,
-    TEXT,
-)
+from sqlalchemy.dialects.postgresql import TEXT
 
 from datamind.db.core import (
     Base,
@@ -137,13 +135,6 @@ class Deployment(
             ),
             name="effective_time_valid",
         ),
-        CheckConstraint(
-            (
-                "config IS NULL "
-                "OR jsonb_typeof(config) = 'object'"
-            ),
-            name="config_object",
-        ),
     )
 
     deployment_id = Column(
@@ -234,12 +225,10 @@ class Deployment(
         comment="生效结束时间",
     )
 
-    config = Column(
-        JSONB(
-            none_as_null=True
-        ),
+    threshold = Column(
+        Float,
         nullable=True,
-        comment="运行时配置，JSON 对象",
+        comment="决策阈值",
     )
 
     description = Column(

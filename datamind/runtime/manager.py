@@ -155,7 +155,7 @@ class RuntimeManager:
         environment = ""
         rollout_type = ""
         role = None
-        config = None
+        threshold = None
         runtime_context: dict[str, Any] = {}
 
         async with UnitOfWork() as uow:
@@ -229,7 +229,7 @@ class RuntimeManager:
             environment = deployment.environment
             rollout_type = deployment.rollout_type
             role = deployment.role
-            config = deployment.config
+            threshold = deployment.threshold
 
             runtime_context = {
                 "worker_id": self.worker_id,
@@ -241,7 +241,7 @@ class RuntimeManager:
                 "environment": environment,
                 "rollout_type": rollout_type,
                 "role": role,
-                "config": config,
+                "threshold": threshold,
             }
 
             runtime_repo.mark_starting(
@@ -278,7 +278,7 @@ class RuntimeManager:
                     "environment": environment,
                     "rollout_type": rollout_type,
                     "role": role,
-                    "config": config,
+                    "threshold": threshold,
                 },
             )
 

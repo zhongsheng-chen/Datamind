@@ -8,7 +8,6 @@ import {
   createDetailSection,
   createDetailSummary,
   mountDetailDrawer,
-  showJsonDialog,
 } from "./common.js?v=20260902-4";
 
 /**
@@ -31,71 +30,12 @@ export function createDeploymentDetailController({
   request,
   runRecordAction,
 }) {
-  const deploymentConfigLabels = {
-    threshold: "决策阈值",
-  };
-
   function createDeploymentRolloutBadge(value) {
     const rolloutType = String(value || "").toLowerCase();
     const badge = document.createElement("span");
     badge.className = `deployment-rollout-type ${rolloutType}`.trim();
     badge.textContent = rolloutType || "—";
     return badge;
-  }
-
-  function formatDeploymentConfigValue(key, value) {
-    if (value === null || value === undefined || value === "") return "—";
-    if (typeof value === "number") {
-      return String(value);
-    }
-    if (typeof value === "object") return JSON.stringify(value);
-    return String(value);
-  }
-
-  function createDeploymentConfigFields(config) {
-    if (config === null || typeof config !== "object" || Array.isArray(config)) {
-      return [["配置", config]];
-    }
-
-    const preferredOrder = ["threshold"];
-    const keys = Object.keys(config).sort((left, right) => {
-      const leftIndex = preferredOrder.indexOf(left);
-      const rightIndex = preferredOrder.indexOf(right);
-      if (leftIndex === -1 && rightIndex === -1) {
-        return left.localeCompare(right);
-      }
-      if (leftIndex === -1) return 1;
-      if (rightIndex === -1) return -1;
-      return leftIndex - rightIndex;
-    });
-    return keys.map((key) => [
-      deploymentConfigLabels[key] || key,
-      formatDeploymentConfigValue(key, config[key]),
-    ]);
-  }
-
-  function createDeploymentConfigSection(config, dialog) {
-    const section = createDetailSection(
-      "部署配置",
-      createDeploymentConfigFields(config),
-      dialog,
-      "config",
-      appendRequestDetail,
-    );
-    const title = section.firstElementChild;
-    if (!(title instanceof HTMLHeadingElement)) return section;
-    const heading = document.createElement("div");
-    heading.className = "registry-section-heading";
-    const viewJson = document.createElement("button");
-    viewJson.type = "button";
-    viewJson.className = "registry-json-view-button";
-    viewJson.textContent = "查看";
-    viewJson.addEventListener("click", () => {
-      showJsonDialog("部署配置 JSON", config);
-    });
-    title.replaceWith(heading);
-    heading.append(title, viewJson);
-    return section;
   }
 
   function createDeploymentRuntimeFields(
@@ -235,13 +175,11 @@ export function createDeploymentDetailController({
         ["更新时间", formatTime(record.updated_at)],
       ], dialog, "info", appendRequestDetail),
     );
-    if (record.config !== null && record.config !== undefined) {
-      body.append(createDeploymentConfigSection(record.config, dialog));
-    }
     body.append(
       createDetailSection("发布配置", [
         ["发布类型", createDeploymentRolloutBadge(record.rollout_type)],
         ["角色", createDeploymentRoleBadge(record.role)],
+        ["决策阈值", record.threshold],
         ["开始时间", formatTime(record.effective_from)],
         ...(record.effective_to
           ? [["结束时间", formatTime(record.effective_to)]]

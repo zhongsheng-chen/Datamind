@@ -42,7 +42,7 @@ def restore_route(
 
     @audit(
         action="route.restore",
-        target_type="route",
+        target_type="routing",
         target_id_func=lambda _p, result: result["routing_id"],
     )
     async def _run(actor: str) -> dict:

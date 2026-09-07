@@ -65,7 +65,7 @@ def create_deployment(deployment_id: str) -> SimpleNamespace:
         status="active",
         effective_from=None,
         effective_to=None,
-        config=None,
+        threshold=None,
     )
 
 

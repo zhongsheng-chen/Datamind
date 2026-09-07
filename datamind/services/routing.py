@@ -28,6 +28,7 @@ from datamind.db.repositories import (
 )
 from datamind.models.enums import DeploymentStatus
 from datamind.runtime.routing.matcher import RuleMatcher
+from datamind.services.mutation import MutationResult
 from datamind.utils.datetime import (
     format_iso_utc,
     parse_datetime,
@@ -253,8 +254,10 @@ class RoutingLifecycleService:
                 created_by=created_by,
             )
 
-            return self._routing_result(
-                routing
+            result = self._routing_result(routing)
+            return MutationResult(
+                result,
+                after=result,
             )
 
     async def enable_routing(
@@ -303,6 +306,7 @@ class RoutingLifecycleService:
             routing = await repo.get_routing(routing_id)
             if routing is None:
                 raise ValueError(f"路由不存在: {routing_id}")
+            before = self._routing_result(routing)
 
             deployment = await deployment_repo.get_deployment(
                 routing.deployment_id
@@ -355,7 +359,12 @@ class RoutingLifecycleService:
                 routing.effective_from = start
             if not isinstance(effective_to, _MissingEffectiveTime):
                 routing.effective_to = end
-            return self._routing_result(routing)
+            result = self._routing_result(routing)
+            return MutationResult.changed(
+                result,
+                before=before,
+                after=result,
+            )
 
     async def disable_routing(
             self,
@@ -392,6 +401,8 @@ class RoutingLifecycleService:
                     f"路由不存在: {routing_id}"
                 )
 
+            previous_enabled = bool(routing.enabled)
+
             if enabled:
                 deployment = await deployment_repo.get_deployment(
                     routing.deployment_id
@@ -418,8 +429,14 @@ class RoutingLifecycleService:
                     updated_by=updated_by,
                 )
 
-            return self._routing_result(
-                routing
+            return MutationResult(
+                self._routing_result(routing),
+                before={
+                    "enabled": previous_enabled,
+                },
+                after={
+                    "enabled": bool(routing.enabled),
+                },
             )
 
     @staticmethod
@@ -484,11 +501,16 @@ class RoutingLifecycleService:
                 routing_id=routing_id,
             )
 
-            return {
+            result = {
                 "routing_id": routing.routing_id,
                 "deployment_id": routing.deployment_id,
                 "action": "delete_routing",
             }
+            return MutationResult(
+                result,
+                before={"deleted": False},
+                after={"deleted": True},
+            )
 
     async def restore_routing(
             self,
@@ -536,9 +558,14 @@ class RoutingLifecycleService:
                 routing_id=routing_id,
             )
 
-            return {
+            result = {
                 "routing_id": routing.routing_id,
                 "deployment_id": routing.deployment_id,
                 "enabled": routing.enabled,
                 "action": "restore_routing",
             }
+            return MutationResult(
+                result,
+                before={"deleted": True},
+                after={"deleted": False},
+            )

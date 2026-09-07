@@ -111,7 +111,7 @@ def create_route(
 
     @audit(
         action="route.create",
-        target_type="route",
+        target_type="routing",
         target_id_func=lambda p, r: r["routing_id"],
     )
     async def _run(

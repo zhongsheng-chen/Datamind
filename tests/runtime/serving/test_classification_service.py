@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import datamind.runtime.serving.base as base_module
+import datamind.runtime.serving.classification_service as service_module
 from datamind.core.capability import ModelCapability
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.classification_service import (
@@ -37,16 +37,14 @@ def create_service(
         threshold: float = 0.5,
 ) -> tuple[ClassificationService, MagicMock]:
     """创建使用推理替身的分类服务"""
-    adapter = MagicMock()
-    adapter.get_capabilities.return_value = (
+    inference = MagicMock()
+    inference.get_capabilities.return_value = (
         ModelCapability.PREDICT_PROBA
         | ModelCapability.BATCH_PREDICT
     )
-    inference = MagicMock()
-    inference.adapter = adapter
     inference.predict.return_value = prediction
     monkeypatch.setitem(
-        vars(base_module),
+        vars(service_module),
         "Inference",
         lambda **_kwargs: inference,
     )
@@ -114,9 +112,7 @@ def test_predict_classifies_probability(
         "age": 35,
     })
 
-    inference.adapter.require_capability.assert_called_once_with(
-        ModelCapability.PREDICT_PROBA
-    )
+    inference.get_capabilities.assert_called()
     inference.predict.assert_called_once_with({
         "age": 35,
     })
@@ -171,9 +167,7 @@ def test_predict_batch_returns_classifications(
 
     result = service.predict_batch(features)
 
-    inference.adapter.require_capability.assert_any_call(
-        ModelCapability.BATCH_PREDICT
-    )
+    inference.get_capabilities.assert_called()
     assert result["count"] == 2
     assert result["predictions"] == [
         {

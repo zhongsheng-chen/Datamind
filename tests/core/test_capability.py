@@ -53,15 +53,39 @@ def test_model_capability_helpers() -> None:
 
 def test_model_capability_summary() -> None:
     """测试模型能力摘要"""
-    capabilities = ModelCapability.FEATURE_IMPORTANCE
+    capabilities = combine_model_capabilities([
+        ModelCapability.PREDICT_PROBA,
+        ModelCapability.PREDICT_LOG_ODDS,
+        ModelCapability.FEATURE_IMPORTANCE,
+        ModelCapability.BATCH_PREDICT,
+    ])
     descriptions = get_model_capability_descriptions(capabilities)
 
-    assert descriptions == [{
-        "name": "FEATURE_IMPORTANCE",
-        "description": "特征重要性",
-    }]
+    assert descriptions == [
+        {
+            "name": "PREDICT_PROBA",
+            "description": "概率预测",
+        },
+        {
+            "name": "PREDICT_LOG_ODDS",
+            "description": "对数几率预测",
+        },
+        {
+            "name": "FEATURE_IMPORTANCE",
+            "description": "特征重要性",
+        },
+        {
+            "name": "BATCH_PREDICT",
+            "description": "批量预测",
+        },
+    ]
     assert get_model_capability_summary(capabilities) == {
-        "names": ["FEATURE_IMPORTANCE"],
+        "names": [
+            "PREDICT_PROBA",
+            "PREDICT_LOG_ODDS",
+            "FEATURE_IMPORTANCE",
+            "BATCH_PREDICT",
+        ],
         "descriptions": descriptions,
-        "count": 1,
+        "count": 4,
     }

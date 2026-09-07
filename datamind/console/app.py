@@ -133,6 +133,7 @@ from datamind.services import (
     RoutingLifecycleService,
 )
 from datamind.services.errors import IdentityError
+from datamind.services.mutation import MutationResult
 from datamind.utils import (
     generate_random_id,
     get_hostname,
@@ -1648,11 +1649,18 @@ async def _record_write_audit(
         result: dict[str, Any],
 ) -> None:
     """记录控制台写操作审计"""
+    before = None
+    after = result
+    if isinstance(result, MutationResult):
+        before = result.before
+        after = result.after
+
     await AuditRecorder().record(
         action=action,
         target_type=target_type,
         target_id=target_id,
-        after=result,
+        before=before,
+        after=after,
         context=_http_audit_context(
             request,
             user=user,
@@ -1976,7 +1984,7 @@ async def _create_routing(
             request,
             user=user,
             action="route.create",
-            target_type="route",
+            target_type="routing",
             target_id=str(result["routing_id"]),
             result=result,
         )
