@@ -193,7 +193,7 @@ def test_deployment_create_rejects_invalid_release_role_before_context(
             version_id=None,
             rollout="full",
             role="challenger",
-            config_file=None,
+            threshold=None,
             description=None,
             output="text",
         )

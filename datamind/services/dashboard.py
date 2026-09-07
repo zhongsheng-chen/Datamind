@@ -47,6 +47,7 @@ from datamind.db.repositories import (
     RoutingRepository,
     RoleRepository,
     RuntimeRepository,
+    ScorecardRepository,
     UserRepository,
     VariantRepository,
     VersionRepository,
@@ -630,6 +631,11 @@ class DashboardService:
             ).get_model(
                 model_id=version.model_id
             )
+            scorecard = None
+            if getattr(model, "task_type", None) == "scoring":
+                scorecard = await ScorecardRepository(
+                    uow.session
+                ).get_scorecard(version_id)
 
         labels = {
             "model_name": getattr(
@@ -653,10 +659,17 @@ class DashboardService:
                 None,
             ),
         }
-        return self._version_item(
+        item = self._version_item(
             version,
             labels=labels,
         )
+        if scorecard is not None:
+            item["scorecard"] = {
+                "scorecard_id": scorecard.scorecard_id,
+                "details_version": scorecard.details_version,
+                "details": scorecard.details,
+            }
+        return item
 
     async def get_model_versions(
             self,

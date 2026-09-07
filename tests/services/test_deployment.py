@@ -10,14 +10,14 @@
   - test_create_deployment_rejects_missing_model: 验证模型不存在
   - test_create_deployment_rejects_missing_version: 验证版本不存在
   - test_create_deployment_rejects_invalid_environment: 验证非法环境
-  - test_create_scoring_deployment_without_config:
-    验证评分部署不保存重复的评分参数
-  - test_resolve_config_accepts_supported_tasks:
-    验证分类和评分配置
-  - test_resolve_config_rejects_unsupported_task:
+  - test_create_scoring_deployment_uses_default_threshold:
+    验证评分部署保存默认决策阈值
+  - test_resolve_threshold_accepts_supported_tasks:
+    验证分类和评分决策阈值
+  - test_resolve_threshold_rejects_unsupported_task:
     验证拒绝不支持的任务类型
-  - test_resolve_config_wraps_validation_error:
-    验证统一转换配置校验异常
+  - test_resolve_threshold_wraps_validation_error:
+    验证统一转换阈值校验异常
   - test_enable_deployment_activates_valid_deployment:
     验证启用有效部署
   - test_enable_rejects_missing_deployment: 验证部署不存在
@@ -79,7 +79,7 @@ def create_deployment(*, status: str = "inactive") -> SimpleNamespace:
         environment="production",
         rollout_type="full",
         role="champion",
-        config={},
+        threshold=0.5,
         description=None,
         status=status,
     )
@@ -251,7 +251,7 @@ async def test_create_deployment_passes_normalized_values(
         model_id="mdl_test",
         version_id="ver_test",
         environment="production",
-        config={"threshold": 0.5},
+        threshold=0.5,
         description="分类部署",
         deployed_by="operator",
     )
@@ -269,7 +269,7 @@ async def test_create_deployment_passes_normalized_values(
         environment=Environment.PRODUCTION,
         rollout_type="full",
         role="champion",
-        config={"threshold": 0.5},
+        threshold=0.5,
         description="分类部署",
         deployed_by="operator",
     )
@@ -296,6 +296,7 @@ async def test_create_shadow_deployment_passes_normalized_values(
     assert call is not None
     assert call.kwargs["rollout_type"] == "shadow"
     assert call.kwargs["role"] == "shadow"
+    assert call.kwargs["threshold"] is None
 
 
 @pytest.mark.asyncio
@@ -316,7 +317,7 @@ async def test_create_scoring_deployment_uses_default_threshold(
 
     call = deployment_repo.create_deployment.call_args
     assert call is not None
-    assert call.kwargs["config"] == {"threshold": 600.0}
+    assert call.kwargs["threshold"] == 600.0
 
 
 @pytest.mark.parametrize(
@@ -420,42 +421,40 @@ async def test_create_deployment_rejects_invalid_environment(
 
 
 @pytest.mark.parametrize(
-    ("task_type", "config"),
+    ("task_type", "threshold"),
     [
-        ("classification", {"threshold": 0.5}),
-        ("scoring", {"threshold": 650.0}),
+        ("classification", 0.5),
+        ("scoring", 650.0),
     ],
 )
-def test_resolve_config_accepts_supported_tasks(
+def test_resolve_threshold_accepts_supported_tasks(
         task_type: str,
-        config: dict[str, Any],
+        threshold: float,
 ) -> None:
-    """测试接受合法的分类和评分配置"""
-    result = DeploymentLifecycleService._resolve_config(
+    """测试接受合法的分类和评分决策阈值"""
+    result = DeploymentLifecycleService._resolve_threshold(
         task_type=task_type,
-        config=config,
+        threshold=threshold,
     )
 
     assert result is not None
 
 
-def test_resolve_config_rejects_unsupported_task() -> None:
+def test_resolve_threshold_rejects_unsupported_task() -> None:
     """测试有配置时拒绝未知任务类型"""
     with pytest.raises(DeploymentError, match="不支持的任务类型"):
-        DeploymentLifecycleService._resolve_config(
+        DeploymentLifecycleService._resolve_threshold(
             task_type="unknown",
-            config={"value": 1},
+            threshold=1.0,
         )
 
 
-def test_resolve_config_wraps_validation_error() -> None:
+def test_resolve_threshold_wraps_validation_error() -> None:
     """测试将配置模型校验异常转换为部署异常"""
     with pytest.raises(DeploymentError, match="配置校验失败"):
-        DeploymentLifecycleService._resolve_config(
+        DeploymentLifecycleService._resolve_threshold(
             task_type="classification",
-            config={
-                "threshold": 2.0,
-            },
+            threshold=2.0,
         )
 
 

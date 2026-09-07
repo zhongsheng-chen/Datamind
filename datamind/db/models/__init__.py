@@ -12,6 +12,7 @@
   - Token: 认证令牌表
   - Metadata: 模型元数据表
   - Version: 模型版本表
+  - Scorecard: 评分卡详情表
   - Artifact: 模型制品修订表
   - Deployment: 模型部署表
   - Control: 模型运行控制表
@@ -52,6 +53,7 @@ from datamind.db.models.grants import Grant
 from datamind.db.models.tokens import Token
 from datamind.db.models.metadata import Metadata
 from datamind.db.models.versions import Version
+from datamind.db.models.scorecards import Scorecard
 from datamind.db.models.artifacts import Artifact
 from datamind.db.models.deployments import Deployment
 from datamind.db.models.controls import Control
@@ -76,6 +78,7 @@ __all__ = [
     "Token",
     "Metadata",
     "Version",
+    "Scorecard",
     "Artifact",
     "Deployment",
     "Control",

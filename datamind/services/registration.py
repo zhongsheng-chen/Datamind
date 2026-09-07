@@ -49,6 +49,7 @@ from datamind.db.repositories import (
     DeploymentRepository,
     MetadataPatch,
     MetadataRepository,
+    ScorecardRepository,
     VersionRepository,
 )
 from datamind.models.artifact import ModelArtifactLoader
@@ -61,6 +62,7 @@ from datamind.models.errors import (
     InvalidModelStateError,
     ModelAlreadyExistsError,
 )
+from datamind.models.inspection import ScorecardInspector
 from datamind.runtime.backend import BentoBackend
 from datamind.storage import get_storage
 from datamind.storage.resolver import StorageResolver
@@ -208,6 +210,7 @@ class ModelRegistrationService:
             version_repo = VersionRepository(uow.session)
             artifact_repo = ArtifactRepository(uow.session)
             deployment_repo = DeploymentRepository(uow.session)
+            scorecard_repo = ScorecardRepository(uow.session)
 
             metadata = await metadata_repo.get_model(
                 model_id=model_id
@@ -287,6 +290,11 @@ class ModelRegistrationService:
                         updated_by=created_by,
                     )
 
+            scorecard_details = (
+                ScorecardInspector.extract(model)
+                if task_type is TaskType.SCORING
+                else None
+            )
             artifact_id = generate_random_id(
                 prefix="art"
             )
@@ -400,6 +408,20 @@ class ModelRegistrationService:
                     updated_by=created_by,
                 )
                 action = "revised"
+
+            if scorecard_details is not None:
+                scorecard = await scorecard_repo.get_scorecard(version_id)
+                if scorecard is None:
+                    scorecard_repo.create_scorecard(
+                        scorecard_id=generate_random_id(prefix="scr"),
+                        version_id=version_id,
+                        details=scorecard_details,
+                    )
+                else:
+                    scorecard_repo.update_scorecard(
+                        scorecard,
+                        details=scorecard_details,
+                    )
 
         logger.info(
             "模型注册完成",

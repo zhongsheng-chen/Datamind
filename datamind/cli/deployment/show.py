@@ -76,6 +76,22 @@ def show_deployment(
                 )
                 raise typer.Exit(code=1) from None
 
+            effective_from = format_iso_utc(
+                deployment.effective_from
+            )
+            effective_to = format_iso_utc(
+                deployment.effective_to
+            )
+            created_at = format_iso_utc(
+                deployment.created_at
+            )
+            updated_at = format_iso_utc(
+                deployment.updated_at
+            )
+            deleted_at = format_iso_utc(
+                deployment.deleted_at
+            )
+
             result = {
                 "deployment_id": deployment.deployment_id,
                 "model_id": deployment.model_id,
@@ -85,14 +101,14 @@ def show_deployment(
                 "rollout_type": deployment.rollout_type,
                 "role": deployment.role,
                 "status": deployment.status,
-                "config": deployment.config,
+                "threshold": deployment.threshold,
                 "description": deployment.description,
                 "deployed_by": deployment.deployed_by,
-                "effective_from": format_iso_utc(deployment.effective_from),
-                "effective_to": format_iso_utc(deployment.effective_to),
-                "created_at": format_iso_utc(deployment.created_at),
-                "updated_at": format_iso_utc(deployment.updated_at),
-                "deleted_at": format_iso_utc(deployment.deleted_at),
+                "effective_from": effective_from,
+                "effective_to": effective_to,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "deleted_at": deleted_at,
                 "deleted_by": deployment.deleted_by,
                 "deletion_reason": deployment.deletion_reason,
             }
@@ -124,11 +140,10 @@ def show_deployment(
         console.print(f"{'ROLE':<16} : {result['role']}")
         console.print(f"{'STATUS':<16} : {result['status']}")
 
-        if result["config"]:
-            console.print(
-                f"{'CONFIG':<16} : "
-                f"{json.dumps(result['config'], ensure_ascii=False)}"
-            )
+        console.print(
+            f"{'THRESHOLD':<16} : "
+            f"{result['threshold']}"
+        )
 
         console.print(
             f"{'DESCRIPTION':<16} : "
@@ -140,29 +155,29 @@ def show_deployment(
         )
         console.print(
             f"{'CREATED AT':<16} : "
-            f"{format_datetime(parse_datetime(result['created_at']))}"
+            f"{format_datetime(parse_datetime(created_at))}"
         )
         console.print(
             f"{'UPDATED AT':<16} : "
-            f"{format_datetime(parse_datetime(result['updated_at']))}"
+            f"{format_datetime(parse_datetime(updated_at))}"
         )
 
-        if result["effective_from"]:
+        if effective_from:
             console.print(
                 f"{'EFFECTIVE FROM':<16} : "
-                f"{format_datetime(parse_datetime(result['effective_from']))}"
+                f"{format_datetime(parse_datetime(effective_from))}"
             )
 
-        if result["effective_to"]:
+        if effective_to:
             console.print(
                 f"{'EFFECTIVE TO':<16} : "
-                f"{format_datetime(parse_datetime(result['effective_to']))}"
+                f"{format_datetime(parse_datetime(effective_to))}"
             )
 
-        if result["deleted_at"]:
+        if deleted_at:
             console.print(
                 f"{'DELETED AT':<16} : "
-                f"{format_datetime(parse_datetime(result['deleted_at']))}"
+                f"{format_datetime(parse_datetime(deleted_at))}"
             )
             console.print(
                 f"{'DELETED BY':<16} : "

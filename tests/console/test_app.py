@@ -20,6 +20,8 @@
   - test_stream_events_filters_topics_by_permission: 验证事件流权限过滤
   - test_event_query_waits_for_cleanup_when_cancelled:
     验证事件查询取消时等待数据库清理完成
+  - test_routing_enable_audit_records_state_change:
+    验证路由启用审计仅记录状态变化
 """
 
 import asyncio
@@ -69,6 +71,7 @@ from datamind.console.schemas import (
     UserCreateRequest,
 )
 from datamind.db.models.outbox import OutboxEvent
+from datamind.services.mutation import MutationResult
 
 
 app_module = importlib.import_module(
@@ -133,7 +136,7 @@ def test_http_audit_context_generates_missing_identifiers(
         "query_string": b"",
         "headers": [],
         "client": ("127.0.0.1", 50000),
-        "server": ("testserver", 80),
+        "server": ("localhost", 80),
     })
 
     context = app_module._http_audit_context(
@@ -518,9 +521,14 @@ async def test_console_page_is_available() -> None:
     assert "grid-auto-flow: column" in wizard_steps_style
     assert "grid-auto-columns: minmax(0, 1fr)" in wizard_steps_style
     assert "repeat(3" not in wizard_steps_style
-    assert ".management-wizard-steps li.complete span::before" in (
-        stylesheet.text
-    )
+    assert ".management-wizard-check-icon" in stylesheet.text
+    assert "transform: translate(1px, -1px)" in stylesheet.text
+    assert (
+        ".management-wizard-steps li.complete "
+        ".management-wizard-check-icon"
+    ) in stylesheet.text
+    assert 'content: "✓"' not in stylesheet.text
+    assert "function createWizardCheckIcon()" in management_script.text
     assert 'const deploymentRoleOptionsByRollout = {' in management_script.text
     assert 'full: [["champion", "Champion"]]' in management_script.text
     assert (
@@ -529,8 +537,9 @@ async def test_console_page_is_available() -> None:
     )
     assert 'shadow: [["shadow", "Shadow"]]' in management_script.text
     assert 'optionsByField: "rollout_type"' in management_script.text
-    assert 'label: "部署配置"' in management_script.text
-    assert 'help: "可选，仅支持 JSON 文件。"' in management_script.text
+    assert 'label: "决策阈值"' in management_script.text
+    assert 'visibleByField: "rollout_type"' in management_script.text
+    assert 'visibleValues: ["full", "canary"]' in management_script.text
     assert 'suffix: "%"' in management_script.text
     assert management_script.text.count("stepper: true") >= 3
     assert 'lockByField: "deployment_id"' in management_script.text
@@ -664,9 +673,16 @@ async def test_console_page_is_available() -> None:
     assert 'const inRecyclableSection = recyclableSections.has(state.active)' in script.text
     assert 'sections/${section}?${buildPageQuery' in script.text
     assert 'state.active === "versions"' in script.text
-    assert 'name: "config_file"' in management_script.text
+    assert 'name: "threshold"' in management_script.text
+    assert 'help: "可选；默认 0.5。"' in management_script.text
+    assert 'helpByField: "model_id"' in management_script.text
+    assert '"可选；默认 600。"' in management_script.text
     assert 'name: "rules_file"' in management_script.text
     assert 'name: "variant_config_file"' in management_script.text
+    assert 'name: "experiment_id"' in management_script.text
+    assert 'optionsByField: experiment ? undefined : "experiment_id"' in (
+        management_script.text
+    )
     routing_create_section = management_script.text.split(
         "async function openRoutingCreateDialog()",
         maxsplit=1,
@@ -898,6 +914,12 @@ async def test_console_page_is_available() -> None:
     assert ".create-icon-button::after" in stylesheet.text
     assert ".pagination .page-indicator" in stylesheet.text
     assert ".table-container { overflow-x: auto; }" in stylesheet.text
+    assert "const tableScrollPositions = new Map();" in resources_script.text
+    assert "function getTableScrollScope()" in resources_script.text
+    assert "tableScrollPositions.get(scope) || 0" in resources_script.text
+    assert "tableScrollPositions.set(scope, scrollContainer.scrollLeft)" in (
+        resources_script.text
+    )
     assert 'page.className = "page-indicator"' in table_script.text
     assert 'page.textContent = `${formatNumber(data.page)} / ${formatNumber(data.total_pages)}`' in table_script.text
     assert ".permission-summary" in stylesheet.text
@@ -928,7 +950,7 @@ async def test_console_page_is_available() -> None:
     assert ".execution-comparison-section { flex: 0 0 auto" in stylesheet.text
     assert ".execution-type.primary" in stylesheet.text
     assert ".execution-type.shadow" in stylesheet.text
-    assert 'if (status === "received") return "info"' in format_script.text
+    assert '["draft", "received"].includes(status)' in format_script.text
     assert ".status.info" in stylesheet.text
     assert 'dataPanel.classList.add("access-empty")' in script.text
     assert "当前账户暂无可访问内容" in script.text
@@ -1065,6 +1087,30 @@ async def test_console_page_supports_realtime_details() -> None:
     model_source = model_script.text
     version_source = version_script.text
     assert "export function createModelDetailController" in model_source
+    assert "function createScorecardParameters(scorecardDetails, dialog)" in (
+        version_script.text
+    )
+    assert "function createBinningSection(scorecardDetails)" in (
+        version_script.text
+    )
+    assert 'document.createTextNode("变量分箱")' in version_script.text
+    assert 'version.scorecard?.details' in version_script.text
+    assert "function sortScorecardVariables(variables)" in version_script.text
+    assert "return [...variables].sort((left, right) => {" in version_script.text
+    assert (
+        "for (const variable of sortScorecardVariables(scorecardDetails.variables))"
+        in version_script.text
+    )
+    binning_table_style = stylesheet.text.split(
+        ".scorecard-binning-table {", 1,
+    )[1].split("}", 1)[0]
+    binning_header_style = stylesheet.text.split(
+        ".scorecard-binning-table th {", 1,
+    )[1].split("}", 1)[0]
+    assert "font-size: 12px;" in binning_table_style
+    assert "font-size: inherit;" in binning_header_style
+    assert "font-weight: 600;" in binning_header_style
+    assert "letter-spacing: normal;" in binning_header_style
     assert "export function createVersionDetailController" in version_source
     assert '"版本详情",' in version_source
     assert 'createUsageSection(model, related, dialog)' in model_source
@@ -1135,7 +1181,7 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '["运行数据", "运行状态暂不可用"]' in deployment_source
     assert '["控制版本", generations[0]]' in deployment_source
     assert '`deployment_id:${record.deployment_id}`' in deployment_source
-    assert '"部署配置",' in deployment_source
+    assert '["决策阈值", record.threshold]' in deployment_source
     assert '"运行状态",' in deployment_source
     assert '["部署 ID", (drawer) => createCopyableSectionNavigationLink(' in deployment_source
     assert '["描述", record.description]' in deployment_source
@@ -1675,7 +1721,7 @@ async def test_create_deployment_requires_csrf_and_permission(
         environment="development",
         rollout_type="full",
         role="champion",
-        config=None,
+        threshold=None,
         description=None,
         deployed_by="alice",
     )
@@ -2249,6 +2295,73 @@ async def test_model_lifecycle_action_is_exposed_over_http(
         updated_by="alice",
     )
     audit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_routing_enable_audit_records_state_change(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试路由启用审计仅记录状态变化"""
+    user = create_user().model_copy(
+        update={"permissions": ["routing.write"]}
+    )
+    result = MutationResult(
+        {
+            "routing_id": "rtn_test",
+            "name": "primary-route",
+            "enabled": True,
+        },
+        before={"enabled": False},
+        after={"enabled": True},
+    )
+    service = MagicMock()
+    service.enable_routing = AsyncMock(return_value=result)
+    audit_recorder = MagicMock()
+    audit_recorder.record = AsyncMock()
+    monkeypatch.setitem(
+        vars(app_module),
+        "_authenticate",
+        AsyncMock(return_value=user),
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "RoutingLifecycleService",
+        lambda: service,
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "AuditRecorder",
+        lambda: audit_recorder,
+    )
+
+    async with AsyncClient(
+            transport=ASGITransport(app=app_module.console_app),
+            base_url="http://testserver",
+    ) as client:
+        client.cookies.set("datamind_console_csrf", "csrf-token")
+        response = await client.post(
+            "/api/actions/routings/rtn_test/enable",
+            json={},
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": "csrf-token",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == dict(result)
+    service.enable_routing.assert_awaited_once_with(
+        routing_id="rtn_test",
+        updated_by="alice",
+    )
+    audit_recorder.record.assert_awaited_once()
+    audit_call = audit_recorder.record.await_args
+    assert audit_call is not None
+    audit_arguments = audit_call.kwargs
+    assert audit_arguments["action"] == "console.routings.enable"
+    assert audit_arguments["target_type"] == "routing"
+    assert audit_arguments["before"] == {"enabled": False}
+    assert audit_arguments["after"] == {"enabled": True}
 
 
 def test_user_payload_exposes_write_capabilities() -> None:

@@ -13,7 +13,7 @@ import { createInferenceDetailController } from "./details/inference.js?v=202609
 import { createModelDetailController } from "./details/model.js?v=20260902-4";
 import { createRoutingDetailController } from "./details/routing.js?v=20260902-7";
 import { createRuntimeDetailController } from "./details/runtime.js?v=20260902-3";
-import { createVersionDetailController } from "./details/version.js?v=20260902-4";
+import { createVersionDetailController } from "./details/version.js?v=20260908-5";
 import {
   formatCompactPercentage,
   formatDuration,

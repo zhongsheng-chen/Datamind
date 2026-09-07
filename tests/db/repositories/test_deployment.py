@@ -103,9 +103,7 @@ def create_deployment(
         "role": "champion",
         "effective_from": None,
         "effective_to": None,
-        "config": {
-            "workers": 2,
-        },
+        "threshold": 0.5,
         "description": "信用评分模型部署",
         "deployed_by": "deployer",
         "updated_by": "original_operator",
@@ -486,7 +484,7 @@ def test_deployment_patch_fields_and_defaults() -> None:
         "role",
         "effective_from",
         "effective_to",
-        "config",
+        "threshold",
         "description",
     ]
     assert patch.framework is None
@@ -495,7 +493,7 @@ def test_deployment_patch_fields_and_defaults() -> None:
     assert patch.role is None
     assert patch.effective_from is None
     assert patch.effective_to is None
-    assert patch.config is None
+    assert patch.threshold is None
     assert patch.description is None
     assert not hasattr(
         patch,
@@ -536,9 +534,7 @@ def test_create_deployment() -> None:
         role="challenger",
         effective_from=EARLIER_TIME,
         effective_to=LATER_TIME,
-        config={
-            "workers": 4,
-        },
+        threshold=0.6,
         description="灰度部署",
         deployed_by="deployer",
     )
@@ -572,9 +568,7 @@ def test_create_deployment() -> None:
         deployment.effective_to
         == LATER_TIME
     )
-    assert deployment.config == {
-        "workers": 4,
-    }
+    assert deployment.threshold == 0.6
     assert deployment.description == (
         "灰度部署"
     )
@@ -604,7 +598,7 @@ def test_create_deployment_uses_optional_defaults() -> None:
     assert deployment.role == "champion"
     assert deployment.effective_from is None
     assert deployment.effective_to is None
-    assert deployment.config is None
+    assert deployment.threshold is None
     assert deployment.description is None
     assert deployment.deployed_by is None
 
@@ -624,9 +618,7 @@ def test_update_deployment() -> None:
             role="challenger",
             effective_from=EARLIER_TIME,
             effective_to=LATER_TIME,
-            config={
-                "workers": 8,
-            },
+            threshold=0.7,
             description="更新后的部署说明",
         ),
         updated_by="operator",
@@ -645,9 +637,7 @@ def test_update_deployment() -> None:
         deployment.effective_to
         == LATER_TIME
     )
-    assert deployment.config == {
-        "workers": 8,
-    }
+    assert deployment.threshold == 0.7
     assert deployment.description == (
         "更新后的部署说明"
     )
