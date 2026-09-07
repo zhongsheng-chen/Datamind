@@ -5,7 +5,6 @@
 提供二分类模型的在线推理能力。
 
 核心功能：
-  - ClassificationService: 分类模型运行服务
   - predict: 单条分类预测
   - predict_batch: 批量分类预测
 
@@ -47,6 +46,7 @@ from typing import Any
 
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
+from datamind.core.inference import Inference
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.base import BaseRuntimeService
 
@@ -94,11 +94,23 @@ class ClassificationService(BaseRuntimeService):
             data_types=data_types,
         )
 
+        self.inference = Inference(
+            model=runtime_model.model,
+            feature_names=self.feature_names,
+            data_types=self.data_types,
+        )
+
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
 
         self.threshold = float(threshold)
+
+    def get_capabilities(
+            self,
+    ) -> ModelCapability:
+        """获取当前模型能力集"""
+        return self.inference.get_capabilities()
 
     def predict(
             self,

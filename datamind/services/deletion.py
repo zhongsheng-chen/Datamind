@@ -59,6 +59,7 @@ from datamind.models.errors import (
     VersionNotFoundError,
 )
 from datamind.models.resolver import ModelResolver
+from datamind.services.mutation import MutationResult
 from datamind.storage import get_storage
 from datamind.utils.generator import generate_random_id
 
@@ -243,7 +244,11 @@ class ModelDeletionService:
                     "action": "delete_model",
                 }
 
-        return result
+        return MutationResult(
+            result,
+            before={"deleted": False},
+            after={"deleted": True},
+        )
 
     async def restore(
             self,
@@ -366,7 +371,11 @@ class ModelDeletionService:
                     "action": "restore_model",
                 }
 
-        return result
+        return MutationResult(
+            result,
+            before={"deleted": True},
+            after={"deleted": False},
+        )
 
     async def purge(
             self,
@@ -426,7 +435,7 @@ class ModelDeletionService:
                     operator=operator,
                 )
 
-        return {
+        result = {
             **target_info,
             "reason": normalized_reason,
             "artifact_count": len(targets),
@@ -444,6 +453,11 @@ class ModelDeletionService:
                 )
             ),
         }
+        return MutationResult(
+            result,
+            before={"purged": False},
+            after={"purged": True},
+        )
 
     async def _request_purge(
             self,

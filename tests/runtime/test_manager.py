@@ -87,7 +87,7 @@ def configure_manager(
             environment="production",
             rollout_type="full",
             role="champion",
-            config=None,
+            threshold=None,
             status="active",
         )
     )

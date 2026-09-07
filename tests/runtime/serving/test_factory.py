@@ -19,8 +19,8 @@
     验证拒绝缺失运行时模型
   - test_create_rejects_invalid_threshold:
     验证拒绝无效阈值
-  - test_explicit_threshold_takes_precedence_over_config:
-    验证显式阈值优先于配置阈值
+  - test_explicit_threshold_takes_precedence_over_metadata:
+    验证显式阈值优先于元数据阈值
 """
 
 from typing import Any
@@ -108,7 +108,7 @@ def test_create_classification_service_from_explicit_task_type(
         (
             {
                 "task_type": "classification",
-                "config": {"threshold": 0.6},
+                "threshold": 0.6,
             },
             0.6,
         ),
@@ -166,7 +166,7 @@ def test_create_scoring_service_uses_deployment_threshold(
     _, scoring_factory = install_service_factories(monkeypatch)
     runtime_model = create_runtime_model({
         "task_type": "scoring",
-        "config": {"threshold": 650.0},
+        "threshold": 650.0,
     })
 
     RuntimeServiceFactory.create(runtime_model=runtime_model)
@@ -244,7 +244,7 @@ def test_create_rejects_invalid_threshold(
         )
 
 
-def test_explicit_threshold_takes_precedence_over_config(
+def test_explicit_threshold_takes_precedence_over_metadata(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试显式阈值优先于部署配置"""
@@ -255,7 +255,7 @@ def test_explicit_threshold_takes_precedence_over_config(
     RuntimeServiceFactory.create(
         runtime_model=create_runtime_model({
             "task_type": "classification",
-            "config": {"threshold": 0.6},
+            "threshold": 0.6,
         }),
         threshold=0.7,
     )

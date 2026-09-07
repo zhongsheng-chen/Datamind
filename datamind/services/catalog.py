@@ -14,6 +14,7 @@ from datamind.db.repositories import (
     MetadataRepository,
     VersionRepository,
 )
+from datamind.services.mutation import MutationResult
 
 
 class ModelCatalogService:
@@ -37,6 +38,10 @@ class ModelCatalogService:
             if model is None:
                 raise ValueError("模型不存在")
 
+            before = {
+                "display_name": model.display_name,
+                "description": model.description,
+            }
             model.display_name = display_name or None
             model.description = description or None
             model.updated_by = updated_by
@@ -44,7 +49,7 @@ class ModelCatalogService:
             await uow.session.flush()
             await uow.session.refresh(model)
 
-            return {
+            result = {
                 "model_id": model.model_id,
                 "name": model.name,
                 "display_name": model.display_name,
@@ -52,6 +57,11 @@ class ModelCatalogService:
                 "updated_by": model.updated_by,
                 "updated_at": model.updated_at,
             }
+            return MutationResult.changed(
+                result,
+                before=before,
+                after=result,
+            )
 
     async def update_version(
             self,
@@ -70,13 +80,14 @@ class ModelCatalogService:
             if model_version is None:
                 raise ValueError("模型版本不存在")
 
+            before = {"description": model_version.description}
             model_version.description = description or None
             model_version.updated_by = updated_by
 
             await uow.session.flush()
             await uow.session.refresh(model_version)
 
-            return {
+            result = {
                 "version_id": model_version.version_id,
                 "model_id": model_version.model_id,
                 "version": model_version.version,
@@ -85,3 +96,8 @@ class ModelCatalogService:
                 "updated_by": model_version.updated_by,
                 "updated_at": model_version.updated_at,
             }
+            return MutationResult.changed(
+                result,
+                before=before,
+                after=result,
+            )

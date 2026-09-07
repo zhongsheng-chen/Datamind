@@ -23,9 +23,7 @@
       model_id="mdl_0123456789abcdef",
       version_id="ver_0123456789abcdef",
       environment="production",
-      config={
-          "threshold": 0.5
-      },
+      threshold=0.5,
       deployed_by="system"
   )
 
@@ -34,13 +32,7 @@
       model_id="mdl_0123456789abcdef",
       version_id="ver_0123456789abcdef",
       environment="production",
-      config={
-          "base_score": 600.0,
-          "base_odds": 50.0,
-          "pdo": 20.0,
-          "min_score": 0,
-          "max_score": 1000
-      },
+      threshold=600.0,
       deployed_by="system"
   )
 """
@@ -52,7 +44,7 @@ import structlog
 
 from datamind.config import get_settings
 from datamind.config.classification import ClassificationConfig
-from datamind.config.scorecard import ScorecardConfig
+from datamind.config.scoring import ScoringConfig
 from datamind.constants import (
     Environment,
     Framework,
@@ -87,6 +79,7 @@ from datamind.models.errors import (
     ModelNotFoundError,
     VersionNotFoundError,
 )
+from datamind.services.mutation import MutationResult
 from datamind.models.guard import ModelGuard
 from datamind.models.resolver import ModelResolver
 from datamind.utils.generator import generate_random_id
@@ -108,7 +101,7 @@ class DeploymentLifecycleService:
             environment: str = "production",
             rollout_type: str = RolloutType.FULL.value,
             role: str = DeploymentRole.CHAMPION.value,
-            config: dict | None = None,
+            threshold: float | None = None,
             description: str | None = None,
             deployed_by: str | None = None,
     ) -> dict[str, Any]:
@@ -122,7 +115,7 @@ class DeploymentLifecycleService:
             environment: 部署环境
             rollout_type: 发布类型
             role: 部署角色
-            config: 运行时配置（可选）
+            threshold: 决策阈值（可选）
             description: 部署说明（可选）
             deployed_by: 部署人（可选）
 
@@ -189,9 +182,13 @@ class DeploymentLifecycleService:
                 VersionStatus(ver.status)
             )
 
-            resolved_config = self._resolve_config(
-                task_type=model.task_type,
-                config=config,
+            resolved_threshold = (
+                None
+                if normalized_rollout_type == RolloutType.SHADOW.value
+                else self._resolve_threshold(
+                    task_type=model.task_type,
+                    threshold=threshold,
+                )
             )
 
             deployment = deployment_repo.create_deployment(
@@ -202,7 +199,7 @@ class DeploymentLifecycleService:
                 environment=Environment(environment),
                 rollout_type=normalized_rollout_type,
                 role=normalized_role,
-                config=resolved_config,
+                threshold=resolved_threshold,
                 description=description,
                 deployed_by=deployed_by,
             )
@@ -378,7 +375,7 @@ class DeploymentLifecycleService:
                 model_id=deployment.model_id,
             )
 
-            return {
+            result = {
                 "deployment_id": deployment.deployment_id,
                 "model_id": deployment.model_id,
                 "version_id": deployment.version_id,
@@ -387,6 +384,11 @@ class DeploymentLifecycleService:
                 "role": deployment.role,
                 "status": deployment.status,
             }
+            return MutationResult(
+                result,
+                before={"status": str(current_status)},
+                after={"status": str(deployment.status)},
+            )
 
     async def disable_deployment(
             self,
@@ -523,7 +525,7 @@ class DeploymentLifecycleService:
                 disabled_routing_count=len(enabled_routings),
             )
 
-            return {
+            result = {
                 "deployment_id": deployment.deployment_id,
                 "model_id": deployment.model_id,
                 "version_id": deployment.version_id,
@@ -536,6 +538,11 @@ class DeploymentLifecycleService:
                     for routing in enabled_routings
                 ],
             }
+            return MutationResult(
+                result,
+                before={"status": str(current_status)},
+                after={"status": str(deployment.status)},
+            )
 
     async def set_default_deployment(
             self,
@@ -644,7 +651,7 @@ class DeploymentLifecycleService:
             environment: str | None = None,
             rollout_type: str | None = None,
             role: str | None = None,
-            config: dict | None = None,
+            threshold: float | None = None,
             description: str | None = None,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
@@ -678,8 +685,11 @@ class DeploymentLifecycleService:
                 role=resolved_role,
             )
 
-            resolved_config = None
-            if config is not None:
+            if resolved_rollout_type == RolloutType.SHADOW.value:
+                deployment.threshold = None
+
+            resolved_threshold = None
+            if threshold is not None:
                 model = await MetadataRepository(
                     uow.session
                 ).get_model(model_id=deployment.model_id)
@@ -687,9 +697,9 @@ class DeploymentLifecycleService:
                     raise DeploymentError(
                         f"模型不存在: {deployment.model_id}"
                     )
-                resolved_config = self._resolve_config(
+                resolved_threshold = self._resolve_threshold(
                     task_type=model.task_type,
-                    config=config,
+                    threshold=threshold,
                 )
 
             deployment_repo.update_deployment(
@@ -710,7 +720,7 @@ class DeploymentLifecycleService:
                         if role is not None
                         else None
                     ),
-                    config=resolved_config,
+                    threshold=resolved_threshold,
                     description=description,
                 ),
                 updated_by=updated_by,
@@ -757,7 +767,7 @@ class DeploymentLifecycleService:
                 "environment": deployment.environment,
                 "rollout_type": deployment.rollout_type,
                 "role": deployment.role,
-                "config": deployment.config,
+                "threshold": deployment.threshold,
                 "description": deployment.description,
                 "status": deployment.status,
             }
@@ -1008,22 +1018,19 @@ class DeploymentLifecycleService:
             }
 
     @staticmethod
-    def _resolve_config(
+    def _resolve_threshold(
             *,
             task_type: str,
-            config: dict | None,
-    ) -> dict[str, Any] | None:
-        """解析并校验部署配置
-
-        显式配置优先于环境配置。未显式提供配置时，读取对应任务的
-        全局配置，并返回适合写入部署记录的完整配置快照。
+            threshold: float | None,
+    ) -> float:
+        """解析并校验决策阈值
 
         参数：
             task_type: 任务类型
-            config: 显式部署配置（可选）
+            threshold: 显式决策阈值（可选）
 
         返回：
-            完整部署配置；未知任务且未提供配置时返回 None
+            决策阈值
 
         异常：
             DeploymentError: 不支持的任务类型或配置校验失败
@@ -1031,20 +1038,17 @@ class DeploymentLifecycleService:
         try:
             if task_type == "classification":
                 return ClassificationConfig(
-                    **(config or {})
-                ).model_dump(
-                    mode="python"
-                )
+                    threshold=threshold
+                    if threshold is not None
+                    else ClassificationConfig().threshold
+                ).threshold
 
             if task_type == "scoring":
-                return ScorecardConfig(
-                    **(config or {})
-                ).model_dump(
-                    mode="python"
-                )
-
-            if config is None:
-                return None
+                return ScoringConfig(
+                    threshold=threshold
+                    if threshold is not None
+                    else ScoringConfig().threshold
+                ).threshold
 
             raise DeploymentError(
                 f"不支持的任务类型: {task_type}"

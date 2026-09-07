@@ -189,7 +189,7 @@ export function statusTone(value) {
   if (["failed", "error", "timeout", "lost", "unhealthy", "rejected", "cancelled", "disabled", "archived", "stopped"].includes(status)) return "danger";
   if (["inactive", "pending", "queued", "paused", "starting", "stopping", "loading", "unloading", "unloaded"].includes(status)) return "warning";
   if (["healthy", "running"].includes(status)) return "success";
-  if (status === "received") return "info";
+  if (["draft", "received"].includes(status)) return "info";
   if (status === "deprecated") return "deprecated";
   return "";
 }

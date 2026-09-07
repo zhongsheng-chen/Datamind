@@ -2,12 +2,12 @@
 
 """统一推理接口
 
-封装模型适配器创建、概率预测、Logit 预测、特征转换、
+封装模型适配器创建、概率预测、对数几率预测、特征转换、
 特征校验、特征重要性和能力查询。
 
 核心功能：
   - predict: 概率预测
-  - predict_logit: Logit 预测
+  - predict_logit: 对数几率预测
   - transform: 特征转换
   - transform_batch: 批量特征转换
   - validate_features: 特征校验
@@ -78,7 +78,7 @@
   if inference.has_capability(
       ModelCapability.PREDICT_LOG_ODDS
   ):
-      logit = inference.predict_logit(
+      log_odds = inference.predict_logit(
           features
       )
 """
@@ -89,12 +89,12 @@ import numpy as np
 
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
-from datamind.core.model.adapters.base import (
+from datamind.core.inference.adapters.base import (
     BaseModelAdapter,
     PredictionInput,
     PredictionResult,
 )
-from datamind.core.model.adapters.factory import ModelAdapterFactory
+from datamind.core.inference.adapters.factory import ModelAdapterFactory
 
 
 class Inference:
@@ -137,7 +137,7 @@ class Inference:
             self,
             X: PredictionInput,
     ) -> PredictionResult:
-        """Logit 预测"""
+        """对数几率预测"""
         self.require_capability(
             ModelCapability.PREDICT_LOG_ODDS
         )

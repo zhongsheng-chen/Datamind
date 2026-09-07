@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: b76925d52749
+Revision ID: a85b1b4a257e
 Revises: 
-Create Date: 2026-09-04 06:38:14.662693+00:00
+Create Date: 2026-09-08 01:55:38.096338+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'b76925d52749'
+revision = 'a85b1b4a257e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -159,7 +159,7 @@ def upgrade() -> None:
     sa.Column('bucket', sa.String(length=32), nullable=True, comment='分桶标识'),
     sa.Column('group', sa.String(length=32), nullable=True, comment='实验分组名称，例如 control / treatment'),
     sa.Column('weight', sa.Float(), nullable=True, comment='命中权重，取值范围 0.0～1.0'),
-    sa.Column('decision', sa.String(length=32), nullable=True, comment='最终决策结果，例如 approve / reject / review'),
+    sa.Column('decision', sa.String(length=32), nullable=True, comment='最终决策结果，可选值：approve / reject'),
     sa.Column('context', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='决策上下文，JSON 格式。可记录路由、实验、Worker 和运行环境等信息'),
     sa.Column('decided_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='决策时间，请求完成模型决策的实际时间'),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
@@ -193,7 +193,7 @@ def upgrade() -> None:
     sa.Column('role', sa.String(length=20), server_default=sa.text("'champion'"), nullable=False, comment='部署角色，可选值：champion / challenger / shadow'),
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
-    sa.Column('config', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='运行时配置，JSON 对象'),
+    sa.Column('threshold', sa.Float(), nullable=True, comment='决策阈值'),
     sa.Column('description', sa.TEXT(), nullable=True, comment='部署说明'),
     sa.Column('deployed_by', sa.String(length=50), nullable=True, comment='部署人'),
     sa.Column('updated_by', sa.String(length=50), nullable=True, comment='更新人'),
@@ -204,7 +204,6 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
     sa.CheckConstraint("(rollout_type = 'shadow' AND role = 'shadow') OR (rollout_type <> 'shadow' AND role <> 'shadow')", name=op.f('ck_deployments_shadow_role_consistent')),
-    sa.CheckConstraint("config IS NULL OR jsonb_typeof(config) = 'object'", name=op.f('ck_deployments_config_object')),
     sa.CheckConstraint("environment IN ('production', 'staging', 'development', 'testing')", name=op.f('ck_deployments_environment_valid')),
     sa.CheckConstraint("role IN ('champion', 'challenger', 'shadow')", name=op.f('ck_deployments_role_valid')),
     sa.CheckConstraint("rollout_type IN ('full', 'canary', 'shadow')", name=op.f('ck_deployments_rollout_type_valid')),
@@ -527,6 +526,20 @@ def upgrade() -> None:
     op.create_index('idx_runtimes_worker_id', 'runtimes', ['worker_id'], unique=False)
     op.create_index('uk_runtimes_deployment_worker', 'runtimes', ['deployment_id', 'worker_id'], unique=True)
     op.create_index('uk_runtimes_runtime_id', 'runtimes', ['runtime_id'], unique=True)
+    op.create_table('scorecards',
+    sa.Column('scorecard_id', sa.String(length=64), nullable=False, comment='评分卡 ID'),
+    sa.Column('version_id', sa.String(length=64), nullable=False, comment='模型版本 ID'),
+    sa.Column('details_version', sa.Integer(), server_default=sa.text('1'), nullable=False, comment='评分卡详情结构版本'),
+    sa.Column('details', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=False, comment='评分卡详情，JSON 对象'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint("jsonb_typeof(details) = 'object'", name=op.f('ck_scorecards_details_object')),
+    sa.CheckConstraint('details_version >= 1', name=op.f('ck_scorecards_details_version_positive')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_scorecards'))
+    )
+    op.create_index('uk_scorecards_scorecard_id', 'scorecards', ['scorecard_id'], unique=True)
+    op.create_index('uk_scorecards_version_id', 'scorecards', ['version_id'], unique=True)
     op.create_table('systems',
     sa.Column('system_id', sa.String(length=32), nullable=False, comment='系统标识'),
     sa.Column('initialized', sa.Boolean(), server_default=sa.text('false'), nullable=False, comment='是否已完成系统初始化'),
@@ -720,6 +733,9 @@ def downgrade() -> None:
     op.drop_table('tokens')
     op.drop_index('uk_systems_system_id', table_name='systems')
     op.drop_table('systems')
+    op.drop_index('uk_scorecards_version_id', table_name='scorecards')
+    op.drop_index('uk_scorecards_scorecard_id', table_name='scorecards')
+    op.drop_table('scorecards')
     op.drop_index('uk_runtimes_runtime_id', table_name='runtimes')
     op.drop_index('uk_runtimes_deployment_worker', table_name='runtimes')
     op.drop_index('idx_runtimes_worker_id', table_name='runtimes')

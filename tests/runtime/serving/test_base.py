@@ -7,8 +7,8 @@
 核心功能：
   - test_service_exposes_runtime_information:
     验证服务公开运行时模型信息
-  - test_service_delegates_capability_operations:
-    验证服务委托模型能力操作
+  - test_service_handles_capability_operations:
+    验证服务处理模型能力操作
   - test_service_touch_updates_runtime_access_state:
     验证服务更新运行时模型访问状态
   - test_service_accepts_explicit_feature_schema:
@@ -30,7 +30,6 @@ from typing import Any
 
 import pytest
 
-import datamind.runtime.serving.base as base_module
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
 from datamind.runtime.registry import RuntimeModel
@@ -43,44 +42,14 @@ CAPABILITIES = (
 )
 
 
-class AdapterStub:
-    """模型适配器替身"""
-
-    capabilities = CAPABILITIES
-
-    def get_capabilities(self) -> ModelCapability:
-        """返回模型能力"""
-        return self.capabilities
-
-    def has_capability(
-            self,
-            capability: ModelCapability,
-    ) -> bool:
-        """判断模型能力"""
-        return bool(
-            self.capabilities & capability
-        )
-
-    def require_capability(
-            self,
-            capability: ModelCapability,
-    ) -> None:
-        """校验模型能力"""
-        if not self.has_capability(capability):
-            raise NotImplementedError("模型能力不受支持")
-
-
-class InferenceStub:
-    """推理组件替身"""
-
-    def __init__(self, **_kwargs: Any) -> None:
-        self.adapter = AdapterStub()
-
-
 class RuntimeServiceStub(BaseRuntimeService):
     """可实例化的运行时服务替身"""
 
     SERVICE_TYPE = "test"
+
+    def get_capabilities(self) -> ModelCapability:
+        """获取测试服务能力集"""
+        return CAPABILITIES
 
     def predict(
             self,
@@ -114,18 +83,6 @@ def create_runtime_model(
     )
 
 
-@pytest.fixture(autouse=True)
-def install_inference_stub(
-        monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """安装隔离的推理组件替身"""
-    monkeypatch.setitem(
-        vars(base_module),
-        "Inference",
-        InferenceStub,
-    )
-
-
 def test_service_exposes_runtime_information() -> None:
     """测试服务公开运行时模型信息"""
     runtime_model = create_runtime_model()
@@ -152,8 +109,8 @@ def test_service_exposes_runtime_information() -> None:
     }
 
 
-def test_service_delegates_capability_operations() -> None:
-    """测试服务将模型能力操作委托给适配器"""
+def test_service_handles_capability_operations() -> None:
+    """测试服务处理模型能力操作"""
     service = RuntimeServiceStub(
         runtime_model=create_runtime_model()
     )
@@ -169,7 +126,7 @@ def test_service_delegates_capability_operations() -> None:
 
     with pytest.raises(
             NotImplementedError,
-            match="模型能力不受支持",
+            match="RuntimeServiceStub 不支持能力: PREDICT_LOG_ODDS",
     ):
         service.require_capability(
             ModelCapability.PREDICT_LOG_ODDS
