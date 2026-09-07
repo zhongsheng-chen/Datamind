@@ -66,6 +66,7 @@ def install_repositories(
     repositories = {
         "MetadataRepository": MagicMock(),
         "VersionRepository": MagicMock(),
+        "ScorecardRepository": MagicMock(),
         "DashboardRepository": MagicMock(),
         "DeploymentRepository": MagicMock(),
         "RoutingRepository": MagicMock(),
@@ -89,6 +90,9 @@ def install_repositories(
         return_value=[]
     )
     repositories["VersionRepository"].get_version = AsyncMock(
+        return_value=None
+    )
+    repositories["ScorecardRepository"].get_scorecard = AsyncMock(
         return_value=None
     )
     repositories["DashboardRepository"].get_counts = AsyncMock(
@@ -1479,6 +1483,13 @@ async def test_get_version_detail_includes_model_metadata(
         model_type="logistic_regression",
         task_type="scoring",
     )
+    repositories["ScorecardRepository"].get_scorecard.return_value = (
+        SimpleNamespace(
+            scorecard_id="scr_test",
+            details_version=1,
+            details={"variable_count": 8},
+        )
+    )
 
     result = await DashboardService().get_version_detail(
         version_id="ver_test"
@@ -1498,6 +1509,11 @@ async def test_get_version_detail_includes_model_metadata(
     assert result["model_name"] == "scorecard"
     assert result["display_name"] == "信用评分卡模型"
     assert result["model_type"] == "logistic_regression"
+    assert result["scorecard"] == {
+        "scorecard_id": "scr_test",
+        "details_version": 1,
+        "details": {"variable_count": 8},
+    }
     assert result["task_type"] == "scoring"
     assert result["version"] == "1.0.0"
     assert result["artifact_revision"] == 2

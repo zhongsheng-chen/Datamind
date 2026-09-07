@@ -27,6 +27,7 @@ EXPECTED_EXPORTS = {
     "MetadataRepository",
     "VersionPatch",
     "VersionRepository",
+    "ScorecardRepository",
     "DeploymentPatch",
     "DeploymentRepository",
     "DashboardRepository",

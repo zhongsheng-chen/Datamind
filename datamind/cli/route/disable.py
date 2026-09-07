@@ -50,7 +50,7 @@ def disable_route(
 
     @audit(
         action="route.disable",
-        target_type="route",
+        target_type="routing",
         target_id_func=lambda p, r: r["routing_id"],
     )
     async def _run(

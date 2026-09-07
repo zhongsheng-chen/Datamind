@@ -22,6 +22,7 @@ EXPECTED_EXPORTS = {
     "Token",
     "Metadata",
     "Version",
+    "Scorecard",
     "Deployment",
     "Control",
     "Runtime",

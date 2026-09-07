@@ -80,7 +80,7 @@ class DeploymentPatch:
         role: 部署角色
         effective_from: 生效开始时间
         effective_to: 生效结束时间
-        config: 运行时配置
+        threshold: 决策阈值
         description: 部署描述
     """
 
@@ -90,7 +90,7 @@ class DeploymentPatch:
     role: str | None = None
     effective_from: datetime | None = None
     effective_to: datetime | None = None
-    config: dict | None = None
+    threshold: float | None = None
     description: str | None = None
 
 
@@ -354,7 +354,7 @@ class DeploymentRepository(BaseRepository):
             role: str = "champion",
             effective_from: datetime | None = None,
             effective_to: datetime | None = None,
-            config: dict | None = None,
+            threshold: float | None = None,
             description: str | None = None,
             deployed_by: str | None = None,
     ) -> Deployment:
@@ -372,7 +372,7 @@ class DeploymentRepository(BaseRepository):
             role: 部署角色（可选）
             effective_from: 生效开始时间（可选）
             effective_to: 生效结束时间（可选）
-            config: 运行时配置（可选）
+            threshold: 决策阈值（可选）
             description: 部署描述（可选）
             deployed_by: 部署人（可选）
 
@@ -394,8 +394,12 @@ class DeploymentRepository(BaseRepository):
             ),
             rollout_type=rollout_type,
             role=role,
-            config=config,
         )
+
+        if threshold is not None:
+            new_deployment.threshold = float(
+                threshold
+            )
 
         if effective_from is not None:
             new_deployment.effective_from = (

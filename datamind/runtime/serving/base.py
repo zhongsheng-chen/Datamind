@@ -5,7 +5,6 @@
 定义运行时模型服务的统一接口和公共能力。
 
 核心功能：
-  - BaseRuntimeService: 运行时服务基类
   - predict: 单条预测接口
   - predict_batch: 批量预测接口
   - get_capabilities: 获取模型能力集
@@ -25,7 +24,6 @@ from datamind.core.capability import (
     ModelCapability,
     get_model_capability_list,
 )
-from datamind.core.inference import Inference
 from datamind.models.schema import SchemaExtractor
 from datamind.runtime.registry import RuntimeModel
 
@@ -40,7 +38,6 @@ class BaseRuntimeService(ABC):
         runtime_model: 运行时模型
         feature_names: 特征名称列表
         data_types: 特征类型映射
-        inference: 统一推理组件
     """
 
     SERVICE_TYPE = "base"
@@ -89,12 +86,6 @@ class BaseRuntimeService(ABC):
             or {}
         )
 
-        self.inference = Inference(
-            model=runtime_model.model,
-            feature_names=self.feature_names,
-            data_types=self.data_types,
-        )
-
     @property
     def deployment_id(
             self,
@@ -130,6 +121,7 @@ class BaseRuntimeService(ABC):
         """获取运行时元数据"""
         return self.runtime_model.metadata or {}
 
+    @abstractmethod
     def get_capabilities(
             self,
     ) -> ModelCapability:
@@ -138,10 +130,7 @@ class BaseRuntimeService(ABC):
         返回：
             模型能力位掩码
         """
-        return (
-            self.inference.adapter
-            .get_capabilities()
-        )
+        raise NotImplementedError
 
     def get_capability_names(
             self,
@@ -168,11 +157,8 @@ class BaseRuntimeService(ABC):
             支持返回 True，否则返回 False
         """
         return (
-            self.inference.adapter
-            .has_capability(
-                capability
-            )
-        )
+            self.get_capabilities() & capability
+        ) == capability
 
     def require_capability(
             self,
@@ -187,9 +173,12 @@ class BaseRuntimeService(ABC):
             NotImplementedError:
                 当前模型不支持指定能力
         """
-        self.inference.adapter.require_capability(
-            capability
-        )
+        if not self.has_capability(capability):
+            capability_name = str(capability.name)
+            raise NotImplementedError(
+                f"{self.__class__.__name__} "
+                f"不支持能力: {capability_name}"
+            )
 
     @abstractmethod
     def predict(
