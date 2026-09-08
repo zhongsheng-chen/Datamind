@@ -262,5 +262,9 @@ data/
 # Generated example artifacts
 examples/**/artifacts/
 
+# Frontend dependencies and package cache
+node_modules/
+.npm-cache/
+
 # Log files
 logs/

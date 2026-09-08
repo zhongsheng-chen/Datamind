@@ -1,4 +1,12 @@
 # Datamind/docker/Dockerfile
+FROM node:24-bookworm-slim AS console-build
+
+WORKDIR /build
+COPY package.json package-lock.json vite.config.mjs ./
+RUN npm ci --no-audit --no-fund
+COPY datamind/console/static/ ./datamind/console/static/
+RUN npm run build:console
+
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -18,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY . .
+COPY --from=console-build /build/datamind/console/dist/ ./datamind/console/dist/
 
 # 创建必要目录
 RUN mkdir -p /app/logs /app/models_storage

@@ -14,6 +14,7 @@ NC := \033[0m
 PROJECT_NAME := datamind
 PYTHON := python3
 PIP := pip3
+NPM := npm
 DOCKER_COMPOSE := docker-compose
 ALEMBIC := alembic
 
@@ -28,6 +29,8 @@ help:
 	@echo "$(GREEN)环境配置:$(NC)"
 	@echo "  make install      - 安装生产依赖"
 	@echo "  make dev          - 安装开发依赖"
+	@echo "  make console-build - 安装前端依赖并构建控制台"
+	@echo "  make console-watch - 监听控制台源码并重新构建"
 	@echo "  make clean        - 清理缓存文件"
 	@echo ""
 	@echo "$(GREEN)数据库操作:$(NC)"
@@ -71,6 +74,15 @@ help:
 	@echo ""
 
 # ==================== 环境配置 ====================
+
+.PHONY: console-build console-watch
+
+console-build:
+	$(NPM) ci
+	$(NPM) run build:console
+
+console-watch:
+	$(NPM) run watch:console
 
 install:
 	@echo "$(GREEN)安装生产依赖...$(NC)"
@@ -182,12 +194,12 @@ format:
 	isort api/ core/ tests/
 	@echo "$(GREEN)✅ 格式化完成$(NC)"
 
-test:
+test: console-build
 	@echo "$(GREEN)运行测试...$(NC)"
 	pytest tests/ -v
 	@echo "$(GREEN)✅ 测试完成$(NC)"
 
-test-cov:
+test-cov: console-build
 	@echo "$(GREEN)运行测试并生成覆盖率报告...$(NC)"
 	pytest tests/ -v --cov=datamind --cov=core --cov-report=term --cov-report=html
 	@echo "$(GREEN)✅ 测试完成，覆盖率报告: htmlcov/index.html$(NC)"

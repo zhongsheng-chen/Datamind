@@ -22,6 +22,7 @@ from datamind.console.routes import (
     ConsoleHandlers,
     create_routes,
 )
+from datamind.console.assets import ConsoleStaticFiles
 
 
 async def handler(_request: Request) -> Response:
@@ -35,7 +36,7 @@ def test_create_routes_registers_expected_endpoints() -> None:
         Path(__file__).parents[2]
         / "datamind"
         / "console"
-        / "static"
+        / "dist"
     )
     handlers = ConsoleHandlers(
         **{
@@ -77,3 +78,5 @@ def test_create_routes_registers_expected_endpoints() -> None:
     )
     assert static_route.path == "/assets"
     assert static_route.name == "assets"
+    assert isinstance(static_route.app, ConsoleStaticFiles)
+    assert static_route.app.directory == static_dir / "assets"
