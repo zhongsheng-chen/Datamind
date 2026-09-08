@@ -8,7 +8,7 @@ import {
   createDetailSection,
   createDetailSummary,
   mountDetailDrawer,
-} from "./common.js?v=20260902-4";
+} from "./common.js";
 
 /**
  * 创建部署详情抽屉控制器。

@@ -1,0 +1,5 @@
+include build_commands.py package.json package-lock.json vite.config.mjs
+include datamind/console/README.md
+recursive-include datamind/console/static *.html *.css *.js
+recursive-include datamind/console/dist *.html *.css *.js *.json
+include datamind/console/dist/.vite/manifest.json

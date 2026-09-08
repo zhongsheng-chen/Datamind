@@ -63,12 +63,22 @@ full = [
 datamind = "datamind.cli.main:app"
 
 
+[tool.setuptools]
+include-package-data = false
+
+
+[tool.setuptools.cmdclass]
+build_py = "build_commands.BuildPy"
+sdist = "build_commands.Sdist"
+
+
 [tool.setuptools.packages.find]
 include = ["datamind*"]
+exclude = ["datamind.console.static*", "datamind.console.dist*"]
 
 
 [tool.setuptools.package-data]
-"datamind.console" = ["static/*.html", "static/*.css", "static/*.js"]
+"datamind.console" = ["dist/index.html", "dist/assets/*", "dist/.vite/manifest.json"]
 
 
 [tool.pytest.ini_options]

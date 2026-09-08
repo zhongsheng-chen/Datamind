@@ -11,7 +11,7 @@ import {
   createDetailSummary,
   createJsonDetailSection,
   mountDetailDrawer,
-} from "./common.js?v=20260902-3";
+} from "./common.js";
 
 /**
  * 创建实验与分组详情控制器。

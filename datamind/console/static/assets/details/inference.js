@@ -12,7 +12,7 @@ import {
   createErrorDetailSection,
   createJsonDetailSection,
   mountDetailDrawer,
-} from "./common.js?v=20260902-3";
+} from "./common.js";
 
 /**
  * 创建推理链路详情控制器。
