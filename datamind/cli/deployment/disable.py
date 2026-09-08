@@ -1,5 +1,3 @@
-# datamind/cli/deployment/disable.py
-
 """禁用部署命令
 
 提供部署禁用功能，并自动请求 Worker 停止运行实例。

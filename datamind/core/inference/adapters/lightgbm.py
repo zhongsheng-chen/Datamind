@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/lightgbm.py
-
 """LightGBM 模型适配器
 
 为采用 Sklearn API 的 LightGBM 二分类模型提供概率预测和

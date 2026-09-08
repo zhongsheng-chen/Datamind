@@ -1,5 +1,3 @@
-# datamind/logging/setup.py
-
 """日志系统初始化
 
 配置 structlog 处理器链，支持 JSON、文本输出以及同步、异步日志。

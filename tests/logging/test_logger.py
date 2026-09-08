@@ -1,5 +1,3 @@
-# tests/logging/test_logger.py
-
 """日志获取接口测试
 
 验证 get_logger 对日志名称、默认参数和上下文绑定的处理。

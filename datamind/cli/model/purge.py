@@ -1,5 +1,3 @@
-# datamind/cli/model/purge.py
-
 """永久清理模型命令
 
 仅清理已经逻辑删除的模型或模型版本。

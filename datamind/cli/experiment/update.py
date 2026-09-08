@@ -1,5 +1,3 @@
-# datamind/cli/experiment/update.py
-
 """更新实验命令
 
 提供 A/B 实验配置更新功能。

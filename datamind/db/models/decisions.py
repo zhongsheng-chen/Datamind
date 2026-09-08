@@ -1,5 +1,3 @@
-# datamind/db/models/decisions.py
-
 """请求决策表
 
 记录请求的最终路由结果和业务决策，

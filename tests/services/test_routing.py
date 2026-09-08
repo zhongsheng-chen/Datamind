@@ -1,5 +1,3 @@
-# tests/services/test_routing.py
-
 """路由生命周期与流量约束测试
 
 验证部署路由唯一性、流量分配和启用状态约束。

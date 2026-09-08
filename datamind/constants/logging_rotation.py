@@ -1,5 +1,3 @@
-# datamind/constants/logging_rotation.py
-
 """日志轮转枚举
 
 定义日志轮转的策略类型和轮转时间。

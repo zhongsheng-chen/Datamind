@@ -1,5 +1,3 @@
-# datamind/db/core/mixins.py
-
 """数据库模型混入类
 
 提供数据库模型通用的主键和时间戳字段。

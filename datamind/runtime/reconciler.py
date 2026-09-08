@@ -1,5 +1,3 @@
-# datamind/runtime/reconciler.py
-
 """运行时状态协调器
 
 负责根据运行控制状态，
@@ -38,6 +36,7 @@
 """
 
 import asyncio
+import os
 import time
 from dataclasses import dataclass
 
@@ -187,6 +186,7 @@ class RuntimeReconciler:
                     DEFAULT_HEARTBEAT_INTERVAL_SECONDS
             ),
             operator: str = DEFAULT_OPERATOR,
+            service_instance_id: str | None = None,
     ):
         """初始化运行时状态协调器
 
@@ -205,6 +205,9 @@ class RuntimeReconciler:
 
             operator:
                 默认系统操作人
+
+            service_instance_id:
+                所属服务实例 ID（可选）
 
         异常：
             ValueError: 参数配置无效
@@ -231,6 +234,14 @@ class RuntimeReconciler:
             )
 
         self.manager = manager
+        self._logger = logger.bind(
+            worker_id=manager.worker_id,
+            pid=os.getpid(),
+        )
+        if service_instance_id is not None:
+            self._logger = self._logger.bind(
+                service_instance_id=service_instance_id,
+            )
 
         self.environment = environment
 
@@ -294,7 +305,7 @@ class RuntimeReconciler:
             ),
         )
 
-        logger.info(
+        self._logger.info(
             "运行时协调器启动成功",
             worker_id=self.worker_id,
             environment=self.environment,
@@ -331,7 +342,7 @@ class RuntimeReconciler:
         finally:
             self._task = None
 
-        logger.info(
+        self._logger.info(
             "运行时协调器已停止",
             worker_id=self.worker_id,
             environment=self.environment,
@@ -386,7 +397,7 @@ class RuntimeReconciler:
                 ) as exc:
                     result.failed += 1
 
-                    logger.exception(
+                    self._logger.exception(
                         "运行时状态协调失败",
                         worker_id=self.worker_id,
                         environment=self.environment,
@@ -415,7 +426,7 @@ class RuntimeReconciler:
                     or result.reloaded
                     or result.failed
             ):
-                logger.info(
+                self._logger.info(
                     "运行时状态协调完成",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -468,7 +479,7 @@ class RuntimeReconciler:
                     RuntimeError,
                     ValueError,
             ) as exc:
-                logger.exception(
+                self._logger.exception(
                     "运行时状态协调周期执行失败",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -600,7 +611,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                logger.info(
+                self._logger.info(
                     "Worker 加载部署模型",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -620,7 +631,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                logger.debug(
+                self._logger.debug(
                     "初始化本地控制版本",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -645,7 +656,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                logger.info(
+                self._logger.info(
                     "Worker 重新加载部署模型",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -679,7 +690,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                logger.info(
+                self._logger.info(
                     "Worker 卸载部署模型",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -759,7 +770,7 @@ class RuntimeReconciler:
                 SQLAlchemyError,
                 RuntimeError,
         ) as exc:
-            logger.exception(
+            self._logger.exception(
                 "运行时心跳更新失败",
                 worker_id=self.worker_id,
                 environment=self.environment,
@@ -780,7 +791,7 @@ class RuntimeReconciler:
             )
 
         if runtime_ids:
-            logger.warning(
+            self._logger.warning(
                 "失联运行实例已标记为失败",
                 worker_id=self.worker_id,
                 environment=self.environment,
@@ -839,7 +850,7 @@ class RuntimeReconciler:
 
                 heartbeat_count += 1
 
-        logger.debug(
+        self._logger.debug(
             "运行时心跳更新完成",
             worker_id=self.worker_id,
             environment=self.environment,

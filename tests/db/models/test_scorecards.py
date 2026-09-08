@@ -1,5 +1,3 @@
-# tests/db/models/test_scorecards.py
-
 """评分卡数据库模型测试
 
 验证评分卡表结构、唯一索引和数据约束。

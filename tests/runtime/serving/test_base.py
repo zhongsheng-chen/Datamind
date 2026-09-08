@@ -1,5 +1,3 @@
-# tests/runtime/serving/test_base.py
-
 """运行时服务基类测试
 
 验证统一结果、模型能力、访问状态以及特征元数据解析行为。

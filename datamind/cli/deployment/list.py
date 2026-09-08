@@ -1,5 +1,3 @@
-# datamind/cli/deployment/list.py
-
 """列出部署命令
 
 提供部署的列表查询功能，支持过滤、分页和多种输出格式。

@@ -1,5 +1,3 @@
-# datamind/audit/event.py
-
 """审计事件定义
 
 定义审计日志的数据结构。

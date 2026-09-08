@@ -1,5 +1,3 @@
-# tests/services/test_outcome.py
-
 """实验结果回流服务测试
 
 验证结果回流的关联补齐、幂等更新和归属校验。
@@ -110,12 +108,14 @@ def configure_service(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("identifier", ["decision_id", "request_id"])
 async def test_submit_creates_outcome_from_decision(
         monkeypatch: pytest.MonkeyPatch,
+        identifier: str,
 ) -> None:
     """测试根据原始决策创建结果并补齐实验关联"""
     decision = create_decision()
-    _, outcome_repo = configure_service(
+    decision_repo, outcome_repo = configure_service(
         monkeypatch,
         decision=decision,
     )
@@ -132,12 +132,15 @@ async def test_submit_creates_outcome_from_decision(
 
     result = await OutcomeService().submit(
         outcome_id="out_test",
-        decision_id="dcs_test",
+        **{identifier: getattr(decision, identifier)},
         subject_key="customer_10001",
         converted=True,
     )
 
     assert result["created"] is True
+    if identifier == "request_id":
+        decision_repo.get_decision.assert_awaited_once_with("req_test")
+        decision_repo.get_by_decision_id.assert_not_awaited()
     outcome_repo.create_outcome.assert_called_once_with(
         outcome_id="out_test",
         subject_key="customer_10001",

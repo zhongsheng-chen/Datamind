@@ -1,3 +1,12 @@
+import { createDetailIcon, showJsonDialog } from "./details/common.js";
+
+const ROUTING_RULES_TEMPLATE = {
+  match: "all",
+  conditions: [
+    { field: "features.credit_utilization_ratio", op: "gte", value: 0.7 },
+  ],
+};
+
 /**
  * 管理控制台资源写入交互。
  *
@@ -40,6 +49,7 @@
  * @property {string} tone
  * @property {boolean} [dividerBefore]
  * @property {boolean} [disabled]
+ * @property {string} [disabledReason]
  */
 
 const createCapabilities = {
@@ -994,7 +1004,542 @@ function createDateTimeControl(field) {
   return control;
 }
 
+/**
+ * @typedef {Object} RulesMetadata
+ * @property {string} name 文件名
+ * @property {number} size 文件大小（字节）
+ * @property {string | null} [uploaded_at] 服务端记录的上传时间
+ */
+
+/**
+ * 创建 JSON 配置上传控件。
+ *
+ * @param {HTMLElement} body 表单容器
+ * @param {Object} field 字段配置
+ * @param {string} field.name 字段名称
+ * @param {string} field.label 显示名称
+ * @param {Object | null} [field.value] 当前配置
+ * @param {RulesMetadata | null} [field.file] 文件元信息
+ * @param {string} [field.mode] 表单模式
+ * @param {string} [field.help] 辅助说明
+ */
+function appendJsonConfigField(body, field) {
+  const container = document.createElement("div");
+  container.className = "management-field wide";
+  const title = document.createElement("span");
+  title.textContent = field.label;
+  const heading = document.createElement("div");
+  heading.className = "management-json-heading";
+  heading.append(title);
+  const panel = document.createElement("div");
+  panel.className = "management-json-config";
+  const status = document.createElement("span");
+  status.setAttribute("aria-live", "polite");
+  const actions = document.createElement("div");
+  actions.className = "management-json-actions";
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.hidden = true;
+  const value = document.createElement("input");
+  value.type = "hidden";
+  value.name = field.name;
+  value.disabled = true;
+  const fileValue = document.createElement("input");
+  fileValue.type = "hidden";
+  fileValue.name = `${field.name}_metadata`;
+  fileValue.disabled = true;
+  const preview = document.createElement("pre");
+  preview.className = "management-json-preview";
+  preview.hidden = true;
+  const error = document.createElement("small");
+  error.setAttribute("role", "alert");
+  let current = field.value ?? null;
+  const creating = field.mode === "create";
+  let filename = field.file?.name || "";
+  let fileSize = field.file?.size || 0;
+  let previous = null;
+  let revision = 0;
+
+  function button(label, handler) {
+    const element = document.createElement("button");
+    element.type = "button";
+    element.className = "secondary-button";
+    element.textContent = label;
+    element.addEventListener("click", handler);
+    actions.append(element);
+    return element;
+  }
+
+  if (field.name === "rules") {
+    const links = document.createElement("div");
+    links.className = "management-json-actions";
+    const example = button("查看配置示例", () => showJsonDialog("规则配置示例", ROUTING_RULES_TEMPLATE));
+    const download = button("下载模板", () => {
+      const blob = new Blob([JSON.stringify(ROUTING_RULES_TEMPLATE, null, 2) + "\n"], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "route_rules.json";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    example.prepend(createDetailIcon("rules", "management-json-action-icon"));
+    download.prepend(createDetailIcon("download", "management-json-action-icon"));
+    links.append(example, download);
+    heading.append(links);
+  }
+  const dropzone = document.createElement("button");
+  dropzone.type = "button";
+  dropzone.className = "management-json-dropzone";
+  dropzone.textContent = "点击选择或拖入 JSON 文件";
+  dropzone.addEventListener("click", () => input.click());
+  const fileLabel = document.createElement("div");
+  fileLabel.className = "management-json-file";
+  const fileText = document.createElement("span");
+  const metadata = document.createElement("small");
+  fileLabel.append(fileText, metadata);
+  const view = button("预览", () => {
+    preview.hidden = !preview.hidden;
+    view.textContent = preview.hidden ? "预览" : "收起";
+    view.setAttribute("aria-expanded", String(!preview.hidden));
+  });
+  view.title = "查看 JSON 配置";
+  const upload = button("导入 JSON", () => input.click());
+  const remove = button("清除", () => {
+    revision += 1;
+    if (creating) previous = { current, filename, fileSize, unchanged: value.disabled };
+    current = null;
+    filename = "";
+    value.disabled = false;
+    render();
+  });
+  remove.classList.add("management-json-clear");
+  const undo = button("撤销", () => {
+    revision += 1;
+    if (creating && previous) {
+      ({ current, filename, fileSize } = previous);
+      value.disabled = previous.unchanged;
+      previous = null;
+    } else {
+      current = field.value ?? null;
+      filename = field.file?.name || "";
+      fileSize = field.file?.size || 0;
+      value.disabled = true;
+    }
+    render();
+  });
+
+  function render() {
+    const configured = current !== null;
+    status.textContent = configured
+      ? (value.disabled ? "已配置" : "已替换，保存后生效")
+      : (value.disabled ? "未指定配置" : "保存后将移除配置");
+    if (creating) status.textContent = configured ? filename : "未指定规则";
+    status.hidden = configured || creating || value.disabled;
+    upload.textContent = "重新选择";
+    upload.hidden = !configured;
+    dropzone.hidden = configured;
+    fileLabel.hidden = !configured;
+    view.hidden = !configured;
+    remove.hidden = !configured;
+    undo.hidden = configured || (creating ? previous === null : value.disabled);
+    preview.hidden = true;
+    view.textContent = "预览";
+    fileText.textContent = filename || "规则 JSON";
+    metadata.textContent = filename
+      ? `${fileSize < 1024 ? `${fileSize} B` : `${(fileSize / 1024).toFixed(1)} KB`} · JSON 解析成功`
+      : "";
+    if (value.disabled && field.file?.uploaded_at) {
+      metadata.textContent += ` · 上传时间：${new Date(field.file.uploaded_at).toLocaleString("zh-CN", { hour12: false })}`;
+    }
+    fileValue.disabled = value.disabled || !filename || !configured;
+    fileValue.value = JSON.stringify({ name: filename, size: fileSize });
+    view.setAttribute("aria-expanded", "false");
+    preview.textContent = configured ? JSON.stringify(current, null, 2) : "";
+    value.value = JSON.stringify(current);
+    input.value = "";
+    error.textContent = "";
+  }
+
+  async function selectFile(file) {
+    if (!file) return;
+    const selectedRevision = ++revision;
+    if (creating && value.value !== "") {
+      previous = { current, filename, fileSize, unchanged: value.disabled };
+    }
+    value.disabled = false;
+    value.value = "";
+    status.textContent = "正在读取配置…";
+    status.hidden = false;
+    view.hidden = true;
+    fileLabel.hidden = true;
+    undo.hidden = false;
+    error.textContent = "";
+    const data = new FormData();
+    data.set("file", file);
+    let parsed;
+    try {
+      parsed = await parseJsonFile(data, "file", field.label);
+    } catch (cause) {
+      if (selectedRevision !== revision) return;
+      error.textContent = cause.message;
+    }
+    if (selectedRevision !== revision) return;
+    if (parsed == null) {
+      status.textContent = "配置文件无效，请重新选择或撤销";
+      if (!error.textContent) error.textContent = "请选择非空的 JSON 配置文件";
+      input.value = "";
+      return;
+    }
+    current = parsed;
+    filename = file.name;
+    fileSize = file.size;
+    value.disabled = false;
+    render();
+  }
+  input.addEventListener("change", () => selectFile(input.files?.[0]));
+  panel.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    panel.classList.add("dragging");
+  });
+  panel.addEventListener("dragleave", (event) => {
+    if (!panel.contains(event.relatedTarget)) panel.classList.remove("dragging");
+  });
+  panel.addEventListener("drop", (event) => {
+    event.preventDefault();
+    panel.classList.remove("dragging");
+    const files = event.dataTransfer?.files;
+    if (!files?.length) return;
+    if (files.length !== 1) {
+      error.textContent = "请一次选择一个 JSON 文件";
+      return;
+    }
+    void selectFile(files[0]);
+  });
+
+  render();
+  panel.append(dropzone, fileLabel, status, actions, preview);
+  container.append(heading, panel, input, value, fileValue, error);
+  if (field.help) {
+    const help = document.createElement("small");
+    help.textContent = field.help;
+    container.append(help);
+  }
+  body.append(container);
+}
+
+function readJsonConfig(formData, name) {
+  if (!formData.has(name)) return undefined;
+  const value = formData.get(name);
+  if (!value) throw new Error("配置文件尚未解析成功，请重新选择或撤销后再保存");
+  return JSON.parse(value);
+}
+
+function appendExperimentGroupsField(body, field) {
+  const container = document.createElement("div");
+  container.className = "management-field wide";
+  const header = document.createElement("div");
+  header.className = "management-assignment-header";
+  const title = document.createElement("span");
+  title.textContent = "实验分组";
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "management-assignment-add";
+  add.textContent = "＋ 添加分组";
+  header.append(title, add);
+  const list = document.createElement("div");
+  list.className = "management-group-list";
+  const value = document.createElement("input");
+  value.type = "hidden";
+  value.name = field.name;
+  container.append(header, list, value);
+  body.append(container);
+  const model = body.querySelector('[name="model_id"]');
+  const strategy = body.querySelector('[name="strategy"]');
+  const rows = [];
+  let sequence = 0;
+
+  function sync() {
+    const hash = strategy.value === "hash";
+    const names = new Set();
+    const deployments = new Set();
+    const total = rows.reduce(
+      (sum, row) => sum + Number(row.weight.value),
+      0,
+    );
+
+    for (const row of rows) {
+      const name = row.name.value.trim();
+      row.name.setCustomValidity(
+        !name ? "请输入分组名称" : names.has(name) ? "分组名称不能重复" : "",
+      );
+      names.add(name);
+      row.deployment.setCustomValidity(
+        deployments.has(row.deployment.value) ? "不能重复选择同一部署" : "",
+      );
+      deployments.add(row.deployment.value);
+      row.weight.disabled = !hash;
+      row.weight.closest("label").hidden = !hash;
+      row.weight.setCustomValidity(
+        hash && Math.abs(total - 100) > 0.000001
+          ? "分组权重合计必须为 100%"
+          : "",
+      );
+      row.remove.disabled = rows.length <= 1;
+    }
+    value.value = JSON.stringify(rows.map((row) => ({
+      key: row.key,
+      name: row.name.value.trim(),
+      deployment_id: row.deployment.value,
+      weight: hash ? Number(row.weight.value) / 100 : 1 / rows.length,
+      is_control: row.control.checked,
+    })));
+    body.dispatchEvent(new Event("management:groups-change"));
+  }
+
+  function updateDeployments() {
+    const available = field.deployments.filter(
+      (item) => item.model_id === model.value,
+    );
+
+    for (const row of rows) {
+      const selected = row.deployment.value;
+      row.deployment.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = available.length ? "选择部署" : "暂无可用部署";
+      row.deployment.append(placeholder);
+      for (const deployment of available) {
+        const option = document.createElement("option");
+        option.value = deployment.deployment_id;
+        const modelInfo = field.models.find(
+          (item) => item.model_id === deployment.model_id,
+        );
+        const modelName = modelInfo?.name || deployment.model_name || "未命名模型";
+        const modelLabel = modelInfo?.display_name
+          ? `${modelInfo.display_name} (${modelName})`
+          : modelName;
+        const roleLabels = {
+          champion: "Champion",
+          challenger: "Challenger",
+        };
+        const roleLabel = roleLabels[String(deployment.role).toLowerCase()]
+          || deployment.role || "未标注角色";
+        option.textContent = `${modelLabel} · ${deployment.model_version || "未标注版本"} · ${roleLabel}`;
+        row.deployment.append(option);
+      }
+      row.deployment.value = available.some(
+        (item) => item.deployment_id === selected,
+      ) ? selected : "";
+    }
+    sync();
+  }
+
+  function addRow(isControl = false) {
+    const key = `group_${++sequence}`;
+    const card = document.createElement("div");
+    card.className = "management-group-card";
+    appendStandardField(card, {
+      name: `${key}_name`,
+      label: "分组名称",
+      required: true,
+      maxLength: 128,
+      value: isControl ? "对照组" : "",
+    });
+    appendStandardField(card, {
+      name: `${key}_deployment`,
+      label: "部署",
+      type: "select",
+      required: true,
+      options: [],
+    });
+    appendStandardField(card, {
+      name: `${key}_weight`,
+      label: "权重（%）",
+      type: "number",
+      min: 0.01,
+      max: 100,
+      step: 0.01,
+      required: true,
+      value: 50,
+    });
+    const actions = document.createElement("div");
+    actions.className = "management-group-actions";
+    const controlLabel = document.createElement("label");
+    const control = document.createElement("input");
+    control.type = "radio";
+    control.name = "experiment_control_group";
+    control.value = key;
+    control.required = true;
+    control.checked = isControl;
+    controlLabel.append(control, document.createTextNode("设为对照组"));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "management-assignment-remove";
+    remove.title = "移除分组";
+    remove.setAttribute("aria-label", "移除分组");
+    remove.append(createDetailIcon("delete"));
+    actions.append(controlLabel, remove);
+    card.append(actions);
+    const row = {
+      key,
+      name: card.querySelector(`[name="${key}_name"]`),
+      deployment: card.querySelector("select"),
+      weight: card.querySelector('[type="number"]'),
+      control,
+      remove,
+    };
+    rows.push(row);
+    remove.addEventListener("click", () => {
+      rows.splice(rows.indexOf(row), 1);
+      card.remove();
+      sync();
+    });
+    card.addEventListener("input", sync);
+    card.addEventListener("change", sync);
+    list.append(card);
+    updateDeployments();
+    return row;
+  }
+
+  add.addEventListener("click", () => addRow().name.focus());
+  model.addEventListener("change", updateDeployments);
+  strategy.addEventListener("change", sync);
+  addRow(true);
+  addRow();
+}
+
+function appendManualAssignmentsField(body, field) {
+  const container = document.createElement("div");
+  container.className = "management-field wide";
+  const title = document.createElement("span");
+  title.textContent = "指定客户";
+  const header = document.createElement("div");
+  header.className = "management-assignment-header";
+  const columns = document.createElement("div");
+  columns.className = "management-assignment-columns";
+  columns.setAttribute("aria-hidden", "true");
+  for (const text of ["客户标识", "目标分组"]) {
+    const label = document.createElement("span");
+    label.textContent = text;
+    columns.append(label);
+  }
+  const list = document.createElement("div");
+  list.className = "management-assignment-list";
+  const value = document.createElement("input");
+  value.type = "hidden";
+  value.name = field.name;
+  const rows = [];
+  function availableVariants() {
+    if (!field.sourceGroups) return field.variants;
+    return JSON.parse(body.querySelector(`[name="${field.sourceGroups}"]`).value || "[]")
+      .map((group) => ({ variant_id: group.key, name: group.name || "未命名分组" }));
+  }
+  function sync() {
+    const mapping = Object.create(null);
+    for (const { subject, target } of rows) {
+      const key = subject.value.trim();
+      subject.setCustomValidity(!key ? "请输入客户标识" : Object.hasOwn(mapping, key) ? "客户标识不能重复" : "");
+      if (key) mapping[key] = target.value;
+    }
+    value.value = JSON.stringify(mapping);
+    columns.hidden = rows.length === 0;
+  }
+  function addRow(key = "", selected = "") {
+    const row = document.createElement("div");
+    row.className = "management-assignment-row";
+    const subject = document.createElement("input");
+    subject.placeholder = "请输入客户标识";
+    subject.setAttribute("aria-label", "客户标识");
+    subject.required = true;
+    subject.maxLength = 128;
+    subject.value = key;
+    const target = document.createElement("select");
+    target.setAttribute("aria-label", "目标分组");
+    target.required = true;
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "选择目标分组";
+    target.append(placeholder);
+    for (const variant of availableVariants()) {
+      const option = document.createElement("option");
+      option.value = variant.variant_id;
+      option.textContent = variant.name;
+      target.append(option);
+    }
+    target.value = selected;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "management-assignment-remove";
+    remove.title = "移除客户";
+    remove.setAttribute("aria-label", "移除客户");
+    remove.append(createDetailIcon("delete"));
+    const entry = { subject, target };
+    remove.addEventListener("click", () => {
+      rows.splice(rows.indexOf(entry), 1);
+      row.remove();
+      sync();
+    });
+    subject.addEventListener("input", sync);
+    target.addEventListener("change", sync);
+    rows.push(entry);
+    row.append(subject, target, remove);
+    list.append(row);
+    sync();
+    return subject;
+  }
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "management-assignment-add";
+  add.textContent = "＋ 添加客户";
+  add.hidden = availableVariants().length === 0;
+  add.addEventListener("click", () => addRow().focus());
+  header.append(title, add);
+  container.append(header, columns, list, value);
+  if (!availableVariants().length) {
+    const empty = document.createElement("small");
+    empty.textContent = "暂无可用分组";
+    container.append(empty);
+  }
+  body.append(container);
+  for (const [key, target] of Object.entries(field.value || {})) addRow(key, target);
+  if (field.sourceGroups) {
+    body.addEventListener("management:groups-change", () => {
+      const variants = availableVariants();
+      add.hidden = variants.length === 0;
+      for (const { target } of rows) {
+        const selected = target.value;
+        target.replaceChildren();
+        for (const variant of [{ variant_id: "", name: "选择目标分组" }, ...variants]) {
+          const option = document.createElement("option");
+          option.value = variant.variant_id;
+          option.textContent = variant.name;
+          target.append(option);
+        }
+        target.value = variants.some((item) => item.variant_id === selected) ? selected : "";
+      }
+      sync();
+    });
+  }
+  sync();
+}
+
 function appendStandardField(body, field) {
+  if (field.type === "experiment-groups") {
+    appendExperimentGroupsField(body, field);
+    return;
+  }
+  if (field.type === "manual-assignments") {
+    appendManualAssignmentsField(body, field);
+    return;
+  }
+  if (field.type === "json-config") {
+    appendJsonConfigField(body, field);
+    return;
+  }
   const label = document.createElement("label");
   label.className = field.wide ? "management-field wide" : "management-field";
   if (field.compact) label.classList.add("compact");
@@ -1054,6 +1599,7 @@ function appendStandardField(body, field) {
     label.classList.add("readonly");
   }
   if (field.placeholder) input.placeholder = field.placeholder;
+  if (field.maxLength !== undefined) input.maxLength = field.maxLength;
   if (field.pattern) input.pattern = field.pattern;
   if (field.title) input.title = field.title;
   if (field.validationPattern && field.invalidMessage) {
@@ -1279,6 +1825,7 @@ export function createResourceManager({
     dialog.className = "management-dialog";
     const form = document.createElement("form");
     form.className = "management-form";
+    form.noValidate = wizard;
 
     const header = document.createElement("header");
     const headingCopy = document.createElement("div");
@@ -1412,12 +1959,13 @@ export function createResourceManager({
       );
       if (
         !(source instanceof HTMLSelectElement)
-        || !(target instanceof HTMLInputElement)
+        || !(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)
       ) continue;
       const help = target.closest("label")?.querySelector("small");
       if (!(help instanceof HTMLElement)) continue;
       const updateHelp = () => {
         help.textContent = field.helpByValue[source.value] || "";
+        help.hidden = !help.textContent;
       };
       source.addEventListener("change", updateHelp);
       updateHelp();
@@ -1435,12 +1983,16 @@ export function createResourceManager({
         !(source instanceof HTMLSelectElement)
         || !(target instanceof HTMLInputElement)
       ) continue;
-      const container = target.closest("label");
+      const container = target.closest(".management-field");
       if (!(container instanceof HTMLElement)) continue;
       const updateVisibility = () => {
         const visible = field.visibleValues.includes(source.value);
         container.hidden = !visible;
+        container.dataset.conditionallyHidden = String(!visible);
         target.disabled = !visible;
+        if (field.type === "manual-assignments") {
+          for (const control of container.querySelectorAll("input, select, button")) control.disabled = !visible;
+        }
       };
       source.addEventListener("change", updateVisibility);
       updateVisibility();
@@ -1474,8 +2026,14 @@ export function createResourceManager({
     footer.append(submit);
 
     let activeStep = 0;
+    const visibleSteps = () => stepFields.flatMap((field, index) => {
+      const source = field.visibleByField && body.querySelector(`[name="${field.visibleByField}"]`);
+      return !source || field.visibleValues.includes(source.value) ? [index] : [];
+    });
     const updateWizard = () => {
       if (!wizard) return;
+      const steps = visibleSteps();
+      if (!steps.includes(activeStep)) activeStep = steps[steps.length - 1];
       for (const element of body.querySelectorAll("[data-form-step]")) {
         element.hidden = (
           Number(element.dataset.formStep) !== activeStep
@@ -1483,15 +2041,22 @@ export function createResourceManager({
         );
       }
       for (const [index, item] of [...stepNavigation.children].entries()) {
+        item.hidden = !steps.includes(index);
+        item.classList.toggle("last-visible", index === steps.at(-1));
         item.classList.toggle("active", index === activeStep);
         item.classList.toggle("complete", index < activeStep);
       }
-      previous.hidden = activeStep === 0;
-      next.hidden = activeStep === stepFields.length - 1;
-      submit.hidden = activeStep !== stepFields.length - 1;
+      previous.hidden = activeStep === steps[0];
+      next.hidden = activeStep === steps[steps.length - 1];
+      submit.hidden = !next.hidden;
       body.scrollTop = 0;
     };
     form.addEventListener("management:update-wizard", updateWizard);
+    body.addEventListener("change", (event) => {
+      if (fields.some((field) => field.visibleByField === event.target.name)) {
+        updateWizard();
+      }
+    });
     const validateStep = () => {
       const controls = body.querySelectorAll(
         `[data-form-step="${activeStep}"] input, [data-form-step="${activeStep}"] select, [data-form-step="${activeStep}"] textarea`,
@@ -1508,12 +2073,14 @@ export function createResourceManager({
       return true;
     };
     previous.addEventListener("click", () => {
-      activeStep = Math.max(0, activeStep - 1);
+      const steps = visibleSteps();
+      activeStep = steps[Math.max(0, steps.indexOf(activeStep) - 1)];
       updateWizard();
     });
     const advanceWizard = () => {
       if (!validateStep()) return;
-      activeStep = Math.min(stepFields.length - 1, activeStep + 1);
+      const steps = visibleSteps();
+      activeStep = steps[Math.min(steps.length - 1, steps.indexOf(activeStep) + 1)];
       updateWizard();
     };
     next.addEventListener("click", advanceWizard);
@@ -1522,11 +2089,18 @@ export function createResourceManager({
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (wizard && activeStep < stepFields.length - 1) {
+      if (wizard && activeStep !== visibleSteps().at(-1)) {
         advanceWizard();
         return;
       }
       error.hidden = true;
+      if (wizard) {
+        for (const step of visibleSteps()) {
+          activeStep = step;
+          updateWizard();
+          if (!validateStep()) return;
+        }
+      }
       submit.disabled = true;
       submit.textContent = "正在提交…";
       try {
@@ -2128,11 +2702,10 @@ export function createResourceManager({
           required: true,
         },
         {
-          name: "rules_file",
+          name: "rules",
           label: "规则配置",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
+          type: "json-config",
+          mode: "create",
           wide: true,
         },
         {
@@ -2148,7 +2721,7 @@ export function createResourceManager({
         { name: "description", label: "描述", type: "textarea", rows: 3, wide: true },
       ],
       onSubmit: async (formData) => {
-        const rules = await parseJsonFile(formData, "rules_file", "规则配置");
+        const rules = readJsonConfig(formData, "rules");
         return request("routings", {
           method: "POST",
           body: JSON.stringify({
@@ -2156,6 +2729,7 @@ export function createResourceManager({
             deployment_id: optionalValue(formData, "deployment_id"),
             traffic_ratio: Number(formData.get("traffic_ratio")) / 100,
             rules,
+            rules_metadata: readJsonConfig(formData, "rules_metadata"),
             effective_from: optionalValue(formData, "effective_from"),
             effective_to: optionalValue(formData, "effective_to"),
             description: optionalValue(formData, "description"),
@@ -2166,9 +2740,17 @@ export function createResourceManager({
   }
 
   async function openExperimentCreateDialog() {
-    const response = await request(
-      "sections/models?page=1&page_size=100&sort_by=name&sort_order=asc",
-    );
+    async function loadAll(resource) {
+      const items = [];
+      for (let page = 1; ; page += 1) {
+        const response = await request(`sections/${resource}?page=${page}&page_size=100&deleted=false`);
+        const batch = response.items || [];
+        items.push(...batch);
+        if (batch.length < 100) return items;
+      }
+    }
+    const [allModels, allDeployments] = await Promise.all([loadAll("models"), loadAll("deployments")]);
+    const response = { items: allModels };
     const models = (Array.isArray(response?.items) ? response.items : [])
       .filter((model) => model.status === "active");
 
@@ -2178,9 +2760,11 @@ export function createResourceManager({
 
     createManagementDialog({
       title: "创建实验",
-      description: "配置实验分流策略和生效时间。",
-      submitLabel: "创建实验",
+      description: "配置实验信息、分组和客户分配，保存为草稿。",
+      submitLabel: "保存",
+      wizard: true,
       fields: [
+        { type: "section", label: "基本信息" },
         { name: "name", label: "实验名称", required: true },
         {
           name: "model_id",
@@ -2194,7 +2778,10 @@ export function createResourceManager({
               : model.name,
           })),
         },
-        { name: "strategy", label: "分配策略", type: "select", options: [["hash", "稳定哈希"], ["manual", "手动分配"]] },
+        {
+          name: "strategy", label: "分配策略", type: "select",
+          options: [["hash", "稳定哈希"], ["manual", "手动分配"]],
+        },
         {
           name: "traffic_ratio",
           label: "流量比例",
@@ -2206,10 +2793,12 @@ export function createResourceManager({
           suffix: "%",
           stepper: true,
           required: true,
+          visibleByField: "strategy",
+          visibleValues: ["hash"],
         },
         {
           name: "bucket_key",
-          label: "分桶字段",
+          label: "主体标识字段",
           required: true,
           placeholder: "例如 customer_id",
           wide: true,
@@ -2217,6 +2806,18 @@ export function createResourceManager({
         { name: "effective_from", label: "生效开始时间", type: "datetime-local" },
         { name: "effective_to", label: "生效结束时间", type: "datetime-local" },
         { name: "description", label: "描述", type: "textarea", rows: 3, wide: true },
+        { type: "section", label: "配置分组" },
+        {
+          name: "groups", type: "experiment-groups",
+          models,
+          deployments: allDeployments.filter((item) => item.status === "active"
+            && item.role !== "shadow" && item.rollout_type !== "shadow"),
+        },
+        { type: "section", label: "指定客户", visibleByField: "strategy", visibleValues: ["manual"] },
+        {
+          name: "manual_assignments", type: "manual-assignments", sourceGroups: "groups",
+          visibleByField: "strategy", visibleValues: ["manual"],
+        },
       ],
       onSubmit: async (formData) => request("experiments", {
         method: "POST",
@@ -2224,8 +2825,11 @@ export function createResourceManager({
           name: optionalValue(formData, "name"),
           model_id: optionalValue(formData, "model_id"),
           strategy: optionalValue(formData, "strategy"),
-          traffic_ratio: Number(formData.get("traffic_ratio")) / 100,
+          traffic_ratio: formData.has("traffic_ratio")
+            ? Number(formData.get("traffic_ratio")) / 100 : undefined,
           bucket_key: optionalValue(formData, "bucket_key"),
+          groups: readJsonConfig(formData, "groups"),
+          manual_assignments: readJsonConfig(formData, "manual_assignments"),
           effective_from: optionalValue(formData, "effective_from"),
           effective_to: optionalValue(formData, "effective_to"),
           description: optionalValue(formData, "description"),
@@ -2354,23 +2958,10 @@ export function createResourceManager({
         { name: "weight", label: "权重", type: "number", min: 0.01, max: 1, step: 0.01, value: 0.5, required: true },
         { name: "is_control", label: "设为对照组", type: "checkbox" },
         { name: "description", label: "描述", type: "textarea", rows: 3, wide: true },
-        {
-          name: "variant_config_file",
-          label: "分组配置",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
-          wide: true,
-        },
       ],
       onSubmit: async (formData) => {
         const experimentId = selectedExperimentId
           || optionalValue(formData, "experiment_id");
-        const config = await parseJsonFile(
-          formData,
-          "variant_config_file",
-          "分组配置",
-        );
         return request(`experiments/${encodeURIComponent(experimentId)}/variants`, {
           method: "POST",
           body: JSON.stringify({
@@ -2379,7 +2970,6 @@ export function createResourceManager({
             weight: Number(formData.get("weight")),
             is_control: formData.get("is_control") === "on",
             description: optionalValue(formData, "description"),
-            config,
           }),
         });
       },
@@ -2719,6 +3309,7 @@ export function createResourceManager({
       button.textContent = actionConfig.label;
       button.setAttribute("role", "menuitem");
       button.disabled = Boolean(actionConfig.disabled);
+      if (actionConfig.disabledReason) button.title = actionConfig.disabledReason;
       if (!actionConfig.disabled) {
         button.addEventListener("click", () => {
           closeMenu();
@@ -2809,7 +3400,7 @@ export function createResourceManager({
       openRoutingEditDialog(record);
     }
     else if (actionConfig.action === "edit" && actionConfig.resource === "experiments") {
-      openExperimentEditDialog(record);
+      void openExperimentEditDialog(record).catch((error) => toast(error.message, "error"));
     }
     else if (actionConfig.action === "edit" && actionConfig.resource === "variants") {
       openVariantEditDialog(record);
@@ -3003,11 +3594,11 @@ export function createResourceManager({
           required: true,
         },
         {
-          name: "rules_file",
+          name: "rules",
           label: "规则配置",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
+          type: "json-config",
+          value: record.rules,
+          file: record.rules_metadata,
           wide: true,
         },
         {
@@ -3025,7 +3616,7 @@ export function createResourceManager({
         { name: "description", label: "描述", type: "textarea", rows: 3, value: record.description || "", wide: true },
       ],
       onSubmit: async (formData) => {
-        const rules = await parseJsonFile(formData, "rules_file", "规则配置");
+        const rules = readJsonConfig(formData, "rules");
         return request(
           `routings/${encodeURIComponent(record.routing_id)}`,
           {
@@ -3034,6 +3625,7 @@ export function createResourceManager({
               name: optionalValue(formData, "name"),
               traffic_ratio: Number(formData.get("traffic_ratio")) / 100,
               rules,
+              rules_metadata: readJsonConfig(formData, "rules_metadata"),
               effective_from: optionalValue(formData, "effective_from"),
               effective_to: optionalValue(formData, "effective_to"),
               description: optionalValue(formData, "description"),
@@ -3044,8 +3636,15 @@ export function createResourceManager({
     });
   }
 
-  function openExperimentEditDialog(record) {
+  async function openExperimentEditDialog(record) {
     const config = record.config || {};
+    const variants = [];
+    for (let page = 1; ; page += 1) {
+      const response = await request(`experiments/${encodeURIComponent(record.experiment_id)}/variants?page=${page}&page_size=100&deleted=false`);
+      const items = response.items || [];
+      variants.push(...items.filter((item) => item.status === "active"));
+      if (items.length < 100) break;
+    }
     createManagementDialog({
       title: "编辑实验",
       description: "修改草稿实验的基本信息和分流配置。",
@@ -3064,15 +3663,18 @@ export function createResourceManager({
           suffix: "%",
           stepper: true,
           required: true,
+          visibleByField: "strategy",
+          visibleValues: ["hash"],
         },
         {
           name: "bucket_key",
-          label: "分桶字段",
+          label: "主体标识字段",
           value: config.bucket_key || "",
           required: true,
           placeholder: "例如 customer_id",
           wide: true,
         },
+        { name: "manual_assignments", type: "manual-assignments", variants, value: config.manual_assignments || {}, visibleByField: "strategy", visibleValues: ["manual"] },
         { name: "effective_from", label: "生效开始时间", type: "datetime-local", value: datetimeLocalValue(record.effective_from) },
         { name: "effective_to", label: "生效结束时间", type: "datetime-local", value: datetimeLocalValue(record.effective_to) },
         { name: "description", label: "描述", type: "textarea", rows: 3, value: record.description || "", wide: true },
@@ -3084,7 +3686,9 @@ export function createResourceManager({
           body: JSON.stringify({
             name: optionalValue(formData, "name"),
             strategy: optionalValue(formData, "strategy"),
-            traffic_ratio: Number(formData.get("traffic_ratio")) / 100,
+            manual_assignments: readJsonConfig(formData, "manual_assignments"),
+            traffic_ratio: formData.has("traffic_ratio")
+              ? Number(formData.get("traffic_ratio")) / 100 : undefined,
             bucket_key: optionalValue(formData, "bucket_key"),
             effective_from: optionalValue(formData, "effective_from"),
             effective_to: optionalValue(formData, "effective_to"),
@@ -3106,20 +3710,16 @@ export function createResourceManager({
         { name: "is_control", label: "设为对照组", type: "checkbox", value: record.is_control },
         { name: "description", label: "描述", type: "textarea", rows: 3, value: record.description || "", wide: true },
         {
-          name: "variant_config_file",
+          name: "config",
           label: "分组配置",
-          type: "file",
-          accept: ".json,application/json",
-          help: "可选，仅支持 JSON 文件。",
+          type: "json-config",
+          value: record.config,
+          help: "配置变更将在保存修改后生效。",
           wide: true,
         },
       ],
       onSubmit: async (formData) => {
-        const config = await parseJsonFile(
-          formData,
-          "variant_config_file",
-          "分组配置",
-        );
+        const config = readJsonConfig(formData, "config");
         return request(
           `variants/${encodeURIComponent(record.variant_id)}`,
           {

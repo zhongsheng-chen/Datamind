@@ -1,5 +1,3 @@
-# datamind/runtime/registry.py
-
 """运行时模型注册表
 
 负责维护当前进程中已加载的运行时模型。

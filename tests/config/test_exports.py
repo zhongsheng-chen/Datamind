@@ -1,5 +1,3 @@
-# tests/config/test_exports.py
-
 """配置包公共导出测试
 
 验证配置包公开 API 的完整性和可访问性。

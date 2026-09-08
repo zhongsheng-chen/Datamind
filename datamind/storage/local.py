@@ -1,5 +1,3 @@
-# datamind/storage/local.py
-
 """本地文件系统存储后端
 
 将数据存储在本地文件系统中，使用文件路径作为 key。

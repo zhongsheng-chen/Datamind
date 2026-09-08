@@ -1,5 +1,3 @@
-# datamind/models/artifact/handlers/__init__.py
-
 """模型加载器实现
 
 注册各框架的模型加载函数。

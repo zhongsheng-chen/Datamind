@@ -1,5 +1,3 @@
-# datamind/services/lifecycle.py
-
 """模型生命周期管理服务
 
 负责模型和版本的状态管理。
@@ -43,6 +41,7 @@ from datamind.models.errors import (
 )
 from datamind.models.guard import ModelGuard
 from datamind.models.resolver import ModelResolver
+from datamind.services.mutation import MutationResult
 
 logger = structlog.get_logger(__name__)
 
@@ -104,7 +103,7 @@ class ModelLifecycleService:
             version: str | None = None,
             version_id: str | None = None,
             updated_by: str = "system",
-    ) -> dict[str, Any]:
+    ) -> MutationResult:
         """激活模型或指定模型版本
 
         如果指定 version 或 version_id，则激活指定版本和模型。
@@ -119,7 +118,7 @@ class ModelLifecycleService:
             updated_by: 操作人
 
         返回：
-            激活结果
+            激活结果及状态变更前后的审计快照
 
         异常：
             ValueError: 模型或版本不存在
@@ -194,11 +193,22 @@ class ModelLifecycleService:
                     target=VersionStatus.ACTIVE,
                 )
 
-            activated_version_count = sum(
-                VersionStatus(version_record.status)
-                != VersionStatus.ACTIVE
+            changed_versions = [
+                version_record
                 for version_record in versions_to_activate
-            )
+                if VersionStatus(version_record.status) != VersionStatus.ACTIVE
+            ]
+            activated_version_count = len(changed_versions)
+            before = {
+                "model_status": model.status,
+                "versions": [
+                    {
+                        "version_id": version_record.version_id,
+                        "status": version_record.status,
+                    }
+                    for version_record in changed_versions
+                ],
+            }
 
             for version_record in versions_to_activate:
                 version_record.status = VersionStatus.ACTIVE
@@ -238,7 +248,22 @@ class ModelLifecycleService:
                 ),
             }
 
-        return result
+            mutation = MutationResult.changed(
+                result,
+                before=before,
+                after={
+                    "model_status": model.status,
+                    "versions": [
+                        {
+                            "version_id": version_record.version_id,
+                            "status": version_record.status,
+                        }
+                        for version_record in changed_versions
+                    ],
+                },
+            )
+
+        return mutation
 
     async def deactivate(
             self,

@@ -1,5 +1,3 @@
-# tests/models/test_exports.py
-
 """模型包公共导出测试
 
 验证模型包公开 API 的完整性和可访问性。

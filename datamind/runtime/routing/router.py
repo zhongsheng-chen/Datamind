@@ -1,5 +1,3 @@
-# datamind/runtime/routing/router.py
-
 """运行时路由器
 
 根据请求上下文选择最终命中的部署 ID。
@@ -605,7 +603,7 @@ class RuntimeRouter:
                         "rollout_group": deployment.role,
                         "traffic_ratio": routing.traffic_ratio,
                         "rules": routing.rules,
-                        "ratio": ratio,
+                        "bucket_value": ratio,
                         "bucket": bucket,
                     },
                 )
@@ -795,7 +793,7 @@ class RuntimeRouter:
                                 routing.traffic_ratio
                             ),
                             "rules": routing.rules,
-                            "ratio": ratio,
+                            "bucket_value": ratio,
                             "bucket": bucket,
                         },
                     )

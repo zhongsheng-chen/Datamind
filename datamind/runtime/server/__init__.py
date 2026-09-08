@@ -1,11 +1,11 @@
-# datamind/runtime/server/__init__.py
-
 """运行时服务接口组件
 
 提供 BentoML 推理服务、请求结构和服务接口异常。
 
 核心功能：
   - DatamindRuntimeService: 多 Worker 模型推理服务
+  - ControlRequest: 运行控制请求
+  - DeploymentRequest: 部署查询请求
   - PredictRequest: 单条预测请求
   - BatchPredictRequest: 批量预测请求
   - OutcomeFeedbackRequest: 业务结果回流请求
@@ -36,23 +36,23 @@ from typing import Any, Final
 
 _EXPORTS: Final[dict[str, tuple[str, str]]] = {
     "BatchPredictRequest": (
-        "datamind.runtime.server.service",
+        "datamind.runtime.server.schemas",
         "BatchPredictRequest",
     ),
-    "ControlRequest": ("datamind.runtime.server.service", "ControlRequest"),
+    "ControlRequest": ("datamind.runtime.server.schemas", "ControlRequest"),
     "DatamindRuntimeService": (
         "datamind.runtime.server.service",
         "DatamindRuntimeService",
     ),
     "DeploymentRequest": (
-        "datamind.runtime.server.service",
+        "datamind.runtime.server.schemas",
         "DeploymentRequest",
     ),
     "OutcomeFeedbackRequest": (
-        "datamind.runtime.server.service",
+        "datamind.runtime.server.schemas",
         "OutcomeFeedbackRequest",
     ),
-    "PredictRequest": ("datamind.runtime.server.service", "PredictRequest"),
+    "PredictRequest": ("datamind.runtime.server.schemas", "PredictRequest"),
     "ServiceDeploymentNotFoundError": (
         "datamind.runtime.server.errors",
         "ServiceDeploymentNotFoundError",

@@ -1,5 +1,3 @@
-# tests/config/test_console.py
-
 """管理控制台配置测试
 
 验证默认网络参数、环境变量读取、外部配置隔离、参数校验、
@@ -12,6 +10,7 @@
   - test_console_config_accepts_custom_values: 验证自定义网络参数
   - test_console_config_rejects_blank_host: 验证监听地址
   - test_console_config_rejects_invalid_port: 验证监听端口
+  - test_console_config_rejects_invalid_startup_timeout: 验证启动超时范围
   - test_console_config_ignores_extra_fields: 验证忽略额外字段
   - test_console_config_is_frozen: 验证配置不可变
 """
@@ -75,6 +74,7 @@ def test_console_config_default_values() -> None:
 
     assert config.host == "127.0.0.1"
     assert config.port == 8701
+    assert config.startup_timeout == 120
 
 
 def test_console_config_ignores_external_sources(
@@ -109,10 +109,12 @@ def test_console_config_reads_environment_variables(
         "8801",
     )
 
+    monkeypatch.setenv("DATAMIND_CONSOLE_STARTUP_TIMEOUT", "240")
     config = ConsoleConfig()
 
     assert config.host == "0.0.0.0"
     assert config.port == 8801
+    assert config.startup_timeout == 240
 
 
 def test_console_config_accepts_custom_values() -> None:
@@ -164,6 +166,13 @@ def test_console_config_rejects_invalid_port(
         IsolatedConsoleConfig(
             port=port
         )
+
+
+@pytest.mark.parametrize("startup_timeout", [0, -1, 601])
+def test_console_config_rejects_invalid_startup_timeout(startup_timeout: int) -> None:
+    """启动超时与命令行采用相同的有效范围"""
+    with pytest.raises(ValidationError, match="startup_timeout 必须在 1 到 600 之间"):
+        IsolatedConsoleConfig(startup_timeout=startup_timeout)
 
 
 def test_console_config_ignores_extra_fields() -> None:

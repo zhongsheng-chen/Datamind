@@ -1,5 +1,3 @@
-# tests/db/test_events.py
-
 """数据库变更事件测试
 
 验证业务模型变更事件的注册、事件记录和 PostgreSQL 通知。

@@ -1,5 +1,3 @@
-# datamind/services/routing.py
-
 """路由生命周期服务
 
 负责路由规则的创建、状态管理、逻辑删除与恢复。
@@ -12,7 +10,7 @@
   - restore_routing: 恢复路由规则
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -40,11 +38,11 @@ logger = structlog.get_logger(__name__)
 _ALLOCATION_EPSILON = 1e-8
 
 
-class _MissingEffectiveTime:
-    """标记更新请求未提供生效时间字段。"""
+class _Unset:
+    """标记更新请求未提供的字段。"""
 
 
-_MISSING_EFFECTIVE_TIME = _MissingEffectiveTime()
+_UNSET = _Unset()
 
 
 def _parse_effective_window(
@@ -171,6 +169,7 @@ class RoutingLifecycleService:
             traffic_ratio: float = 1.0,
             enabled: bool = False,
             rules: dict[str, Any] | None = None,
+            rules_metadata: dict[str, Any] | None = None,
             effective_from: str | None = None,
             effective_to: str | None = None,
             description: str | None = None,
@@ -254,6 +253,7 @@ class RoutingLifecycleService:
                 created_by=created_by,
             )
 
+            routing.rules_metadata = self._make_rules_metadata(rules, rules_metadata)
             result = self._routing_result(routing)
             return MutationResult(
                 result,
@@ -279,25 +279,27 @@ class RoutingLifecycleService:
             routing_id: str,
             name: str | None = None,
             traffic_ratio: float | None = None,
-            rules: dict[str, Any] | None = None,
-            effective_from: str | None | _MissingEffectiveTime = (
-                _MISSING_EFFECTIVE_TIME
-            ),
-            effective_to: str | None | _MissingEffectiveTime = (
-                _MISSING_EFFECTIVE_TIME
-            ),
+            rules: dict[str, Any] | None | _Unset = _UNSET,
+            rules_metadata: dict[str, Any] | None = None,
+            effective_from: str | None | _Unset = _UNSET,
+            effective_to: str | None | _Unset = _UNSET,
             description: str | None = None,
             updated_by: str | None = None,
-    ) -> dict[str, Any]:
-        """更新路由基本信息、流量、匹配规则和说明"""
+    ) -> MutationResult:
+        """更新路由基本信息、流量、匹配规则和说明
+
+        未提供的规则和生效时间保持不变，显式传入 None 则清空。
+        """
         resolved_name = None
+        if rules_metadata is not None and isinstance(rules, _Unset):
+            raise ValueError("上传规则文件时必须同时提供规则内容")
         if name is not None:
             resolved_name = name.strip()
             if not resolved_name:
                 raise ValueError("路由名称不能为空")
             if len(resolved_name) > 128:
                 raise ValueError("路由名称不能超过 128 个字符")
-        if rules is not None:
+        if not isinstance(rules, _Unset) and rules is not None:
             RuleMatcher().validate(rules)
 
         async with UnitOfWork() as uow:
@@ -318,12 +320,12 @@ class RoutingLifecycleService:
 
             start = getattr(routing, "effective_from", None)
             end = getattr(routing, "effective_to", None)
-            if not isinstance(effective_from, _MissingEffectiveTime):
+            if not isinstance(effective_from, _Unset):
                 start = parse_datetime(
                     effective_from,
                     timezone_name=get_settings().logging.timezone,
                 )
-            if not isinstance(effective_to, _MissingEffectiveTime):
+            if not isinstance(effective_to, _Unset):
                 end = parse_datetime(
                     effective_to,
                     timezone_name=get_settings().logging.timezone,
@@ -350,14 +352,16 @@ class RoutingLifecycleService:
                 RoutingPatch(
                     name=resolved_name,
                     traffic_ratio=traffic_ratio,
-                    rules=rules,
                     description=description,
                 ),
                 updated_by=updated_by,
             )
-            if not isinstance(effective_from, _MissingEffectiveTime):
+            if not isinstance(rules, _Unset):
+                routing.rules = rules
+                routing.rules_metadata = self._make_rules_metadata(rules, rules_metadata)
+            if not isinstance(effective_from, _Unset):
                 routing.effective_from = start
-            if not isinstance(effective_to, _MissingEffectiveTime):
+            if not isinstance(effective_to, _Unset):
                 routing.effective_to = end
             result = self._routing_result(routing)
             return MutationResult.changed(
@@ -440,6 +444,20 @@ class RoutingLifecycleService:
             )
 
     @staticmethod
+    def _make_rules_metadata(
+            rules: dict[str, Any] | None,
+            file: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        """记录本次保存的文件信息，不推断既有规则的上传时间。"""
+        if rules is None or file is None:
+            return None
+        return {
+            "name": file["name"],
+            "size": file["size"],
+            "uploaded_at": format_iso_utc(datetime.now(timezone.utc)),
+        }
+
+    @staticmethod
     def _routing_result(
             routing: Any,
     ) -> dict[str, Any]:
@@ -454,6 +472,7 @@ class RoutingLifecycleService:
             "traffic_ratio": routing.traffic_ratio,
             "enabled": routing.enabled,
             "rules": routing.rules,
+            "rules_metadata": getattr(routing, "rules_metadata", None),
             "effective_from": format_iso_utc(
                 getattr(routing, "effective_from", None)
             ),

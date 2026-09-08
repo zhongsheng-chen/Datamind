@@ -1,5 +1,3 @@
-# datamind/models/schema.py
-
 """Schema 提取器
 
 从模型对象中提取输入 Schema。

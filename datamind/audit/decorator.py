@@ -1,5 +1,3 @@
-# datamind/audit/decorator.py
-
 """审计装饰器
 
 提供简单的函数级审计能力，自动记录操作成功和失败事件。

@@ -1,5 +1,3 @@
-# tests/constants/test_data_type.py
-
 """数据类型枚举测试
 
 验证 DataType 的成员、字符串行为和支持集合。

@@ -1,5 +1,3 @@
-# datamind/config/storage.py
-
 """存储配置
 
 定义模型文件的存储后端和连接参数，支持本地存储和 MinIO 对象存储。

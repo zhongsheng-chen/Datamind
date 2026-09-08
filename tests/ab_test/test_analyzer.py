@@ -1,5 +1,3 @@
-# tests/ab_test/test_analyzer.py
-
 """A/B 实验分析测试
 
 验证实验与分组分析、基准组解析、指标聚合和告警生成。

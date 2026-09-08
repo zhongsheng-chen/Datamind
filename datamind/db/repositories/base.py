@@ -1,5 +1,3 @@
-# datamind/db/repositories/base.py
-
 """数据库仓储基类
 
 提供统一的数据仓储能力，由 UnitOfWork 统一管理事务。

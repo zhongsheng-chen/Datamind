@@ -1,5 +1,3 @@
-# tests/storage/test_resolver.py
-
 """存储路径解析器测试
 
 验证本地路径、MinIO URI、存储键校验和存储类型分派。

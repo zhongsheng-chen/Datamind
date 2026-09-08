@@ -1,14 +1,17 @@
-# datamind/console/middleware.py
-
 """管理控制台 HTTP 中间件
 
-负责为浏览器响应附加安全策略和防护响应头。
+负责绑定请求日志上下文，并为浏览器响应附加安全策略和防护响应头。
 
 核心功能：
+  - RequestContextMiddleware: 管理 HTTP 请求日志上下文
+  - SecurityHeadersMiddleware: 为控制台响应增加浏览器安全头
   - security_headers: 创建安全响应头中间件
 """
 
+from collections.abc import Callable
+
 from starlette.datastructures import MutableHeaders
+from starlette.requests import Request
 from starlette.types import (
     ASGIApp,
     Message,
@@ -16,6 +19,36 @@ from starlette.types import (
     Scope,
     Send,
 )
+
+from datamind.context.scope import context_scope
+
+
+class RequestContextMiddleware:
+    """在 HTTP 请求生命周期内绑定日志上下文"""
+
+    def __init__(
+            self,
+            app: ASGIApp,
+            context_factory: Callable[[Request], dict[str, object]],
+    ) -> None:
+        self.app = app
+        self.context_factory = context_factory
+
+    async def __call__(
+            self,
+            scope: Scope,
+            receive: Receive,
+            send: Send,
+    ) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope)
+        context = self.context_factory(request)
+
+        with context_scope(**context):
+            await self.app(scope, receive, send)
 
 
 class SecurityHeadersMiddleware:

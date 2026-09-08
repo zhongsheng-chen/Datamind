@@ -1,5 +1,3 @@
-# datamind/storage/minio.py
-
 """MinIO 对象存储后端
 
 将数据存储在 MinIO 或 S3 兼容的对象存储中。

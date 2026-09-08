@@ -1,8 +1,6 @@
-# examples/scorecard/train.py
-
 """信用评分卡模型训练示例
 
-使用带缺失值和类别变量的可复现合成信贷数据，训练信用评分卡。
+使用包含类别变量、缺失值和特殊值的可复现合成信贷数据，训练信用评分卡。
 
 使用示例：
   python examples/scorecard/train.py
@@ -27,6 +25,8 @@ from sklearn.model_selection import train_test_split
 
 SAMPLE_SIZE = 5000
 RANDOM_SEED = 42
+NO_CREDIT_CARD = -999.0
+ZERO_CREDIT_LIMIT = -888.0
 DEFAULT_OUTPUT_PATH = (
     Path(__file__).resolve().parent
     / "artifacts"
@@ -74,6 +74,13 @@ MANUAL_CATEGORICAL_SPLITS = {
         ["owner", "mortgage"],
         ["rent", "family"],
     ],
+}
+
+SPECIAL_CODES = {
+    "credit_utilization_ratio": {
+        "No credit card": [NO_CREDIT_CARD],
+        "Zero credit limit": [ZERO_CREDIT_LIMIT],
+    },
 }
 
 SCORING_CONFIG = {
@@ -152,7 +159,7 @@ def build_training_data(
         sample_size: int = SAMPLE_SIZE,
         random_seed: int = RANDOM_SEED,
 ) -> tuple[pd.DataFrame, NDArray[np.int64]]:
-    """构造包含类别变量和缺失值的合成信贷数据"""
+    """构造包含类别变量、缺失值和特殊值的合成信贷数据"""
     if sample_size < 500:
         raise ValueError(
             "sample_size 不能小于 500"
@@ -210,6 +217,16 @@ def build_training_data(
         0,
         1,
     )
+
+    no_credit_card = random.random(sample_size) < 0.12
+    zero_credit_limit = (
+        ~no_credit_card
+        & (random.random(sample_size) < 0.05)
+    )
+    credit_utilization_ratio[no_credit_card | zero_credit_limit] = 0.0
+    observed_utilization = credit_utilization_ratio.copy()
+    observed_utilization[no_credit_card] = NO_CREDIT_CARD
+    observed_utilization[zero_credit_limit] = ZERO_CREDIT_LIMIT
 
     delinquency_count = np.clip(
         random.poisson(
@@ -289,7 +306,7 @@ def build_training_data(
         "age": age,
         "annual_income": observed_income,
         "debt_to_income_ratio": debt_to_income_ratio,
-        "credit_utilization_ratio": credit_utilization_ratio,
+        "credit_utilization_ratio": observed_utilization,
         "delinquency_count": delinquency_count,
         "credit_history_years": observed_history,
         "employment_type": observed_employment,
@@ -328,6 +345,8 @@ def build_training_data(
         - 0.000004 * (annual_income - 100_000)
         + 3.1 * debt_to_income_ratio
         + 2.3 * credit_utilization_ratio
+        + 0.15 * no_credit_card
+        + 0.45 * zero_credit_limit
         + 0.62 * delinquency_count
         - 0.055 * (credit_history_years - 5)
         + employment_risk
@@ -414,17 +433,18 @@ def train_model(
             "max_pvalue": None,
             "user_splits": splits,
             "user_splits_fixed": [True] * len(splits),
+            "special_codes": SPECIAL_CODES.get(name),
         }
         for name, splits in MANUAL_NUMERICAL_SPLITS.items()
     }
 
     categorical_binning_params = {
         name: {
-            "cat_unknown": 0.0,
             "monotonic_trend": None,
             "max_pvalue": None,
             "user_splits": splits,
             "user_splits_fixed": [True] * len(splits),
+            "special_codes": SPECIAL_CODES.get(name),
         }
         for name, splits in MANUAL_CATEGORICAL_SPLITS.items()
     }
@@ -476,10 +496,10 @@ def train_model(
         scaling_method_params={
             "pdo": SCORING_CONFIG["pdo"],
             "odds": SCORING_CONFIG["base_odds"],
-            "scorecard_points": SCORING_CONFIG[
-                "base_score"
-            ],
+            "scorecard_points": SCORING_CONFIG["base_score"],
         },
+        intercept_based=False,
+        reverse_scorecard=False,
     )
     model.fit(
         features,
@@ -577,7 +597,7 @@ def parse_arguments() -> argparse.Namespace:
         "--sample-size",
         type=int,
         default=SAMPLE_SIZE,
-        help="合成数据总样本数（划分前）",
+        help="合成数据总样本数",
     )
     parser.add_argument(
         "--random-seed",

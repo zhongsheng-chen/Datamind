@@ -1,5 +1,3 @@
-# tests/cli/test_output.py
-
 """CLI 终端输出测试
 
 验证常规信息与错误信息的输出边界。

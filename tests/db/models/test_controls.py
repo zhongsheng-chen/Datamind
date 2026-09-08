@@ -1,5 +1,3 @@
-# tests/db/models/test_controls.py
-
 """运行控制表测试
 
 验证运行控制表的字段、索引、检查约束和字段注释。

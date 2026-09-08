@@ -1,5 +1,3 @@
-# tests/storage/test_strategy.py
-
 """存储键策略测试
 
 验证模型目录、模型 ID、版本号、文件名和存储键规则。

@@ -1,5 +1,3 @@
-# datamind/context/core.py
-
 """上下文核心
 
 基于 structlog.contextvars 实现请求级上下文传递，

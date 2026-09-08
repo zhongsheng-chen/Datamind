@@ -1,5 +1,3 @@
-# datamind/db/repositories/outcome.py
-
 """实验结果仓储
 
 用于查询与写入实验结果回流数据，

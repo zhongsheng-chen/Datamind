@@ -1,5 +1,3 @@
-# tests/db/models/test_experiments.py
-
 """实验表测试
 
 验证实验表的字段、索引、检查约束和字段注释。

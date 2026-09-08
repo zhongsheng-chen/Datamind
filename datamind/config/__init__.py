@@ -1,5 +1,3 @@
-# datamind/config/__init__.py
-
 """配置模块
 
 提供统一的配置访问接口。

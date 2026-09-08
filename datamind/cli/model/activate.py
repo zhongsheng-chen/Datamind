@@ -1,5 +1,3 @@
-# datamind/cli/model/activate.py
-
 """激活模型命令
 
 负责模型及模型版本的激活。

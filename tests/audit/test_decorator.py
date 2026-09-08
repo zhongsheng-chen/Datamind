@@ -1,5 +1,3 @@
-# tests/audit/test_decorator.py
-
 """审计装饰器测试
 
 验证装饰器参数校验、目标 ID 解析、成功和失败审计以及故障隔离。

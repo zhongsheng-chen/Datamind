@@ -1,5 +1,3 @@
-# datamind/cli/credentials.py
-
 """CLI 凭据存储
 
 提供用户登录凭据的读写能力。

@@ -1,5 +1,3 @@
-# datamind/services/initialization.py
-
 """系统初始化服务
 
 在单个事务中创建部署时指定的首个管理员、内置系统管理员角色、
@@ -25,6 +23,8 @@ from datetime import (
     timezone,
 )
 
+import structlog
+
 from datamind.audit.enums import (
     AuditSource,
     AuditStatus,
@@ -37,6 +37,7 @@ from datamind.constants.identity import (
     SYSTEM_BOOTSTRAP_ACTOR,
 )
 from datamind.context import generate_trace_id
+from datamind.context.core import get_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     AuditRepository,
@@ -54,6 +55,7 @@ from datamind.utils import generate_random_id
 
 SYSTEM_ID = "datamind"
 SYSTEM_ACTOR = SYSTEM_BOOTSTRAP_ACTOR
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(
@@ -129,10 +131,11 @@ class InitializationService:
         initialized_at = self._normalize_time(
             current_time
         )
-        request_id = generate_random_id(
+        context = get_context()
+        request_id = context.get("request_id") or generate_random_id(
             prefix="req"
         )
-        trace_id = generate_trace_id()
+        trace_id = context.get("trace_id") or generate_trace_id()
 
         async with UnitOfWork() as uow:
             state_repo = SystemStateRepository(
@@ -244,6 +247,20 @@ class InitializationService:
                 },
                 occurred_at=initialized_at,
             )
+
+        logger.info(
+            "Datamind 初始化完成",
+            action="system.initialize",
+            target_type="system",
+            target_id=SYSTEM_ID,
+            source=AuditSource.CLI,
+            user=SYSTEM_ACTOR,
+            request_id=request_id,
+            trace_id=trace_id,
+            ip=ip,
+            hostname=hostname,
+            status="success",
+        )
 
         return InitializationResult(
             system_id=SYSTEM_ID,

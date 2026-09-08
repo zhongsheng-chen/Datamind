@@ -1,5 +1,3 @@
-# tests/config/test_auth.py
-
 """认证配置测试
 
 验证 LOCAL 认证、JWT 和应急账户配置的默认值、环境变量和校验规则。

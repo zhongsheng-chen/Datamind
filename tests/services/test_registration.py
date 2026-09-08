@@ -1,5 +1,3 @@
-# tests/services/test_registration.py
-
 """模型注册服务测试
 
 验证首次注册、幂等注册、受控制修订和回滚补偿。

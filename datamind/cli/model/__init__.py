@@ -1,5 +1,3 @@
-# datamind/cli/model/__init__.py
-
 """模型管理命令
 
 提供模型及模型版本的管理功能。

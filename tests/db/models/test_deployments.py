@@ -1,5 +1,3 @@
-# tests/db/models/test_deployments.py
-
 """模型部署表测试
 
 验证模型部署表的字段、索引、检查约束和字段注释。

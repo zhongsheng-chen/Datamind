@@ -1,5 +1,3 @@
-# tests/storage/test_minio.py
-
 """MinIO 对象存储后端测试
 
 验证客户端初始化、基础前缀、对象操作、键校验和异常映射。

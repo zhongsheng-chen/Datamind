@@ -1,5 +1,3 @@
-# tests/core/test_exports.py
-
 """核心包公共导出测试
 
 验证核心包公开 API 的完整性和可访问性。

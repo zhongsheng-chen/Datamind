@@ -1,5 +1,3 @@
-# tests/constants/test_version.py
-
 """模型版本常量测试
 
 验证模型版本正则表达式接受和拒绝的版本格式。

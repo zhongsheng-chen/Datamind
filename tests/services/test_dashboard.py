@@ -1,5 +1,3 @@
-# tests/services/test_dashboard.py
-
 """管理控制台查询服务测试
 
 验证控制台数据按权限查询、转换并限制返回数量。
@@ -1840,6 +1838,10 @@ def test_variant_item_includes_experiment_and_model_labels() -> None:
 
 def test_request_item_includes_model_and_decision_details() -> None:
     """测试 API 调用摘要包含模型、决策和预测详情"""
+    prediction = {
+        "score": 680,
+        "features": {"age": {"value": 35, "points": 680}},
+    }
     request = SimpleNamespace(
         request_id="req_test",
         model_id="mdl_test",
@@ -1850,7 +1852,8 @@ def test_request_item_includes_model_and_decision_details() -> None:
         },
         response={
             "success": True,
-            "score": 680,
+            **prediction,
+            "request_id": "req_test",
         },
         source="http",
         status="success",
@@ -1868,24 +1871,15 @@ def test_request_item_includes_model_and_decision_details() -> None:
             "model_version": "1.0.0",
             "deployment_id": "dep_test",
             "decision_id": "dcs_test",
-            "prediction": {
-                "score": 680
-            },
+            "prediction": prediction,
+            "version_id": "ver_test",
         },
     )
 
-    assert result["payload"] == {
-        "features": {
-            "age": 35
-        }
-    }
-    assert result["prediction"] == {
-        "score": 680
-    }
-    assert result["response"] == {
-        "success": True,
-        "score": 680,
-    }
+    assert result["payload"] is request.payload
+    assert result["prediction"] is prediction
+    assert result["response"] is request.response
+    assert result["version_id"] == "ver_test"
     assert result["model_name"] == "scorecard"
     assert result["model_version"] == "1.0.0"
     assert result["deployment_id"] == "dep_test"
@@ -1936,6 +1930,8 @@ def test_request_item_includes_failure_details() -> None:
 
 def test_decision_item_includes_trace_and_route_details() -> None:
     """测试决策摘要包含追踪、预测、路由和模型执行信息"""
+    prediction = {"probability": 0.25, "score": 680}
+    shadow_prediction = {"score": 675}
     decision = SimpleNamespace(
         decision_id="dcs_test",
         request_id="req_test",
@@ -1973,10 +1969,7 @@ def test_decision_item_includes_trace_and_route_details() -> None:
             "routing_id": "rtn_test",
             "routing_name": "scorecard-route",
             "routing_weight": 0.9,
-            "prediction": {
-                "probability": 0.25,
-                "score": 680,
-            },
+            "prediction": prediction,
             "probability": 0.25,
             "score": 680.0,
             "latency_ms": 18.5,
@@ -1992,9 +1985,7 @@ def test_decision_item_includes_trace_and_route_details() -> None:
                     version_id="ver_shadow",
                     deployment_id="dep_shadow",
                     routing_id="rtn_shadow",
-                    prediction={
-                        "score": 675
-                    },
+                    prediction=shadow_prediction,
                     probability=0.27,
                     score=675.0,
                     latency_ms=12.5,
@@ -2028,10 +2019,7 @@ def test_decision_item_includes_trace_and_route_details() -> None:
     assert result["routing_id"] == "rtn_test"
     assert result["routing_name"] == "scorecard-route"
     assert result["routing_weight"] == 0.9
-    assert result["prediction"] == {
-        "probability": 0.25,
-        "score": 680,
-    }
+    assert result["prediction"] is prediction
     assert result["context"] == {
         "routing_id": "rtn_test"
     }
@@ -2042,4 +2030,5 @@ def test_decision_item_includes_trace_and_route_details() -> None:
     assert result["executions"][0]["routing_name"] == "scorecard-shadow-route"
     assert result["executions"][0]["routing_weight"] == 1.0
     assert result["executions"][0]["score"] == 675.0
+    assert result["executions"][0]["prediction"] is shadow_prediction
     assert result["decided_at"] == "2026-08-05T01:30:00.000Z"

@@ -1,5 +1,3 @@
-# datamind/cli/experiment/show.py
-
 """查看实验命令
 
 提供实验详情查看功能。

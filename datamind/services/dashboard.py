@@ -1,5 +1,3 @@
-# datamind/services/dashboard.py
-
 """管理控制台查询服务
 
 聚合模型、版本、部署、路由、运行状态、API 调用、决策、执行、实验和审计记录，
@@ -1984,6 +1982,7 @@ class DashboardService:
                 "rules",
                 None,
             ),
+            "rules_metadata": getattr(routing, "rules_metadata", None),
             "description": getattr(
                 routing,
                 "description",
@@ -2063,6 +2062,9 @@ class DashboardService:
             "model_name": model_name,
             "model_version": request_details.get(
                 "model_version"
+            ),
+            "version_id": request_details.get(
+                "version_id"
             ),
             "deployment_id": deployment_id,
             "decision_id": request_details.get(

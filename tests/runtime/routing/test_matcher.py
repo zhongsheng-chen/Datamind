@@ -1,5 +1,3 @@
-# tests/runtime/routing/test_matcher.py
-
 """路由规则匹配器测试
 
 验证规则结构校验、字段解析、组合条件和操作符匹配行为。

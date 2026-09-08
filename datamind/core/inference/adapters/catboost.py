@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/catboost.py
-
 """CatBoost 模型适配器
 
 为 CatBoost 二分类模型提供概率预测和特征重要性接口。

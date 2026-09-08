@@ -1,5 +1,3 @@
-# datamind/db/repositories/system.py
-
 """系统状态仓储
 
 提供系统初始化状态的读取、行锁定和完成标记能力。

@@ -1,5 +1,3 @@
-# tests/runtime/server/test_security.py
-
 """运行时服务安全边界测试
 
 验证环境保护、Bearer 令牌解析、权限校验和可信请求上下文。
@@ -15,6 +13,8 @@
     验证认证过程校验所需权限
   - test_request_scope_establishes_trusted_context:
     验证请求作用域建立可信上下文
+  - test_security_documentation_lists_public_components:
+    验证核心功能列出安全模块公共组件
 """
 
 from types import SimpleNamespace
@@ -33,6 +33,23 @@ from datamind.runtime.server.errors import (
     ServiceAuthorizationError,
 )
 from datamind.runtime.server.security import RuntimeIdentity, RuntimeSecurity
+
+
+def test_security_documentation_lists_public_components() -> None:
+    """测试核心功能列出安全模块公共组件"""
+    documentation = security_module.__doc__ or ""
+    core_functions = documentation.partition("核心功能：")[2].partition(
+        "使用示例："
+    )[0]
+
+    for name in (
+        "RuntimeIdentity",
+        "RuntimeRequestContext",
+        "RuntimeSecurity",
+        "request_scope",
+        "authenticate",
+    ):
+        assert f"- {name}:" in core_functions
 
 
 class ContextStub:

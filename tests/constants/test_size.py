@@ -1,5 +1,3 @@
-# tests/constants/test_size.py
-
 """存储大小常量测试
 
 验证 KB、MB、GB 的数值、换算关系和配置计算行为。

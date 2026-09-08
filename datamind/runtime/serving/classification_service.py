@@ -1,5 +1,3 @@
-# datamind/runtime/serving/classification_service.py
-
 """分类模型运行服务
 
 提供二分类模型的在线推理能力。
@@ -13,7 +11,7 @@
 
   service = ClassificationService(
       runtime_model=runtime_model,
-      threshold=0.5
+      threshold=0.5,
   )
 
   result = service.predict({
@@ -23,23 +21,6 @@
       "credit_utilization_ratio": 0.45,
       "delinquency_count": 0,
   })
-
-  batch_result = service.predict_batch([
-      {
-          "age": 35,
-          "annual_income": 120000,
-          "debt_to_income_ratio": 0.32,
-          "credit_utilization_ratio": 0.45,
-          "delinquency_count": 0,
-      },
-      {
-          "age": 35,
-          "annual_income": 120000,
-          "debt_to_income_ratio": 0.32,
-          "credit_utilization_ratio": 0.45,
-          "delinquency_count": 0,
-      },
-  ])
 """
 
 from typing import Any
@@ -54,7 +35,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 class ClassificationService(BaseRuntimeService):
     """分类模型运行服务
 
-    基于概率预测结果和分类阈值生成二分类结果。
+    基于分类模型和分类阈值生成二分类结果。
 
     属性：
         SERVICE_TYPE: 服务类型
@@ -71,16 +52,16 @@ class ClassificationService(BaseRuntimeService):
             data_types: dict[str, DataType] | None = None,
             threshold: float = 0.5,
     ):
-        """初始化分类模型服务
+        """初始化分类模型运行服务
 
         参数：
-            runtime_model: 已加载运行时模型
+            runtime_model: 已加载的运行时模型
             feature_names: 特征名称列表
             data_types: 特征类型映射
-            threshold: 分类阈值，范围 0 到 1
+            threshold: 分类阈值
 
         异常：
-            ValueError: threshold 不在合法范围
+            ValueError: 分类阈值不在 [0, 1] 范围内
             NotImplementedError: 模型不支持概率预测
         """
         if not 0 <= threshold <= 1:
@@ -109,7 +90,7 @@ class ClassificationService(BaseRuntimeService):
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取当前模型能力集"""
+        """获取服务能力集"""
         return self.inference.get_capabilities()
 
     def predict(
@@ -122,19 +103,11 @@ class ClassificationService(BaseRuntimeService):
             features: 特征字典
 
         返回：
-            分类预测结果，包含：
-              - prediction
-              - probability
-              - threshold
-              - deployment_id
-              - model_id
-              - version_id
-              - framework
-              - service_type
+            分类预测结果，包含分类标签、预测概率、分类阈值和模型运行信息
 
         异常：
-            ValueError: features 为空
-            TypeError: 推理结果类型异常
+            ValueError: 特征为空或无效，或预测结果无效
+            TypeError: 单条预测结果类型无效
         """
         if not features:
             raise ValueError(
@@ -176,17 +149,13 @@ class ClassificationService(BaseRuntimeService):
             features_list: 特征字典列表
 
         返回：
-            批量分类预测结果，包含：
-              - count
-              - predictions
-              - deployment_id
-              - model_id
-              - version_id
-              - framework
-              - service_type
+            批量分类预测结果，包含预测结果列表、样本数量和模型运行信息。
+            每条预测结果包含分类标签、预测概率和分类阈值。
+            输入为空列表时，返回空结果列表，样本数量为 0。
 
         异常：
-            TypeError: 批量推理结果类型异常
+            ValueError: 特征或预测结果无效
+            TypeError: 批量预测结果类型无效
             NotImplementedError: 模型不支持批量推理
         """
         self.require_capability(
@@ -230,15 +199,13 @@ class ClassificationService(BaseRuntimeService):
             self,
             probability: float,
     ) -> int:
-        """根据概率计算分类标签
+        """根据分类阈值生成分类标签
 
         参数：
-            probability: 正类概率
+            probability: 预测概率
 
         返回：
-            分类标签：
-              - 0: 负类
-              - 1: 正类
+            预测概率大于或等于分类阈值时返回 1，否则返回 0
         """
         return int(
             probability >= self.threshold

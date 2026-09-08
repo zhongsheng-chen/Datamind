@@ -1,5 +1,3 @@
-# tests/db/repositories/test_outbox.py
-
 """控制台事件仓储测试
 
 验证事件游标查询、顺序回放、参数校验和过期事件清理。

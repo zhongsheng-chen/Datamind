@@ -1,12 +1,14 @@
-# datamind/runtime/server/security.py
-
 """运行时服务安全边界
 
 负责解析 Bearer 访问令牌、认证用户、校验接口权限，
 并为日志和审计建立可信请求上下文。
 
 核心功能：
+  - RuntimeIdentity: 保存已认证的运行时请求身份
+  - RuntimeRequestContext: 定义运行时请求上下文协议
+  - RuntimeSecurity: 提供运行时认证与授权边界
   - request_scope: 建立已认证请求作用域
+  - authenticate: 认证访问令牌并校验接口权限
 
 使用示例：
   from datamind.runtime.server.security import RuntimeSecurity

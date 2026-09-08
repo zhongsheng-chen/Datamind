@@ -1,5 +1,3 @@
-# tests/db/models/test_assignments.py
-
 """实验分配表测试
 
 验证实验分配表的字段、索引、检查约束和字段注释。

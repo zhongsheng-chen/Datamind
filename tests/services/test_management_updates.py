@@ -1,5 +1,3 @@
-# tests/services/test_management_updates.py
-
 """部署相关管理资源更新测试
 
 验证路由、实验和实验分组更新时的参数传递与状态约束。
@@ -20,6 +18,7 @@ import pytest
 
 import datamind.services.experiment as experiment_module
 import datamind.services.routing as routing_module
+from datamind.console.schemas import RoutingUpdateRequest, VariantUpdateRequest
 from datamind.services import (
     ExperimentLifecycleService,
     RoutingLifecycleService,
@@ -40,10 +39,27 @@ class FakeUnitOfWork:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "rules_update",
+    [
+        {},
+        {"rules": None},
+        {"rules": {
+            "match": "all",
+            "conditions": [{"field": "features.age", "op": "gte", "value": 30}],
+        }},
+    ],
+    ids=["rules-omitted", "rules-null", "rules-provided"],
+)
 async def test_update_routing_passes_patch(
         monkeypatch: pytest.MonkeyPatch,
+        rules_update: dict,
 ) -> None:
-    """测试路由编辑通过专用更新结构写入。"""
+    """测试路由编辑传递更新字段，并区分规则保留、清空和替换。"""
+    original_rules = {
+        "match": "all",
+        "conditions": [{"field": "features.age", "op": "gte", "value": 18}],
+    }
     routing = SimpleNamespace(
         routing_id="rtn_test",
         name="scorecard-route",
@@ -53,7 +69,7 @@ async def test_update_routing_passes_patch(
         rollout_group="challenger",
         traffic_ratio=0.2,
         enabled=False,
-        rules=None,
+        rules=original_rules,
         description=None,
     )
     repository = MagicMock()
@@ -80,13 +96,28 @@ async def test_update_routing_passes_patch(
         lambda _session: deployment_repository,
     )
 
-    await RoutingLifecycleService().update_routing(
+    payload = RoutingUpdateRequest.model_validate(rules_update)
+    result = await RoutingLifecycleService().update_routing(
         routing_id="rtn_test",
         name="scorecard-route-v2",
         traffic_ratio=0.35,
         description="测试流量",
         updated_by="operator",
+        **payload.model_dump(exclude_unset=True),
     )
+
+    expected_rules = rules_update.get("rules", original_rules)
+    if "rules" in rules_update:
+        assert routing.rules_metadata is None
+    assert routing.rules == expected_rules
+    assert result["rules"] == expected_rules
+    assert result.before is not None
+    assert result.after is not None
+    if "rules" in rules_update:
+        assert result.before["rules"] == original_rules
+        assert result.after["rules"] == expected_rules
+    else:
+        assert "rules" not in result.after
 
     current, patch = repository.update_routing.call_args.args
     assert current is routing
@@ -148,8 +179,14 @@ async def test_update_experiment_only_edits_draft(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "config_update",
+    [{}, {"config": None}, {"config": {"group": "treatment"}}],
+    ids=["config-omitted", "config-null", "config-provided"],
+)
 async def test_update_variant_checks_sibling_weight(
         monkeypatch: pytest.MonkeyPatch,
+        config_update: dict,
 ) -> None:
     """测试分组编辑保持实验内活动权重约束。"""
     experiment = SimpleNamespace(
@@ -164,7 +201,7 @@ async def test_update_variant_checks_sibling_weight(
         weight=0.4,
         is_control=True,
         status="active",
-        config={},
+        config={"group": "control"},
     )
     sibling = SimpleNamespace(
         variant_id="var_other",
@@ -197,12 +234,25 @@ async def test_update_variant_checks_sibling_weight(
         lambda _session: variant_repository,
     )
 
-    await ExperimentLifecycleService().update_variant(
+    payload = VariantUpdateRequest.model_validate(config_update)
+    result = await ExperimentLifecycleService().update_variant(
         variant_id="var_test",
         weight=0.6,
         description="调整权重",
         updated_by="operator",
+        **payload.model_dump(exclude_unset=True),
     )
+
+    expected_config = config_update.get("config", {"group": "control"})
+    assert variant.config == expected_config
+    assert result["config"] == expected_config
+    assert result.before is not None
+    assert result.after is not None
+    if "config" in config_update:
+        assert result.before["config"] == {"group": "control"}
+        assert result.after["config"] == expected_config
+    else:
+        assert "config" not in result.after
 
     current, patch = variant_repository.update_variant.call_args.args
     assert current is variant

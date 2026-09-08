@@ -1,5 +1,3 @@
-# datamind/runtime/serving/base.py
-
 """运行时服务基类
 
 定义运行时模型服务的统一接口和公共能力。

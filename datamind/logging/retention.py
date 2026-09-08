@@ -1,5 +1,3 @@
-# datamind/logging/retention.py
-
 """日志保留管理
 
 提供日志文件清理和后台定期清理功能。

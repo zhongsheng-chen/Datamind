@@ -1,5 +1,3 @@
-# datamind/cli/user/enable.py
-
 """启用用户命令
 
 提供 LOCAL 用户启用功能。

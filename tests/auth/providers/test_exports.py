@@ -1,5 +1,3 @@
-# tests/auth/providers/test_exports.py
-
 """认证提供方包公共导出测试
 
 验证认证提供方包公开 API 的完整性和可访问性。

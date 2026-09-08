@@ -1,5 +1,3 @@
-# tests/constants/test_logging_level.py
-
 """日志级别枚举测试
 
 验证日志级别枚举值、字符串转换和支持集合。

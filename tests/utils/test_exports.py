@@ -1,5 +1,3 @@
-# tests/utils/test_exports.py
-
 """工具包公共导出测试
 
 验证工具包公开 API 的完整性和可访问性。

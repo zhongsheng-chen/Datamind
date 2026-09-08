@@ -1,5 +1,3 @@
-# datamind/services/registration.py
-
 """模型注册服务
 
 负责校验模型制品、生成独立修订并更新版本的当前制品投影。

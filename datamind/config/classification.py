@@ -1,5 +1,3 @@
-# datamind/config/classification.py
-
 """分类模型配置
 
 定义通用分类模型的默认分类阈值。

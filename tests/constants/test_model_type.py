@@ -1,5 +1,3 @@
-# tests/constants/test_model_type.py
-
 """模型类型枚举测试
 
 验证 ModelType 的成员、字符串行为和支持集合。

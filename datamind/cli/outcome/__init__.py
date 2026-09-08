@@ -1,5 +1,3 @@
-# datamind/cli/outcome/__init__.py
-
 """实验结果回流命令
 
 提供业务结果回流功能。

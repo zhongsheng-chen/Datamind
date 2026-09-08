@@ -1,5 +1,3 @@
-# datamind/console/cookies.py
-
 """管理控制台浏览器会话 Cookie
 
 负责写入、补发和清除访问令牌、刷新令牌与 CSRF Cookie。

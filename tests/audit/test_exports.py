@@ -1,5 +1,3 @@
-# tests/audit/test_exports.py
-
 """审计组件包级导出测试
 
 验证审计组件包级公共 API 的完整性和可访问性。

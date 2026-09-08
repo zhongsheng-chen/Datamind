@@ -1,5 +1,3 @@
-# datamind/storage/observability.py
-
 """存储可观测性装饰器
 
 提供存储操作的统一可观测性能力，包括性能监控和错误追踪。

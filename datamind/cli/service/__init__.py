@@ -1,5 +1,3 @@
-# datamind/cli/service/__init__.py
-
 """服务进程命令
 
 提供评分服务进程的启动功能。

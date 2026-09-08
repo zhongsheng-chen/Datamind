@@ -1,5 +1,3 @@
-# tests/db/repositories/test_outcome.py
-
 """实验结果仓储测试
 
 验证 OutcomeRepository 的结果查询、列表筛选、辅助列表方法、
