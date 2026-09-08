@@ -50,6 +50,7 @@
 import math
 from typing import Any
 
+import numpy as np
 from optbinning import Scorecard
 
 
@@ -75,8 +76,8 @@ class ScorecardInspector:
                 f"期望 {Scorecard.__name__}，实际 {type(model).__name__}"
             )
         binning_process = model.binning_process_
-        summaries = cls._records(binning_process.summary())
-        scorecard_rows = cls._records(model.table(style="detailed"))
+        summaries = cls._convert_records(binning_process.summary())
+        scorecard_rows = cls._convert_records(model.table(style="detailed"))
         scorecard_by_variable: dict[str, list[dict[str, Any]]] = {}
         for row in scorecard_rows:
             scorecard_by_variable.setdefault(
@@ -90,7 +91,7 @@ class ScorecardInspector:
             rows = scorecard_by_variable.get(name)
             if rows is None:
                 binned_variable = binning_process.get_binned_variable(name)
-                rows = cls._records(
+                rows = cls._convert_records(
                     binned_variable.binning_table.build(
                         show_digits=4,
                         add_totals=False,
@@ -120,7 +121,7 @@ class ScorecardInspector:
             ).append(float(points))
 
         scaling_parameters = {
-            str(key): cls._value(value)
+            str(key): cls._convert_value(value)
             for key, value in (model.scaling_method_params or {}).items()
         }
         estimator = model.estimator_
@@ -141,10 +142,10 @@ class ScorecardInspector:
             "estimator": {
                 "class_name": type(estimator).__name__,
                 "classes": [
-                    cls._value(item)
+                    cls._convert_value(item)
                     for item in getattr(estimator, "classes_", [])
                 ],
-                "intercept": cls._value(getattr(model, "intercept_", None)),
+                "intercept": cls._convert_value(getattr(model, "intercept_", None)),
             },
             "variable_count": len(variables),
             "selected_variable_count": sum(
@@ -154,7 +155,7 @@ class ScorecardInspector:
         }
 
     @staticmethod
-    def _value(value: Any) -> Any:
+    def _convert_value(value: Any) -> Any:
         """将值转换为 JSON 兼容类型
 
         参数：
@@ -175,19 +176,38 @@ class ScorecardInspector:
         return str(value)
 
     @classmethod
-    def _records(cls, frame: Any) -> list[dict[str, Any]]:
-        """转换 DataFrame 记录
+    def _convert_records(cls, frame: Any) -> list[dict[str, Any]]:
+        """将 DataFrame 转换为记录列表
 
         参数：
             frame: pandas DataFrame 对象
 
         返回：
-            由 JSON 兼容值组成的记录列表
+            由 JSON 兼容值组成的记录列表，其中分箱列使用可读标签
         """
         return [
             {
-                str(key): cls._value(value)
+                str(key): (
+                    cls._format_bin_label(value)
+                    if key == "Bin" else cls._convert_value(value)
+                )
                 for key, value in record.items()
             }
             for record in frame.to_dict(orient="records")
         ]
+
+    @classmethod
+    def _format_bin_label(cls, value: Any) -> Any:
+        """格式化分箱标签
+
+        参数：
+            value: 类别集合、数值区间或特殊分箱标签
+
+        返回：
+            类别集合按原顺序以逗号分隔，其他分箱标签保持原样
+        """
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        if isinstance(value, (list, tuple)):
+            return ", ".join(str(cls._convert_value(item)) for item in value)
+        return cls._convert_value(value)

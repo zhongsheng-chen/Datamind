@@ -10,7 +10,7 @@ import {
   createDetailSummary,
   mountDetailDrawer,
   showJsonDialog,
-} from "./common.js?v=20260902-5";
+} from "./common.js";
 
 /**
  * 创建路由详情抽屉控制器。

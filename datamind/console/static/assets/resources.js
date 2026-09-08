@@ -3,7 +3,7 @@
 import {
   getDetailRoute,
   synchronizeDetailDrawer,
-} from "./details/common.js?v=20260901";
+} from "./details/common.js";
 
 /**
  * 创建资源列表控制器。

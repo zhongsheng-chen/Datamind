@@ -10,7 +10,7 @@ import {
   createDetailSection,
   createDetailSummary,
   mountDetailDrawer,
-} from "./common.js?v=20260902-5";
+} from "./common.js";
 
 /**
  * 创建模型详情控制器。
