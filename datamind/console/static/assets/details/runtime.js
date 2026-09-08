@@ -10,7 +10,7 @@ import {
   createErrorDetailSection,
   createJsonDetailSection,
   mountDetailDrawer,
-} from "./common.js?v=20260902-3";
+} from "./common.js";
 
 /**
  * 创建运行实例详情控制器。

@@ -13,7 +13,7 @@ import {
   createJsonCode,
   createJsonDetailSection,
   mountDetailDrawer,
-} from "./common.js?v=20260902-6";
+} from "./common.js";
 
 /**
  * 创建审计记录详情控制器。

@@ -3,7 +3,36 @@
 管理控制台是独立于评分服务部署的只读 BentoML 服务，用于查看模型、
 模型版本、部署、运行实例、API 调用、决策记录、实验和审计记录。
 
-启动前需要完成数据库迁移、系统初始化并启用 LOCAL 认证：
+从源码运行时，先在项目根目录构建控制台。需要 Node.js 22.12+（22 系列）
+或 24+，推荐 Node.js 24 LTS：
+
+```bash
+npm ci
+npm run build:console
+```
+
+源码保留在 `datamind/console/static/`，构建产物位于
+`datamind/console/dist/`。运行服务只读取构建产物，不回退到源码；
+缺少构建产物时，页面会返回明确的构建提示。
+
+开发时可以在另一个终端运行 `npm run watch:console`，保存源码后自动
+重新构建，再刷新控制台页面。`datamind console run --reload` 负责 Python
+代码重载，不代替前端构建。
+
+发布 Python 安装包前也需要执行上述构建命令，然后运行
+`python -m pip wheel --no-deps .`。安装包包含 HTML、带内容哈希的 JS/CSS
+及构建清单，运行环境无需 Node.js。源码发行包同时包含前端源码与已构建
+资源；缺少构建产物时，打包会中止并提示构建命令。
+
+HTML 使用 `Cache-Control: no-cache` 配合 ETag 校验；带内容哈希的资源
+使用长期缓存。不要手动修改生成文件或为源码引用添加日期版本号。
+每次发布先完成构建，再部署整套产物；已有页面可能仍引用旧资源，反向代理
+或 CDN 应保留上一版本的哈希资源，避免发布期间出现 404。
+
+运行控制台测试前执行 `npm run build:console`；`make test` 会自动安装
+锁定的前端依赖并构建。前端源码约定与实际构建资源的访问、缓存分别验证。
+
+启动前还需要完成数据库迁移、系统初始化并启用 LOCAL 认证：
 
 ```dotenv
 DATAMIND_AUTH_ENABLED=true

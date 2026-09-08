@@ -34,11 +34,12 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.applications import Starlette
 from starlette.datastructures import UploadFile
+from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import (
-    FileResponse,
     JSONResponse,
+    PlainTextResponse,
     Response,
     StreamingResponse,
 )
@@ -79,6 +80,7 @@ from datamind.db.repositories import (
     VersionRepository,
 )
 from datamind.console.events import event_broker
+from datamind.console.assets import ConsoleStaticFiles
 from datamind.console import auth as browser_auth
 from datamind.console import cookies as browser_cookies
 from datamind.console.exports import (
@@ -140,7 +142,7 @@ from datamind.utils import (
 )
 
 
-_STATIC_DIR = Path(__file__).parent / "static"
+_STATIC_DIR = Path(__file__).parent / "dist"
 _MAX_MODEL_UPLOAD_BYTES = 512 * 1024 * 1024
 _CAPABILITY_PERMISSIONS = {
     "models.create": "model.write",
@@ -188,12 +190,23 @@ async def _health(
 
 
 async def _page(
-        _request: Request,
-) -> FileResponse:
+        request: Request,
+) -> Response:
     """返回管理控制台页面"""
-    return FileResponse(
-        _STATIC_DIR / "index.html"
+    static_files = ConsoleStaticFiles(
+        directory=_STATIC_DIR,
+        check_dir=False,
     )
+    try:
+        return await static_files.get_response("index.html", request.scope)
+    except HTTPException as error:
+        if error.status_code != 404:
+            raise
+        return PlainTextResponse(
+            "控制台静态资源尚未构建，请在项目根目录运行 npm ci 和 npm run build:console。",
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
 
 
 async def _login(

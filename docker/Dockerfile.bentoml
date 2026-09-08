@@ -1,5 +1,13 @@
 # docker/Dockerfile.bentoml
 
+FROM node:24-bookworm-slim AS console-build
+
+WORKDIR /build
+COPY package.json package-lock.json vite.config.mjs ./
+RUN npm ci --no-audit --no-fund
+COPY datamind/console/static/ ./datamind/console/static/
+RUN npm run build:console
+
 FROM python:3.10-slim AS builder
 
 WORKDIR /app
@@ -22,6 +30,7 @@ RUN pip install --no-cache-dir bentoml
 
 # 复制应用代码
 COPY datamind/ ./datamind/
+COPY --from=console-build /build/datamind/console/dist/ ./datamind/console/dist/
 COPY models/ ./models/
 
 # 根据服务类型选择服务文件

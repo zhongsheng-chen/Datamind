@@ -7,7 +7,7 @@ import {
   createDetailSection,
   createDetailSummary,
   mountDetailDrawer,
-} from "./common.js?v=20260902-3";
+} from "./common.js";
 
 /**
  * 创建用户与角色详情控制器。

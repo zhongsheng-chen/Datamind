@@ -6,6 +6,9 @@
 
 核心功能：
   - test_console_page_is_available: 验证控制台页面可访问
+  - test_console_build_serves_fingerprinted_assets: 验证构建资源及缓存策略
+  - test_console_page_requires_build: 验证缺少构建产物时的提示
+  - test_console_source_uses_unversioned_imports: 验证源码不维护手写版本号
   - test_overview_navigation_requires_request_access:
     验证概览导航遵循 API 调用查看权限
   - test_console_page_supports_realtime_details: 验证实时详情交互
@@ -38,6 +41,7 @@ from datetime import (
     timezone,
 )
 from types import SimpleNamespace
+from pathlib import Path
 from unittest.mock import (
     AsyncMock,
     MagicMock,
@@ -80,6 +84,12 @@ app_module = importlib.import_module(
 cookies_module = importlib.import_module(
     "datamind.console.cookies"
 )
+
+
+def _read_console_source(path: str) -> SimpleNamespace:
+    """读取未压缩的控制台源码，用于校验交互与样式约定"""
+    directory = Path(__file__).parents[2] / "datamind" / "console" / "static"
+    return SimpleNamespace(text=(directory / path).read_text(encoding="utf-8"))
 
 
 class FakeUnitOfWork:
@@ -297,8 +307,85 @@ def test_environment_is_not_a_console_write_parameter(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("root_path", ["", "/console"])
+async def test_console_build_serves_fingerprinted_assets(root_path: str) -> None:
+    """测试构建入口、资源及子路径部署使用正确的缓存策略"""
+    async with AsyncClient(
+            transport=ASGITransport(
+                app=app_module.console_app,
+                root_path=root_path,
+            ),
+            base_url=f"http://testserver{root_path}/",
+    ) as client:
+        page = await client.get("")
+        assert page.status_code == 200, page.text
+        assert page.headers["cache-control"] == "no-cache"
+        cached_page = await client.get(
+            page.url,
+            headers={"if-none-match": page.headers["etag"]},
+        )
+        assert cached_page.status_code == 304
+        assert cached_page.headers["cache-control"] == "no-cache"
+        assert cached_page.content == b""
+
+        urls = re.findall(r'(?:src|href)="(\./assets/[^"?]+)"', page.text)
+        assert any(url.endswith(".js") for url in urls)
+        assert any(url.endswith(".css") for url in urls)
+        for url in urls:
+            assert re.search(r"-[A-Za-z0-9_-]{8,}\.(js|css)$", url)
+            asset = await client.get(page.url.join(url))
+            assert asset.status_code == 200
+            assert asset.content
+            assert asset.headers["cache-control"] == (
+                "public, max-age=31536000, immutable"
+            )
+            assert asset.headers["x-content-type-options"] == "nosniff"
+            cached_asset = await client.get(
+                asset.url,
+                headers={"if-none-match": asset.headers["etag"]},
+            )
+            assert cached_asset.status_code == 304
+            assert cached_asset.content == b""
+            assert cached_asset.headers["cache-control"] == (
+                asset.headers["cache-control"]
+            )
+
+        source = await client.get(page.url.join("./assets/app.js"))
+        assert source.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_console_page_requires_build(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+) -> None:
+    """测试缺少构建产物时返回明确提示而不回退到源码"""
+    monkeypatch.setattr(app_module, "_STATIC_DIR", tmp_path)
+    async with AsyncClient(
+            transport=ASGITransport(app=app_module.console_app),
+            base_url="http://testserver",
+    ) as client:
+        response = await client.get("/")
+
+    assert response.status_code == 503
+    assert "npm run build:console" in response.text
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_console_source_uses_unversioned_imports() -> None:
+    """测试前端源码只引用存在的相对模块，不维护日期版本号"""
+    directory = Path(__file__).parents[2] / "datamind" / "console" / "static"
+    sources = [directory / "index.html", *directory.rglob("*.js")]
+    for source in sources:
+        content = source.read_text(encoding="utf-8")
+        assert "?v=" not in content, source
+        for specifier in re.findall(r'from\s+"(\.[^"]+)"', content):
+            assert (source.parent / specifier).is_file(), specifier
+
+
+@pytest.mark.asyncio
 async def test_console_page_is_available() -> None:
-    """测试控制台页面和本地静态资源可访问"""
+    """测试控制台页面可访问与前端源码约定"""
     async with AsyncClient(
             transport=ASGITransport(
                 app=app_module.console_app
@@ -306,39 +393,20 @@ async def test_console_page_is_available() -> None:
             base_url="http://testserver",
     ) as client:
         response = await client.get("/")
-        stylesheet = await client.get(
-            "/assets/style.css"
-        )
-        script = await client.get(
-            "/assets/app.js"
-        )
-        dashboard_script = await client.get(
-            "/assets/dashboard.js"
-        )
-        resources_script = await client.get(
-            "/assets/resources.js"
-        )
-        navigation_script = await client.get(
-            "/assets/navigation.js"
-        )
-        presentation_script = await client.get(
-            "/assets/presentation.js"
-        )
-        format_script = await client.get(
-            "/assets/format.js"
-        )
-        management_script = await client.get(
-            "/assets/management.js"
-        )
-        table_script = await client.get(
-            "/assets/table.js"
-        )
+        stylesheet = _read_console_source("assets/style.css")
+        script = _read_console_source("assets/app.js")
+        dashboard_script = _read_console_source("assets/dashboard.js")
+        resources_script = _read_console_source("assets/resources.js")
+        navigation_script = _read_console_source("assets/navigation.js")
+        presentation_script = _read_console_source("assets/presentation.js")
+        format_script = _read_console_source("assets/format.js")
+        management_script = _read_console_source("assets/management.js")
+        table_script = _read_console_source("assets/table.js")
         health = await client.get(
             "/health"
         )
 
     script = SimpleNamespace(
-        status_code=script.status_code,
         text="\n".join((
             script.text,
             dashboard_script.text,
@@ -939,10 +1007,6 @@ async def test_console_page_is_available() -> None:
     assert response.headers[
         "x-content-type-options"
     ] == "nosniff"
-    assert stylesheet.status_code == 200
-    assert format_script.status_code == 200
-    assert management_script.status_code == 200
-    assert table_script.status_code == 200
     assert "--navy-950" in stylesheet.text
     assert ".request-drawer-body { display: flex" in stylesheet.text
     assert ".request-detail-grid { display: grid; flex: 0 0 auto" in stylesheet.text
@@ -964,28 +1028,15 @@ async def test_console_page_is_available() -> None:
     assert ".request-json-section pre { margin: 0" in stylesheet.text
 
 
-@pytest.mark.asyncio
-async def test_overview_navigation_requires_request_access() -> None:
+def test_overview_navigation_requires_request_access() -> None:
     """测试概览导航遵循 API 调用查看权限"""
-    async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
-    ) as client:
-        script = await client.get(
-            "/assets/app.js"
-        )
-        dashboard_script = await client.get(
-            "/assets/dashboard.js"
-        )
+    script = _read_console_source("assets/app.js")
+    dashboard_script = _read_console_source("assets/dashboard.js")
 
     script = SimpleNamespace(
-        status_code=script.status_code,
         text="\n".join((script.text, dashboard_script.text)),
     )
 
-    assert script.status_code == 200
     assert "function canViewOverview(" in script.text
     assert "Boolean(snapshot.access.requests)" in script.text
     assert "if (canViewOverview(snapshot))" in script.text
@@ -1003,57 +1054,24 @@ async def test_console_page_supports_realtime_details() -> None:
             base_url="http://testserver",
     ) as client:
         page = await client.get("/")
-        script = await client.get(
-            "/assets/app.js"
-        )
-        resources_script = await client.get(
-            "/assets/resources.js"
-        )
-        presentation_script = await client.get(
-            "/assets/presentation.js"
-        )
-        deployment_script = await client.get(
-            "/assets/details/deployment.js"
-        )
-        routing_script = await client.get(
-            "/assets/details/routing.js"
-        )
-        model_script = await client.get(
-            "/assets/details/model.js"
-        )
-        version_script = await client.get(
-            "/assets/details/version.js"
-        )
-        common_script = await client.get(
-            "/assets/details/common.js"
-        )
-        access_script = await client.get(
-            "/assets/details/access.js"
-        )
-        runtime_script = await client.get(
-            "/assets/details/runtime.js"
-        )
-        experiment_script = await client.get(
-            "/assets/details/experiment.js"
-        )
-        inference_script = await client.get(
-            "/assets/details/inference.js"
-        )
-        audit_script = await client.get(
-            "/assets/details/audit.js"
-        )
-        management_script = await client.get(
-            "/assets/management.js"
-        )
-        format_script = await client.get(
-            "/assets/format.js"
-        )
-        stylesheet = await client.get(
-            "/assets/style.css"
-        )
+        script = _read_console_source("assets/app.js")
+        resources_script = _read_console_source("assets/resources.js")
+        presentation_script = _read_console_source("assets/presentation.js")
+        deployment_script = _read_console_source("assets/details/deployment.js")
+        routing_script = _read_console_source("assets/details/routing.js")
+        model_script = _read_console_source("assets/details/model.js")
+        version_script = _read_console_source("assets/details/version.js")
+        common_script = _read_console_source("assets/details/common.js")
+        access_script = _read_console_source("assets/details/access.js")
+        runtime_script = _read_console_source("assets/details/runtime.js")
+        experiment_script = _read_console_source("assets/details/experiment.js")
+        inference_script = _read_console_source("assets/details/inference.js")
+        audit_script = _read_console_source("assets/details/audit.js")
+        management_script = _read_console_source("assets/management.js")
+        format_script = _read_console_source("assets/format.js")
+        stylesheet = _read_console_source("assets/style.css")
 
     script = SimpleNamespace(
-        status_code=script.status_code,
         text="\n".join((
             script.text,
             resources_script.text,
@@ -1076,14 +1094,12 @@ async def test_console_page_supports_realtime_details() -> None:
     assert 'enableDetailRow(versionRow, "versions", version)' in script.text
     assert 'enableDetailRow(variantRow, "variants", variant)' in script.text
     assert '.detail-row { cursor: pointer; }' in stylesheet.text
-    assert common_script.status_code == 200
     assert "export function appendDetailField" in common_script.text
     assert "export function createDetailDrawer" in common_script.text
     assert "export function createDetailSummary" in common_script.text
     assert "export function createDetailSection" in common_script.text
     assert "export function createDetailAction" in common_script.text
     assert "export function mountDetailDrawer" in common_script.text
-    assert model_script.status_code == 200
     model_source = model_script.text
     version_source = version_script.text
     assert "export function createModelDetailController" in model_source
@@ -1170,7 +1186,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '.registry-detail-summary {' in stylesheet.text
     assert '.registry-version-list {' in stylesheet.text
     assert '.registry-detail-actions {' in stylesheet.text
-    assert deployment_script.status_code == 200
     deployment_source = deployment_script.text
     assert "export function createDeploymentDetailController" in deployment_source
     assert '"deployment-detail-drawer",' in deployment_source
@@ -1191,7 +1206,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert 'createDetailAction("查看运行实例", "monitor")' in deployment_source
     assert 'getRecordActions("deployments", record)' in deployment_source
     assert "appendDetailFooter(dialog, buttons)" in deployment_source
-    assert routing_script.status_code == 200
     routing_source = routing_script.text
     assert "export function createRoutingDetailController" in routing_source
     assert '"routing-detail-drawer",' in routing_source
@@ -1230,7 +1244,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '.routing-traffic-track {' in stylesheet.text
     assert '.routing-traffic-tooltip {' in stylesheet.text
     assert '.routing-condition-card {' in stylesheet.text
-    assert runtime_script.status_code == 200
     runtime_source = runtime_script.text
     assert "export function createRuntimeDetailController" in runtime_source
     assert '"运行实例详情"' in runtime_source
@@ -1260,7 +1273,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '["健康状态", createStatusBadge(record.health_status)]' in runtime_source
     assert '"unhealthy"' in format_script.text
     assert '["healthy", "running"].includes(status)' in format_script.text
-    assert experiment_script.status_code == 200
     experiment_source = experiment_script.text
     assert "export function createExperimentDetailController" in experiment_source
     assert '"实验详情"' in experiment_source
@@ -1273,7 +1285,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert 'getRecordActions(section, record)' in experiment_source
     assert '`experiment_id:${record.experiment_id}`' in experiment_source
     assert '`variant_id:${record.variant_id}`' in experiment_source
-    assert inference_script.status_code == 200
     inference_source = inference_script.text
     assert "export function createInferenceDetailController" in inference_source
     assert '"API 调用详情"' in inference_source
@@ -1324,7 +1335,6 @@ async def test_console_page_supports_realtime_details() -> None:
     )
     assert ".registry-json-copy.copied" in stylesheet.text
     assert ".registry-decision-path-step" in stylesheet.text
-    assert audit_script.status_code == 200
     audit_source = audit_script.text
     assert "export function createAuditDetailController" in audit_source
     assert '"审计记录详情"' in audit_source
@@ -1352,7 +1362,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '.decision-detail-drawer .registry-summary-icon {' in stylesheet.text
     assert '.execution-detail-drawer .registry-summary-icon {' in stylesheet.text
     assert '.audit-detail-drawer .registry-summary-icon {' in stylesheet.text
-    assert access_script.status_code == 200
     access_source = access_script.text
     assert "export function createAccessDetailController" in access_source
     assert "/** @type {string[]} */" in access_source

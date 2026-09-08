@@ -1,0 +1,14 @@
+{
+  "name": "datamind-console",
+  "private": true,
+  "scripts": {
+    "build:console": "vite build",
+    "watch:console": "vite build --watch"
+  },
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "devDependencies": {
+    "vite": "8.2.2"
+  }
+}

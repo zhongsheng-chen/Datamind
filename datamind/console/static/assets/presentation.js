@@ -1,6 +1,6 @@
 "use strict";
 
-import { createDetailIcon } from "./details/common.js?v=20260902-3";
+import { createDetailIcon } from "./details/common.js";
 
 /**
  * 创建通用展示组件控制器。

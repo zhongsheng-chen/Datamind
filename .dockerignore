@@ -22,3 +22,6 @@ tests/
 .pytest_cache
 .mypy_cache
 .tox
+node_modules/
+.npm-cache/
+datamind/console/dist/

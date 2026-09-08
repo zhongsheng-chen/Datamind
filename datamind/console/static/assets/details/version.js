@@ -10,7 +10,7 @@ import {
   createDetailSection,
   createDetailSummary,
   mountDetailDrawer,
-} from "./common.js?v=20260902-4";
+} from "./common.js";
 
 /**
  * @typedef {Object} ScorecardScalingParameters

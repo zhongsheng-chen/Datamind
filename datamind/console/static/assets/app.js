@@ -1,19 +1,19 @@
 "use strict";
 
-import { createDashboardController } from "./dashboard.js?v=20260901";
-import { createResourceListController } from "./resources.js?v=20260902";
-import { createNavigationController } from "./navigation.js?v=20260901";
-import { createPresentationController } from "./presentation.js?v=20260902";
+import { createDashboardController } from "./dashboard.js";
+import { createResourceListController } from "./resources.js";
+import { createNavigationController } from "./navigation.js";
+import { createPresentationController } from "./presentation.js";
 
-import { createAccessDetailController } from "./details/access.js?v=20260902-3";
-import { createDeploymentDetailController } from "./details/deployment.js?v=20260902-4";
-import { createAuditDetailController } from "./details/audit.js?v=20260902-4";
-import { createExperimentDetailController } from "./details/experiment.js?v=20260902-4";
-import { createInferenceDetailController } from "./details/inference.js?v=20260902-15";
-import { createModelDetailController } from "./details/model.js?v=20260902-4";
-import { createRoutingDetailController } from "./details/routing.js?v=20260902-7";
-import { createRuntimeDetailController } from "./details/runtime.js?v=20260902-3";
-import { createVersionDetailController } from "./details/version.js?v=20260908-5";
+import { createAccessDetailController } from "./details/access.js";
+import { createDeploymentDetailController } from "./details/deployment.js";
+import { createAuditDetailController } from "./details/audit.js";
+import { createExperimentDetailController } from "./details/experiment.js";
+import { createInferenceDetailController } from "./details/inference.js";
+import { createModelDetailController } from "./details/model.js";
+import { createRoutingDetailController } from "./details/routing.js";
+import { createRuntimeDetailController } from "./details/runtime.js";
+import { createVersionDetailController } from "./details/version.js";
 import {
   formatCompactPercentage,
   formatDuration,
@@ -27,13 +27,13 @@ import {
   formatSignedPercentage,
   formatTime,
   statusTone,
-} from "./format.js?v=20260901";
-import { createResourceManager } from "./management.js?v=20260903-3";
+} from "./format.js";
+import { createResourceManager } from "./management.js";
 import {
   createTableControls,
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
-} from "./table.js?v=20260901";
+} from "./table.js";
 
 /**
  * @typedef {Object} ConsoleUser

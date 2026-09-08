@@ -22,7 +22,7 @@ from starlette.routing import (
     Mount,
     Route,
 )
-from starlette.staticfiles import StaticFiles
+from datamind.console.assets import ConsoleStaticFiles
 
 
 RouteHandler = Callable[
@@ -214,8 +214,9 @@ def create_routes(
         Route("/api/events", handlers.events, methods=["GET"]),
         Mount(
             "/assets",
-            app=StaticFiles(
-                directory=static_dir / "assets"
+            app=ConsoleStaticFiles(
+                directory=static_dir / "assets",
+                check_dir=False,
             ),
             name="assets",
         ),
