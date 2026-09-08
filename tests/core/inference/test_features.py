@@ -1,5 +1,3 @@
-# tests/core/inference/test_features.py
-
 """推理特征工具测试
 
 验证特征名称规范化、模型矩阵构造、类型校验和数组维度处理。

@@ -97,6 +97,7 @@ const iconPaths = {
   role: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", "M4 21a8 8 0 0 1 16 0"],
   routing: ["M6 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z", "M18 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z", "M18 23a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z", "M6 5v11a5 5 0 0 0 5 5h5", "M6 9h7a5 5 0 0 1 5 5"],
   rules: ["M4 4h16v16H4Z", "M8 8h8", "M8 12h5", "M8 16h7"],
+  download: ["M12 3v12", "m7 10 5 5 5-5", "M4 16v5h16v-5"],
   runtime: ["M3 13h4l2.2-7 4.3 13 3-9 2.2 5H21"],
   start: ["m9 7 8 5-8 5V7Z"],
   stop: ["M6 6h12v12H6Z"],
@@ -260,6 +261,40 @@ export function createJsonCode(value, title) {
   });
   code.append(content, copy);
   return code;
+}
+
+/**
+ * 按接口字段和模型变量顺序整理预测详情，保留扩展字段及原始数据。
+ *
+ * @param {unknown} value 预测结果
+ * @param {string[]} [featureNames=[]] 模型版本的变量顺序
+ * @returns {unknown} 用于展示和复制的预测结果
+ */
+export function formatPredictionDetails(value, featureNames = []) {
+  const isObject = (item) => item !== null
+    && typeof item === "object" && !Array.isArray(item);
+  if (!isObject(value)) return value;
+
+  const orderFields = (item, fields) => Object.fromEntries(
+    [...new Set([...fields, ...Object.keys(item)])]
+      .filter((key) => Object.hasOwn(item, key))
+      .map((key) => [key, item[key]]),
+  );
+  const result = orderFields(value, [
+    "success", "error", "error_type", "score", "probability", "prediction",
+    "decision", "threshold", "score_intercept", "features", "request_id",
+  ]);
+  if (isObject(result.features)) {
+    result.features = Object.fromEntries(
+      Object.entries(orderFields(result.features, featureNames)).map(([name, feature]) => [
+        name,
+        isObject(feature)
+          ? orderFields(feature, ["value", "bin", "woe", "points"])
+          : feature,
+      ]),
+    );
+  }
+  return result;
 }
 
 /**

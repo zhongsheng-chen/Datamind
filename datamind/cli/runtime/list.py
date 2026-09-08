@@ -1,5 +1,3 @@
-# datamind/cli/runtime/list.py
-
 """运行状态列表命令
 
 提供部署运行状态列表查询功能。

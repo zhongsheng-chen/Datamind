@@ -1,11 +1,9 @@
-# tests/cli/test_init.py
-
 """系统初始化 CLI 测试
 
 验证配置驱动的非交互初始化、成功输出和简洁错误处理。
 
 核心功能：
-  - test_init_rejects_initialized_system_before_prompt:
+  - test_init_skips_initialized_system:
     验证系统已初始化时不读取管理员配置
   - test_init_uses_configured_credentials:
     验证使用配置中的管理员凭据完成初始化
@@ -13,7 +11,9 @@
     验证未配置管理员密码时拒绝初始化
   - test_init_help_does_not_accept_credentials:
     验证初始化命令不接收管理员凭据参数
-  - test_init_renders_clean_error: 验证初始化失败不显示 traceback
+  - test_init_handles_concurrent_initialization: 验证并发完成初始化时正常退出
+  - test_init_records_outcome_logs: 验证跳过及失败日志不包含敏感信息
+  - test_init_renders_clean_database_error: 验证数据库失败不显示 traceback
 """
 
 from datetime import (
@@ -31,6 +31,8 @@ from typer.testing import CliRunner
 
 import datamind.cli.init as init_module
 from datamind.cli.main import app
+from datamind.services.errors import AlreadyInitializedError
+from datamind.context.core import get_context
 from datamind.services.initialization import (
     InitializationResult,
 )
@@ -179,10 +181,10 @@ def test_init_help_does_not_accept_credentials() -> None:
     assert "--password-file" not in result.output
 
 
-def test_init_renders_clean_error(
+def test_init_skips_initialized_system(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证系统已初始化时输出简洁错误"""
+    """验证系统已初始化时跳过配置读取并正常退出"""
     service = create_service()
     service.is_initialized.return_value = True
     settings_loader = install_service(
@@ -197,12 +199,35 @@ def test_init_renders_clean_error(
         ],
     )
 
-    assert result.exit_code == 1
-    assert "初始化失败：Datamind 已经完成初始化" in result.output
+    assert result.exit_code == 0
+    assert "Datamind 已完成初始化，无需重复执行。" in result.output
     assert "Traceback" not in result.output
     assert "管理员密码" not in result.output
     service.initialize.assert_not_awaited()
     settings_loader.assert_not_called()
+
+
+def test_init_handles_concurrent_initialization(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证预检查后其他进程完成初始化时正常退出"""
+    service = create_service()
+    service.initialize.side_effect = AlreadyInitializedError(
+        "Datamind 已经完成初始化"
+    )
+    install_service(
+        monkeypatch,
+        service,
+    )
+
+    result = runner.invoke(
+        app,
+        ["init"],
+    )
+
+    assert result.exit_code == 0
+    assert "Datamind 已完成初始化，无需重复执行。" in result.output
+    service.initialize.assert_awaited_once()
 
 
 def test_init_renders_clean_database_error(
@@ -232,3 +257,48 @@ def test_init_renders_clean_database_error(
     ) in result.output
     assert "relation systems does not exist" not in result.output
     assert "Traceback" not in result.output
+
+
+@pytest.mark.parametrize(
+    ("error", "level", "status", "exit_code"),
+    [
+        (AlreadyInitializedError("already initialized"), "info", "skipped", 0),
+        (ValueError("sensitive-password"), "error", "failed", 1),
+        (SQLAlchemyError("sensitive-connection"), "error", "failed", 1),
+    ],
+)
+def test_init_records_outcome_logs(
+        monkeypatch: pytest.MonkeyPatch,
+        error: Exception,
+        level: str,
+        status: str,
+        exit_code: int,
+) -> None:
+    """验证跳过及失败日志携带请求标识且不暴露原始异常"""
+    service = create_service()
+    captured = {}
+
+    async def check_state() -> bool:
+        captured.update(get_context())
+        raise error
+
+    service.is_initialized.side_effect = check_state
+    install_service(monkeypatch, service)
+    init_logger = MagicMock()
+    monkeypatch.setitem(vars(init_module), "logger", init_logger)
+    previous = get_context().copy()
+
+    result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == exit_code
+    log = getattr(init_logger, level)
+    log.assert_called_once()
+    fields = log.call_args.kwargs
+    assert fields["status"] == status
+    assert fields["request_id"] == captured["request_id"]
+    assert fields["trace_id"] == captured["trace_id"]
+    assert fields["source"] == "cli"
+    assert fields["user"] == "system:bootstrap"
+    assert "sensitive-" not in repr(init_logger.mock_calls)
+    assert get_context() == previous
+    service.initialize.assert_not_awaited()

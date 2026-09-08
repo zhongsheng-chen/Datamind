@@ -1,5 +1,3 @@
-# datamind/runtime/loader.py
-
 """模型加载组件
 
 负责将统一存储中的模型制品同步至 BentoML Model Store，

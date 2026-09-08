@@ -1,5 +1,3 @@
-# tests/db/repositories/test_grant.py
-
 """角色授予仓储测试
 
 验证角色授予查询、列表筛选、创建、重新激活和撤销能力。

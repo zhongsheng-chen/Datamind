@@ -1,5 +1,3 @@
-# datamind/db/models/grants.py
-
 """角色授予表
 
 记录用户与角色之间的授予关系，

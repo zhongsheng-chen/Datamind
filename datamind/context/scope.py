@@ -1,5 +1,3 @@
-# datamind/context/scope.py
-
 """上下文作用域工具
 
 提供基于 contextvars 的临时上下文作用域管理，

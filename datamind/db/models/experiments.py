@@ -1,5 +1,3 @@
-# datamind/db/models/experiments.py
-
 """实验配置表
 
 记录模型在指定环境中的对比实验配置，

@@ -1,5 +1,3 @@
-# tests/db/models/test_tokens.py
-
 """认证令牌模型测试
 
 验证认证令牌表名称、字段定义、服务端默认值、索引、

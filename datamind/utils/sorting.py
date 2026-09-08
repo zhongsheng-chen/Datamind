@@ -1,5 +1,3 @@
-# datamind/utils/sorting.py
-
 """多字段排序工具
 
 提供排序字段与方向的解析、校验和编码能力，

@@ -1,5 +1,3 @@
-# datamind/db/models/scorecards.py
-
 """评分卡表
 
 存储模型版本对应的评分卡刻度、变量质量和分箱明细。

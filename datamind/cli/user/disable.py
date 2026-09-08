@@ -1,5 +1,3 @@
-# datamind/cli/user/disable.py
-
 """停用用户命令
 
 提供 LOCAL 用户停用和会话撤销功能。

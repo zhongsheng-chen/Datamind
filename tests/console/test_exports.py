@@ -1,5 +1,3 @@
-# tests/console/test_exports.py
-
 """内网管理控制台公共导出测试
 
 验证控制台包公开 API 的完整性和可访问性。

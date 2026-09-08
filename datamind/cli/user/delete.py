@@ -1,5 +1,3 @@
-# datamind/cli/user/delete.py
-
 """删除用户命令
 
 提供 LOCAL 用户逻辑删除功能。

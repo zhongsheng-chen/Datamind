@@ -1,5 +1,3 @@
-# datamind/constants/model_type.py
-
 """模型类型枚举
 
 定义支持的机器学习模型类型，用于模型注册、运行时识别和 API 响应。

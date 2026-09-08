@@ -1,5 +1,3 @@
-# datamind/cli/output.py
-
 """CLI 终端输出
 
 统一命令状态、警告、错误、常规内容和 JSON 的输出方式。

@@ -1,5 +1,3 @@
-# datamind/config/settings.py
-
 """配置总入口
 
 聚合所有子配置，提供统一的配置访问接口和缓存实例。

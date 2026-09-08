@@ -1,5 +1,3 @@
-# datamind/db/repositories/runtime.py
-
 """模型运行仓储
 
 提供模型运行状态的查询与管理能力。

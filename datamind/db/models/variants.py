@@ -1,5 +1,3 @@
-# datamind/db/models/variants.py
-
 """实验分组表
 
 记录实验下的分组配置，用于定义对照组、实验组、

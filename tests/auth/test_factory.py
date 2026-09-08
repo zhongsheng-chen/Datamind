@@ -1,5 +1,3 @@
-# tests/auth/test_factory.py
-
 """认证工厂测试
 
 验证认证工厂仅创建 LOCAL 认证服务，并执行生产网络安全校验。

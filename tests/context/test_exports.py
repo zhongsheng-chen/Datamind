@@ -1,5 +1,3 @@
-# tests/context/test_exports.py
-
 """上下文包公共导出测试
 
 验证上下文包公开 API 的完整性和可访问性。

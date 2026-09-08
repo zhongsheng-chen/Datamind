@@ -1,5 +1,3 @@
-# tests/constants/test_identity.py
-
 """身份管理常量测试
 
 验证内置角色名称和固定权限定义。

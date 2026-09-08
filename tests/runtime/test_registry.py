@@ -1,5 +1,3 @@
-# tests/runtime/test_registry.py
-
 """运行时模型注册表测试
 
 验证模型注册、查询、访问统计、卸载和失败重载恢复能力。

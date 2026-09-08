@@ -1,5 +1,3 @@
-# datamind/cli/role/revoke.py
-
 """撤销角色命令
 
 提供撤销用户角色的功能。

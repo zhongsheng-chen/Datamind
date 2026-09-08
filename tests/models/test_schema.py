@@ -1,5 +1,3 @@
-# tests/models/test_schema.py
-
 """模型 Schema 提取测试
 
 验证各支持框架的特征名称提取、来源判定和异常边界。

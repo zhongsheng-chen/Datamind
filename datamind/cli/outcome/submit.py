@@ -1,5 +1,3 @@
-# datamind/cli/outcome/submit.py
-
 """实验结果提交命令
 
 提供延迟业务结果的幂等回流功能。

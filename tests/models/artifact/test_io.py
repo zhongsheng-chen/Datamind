@@ -1,5 +1,3 @@
-# tests/models/artifact/test_io.py
-
 """模型产物临时文件测试
 
 验证临时模型文件的写入、清理和清理异常处理。

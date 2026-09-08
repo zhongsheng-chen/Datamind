@@ -1,5 +1,3 @@
-# datamind/cli/deployment/create.py
-
 """创建部署命令
 
 提供模型部署创建功能。

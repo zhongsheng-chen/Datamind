@@ -1,5 +1,3 @@
-# tests/db/repositories/test_artifact.py
-
 """模型制品仓储测试
 
 验证制品修订的创建、查询和永久清理状态转换。

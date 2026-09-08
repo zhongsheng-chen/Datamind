@@ -1,5 +1,3 @@
-# tests/db/repositories/test_request.py
-
 """请求仓储测试
 
 验证 RequestRepository 的请求查询、列表筛选、辅助列表方法、

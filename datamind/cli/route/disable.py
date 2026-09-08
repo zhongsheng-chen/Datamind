@@ -1,5 +1,3 @@
-# datamind/cli/route/disable.py
-
 """禁用路由命令
 
 提供路由规则禁用功能。

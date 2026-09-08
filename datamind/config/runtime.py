@@ -1,5 +1,3 @@
-# datamind/config/runtime.py
-
 """运行时配置
 
 定义状态协调、心跳与影子执行参数。

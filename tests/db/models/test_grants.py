@@ -1,5 +1,3 @@
-# tests/db/models/test_grants.py
-
 """角色授予模型测试
 
 验证角色授予表名称、字段定义、服务端默认值、索引、

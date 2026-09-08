@@ -1,5 +1,3 @@
-# datamind/console/app.py
-
 """管理控制台 ASGI 应用
 
 提供浏览器登录、会话续期、实时变更通知、数据查询和资源管理功能。
@@ -43,6 +41,7 @@ from starlette.responses import (
     Response,
     StreamingResponse,
 )
+from starlette.types import ASGIApp
 
 from datamind.auth.enums import RoleStatus
 from datamind.auth.factory import create_auth_service
@@ -67,6 +66,7 @@ from datamind.context import (
     generate_trace_id,
     is_valid_trace_id,
 )
+from datamind.context.core import update_context
 from datamind.constants import (
     SUPPORTED_MODEL_TYPES,
     SUPPORTED_PERMISSIONS,
@@ -87,7 +87,10 @@ from datamind.console.exports import (
     encode_csv_row as _encode_csv_row,
     export_filename as _export_filename,
 )
-from datamind.console.middleware import security_headers
+from datamind.console.middleware import (
+    RequestContextMiddleware,
+    security_headers,
+)
 from datamind.console.routes import (
     ConsoleHandlers,
     create_routes,
@@ -282,8 +285,21 @@ async def _refresh(
     )
 
     if response.status_code >= 400:
-        logger.warning(
-            "控制台会话续期失败",
+        if response.status_code == 401:
+            if request.cookies.get(browser_cookies.REFRESH_COOKIE) is None:
+                return response
+
+            log = logger.info
+            message = "控制台会话已失效，需要重新登录"
+        elif response.status_code >= 500:
+            log = logger.error
+            message = "控制台会话续期异常，认证服务暂不可用"
+        else:
+            log = logger.warning
+            message = "控制台会话续期失败"
+
+        log(
+            message,
             status_code=response.status_code,
             **_http_actor_context(
                 request,
@@ -1565,7 +1581,7 @@ async def _requested_login_username(
 def _http_actor_context(
         request: Request,
         *,
-        username: str,
+        username: str = "unknown",
 ) -> dict[str, object]:
     """构建可信的控制台 HTTP 操作人上下文"""
     return {
@@ -2662,12 +2678,17 @@ async def _authenticate(
         request: Request,
 ) -> AuthenticatedUser | None:
     """认证浏览器访问令牌"""
-    return await browser_auth.authenticate(
+    user = await browser_auth.authenticate(
         request,
         access_cookie=browser_cookies.ACCESS_COOKIE,
         unit_of_work=UnitOfWork,
         auth_service=create_auth_service,
     )
+
+    if user is not None:
+        update_context(user=user.username)
+
+    return user
 
 
 @asynccontextmanager
@@ -2683,10 +2704,24 @@ async def _lifespan(
         await event_broker.stop()
 
 
+def _request_context_middleware(
+        app: ASGIApp,
+        /,
+) -> ASGIApp:
+    """创建控制台请求日志上下文中间件"""
+    return RequestContextMiddleware(
+        app,
+        context_factory=_http_actor_context,
+    )
+
+
 console_app = Starlette(
     debug=False,
     lifespan=_lifespan,
     middleware=[
+        Middleware(
+            _request_context_middleware
+        ),
         Middleware(
             _security_headers_middleware
         )

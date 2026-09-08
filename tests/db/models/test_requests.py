@@ -1,5 +1,3 @@
-# tests/db/models/test_requests.py
-
 """评分请求表测试
 
 验证评分请求表的字段、索引、检查约束和字段注释。

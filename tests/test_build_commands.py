@@ -1,5 +1,3 @@
-# tests/test_build_commands.py
-
 """Python 发布包构建命令测试
 
 验证控制台资源未构建时禁止生成不完整的发布包。
@@ -29,7 +27,9 @@ def test_build_requires_console_assets(
         missing: str | None,
 ) -> None:
     """测试入口页面和构建清单引用的文件必须完整存在"""
-    monkeypatch.setattr(build_commands, "__file__", str(tmp_path / "build_commands.py"))
+    monkeypatch.setitem(
+        vars(build_commands), "__file__", str(tmp_path / "build_commands.py"),
+    )
     directory = tmp_path / "datamind" / "console" / "dist"
     directory.mkdir(parents=True)
     for name in ["index.html", ".vite/manifest.json", "assets"]:
@@ -60,14 +60,16 @@ def test_build_requires_console_assets(
 
 
 @pytest.mark.parametrize(
-    ("command_type", "base_type"),
-    [(build_commands.BuildPy, build_commands.build_py),
-     (build_commands.Sdist, build_commands.sdist)],
+    ("command_type", "run_target"),
+    [
+        (build_commands.BuildPy, "setuptools.command.build_py.build_py.run"),
+        (build_commands.Sdist, "setuptools.command.sdist.sdist.run"),
+    ],
 )
 def test_build_commands_validate_console_assets(
         monkeypatch: pytest.MonkeyPatch,
-        command_type: type,
-        base_type: type,
+        command_type: type[build_commands.BuildPy] | type[build_commands.Sdist],
+        run_target: str,
 ) -> None:
     """测试构建命令先校验控制台资源再执行打包"""
     events = []
@@ -76,7 +78,7 @@ def test_build_commands_validate_console_assets(
         lambda: events.append("validate"),
     )
     run = Mock(side_effect=lambda: events.append("build"))
-    monkeypatch.setattr(base_type, "run", run)
+    monkeypatch.setattr(run_target, run)
 
     command_type(Distribution()).run()
 

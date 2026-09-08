@@ -1,5 +1,3 @@
-# datamind/cli/service/run.py
-
 """运行服务命令
 
 提供模型评分服务启动功能。
@@ -495,6 +493,7 @@ def run_service(
 
         logger.info(
             "Datamind 服务启动完成",
+            service_instance_id=current_service_instance_id,
             service_name=result["name"],
             version=result["version"],
             environment=result["environment"],

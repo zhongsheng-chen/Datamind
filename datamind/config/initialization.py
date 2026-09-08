@@ -1,5 +1,3 @@
-# datamind/config/initialization.py
-
 """系统初始化配置
 
 定义首次初始化使用的管理员账户凭据。

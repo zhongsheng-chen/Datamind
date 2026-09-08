@@ -1,5 +1,3 @@
-# datamind/db/repositories/execution.py
-
 """模型执行仓储
 
 提供模型执行记录的创建、查询和状态迁移能力。

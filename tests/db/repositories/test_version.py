@@ -1,5 +1,3 @@
-# tests/db/repositories/test_version.py
-
 """模型版本仓储测试
 
 验证 VersionRepository 的版本查询、列表筛选、创建、

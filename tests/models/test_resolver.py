@@ -1,5 +1,3 @@
-# tests/models/test_resolver.py
-
 """模型解析器测试
 
 验证模型和版本解析及版本归属约束。

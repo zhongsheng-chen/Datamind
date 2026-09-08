@@ -1,5 +1,3 @@
-# tests/db/repositories/test_metadata.py
-
 """模型元数据仓储测试
 
 验证 MetadataRepository 的模型查询、列表筛选、创建、

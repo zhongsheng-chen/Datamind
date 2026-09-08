@@ -1,5 +1,3 @@
-# tests/storage/test_factory.py
-
 """存储后端工厂测试
 
 验证工厂根据存储类型创建后端并正确传递配置参数。

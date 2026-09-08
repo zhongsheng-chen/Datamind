@@ -1,5 +1,3 @@
-# datamind/cli/experiment/complete.py
-
 """完成实验命令
 
 提供实验完成标记功能。

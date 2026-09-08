@@ -1,6 +1,6 @@
 #
 我想设计一个银行贷款模型部署平台Datamind, 用于部署模型开发人员用Python跑出来的评分卡模型,分类任务等模型。
-不用考虑批量预测，零售信贷贷款都是单笔处理的。
+支持单笔预测，以及面向同一部署的批量预测。
 模型部署工具考虑用bentoml实现，支持模型注册、注销，支持模型文件热更换，支持模型框架：sklearn|xgboost|lightgbm|torch|tensorflow|onnx|catboost。
 支持模型类型：模型类型：decision_tree|random_forest|xgboost|lightgbm|logistic_regression。
 能支持AB test.能跑评分卡任务也能跑分类任务，并提供API服务。对于评分卡模型，应该返回模型总评分和模型的特征分.不要直接输出决策结果。决策交给下游的内评系统
@@ -797,6 +797,208 @@ datamind init
 # 使用初始化时设置的管理员密码登录
 datamind login --username admin
 ```
+
+## Windows 10 和 Linux 预测请求示例
+
+以下示例假设运行时服务监听 `http://localhost:8700`，并且已经开启认证。
+启动服务：
+
+```bash
+datamind service run --port 8700
+```
+
+登录接口的请求体直接包含 `username` 和 `password`；预测接口的业务报文需要
+放在顶层 `request` 字段中。示例中的模型名称、部署 ID 和特征字段需要替换为
+实际值。下面的预测报文使用 `examples/scorecard/train.py` 中定义的八个
+`FEATURE_NAMES`，并与该脚本中的数值、类别数据类型保持一致。
+
+### Windows 10 PowerShell
+
+先登录并构造 Bearer 认证请求头。不要将示例中的密码占位符原样发送：
+
+```powershell
+$loginBody = @{
+    username = "admin"
+    password = "<password>"
+} | ConvertTo-Json -Compress
+
+$loginResponse = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:8700/auth/login" `
+    -ContentType "application/json; charset=utf-8" `
+    -Body ([System.Text.Encoding]::UTF8.GetBytes($loginBody))
+
+$headers = @{
+    Authorization = "Bearer $($loginResponse.access_token)"
+}
+```
+
+单条预测调用 `/predict`。`model_name` 必填；`deployment_id`、`subject_key` 和
+`subject_type` 可按路由需求选填：
+
+```powershell
+$singleBody = @{
+    request = @{
+        model_name = "scorecard"
+        subject_key = "customer_10001"
+        subject_type = "customer"
+        features = @{
+            age = 35
+            annual_income = 120000.0
+            debt_to_income_ratio = 0.28
+            credit_utilization_ratio = 0.35
+            delinquency_count = 0
+            credit_history_years = 8.0
+            employment_type = "salaried"
+            residence_status = "mortgage"
+        }
+    }
+} | ConvertTo-Json -Depth 10
+
+$singleResponse = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:8700/predict" `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body ([System.Text.Encoding]::UTF8.GetBytes($singleBody))
+
+$singleResponse | ConvertTo-Json -Depth 20
+```
+
+批量预测调用 `/predict/batch`。批量接口直接使用指定部署，`deployment_id` 和
+非空的 `features_list` 必填，不传 `model_name`、`subject_key` 或
+`subject_type`：
+
+```powershell
+$batchBody = @{
+    request = @{
+        deployment_id = "dep_xxxxxxxxxxxxxxxx"
+        features_list = @(
+            @{
+                age = 35
+                annual_income = 120000.0
+                debt_to_income_ratio = 0.28
+                credit_utilization_ratio = 0.35
+                delinquency_count = 0
+                credit_history_years = 8.0
+                employment_type = "salaried"
+                residence_status = "mortgage"
+            },
+            @{
+                age = 27
+                annual_income = 48000.0
+                debt_to_income_ratio = 0.62
+                credit_utilization_ratio = 0.78
+                delinquency_count = 2
+                credit_history_years = 1.5
+                employment_type = "contract"
+                residence_status = "rent"
+            }
+        )
+    }
+} | ConvertTo-Json -Depth 10
+
+$batchResponse = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:8700/predict/batch" `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body ([System.Text.Encoding]::UTF8.GetBytes($batchBody))
+
+$batchResponse | ConvertTo-Json -Depth 20
+```
+
+Windows PowerShell 中如需使用 curl，请调用 `curl.exe`，避免 `curl` 被解析为
+`Invoke-WebRequest` 的别名。URL 中只填写 `http://...`，不要把请求方法
+`POST` 写进 URL。
+
+### Linux curl
+
+下面的登录示例使用 `jq` 安全构造 JSON 并读取响应中的访问令牌：
+
+```bash
+read -rsp "Datamind password: " DATAMIND_PASSWORD
+echo
+
+LOGIN_RESPONSE="$(
+  curl -fsS -X POST "http://localhost:8700/auth/login" \
+    -H "Content-Type: application/json" \
+    --data "$(jq -n \
+      --arg username "admin" \
+      --arg password "$DATAMIND_PASSWORD" \
+      '{username: $username, password: $password}')"
+)"
+unset DATAMIND_PASSWORD
+
+ACCESS_TOKEN="$(printf '%s' "$LOGIN_RESPONSE" | jq -r '.access_token')"
+```
+
+单条预测：
+
+```bash
+curl -fsS -X POST "http://localhost:8700/predict" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --data-binary @- <<'JSON'
+{
+  "request": {
+    "model_name": "scorecard",
+    "subject_key": "customer_10001",
+    "subject_type": "customer",
+    "features": {
+      "age": 35,
+      "annual_income": 120000.0,
+      "debt_to_income_ratio": 0.28,
+      "credit_utilization_ratio": 0.35,
+      "delinquency_count": 0,
+      "credit_history_years": 8.0,
+      "employment_type": "salaried",
+      "residence_status": "mortgage"
+    }
+  }
+}
+JSON
+```
+
+批量预测：
+
+```bash
+curl -fsS -X POST "http://localhost:8700/predict/batch" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --data-binary @- <<'JSON'
+{
+  "request": {
+    "deployment_id": "dep_xxxxxxxxxxxxxxxx",
+    "features_list": [
+      {
+        "age": 35,
+        "annual_income": 120000.0,
+        "debt_to_income_ratio": 0.28,
+        "credit_utilization_ratio": 0.35,
+        "delinquency_count": 0,
+        "credit_history_years": 8.0,
+        "employment_type": "salaried",
+        "residence_status": "mortgage"
+      },
+      {
+        "age": 27,
+        "annual_income": 48000.0,
+        "debt_to_income_ratio": 0.62,
+        "credit_utilization_ratio": 0.78,
+        "delinquency_count": 2,
+        "credit_history_years": 1.5,
+        "employment_type": "contract",
+        "residence_status": "rent"
+      }
+    ]
+  }
+}
+JSON
+```
+
+批量响应的顶层 `request_id` 是批次追踪 ID；`predictions` 中的每一项还会
+包含独立的 `request_id`，用于查询单个子请求或回流对应业务结果。
 
 ---
 

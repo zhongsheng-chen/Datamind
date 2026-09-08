@@ -1,5 +1,3 @@
-# tests/runtime/routing/test_exports.py
-
 """运行时路由包公共导出测试
 
 验证运行时路由包公开 API 的完整性和可访问性。

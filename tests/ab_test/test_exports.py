@@ -1,5 +1,3 @@
-# tests/ab_test/test_exports.py
-
 """A/B 实验包公共导出测试
 
 验证 A/B 实验包公开 API 的完整性和可访问性。

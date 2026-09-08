@@ -1,5 +1,3 @@
-# datamind/models/resolver.py
-
 """模型解析器
 
 提供模型和版本的解析能力，支持通过 ID 或名称查找。

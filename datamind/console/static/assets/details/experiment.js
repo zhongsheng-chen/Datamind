@@ -9,7 +9,6 @@ import {
   createDetailIcon,
   createDetailSection,
   createDetailSummary,
-  createJsonDetailSection,
   mountDetailDrawer,
 } from "./common.js";
 
@@ -108,6 +107,7 @@ export function createExperimentDetailController({
       const weight = document.createElement("strong");
       weight.className = "registry-related-value";
       weight.textContent = formatPercentage(variant.weight);
+      weight.hidden = experiment.config?.strategy === "manual";
       const viewVariant = document.createElement("button");
       viewVariant.type = "button";
       viewVariant.className = "registry-related-link";
@@ -141,6 +141,8 @@ export function createExperimentDetailController({
         ? "danger"
         : action.action === "start" ? "primary" : "";
       const button = createDetailAction(label, icon, tone);
+      button.disabled = Boolean(action.disabled);
+      if (action.disabledReason) button.title = action.disabledReason;
       button.addEventListener("click", () => {
         dialog.close();
         runRecordAction(action, record);
@@ -152,6 +154,222 @@ export function createExperimentDetailController({
 
   function showExperimentDrawer(record) {
     void loadExperimentDrawer(record);
+  }
+
+  function createCustomerAssignmentsSection(record, parentDialog) {
+    const assignments = record.config?.manual_assignments || {};
+    const entries = Object.entries(assignments);
+    const editAction = record.status === "draft"
+      ? getRecordActions("experiments", record).find(
+        (action) => action.action === "edit" && !action.disabled,
+      )
+      : null;
+    const editAssignments = () => {
+      parentDialog.close();
+      runRecordAction(editAction, record);
+    };
+    const section = document.createElement("section");
+    section.className = "registry-detail-section";
+    const headingRow = document.createElement("div");
+    headingRow.className = "registry-section-heading";
+    const heading = document.createElement("h4");
+    heading.append(
+      createDetailIcon("assignment", "registry-section-icon"),
+      document.createTextNode("客户分配"),
+    );
+    headingRow.append(heading);
+    const summary = document.createElement("p");
+    summary.className = "experiment-assignment-summary";
+    summary.textContent = entries.length
+      ? `已指定 ${entries.length} 位客户 · 覆盖 ${new Set(entries.map(([, target]) => target)).size} 个分组`
+      : "暂无客户分配";
+
+    if (entries.length || editAction) {
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "registry-section-link";
+      action.textContent = entries.length ? `查看全部 ${entries.length}` : "添加客户";
+      action.addEventListener("click", () => {
+        if (entries.length) {
+          showCustomerAssignments(record, entries, editAction ? editAssignments : null);
+        } else {
+          editAssignments();
+        }
+      });
+      headingRow.append(action);
+    }
+
+    section.append(headingRow, summary);
+    return section;
+  }
+
+  function showCustomerAssignments(record, entries, onEdit) {
+    const dialog = document.createElement("dialog");
+    dialog.className = "experiment-assignments-dialog";
+    dialog.setAttribute("aria-label", "客户分配名单");
+    const header = document.createElement("header");
+    const title = document.createElement("h3");
+    title.textContent = "客户分配名单";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "dialog-close-button";
+    close.textContent = "关闭";
+    close.addEventListener("click", () => dialog.close());
+    header.append(title, close);
+
+    const content = document.createElement("div");
+    content.className = "experiment-assignments-content";
+    const filters = document.createElement("div");
+    filters.className = "experiment-assignments-filters";
+    const search = document.createElement("input");
+    search.type = "search";
+    search.placeholder = "搜索客户标识";
+    search.setAttribute("aria-label", "搜索客户标识");
+    const group = document.createElement("select");
+    group.setAttribute("aria-label", "筛选分组");
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = "全部分组";
+    group.append(all);
+    filters.append(search, group);
+
+    const message = document.createElement("p");
+    message.className = "experiment-assignments-message";
+    message.setAttribute("role", "status");
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "registry-section-link";
+    retry.textContent = "重新加载";
+    retry.hidden = true;
+    const table = document.createElement("table");
+    const tableHead = document.createElement("thead");
+    const headingRow = document.createElement("tr");
+    for (const label of ["客户标识", "所属分组"]) {
+      const cell = document.createElement("th");
+      cell.scope = "col";
+      cell.textContent = label;
+      headingRow.append(cell);
+    }
+    tableHead.append(headingRow);
+    const tableBody = document.createElement("tbody");
+    table.append(tableHead, tableBody);
+    content.append(filters, message, retry, table);
+
+    const footer = document.createElement("footer");
+    if (onEdit) {
+      const edit = createDetailAction("编辑分配", "edit");
+      edit.addEventListener("click", () => {
+        dialog.close();
+        onEdit();
+      });
+      footer.append(edit);
+    }
+    const pagination = document.createElement("div");
+    pagination.className = "experiment-assignments-pagination";
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.className = "secondary-button";
+    previous.textContent = "上一页";
+    const count = document.createElement("span");
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "secondary-button";
+    next.textContent = "下一页";
+    pagination.append(previous, count, next);
+    footer.append(pagination);
+    dialog.append(header, content, footer);
+
+    const pageSize = 10;
+    let page = 1;
+    let names = new Map();
+    let loaded = false;
+
+    function render() {
+      if (!loaded) return;
+      const query = search.value.trim().toLowerCase();
+      const filtered = entries.filter(([customer, target]) => (
+        customer.toLowerCase().includes(query)
+        && (!group.value || target === group.value)
+      ));
+      const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      page = Math.min(page, pages);
+      tableBody.replaceChildren();
+      for (const [customer, target] of filtered.slice((page - 1) * pageSize, page * pageSize)) {
+        const row = document.createElement("tr");
+        const customerCell = document.createElement("td");
+        customerCell.textContent = customer;
+        const groupCell = document.createElement("td");
+        groupCell.textContent = names.get(target) || "分组不可用";
+        row.append(customerCell, groupCell);
+        tableBody.append(row);
+      }
+      message.textContent = filtered.length
+        ? `共 ${filtered.length} 位客户`
+        : "没有匹配的客户";
+      count.textContent = `${page} / ${pages}`;
+      previous.disabled = page <= 1;
+      next.disabled = page >= pages;
+    }
+
+    async function loadGroups() {
+      loaded = false;
+      search.disabled = true;
+      group.disabled = true;
+      previous.disabled = true;
+      next.disabled = true;
+      retry.hidden = true;
+      message.textContent = "正在加载名单…";
+      try {
+        const variants = [];
+        for (let currentPage = 1; ; currentPage += 1) {
+          const response = await request(
+            `experiments/${encodeURIComponent(record.experiment_id)}/variants?page=${currentPage}&page_size=100&deleted=false`,
+          );
+          if (!dialog.open) return;
+          const batch = Array.isArray(response?.items) ? response.items : [];
+          variants.push(...batch);
+          if (batch.length < 100) break;
+        }
+        names = new Map(variants.map((variant) => [variant.variant_id, variant.name]));
+        group.replaceChildren(all);
+        for (const target of new Set(entries.map(([, value]) => value))) {
+          const option = document.createElement("option");
+          option.value = target;
+          option.textContent = names.get(target) || "分组不可用";
+          group.append(option);
+        }
+        loaded = true;
+        search.disabled = false;
+        group.disabled = false;
+        render();
+      } catch {
+        if (!dialog.open) return;
+        message.textContent = "名单加载失败，请重试";
+        retry.hidden = false;
+      }
+    }
+
+    search.addEventListener("input", () => {
+      page = 1;
+      render();
+    });
+    group.addEventListener("change", () => {
+      page = 1;
+      render();
+    });
+    previous.addEventListener("click", () => {
+      page -= 1;
+      render();
+    });
+    next.addEventListener("click", () => {
+      page += 1;
+      render();
+    });
+    retry.addEventListener("click", () => void loadGroups());
+    dialog.addEventListener("close", () => dialog.remove());
+    document.body.append(dialog);
+    dialog.showModal();
+    void loadGroups();
   }
 
   async function loadExperimentDrawer(record) {
@@ -206,12 +424,17 @@ export function createExperimentDetailController({
         ], dialog, "info", appendRequestDetail),
         createDetailSection("分流配置", [
           ["分配策略", strategyLabel(config.strategy)],
-          ["实验流量", formatPercentage(config.traffic_ratio)],
+          ...(config.strategy === "manual" ? [] : [
+            ["实验曝光比例", formatPercentage(config.traffic_ratio)],
+          ]),
           ["分桶字段", config.bucket_key],
           ["分组数量", record.variant_count],
         ], dialog, "config", appendRequestDetail),
         createVariantList(record, variants, dialog),
       );
+      if (config.strategy === "manual") {
+        body.append(createCustomerAssignmentsSection(record, dialog));
+      }
       appendResourceActions(dialog, "experiments", record, "实验");
       mountDetailDrawer(dialog, {
         section: "experiments",
@@ -331,9 +554,6 @@ export function createExperimentDetailController({
       ], dialog, "info", appendRequestDetail),
       createVariantDeploymentSection(record, dialog),
     );
-    if (record.config !== null && record.config !== undefined) {
-      body.append(createJsonDetailSection("分组配置", record.config, "config"));
-    }
     appendResourceActions(dialog, "variants", record, "分组");
     mountDetailDrawer(dialog, { section: "variants", id: record.variant_id });
   }

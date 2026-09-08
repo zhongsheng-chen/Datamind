@@ -1,5 +1,3 @@
-# tests/storage/test_exports.py
-
 """存储包公共导出测试
 
 验证存储包公开 API 的完整性和可访问性。

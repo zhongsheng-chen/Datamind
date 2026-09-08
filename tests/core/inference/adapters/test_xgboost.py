@@ -1,5 +1,3 @@
-# tests/core/inference/adapters/test_xgboost.py
-
 """XGBoost 模型适配器测试
 
 验证 XGBoost 二分类模型的能力检测、概率预测、批量预测、

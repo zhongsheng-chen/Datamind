@@ -1,5 +1,3 @@
-# tests/models/artifact/handlers/test_exports.py
-
 """模型产物加载器实现包公共导出测试
 
 验证各框架加载器模块均已公开并完成注册。

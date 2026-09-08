@@ -1,5 +1,3 @@
-# tests/storage/test_errors.py
-
 """存储异常测试
 
 验证存储异常的继承关系、消息透传、统一捕获和异常链。

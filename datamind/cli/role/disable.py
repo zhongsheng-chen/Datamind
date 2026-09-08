@@ -1,5 +1,3 @@
-# datamind/cli/role/disable.py
-
 """停用角色命令
 
 提供角色停用功能。

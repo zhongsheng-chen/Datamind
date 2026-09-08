@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/deactivate.py
-
 """停用实验分组命令
 
 提供实验分组停用功能。

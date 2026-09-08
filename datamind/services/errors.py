@@ -1,5 +1,3 @@
-# datamind/services/errors.py
-
 """业务服务异常定义
 
 统一定义业务服务使用的异常类型。

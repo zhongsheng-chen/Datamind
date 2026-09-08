@@ -1,5 +1,3 @@
-# tests/db/models/test_outbox.py
-
 """控制台事件表测试
 
 验证控制台事件表的字段、索引、检查约束和字段注释。

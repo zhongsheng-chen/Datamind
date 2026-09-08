@@ -1,5 +1,3 @@
-# datamind/db/repositories/routing.py
-
 """路由仓储
 
 提供模型流量分发策略的查询与管理能力，

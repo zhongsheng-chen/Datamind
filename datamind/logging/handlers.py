@@ -1,5 +1,3 @@
-# datamind/logging/handlers.py
-
 """日志输出通道处理器
 
 只负责日志输出，不包含日志加工逻辑。

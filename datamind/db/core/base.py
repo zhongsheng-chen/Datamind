@@ -1,5 +1,3 @@
-# datamind/db/core/base.py
-
 """数据库基类
 
 定义 SQLAlchemy 声明式基类和数据库对象命名约定。

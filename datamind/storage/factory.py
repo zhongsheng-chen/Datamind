@@ -1,5 +1,3 @@
-# datamind/storage/factory.py
-
 """存储后端工厂
 
 根据配置创建对应的存储后端实例。

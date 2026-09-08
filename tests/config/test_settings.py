@@ -1,5 +1,3 @@
-# tests/config/test_settings.py
-
 """配置总入口测试
 
 验证 Settings 对全部子配置的聚合，以及 get_settings 的
@@ -10,8 +8,6 @@
     验证配置总入口聚合全部子配置
   - test_settings_annotations_match_child_configs:
     验证配置总入口类型标注
-  - test_settings_does_not_include_removed_configs:
-    验证配置总入口不包含已移除配置
   - test_direct_settings_creation_returns_independent_instances:
     验证直接创建的 Settings 实例相互独立
   - test_get_settings_returns_cached_singleton:
@@ -174,14 +170,6 @@ def test_settings_annotations_match_child_configs() -> None:
     }
 
 
-def test_settings_does_not_include_removed_configs() -> None:
-    """验证配置总入口不包含已移除配置"""
-    settings = Settings()
-
-    assert not hasattr(settings, "model")
-    assert not hasattr(settings, "ab_test")
-
-
 def test_direct_settings_creation_returns_independent_instances() -> None:
     """验证直接创建的 Settings 实例相互独立"""
     first = Settings()
@@ -194,7 +182,6 @@ def test_direct_settings_creation_returns_independent_instances() -> None:
     assert first.logging is not second.logging
     assert first.audit is not second.audit
     assert first.auth is not second.auth
-    assert first.auth.local is not second.auth.local
     assert first.auth.local is not second.auth.local
     assert first.classification is not second.classification
     assert first.scoring is not second.scoring

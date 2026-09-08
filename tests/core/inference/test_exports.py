@@ -1,5 +1,3 @@
-# tests/core/inference/test_exports.py
-
 """推理包公共导出测试
 
 验证推理包公开 API 的完整性和可访问性。

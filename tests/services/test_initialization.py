@@ -1,5 +1,3 @@
-# tests/services/test_initialization.py
-
 """系统初始化服务测试
 
 验证首次管理员、角色、授权、审计和初始化状态在同一工作单元中创建。
@@ -7,6 +5,7 @@
 核心功能：
   - test_is_initialized_reads_system_state: 验证查询初始化状态
   - test_initialize_creates_admin_identity: 验证创建完整管理员身份
+  - test_initialize_reuses_request_context: 验证日志及审计复用调用上下文
   - test_initialize_rejects_completed_state: 验证初始化只能执行一次
   - test_initialize_rejects_existing_users: 验证已有用户时拒绝初始化
   - test_initialize_rejects_existing_admin_role: 验证角色冲突时拒绝初始化
@@ -33,6 +32,7 @@ from datamind.audit.enums import (
 from datamind.db.models.roles import Role
 from datamind.db.models.system import SystemState
 from datamind.db.models.users import User
+from datamind.context.scope import context_scope
 from datamind.services.errors import (
     AlreadyInitializedError,
     InitializationError,
@@ -135,6 +135,32 @@ def configure_service(
 
 
 @pytest.mark.asyncio
+async def test_initialize_reuses_request_context(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证初始化成功日志与审计复用调用方的请求标识"""
+    *_, audit_repo = configure_service(
+        monkeypatch,
+        state=SystemState(system_id="datamind", initialized=False),
+    )
+    service_logger = MagicMock()
+    monkeypatch.setitem(vars(initialization_module), "logger", service_logger)
+
+    with context_scope(request_id="req_cli", trace_id="a" * 32):
+        await InitializationService().initialize(
+            username="admin",
+            password="secret",
+        )
+
+    for fields in (
+        audit_repo.create_audit.call_args.kwargs,
+        service_logger.info.call_args.kwargs,
+    ):
+        assert fields["request_id"] == "req_cli"
+        assert fields["trace_id"] == "a" * 32
+
+
+@pytest.mark.asyncio
 async def test_is_initialized_reads_system_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -159,6 +185,8 @@ async def test_initialize_creates_admin_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """验证创建完整管理员身份并标记系统已初始化"""
+    service_logger = MagicMock()
+    monkeypatch.setitem(vars(initialization_module), "logger", service_logger)
     state = SystemState(
         system_id="datamind",
         initialized=False,
@@ -187,6 +215,13 @@ async def test_initialize_creates_admin_identity(
     assert result.user_id == "usr_test"
     assert result.role_id == "rol_test"
     assert result.initialized_at == CURRENT_TIME
+    service_logger.info.assert_called_once()
+    log_fields = service_logger.info.call_args.kwargs
+    audit_fields = audit_repo.create_audit.call_args.kwargs
+    for key in ("request_id", "trace_id", "source", "user", "ip", "hostname"):
+        assert log_fields[key] == audit_fields[key]
+    assert log_fields["status"] == "success"
+    assert "secret" not in repr(service_logger.mock_calls)
     user_repo.create_user.assert_called_once_with(
         user_id="usr_test",
         username="admin",

@@ -1,5 +1,3 @@
-# tests/cli/test_deployment.py
-
 """部署 CLI 测试
 
 验证部署命令能够将业务异常转换为清晰的命令行提示。

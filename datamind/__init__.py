@@ -1,5 +1,3 @@
-# datamind/__init__.py
-
 """Datamind 核心包
 
 提供平台核心功能并定义全局路径常量（PACKAGE_ROOT / PROJECT_ROOT）。

@@ -1,5 +1,3 @@
-# datamind/utils/network.py
-
 """网络工具
 
 提供当前主机 IP 地址和主机名获取能力。

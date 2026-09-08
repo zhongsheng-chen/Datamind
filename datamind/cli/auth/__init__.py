@@ -1,5 +1,3 @@
-# datamind/cli/auth/__init__.py
-
 """登录会话命令
 
 提供本地 CLI 登录会话管理功能。

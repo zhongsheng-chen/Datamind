@@ -1,5 +1,3 @@
-# datamind/cli/role/enable.py
-
 """启用角色命令
 
 提供角色启用功能。

@@ -1,5 +1,3 @@
-# datamind/cli/role/list.py
-
 """列出角色命令
 
 提供角色列表查询功能。

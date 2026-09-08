@@ -386,7 +386,6 @@ const sections = {
       ["group_type", "分组类型", undefined, "is_control"],
       ["model_name", "模型名称"],
       ["model_version", "版本"],
-      ["deployment_id", "部署 ID", "mono"],
       ["weight", "权重", "percentage"],
       ["status", "状态", "status"],
       ["updated_at", "更新时间", "time"],
@@ -428,6 +427,8 @@ const sections = {
       ["model_name", "模型名称"],
       ["model_version", "版本"],
       ["source", "来源"],
+      ["strategy", "策略"],
+      ["decision", "决策结果", "decision"],
       ["probability", "概率", "probability"],
       ["score", "评分", "score"],
       ["decided_at", "决策时间", "time"],
@@ -538,7 +539,8 @@ const deletedSectionColumns = {
   variants: [
     ["name", "分组名称"],
     ["experiment_name", "实验名称"],
-    ["deployment_id", "部署 ID", "mono"],
+    ["model_name", "模型名称"],
+    ["model_version", "版本"],
     ...deletionMetadataColumns,
   ],
 };
@@ -550,7 +552,6 @@ const variantColumns = [
   ["group_type", "分组类型", undefined, "is_control"],
   ["model_name", "模型名称"],
   ["model_version", "版本"],
-  ["deployment_id", "部署 ID", "mono"],
   ["weight", "权重", "percentage"],
   ["status", "状态", "status"],
   ["updated_at", "更新时间", "time"],
@@ -1073,6 +1074,8 @@ const experimentDetailController = createExperimentDetailController({
 });
 
 const inferenceDetailController = createInferenceDetailController({
+  createDecisionBadge: presentationController.createDecisionBadge,
+  request,
   createCopyableNavigationLink: presentationController.createCopyableNavigationLink,
   createExecutionTypeBadge: presentationController.createExecutionTypeBadge,
   createSectionNavigationLink: presentationController.createSectionNavigationLink,
@@ -1088,7 +1091,7 @@ const inferenceDetailController = createInferenceDetailController({
 
 const showAuditDetails = createAuditDetailController({
   createCopyableNavigationLink: presentationController.createCopyableNavigationLink,
-  createSectionNavigationLink: presentationController.createSectionNavigationLink,
+  createCopyableSectionNavigationLink: presentationController.createCopyableSectionNavigationLink,
   createStatusBadge: presentationController.createStatusBadge,
   formatTime,
   navigateToSection: navigationController.navigateToSection,

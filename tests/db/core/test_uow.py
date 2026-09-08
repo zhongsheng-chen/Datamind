@@ -1,5 +1,3 @@
-# tests/db/core/test_uow.py
-
 """数据库工作单元测试
 
 验证 UnitOfWork 对异步数据库会话和事务生命周期的管理。

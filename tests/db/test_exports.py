@@ -1,5 +1,3 @@
-# tests/db/test_exports.py
-
 """数据库包公共导出测试
 
 验证数据库包公开 API 的完整性和可访问性。

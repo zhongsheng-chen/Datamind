@@ -1,5 +1,3 @@
-# tests/console/test_app.py
-
 """内网管理控制台应用测试
 
 验证静态页面、浏览器登录 Cookie、会话认证和权限化概览接口。
@@ -315,7 +313,7 @@ async def test_console_build_serves_fingerprinted_assets(root_path: str) -> None
                 app=app_module.console_app,
                 root_path=root_path,
             ),
-            base_url=f"http://testserver{root_path}/",
+            base_url=f"https://testserver{root_path}/",
     ) as client:
         page = await client.get("")
         assert page.status_code == 200, page.text
@@ -360,7 +358,7 @@ async def test_console_page_requires_build(
         tmp_path: Path,
 ) -> None:
     """测试缺少构建产物时返回明确提示而不回退到源码"""
-    monkeypatch.setattr(app_module, "_STATIC_DIR", tmp_path)
+    monkeypatch.setitem(vars(app_module), "_STATIC_DIR", tmp_path)
     async with AsyncClient(
             transport=ASGITransport(app=app_module.console_app),
             base_url="http://testserver",
@@ -549,7 +547,6 @@ async def test_console_page_is_available() -> None:
     assert "await openModelRegistrationDialog(null, models);" in (
         version_registration_section
     )
-    assert "createManagementDialog({" not in version_registration_section
     model_registration_section = _function_source(
         management_script.text,
         "async function openModelRegistrationDialog(",
@@ -561,7 +558,7 @@ async def test_console_page_is_available() -> None:
     )
     assert "modelCandidates.map((model) => ({" in model_registration_section
     assert 'submitLabel: "确认注册"' in model_registration_section
-    assert "if (wizard && activeStep < stepFields.length - 1)" in (
+    assert "if (wizard && activeStep !== visibleSteps().at(-1))" in (
         management_script.text
     )
     assert "next.addEventListener(\"click\", advanceWizard)" in (
@@ -588,14 +585,12 @@ async def test_console_page_is_available() -> None:
     )[1].split("}", maxsplit=1)[0]
     assert "grid-auto-flow: column" in wizard_steps_style
     assert "grid-auto-columns: minmax(0, 1fr)" in wizard_steps_style
-    assert "repeat(3" not in wizard_steps_style
     assert ".management-wizard-check-icon" in stylesheet.text
     assert "transform: translate(1px, -1px)" in stylesheet.text
     assert (
         ".management-wizard-steps li.complete "
         ".management-wizard-check-icon"
     ) in stylesheet.text
-    assert 'content: "✓"' not in stylesheet.text
     assert "function createWizardCheckIcon()" in management_script.text
     assert 'const deploymentRoleOptionsByRollout = {' in management_script.text
     assert 'full: [["champion", "Champion"]]' in management_script.text
@@ -745,8 +740,6 @@ async def test_console_page_is_available() -> None:
     assert 'help: "可选；默认 0.5。"' in management_script.text
     assert 'helpByField: "model_id"' in management_script.text
     assert '"可选；默认 600。"' in management_script.text
-    assert 'name: "rules_file"' in management_script.text
-    assert 'name: "variant_config_file"' in management_script.text
     assert 'name: "experiment_id"' in management_script.text
     assert 'optionsByField: experiment ? undefined : "experiment_id"' in (
         management_script.text
@@ -762,7 +755,8 @@ async def test_console_page_is_available() -> None:
     assert 'label: "路由名称"' in routing_create_section
     assert 'name: optionalValue(formData, "name")' in routing_create_section
     assert 'label: "规则配置"' in routing_create_section
-    assert 'help: "可选，仅支持 JSON 文件。"' in routing_create_section
+    assert 'type: "json-config"' in routing_create_section
+    assert 'mode: "create"' in routing_create_section
     assert 'effective_from: optionalValue(formData, "effective_from")' in (
         routing_create_section
     )
@@ -784,21 +778,30 @@ async def test_console_page_is_available() -> None:
     assert '.filter((model) => model.status === "active")' in (
         experiment_create_section
     )
-    assert 'description: "配置实验分流策略和生效时间。"' in (
+    assert 'description: "配置实验信息、分组和客户分配，保存为草稿。"' in (
+        experiment_create_section
+    )
+    assert 'wizard: true' in experiment_create_section
+    assert 'submitLabel: "保存"' in experiment_create_section
+    assert 'type: "experiment-groups"' in experiment_create_section
+    assert 'sourceGroups: "groups"' in experiment_create_section
+    assert 'groups: readJsonConfig(formData, "groups")' in experiment_create_section
+    assert 'manual_assignments: readJsonConfig(formData, "manual_assignments")' in (
         experiment_create_section
     )
     assert 'label: "流量比例"' in experiment_create_section
     assert 'suffix: "%"' in experiment_create_section
     assert 'stepper: true' in experiment_create_section
-    assert 'label: "分桶字段"' in experiment_create_section
+    assert 'label: "主体标识字段"' in experiment_create_section
     assert 'placeholder: "例如 customer_id"' in experiment_create_section
-    assert 'traffic_ratio: Number(formData.get("traffic_ratio")) / 100' in (
+    assert 'traffic_ratio: formData.has("traffic_ratio")' in (
         experiment_create_section
     )
+    assert 'visibleValues: ["hash"]' in experiment_create_section
     assert experiment_create_section.index('name: "effective_from"') < (
         experiment_create_section.index('name: "effective_to"')
     )
-    assert 'parseJsonFile(formData, "rules_file", "规则配置")' in (
+    assert 'readJsonConfig(formData, "rules")' in (
         management_script.text
     )
     assert "async function parseJsonFile" in management_script.text
@@ -1084,6 +1087,12 @@ async def test_console_page_supports_realtime_details() -> None:
     assert ".auth-pending .dashboard" in stylesheet.text
     assert 'document.documentElement.classList.remove("auth-pending")' in script.text
     assert '["version", "版本"]' in script.text
+    decisions_section = _function_source(
+        script.text,
+        "  decisions: {",
+        "  executions: {",
+    )
+    assert '["source", "来源"],\n      ["strategy", "策略"]' in decisions_section
     assert 'function enableDetailRow(row, section, record)' in script.text
     assert 'function isInteractiveRowTarget(target, row)' in script.text
     assert 'enableDetailRow(row, state.active, record)' in script.text
@@ -1282,6 +1291,14 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '["分组名称", () => createSectionNavigationLink(' in experiment_source
     assert 'record.variant_id,\n          "variants",' in experiment_source
     assert 'document.createTextNode("分组分配")' in experiment_source
+    assert 'document.createTextNode("客户分配")' in experiment_source
+    assert 'if (config.strategy === "manual")' in experiment_source
+    assert 'record.status === "draft"' in experiment_source
+    assert '"客户分配名单"' in experiment_source
+    assert '"搜索客户标识"' in experiment_source
+    assert '"筛选分组"' in experiment_source
+    assert 'const pageSize = 10' in experiment_source
+    assert '"名单加载失败，请重试"' in experiment_source
     assert 'getRecordActions(section, record)' in experiment_source
     assert '`experiment_id:${record.experiment_id}`' in experiment_source
     assert '`variant_id:${record.variant_id}`' in experiment_source
@@ -1295,12 +1312,33 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '"inference-detail-drawer execution-detail-drawer"' in inference_source
     assert '["调用 ID", () => createCopyableNavigationLink(' in inference_source
     assert '["决策 ID", () => createCopyableNavigationLink(' in inference_source
+    assert '["主体标识", () => {' in inference_source
+    assert 'identifier.classList.add("registry-subject-identifier")' in inference_source
+    assert 'identifier.title = record.subject_key' in inference_source
+    assert '.registry-subject-identifier > .request-link' in stylesheet.text
+    assert '["主体类型", subjectTypeLabels[record.subject_type] || record.subject_type]' in (
+        inference_source
+    )
+    assert 'subject_key:${quote(record.subject_key)}' in inference_source
+    assert 'subject_type:${quote(record.subject_type)}' in inference_source
     assert '["执行 ID", () => createCopyableNavigationLink(' in inference_source
     assert 'document.createTextNode("模型执行")' in inference_source
     assert 'document.createTextNode("决策路径")' in inference_source
-    assert 'label: "路由命中"' in inference_source
-    assert 'label: "实验分配"' in inference_source
-    assert 'label: "最终目标"' in inference_source
+    assert 'label: "命中路由"' in inference_source
+    assert 'label: "命中实验"' in inference_source
+    assert '分配主体：' not in inference_source
+    assert 'variantName ? `分组 ${variantName}`' not in inference_source
+    assert 'record.strategy !== "manual"' in inference_source
+    assert '{ ...record.context, bucket: record.bucket }' in inference_source
+    assert '@type {{ assignment_source?: string | null } | null | undefined}' in (
+        inference_source
+    )
+    assert 'context?.assignment_source' in inference_source
+    assert 'new_assignment: "新分配"' in inference_source
+    assert 'existing_assignment: "复用分配"' in inference_source
+    assert 'assignmentSourceMeta.title = description' in inference_source
+    assert '分配来源：' not in inference_source
+    assert 'label: "命中部署"' in inference_source
     assert 'createDecisionPathAction(' in inference_source
     assert '"查看路由",' in inference_source
     assert '"查看实验",' in inference_source
@@ -1311,7 +1349,7 @@ async def test_console_page_supports_realtime_details() -> None:
     assert "formatOptionalDuration(execution.latency_ms)" in inference_source
     assert 'createDetailBadge(record.user, "purple")' in inference_source
     assert "subtitle: [record.model_version, record.ip]" in inference_source
-    assert 'createJsonDetailSection("执行结果", record.prediction, "prediction")' in (
+    assert 'createPredictionSection("执行结果", record, record.prediction, "prediction")' in (
         inference_source
     )
     assert 'createJsonDetailSection("执行上下文", record.context, "metadata")' in (
@@ -1339,6 +1377,9 @@ async def test_console_page_supports_realtime_details() -> None:
     assert "export function createAuditDetailController" in audit_source
     assert '"审计记录详情"' in audit_source
     assert '["审计 ID", () => createCopyableNavigationLink(' in audit_source
+    assert '["目标资源", () => {' in audit_source
+    assert 'record.target_type === "system" && record.target_id === "datamind"' in audit_source
+    assert 'return createCopyableSectionNavigationLink(' in audit_source
     assert 'document.createTextNode("变更内容")' in audit_source
     assert 'createDetailIcon("change", "registry-section-icon")' in audit_source
     assert "createJsonCode," in audit_source

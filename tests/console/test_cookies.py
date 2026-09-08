@@ -1,5 +1,3 @@
-# tests/console/test_cookies.py
-
 """管理控制台会话 Cookie 测试
 
 验证访问令牌、刷新令牌和 CSRF Cookie 的写入、补发与清理行为。

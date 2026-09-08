@@ -1,5 +1,3 @@
-# datamind/cli/user/show.py
-
 """查看用户命令
 
 提供 LOCAL 用户详情查询功能。

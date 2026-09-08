@@ -1,5 +1,3 @@
-# tests/config/test_classification.py
-
 """分类模型配置测试
 
 验证默认阈值、自定义阈值、环境变量读取、类型转换、

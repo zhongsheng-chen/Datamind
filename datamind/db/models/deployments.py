@@ -1,5 +1,3 @@
-# datamind/db/models/deployments.py
-
 """模型部署表
 
 记录模型版本在不同环境中的部署信息，用于生成部署实例。

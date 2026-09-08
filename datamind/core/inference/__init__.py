@@ -1,5 +1,3 @@
-# datamind/core/inference/__init__.py
-
 """推理模块
 
 提供统一模型推理入口。

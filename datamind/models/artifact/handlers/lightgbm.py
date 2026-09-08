@@ -1,5 +1,3 @@
-# datamind/models/artifact/handlers/lightgbm.py
-
 """LightGBM 模型加载器
 
 注册 LightGBM 框架的模型加载函数。

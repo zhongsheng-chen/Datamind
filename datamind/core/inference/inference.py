@@ -1,5 +1,3 @@
-# datamind/core/inference/inference.py
-
 """统一推理接口
 
 封装模型适配器创建、概率预测、对数几率预测、特征转换、
