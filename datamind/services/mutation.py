@@ -1,5 +1,3 @@
-# datamind/services/mutation.py
-
 """服务变更结果
 
 定义携带响应数据和审计快照的服务变更结果。

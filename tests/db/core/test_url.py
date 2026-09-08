@@ -1,5 +1,3 @@
-# tests/db/core/test_url.py
-
 """数据库 URL 获取测试
 
 验证 get_db_url 从全局配置中读取并原样返回

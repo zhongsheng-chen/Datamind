@@ -1,5 +1,3 @@
-# datamind/storage/admin.py
-
 """存储管理 API
 
 提供业务级别的存储操作接口，是唯一业务入口。

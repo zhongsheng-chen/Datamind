@@ -1,5 +1,3 @@
-# datamind/cli/errors.py
-
 """CLI 异常定义
 
 统一定义命令行工具本地状态管理过程中的异常类型。

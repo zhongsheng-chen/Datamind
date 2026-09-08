@@ -1,5 +1,3 @@
-# tests/cli/test_identity.py
-
 """CLI 身份管理命令测试
 
 验证用户和角色命令使用当前认证身份执行高风险操作。

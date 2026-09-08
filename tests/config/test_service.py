@@ -1,5 +1,3 @@
-# tests/config/test_service.py
-
 """服务配置测试
 
 验证运行环境必填、可选参数默认值、环境变量读取、

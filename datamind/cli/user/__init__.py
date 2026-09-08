@@ -1,5 +1,3 @@
-# datamind/cli/user/__init__.py
-
 """用户管理命令
 
 提供 LOCAL 用户账户的创建、查询、状态、密码和删除管理功能。

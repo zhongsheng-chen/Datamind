@@ -1,5 +1,3 @@
-# datamind/db/repositories/outbox.py
-
 """控制台事件仓储
 
 提供控制台变更事件的游标查询、断线回放和过期清理能力。

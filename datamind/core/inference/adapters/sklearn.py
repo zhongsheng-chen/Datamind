@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/sklearn.py
-
 """Sklearn 模型适配器
 
 为 Sklearn 二分类模型提供概率预测和特征重要性接口，

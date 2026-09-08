@@ -1,5 +1,3 @@
-# datamind/runtime/executor.py
-
 """模型预测执行器
 
 统一执行主预测和影子预测，负责加载目标运行时服务、

@@ -1,5 +1,3 @@
-# datamind/core/inference/features.py
-
 """推理特征转换
 
 根据模型特征顺序和数据类型，将请求特征转换为模型输入矩阵。

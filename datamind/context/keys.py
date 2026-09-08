@@ -1,5 +1,3 @@
-# datamind/context/keys.py
-
 """上下文键定义
 
 定义请求上下文中使用的标准字段名。

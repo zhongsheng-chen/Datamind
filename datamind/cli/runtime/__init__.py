@@ -1,5 +1,3 @@
-# datamind/cli/runtime/__init__.py
-
 """运行实例查询命令
 
 提供运行实例查询功能。

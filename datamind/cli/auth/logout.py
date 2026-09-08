@@ -1,5 +1,3 @@
-# datamind/cli/auth/logout.py
-
 """退出登录命令
 
 提供本地 CLI 会话退出功能。

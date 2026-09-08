@@ -1,5 +1,3 @@
-# tests/auth/test_permissions.py
-
 """权限校验工具测试
 
 验证权限标识规范化、精确权限匹配、通配符匹配、

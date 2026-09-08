@@ -1,5 +1,3 @@
-# tests/constants/test_storage_type.py
-
 """存储类型枚举测试
 
 验证 StorageType 的成员、字符串行为和支持集合。

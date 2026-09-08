@@ -1,5 +1,3 @@
-# datamind/cli/auth/login.py
-
 """登录命令
 
 提供本地 CLI 会话登录和用户切换功能。

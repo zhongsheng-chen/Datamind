@@ -1,5 +1,3 @@
-# tests/core/inference/adapters/test_exports.py
-
 """模型适配器包公共导出测试
 
 验证模型适配器包公开 API 的完整性和可访问性。

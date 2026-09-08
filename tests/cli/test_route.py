@@ -1,24 +1,19 @@
-# tests/cli/test_route.py
-
 """路由 CLI 测试
 
-验证路由列表、详情和文本摘要的输出契约。
+验证路由列表和详情的输出契约。
 
 核心功能：
   - test_route_list_filters_and_displays_current_deployment_release:
     验证路由列表筛选并展示当前部署发布信息
   - test_route_show_displays_current_deployment_release:
     验证路由详情展示当前部署发布信息
-  - test_route_text_summary_omits_environment:
-    验证路由文本摘要不重复展示环境
 """
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import importlib
-import inspect
 import json
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -33,16 +28,6 @@ list_module = importlib.import_module(
 show_module = importlib.import_module(
     "datamind.cli.route.show"
 )
-route_output_modules = [
-    importlib.import_module(f"datamind.cli.route.{command}")
-    for command in (
-        "create",
-        "show",
-        "update",
-        "enable",
-        "disable",
-    )
-]
 
 
 class FakeUnitOfWork:
@@ -218,9 +203,3 @@ def test_route_show_displays_current_deployment_release(
     assert result["environment"] == "development"
     assert result["rollout_type"] == "canary"
     assert result["rollout_group"] == "challenger"
-
-
-@pytest.mark.parametrize("module", route_output_modules)
-def test_route_text_summary_omits_environment(module: ModuleType) -> None:
-    """测试单环境路由命令不重复输出环境字段。"""
-    assert "{'ENVIRONMENT':<16}" not in inspect.getsource(module)

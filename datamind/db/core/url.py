@@ -1,5 +1,3 @@
-# datamind/db/core/url.py
-
 """数据库 URL 获取模块
 
 负责从全局配置中读取数据库连接 URL。

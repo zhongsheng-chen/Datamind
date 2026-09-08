@@ -1,5 +1,3 @@
-# tests/models/artifact/test_exports.py
-
 """模型产物包公共导出测试
 
 验证模型产物包公开 API 的完整性和可访问性。

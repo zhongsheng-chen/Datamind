@@ -1,5 +1,3 @@
-# datamind/logging/render.py
-
 """日志渲染器
 
 提供文本和 JSON 两种格式的日志渲染能力。

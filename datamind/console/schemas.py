@@ -1,5 +1,3 @@
-# datamind/console/schemas.py
-
 """管理控制台写操作结构
 
 定义浏览器管理操作使用的请求结构，统一完成字段校验与空白处理。
@@ -102,6 +100,13 @@ class DeploymentUpdateRequest(_ConsoleRequest):
     description: str | None = Field(default=None, max_length=2000)
 
 
+class RulesMetadataRequest(_ConsoleRequest):
+    """规则文件信息，上传时间由服务端记录"""
+
+    name: str = Field(min_length=1, max_length=255)
+    size: int = Field(ge=0)
+
+
 class RoutingCreateRequest(_ConsoleRequest):
     """路由创建参数"""
 
@@ -110,6 +115,7 @@ class RoutingCreateRequest(_ConsoleRequest):
     traffic_ratio: float = Field(default=1.0, ge=0.0, le=1.0)
     enabled: bool = False
     rules: dict[str, Any] | None = None
+    rules_metadata: RulesMetadataRequest | None = None
     effective_from: str | None = None
     effective_to: str | None = None
     description: str | None = Field(default=None, max_length=2000)
@@ -121,9 +127,20 @@ class RoutingUpdateRequest(_ConsoleRequest):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     traffic_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
     rules: dict[str, Any] | None = None
+    rules_metadata: RulesMetadataRequest | None = None
     effective_from: str | None = None
     effective_to: str | None = None
     description: str | None = Field(default=None, max_length=2000)
+
+
+class ExperimentGroupRequest(_ConsoleRequest):
+    """分组创建参数"""
+
+    key: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=128)
+    deployment_id: str = Field(min_length=1, max_length=64)
+    weight: float = Field(gt=0.0, le=1.0)
+    is_control: bool = False
 
 
 class ExperimentCreateRequest(_ConsoleRequest):
@@ -135,6 +152,12 @@ class ExperimentCreateRequest(_ConsoleRequest):
     strategy: str = Field(default="hash", min_length=1, max_length=32)
     traffic_ratio: float = Field(default=1.0, gt=0.0, le=1.0)
     bucket_key: str = Field(default="subject_key", min_length=1, max_length=128)
+    groups: list[ExperimentGroupRequest] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    manual_assignments: dict[str, str] | None = None
     effective_from: str | None = None
     effective_to: str | None = None
 
@@ -146,6 +169,7 @@ class ExperimentUpdateRequest(_ConsoleRequest):
     strategy: str | None = Field(default=None, min_length=1, max_length=32)
     traffic_ratio: float | None = Field(default=None, gt=0.0, le=1.0)
     bucket_key: str | None = Field(default=None, min_length=1, max_length=128)
+    manual_assignments: dict[str, str] | None = None
     description: str | None = Field(default=None, max_length=2000)
     effective_from: str | None = None
     effective_to: str | None = None

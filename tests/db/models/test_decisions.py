@@ -1,5 +1,3 @@
-# tests/db/models/test_decisions.py
-
 """评分决策表测试
 
 验证评分决策表的字段、索引、检查约束和字段注释。

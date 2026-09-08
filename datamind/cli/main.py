@@ -1,5 +1,3 @@
-# datamind/cli/main.py
-
 """Datamind CLI 主入口
 
 提供命令行工具的入口和子命令管理。

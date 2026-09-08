@@ -1,5 +1,3 @@
-# datamind/auth/providers/__init__.py
-
 """本地认证提供方
 
 统一导出本地用户名密码认证所需的凭证、身份和提供方。

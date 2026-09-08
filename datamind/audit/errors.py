@@ -1,5 +1,3 @@
-# datamind/audit/errors.py
-
 """审计异常定义
 
 定义审计模块的异常类型。

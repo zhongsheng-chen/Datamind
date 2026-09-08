@@ -1,5 +1,3 @@
-# tests/cli/test_main.py
-
 """CLI 主入口测试
 
 验证主要命令组和新增业务入口能够被 Typer 正确加载。

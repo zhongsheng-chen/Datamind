@@ -1,5 +1,3 @@
-# datamind/cli/user/reset.py
-
 """重置用户密码命令
 
 提供 LOCAL 用户密码重置和会话撤销功能。

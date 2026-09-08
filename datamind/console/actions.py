@@ -1,5 +1,3 @@
-# datamind/console/actions.py
-
 """管理控制台资源动作分派。
 
 将资源生命周期动作与 ASGI 请求处理解耦，避免控制台应用入口持续膨胀。

@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: a85b1b4a257e
+Revision ID: ae1c39ff11b5
 Revises: 
-Create Date: 2026-09-08 01:55:38.096338+00:00
+Create Date: 2026-09-10 06:41:57.329668+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'a85b1b4a257e'
+revision = 'ae1c39ff11b5'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -466,6 +466,7 @@ def upgrade() -> None:
     sa.Column('enabled', sa.Boolean(), server_default=sa.text('false'), nullable=False, comment='是否启用'),
     sa.Column('traffic_ratio', sa.Float(), server_default=sa.text('0'), nullable=False, comment='流量占比，取值范围 0.0～1.0'),
     sa.Column('rules', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='路由规则，JSON 格式。可记录匹配模式、条件列表和路由元信息等'),
+    sa.Column('rules_metadata', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='规则元信息，JSON 格式。可记录文件名、文件大小和上传时间等'),
     sa.Column('effective_from', sa.DateTime(timezone=True), nullable=True, comment='生效开始时间'),
     sa.Column('effective_to', sa.DateTime(timezone=True), nullable=True, comment='生效结束时间'),
     sa.Column('description', sa.TEXT(), nullable=True, comment='路由说明'),

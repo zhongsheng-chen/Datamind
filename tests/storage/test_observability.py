@@ -1,5 +1,3 @@
-# tests/storage/test_observability.py
-
 """存储可观测性装饰器测试
 
 验证存储操作的成功日志、异常日志、上下文合并和函数元数据保留。

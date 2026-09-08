@@ -1,5 +1,3 @@
-# datamind/cli/__init__.py
-
 """命令行工具模块
 
 提供 Datamind 的系统初始化、模型、部署、实验、路由、

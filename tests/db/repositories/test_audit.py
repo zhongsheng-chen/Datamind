@@ -1,5 +1,3 @@
-# tests/db/repositories/test_audit.py
-
 """审计日志仓储测试
 
 验证 AuditRepository 的审计日志查询、显式筛选、排序、分页、

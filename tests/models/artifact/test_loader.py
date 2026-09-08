@@ -1,5 +1,3 @@
-# tests/models/artifact/test_loader.py
-
 """模型产物加载器测试
 
 验证模型产物按框架分派到已注册加载器。

@@ -1,5 +1,3 @@
-# datamind/audit/enums.py
-
 """审计枚举
 
 定义审计事件来源和执行状态枚举。

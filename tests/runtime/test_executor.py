@@ -1,5 +1,3 @@
-# tests/runtime/test_executor.py
-
 """模型预测执行器测试
 
 验证统一执行器的服务加载、模型调用、结果封装和超时控制。

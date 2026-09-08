@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/add.py
-
 """添加实验分组命令
 
 提供 A/B 实验分组添加功能。

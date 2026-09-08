@@ -1,5 +1,3 @@
-# datamind/db/repositories/experiment.py
-
 """实验仓储
 
 提供 A/B 实验与灰度策略的查询、创建、更新和生命周期管理能力。

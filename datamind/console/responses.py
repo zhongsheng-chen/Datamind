@@ -1,5 +1,3 @@
-# datamind/console/responses.py
-
 """管理控制台 HTTP 响应
 
 负责构造通用错误响应并读取请求端信息。

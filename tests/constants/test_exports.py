@@ -1,5 +1,3 @@
-# tests/constants/test_exports.py
-
 """常量包公共导出测试
 
 验证常量包公开 API 的完整性和可访问性。

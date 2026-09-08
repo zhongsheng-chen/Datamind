@@ -1,5 +1,3 @@
-# datamind/audit/sinks/database.py
-
 """数据库审计存储端
 
 核心功能：

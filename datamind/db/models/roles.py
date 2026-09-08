@@ -1,5 +1,3 @@
-# datamind/db/models/roles.py
-
 """角色表
 
 记录角色及其权限配置，

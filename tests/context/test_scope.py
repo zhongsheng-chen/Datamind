@@ -1,5 +1,3 @@
-# tests/context/test_scope.py
-
 """上下文作用域测试
 
 验证临时上下文的合并、覆盖、嵌套和退出恢复。

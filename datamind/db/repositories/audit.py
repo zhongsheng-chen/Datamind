@@ -1,5 +1,3 @@
-# datamind/db/repositories/audit.py
-
 """审计日志仓储
 
 用于查询与写入系统操作记录，

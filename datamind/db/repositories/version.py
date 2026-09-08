@@ -1,5 +1,3 @@
-# datamind/db/repositories/version.py
-
 """模型版本仓储
 
 提供模型版本的查询、创建、更新和生命周期管理能力。

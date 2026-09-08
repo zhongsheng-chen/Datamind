@@ -1,5 +1,3 @@
-# tests/db/repositories/test_system.py
-
 """系统状态仓储测试
 
 验证系统状态读取、行锁定和初始化完成标记能力。

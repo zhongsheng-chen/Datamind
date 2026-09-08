@@ -1,5 +1,3 @@
-# datamind/auth/factory.py
-
 """认证工厂
 
 根据统一配置和数据库会话创建本地认证服务。

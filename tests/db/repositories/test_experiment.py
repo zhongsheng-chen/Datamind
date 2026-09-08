@@ -1,5 +1,3 @@
-# tests/db/repositories/test_experiment.py
-
 """实验仓储测试
 
 验证 ExperimentRepository 的实验查询、列表筛选、创建、

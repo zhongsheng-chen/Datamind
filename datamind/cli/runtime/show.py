@@ -1,5 +1,3 @@
-# datamind/cli/runtime/show.py
-
 """查看运行状态命令
 
 提供指定部署的运行状态查询功能。

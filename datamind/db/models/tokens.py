@@ -1,5 +1,3 @@
-# datamind/db/models/tokens.py
-
 """认证令牌表
 
 记录刷新令牌哈希及其有效期和撤销状态，

@@ -1,5 +1,3 @@
-# datamind/cli/role/grant.py
-
 """授予角色命令
 
 提供授予用户角色的功能。

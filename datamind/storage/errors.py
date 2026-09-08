@@ -1,5 +1,3 @@
-# datamind/storage/errors.py
-
 """存储异常定义
 
 定义存储层的标准异常类型。

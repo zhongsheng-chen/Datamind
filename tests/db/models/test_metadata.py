@@ -1,5 +1,3 @@
-# tests/db/models/test_metadata.py
-
 """模型元数据表测试
 
 验证模型元数据表的字段、索引、检查约束和字段注释。

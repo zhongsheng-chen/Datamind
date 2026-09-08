@@ -1,5 +1,3 @@
-# datamind/db/models/controls.py
-
 """模型运行控制表
 
 记录模型部署的期望运行状态和控制版本，

@@ -1,5 +1,3 @@
-# datamind/cli/model/delete.py
-
 """删除模型命令
 
 提供可恢复的模型逻辑删除功能。

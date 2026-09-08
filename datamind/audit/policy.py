@@ -1,5 +1,3 @@
-# datamind/audit/policy.py
-
 """审计失败策略
 
 核心功能：

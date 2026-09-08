@@ -1,5 +1,3 @@
-# datamind/db/models/metadata.py
-
 """模型元数据表
 
 存储模型的基础元数据信息，包括模型标识、模型类型、

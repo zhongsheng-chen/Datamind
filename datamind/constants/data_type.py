@@ -1,5 +1,3 @@
-# datamind/constants/data_type.py
-
 """数据类型枚举
 
 定义特征数据的基本类型，用于数据验证和预处理。

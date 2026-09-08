@@ -1,10 +1,10 @@
-# tests/runtime/test_reconciler.py
-
 """运行时状态协调器测试
 
 验证控制状态加载、模型状态收敛、失败隔离、心跳和后台循环生命周期。
 
 核心功能：
+  - test_reconciler_binds_service_identity:
+    验证协调器绑定服务实例标识
   - test_reconcile_result_records_actions:
     验证协调结果记录各类操作
   - test_reconcile_result_rejects_unknown_action:
@@ -47,6 +47,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
 import datamind.runtime.reconciler as reconciler_module
@@ -141,6 +142,25 @@ def configure_reconciler(
     )
 
     return reconciler, manager, control_repo, runtime_repo
+
+
+def test_reconciler_binds_service_identity(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试协调器日志绑定调用方传入的实例标识"""
+    manager = MagicMock()
+    manager.worker_id = "worker_test"
+    monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "unrelated-instance")
+    reconciler = RuntimeReconciler(
+        manager=manager,
+        environment="testing",
+        service_instance_id="service-test",
+    )
+
+    context = structlog.get_context(reconciler._logger)
+    assert context["service_instance_id"] == "service-test"
+    assert context["worker_id"] == "worker_test"
+    assert context["pid"] == reconciler_module.os.getpid()
 
 
 def test_reconcile_result_records_actions() -> None:

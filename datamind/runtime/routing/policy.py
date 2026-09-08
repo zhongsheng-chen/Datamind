@@ -1,5 +1,3 @@
-# datamind/runtime/routing/policy.py
-
 """运行时路由流量策略
 
 提供启用路由流量占比的校验能力。

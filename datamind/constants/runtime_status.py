@@ -1,5 +1,3 @@
-# datamind/constants/runtime_status.py
-
 """运行实例状态枚举
 
 集中定义数据库运行状态和查询时派生的健康状态，避免运行时、仓储和服务层

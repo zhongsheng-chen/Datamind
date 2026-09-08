@@ -1,5 +1,3 @@
-# datamind/cli/deployment/__init__.py
-
 """部署管理命令
 
 提供模型部署生命周期的管理功能。

@@ -1,5 +1,3 @@
-# datamind/models/inspection.py
-
 """模型信息提取器
 
 提取注册模型中适合持久化展示的解释与诊断信息。

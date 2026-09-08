@@ -1,5 +1,3 @@
-# datamind/cli/experiment/list.py
-
 """列出实验命令
 
 提供实验列表查询功能。

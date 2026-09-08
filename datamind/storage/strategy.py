@@ -1,5 +1,3 @@
-# datamind/storage/strategy.py
-
 """存储键策略
 
 统一 key 规则定义层，是唯一 key 规则来源。

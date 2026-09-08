@@ -1,5 +1,3 @@
-# tests/console/test_actions.py
-
 """管理控制台资源动作分派测试
 
 验证资源动作到生命周期服务的映射及参数传递。

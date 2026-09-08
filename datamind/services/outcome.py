@@ -1,5 +1,3 @@
-# datamind/services/outcome.py
-
 """实验结果回流服务
 
 负责接收业务系统延迟回流的审批、转化和表现结果，

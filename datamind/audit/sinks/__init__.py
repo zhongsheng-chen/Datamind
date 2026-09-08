@@ -1,5 +1,3 @@
-# datamind/audit/sinks/__init__.py
-
 """审计存储端
 
 核心功能：

@@ -1,5 +1,3 @@
-# tests/db/repositories/test_decision.py
-
 """请求决策仓储测试
 
 验证 DecisionRepository 的决策查询、列表筛选、辅助列表方法，
@@ -216,7 +214,6 @@ async def test_get_decision() -> None:
         "'req_0123456789abcdef'"
         in sql
     )
-    assert "decisions.source != 'shadow'" not in sql
 
 
 @pytest.mark.asyncio

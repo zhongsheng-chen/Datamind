@@ -1,5 +1,3 @@
-# tests/logging/test_retention.py
-
 """日志保留管理测试
 
 验证过期日志清理和后台保留线程的启停行为。

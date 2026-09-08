@@ -1,5 +1,3 @@
-# datamind/db/models/users.py
-
 """用户表
 
 记录用户身份、密码和登录状态，用于用户认证和权限控制。

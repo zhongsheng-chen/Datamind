@@ -1,5 +1,3 @@
-# datamind/cli/deployment/show.py
-
 """部署详情命令
 
 提供单个部署的详细信息查询功能。

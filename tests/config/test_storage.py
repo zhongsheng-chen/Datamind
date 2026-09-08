@@ -1,5 +1,3 @@
-# tests/config/test_storage.py
-
 """存储配置测试
 
 验证本地存储、MinIO 存储、外部配置隔离、路径安全校验和配置不可变行为。

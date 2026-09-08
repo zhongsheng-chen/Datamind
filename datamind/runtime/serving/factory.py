@@ -1,5 +1,3 @@
-# datamind/runtime/serving/factory.py
-
 """运行时服务工厂
 
 根据模型任务类型创建对应的运行时服务。

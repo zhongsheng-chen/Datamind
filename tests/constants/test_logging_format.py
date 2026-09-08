@@ -1,5 +1,3 @@
-# tests/constants/test_logging_format.py
-
 """日志格式枚举测试
 
 验证 LogFormat 的成员、字符串行为和支持集合。

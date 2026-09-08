@@ -1,5 +1,3 @@
-# datamind/constants/permissions.py
-
 """权限常量
 
 定义角色授权和访问控制使用的权限标识。

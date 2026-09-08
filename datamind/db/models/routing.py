@@ -1,5 +1,3 @@
-# datamind/db/models/routing.py
-
 """模型路由表
 
 记录部署实例的流量路由规则，
@@ -236,6 +234,17 @@ class Routing(
         comment=(
             "路由规则，JSON 格式。"
             "可记录匹配模式、条件列表和路由元信息等"
+        ),
+    )
+
+    rules_metadata = Column(
+        JSONB(
+            none_as_null=True
+        ),
+        nullable=True,
+        comment=(
+            "规则元信息，JSON 格式。"
+            "可记录文件名、文件大小和上传时间等"
         ),
     )
 

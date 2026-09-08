@@ -1,5 +1,3 @@
-# datamind/storage/__init__.py
-
 """存储模块
 
 提供统一的存储抽象层，支持本地文件系统和 MinIO 对象存储。

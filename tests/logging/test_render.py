@@ -1,5 +1,3 @@
-# tests/logging/test_render.py
-
 """日志渲染器测试
 
 验证文本和 JSON 日志的字段输出、内部字段清理和原始事件保护行为。

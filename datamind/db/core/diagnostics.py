@@ -1,5 +1,3 @@
-# datamind/db/core/diagnostics.py
-
 """数据库诊断工具
 
 提供数据库连接配置和连接池运行状态的诊断信息。

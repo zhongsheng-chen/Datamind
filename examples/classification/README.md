@@ -61,3 +61,13 @@ datamind service load <deployment_id>
 ## 预测请求
 
 `predict_request.json` 展示 `/predict` 接口的请求结构。调用前需将 `model_name` 替换为已注册模型的名称。
+
+## 预测响应
+
+单条预测返回 `success`、`probability`、`prediction`、`threshold` 和
+`request_id`。模型、版本、部署、路由及 Worker 信息保存在内部记录中，
+不包含在业务响应里。
+
+批量预测返回 `success`、`count`、`predictions` 和批次级 `request_id`；
+每项 `predictions` 包含自身的业务结果和 `request_id`。
+排查单条请求或回传其业务结果时，使用该项的请求 ID。

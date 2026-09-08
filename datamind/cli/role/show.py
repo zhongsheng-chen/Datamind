@@ -1,5 +1,3 @@
-# datamind/cli/role/show.py
-
 """查看角色命令
 
 提供角色详情查询功能。

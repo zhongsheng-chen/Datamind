@@ -1,5 +1,3 @@
-# datamind/constants/__init__.py
-
 """常量模块
 
 集中管理所有常量定义。

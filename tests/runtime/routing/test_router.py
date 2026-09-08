@@ -1,5 +1,3 @@
-# tests/runtime/routing/test_router.py
-
 """运行时路由器测试
 
 验证手工部署、实验、灰度路由和默认部署的解析优先级及边界条件。
@@ -11,6 +9,8 @@
     验证使用 A/B 实验分配的部署
   - test_routing_uses_stable_payload_identifier:
     验证路由使用稳定的请求标识分桶
+  - test_routing_context_uses_bucket_value:
+    验证路由上下文区分分桶值与流量比例且不包含旧字段
   - test_resolve_uses_first_active_deployment_without_champion:
     验证缺少冠军部署时选择首个启用部署
   - test_resolve_includes_independently_matched_shadow:
@@ -308,6 +308,23 @@ async def test_routing_ratio_selects_candidate(
     assert result is not None
     assert result.deployment_id == "dep_0"
     assert result.weight == 0.1
+
+
+@pytest.mark.asyncio
+async def test_routing_context_uses_bucket_value(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试路由上下文使用分桶值字段且不再输出旧字段"""
+    result = await resolve_routing(
+        monkeypatch,
+        ratio=0.05,
+        routing_ratios=[0.1],
+    )
+
+    assert result is not None
+    assert result.context["bucket_value"] == 0.05
+    assert result.context["traffic_ratio"] == 0.1
+    assert "ratio" not in result.context
 
 
 @pytest.mark.asyncio
@@ -793,6 +810,8 @@ async def test_resolve_includes_independently_matched_shadow(
         DecisionStrategy.SHADOW
     )
     assert shadow_result.routing_id == "rtn_shadow"
+    assert 0 <= shadow_result.context["bucket_value"] < 1
+    assert "ratio" not in shadow_result.context
     assert shadow_result.subject_key == "customer_10001"
     assert shadow_result.context["rollout_type"] == "shadow"
     assert shadow_result.context["rollout_group"] == "shadow"

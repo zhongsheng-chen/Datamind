@@ -1,5 +1,3 @@
-# tests/audit/test_event.py
-
 """审计事件测试
 
 验证审计事件字段、随机 ID 和 UTC 时间生成行为。

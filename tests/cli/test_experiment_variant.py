@@ -1,5 +1,3 @@
-# tests/cli/test_experiment_variant.py
-
 """实验分组命令测试
 
 验证实验分组新增、更新和启用时的配置校验。

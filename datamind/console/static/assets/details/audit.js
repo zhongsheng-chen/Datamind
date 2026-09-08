@@ -25,7 +25,7 @@ import {
  */
 export function createAuditDetailController({
   createCopyableNavigationLink,
-  createSectionNavigationLink,
+  createCopyableSectionNavigationLink,
   createStatusBadge,
   formatTime,
   navigateToSection,
@@ -108,12 +108,17 @@ export function createAuditDetailController({
         ["操作名称", record.operation],
         ["资源", record.resource],
         ["目标类型", record.target_type],
-        ["目标资源", () => createSectionNavigationLink(
-          record.target_id,
-          targetSection,
-          dialog,
-          record.target_id,
-        )],
+        ["目标资源", () => {
+          if (record.target_type === "system" && record.target_id === "datamind") {
+            return record.target_id;
+          }
+          return createCopyableSectionNavigationLink(
+            record.target_id,
+            targetSection,
+            dialog,
+            "目标资源",
+          );
+        }],
         ["状态", createStatusBadge(record.status)],
         ["来源", record.source],
         ["操作人", record.user],

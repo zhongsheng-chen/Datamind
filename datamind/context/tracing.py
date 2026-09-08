@@ -1,5 +1,3 @@
-# datamind/context/tracing.py
-
 """链路追踪 ID 工具
 
 提供链路追踪 ID 的生成与校验能力，

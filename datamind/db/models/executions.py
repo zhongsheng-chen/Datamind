@@ -1,5 +1,3 @@
-# datamind/db/models/executions.py
-
 """模型执行表
 
 记录产生最终决策的主模型执行和异步影子模型执行，

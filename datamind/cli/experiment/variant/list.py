@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/list.py
-
 """列出实验分组命令
 
 提供实验分组列表查询功能，支持过滤、分页和多种输出格式。

@@ -1,5 +1,3 @@
-# tests/services/test_deployment.py
-
 """模型部署生命周期服务测试
 
 验证部署创建、启用、禁用、运行控制同步和配置校验。

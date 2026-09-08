@@ -1,5 +1,3 @@
-# datamind/cli/common.py
-
 """CLI 公共模块
 
 提供 CLI 命令的通用上下文管理。

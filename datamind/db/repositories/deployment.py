@@ -1,5 +1,3 @@
-# datamind/db/repositories/deployment.py
-
 """部署仓储
 
 提供模型部署记录的查询与管理能力。

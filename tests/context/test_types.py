@@ -1,5 +1,3 @@
-# tests/context/test_types.py
-
 """上下文类型测试
 
 验证 Context TypedDict 的字段定义、可选性和运行时字典行为。

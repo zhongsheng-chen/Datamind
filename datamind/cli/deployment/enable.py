@@ -1,5 +1,3 @@
-# datamind/cli/deployment/enable.py
-
 """启用部署命令
 
 提供部署启用功能，并自动请求 Worker 装载模型。

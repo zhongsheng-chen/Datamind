@@ -1,5 +1,3 @@
-# tests/models/artifact/handlers/test_lightgbm.py
-
 """LightGBM 模型加载器测试
 
 验证 LightGBM Booster 通过文本模型数据创建。

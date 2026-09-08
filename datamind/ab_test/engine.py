@@ -1,5 +1,3 @@
-# datamind/ab_test/engine.py
-
 """A/B 实验执行引擎
 
 负责在请求进入模型推理前，根据运行中的实验配置、实验分组和固定分配记录，
@@ -349,10 +347,11 @@ class ABTestEngine:
                 "assignment_id": assignment.assignment_id,
                 "subject_key": assignment.subject_key,
                 "subject_type": subject_type or assignment.subject_type,
-                "bucket": assignment.bucket,
                 "strategy": strategy,
             }
         )
+        if assignment.bucket is not None:
+            context["bucket"] = assignment.bucket
 
         return ABTestResult(
             experiment_id=experiment.experiment_id,
@@ -411,10 +410,11 @@ class ABTestEngine:
                 "assignment_id": assignment.assignment_id,
                 "subject_key": assignment.subject_key,
                 "subject_type": subject_type,
-                "bucket": assignment_result.bucket,
                 "strategy": strategy,
             }
         )
+        if assignment_result.bucket is not None:
+            context["bucket"] = assignment_result.bucket
 
         return ABTestResult(
             experiment_id=experiment.experiment_id,

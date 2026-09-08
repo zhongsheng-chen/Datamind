@@ -1,5 +1,3 @@
-# tests/services/test_deletion.py
-
 """模型删除服务测试
 
 验证逻辑删除、恢复、永久清理和关键安全约束。

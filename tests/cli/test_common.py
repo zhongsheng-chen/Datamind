@@ -1,5 +1,3 @@
-# tests/cli/test_common.py
-
 """CLI 公共上下文测试
 
 验证生产环境认证保护和访问令牌身份绑定。

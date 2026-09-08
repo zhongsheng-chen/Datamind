@@ -1,5 +1,3 @@
-# tests/constants/test_environment.py
-
 """服务环境枚举测试
 
 验证 Environment 的成员、字符串行为和支持集合。

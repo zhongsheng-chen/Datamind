@@ -11,6 +11,7 @@ import {
   createDetailSummary,
   createErrorDetailSection,
   createJsonDetailSection,
+  formatPredictionDetails,
   mountDetailDrawer,
 } from "./common.js";
 
@@ -27,6 +28,7 @@ import {
  * }} API 调用、决策与执行详情入口
  */
 export function createInferenceDetailController({
+  createDecisionBadge,
   createCopyableNavigationLink,
   createExecutionTypeBadge,
   createSectionNavigationLink,
@@ -37,12 +39,41 @@ export function createInferenceDetailController({
   formatScore,
   formatTime,
   navigateToSection,
+  request,
   sectionIdFields,
 }) {
+  /**
+   * 创建预测详情，并按对应版本的变量顺序更新展示。
+   *
+   * @param {string} title 区块标题
+   * @param {Object} record 推理记录
+   * @param {unknown} value 预测结果
+   * @param {string} icon 图标类型
+   * @returns {HTMLElement} 预测详情区块
+   */
+  function createPredictionSection(title, record, value, icon) {
+    const section = createJsonDetailSection(title, formatPredictionDetails(value), icon);
+    if (!record.version_id || !value?.features) return section;
+    request(`versions/${encodeURIComponent(record.version_id)}/detail`)
+      .then((version) => {
+        const variables = version?.scorecard?.details?.variables;
+        if (!section.isConnected || !Array.isArray(variables)) return;
+        const names = variables.map((variable) => variable?.name)
+          .filter((name) => typeof name === "string");
+        section.replaceWith(createJsonDetailSection(
+          title, formatPredictionDetails(value, names), icon,
+        ));
+      })
+      .catch(() => {
+        // 版本详情不可用时保留预测结果，不阻断查看和复制。
+      });
+    return section;
+  }
+
   const strategyLabels = {
     fallback: "回退选择",
     hash: "稳定哈希",
-    manual: "手动选择",
+    manual: "手动分配",
     weighted: "加权路由",
   };
   const roleLabels = {
@@ -166,7 +197,10 @@ export function createInferenceDetailController({
     if (visibleMeta.length) {
       const metadata = document.createElement("p");
       metadata.className = "registry-decision-path-meta";
-      metadata.textContent = visibleMeta.join(" · ");
+      visibleMeta.forEach((item, index) => {
+        if (index) metadata.append(document.createTextNode(" · "));
+        metadata.append(item instanceof Node ? item : document.createTextNode(item));
+      });
       content.append(metadata);
     }
     if (detail) {
@@ -197,14 +231,13 @@ export function createInferenceDetailController({
       path.append(createDecisionPathStep({
         icon: "routing",
         tone: "routing",
-        label: "路由命中",
+        label: "命中路由",
         title: record.routing_name || "未命名路由",
         meta: [
           strategyLabels[record.strategy] || record.strategy,
           routingWeight !== null && routingWeight !== undefined
             ? `流量 ${formatPercentage(routingWeight)}`
             : null,
-          !record.experiment_id && record.bucket ? record.bucket : null,
         ],
         detail: null,
         action: createDecisionPathAction(
@@ -217,27 +250,48 @@ export function createInferenceDetailController({
     }
 
     if (record.experiment_id) {
-      const variantName = record.variant_name || record.group;
       const variantWeight = record.variant_weight ?? record.weight;
-      const subject = [record.subject_type, record.subject_key]
-        .filter(Boolean)
-        .join(" · ");
+      /** @type {{ assignment_source?: string | null } | null | undefined} */
+      const context = record.context;
+      const assignmentSource = context?.assignment_source;
+      const assignmentSourceLabels = {
+        new_assignment: "新分配",
+        existing_assignment: "复用分配",
+      };
+      const assignmentSourceLabel = typeof assignmentSource === "string"
+        ? assignmentSourceLabels[assignmentSource] || assignmentSource
+        : null;
+      let assignmentSourceMeta = null;
+      if (assignmentSourceLabel) {
+        assignmentSourceMeta = document.createElement("span");
+        assignmentSourceMeta.textContent = assignmentSourceLabel;
+        const descriptions = {
+          new_assignment: "本次请求为该主体创建了新的实验分组分配",
+          existing_assignment: "本次请求沿用该主体已有的实验分组",
+        };
+        const description = descriptions[assignmentSource];
+        if (description) {
+          assignmentSourceMeta.title = description;
+          assignmentSourceMeta.setAttribute("aria-label", `${assignmentSourceLabel}：${description}`);
+        }
+      }
       path.append(createDecisionPathStep({
         icon: "experiment",
         tone: "experiment",
-        label: "实验分配",
+        label: "命中实验",
         title: record.experiment_name || "未命名实验",
         meta: [
-          variantName ? `分组 ${variantName}` : null,
+          strategyLabels[record.strategy] || record.strategy,
           record.variant_is_control === true
             ? "对照组"
             : (record.variant_is_control === false ? "实验组" : null),
-          variantWeight !== null && variantWeight !== undefined
+          record.strategy !== "manual"
+            && variantWeight !== null && variantWeight !== undefined
             ? `权重 ${formatPercentage(variantWeight)}`
             : null,
-          record.bucket,
+          assignmentSourceMeta,
         ],
-        detail: subject ? `分配主体：${subject}` : null,
+        detail: null,
         action: createDecisionPathAction(
           "查看实验",
           "experiments",
@@ -251,7 +305,7 @@ export function createInferenceDetailController({
     path.append(createDecisionPathStep({
       icon: "model",
       tone: "target",
-      label: "最终目标",
+      label: "命中部署",
       title: record.model_name || "未命名模型",
       meta: [
         record.model_version,
@@ -362,8 +416,9 @@ export function createInferenceDetailController({
     if (record.error) body.append(createErrorDetailSection(record.error));
     body.append(
       createJsonDetailSection("请求载荷", record.payload, "payload"),
-      createJsonDetailSection(
+      createPredictionSection(
         "响应结果",
+        record,
         record.response ?? record.prediction,
         "response",
       ),
@@ -402,18 +457,36 @@ export function createInferenceDetailController({
       "决策记录详情",
       "inference-detail-drawer decision-detail-drawer",
     );
+    const showSubjectHistory = () => {
+      const quote = (value) => `'${String(value).replaceAll("'", "'\"'\"'")}'`;
+      const filters = [`subject_key:${quote(record.subject_key)}`];
+      if (record.subject_type) {
+        filters.push(`subject_type:${quote(record.subject_type)}`);
+      }
+      dialog.close();
+      navigateToSection("decisions", 1, filters.join(" "));
+    };
+    const subjectTypeLabels = {
+      customer: "客户",
+      user: "用户",
+      company: "企业",
+      device: "设备",
+    };
+    const routingContext = record.bucket
+      ? { ...record.context, bucket: record.bucket }
+      : record.context;
     body.append(
       createDetailSummary({
         icon: "decision",
         title: record.model_name || "模型决策",
         subtitle: [record.strategy, record.source].filter(Boolean).join(" · "),
-        status: record.decision || "decided",
+        status: record.decision,
         badges: [
           createDetailBadge(record.model_version || "未指定版本"),
           record.group ? createDetailBadge(record.group, "purple") : null,
           ...executionTypes.map(createExecutionTypeBadge),
         ],
-        createStatusBadge,
+        createStatusBadge: createDecisionBadge,
       }),
       createDetailSection("基本信息", [
         ["决策 ID", () => createCopyableNavigationLink(
@@ -428,9 +501,23 @@ export function createInferenceDetailController({
           },
           "决策 ID",
         )],
+        ["主体标识", () => {
+          if (!record.subject_key) return "—";
+          const identifier = createCopyableNavigationLink(
+            record.subject_key,
+            showSubjectHistory,
+            "主体标识",
+          );
+          if (identifier instanceof HTMLElement) {
+            identifier.classList.add("registry-subject-identifier");
+            identifier.title = record.subject_key;
+          }
+          return identifier;
+        }],
+        ["主体类型", subjectTypeLabels[record.subject_type] || record.subject_type],
         ["来源", record.source],
         ["策略", record.strategy],
-        ["决策结果", record.decision],
+        ["决策结果", createDecisionBadge(record.decision)],
         ["概率", formatProbability(record.probability)],
         ["评分", formatScore(record.score)],
         ["耗时", formatOptionalDuration(record.latency_ms)],
@@ -438,8 +525,8 @@ export function createInferenceDetailController({
       ], dialog, "info", appendRequestDetail),
       createDecisionPath(record, dialog),
       createExecutionList(executions, dialog),
-      createJsonDetailSection("预测结果", record.prediction, "prediction"),
-      createJsonDetailSection("路由上下文", record.context, "metadata"),
+      createPredictionSection("预测结果", record, record.prediction, "prediction"),
+      createJsonDetailSection("路由上下文", routingContext, "metadata"),
     );
     appendDetailFooter(dialog, [
       createNavigationAction(
@@ -512,7 +599,7 @@ export function createInferenceDetailController({
       ));
     }
     body.append(
-      createJsonDetailSection("执行结果", record.prediction, "prediction"),
+      createPredictionSection("执行结果", record, record.prediction, "prediction"),
       createJsonDetailSection("执行上下文", record.context, "metadata"),
     );
     appendDetailFooter(dialog, [

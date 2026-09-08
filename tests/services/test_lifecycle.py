@@ -1,5 +1,3 @@
-# tests/services/test_lifecycle.py
-
 """模型生命周期服务测试
 
 验证模型和版本的激活、停用及活动部署保护。
@@ -9,6 +7,7 @@
   - test_activate_model_requires_available_version:
     验证模型激活要求存在可用版本
   - test_activate_model_version: 验证激活模型和指定版本
+  - test_activate_audit_records_only_status_changes: 验证审计仅记录实际状态变化
   - test_activate_rejects_archived_version:
     验证归档版本按非法状态迁移拒绝激活
   - test_deactivate_model: 验证停用模型及其 active 版本
@@ -45,6 +44,7 @@ from datamind.models.errors import (
     VersionNotFoundError,
 )
 from datamind.services import ModelLifecycleService
+from datamind.services.mutation import MutationResult
 
 
 class FakeUnitOfWork:
@@ -187,6 +187,21 @@ async def test_activate_model(
     assert model.updated_by == "operator"
     assert result["model_status"] == "active"
     assert result["activated_version_count"] == 2
+    assert isinstance(result, MutationResult)
+    assert result.before == {
+        "model_status": "inactive",
+        "versions": [
+            {"version_id": "ver_first", "status": "inactive"},
+            {"version_id": "ver_second", "status": "inactive"},
+        ],
+    }
+    assert result.after == {
+        "model_status": "active",
+        "versions": [
+            {"version_id": "ver_first", "status": "active"},
+            {"version_id": "ver_second", "status": "active"},
+        ],
+    }
     assert all(
         version_record.status == "active"
         for version_record in inactive_versions
@@ -200,6 +215,37 @@ async def test_activate_model(
         model_id="mdl_test",
         status=lifecycle_module.VersionStatus.INACTIVE,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model_status", ["inactive", "active"])
+@pytest.mark.parametrize("version_status", ["inactive", "active"])
+async def test_activate_audit_records_only_status_changes(
+        monkeypatch: pytest.MonkeyPatch,
+        model_status: str,
+        version_status: str,
+) -> None:
+    """测试指定版本激活及重复激活的状态审计"""
+    configure_repositories(
+        monkeypatch,
+        model_status=model_status,
+        version_status=version_status,
+        deployments=[],
+    )
+    result = await ModelLifecycleService().activate(
+        model_id="mdl_test", version_id="ver_test",
+    )
+    before = {}
+    after = {}
+    if model_status == "inactive":
+        before["model_status"] = "inactive"
+        after["model_status"] = "active"
+    if version_status == "inactive":
+        before["versions"] = [{"version_id": "ver_test", "status": "inactive"}]
+        after["versions"] = [{"version_id": "ver_test", "status": "active"}]
+    assert result.before == before
+    assert result.after == after
+    assert result["activated_version_count"] == int(version_status == "inactive")
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,3 @@
-# tests/db/models/test_audit.py
-
 """审计日志表测试
 
 验证审计日志表的字段、索引、检查约束和字段注释。

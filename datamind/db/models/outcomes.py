@@ -1,5 +1,3 @@
-# datamind/db/models/outcomes.py
-
 """实验结果表
 
 记录请求或实验分配主体的后验结果，

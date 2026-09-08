@@ -1,5 +1,3 @@
-# datamind/db/models/system.py
-
 """系统状态表
 
 记录一次性系统初始化状态，

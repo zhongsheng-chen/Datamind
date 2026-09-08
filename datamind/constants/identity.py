@@ -1,5 +1,3 @@
-# datamind/constants/identity.py
-
 """身份管理常量
 
 定义内置角色及其固定权限。

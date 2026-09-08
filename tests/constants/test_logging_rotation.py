@@ -1,5 +1,3 @@
-# tests/constants/test_logging_rotation.py
-
 """日志轮转枚举测试
 
 验证日志轮转策略、轮转时间、字符串转换和支持集合。

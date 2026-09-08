@@ -1,5 +1,3 @@
-# tests/runtime/test_loader.py
-
 """模型加载器测试
 
 验证模型加载器复用 BentoML 模型，

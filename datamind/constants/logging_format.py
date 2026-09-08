@@ -1,5 +1,3 @@
-# datamind/constants/logging_format.py
-
 """日志格式枚举
 
 定义日志输出格式类型，用于结构化日志和文本日志。

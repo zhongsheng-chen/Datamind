@@ -1,5 +1,3 @@
-# datamind/cli/experiment/analyze.py
-
 """实验分析命令
 
 提供 A/B 实验效果分析功能。

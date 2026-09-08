@@ -1,5 +1,3 @@
-# datamind/cli/route/enable.py
-
 """启用路由命令
 
 提供路由规则启用功能。

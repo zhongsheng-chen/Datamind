@@ -1,5 +1,3 @@
-# tests/runtime/routing/test_policy.py
-
 """运行时路由流量策略测试
 
 验证路由流量占比使用绝对比例且总和不超过 1。

@@ -1,5 +1,3 @@
-# tests/db/repositories/test_runtime.py
-
 """模型运行仓储测试
 
 验证 RuntimeRepository 的运行记录查询、列表筛选、创建、

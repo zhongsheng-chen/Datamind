@@ -1,5 +1,3 @@
-# tests/db/models/test_roles.py
-
 """角色模型测试
 
 验证角色表名称、字段定义、服务端默认值、索引、

@@ -1,5 +1,3 @@
-# datamind/auth/permissions.py
-
 """权限校验工具
 
 提供权限标识规范化、单项权限匹配和批量权限检查能力。

@@ -1,5 +1,3 @@
-# tests/db/repositories/test_base.py
-
 """数据库仓储基类测试
 
 验证 BaseRepository 对异步数据库会话的保存，

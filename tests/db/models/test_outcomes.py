@@ -1,5 +1,3 @@
-# tests/db/models/test_outcomes.py
-
 """业务结果表测试
 
 验证业务结果表的字段、索引、检查约束和字段注释。

@@ -1,10 +1,12 @@
-# tests/services/test_identity.py
-
 """身份管理服务测试
 
 验证用户、角色、角色授予、令牌撤销和安全保护规则。
 
 核心功能：
+  - test_creation_logs_after_commit:
+    验证创建完成日志仅在提交成功后记录
+  - test_identity_list_logs_at_debug:
+    验证身份列表查询使用调试日志
   - test_create_user_creates_identity_and_initial_grants:
     验证创建用户及初始角色授予
   - test_create_user_restores_deleted_user:
@@ -71,6 +73,8 @@ import pytest
 
 import datamind.services.identity as identity_module
 from datamind.audit.enums import AuditSource
+from datamind.context.core import get_context
+from datamind.context.scope import context_scope
 from datamind.db.models.grants import Grant
 from datamind.db.models.roles import Role
 from datamind.db.models.users import User
@@ -221,6 +225,103 @@ def configure_service(
         token_repo,
         audit_repo,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resource", ["user", "role"])
+@pytest.mark.parametrize("commit_fails", [False, True])
+async def test_creation_logs_after_commit(
+        monkeypatch: pytest.MonkeyPatch,
+        resource: str,
+        commit_fails: bool,
+) -> None:
+    """测试创建日志关联请求且仅在事务提交成功后报告完成"""
+    user_repo, role_repo, _, _, audit_repo = configure_service(monkeypatch)
+    user_repo.get_user = AsyncMock(return_value=None)
+    user_repo.create_user.return_value = create_user()
+    role_repo.get_role = AsyncMock(return_value=None)
+    role_repo.create_role.return_value = create_role()
+    committed = False
+    events = []
+
+    class CommitUnitOfWork(FakeUnitOfWork):
+        async def __aexit__(self, *_args: object) -> bool:
+            nonlocal committed
+            if commit_fails:
+                raise RuntimeError("commit failed")
+            committed = True
+            return False
+
+    def record_log(message, **fields) -> None:
+        events.append((message, {**get_context(), **fields}, committed))
+
+    service_logger = MagicMock()
+    service_logger.info.side_effect = record_log
+    monkeypatch.setitem(vars(identity_module), "logger", service_logger)
+    monkeypatch.setitem(vars(identity_module), "UnitOfWork", CommitUnitOfWork)
+    context = {"request_id": "req_create", "trace_id": "a" * 32}
+    service = IdentityService(audit_context=context)
+
+    async def create() -> None:
+        if resource == "user":
+            await service.create_user(
+                username="analyst",
+                password="private-password",
+                operator_id="usr_admin",
+                operator="admin",
+            )
+        else:
+            await service.create_role(
+                name="model-reader",
+                permissions=["model.read"],
+                operator_id="usr_admin",
+                operator="admin",
+            )
+
+    with context_scope(**context):
+        if commit_fails:
+            with pytest.raises(RuntimeError, match="commit failed"):
+                await create()
+        else:
+            await create()
+
+    label = "用户" if resource == "user" else "角色"
+    assert events[0][0] == f"开始创建{label}"
+    assert events[0][2] is False
+    assert len(events) == (1 if commit_fails else 2)
+    if not commit_fails:
+        completed_message, completed_fields, after_commit = events[1]
+        assert completed_message == f"{label}创建完成"
+        assert after_commit is True
+        assert completed_fields["action"] == f"{resource}.create"
+        assert completed_fields["status"] == "success"
+        for key in context:
+            assert completed_fields[key] == events[0][1][key]
+            assert completed_fields[key] == audit_repo.create_audit.call_args.kwargs[key]
+    assert "private-password" not in repr(events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resource", ["user", "role"])
+async def test_identity_list_logs_at_debug(
+        monkeypatch: pytest.MonkeyPatch,
+        resource: str,
+) -> None:
+    """测试用户和角色列表查询只记录调试日志"""
+    user_repo, role_repo, *_ = configure_service(monkeypatch)
+    user_repo.list_users = AsyncMock(return_value=[])
+    role_repo.list_roles = AsyncMock(return_value=[])
+    service_logger = MagicMock()
+    monkeypatch.setitem(vars(identity_module), "logger", service_logger)
+    service = IdentityService()
+
+    if resource == "user":
+        await service.list_users()
+    else:
+        await service.list_roles()
+
+    service_logger.debug.assert_called_once()
+    service_logger.info.assert_not_called()
 
 
 @pytest.mark.asyncio

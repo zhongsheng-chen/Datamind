@@ -1,5 +1,3 @@
-# datamind/console/events.py
-
 """控制台实时事件
 
 监听 PostgreSQL 变更通知，并向控制台 SSE 连接广播可靠事件游标。

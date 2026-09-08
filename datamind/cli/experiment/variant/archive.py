@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/archive.py
-
 """归档实验分组命令
 
 提供实验分组归档功能。

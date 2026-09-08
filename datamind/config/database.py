@@ -1,5 +1,3 @@
-# datamind/config/database.py
-
 """数据库配置
 
 定义数据库连接 URL 和连接池参数。

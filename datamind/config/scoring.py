@@ -1,5 +1,3 @@
-# datamind/config/scoring.py
-
 """评分任务配置
 
 定义评分任务的默认决策阈值。

@@ -1,5 +1,3 @@
-# tests/db/core/test_exports.py
-
 """数据库核心包公共导出测试
 
 验证数据库核心包公开 API 的完整性和可访问性。

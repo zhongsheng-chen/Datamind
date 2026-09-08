@@ -1,5 +1,3 @@
-# datamind/ab_test/assignment.py
-
 """A/B 实验分配
 
 提供实验曝光判断、稳定 Hash 分组和手工指定分组能力。
@@ -74,16 +72,16 @@ class AssignmentResult:
 
     属性：
         variant: 命中的 Variant 对象
-        bucket: 曝光分桶标识，例如 bucket_0089
-        bucket_value: 稳定曝光分桶值，取值范围 [0.0, 1.0)
-        point: 实验内稳定分组位置，取值范围 [0.0, 1.0)
+        bucket: 曝光分桶标识，手动分配不适用
+        bucket_value: 稳定曝光分桶值，取值范围 [0.0, 1.0)，手动分配不适用
+        point: 实验内稳定分组位置，取值范围 [0.0, 1.0)，手动分配不适用
         context: 分配上下文
     """
 
     variant: Any
-    bucket: str
-    bucket_value: float
-    point: float
+    bucket: str | None
+    bucket_value: float | None
+    point: float | None
     context: dict
 
 
@@ -524,34 +522,16 @@ class ManualAssigner:
                 f"手工指定 Variant 不存在或不可用: {target}"
             )
 
-        bucket_value = StableHashAssigner.exposure_value(
-            experiment_id=experiment_id,
-            subject_key=subject_key,
-        )
-
-        bucket = StableHashAssigner.bucket_label(
-            bucket_value
-        )
-
-        point = StableHashAssigner.variant_point(
-            experiment_id=experiment_id,
-            subject_key=subject_key,
-        )
-
         weight = _variant_weight(variant)
 
         return AssignmentResult(
             variant=variant,
-            bucket=bucket,
-            bucket_value=bucket_value,
-            point=point,
+            bucket=None,
+            bucket_value=None,
+            point=None,
             context={
                 "experiment_id": experiment_id,
                 "subject_key": subject_key,
-                "bucket": bucket,
-                "bucket_value": bucket_value,
-                "traffic_ratio": None,
-                "point": point,
                 "variant_id": getattr(
                     variant,
                     "variant_id",

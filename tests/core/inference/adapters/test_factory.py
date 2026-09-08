@@ -1,5 +1,3 @@
-# tests/core/inference/adapters/test_factory.py
-
 """模型适配器工厂测试
 
 验证模型框架识别、适配器创建、适配器注册和异常处理。

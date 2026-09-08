@@ -1,5 +1,3 @@
-# datamind/db/repositories/metadata.py
-
 """模型元数据仓储
 
 提供模型元数据的查询、创建、更新和生命周期管理能力。

@@ -1,5 +1,3 @@
-# datamind/services/deletion.py
-
 """模型删除服务
 
 将可恢复的逻辑删除、恢复和不可逆制品清理分成三个明确操作。

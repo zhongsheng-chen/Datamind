@@ -1,5 +1,3 @@
-# datamind/runtime/presence.py
-
 """运行实例在线状态
 
 统一定义运行实例的心跳有效期和失联判定。

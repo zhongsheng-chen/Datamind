@@ -1,5 +1,3 @@
-# datamind/audit/sinks/base.py
-
 """审计存储端协议"""
 
 from typing import Protocol

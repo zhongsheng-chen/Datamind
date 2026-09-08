@@ -1,12 +1,12 @@
-# datamind/services/experiment.py
-
 """实验生命周期服务
 
-负责实验及分组的创建、状态管理、逻辑删除与恢复。
+负责实验及分组的创建、更新、状态管理、逻辑删除与恢复。
 
 核心功能：
   - create_experiment: 创建实验
+  - update_experiment: 更新实验
   - create_variant: 创建实验分组
+  - update_variant: 更新实验分组
   - transition_experiment: 迁移实验状态
   - set_variant_active: 设置分组启用状态
   - delete_experiment: 逻辑删除实验
@@ -56,6 +56,13 @@ from datamind.utils.generator import generate_random_id
 logger = structlog.get_logger(__name__)
 
 
+class _Unset:
+    """标记更新请求未提供的字段。"""
+
+
+_UNSET = _Unset()
+
+
 class ExperimentLifecycleService:
     """实验生命周期服务"""
 
@@ -68,6 +75,8 @@ class ExperimentLifecycleService:
             strategy: str = AssignmentStrategy.HASH.value,
             traffic_ratio: float = 1.0,
             bucket_key: str = "subject_key",
+            groups: list[dict[str, Any]] | None = None,
+            manual_assignments: dict[str, str] | None = None,
             description: str | None = None,
             effective_from: str | None = None,
             effective_to: str | None = None,
@@ -132,8 +141,112 @@ class ExperimentLifecycleService:
                 created_by=created_by,
             )
 
+            created_groups = []
+            if groups is not None:
+                created_groups = await self._create_initial_groups(
+                    uow,
+                    experiment,
+                    groups,
+                    created_by=created_by,
+                )
+
+            if manual_assignments is not None:
+                if resolved_strategy is not AssignmentStrategy.MANUAL:
+                    raise InvalidExperimentConfigError(
+                        "只有手动分配策略支持指定客户"
+                    )
+
+                group_ids = {
+                    group["key"]: variant.variant_id
+                    for group, variant in zip(
+                        groups or [],
+                        created_groups,
+                        strict=True,
+                    )
+                }
+
+                if any(
+                        key not in group_ids
+                        for key in manual_assignments.values()
+                ):
+                    raise InvalidExperimentConfigError(
+                        "客户指定的目标分组不存在"
+                    )
+
+                assignments = {
+                    customer: group_ids[key]
+                    for customer, key in manual_assignments.items()
+                }
+                self._validate_manual_assignments(
+                    assignments,
+                    created_groups,
+                )
+                experiment.config = {
+                    **experiment.config,
+                    "manual_assignments": assignments,
+                }
+
             result = self._experiment_result(experiment)
+
+            if groups is not None:
+                result["variants"] = [
+                    self._variant_result(item)
+                    for item in created_groups
+                ]
+
             return MutationResult(result, after=result)
+
+    async def _create_initial_groups(
+            self,
+            uow: UnitOfWork,
+            experiment: Any,
+            groups: list[dict[str, Any]],
+            *,
+            created_by: str | None,
+    ) -> list[Any]:
+        """在创建实验的事务内组织初始分组创建"""
+        if not groups:
+            raise InvalidExperimentConfigError(
+                "请至少配置一个分组"
+            )
+
+        keys = [
+            group["key"]
+            for group in groups
+        ]
+
+        if any(
+                not isinstance(key, str) or not key.strip()
+                for key in keys
+        ):
+            raise InvalidExperimentConfigError(
+                "分组标识不能为空"
+            )
+
+        if len(set(keys)) != len(keys):
+            raise InvalidExperimentConfigError(
+                "分组标识不能重复"
+            )
+
+        # 显式写入父记录，确保分组外键在同一事务内可用。
+        await uow.session.flush()
+
+        variants = []
+
+        for group in groups:
+            variant = await self._create_variant(
+                uow,
+                experiment,
+                variants,
+                name=group["name"],
+                deployment_id=group["deployment_id"],
+                weight=group["weight"],
+                is_control=group.get("is_control", False),
+                created_by=created_by,
+            )
+            variants.append(variant)
+
+        return variants
 
     async def update_experiment(
             self,
@@ -143,6 +256,7 @@ class ExperimentLifecycleService:
             strategy: str | None = None,
             traffic_ratio: float | None = None,
             bucket_key: str | None = None,
+            manual_assignments: dict[str, str] | None = None,
             description: str | None = None,
             effective_from: str | None = None,
             effective_to: str | None = None,
@@ -166,6 +280,15 @@ class ExperimentLifecycleService:
                 current_config["traffic_ratio"] = traffic_ratio
             if bucket_key is not None:
                 current_config["bucket_key"] = bucket_key
+            if current_config.get("strategy") == "manual":
+                if manual_assignments is not None:
+                    variants = await VariantRepository(uow.session).list_active_variants(experiment_id)
+                    self._validate_manual_assignments(manual_assignments, variants)
+                    current_config["manual_assignments"] = manual_assignments
+            else:
+                if manual_assignments:
+                    raise InvalidExperimentConfigError("只有手动分配策略支持指定客户")
+                current_config.pop("manual_assignments", None)
 
             timezone_name = get_settings().logging.timezone
             start = (
@@ -214,16 +337,9 @@ class ExperimentLifecycleService:
     ) -> dict[str, Any]:
         """为草稿实验创建启用状态的分组"""
         async with UnitOfWork() as uow:
-            experiment_repo = ExperimentRepository(
+            experiment = await ExperimentRepository(
                 uow.session
-            )
-            variant_repo = VariantRepository(
-                uow.session
-            )
-            deployment_repo = DeploymentRepository(
-                uow.session
-            )
-            experiment = await experiment_repo.get_experiment(
+            ).get_experiment(
                 experiment_id
             )
 
@@ -232,101 +348,154 @@ class ExperimentLifecycleService:
                     f"实验不存在: {experiment_id}"
                 )
 
-            if ExperimentStatus(experiment.status) is not ExperimentStatus.DRAFT:
-                raise InvalidExperimentStateError(
-                    "只有草稿状态的实验允许添加分组"
-                )
-
-            deployment = await deployment_repo.get_deployment(
-                deployment_id
-            )
-
-            if deployment is None:
-                raise InvalidExperimentConfigError(
-                    f"部署不存在: {deployment_id}"
-                )
-
-            if deployment.model_id != experiment.model_id:
-                raise InvalidExperimentConfigError(
-                    "部署所属模型与实验模型不一致"
-                )
-
-            if deployment.environment != experiment.environment:
-                raise InvalidExperimentConfigError(
-                    "部署环境与实验环境不一致"
-                )
-
-            if (
-                    str(deployment.rollout_type).lower() == "shadow"
-                    or str(deployment.role).lower() == "shadow"
-            ):
-                raise InvalidExperimentConfigError(
-                    "影子部署不能绑定实验分组"
-                )
-
-            variants = await variant_repo.list_variants(
+            variants = await VariantRepository(
+                uow.session
+            ).list_variants(
                 experiment_id=experiment_id,
             )
-
-            for current in variants:
-                if current.name == name:
-                    raise InvalidExperimentConfigError(
-                        f"实验已存在同名分组: {current.variant_id}"
-                    )
-
-                if current.deployment_id == deployment_id:
-                    raise InvalidExperimentConfigError(
-                        "实验已存在绑定该部署的分组: "
-                        f"{current.variant_id}"
-                    )
-
-                if is_control and current.is_control and (
-                        ExperimentVariantStatus(current.status)
-                        is ExperimentVariantStatus.ACTIVE
-                ):
-                    raise InvalidExperimentConfigError(
-                        "实验已存在启用状态的对照组"
-                    )
-
-            strategy = AssignmentStrategy(
-                str((experiment.config or {}).get(
-                    "strategy",
-                    AssignmentStrategy.HASH,
-                ))
-            )
-
-            if strategy is AssignmentStrategy.HASH:
-                active_weight = sum(
-                    float(item.weight or 0)
-                    for item in variants
-                    if ExperimentVariantStatus(item.status)
-                    is ExperimentVariantStatus.ACTIVE
-                )
-
-                if active_weight + weight > 1.0 + 1e-8:
-                    raise InvalidExperimentConfigError(
-                        "启用状态分组的权重之和不能大于 1"
-                    )
-
-            variant = variant_repo.create_variant(
-                variant_id=generate_random_id(
-                    prefix="var"
-                ),
-                experiment_id=experiment_id,
+            variant = await self._create_variant(
+                uow,
+                experiment,
+                variants,
                 name=name,
                 deployment_id=deployment_id,
                 weight=weight,
                 is_control=is_control,
-                config=config or {
-                    "group": "control" if is_control else "treatment",
-                    "environment": experiment.environment,
-                },
+                config=config,
                 description=description,
                 created_by=created_by,
             )
 
             result = self._variant_result(variant)
             return MutationResult(result, after=result)
+
+    @staticmethod
+    async def _create_variant(
+            uow: UnitOfWork,
+            experiment: Any,
+            variants: list[Any],
+            *,
+            name: str,
+            deployment_id: str,
+            weight: float,
+            is_control: bool = False,
+            config: dict[str, Any] | None = None,
+            description: str | None = None,
+            created_by: str | None = None,
+    ) -> Any:
+        """复用当前事务校验并创建分组"""
+        variant_repo = VariantRepository(
+            uow.session
+        )
+        deployment_repo = DeploymentRepository(
+            uow.session
+        )
+
+        if not isinstance(name, str) or not name.strip():
+            raise InvalidExperimentConfigError(
+                "分组名称不能为空"
+            )
+
+        if not 0 < weight <= 1:
+            raise InvalidExperimentConfigError(
+                "分组权重必须大于 0 且不超过 1"
+            )
+
+        if ExperimentStatus(experiment.status) is not ExperimentStatus.DRAFT:
+            raise InvalidExperimentStateError(
+                "只有草稿状态的实验允许添加分组"
+            )
+
+        deployment = await deployment_repo.get_deployment(
+            deployment_id
+        )
+
+        if deployment is None:
+            raise InvalidExperimentConfigError(
+                f"部署不存在: {deployment_id}"
+            )
+
+        if deployment.model_id != experiment.model_id:
+            raise InvalidExperimentConfigError(
+                "部署所属模型与实验模型不一致"
+            )
+
+        if deployment.environment != experiment.environment:
+            raise InvalidExperimentConfigError(
+                "部署环境与实验环境不一致"
+            )
+
+        if DeploymentStatus(deployment.status) is not DeploymentStatus.ACTIVE:
+            raise InvalidExperimentConfigError(
+                "分组只能绑定启用状态的部署"
+            )
+
+        if (
+                str(deployment.rollout_type).lower() == "shadow"
+                or str(deployment.role).lower() == "shadow"
+        ):
+            raise InvalidExperimentConfigError(
+                "影子部署不能绑定实验分组"
+            )
+
+        for current in variants:
+            if current.name == name:
+                raise InvalidExperimentConfigError(
+                    f"实验已存在同名分组: {current.variant_id}"
+                )
+
+            if current.deployment_id == deployment_id:
+                raise InvalidExperimentConfigError(
+                    "实验已存在绑定该部署的分组: "
+                    f"{current.variant_id}"
+                )
+
+            if is_control and current.is_control and (
+                    ExperimentVariantStatus(current.status)
+                    is ExperimentVariantStatus.ACTIVE
+            ):
+                raise InvalidExperimentConfigError(
+                    "实验已存在启用状态的对照组"
+                )
+
+        strategy = AssignmentStrategy(
+            str((experiment.config or {}).get(
+                "strategy",
+                AssignmentStrategy.HASH,
+            ))
+        )
+
+        if strategy is AssignmentStrategy.HASH:
+            active_weight = sum(
+                float(item.weight or 0)
+                for item in variants
+                if ExperimentVariantStatus(item.status)
+                is ExperimentVariantStatus.ACTIVE
+            )
+
+            if active_weight + weight > 1.0 + 1e-8:
+                raise InvalidExperimentConfigError(
+                    "启用状态分组的权重之和不能大于 1"
+                )
+
+        variant = variant_repo.create_variant(
+            variant_id=generate_random_id(
+                prefix="var"
+            ),
+            experiment_id=experiment.experiment_id,
+            name=name,
+            deployment_id=deployment_id,
+            weight=weight,
+            is_control=is_control,
+            config=config or {
+                "group": "control" if is_control else "treatment",
+                "environment": experiment.environment,
+            },
+            description=description,
+            created_by=created_by,
+        )
+
+        return variant
 
     async def update_variant(
             self,
@@ -335,11 +504,14 @@ class ExperimentLifecycleService:
             name: str | None = None,
             weight: float | None = None,
             is_control: bool | None = None,
-            config: dict[str, Any] | None = None,
+            config: dict[str, Any] | None | _Unset = _UNSET,
             description: str | None = None,
             updated_by: str | None = None,
-    ) -> dict[str, Any]:
-        """更新草稿实验中的分组配置"""
+    ) -> MutationResult:
+        """更新草稿实验中的分组配置
+
+        未提供的配置保持不变，显式传入 None 则清空。
+        """
         async with UnitOfWork() as uow:
             variant_repo = VariantRepository(uow.session)
             experiment_repo = ExperimentRepository(uow.session)
@@ -403,11 +575,12 @@ class ExperimentLifecycleService:
                     name=name,
                     weight=weight,
                     is_control=is_control,
-                    config=config,
                     description=description,
                 ),
                 updated_by=updated_by,
             )
+            if not isinstance(config, _Unset):
+                variant.config = config
             result = self._variant_result(variant)
             return MutationResult.changed(
                 result, before=before, after=result
@@ -479,6 +652,26 @@ class ExperimentLifecycleService:
                         "实验没有可用的启用状态分组，请先添加实验分组"
                     )
 
+                if (experiment.config or {}).get("strategy") == "manual":
+                    assignments = (experiment.config or {}).get(
+                        "manual_assignments"
+                    )
+
+                    if not assignments:
+                        raise InvalidExperimentConfigError(
+                            "请先编辑实验并指定客户及目标分组"
+                        )
+
+                    if not isinstance(assignments, dict):
+                        raise InvalidExperimentConfigError(
+                            "手动分配配置必须为客户标识到分组 ID 的映射"
+                        )
+
+                    self._validate_manual_assignments(
+                        assignments,
+                        variants,
+                    )
+
                 await self._validate_variant_deployments(
                     deployment_repo=deployment_repo,
                     experiment=experiment,
@@ -526,6 +719,36 @@ class ExperimentLifecycleService:
             return MutationResult.changed(
                 result, before=before, after=result
             )
+
+    @staticmethod
+    def _validate_manual_assignments(
+            assignments: dict[str, str],
+            variants: list[Any],
+    ) -> None:
+        """校验客户标识及其所属实验的启用分组"""
+        targets = {
+            variant.variant_id
+            for variant in variants
+        }
+
+        for subject, target in assignments.items():
+            if (
+                    not isinstance(subject, str)
+                    or not subject.strip()
+                    or subject != subject.strip()
+                    or len(subject) > 128
+            ):
+                raise InvalidExperimentConfigError(
+                    "客户标识不能为空、超过 128 个字符或包含首尾空格"
+                )
+
+            if (
+                    not isinstance(target, str)
+                    or target not in targets
+            ):
+                raise InvalidExperimentConfigError(
+                    f"客户 {subject} 的目标分组不存在或未启用"
+                )
 
     @staticmethod
     async def _validate_variant_deployments(

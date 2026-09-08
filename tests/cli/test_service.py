@@ -1,5 +1,3 @@
-# tests/cli/test_service.py
-
 """模型服务 CLI 测试
 
 验证模型服务进程启动不依赖本地 CLI 登录会话。
@@ -49,6 +47,8 @@ def test_service_run_does_not_authenticate_cli_user(
     popen = MagicMock(
         return_value=process
     )
+    structured_logger = MagicMock()
+    monkeypatch.setitem(vars(run_module), "logger", structured_logger)
 
     settings = SimpleNamespace(
         logging=MagicMock(),
@@ -138,3 +138,12 @@ def test_service_run_does_not_authenticate_cli_user(
     assert "Press Ctrl+C to stop" in result.output
     command = popen.call_args.args[0]
     assert "--quiet" in command
+    completed_events = [
+        call.kwargs
+        for call in structured_logger.info.call_args_list
+        if call.args == ("Datamind 服务启动完成",)
+    ]
+    assert len(completed_events) == 1
+    assert completed_events[0]["service_instance_id"] == (
+        popen.call_args.kwargs["env"]["DATAMIND_SERVICE_INSTANCE_ID"]
+    )

@@ -1,5 +1,3 @@
-# examples/classification/train.py
-
 """风险分类模型训练示例
 
 使用可复现的合成数据训练随机森林二分类模型并保存制品。

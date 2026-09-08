@@ -1,5 +1,3 @@
-# tests/cli/test_experiment_start.py
-
 """实验启动命令测试
 
 验证实验启动前对启用分组及其部署的完整性校验。

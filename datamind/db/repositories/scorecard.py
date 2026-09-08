@@ -1,5 +1,3 @@
-# datamind/db/repositories/scorecard.py
-
 """评分卡仓储
 
 提供评分卡的查询、创建和更新能力。

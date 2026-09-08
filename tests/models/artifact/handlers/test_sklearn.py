@@ -1,5 +1,3 @@
-# tests/models/artifact/handlers/test_sklearn.py
-
 """Sklearn 模型加载器测试
 
 验证 Sklearn 模型二进制数据的反序列化调用。

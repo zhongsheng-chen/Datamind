@@ -1,5 +1,3 @@
-# tests/db/repositories/test_token.py
-
 """认证令牌仓储测试
 
 验证刷新令牌查询、列表筛选、创建、使用时间记录、

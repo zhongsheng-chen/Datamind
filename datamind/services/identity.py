@@ -1,5 +1,3 @@
-# datamind/services/identity.py
-
 """身份管理服务
 
 提供 LOCAL 用户、角色和角色授予的管理能力。
@@ -307,6 +305,15 @@ class IdentityService:
                 occurred_at=now,
             )
 
+        logger.info(
+            "用户创建完成" if audit_operation == "create" else "用户恢复完成",
+            action=audit_action,
+            user_id=result["user_id"],
+            username=normalized_username,
+            operator=operator,
+            status="success",
+        )
+
         return result
 
     async def list_users(
@@ -318,7 +325,7 @@ class IdentityService:
             offset: int = 0,
     ) -> list[dict[str, Any]]:
         """获取用户列表"""
-        logger.info(
+        logger.debug(
             "开始查询用户列表",
             status=status,
             include_deleted=include_deleted,
@@ -1062,6 +1069,15 @@ class IdentityService:
                 after=result,
             )
 
+        logger.info(
+            "角色创建完成" if audit_operation == "create" else "角色恢复完成",
+            action=audit_action,
+            role_id=result["role_id"],
+            name=normalized_name,
+            operator=operator,
+            status="success",
+        )
+
         return result
 
     async def list_roles(
@@ -1073,7 +1089,7 @@ class IdentityService:
             offset: int = 0,
     ) -> list[dict[str, Any]]:
         """获取角色列表"""
-        logger.info(
+        logger.debug(
             "开始查询角色列表",
             status=status,
             include_deleted=include_deleted,

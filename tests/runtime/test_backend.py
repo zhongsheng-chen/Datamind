@@ -1,5 +1,3 @@
-# tests/runtime/test_backend.py
-
 """BentoML 模型后端测试
 
 验证框架后端选择以及模型保存和加载委托行为。

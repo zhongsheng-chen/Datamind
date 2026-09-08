@@ -1,5 +1,3 @@
-# datamind/auth/password.py
-
 """密码工具
 
 提供密码哈希、密码校验和密码重哈希判断能力。

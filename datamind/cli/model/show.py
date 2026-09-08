@@ -1,5 +1,3 @@
-# datamind/cli/model/show.py
-
 """查看模型命令
 
 提供模型和模型版本详情查看功能。

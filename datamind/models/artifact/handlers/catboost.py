@@ -1,5 +1,3 @@
-# datamind/models/artifact/handlers/catboost.py
-
 """CatBoost 模型加载器
 
 注册 CatBoost 框架的模型加载函数。

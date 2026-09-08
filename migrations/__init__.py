@@ -1,5 +1,3 @@
-# migrations/__init__.py
-
 """数据库迁移模块
 
 提供基于 Alembic 的数据库结构迁移脚本。

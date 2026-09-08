@@ -1,5 +1,3 @@
-# datamind/constants/framework.py
-
 """框架枚举
 
 定义支持的机器学习框架类型，用于模型注册和运行时识别。

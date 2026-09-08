@@ -1,5 +1,3 @@
-# tests/runtime/serving/test_classification_service.py
-
 """分类模型运行服务测试
 
 验证分类阈值、单条预测、批量预测和异常结果处理。

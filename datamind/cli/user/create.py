@@ -1,5 +1,3 @@
-# datamind/cli/user/create.py
-
 """创建用户命令
 
 提供 LOCAL 用户创建和初始角色授予功能。

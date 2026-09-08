@@ -1,5 +1,3 @@
-# datamind/cli/route/__init__.py
-
 """路由管理命令
 
 提供模型路由规则的管理功能。

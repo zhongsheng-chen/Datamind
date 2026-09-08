@@ -1,5 +1,3 @@
-# tests/services/test_exports.py
-
 """业务服务包公共导出测试
 
 验证业务服务包公开 API 的完整性和可访问性。

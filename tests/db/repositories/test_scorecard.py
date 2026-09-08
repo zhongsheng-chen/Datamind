@@ -1,5 +1,3 @@
-# tests/db/repositories/test_scorecard.py
-
 """评分卡仓储测试
 
 验证评分卡详情的查询、创建和更新行为。

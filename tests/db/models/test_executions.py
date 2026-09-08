@@ -1,5 +1,3 @@
-# tests/db/models/test_executions.py
-
 """模型执行表测试
 
 验证模型执行表的字段、索引、检查约束、逻辑关联和字段注释。

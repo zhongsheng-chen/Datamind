@@ -1,5 +1,3 @@
-# datamind/runtime/routing/__init__.py
-
 """运行时路由组件
 
 负责请求规则匹配、流量分配校验和目标部署选择。

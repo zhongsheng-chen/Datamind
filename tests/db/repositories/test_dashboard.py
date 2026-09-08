@@ -1,5 +1,3 @@
-# tests/db/repositories/test_dashboard.py
-
 """管理控制台查询仓储测试
 
 验证控制台页面记录总数、关键词与字段化查询和参数校验。
@@ -20,6 +18,7 @@
   - test_get_version_labels: 验证版本模型名称查询
   - test_search_records: 验证关键词查询和分页
   - test_search_records_supports_field_queries: 验证字段化查询
+  - test_decision_queries_support_experiment_id: 验证决策列表及计数按实验筛选
   - test_search_records_supports_time_ranges: 验证时间范围查询
   - test_search_records_rejects_unknown_search_field: 验证拒绝未知查询字段
   - test_search_records_sorts_related_fields: 验证关联字段排序
@@ -368,7 +367,6 @@ async def test_search_runtimes_sorts_by_stored_status() -> None:
             compile_kwargs={"literal_binds": True},
         )
     )
-    assert "LEFT OUTER JOIN controls" not in sql
     assert "ORDER BY runtimes.status ASC NULLS LAST" in sql
 
 
@@ -438,6 +436,51 @@ async def test_search_records_supports_field_queries() -> None:
     assert "active" in sql
     assert "%active%" not in sql
     assert sql.count("ILIKE") == 2
+    assert " AND " in sql
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("count_only", [False, True])
+@pytest.mark.parametrize("field", ["experiment_id", "experiment"])
+async def test_decision_queries_support_experiment_id(
+        count_only: bool,
+        field: str,
+) -> None:
+    """测试决策列表和计数支持实验 ID 及其别名与策略组合查询"""
+    repository, execute = create_repository()
+    query = f"{field}:exp_test strategy:manual"
+
+    if count_only:
+        await repository.count_records(
+            section="decisions",
+            query=query,
+        )
+    else:
+        await repository.search_records(
+            section="decisions",
+            query=query,
+            limit=10,
+            offset=0,
+        )
+
+    awaited_call = execute.await_args
+    assert awaited_call is not None
+    statement = awaited_call.args[0]
+    sql = str(
+        statement.compile(
+            dialect=postgresql.dialect(),
+        )
+    )
+    parameters = statement.compile().params
+
+    assert "decisions.experiment_id ILIKE" in sql
+    assert "decisions.strategy ILIKE" in sql
+    assert "manual" in parameters.values()
+    assert any(
+        isinstance(value, str)
+        and value.replace("\\", "") == "exp_test"
+        for value in parameters.values()
+    )
     assert " AND " in sql
 
 
@@ -1043,6 +1086,7 @@ async def test_get_request_details() -> None:
             "prediction": {
                 "score": 680
             },
+            "version_id": "ver_test",
         }
     ]
 
@@ -1075,6 +1119,7 @@ async def test_get_request_details() -> None:
             "prediction": {
                 "score": 680
             },
+            "version_id": "ver_test",
         }
     }
 

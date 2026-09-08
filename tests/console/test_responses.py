@@ -1,5 +1,3 @@
-# tests/console/test_responses.py
-
 """管理控制台 HTTP 响应测试
 
 验证通用错误响应结构与客户端地址读取行为。

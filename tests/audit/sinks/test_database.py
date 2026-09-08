@@ -1,5 +1,3 @@
-# tests/audit/sinks/test_database.py
-
 """数据库审计存储端测试
 
 验证审计事件字段映射、重复写入和并发唯一键冲突恢复行为。

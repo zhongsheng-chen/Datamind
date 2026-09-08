@@ -1,5 +1,3 @@
-# tests/core/inference/test_inference.py
-
 """统一推理接口测试
 
 验证统一推理入口的适配器创建、概率预测、对数几率预测、

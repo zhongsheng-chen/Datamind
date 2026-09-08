@@ -1,5 +1,3 @@
-# datamind/db/models/requests.py
-
 """请求表
 
 记录进入系统的请求及其处理结果，

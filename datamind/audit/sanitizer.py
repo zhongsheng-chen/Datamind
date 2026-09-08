@@ -1,5 +1,3 @@
-# datamind/audit/sanitizer.py
-
 """审计数据净化器
 
 将任意 Python 值转换为可安全写入 JSON 的有限结构，

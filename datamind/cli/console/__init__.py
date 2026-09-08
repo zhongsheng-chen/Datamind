@@ -1,5 +1,3 @@
-# datamind/cli/console/__init__.py
-
 """管理控制台命令
 
 提供内网管理控制台的启动命令。

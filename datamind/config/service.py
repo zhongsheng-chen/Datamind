@@ -1,5 +1,3 @@
-# datamind/config/service.py
-
 """服务配置
 
 定义服务标识、网络、进程和 API 参数。
@@ -14,7 +12,7 @@
   - host: 服务监听地址
   - port: 服务监听端口
   - workers: 工作进程数
-  - timeout: 请求超时时间（秒）
+  - timeout: 认证后单条或整批预测请求的超时时间（秒），不包含启动等待
   - enable_docs: 是否启用 API 文档
   - enable_health_check: 是否启用健康检查
 
@@ -25,7 +23,7 @@
   - DATAMIND_SERVICE_HOST: 监听地址，默认 0.0.0.0
   - DATAMIND_SERVICE_PORT: 监听端口，默认 8700
   - DATAMIND_SERVICE_WORKERS: 工作进程数，默认 4
-  - DATAMIND_SERVICE_TIMEOUT: 请求超时时间，默认 30
+  - DATAMIND_SERVICE_TIMEOUT: 预测请求超时时间，默认 30 秒
   - DATAMIND_SERVICE_ENABLE_DOCS: 是否启用文档，默认 true
   - DATAMIND_SERVICE_ENABLE_HEALTH_CHECK: 是否启用健康检查，默认 true
 

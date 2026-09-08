@@ -1,5 +1,3 @@
-# tests/db/repositories/test_routing.py
-
 """路由仓储测试
 
 验证 RoutingRepository 的路由查询、列表筛选、创建、

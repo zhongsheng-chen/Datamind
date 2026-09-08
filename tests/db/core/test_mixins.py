@@ -1,5 +1,3 @@
-# tests/db/core/test_mixins.py
-
 """数据库模型混入类测试
 
 通过临时声明式模型验证 IdMixin 和 TimestampMixin

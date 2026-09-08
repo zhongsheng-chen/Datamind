@@ -1,5 +1,3 @@
-# tests/db/models/test_variants.py
-
 """实验分组表测试
 
 验证实验分组表的字段、索引、检查约束和字段注释。

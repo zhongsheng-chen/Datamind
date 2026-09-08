@@ -1,5 +1,3 @@
-# tests/utils/test_network.py
-
 """网络工具测试
 
 验证主机 IP 获取、网络异常回退、Socket 参数和主机名获取行为。

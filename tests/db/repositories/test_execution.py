@@ -1,5 +1,3 @@
-# tests/db/repositories/test_execution.py
-
 """模型执行仓储测试
 
 验证 ExecutionRepository 的执行查询、列表筛选、创建和状态迁移。

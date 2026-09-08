@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/xgboost.py
-
 """XGBoost 模型适配器
 
 为采用 Sklearn API 的 XGBoost 二分类模型提供概率预测和

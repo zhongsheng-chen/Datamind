@@ -1,5 +1,3 @@
-# datamind/db/repositories/assignment.py
-
 """实验分配仓储
 
 用于查询与写入实验主体的固定分配关系，

@@ -1,5 +1,3 @@
-# tests/models/test_errors.py
-
 """模型异常测试
 
 验证模型与实验异常的继承关系和错误信息契约。

@@ -1,5 +1,3 @@
-# datamind/cli/experiment/stop.py
-
 """停止实验命令
 
 提供实验停止功能。

@@ -1,5 +1,3 @@
-# tests/utils/test_generator.py
-
 """ID 生成工具测试
 
 验证确定性 ID、随机 ID、格式长度、键值编码和参数校验。

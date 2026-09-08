@@ -1,5 +1,3 @@
-# datamind/cli/model/restore.py
-
 """恢复模型命令
 
 提供模型或模型版本的逻辑删除恢复功能。

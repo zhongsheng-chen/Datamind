@@ -1,5 +1,3 @@
-# tests/runtime/test_exports.py
-
 """模型运行时包公共导出测试
 
 验证模型运行时包公开 API 的完整性和可访问性。

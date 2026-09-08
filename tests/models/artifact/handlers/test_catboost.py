@@ -1,5 +1,3 @@
-# tests/models/artifact/handlers/test_catboost.py
-
 """CatBoost 模型加载器测试
 
 验证 CatBoost 模型通过临时文件加载。

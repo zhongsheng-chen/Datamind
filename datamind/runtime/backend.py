@@ -1,5 +1,3 @@
-# datamind/runtime/backend.py
-
 """BentoML 模型后端
 
 负责模型的保存与加载，仅封装 BentoML 框架差异。

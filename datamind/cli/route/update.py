@@ -1,5 +1,3 @@
-# datamind/cli/route/update.py
-
 """更新路由命令
 
 提供路由规则更新功能。

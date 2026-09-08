@@ -1,5 +1,3 @@
-# tests/runtime/serving/test_exports.py
-
 """运行时推理服务包公共导出测试
 
 验证运行时推理服务包公开 API 的完整性和可访问性。

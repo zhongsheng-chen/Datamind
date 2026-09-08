@@ -1,5 +1,3 @@
-# datamind/cli/user/list.py
-
 """列出用户命令
 
 提供 LOCAL 用户列表查询功能。

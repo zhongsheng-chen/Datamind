@@ -1,5 +1,3 @@
-# datamind/cli/experiment/create.py
-
 """创建实验命令
 
 提供 A/B 实验创建功能。

@@ -1,5 +1,3 @@
-# datamind/cli/branding.py
-
 """CLI 品牌展示
 
 提供长期运行命令共用的 Logo、版本信息和启动摘要。

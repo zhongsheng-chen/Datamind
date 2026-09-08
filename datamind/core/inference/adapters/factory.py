@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/factory.py
-
 """模型适配器工厂
 
 根据模型类所属模块识别机器学习框架，并创建对应适配器。

@@ -1,5 +1,3 @@
-# datamind/models/artifact/register.py
-
 """模型产物注册器
 
 提供模型加载器的注册和获取功能。

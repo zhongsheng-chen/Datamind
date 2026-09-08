@@ -1,5 +1,3 @@
-# tests/core/inference/adapters/test_base.py
-
 """基础模型适配器测试
 
 验证模型适配器基类的输入转换、推理调度、特征校验、

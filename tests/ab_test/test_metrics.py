@@ -1,5 +1,3 @@
-# tests/ab_test/test_metrics.py
-
 """A/B 实验指标评估测试
 
 验证分组指标、坏样本规则、金额聚合和基准组 lift 对比。

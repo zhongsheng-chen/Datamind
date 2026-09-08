@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/activate.py
-
 """启用实验分组命令
 
 提供实验分组启用功能。

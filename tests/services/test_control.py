@@ -1,5 +1,3 @@
-# tests/services/test_control.py
-
 """运行时控制服务测试
 
 验证部署期望状态控制、运行状态查询和参数校验。

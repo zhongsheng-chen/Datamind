@@ -1,5 +1,3 @@
-# tests/auth/test_service.py
-
 """认证服务测试
 
 验证 LOCAL 登录、网络限制、令牌生命周期和应急账户行为。

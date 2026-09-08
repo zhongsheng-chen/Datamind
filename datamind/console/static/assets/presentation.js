@@ -12,6 +12,7 @@ import { createDetailIcon } from "./details/common.js";
  *   createCopyableNavigationLink: (value: string | null, navigate: (() => void) | null, label?: string) => string | HTMLElement,
  *   createCopyableSectionNavigationLink: (value: string | null, section: string, dialog: HTMLDialogElement, label?: string) => string | HTMLElement,
  *   createDataCell: (value: unknown, kind?: string, record?: Object | null) => HTMLTableCellElement,
+ *   createDecisionBadge: (value: unknown) => HTMLSpanElement,
  *   createDeploymentRoleBadge: (value: unknown) => HTMLSpanElement,
  *   createExecutionTypeBadge: (value: unknown) => HTMLSpanElement,
  *   createSectionNavigationLink: (value: string | null, section: string, dialog: HTMLDialogElement, label?: string | null) => string | null | HTMLButtonElement,
@@ -129,6 +130,8 @@ export function createPresentationController({
     const cell = document.createElement("td");
     if (kind === "status") {
       cell.append(createStatusBadge(value));
+    } else if (kind === "decision") {
+      cell.append(createDecisionBadge(value));
     } else if (kind === "runtime-worker" && record !== null) {
       const workerId = String(value || "");
       const match = workerId.match(/^(.*)-(\d+)$/);
@@ -268,6 +271,23 @@ export function createPresentationController({
     const badge = document.createElement("span");
     badge.className = `status ${statusTone(value)}`.trim();
     badge.textContent = value ?? "—";
+    return badge;
+  }
+
+  /**
+   * 创建决策结果徽标。
+   *
+   * @param {unknown} value 决策结果
+   * @returns {HTMLSpanElement} 决策结果徽标
+   */
+  function createDecisionBadge(value) {
+    const badge = document.createElement("span");
+    const labels = { approve: "通过", reject: "拒绝" };
+    const decision = String(value ?? "");
+    const tone = decision === "reject" ? "danger"
+      : decision === "approve" ? "" : "neutral";
+    badge.className = `status ${tone}`.trim();
+    badge.textContent = labels[decision] ?? (decision || "—");
     return badge;
   }
   
@@ -410,6 +430,7 @@ export function createPresentationController({
     createCopyableNavigationLink,
     createCopyableSectionNavigationLink,
     createDataCell,
+    createDecisionBadge,
     createDeploymentRoleBadge,
     createExecutionTypeBadge,
     createSectionNavigationLink,

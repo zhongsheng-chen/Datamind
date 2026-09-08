@@ -1,5 +1,3 @@
-# tests/db/models/test_artifacts.py
-
 """模型制品表测试
 
 验证模型制品表的字段、索引、检查约束和字段注释。

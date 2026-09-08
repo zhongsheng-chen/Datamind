@@ -1,5 +1,3 @@
-# datamind/cli/experiment/__init__.py
-
 """实验管理命令
 
 提供 A/B 实验的管理功能。

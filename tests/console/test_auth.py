@@ -1,5 +1,3 @@
-# tests/console/test_auth.py
-
 """管理控制台认证会话测试
 
 验证浏览器登录、令牌轮换、会话查询和退出登录行为。
@@ -364,8 +362,16 @@ async def test_login_without_refresh_token_clears_refresh_cookie(
 
 
 @pytest.mark.asyncio
-async def test_refresh_requires_refresh_cookie() -> None:
-    """测试会话轮换要求刷新令牌 Cookie"""
+async def test_refresh_requires_refresh_cookie(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试缺少刷新令牌时返回未登录且不记录续期警告"""
+    auth_logger = MagicMock()
+    monkeypatch.setitem(
+        vars(app_module),
+        "logger",
+        auth_logger,
+    )
     async with AsyncClient(
             transport=ASGITransport(
                 app=app_module.console_app
@@ -380,6 +386,7 @@ async def test_refresh_requires_refresh_cookie() -> None:
     assert response.json() == {
         "error": "登录会话已过期"
     }
+    assert not auth_logger.mock_calls
 
 
 @pytest.mark.asyncio
@@ -446,7 +453,7 @@ async def test_refresh_clears_invalid_session(
             "invalid refresh token"
         )
     )
-    install_auth_service(
+    _, auth_logger = install_auth_service(
         monkeypatch,
         service,
     )
@@ -472,6 +479,14 @@ async def test_refresh_clears_invalid_session(
     assert response.json() == {
         "error": "登录会话已失效"
     }
+    auth_logger.info.assert_called_once()
+    assert auth_logger.info.call_args.args[0] == "控制台会话已失效，需要重新登录"
+    assert auth_logger.info.call_args.kwargs["status_code"] == 401
+    assert auth_logger.info.call_args.kwargs["request_id"].startswith("req_")
+    assert len(auth_logger.info.call_args.kwargs["trace_id"]) == 32
+    auth_logger.warning.assert_not_called()
+    auth_logger.error.assert_not_called()
+    assert "invalid-token" not in repr(auth_logger.mock_calls)
     assert sum(
         "Max-Age=0" in cookie
         for cookie in cookies
@@ -489,7 +504,7 @@ async def test_refresh_reports_unavailable_database(
             "database unavailable"
         )
     )
-    install_auth_service(
+    _, auth_logger = install_auth_service(
         monkeypatch,
         service,
     )
@@ -512,6 +527,11 @@ async def test_refresh_reports_unavailable_database(
     assert response.json() == {
         "error": "认证服务暂不可用"
     }
+    auth_logger.error.assert_called_once()
+    assert auth_logger.error.call_args.kwargs["status_code"] == 503
+    auth_logger.info.assert_not_called()
+    auth_logger.warning.assert_not_called()
+    assert "refresh-token" not in repr(auth_logger.mock_calls)
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,3 @@
-# tests/logging/test_handlers.py
-
 """日志输出通道处理器测试
 
 验证文件、控制台和异步日志 handler 的创建与分发行为。

@@ -1,5 +1,3 @@
-# tests/db/repositories/test_role.py
-
 """角色仓储测试
 
 验证角色查询、列表筛选、创建、基础信息更新、

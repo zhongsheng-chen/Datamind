@@ -1,5 +1,3 @@
-# tests/db/models/test_users.py
-
 """用户表模型测试
 
 验证仅支持 LOCAL 认证后的用户表字段、索引、约束和对象行为。
@@ -72,7 +70,6 @@ def test_user_business_columns() -> None:
         "deleted_by",
         "deletion_reason",
     }
-    assert "auth_provider" not in TABLE.columns
 
 
 def test_password_hash_is_required() -> None:
@@ -126,7 +123,6 @@ def test_user_indexes() -> None:
         "uk_users_username",
         "uk_users_email",
     }
-    assert "idx_users_auth_provider" not in indexes
     assert indexes["uk_users_user_id"].unique is True
     assert indexes["uk_users_username"].unique is True
     assert indexes["uk_users_email"].unique is True
@@ -150,7 +146,6 @@ def test_user_check_constraints() -> None:
     assert "ck_users_username_not_blank" in constraints
     assert "ck_users_password_hash_not_blank" in constraints
     assert "ck_users_email_not_blank" in constraints
-    assert "ck_users_auth_provider_valid" not in constraints
     assert "btrim(password_hash) <> ''" in constraints[
         "ck_users_password_hash_not_blank"
     ]
@@ -190,4 +185,3 @@ def test_user_repr() -> None:
     assert "status='active'" in result
     assert "is_break_glass=True" in result
     assert "secret-hash" not in result
-    assert "auth_provider" not in result

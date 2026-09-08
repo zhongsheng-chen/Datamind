@@ -1,5 +1,3 @@
-# tests/storage/test_storage_facade.py
-
 """存储门面测试
 
 验证 Storage 的核心参数委托以及 get_storage() 的单例缓存行为。

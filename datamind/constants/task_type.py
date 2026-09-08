@@ -1,5 +1,3 @@
-# datamind/constants/task_type.py
-
 """模型任务类型枚举
 
 定义模型支持的任务类型，用于模型注册、查询和运行时识别。

@@ -1,5 +1,3 @@
-# tests/db/models/test_runtimes.py
-
 """模型运行表测试
 
 验证模型运行表的字段、索引、检查约束和字段注释。

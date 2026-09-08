@@ -1,5 +1,3 @@
-# tests/db/repositories/test_assignment.py
-
 """实验分配仓储测试
 
 验证 AssignmentRepository 的固定分配查询、列表筛选、

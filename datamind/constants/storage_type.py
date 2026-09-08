@@ -1,5 +1,3 @@
-# datamind/constants/storage_type.py
-
 """存储类型枚举
 
 定义存储后端类型，用于配置解析和运行时识别。

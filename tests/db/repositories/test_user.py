@@ -1,5 +1,3 @@
-# tests/db/repositories/test_user.py
-
 """用户仓储测试
 
 验证用户查询、列表筛选、创建、资料更新、密码更新、

@@ -1,5 +1,3 @@
-# tests/db/core/test_diagnostics.py
-
 """数据库诊断工具测试
 
 验证数据库 URL 解析、连接池类型检查、连接池状态汇总、

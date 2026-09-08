@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/__init__.py
-
 """实验分组管理命令
 
 提供 A/B 实验分组的管理功能。
