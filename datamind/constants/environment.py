@@ -1,5 +1,3 @@
-# datamind/constants/environment.py
-
 """服务环境枚举
 
 定义服务的运行环境类型。

@@ -1,5 +1,3 @@
-# datamind/models/artifact/handlers/xgboost.py
-
 """XGBoost 模型加载器
 
 注册 XGBoost 框架的模型加载函数。

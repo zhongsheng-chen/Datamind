@@ -1,5 +1,3 @@
-# datamind/auth/providers/base.py
-
 """本地认证提供方基础定义
 
 定义用户名密码凭证、认证身份和本地认证提供方接口。

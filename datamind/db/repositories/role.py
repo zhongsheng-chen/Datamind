@@ -1,5 +1,3 @@
-# datamind/db/repositories/role.py
-
 """角色仓储
 
 提供角色的查询、创建、更新、权限配置和状态管理能力。

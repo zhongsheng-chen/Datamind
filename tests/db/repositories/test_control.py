@@ -1,5 +1,3 @@
-# tests/db/repositories/test_control.py
-
 """模型运行控制仓储测试
 
 验证 ControlRepository 的控制记录查询、列表筛选、创建，

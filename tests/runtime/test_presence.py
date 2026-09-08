@@ -1,5 +1,3 @@
-# tests/runtime/test_presence.py
-
 """运行实例在线状态测试
 
 验证运行实例使用统一的心跳判定边界。

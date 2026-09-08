@@ -1,5 +1,3 @@
-# datamind/db/models/assignments.py
-
 """实验分配表
 
 记录实验主体与实验分组之间的固定分配关系，

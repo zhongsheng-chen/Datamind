@@ -1,5 +1,3 @@
-# datamind/utils/generator.py
-
 """ID 生成工具
 
 提供统一的 ID 生成能力，

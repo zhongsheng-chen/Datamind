@@ -1,5 +1,3 @@
-# tests/cli/test_credentials.py
-
 """CLI 凭据存储测试
 
 验证凭据路径、原子读写、格式校验和本地会话清理。

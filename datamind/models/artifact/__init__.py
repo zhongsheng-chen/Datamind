@@ -1,5 +1,3 @@
-# datamind/models/artifact/__init__.py
-
 """模型产物模块
 
 负责将模型文件字节流反序列化为 Python 模型对象。

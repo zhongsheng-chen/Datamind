@@ -1,5 +1,3 @@
-# tests/models/artifact/test_register.py
-
 """模型产物注册器测试
 
 验证框架名称规范化、加载器注册和查找。

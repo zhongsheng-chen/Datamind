@@ -1,5 +1,3 @@
-# tests/constants/test_permissions.py
-
 """权限常量测试
 
 验证 Datamind 公开权限注册表的完整性和不可变性。

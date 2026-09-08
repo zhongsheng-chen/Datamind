@@ -1,5 +1,3 @@
-# tests/services/test_resource_deletion.py
-
 """资源逻辑删除服务测试
 
 验证部署、路由、实验和实验分组的删除边界与恢复行为。

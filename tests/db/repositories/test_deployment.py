@@ -1,5 +1,3 @@
-# tests/db/repositories/test_deployment.py
-
 """部署仓储测试
 
 验证 DeploymentRepository 的部署查询、列表筛选、创建、

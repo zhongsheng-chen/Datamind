@@ -1,5 +1,3 @@
-# datamind/db/models/audit.py
-
 """审计日志表
 
 记录系统控制平面的变更行为，

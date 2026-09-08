@@ -1,5 +1,3 @@
-# tests/constants/test_task_type.py
-
 """模型任务类型枚举测试
 
 验证 TaskType 的成员、字符串行为、反向构造和支持集合。

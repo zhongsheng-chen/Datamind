@@ -1,5 +1,3 @@
-# tests/auth/providers/test_local.py
-
 """本地认证提供方测试
 
 验证本地认证配置、用户状态校验、密码校验、登录失败锁定、

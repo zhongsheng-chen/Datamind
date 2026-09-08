@@ -1,5 +1,3 @@
-# datamind/db/repositories/request.py
-
 """请求仓储
 
 提供请求及处理结果的查询与写入能力，

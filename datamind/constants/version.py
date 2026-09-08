@@ -1,5 +1,3 @@
-# datamind/constants/version.py
-
 """模型版本常量
 
 定义模型注册使用的语义化版本格式。

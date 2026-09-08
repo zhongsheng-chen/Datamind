@@ -1,5 +1,3 @@
-# tests/db/models/test_routing.py
-
 """路由规则表测试
 
 验证路由规则表的字段、索引、检查约束和字段注释。

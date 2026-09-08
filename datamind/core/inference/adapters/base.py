@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/base.py
-
 """基础模型适配器
 
 提供统一的模型输入转换、推理调度、能力检查和结果校验能力。

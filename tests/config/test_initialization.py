@@ -1,5 +1,3 @@
-# tests/config/test_initialization.py
-
 """系统初始化配置测试
 
 验证管理员初始化凭据的默认值、环境变量读取和用户名校验。

@@ -1,5 +1,3 @@
-# tests/constants/test_framework.py
-
 """模型框架枚举测试
 
 验证 Framework 的成员、字符串行为和支持集合。

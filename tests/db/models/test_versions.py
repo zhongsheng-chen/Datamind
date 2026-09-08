@@ -1,5 +1,3 @@
-# tests/db/models/test_versions.py
-
 """模型版本表测试
 
 验证模型版本表的字段、索引、检查约束和字段注释。

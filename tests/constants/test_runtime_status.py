@@ -1,5 +1,3 @@
-# tests/constants/test_runtime_status.py
-
 """运行实例状态枚举测试
 
 验证持久化运行状态、派生健康状态和当前实例状态集合保持一致。

@@ -1,5 +1,3 @@
-# datamind/logging/logger.py
-
 """日志 API
 
 提供统一的日志获取接口。

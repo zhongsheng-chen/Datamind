@@ -1,5 +1,3 @@
-# datamind/storage/resolver.py
-
 """存储路径解析器
 
 根据存储类型将存储键解析为完整路径。

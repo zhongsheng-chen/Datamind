@@ -1,5 +1,3 @@
-# datamind/services/control.py
-
 """运行时控制服务
 
 负责模型运行控制和状态查询。

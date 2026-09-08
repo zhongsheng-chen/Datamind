@@ -1,5 +1,3 @@
-# tests/models/test_inspection.py
-
 """模型信息检查测试
 
 验证评分卡刻度、变量质量和分箱明细的提取结果。

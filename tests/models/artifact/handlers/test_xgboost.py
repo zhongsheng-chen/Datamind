@@ -1,5 +1,3 @@
-# tests/models/artifact/handlers/test_xgboost.py
-
 """XGBoost 模型加载器测试
 
 验证 XGBoost Booster 的创建和二进制模型加载。

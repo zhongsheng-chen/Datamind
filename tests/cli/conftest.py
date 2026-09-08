@@ -1,5 +1,3 @@
-# tests/cli/conftest.py
-
 """CLI 测试公共夹具
 
 隔离 CLI 主入口的真实日志输出。

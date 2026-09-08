@@ -1,5 +1,3 @@
-# tests/core/test_capability.py
-
 """模型能力工具测试
 
 验证模型能力的组合、查询、描述和摘要生成。

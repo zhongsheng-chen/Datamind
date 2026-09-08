@@ -1,5 +1,3 @@
-# datamind/core/inference/adapters/__init__.py
-
 """模型适配器模块
 
 提供统一模型适配入口，支持模型框架识别和适配器创建。

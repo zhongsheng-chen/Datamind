@@ -1,5 +1,3 @@
-# tests/auth/test_password.py
-
 """密码工具测试
 
 验证 Argon2id 密码哈希、密码校验和密码重哈希判断能力。

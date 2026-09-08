@@ -1,5 +1,3 @@
-# tests/db/repositories/test_variant.py
-
 """实验分组仓储测试
 
 验证 VariantRepository 的实验分组查询、列表筛选、创建、

@@ -1,5 +1,3 @@
-# datamind/db/models/artifacts.py
-
 """模型制品表
 
 记录模型版本的制品修订信息，包括存储位置、

@@ -1,5 +1,3 @@
-# datamind/db/repositories/grant.py
-
 """角色授予仓储
 
 提供用户角色关系的查询、创建、撤销和重新激活能力。

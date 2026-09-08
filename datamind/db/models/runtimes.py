@@ -1,5 +1,3 @@
-# datamind/db/models/runtimes.py
-
 """模型运行表
 
 记录部署在各 Worker 中的实际运行状态，

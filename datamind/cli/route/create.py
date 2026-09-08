@@ -1,5 +1,3 @@
-# datamind/cli/route/create.py
-
 """创建路由命令
 
 提供模型路由规则创建功能。

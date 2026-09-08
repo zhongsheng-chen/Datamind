@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/update.py
-
 """更新实验分组命令
 
 提供 A/B 实验分组更新功能。

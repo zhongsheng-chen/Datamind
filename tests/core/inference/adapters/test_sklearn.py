@@ -1,5 +1,3 @@
-# tests/core/inference/adapters/test_sklearn.py
-
 """Sklearn 模型适配器测试
 
 验证 Sklearn 二分类模型的能力检测、概率预测、对数几率预测、

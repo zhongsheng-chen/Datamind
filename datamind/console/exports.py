@@ -1,5 +1,3 @@
-# datamind/console/exports.py
-
 """管理控制台导出格式
 
 负责生成 CSV 行、转换字段值和统一导出文件名。

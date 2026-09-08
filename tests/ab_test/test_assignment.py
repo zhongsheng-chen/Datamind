@@ -1,5 +1,3 @@
-# tests/ab_test/test_assignment.py
-
 """A/B 实验分配测试
 
 验证稳定 Hash 分配、手工指定分配和策略分发。
@@ -7,6 +5,8 @@
 核心功能：
   - test_stable_hash_assignment_is_deterministic:
     验证相同主体稳定命中相同分组
+  - test_stable_hash_assignment_result_is_valid:
+    验证分桶值、分组位置及上下文有效性
   - test_stable_hash_rejects_non_finite_values:
     验证拒绝非有限曝光比例和分组权重
   - test_stable_hash_rejects_negative_weight:
@@ -63,6 +63,26 @@ def test_stable_hash_assignment_is_deterministic() -> None:
     assert second is not None
     assert first.variant.variant_id == second.variant.variant_id
     assert first.bucket == second.bucket
+    assert first.bucket_value == second.bucket_value
+    assert first.point == second.point
+
+
+def test_stable_hash_assignment_result_is_valid() -> None:
+    """测试哈希分配结果包含有效的分桶值和分组位置"""
+    result = StableHashAssigner().assign(
+        experiment_id="exp_test",
+        subject_key="customer_10001",
+        traffic_ratio=1.0,
+        variants=create_variants(0.5, 0.5),
+    )
+
+    assert result is not None
+    assert result.bucket_value is not None
+    assert result.point is not None
+    assert 0.0 <= result.bucket_value < 1.0
+    assert 0.0 <= result.point < 1.0
+    assert result.context["bucket_value"] == result.bucket_value
+    assert result.context["point"] == result.point
 
 
 @pytest.mark.parametrize(
@@ -216,6 +236,11 @@ def test_manual_assignment(
     assert result is not None
     assert result.variant.variant_id == "var_1"
     assert result.context["manual_target"] == target
+    assert "traffic_ratio" not in result.context
+    assert result.bucket is None
+    assert result.bucket_value is None
+    assert result.point is None
+    assert not {"bucket", "bucket_value", "point"} & result.context.keys()
     assert result.context["strategy"] == str(AssignmentStrategy.MANUAL)
 
 

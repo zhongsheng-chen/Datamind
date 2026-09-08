@@ -1,5 +1,3 @@
-# datamind/constants/size.py
-
 """存储大小常量
 
 定义常用的存储单位换算，用于配置文件和内存计算。

@@ -1,5 +1,3 @@
-# tests/config/test_database.py
-
 """数据库配置测试
 
 验证数据库 URL 必填、默认参数、自定义参数、环境变量读取、

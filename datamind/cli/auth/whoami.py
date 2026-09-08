@@ -1,5 +1,3 @@
-# datamind/cli/auth/whoami.py
-
 """登录身份查询命令
 
 提供当前 CLI 登录会话的身份查询功能。

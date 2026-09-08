@@ -1,5 +1,3 @@
-# tests/db/models/test_system.py
-
 """系统状态表模型测试
 
 验证系统状态表字段、索引、约束和对象行为。

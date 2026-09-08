@@ -1,5 +1,3 @@
-# datamind/db/repositories/user.py
-
 """用户仓储
 
 提供用户的查询、创建、更新和状态管理能力。

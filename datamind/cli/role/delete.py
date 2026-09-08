@@ -1,5 +1,3 @@
-# datamind/cli/role/delete.py
-
 """删除角色命令
 
 提供角色逻辑删除功能。

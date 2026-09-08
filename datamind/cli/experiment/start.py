@@ -1,5 +1,3 @@
-# datamind/cli/experiment/start.py
-
 """启动实验命令
 
 提供实验启动功能。

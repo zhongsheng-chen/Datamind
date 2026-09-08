@@ -1,5 +1,3 @@
-# datamind/runtime/routing/matcher.py
-
 """规则匹配器
 
 提供规则配置的校验与匹配能力，

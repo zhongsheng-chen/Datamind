@@ -1,5 +1,3 @@
-# tests/runtime/server/test_exports.py
-
 """运行时服务接口包公共导出测试
 
 验证运行时服务接口包公开 API 的完整性和可访问性。
@@ -9,6 +7,8 @@
     验证 __all__ 包含完整且准确的公共 API
   - test_all_declared_exports_are_available:
     验证声明的公共对象均可从包级访问
+  - test_core_functions_document_all_exports:
+    验证核心功能完整列出公共 API
 """
 
 import datamind.runtime.server as server
@@ -47,3 +47,14 @@ def test_all_declared_exports_are_available(
 
     for name in server.__all__:
         assert hasattr(server, name), name
+
+
+def test_core_functions_document_all_exports() -> None:
+    """测试模块核心功能完整列出公共 API"""
+    documentation = server.__doc__ or ""
+    core_functions = documentation.partition("核心功能：")[2].partition(
+        "使用示例："
+    )[0]
+
+    for name in server.__all__:
+        assert f"- {name}:" in core_functions

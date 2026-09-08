@@ -1,5 +1,3 @@
-# datamind/models/artifact/io.py
-
 """临时文件工具
 
 提供临时文件的创建和自动清理功能。

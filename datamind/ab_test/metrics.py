@@ -1,5 +1,3 @@
-# datamind/ab_test/metrics.py
-
 """A/B 实验指标评估
 
 根据实验结果记录计算 A/B 测试指标，用于实验效果评估和模型表现对比。

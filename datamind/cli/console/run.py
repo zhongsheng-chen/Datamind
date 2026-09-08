@@ -1,11 +1,11 @@
-# datamind/cli/console/run.py
-
 """启动管理控制台命令
 
 提供管理控制台启动功能。
 
 核心功能：
   - run_console: 启动管理控制台
+  - wait_for_console_ready: 等待控制台就绪
+  - stop_console_process: 停止本次启动的控制台进程树
 
 使用示例：
   python -m datamind.cli.main console run \
@@ -13,9 +13,12 @@
     --port 8701
 """
 
+import os
+import signal
 import subprocess
 import sys
 import time
+import uuid
 from http.client import (
     HTTPConnection,
     HTTPException,
@@ -46,16 +49,24 @@ CONSOLE_TARGET = (
     "DatamindConsoleService"
 )
 CONSOLE_SERVICE_NAME = "datamind_console_service"
-_STARTUP_TIMEOUT_SECONDS = 30.0
+
+# 进程清理命令及退出等待的单次超时时间（秒）
+_STOP_TIMEOUT_SECONDS = 10
+
+# 就绪探测失败后的重试间隔（秒）
 _READY_CHECK_INTERVAL_SECONDS = 0.2
+
+# 就绪探测连接的套接字操作超时时间（秒）
 _READY_CHECK_TIMEOUT_SECONDS = 1.0
 
 
 def wait_for_console_ready(
         process: subprocess.Popen,
         access_url: str,
+        *,
+        timeout_seconds: float,
 ) -> bool:
-    """等待管理控制台能够响应 HTTP 请求"""
+    """等待管理控制台通过 BentoML 就绪探测"""
     parsed_url = urlsplit(
         access_url
     )
@@ -73,8 +84,9 @@ def wait_for_console_ready(
 
     deadline = (
         time.monotonic()
-        + _STARTUP_TIMEOUT_SECONDS
+        + timeout_seconds
     )
+    last_failure = "尚未建立连接"
 
     while time.monotonic() < deadline:
         if process.poll() is not None:
@@ -100,8 +112,15 @@ def wait_for_console_ready(
             if response.status == 200:
                 return True
 
-        except (HTTPException, OSError):
-            pass
+            last_failure = (
+                "HTTP 状态码 "
+                f"{response.status}"
+            )
+
+        except (HTTPException, OSError) as exc:
+            last_failure = (
+                f"{type(exc).__name__}: {exc}"
+            )
 
         finally:
             connection.close()
@@ -110,7 +129,52 @@ def wait_for_console_ready(
             _READY_CHECK_INTERVAL_SECONDS
         )
 
+    logger.warning(
+        "管理控制台就绪探测超时",
+        readiness_url=access_url,
+        timeout_seconds=timeout_seconds,
+        last_failure=last_failure,
+    )
     return False
+
+
+def stop_console_process(
+        process: subprocess.Popen,
+) -> bool:
+    """停止当前命令创建的进程树，并有界等待退出"""
+    try:
+        if sys.platform == "win32":
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=True,
+                capture_output=True,
+                timeout=_STOP_TIMEOUT_SECONDS,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
+
+        try:
+            process.wait(timeout=_STOP_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            if sys.platform == "win32":
+                raise
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait(timeout=_STOP_TIMEOUT_SECONDS)
+
+        if sys.platform != "win32":
+            os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return True
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.error(
+            "管理控制台进程树清理失败",
+            pid=process.pid,
+            error_type=type(exc).__name__,
+        )
+        return False
+
+    return True
 
 
 @app.command("run")
@@ -135,6 +199,13 @@ def run_console(
             "--verbose",
             help="显示 BentoML 运行日志",
         ),
+        startup_timeout: int | None = typer.Option(
+            None,
+            "--startup-timeout",
+            min=1,
+            max=600,
+            help="等待控制台就绪的最长时间（秒），未指定时读取控制台配置",
+        ),
 ) -> None:
     """启动管理控制台"""
     settings = get_settings()
@@ -150,6 +221,11 @@ def run_console(
         else console_config.port
     )
     normalized_host = resolved_host.strip()
+    resolved_startup_timeout = (
+        startup_timeout
+        if startup_timeout is not None
+        else console_config.startup_timeout
+    )
 
     if normalized_host == "":
         raise typer.BadParameter(
@@ -192,20 +268,28 @@ def run_console(
     readiness_url = build_http_url(
         host=normalized_host,
         port=resolved_port,
-        path="/health",
+        path="/readyz",
     )
     app_version = get_app_version()
     listen_address = build_bind_address(
         host=normalized_host,
         port=resolved_port,
     )
+    service_instance_id = uuid.uuid4().hex
+    env = os.environ.copy()
+    env["DATAMIND_SERVICE_INSTANCE_ID"] = service_instance_id
+    started_at = time.monotonic()
+
     try:
         process = subprocess.Popen(
-            command
+            command,
+            env=env,
+            start_new_session=sys.platform != "win32",
         )
     except OSError as exc:
         logger.error(
             "管理控制台启动失败",
+            service_instance_id=service_instance_id,
             service_name=CONSOLE_SERVICE_NAME,
             version=app_version,
             environment=environment,
@@ -225,6 +309,7 @@ def run_console(
         ) from None
 
     startup_context = {
+        "service_instance_id": service_instance_id,
         "service_name": CONSOLE_SERVICE_NAME,
         "version": app_version,
         "environment": environment,
@@ -244,20 +329,28 @@ def run_console(
         if not wait_for_console_ready(
                 process,
                 readiness_url,
+                timeout_seconds=resolved_startup_timeout,
         ):
             return_code = process.poll()
 
             if return_code is None:
-                process.terminate()
-                process.wait()
+                elapsed_seconds = round(time.monotonic() - started_at, 2)
+                cleanup_complete = stop_console_process(process)
                 logger.error(
                     "管理控制台启动超时",
+                    timeout_seconds=resolved_startup_timeout,
+                    elapsed_seconds=elapsed_seconds,
+                    cleanup_complete=cleanup_complete,
                     **startup_context,
                 )
                 console.error(
                     "管理控制台启动失败："
-                    "等待服务就绪超时"
+                    f"等待服务就绪超时（{resolved_startup_timeout} 秒）。"
+                    "可使用 --startup-timeout 调整等待时间，"
+                    "或使用 --verbose 查看启动日志。"
                 )
+                if not cleanup_complete:
+                    console.error("后台进程清理失败，请检查本次启动的进程。")
                 raise typer.Exit(
                     code=1
                 )
@@ -273,6 +366,7 @@ def run_console(
 
         logger.info(
             "管理控制台启动完成",
+            elapsed_seconds=round(time.monotonic() - started_at, 2),
             **startup_context,
         )
         print_http_server_summary(
@@ -290,8 +384,10 @@ def run_console(
 
         return_code = process.wait()
     except KeyboardInterrupt:
-        process.terminate()
-        return_code = process.wait()
+        if not stop_console_process(process):
+            console.error("管理控制台停止失败，请检查后台进程。")
+            raise typer.Exit(code=1) from None
+        return_code = process.returncode
         logger.info(
             "管理控制台已停止",
             return_code=return_code,

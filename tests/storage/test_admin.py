@@ -1,5 +1,3 @@
-# tests/storage/test_admin.py
-
 """存储管理 API 测试
 
 验证结构化存储操作、按 key 操作、数据校验和严格删除行为。

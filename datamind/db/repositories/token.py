@@ -1,5 +1,3 @@
-# datamind/db/repositories/token.py
-
 """认证令牌仓储
 
 提供刷新令牌的查询、创建、使用记录和撤销能力。

@@ -1,5 +1,3 @@
-# datamind/cli/experiment/variant/show.py
-
 """查看实验分组命令
 
 提供实验分组详情查看功能。

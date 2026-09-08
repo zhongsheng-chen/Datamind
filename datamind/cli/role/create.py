@@ -1,5 +1,3 @@
-# datamind/cli/role/create.py
-
 """创建角色命令
 
 提供角色和权限集合创建功能。

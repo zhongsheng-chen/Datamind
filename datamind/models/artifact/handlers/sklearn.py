@@ -1,5 +1,3 @@
-# datamind/models/artifact/handlers/sklearn.py
-
 """Sklearn 模型加载器
 
 注册 Sklearn 框架的模型加载函数。

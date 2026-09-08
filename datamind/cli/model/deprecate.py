@@ -1,5 +1,3 @@
-# datamind/cli/model/deprecate.py
-
 """弃用模型命令
 
 负责模型及模型版本的弃用。

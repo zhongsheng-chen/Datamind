@@ -1,5 +1,3 @@
-# datamind/cli/model/register.py
-
 """注册模型命令
 
 提供模型注册功能。

@@ -1,5 +1,3 @@
-# datamind/auth/providers/local.py
-
 """本地认证提供方
 
 使用用户表中的 Argon2 密码哈希完成本地用户认证。

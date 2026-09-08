@@ -1,5 +1,3 @@
-# datamind/config/auth.py
-
 """认证配置
 
 定义本地认证、JWT 和应急账户参数。

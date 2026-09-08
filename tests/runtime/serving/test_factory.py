@@ -1,5 +1,3 @@
-# tests/runtime/serving/test_factory.py
-
 """运行时服务工厂测试
 
 验证任务类型解析、分类阈值解析和具体服务创建行为。

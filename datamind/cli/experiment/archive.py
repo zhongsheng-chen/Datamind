@@ -1,5 +1,3 @@
-# datamind/cli/experiment/archive.py
-
 """归档实验命令
 
 提供实验归档功能。

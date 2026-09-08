@@ -1,5 +1,3 @@
-# datamind/db/repositories/artifact.py
-
 """模型制品仓储
 
 提供模型制品修订的查询、创建、切换和清理状态管理能力。

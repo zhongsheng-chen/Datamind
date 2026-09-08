@@ -1,5 +1,3 @@
-# datamind/db/repositories/dashboard.py
-
 """管理控制台查询仓储
 
 提供管理控制台各数据页面的记录总数、关键词查询、字段化查询和时间范围查询。
@@ -299,6 +297,7 @@ _SECTION_QUERY_FIELDS: dict[str, dict[str, _QueryField]] = {
     "decisions": {
         "decision_id": _text_field(Decision.decision_id),
         "request_id": _text_field(Decision.request_id),
+        "experiment_id": _text_field(Decision.experiment_id),
         "model_id": _text_field(Decision.model_id),
         "version_id": _text_field(Decision.version_id),
         "deployment_id": _text_field(Decision.deployment_id),
@@ -440,6 +439,7 @@ _SECTION_QUERY_FIELD_ALIASES: dict[str, dict[str, str]] = {
     },
     "decisions": {
         "id": "decision_id",
+        "experiment": "experiment_id",
         "model": "model_name",
         "version": "model_version",
         "subject": "subject_key",
@@ -1797,6 +1797,7 @@ class DashboardRepository(BaseRepository):
                 ),
                 Decision.deployment_id,
                 Decision.decision_id,
+                Decision.version_id,
                 Execution.prediction,
             )
             .outerjoin(
@@ -1839,6 +1840,7 @@ class DashboardRepository(BaseRepository):
                 "model_version": row["model_version"],
                 "deployment_id": row["deployment_id"],
                 "decision_id": row["decision_id"],
+                "version_id": row["version_id"],
                 "prediction": row["prediction"],
             }
             for row in result.mappings().all()

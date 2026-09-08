@@ -1,5 +1,3 @@
-# datamind/cli/route/show.py
-
 """查看路由命令
 
 提供单条路由规则详情查询功能。
