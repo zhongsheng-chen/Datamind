@@ -85,23 +85,37 @@ def logout() -> None:
                     user=actor_username,
                 )
 
-            logger.info(
+            logger.debug(
                 "开始 CLI 退出登录"
             )
 
             if credentials.refresh_token is not None:
-                revoked = await service.logout(
+                logout_result = await service.logout(
                     LogoutRequest(
                         refresh_token=SecretStr(
                             credentials.refresh_token
                         ),
                     )
                 )
+                revoked = logout_result.revoked
+
+                if current_user is None:
+                    actor_username = (
+                        logout_result.username
+                        or logout_result.user_id
+                        or actor_username
+                    )
+                    update_context(
+                        user=actor_username,
+                    )
 
         store.clear()
         logger.info(
             "CLI 退出登录完成",
-            refresh_token_revoked=revoked,
+            action="auth.logout",
+            status="success",
+            exit_code=0,
+            revoked=revoked,
         )
 
         console.info("已退出登录")
@@ -141,6 +155,9 @@ def logout() -> None:
             )
             logger.warning(
                 "CLI 退出登录失败",
+                action="auth.logout",
+                status="failed",
+                exit_code=1,
                 error=str(exc),
             )
             console.error(

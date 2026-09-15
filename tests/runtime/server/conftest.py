@@ -14,7 +14,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from starlette.datastructures import MutableHeaders
 
 from datamind.config import get_settings
 
@@ -177,24 +176,6 @@ class SecurityStub:
         )
 
 
-class AuthContextStub:
-    """运行时认证请求上下文替身"""
-
-    def __init__(self) -> None:
-        self.request = SimpleNamespace(
-            headers={
-                "user-agent": "pytest",
-            },
-            client=SimpleNamespace(
-                host="127.0.0.1"
-            ),
-        )
-        self.response = SimpleNamespace(
-            status_code=200,
-            headers=MutableHeaders(),
-        )
-
-
 def install_repositories(
         service_module: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -267,37 +248,15 @@ def install_repositories(
     )
 
 
-def install_auth_service(
-        service_module: Any,
-        monkeypatch: pytest.MonkeyPatch,
-        auth_service: MagicMock,
-) -> None:
-    """安装运行时认证服务替身"""
-    patch_server_dependency(
-        monkeypatch,
-        service_module,
-        "UnitOfWork",
-        FakeUnitOfWork,
-    )
-    patch_server_dependency(
-        monkeypatch,
-        service_module,
-        "create_auth_service",
-        lambda **_kwargs: auth_service,
-    )
-
-
 class RuntimeServerFixtures:
     """汇集运行时服务测试使用的构造能力"""
 
-    AuthContextStub = AuthContextStub
     FakeUnitOfWork = FakeUnitOfWork
     SecurityStub = SecurityStub
     create_score_details = staticmethod(create_score_details)
     create_service = staticmethod(create_service)
     get_audit_recorder = staticmethod(get_audit_recorder)
     get_service_cache = staticmethod(get_service_cache)
-    install_auth_service = staticmethod(install_auth_service)
     install_repositories = staticmethod(install_repositories)
     load_service_module = staticmethod(load_service_module)
     patch_server_dependency = staticmethod(patch_server_dependency)

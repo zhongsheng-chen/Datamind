@@ -421,6 +421,9 @@ input:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgba(22,163,148,.
 .model-usage-table td { height: 48px; padding: 11px 8px; border-bottom-color: #edf1f5; }
 .model-usage-table tbody tr:last-child td { border-bottom: 0; }
 .model-usage-name { min-width: 150px; }
+.model-usage-identity { display: inline-flex; min-width: 0; max-width: 100%; align-items: center; gap: 7px; }
+.model-usage-identity > .model-usage-link, .model-usage-identity > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-usage-deleted-badge { flex: 0 0 auto; padding: 2px 6px; border-radius: 999px; color: #7b8796; background: #eef1f4; font-size: 9px; font-weight: 700; line-height: 1.4; }
 .model-usage-link { width: fit-content; padding: 0; border: 0; color: #242930; background: transparent; font-weight: 500; text-align: left; }
 .model-usage-link:hover { color: #2585df; }
 .model-usage-link:focus-visible { outline: 2px solid rgba(57,149,246,.35); outline-offset: 4px; border-radius: 3px; }
@@ -437,7 +440,7 @@ input:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgba(22,163,148,.
 .model-ranking-list li:nth-child(-n + 3) .model-ranking-position { color: #188b7e; }
 .model-ranking-content { min-width: 0; display: grid; gap: 8px; }
 .model-ranking-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.model-ranking-heading .model-usage-link, .model-ranking-heading > strong:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-ranking-heading .model-usage-identity { flex: 1 1 auto; }
 .model-ranking-heading > strong:last-child { color: #344456; font-size: 12px; font-variant-numeric: tabular-nums; }
 .model-ranking-track { display: block; width: 100%; height: 5px; overflow: hidden; border-radius: 999px; background: #edf1f5; }
 .model-ranking-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #3b82f6, #20a58f); }
@@ -852,14 +855,43 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 .management-json-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex-basis: 100%;
-  min-height: 84px;
+  min-height: 132px;
   padding: 18px;
-  border: 1px dashed #a8c6dc;
+  border: 1px dashed #94c9c2;
   border-radius: 8px;
-  background: #f3f8fc;
-  color: var(--teal-dark);
+  background: #f2f9f8;
+  color: var(--muted);
   font-size: 12px;
+}
+
+.management-json-dropzone strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.management-json-dropzone strong span { color: var(--teal-dark); }
+.management-json-dropzone small { line-height: 1.35; }
+
+.registry-detail-icon.management-file-dropzone-icon {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+  color: var(--teal-dark);
+  background: #dff2ef;
+}
+
+.registry-detail-icon.management-file-dropzone-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.9;
 }
 
 .management-json-dropzone:hover,
@@ -868,40 +900,37 @@ tbody tr:last-child td { border-bottom: 0; }
   border-color: var(--teal);
 }
 
-.management-json-file {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+.management-upload-file {
+  display: flex;
   align-items: center;
   gap: 10px;
   flex: 1;
   min-width: 0;
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
   color: var(--ink);
-  font-size: 12px;
-  text-align: left;
+}
+
+.management-upload-file > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.management-json-file small { grid-column: 2; }
+.management-upload-file small { color: var(--muted); }
 
-.management-json-file::before {
-  grid-row: span 2;
-  content: "{}";
+.registry-detail-icon.management-upload-file-icon {
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
-  padding: 5px 7px;
+  padding: 6px;
   border-radius: 6px;
-  background: #edf3f7;
   color: var(--muted);
-  font-family: var(--mono), monospace;
+  background: #edf3f7;
 }
 
-.management-json-file:hover { color: var(--teal-dark); }
-.management-json-file:focus-visible {
-  outline: 2px solid var(--teal);
-  outline-offset: 3px;
-  border-radius: 4px;
+.registry-detail-icon.management-upload-file-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .management-json-actions {

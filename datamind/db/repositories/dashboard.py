@@ -286,6 +286,7 @@ _SECTION_QUERY_FIELDS: dict[str, dict[str, _QueryField]] = {
         "request_id": _text_field(Request.request_id),
         "model_id": _text_field(Request.model_id),
         "model_name": _text_field(_REQUEST_MODEL_NAME),
+        "task_type": _text_field(Metadata.task_type),
         "model_version": _text_field(Version.version),
         "source": _text_field(Request.source),
         "status": _text_field(Request.status),
@@ -1792,6 +1793,7 @@ class DashboardRepository(BaseRepository):
                 _REQUEST_MODEL_NAME.label(
                     "model_name"
                 ),
+                Metadata.task_type,
                 Version.version.label(
                     "model_version"
                 ),
@@ -1837,6 +1839,7 @@ class DashboardRepository(BaseRepository):
         return {
             row["request_id"]: {
                 "model_name": row["model_name"],
+                "task_type": row["task_type"],
                 "model_version": row["model_version"],
                 "deployment_id": row["deployment_id"],
                 "decision_id": row["decision_id"],
@@ -2512,6 +2515,7 @@ class DashboardRepository(BaseRepository):
                 Metadata.name.label(
                     "model_name"
                 ),
+                Metadata.deleted_at,
                 recent_count,
                 recent_success_count,
                 average_latency_ms,
@@ -2528,6 +2532,10 @@ class DashboardRepository(BaseRepository):
             .group_by(
                 Metadata.model_id,
                 Metadata.name,
+                Metadata.deleted_at,
+            )
+            .having(
+                total_count > 0
             )
             .order_by(
                 recent_count.desc(),
@@ -2543,6 +2551,7 @@ class DashboardRepository(BaseRepository):
             {
                 "model_id": row["model_id"],
                 "model_name": row["model_name"],
+                "is_deleted": row["deleted_at"] is not None,
                 "recent_count": int(
                     row["recent_count"]
                 ),

@@ -23,7 +23,10 @@
   })
 """
 
+from collections.abc import Iterable
 from typing import Any
+
+import numpy as np
 
 from datamind.constants import DataType
 from datamind.core.capability import ModelCapability
@@ -75,10 +78,14 @@ class ClassificationService(BaseRuntimeService):
             data_types=data_types,
         )
 
+        self.class_labels = self._resolve_class_labels(
+            runtime_model.model
+        )
         self.inference = Inference(
             model=runtime_model.model,
             feature_names=self.feature_names,
             data_types=self.data_types,
+            positive_class=self.class_labels[1],
         )
 
         self.require_capability(
@@ -86,6 +93,42 @@ class ClassificationService(BaseRuntimeService):
         )
 
         self.threshold = float(threshold)
+
+    @staticmethod
+    def _resolve_class_labels(
+            model: Any,
+    ) -> tuple[Any, Any]:
+        """解析模型的负类和正类标签。"""
+        classes = getattr(model, "classes_", None)
+
+        if (
+                not isinstance(classes, Iterable)
+                or isinstance(classes, (str, bytes))
+        ):
+            return 0, 1
+
+        class_values = tuple(classes)
+
+        if len(class_values) != 2:
+            return 0, 1
+
+        return (
+            ClassificationService._normalize_class_label(
+                class_values[0]
+            ),
+            ClassificationService._normalize_class_label(
+                class_values[1]
+            ),
+        )
+
+    @staticmethod
+    def _normalize_class_label(label: Any) -> Any:
+        """将 NumPy 类别标量转换为 Python 标量。"""
+        return (
+            label.item()
+            if isinstance(label, np.generic)
+            else label
+        )
 
     def get_capabilities(
             self,
@@ -114,6 +157,8 @@ class ClassificationService(BaseRuntimeService):
                 "features 不能为空"
             )
 
+        self._validate_feature_types(features)
+
         probability = self.inference.predict(
             features
         )
@@ -127,17 +172,13 @@ class ClassificationService(BaseRuntimeService):
             probability
         )
 
-        prediction = self._classify(
-            probability_value
-        )
-
         self.touch()
 
-        return self.build_result({
-            "prediction": prediction,
-            "probability": probability_value,
-            "threshold": self.threshold,
-        })
+        return self.build_result(
+            self._build_classification_result(
+                probability_value
+            )
+        )
 
     def predict_batch(
             self,
@@ -168,6 +209,8 @@ class ClassificationService(BaseRuntimeService):
                 "predictions": [],
             })
 
+        self._validate_batch_feature_types(features_list)
+
         probabilities = self.inference.predict(
             features_list
         )
@@ -178,13 +221,9 @@ class ClassificationService(BaseRuntimeService):
             )
 
         predictions = [
-            {
-                "prediction": self._classify(
-                    float(probability)
-                ),
-                "probability": float(probability),
-                "threshold": self.threshold,
-            }
+            self._build_classification_result(
+                float(probability)
+            )
             for probability in probabilities
         ]
 
@@ -194,6 +233,22 @@ class ClassificationService(BaseRuntimeService):
             "count": len(predictions),
             "predictions": predictions,
         })
+
+    def _build_classification_result(
+            self,
+            probability: float,
+    ) -> dict[str, Any]:
+        """构造包含类别标签的分类结果。"""
+        prediction = self._classify(
+            probability
+        )
+
+        return {
+            "prediction": prediction,
+            "label": self.class_labels[prediction],
+            "probability": probability,
+            "threshold": self.threshold,
+        }
 
     def _classify(
             self,

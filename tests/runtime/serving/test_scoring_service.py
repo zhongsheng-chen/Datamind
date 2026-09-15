@@ -21,6 +21,8 @@
     验证评分服务公开固定能力
   - test_rejects_model_without_score:
     验证拒绝不支持评分的模型
+  - test_predict_rejects_invalid_feature_type:
+    验证单条和批量评分在模型执行前拒绝非法特征类型
 """
 
 import json
@@ -132,6 +134,31 @@ def test_predict_uses_scorecard_points(
         "age": {"value": 35, "bin": "[30, 40)", "woe": 6.0, "points": 600.0},
     }
     model.score.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("batch", "message"),
+    [
+        (False, "特征类型无效: age 期望 numeric，实际 str"),
+        (True, "第 0 条记录的特征类型无效: age 期望 numeric，实际 str"),
+    ],
+)
+def test_predict_rejects_invalid_feature_type(
+        monkeypatch: pytest.MonkeyPatch,
+        batch: bool,
+        message: str,
+) -> None:
+    """测试单条和批量评分在模型执行前拒绝非法特征类型"""
+    service, model = create_service(monkeypatch)
+    features = {"age": "not-a-number"}
+
+    with pytest.raises(TypeError, match=message):
+        if batch:
+            service.predict_batch([features])
+        else:
+            service.predict(features)
+
+    model.predict_proba.assert_not_called()
 
 
 def test_predict_batch_uses_scorecard_points(

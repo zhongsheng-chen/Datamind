@@ -8,6 +8,7 @@
   - LoginRequest: 登录请求
   - RefreshTokenRequest: 刷新令牌请求
   - LogoutRequest: 退出登录请求
+  - LogoutResult: 退出登录结果
   - TokenResponse: 令牌响应
   - AccessTokenClaims: 访问令牌声明
   - AuthenticatedUser: 已认证用户信息
@@ -85,6 +86,10 @@ _EXPORTS: Final[dict[str, tuple[str, str]]] = {
     "LogoutRequest": (
         "datamind.auth.schemas",
         "LogoutRequest",
+    ),
+    "LogoutResult": (
+        "datamind.auth.schemas",
+        "LogoutResult",
     ),
     "TokenResponse": (
         "datamind.auth.schemas",

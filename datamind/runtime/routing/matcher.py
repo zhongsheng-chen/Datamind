@@ -66,6 +66,11 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any, TypeGuard
 
+from datamind.runtime.routing.schema import (
+    SUPPORTED_ROUTING_MATCH_MODES,
+    SUPPORTED_ROUTING_OPERATORS,
+)
+
 
 class _Missing:
     """缺失值标记"""
@@ -80,10 +85,9 @@ class RuleMatcher:
     MATCH_ALL = "all"
     MATCH_ANY = "any"
 
-    SUPPORTED_MATCH_MODES = {
-        MATCH_ALL,
-        MATCH_ANY,
-    }
+    SUPPORTED_MATCH_MODES = set(
+        SUPPORTED_ROUTING_MATCH_MODES
+    )
 
     OPERATOR_ALIASES = {
         "=": "eq",
@@ -150,9 +154,10 @@ class RuleMatcher:
         "regex": "regex",
     }
 
-    SUPPORTED_OPERATORS = set(OPERATOR_ALIASES.values())
+    SUPPORTED_OPERATORS = set(
+        SUPPORTED_ROUTING_OPERATORS
+    )
 
-    # 路由元信息配置，不作为条件规则处理。
     METADATA_ONLY_KEYS = {
         "bucket_key",
         "bucket_range",

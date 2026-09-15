@@ -65,6 +65,7 @@ def test_apply_response_status_maps_request_error(
         ({"success": False, "error_type": "ServiceDeploymentNotFoundError"}, 404),
         ({"success": False, "error_type": "ServiceEnvironmentMismatchError"}, 409),
         ({"success": False, "error_type": "RuntimeRouteError"}, 400),
+        ({"success": False, "error_type": "TypeError"}, 400),
         ({"success": False, "error_type": "ValueError"}, 400),
         ({"success": False, "error_type": "RuntimeError"}, 500),
         ({"success": False, "error_type": None}, 500),

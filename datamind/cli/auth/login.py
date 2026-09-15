@@ -106,7 +106,7 @@ def login(
                         user=actor_username,
                     )
 
-            logger.info(
+            logger.debug(
                 "开始 CLI 登录",
                 username=resolved_username,
             )
@@ -134,13 +134,14 @@ def login(
                     and previous_credentials is not None
                     and previous_credentials.refresh_token is not None
             ):
-                previous_session_revoked = await service.logout(
+                logout_result = await service.logout(
                     LogoutRequest(
                         refresh_token=SecretStr(
                             previous_credentials.refresh_token
                         ),
                     )
                 )
+                previous_session_revoked = logout_result.revoked
 
         if login_error is not None:
             raise login_error
@@ -159,6 +160,9 @@ def login(
         )
         logger.info(
             "CLI 登录成功",
+            action="auth.login",
+            status="success",
+            exit_code=0,
             username=resolved_username,
             expires_in=tokens.expires_in,
             previous_session_revoked=(
@@ -200,6 +204,9 @@ def login(
             )
             logger.warning(
                 "CLI 登录失败",
+                action="auth.login",
+                status="failed",
+                exit_code=1,
                 username=username,
                 error=str(exc),
             )
