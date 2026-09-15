@@ -99,6 +99,7 @@ class FakeCatBoostModel:
         )
         self.fitted = fitted
         self.requested_importance_type: str | None = None
+        self.requested_prediction_type: str | None = None
 
     def is_fitted(
             self,
@@ -154,6 +155,30 @@ class FakeCatBoostModel:
         )
 
         return self.importance.copy()
+
+
+class NativeCatBoostModel(FakeCatBoostModel):
+    """直接加载的原生 CatBoost 模型测试替身"""
+
+    predict_proba = None
+
+    def predict(
+            self,
+            X: np.ndarray,
+            *,
+            prediction_type: str,
+    ) -> np.ndarray:
+        """返回原生 CatBoost 的概率矩阵"""
+        if prediction_type != "Probability":
+            raise AssertionError(
+                "prediction_type 应为 Probability"
+            )
+        self.requested_prediction_type = prediction_type
+        return np.repeat(
+            np.array([[0.25, 0.75]]),
+            len(X),
+            axis=0,
+        )
 
 
 class ProbabilityOnlyModel:
@@ -406,6 +431,21 @@ def test_predict_probability_batch_matches_model(
     assert result == pytest.approx(
         expected.tolist()
     )
+
+
+def test_native_model_predicts_probability() -> None:
+    """测试原生 CatBoost 模型可以直接执行概率预测"""
+    model = NativeCatBoostModel([[0.0, 0.0]])
+    adapter = CatBoostAdapter(
+        model,
+        feature_names=FEATURE_NAMES,
+    )
+
+    assert adapter.predict({
+        "feature_a": 1.0,
+        "feature_b": 2.0,
+    }) == pytest.approx(0.75)
+    assert model.requested_prediction_type == "Probability"
 
 
 def test_positive_class_zero_selects_first_probability_column(
@@ -683,7 +723,7 @@ def test_missing_probability_interface_is_rejected(
     """测试拒绝不提供概率接口的模型"""
     with pytest.raises(
             TypeError,
-            match="仅支持提供 predict_proba 接口",
+            match="仅支持 CatBoostClassifier 或原生",
     ):
         CatBoostAdapter(
             model=MissingProbabilityModel(),

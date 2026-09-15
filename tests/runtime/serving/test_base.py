@@ -103,6 +103,7 @@ def test_service_exposes_runtime_information() -> None:
         "version_id": "ver_test",
         "framework": "sklearn",
         "service_type": "test",
+        "task_type": "test",
         "probability": 0.8,
     }
 

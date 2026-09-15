@@ -33,6 +33,7 @@ from datamind.auth.errors import (
 )
 from datamind.auth.schemas import (
     AuthenticatedUser,
+    LogoutResult,
     TokenResponse,
 )
 
@@ -540,9 +541,17 @@ async def test_logout_revokes_refresh_token(
 ) -> None:
     """测试退出登录撤销刷新令牌并清理 Cookie"""
     service = MagicMock()
-    service.logout = AsyncMock()
+    service.logout = AsyncMock(
+        return_value=LogoutResult(
+            revoked=True,
+            user_id="usr_alice",
+            username="alice",
+        )
+    )
     service.authenticate_access_token = AsyncMock(
-        return_value=create_user()
+        side_effect=AuthError(
+            "access token expired"
+        )
     )
     audit_recorder, auth_logger = install_auth_service(
         monkeypatch,
@@ -593,7 +602,12 @@ async def test_logout_revokes_refresh_token(
     assert audit_call.kwargs["action"] == "auth.logout"
     assert audit_call.kwargs["target_id"] == "usr_alice"
     assert audit_call.kwargs["status"] == "success"
+    assert audit_call.kwargs["after"] == {
+        "status_code": 204,
+        "revoked": True,
+    }
     auth_logger.info.assert_called_once()
+    assert auth_logger.info.call_args.kwargs["revoked"] is True
     recorded = f"{audit_call!r}{auth_logger.info.call_args!r}"
     assert "refresh-token" not in recorded
     assert "access-token" not in recorded
@@ -636,7 +650,11 @@ async def test_logout_ignores_revocation_failure(
     assert audit_call.kwargs["action"] == "auth.logout"
     assert audit_call.kwargs["status"] == "failed"
     assert audit_call.kwargs["error"] == "刷新令牌撤销失败"
+    assert audit_call.kwargs["after"] == {
+        "status_code": 204,
+    }
     auth_logger.warning.assert_called_once()
+    assert "revoked" not in auth_logger.warning.call_args.kwargs
 
 
 @pytest.mark.asyncio

@@ -72,6 +72,19 @@ from datamind.core.inference.adapters.base import BaseModelAdapter
 
 logger = structlog.get_logger(__name__)
 
+ProbabilityPredictor = Callable[
+    [np.ndarray],
+    object,
+]
+
+
+def _call_probability_predictor(
+        predictor: ProbabilityPredictor,
+        features: np.ndarray,
+) -> object:
+    """调用概率预测方法"""
+    return predictor(features)
+
 
 class CatBoostAdapter(BaseModelAdapter):
     """CatBoost 二分类模型适配器"""
@@ -98,11 +111,21 @@ class CatBoostAdapter(BaseModelAdapter):
         """检测当前 CatBoost 模型能力"""
         capabilities = ModelCapability.NONE
 
-        supports_proba = callable(
+        supports_sklearn_proba = callable(
             getattr(
                 self.model,
                 "predict_proba",
                 None,
+            )
+        )
+        supports_native_proba = (
+            callable(getattr(self.model, "predict", None))
+            and callable(
+                getattr(
+                    self.model,
+                    "get_feature_importance",
+                    None,
+                )
             )
         )
 
@@ -114,7 +137,7 @@ class CatBoostAdapter(BaseModelAdapter):
             )
         )
 
-        if supports_proba:
+        if supports_sklearn_proba or supports_native_proba:
             capabilities |= (
                 ModelCapability.PREDICT_PROBA
                 | ModelCapability.BATCH_PREDICT
@@ -223,16 +246,28 @@ class CatBoostAdapter(BaseModelAdapter):
             self,
     ) -> None:
         """校验模型为已训练的 CatBoost 二分类模型"""
-        if not callable(
+        supports_sklearn = callable(
+            getattr(
+                self.model,
+                "predict_proba",
+                None,
+            )
+        )
+        supports_native = (
+            callable(getattr(self.model, "predict", None))
+            and callable(
                 getattr(
                     self.model,
-                    "predict_proba",
+                    "get_feature_importance",
                     None,
                 )
-        ):
+            )
+        )
+
+        if not supports_sklearn and not supports_native:
             raise TypeError(
                 f"{self.__class__.__name__}: "
-                "仅支持提供 predict_proba 接口的 "
+                "仅支持 CatBoostClassifier 或原生 "
                 "CatBoost 分类模型"
             )
 
@@ -277,9 +312,22 @@ class CatBoostAdapter(BaseModelAdapter):
             X
         )
 
-        values = self.model.predict_proba(
-            array
+        predict_proba = getattr(
+            self.model,
+            "predict_proba",
+            None,
         )
+
+        if callable(predict_proba):
+            values = _call_probability_predictor(
+                predict_proba,
+                array,
+            )
+        else:
+            values = self.model.predict(
+                array,
+                prediction_type="Probability",
+            )
 
         return self._extract_positive_probabilities(
             values

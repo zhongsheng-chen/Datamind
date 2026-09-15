@@ -57,7 +57,7 @@ from datamind.runtime.server.security import (
     RuntimeIdentity,
     RuntimeSecurity,
 )
-from datamind.runtime.server.authentication import AuthenticationMixin
+from datamind.runtime.server.authentication import auth_app
 from datamind.runtime.server.cache import ServiceCacheEntry
 from datamind.runtime.server.control import RuntimeControlMixin
 from datamind.runtime.server.prediction import PredictionMixin
@@ -183,8 +183,11 @@ def _build_worker_id() -> str:
         "timeout": service_config.timeout + REQUEST_TIMEOUT_GRACE_SECONDS,
     },
 )
+@bentoml.asgi_app(
+    auth_app,
+    path="/auth",
+)
 class DatamindRuntimeService(
-    AuthenticationMixin,
     RuntimeControlMixin,
     PredictionMixin,
 ):
@@ -526,6 +529,7 @@ class DatamindRuntimeService(
             "InvalidDeploymentStateError": 409,
             "RuntimeRouteError": 400,
             "RequestTimeoutError": 504,
+            "TypeError": 400,
             "ValueError": 400,
         }
 

@@ -591,7 +591,8 @@ def parse_arguments() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_OUTPUT_PATH,
-        help="评分卡保存路径",
+        metavar="PATH",
+        help="保存路径",
     )
     parser.add_argument(
         "--sample-size",

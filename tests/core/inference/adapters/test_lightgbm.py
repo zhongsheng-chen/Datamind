@@ -75,6 +75,7 @@ class FakeBooster:
             dtype=float,
         )
         self.feature_names = feature_names
+        self.predicted_features: np.ndarray | None = None
 
     def feature_importance(
             self,
@@ -152,6 +153,19 @@ class FakeLightGBMModel:
             )
 
         return values
+
+
+class NativeBooster(FakeBooster):
+    """直接加载的原生 LightGBM Booster 测试替身"""
+
+    def predict(
+            self,
+            X: np.ndarray,
+    ) -> np.ndarray:
+        """返回原生 Booster 的正类概率"""
+        features = np.asarray(X).copy()
+        self.predicted_features = features
+        return np.full(len(features), 0.65)
 
 
 class MissingProbabilityModel:
@@ -482,6 +496,25 @@ def test_predict_probability_batch_matches_model(
     )
 
 
+def test_native_booster_predicts_probability() -> None:
+    """测试原生 Booster 可以直接执行概率预测"""
+    booster = NativeBooster([0.6, 0.4], FEATURE_NAMES)
+    adapter = LightGBMAdapter(
+        booster,
+        feature_names=FEATURE_NAMES,
+    )
+
+    assert adapter.predict({
+        "feature_a": 1.0,
+        "feature_b": 2.0,
+    }) == pytest.approx(0.65)
+    assert booster.predicted_features is not None
+    np.testing.assert_array_equal(
+        booster.predicted_features,
+        np.array([[1.0, 2.0]]),
+    )
+
+
 @pytest.mark.filterwarnings(
     "ignore:X does not have valid feature names"
 )
@@ -747,7 +780,7 @@ def test_missing_probability_interface_is_rejected(
     """测试拒绝不提供概率接口的模型"""
     with pytest.raises(
             TypeError,
-            match="仅支持提供 predict_proba 接口",
+            match="仅支持 LGBMClassifier 或 Booster",
     ):
         LightGBMAdapter(
             model=MissingProbabilityModel(),
