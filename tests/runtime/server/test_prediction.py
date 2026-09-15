@@ -21,6 +21,8 @@
     验证模型名称不存在时保留失败请求记录
   - test_predict_batch_rejects_mismatched_result_count:
     验证批量预测拒绝数量不匹配的结果
+  - test_predict_batch_handles_invalid_feature_type:
+    验证批量预测将非法特征类型作为请求错误处理
   - test_create_batch_request_records:
     验证批量请求记录包含批次索引和调用上下文
   - test_record_batch_success_creates_decisions:
@@ -250,8 +252,9 @@ async def test_predict_batch_records_each_request_and_decision(
 
     assert result["success"] is True
     assert list(result) == [
-        "success", "count", "predictions", "request_id",
+        "success", "task_type", "count", "predictions", "request_id",
     ]
+    assert result["task_type"] == "scoring"
     assert list(result["predictions"][0]) == [
         "success", "score", "score_intercept", "features", "request_id",
     ]
@@ -420,7 +423,7 @@ async def test_predict_records_successful_decision(
     assert result["request_id"] == "req_test"
     assert result["score"] == 720.0
     assert list(result) == [
-        "success", "score", "probability", "score_intercept", "features",
+        "success", "task_type", "score", "probability", "score_intercept", "features",
         "request_id",
     ]
     for key, value in runtime_server.create_score_details(720.0).items():
@@ -466,6 +469,7 @@ async def test_predict_records_successful_decision(
     ("failure_source", "error"),
     [
         ("route", RuntimeRouteError("没有可用部署")),
+        ("prediction", TypeError("特征 annual_income 必须是数值")),
         ("prediction", OSError("model unavailable")),
     ],
 )
@@ -511,6 +515,10 @@ async def test_predict_returns_error_and_marks_request_failed(
     assert list(result) == ["success", "error", "error_type", "request_id"]
     assert result["error_type"] == error.__class__.__name__
     service._mark_prediction_failed.assert_awaited_once()
+
+    if isinstance(error, TypeError):
+        service._logger.warning.assert_called_once()
+        service._logger.exception.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -607,6 +615,49 @@ async def test_predict_batch_rejects_mismatched_result_count(
     assert result["error_type"] == "RuntimeError"
     service._mark_batch_failed.assert_awaited_once()
     service._record_batch_success.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_predict_batch_handles_invalid_feature_type(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试批量预测将非法特征类型作为请求错误处理"""
+    service_module = runtime_server.load_service_module(monkeypatch)
+    service = runtime_server.create_service(service_module)
+    runtime_service = SimpleNamespace(
+        model_id="mdl_test",
+        predict_batch=MagicMock(side_effect=TypeError(
+            "特征 annual_income 必须是数值"
+        )),
+    )
+    service._validate_service_environment = AsyncMock()
+    service._get_service = AsyncMock(return_value=runtime_service)
+    service._create_batch_request_records = AsyncMock()
+    service._mark_batch_failed = AsyncMock()
+    service._record_batch_success = AsyncMock()
+    identifiers = iter(("req_1", "dcs_1"))
+    runtime_server.patch_server_dependency(
+        monkeypatch,
+        service_module,
+        "generate_random_id",
+        lambda **_kwargs: next(identifiers),
+    )
+
+    result = await service._predict_batch(
+        request=BatchPredictRequest(
+            deployment_id="dep_test",
+            features_list=[{"annual_income": "not-a-number"}],
+        ),
+        batch_id="batch_test",
+    )
+
+    assert result["success"] is False
+    assert result["error_type"] == "TypeError"
+    service._mark_batch_failed.assert_awaited_once()
+    service._record_batch_success.assert_not_awaited()
+    service._logger.warning.assert_called_once()
+    service._logger.exception.assert_not_called()
 
 
 @pytest.mark.asyncio

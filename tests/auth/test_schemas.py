@@ -37,6 +37,7 @@ from datamind.auth.schemas import (
     AuthenticatedUser,
     LoginRequest,
     LogoutRequest,
+    LogoutResult,
     RefreshTokenRequest,
     TokenResponse,
 )
@@ -109,6 +110,19 @@ def test_refresh_token_requests_protect_token(
         "refresh-token"
     )
     assert "refresh-token" not in repr(request)
+
+
+def test_logout_result_preserves_user_identity() -> None:
+    """验证退出结果携带撤销状态和用户身份"""
+    result = LogoutResult(
+        revoked=True,
+        user_id="usr_test",
+        username="admin",
+    )
+
+    assert result.revoked is True
+    assert result.user_id == "usr_test"
+    assert result.username == "admin"
 
 
 def test_token_response_uses_defaults() -> None:

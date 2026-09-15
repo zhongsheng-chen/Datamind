@@ -293,6 +293,7 @@ class PredictionMixin:
         except (
                 RuntimeRouteError,
                 RuntimeError,
+                TypeError,
                 ValueError,
         ) as exc:
             latency_ms = (
@@ -508,6 +509,10 @@ class PredictionMixin:
 
                 return {
                     "success": True,
+                    "task_type": result.get(
+                        "task_type",
+                        result.get("service_type"),
+                    ),
                     "count": len(responses),
                     "predictions": responses,
                     "request_id": batch_id,
@@ -518,6 +523,7 @@ class PredictionMixin:
                 ServiceEnvironmentMismatchError,
                 RuntimeRouteError,
                 RuntimeError,
+                TypeError,
                 ValueError,
         ) as exc:
             response = build_prediction_response(

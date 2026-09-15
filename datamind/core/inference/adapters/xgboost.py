@@ -56,9 +56,15 @@ Gain 特征重要性接口。
 
 """
 
-from collections.abc import Iterable
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 from numbers import Integral
-from typing import Any
+from typing import (
+    Any,
+    TypeVar,
+)
 
 import numpy as np
 import structlog
@@ -68,6 +74,17 @@ from datamind.core.capability import ModelCapability
 from datamind.core.inference.adapters.base import BaseModelAdapter
 
 logger = structlog.get_logger(__name__)
+
+_Result = TypeVar("_Result")
+
+
+def _call_model_method(
+        method: Callable[..., _Result],
+        *args: object,
+        **kwargs: object,
+) -> _Result:
+    """调用已验证的模型方法"""
+    return method(*args, **kwargs)
 
 
 class XGBoostAdapter(BaseModelAdapter):
@@ -95,29 +112,43 @@ class XGBoostAdapter(BaseModelAdapter):
         """检测当前 XGBoost 模型能力"""
         capabilities = ModelCapability.NONE
 
-        supports_proba = callable(
+        supports_sklearn_proba = callable(
             getattr(
                 self.model,
                 "predict_proba",
                 None,
             )
         )
+        supports_native_proba = callable(
+            getattr(
+                self.model,
+                "inplace_predict",
+                None,
+            )
+        )
 
-        supports_booster = callable(
+        supports_booster_wrapper = callable(
             getattr(
                 self.model,
                 "get_booster",
                 None,
             )
         )
+        supports_native_booster = callable(
+            getattr(
+                self.model,
+                "get_score",
+                None,
+            )
+        )
 
-        if supports_proba:
+        if supports_sklearn_proba or supports_native_proba:
             capabilities |= (
                 ModelCapability.PREDICT_PROBA
                 | ModelCapability.BATCH_PREDICT
             )
 
-        if supports_booster:
+        if supports_booster_wrapper or supports_native_booster:
             capabilities |= (
                 ModelCapability.FEATURE_IMPORTANCE
             )
@@ -188,9 +219,35 @@ class XGBoostAdapter(BaseModelAdapter):
             ModelCapability.FEATURE_IMPORTANCE
         )
 
-        booster = self.model.get_booster()
+        get_booster = getattr(
+            self.model,
+            "get_booster",
+            None,
+        )
+        if callable(get_booster):
+            booster = _call_model_method(
+                get_booster
+            )
+        else:
+            booster = self.model
 
-        raw_score = booster.get_score(
+        get_score: Callable[
+            ...,
+            dict[str, float],
+        ] | None = getattr(
+            booster,
+            "get_score",
+            None,
+        )
+
+        if not callable(get_score):
+            raise RuntimeError(
+                f"{self.__class__.__name__}: "
+                "模型不提供特征重要性接口"
+            )
+
+        raw_score = _call_model_method(
+            get_score,
             importance_type="gain"
         )
 
@@ -236,16 +293,25 @@ class XGBoostAdapter(BaseModelAdapter):
             self,
     ) -> None:
         """校验模型为已训练的 XGBoost 二分类模型"""
-        if not callable(
-                getattr(
-                    self.model,
-                    "predict_proba",
-                    None,
-                )
-        ):
+        supports_sklearn = callable(
+            getattr(
+                self.model,
+                "predict_proba",
+                None,
+            )
+        )
+        supports_native = callable(
+            getattr(
+                self.model,
+                "inplace_predict",
+                None,
+            )
+        )
+
+        if not supports_sklearn and not supports_native:
             raise TypeError(
                 f"{self.__class__.__name__}: "
-                "仅支持提供 predict_proba 接口的 "
+                "仅支持 XGBClassifier 或 Booster 形式的 "
                 "XGBoost 分类模型"
             )
 
@@ -255,7 +321,7 @@ class XGBoostAdapter(BaseModelAdapter):
             None,
         )
 
-        if classes is None:
+        if classes is None and not supports_native:
             raise ValueError(
                 f"{self.__class__.__name__}: "
                 "模型尚未训练或不属于分类模型"
@@ -272,9 +338,34 @@ class XGBoostAdapter(BaseModelAdapter):
             X
         )
 
-        values = self.model.predict_proba(
-            array
+        predict_proba = getattr(
+            self.model,
+            "predict_proba",
+            None,
         )
+
+        if callable(predict_proba):
+            values = _call_model_method(
+                predict_proba,
+                array,
+            )
+        else:
+            positive = np.asarray(
+                self.model.inplace_predict(array),
+                dtype=float,
+            ).reshape(-1)
+            if self.positive_class == 0:
+                positive = 1.0 - positive
+            elif self.positive_class != 1:
+                raise ValueError(
+                    f"{self.__class__.__name__}: "
+                    "原生 Booster 的 positive_class "
+                    "仅支持 0 或 1"
+                )
+            values = np.column_stack((
+                1.0 - positive,
+                positive,
+            ))
 
         return self._extract_positive_probabilities(
             values
@@ -410,7 +501,16 @@ class XGBoostAdapter(BaseModelAdapter):
         )
 
         if value is None:
-            return None
+            num_features = getattr(
+                self.model,
+                "num_features",
+                None,
+            )
+            if not callable(num_features):
+                return None
+            value = _call_model_method(
+                num_features
+            )
 
         if (
                 isinstance(value, bool)

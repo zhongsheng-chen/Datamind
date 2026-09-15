@@ -20,9 +20,11 @@ from typing import Any
 _PUBLIC_RESULT_FIELDS = (
     "error",
     "error_type",
+    "task_type",
     "score",
     "probability",
     "prediction",
+    "label",
     "decision",
     "threshold",
     "score_intercept",
@@ -46,12 +48,22 @@ def build_prediction_response(
     返回：
         包含业务结果或错误信息的响应字典
     """
+    task_type = prediction.get(
+        "task_type",
+        prediction.get("service_type"),
+    )
+
     return {
         "success": prediction.get("success", True),
+        **(
+            {"task_type": task_type}
+            if task_type is not None
+            else {}
+        ),
         **{
             key: prediction[key]
             for key in _PUBLIC_RESULT_FIELDS
-            if key in prediction
+            if key != "task_type" and key in prediction
         },
         "request_id": request_id,
     }

@@ -713,6 +713,43 @@ async def test_search_records_combines_keyword_and_field_query() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query",
+    [
+        "classification",
+        "task_type:classification",
+    ],
+)
+async def test_search_requests_supports_task_type(
+        query: str,
+) -> None:
+    """测试 API 调用记录支持按任务类型查询"""
+    repository, execute = create_repository()
+
+    await repository.search_records(
+        section="requests",
+        query=query,
+        limit=10,
+        offset=0,
+    )
+
+    awaited_call = execute.await_args
+    assert awaited_call is not None
+    statement = awaited_call.args[0]
+    sql = str(
+        statement.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={
+                "literal_binds": True
+            },
+        )
+    )
+    assert "LEFT OUTER JOIN metadata" in sql
+    assert "metadata.task_type ILIKE" in sql
+    assert "classification" in sql
+
+
+@pytest.mark.asyncio
 async def test_search_records_rejects_unknown_search_field() -> None:
     """测试拒绝当前页面不支持的查询字段"""
     repository, execute = create_repository()
@@ -1080,6 +1117,7 @@ async def test_get_request_details() -> None:
         {
             "request_id": "req_test",
             "model_name": "scorecard",
+            "task_type": "scoring",
             "model_version": "1.0.0",
             "deployment_id": "dep_test",
             "decision_id": "dcs_test",
@@ -1113,6 +1151,7 @@ async def test_get_request_details() -> None:
     assert details == {
         "req_test": {
             "model_name": "scorecard",
+            "task_type": "scoring",
             "model_version": "1.0.0",
             "deployment_id": "dep_test",
             "decision_id": "dcs_test",
@@ -1562,6 +1601,7 @@ async def test_get_model_request_stats() -> None:
         {
             "model_id": "mdl_test",
             "model_name": "scorecard",
+            "deleted_at": None,
             "recent_count": 8,
             "recent_success_count": 7,
             "average_latency_ms": 196.315,
@@ -1571,10 +1611,16 @@ async def test_get_model_request_stats() -> None:
         {
             "model_id": "mdl_idle",
             "model_name": "legacy",
+            "deleted_at": datetime(
+                2026,
+                8,
+                4,
+                tzinfo=timezone.utc,
+            ),
             "recent_count": 0,
             "recent_success_count": 0,
             "average_latency_ms": None,
-            "total_count": 0,
+            "total_count": 24,
             "recent_total_count": 10,
         }
     ]
@@ -1592,6 +1638,7 @@ async def test_get_model_request_stats() -> None:
         {
             "model_id": "mdl_test",
             "model_name": "scorecard",
+            "is_deleted": False,
             "recent_count": 8,
             "recent_success_count": 7,
             "average_latency_ms": 196.315,
@@ -1601,10 +1648,11 @@ async def test_get_model_request_stats() -> None:
         {
             "model_id": "mdl_idle",
             "model_name": "legacy",
+            "is_deleted": True,
             "recent_count": 0,
             "recent_success_count": 0,
             "average_latency_ms": None,
-            "total_count": 0,
+            "total_count": 24,
             "recent_total_count": 10,
         }
     ]
@@ -1624,5 +1672,9 @@ async def test_get_model_request_stats() -> None:
     assert "FILTER (WHERE requests.created_at >=" in sql
     assert "requests.status = 'success'" in sql
     assert "avg(requests.latency_ms) FILTER" in sql
-    assert "GROUP BY metadata.model_id, metadata.name" in sql
+    assert (
+        "GROUP BY metadata.model_id, metadata.name, metadata.deleted_at"
+        in sql
+    )
+    assert "HAVING count(requests.request_id) > 0" in sql
     assert "LIMIT" not in sql

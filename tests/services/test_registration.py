@@ -900,6 +900,46 @@ def test_validate_metadata_accepts_unchanged_description() -> None:
     )
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "framework, model_type",
+    [
+        ("sklearn", "decision_tree"),
+        ("sklearn", "random_forest"),
+        ("xgboost", "xgboost"),
+        ("lightgbm", "lightgbm"),
+        ("catboost", "catboost"),
+    ],
+)
+async def test_register_rejects_scoring_for_non_logistic_model(
+        monkeypatch: pytest.MonkeyPatch,
+        framework: str,
+        model_type: str,
+) -> None:
+    """测试只有逻辑回归模型允许注册评分任务"""
+    monkeypatch.setitem(
+        vars(register_module),
+        "get_storage",
+        MagicMock(),
+    )
+
+    with pytest.raises(
+            ValueError,
+            match=(
+                "只有逻辑回归模型支持评分任务，"
+                f"模型类型 {model_type} 只能执行分类任务"
+            ),
+    ):
+        await ModelRegistrationService().register(
+            name="risk-model",
+            version="1.0.0",
+            framework=framework,
+            model_type=model_type,
+            task_type="scoring",
+            model_path="missing.model",
+        )
+
+
 @pytest.mark.parametrize(
     "matching_model",
     [

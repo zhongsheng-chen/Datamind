@@ -27,6 +27,7 @@ def test_build_prediction_response_selects_public_fields() -> None:
         "deployment_id": "dep_test",
         "framework": "sklearn",
         "service_type": "scoring",
+        "task_type": "scoring",
         "decision_id": "dcs_test",
         "route": {"routing_id": "rtn_test", "experiment_id": "exp_test"},
         "environment": "testing",
@@ -39,11 +40,12 @@ def test_build_prediction_response_selects_public_fields() -> None:
     response = build_prediction_response(prediction, request_id="req_test")
 
     assert list(response) == [
-        "success", "score", "probability", "decision", "threshold",
+        "success", "task_type", "score", "probability", "decision", "threshold",
         "score_intercept", "features", "request_id",
     ]
     assert response["success"] is True
     assert response["request_id"] == "req_test"
+    assert response["task_type"] == "scoring"
     for key in ("score", "probability", "decision", "threshold", "score_intercept", "features"):
         assert response[key] == prediction[key]
     assert response["features"] is prediction["features"]
@@ -52,8 +54,23 @@ def test_build_prediction_response_selects_public_fields() -> None:
 
 @pytest.mark.parametrize(("prediction", "expected"), [
     (
-        {"prediction": 0, "probability": 0.2, "threshold": 0.5, "model_id": "mdl"},
-        {"success": True, "probability": 0.2, "prediction": 0, "threshold": 0.5, "request_id": "req"},
+        {
+            "task_type": "classification",
+            "prediction": 0,
+            "label": "benign",
+            "probability": 0.2,
+            "threshold": 0.5,
+            "model_id": "mdl",
+        },
+        {
+            "success": True,
+            "task_type": "classification",
+            "probability": 0.2,
+            "prediction": 0,
+            "label": "benign",
+            "threshold": 0.5,
+            "request_id": "req",
+        },
     ),
     (
         {"success": False, "error": "failed", "error_type": "ValueError", "worker_id": "worker"},

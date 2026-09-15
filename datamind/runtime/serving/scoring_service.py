@@ -121,6 +121,8 @@ class ScoringService(BaseRuntimeService):
         if not features:
             raise ValueError("features 不能为空")
 
+        self._validate_feature_types(features)
+
         prediction = self._evaluate([features])[0]
         self.touch()
 
@@ -153,6 +155,8 @@ class ScoringService(BaseRuntimeService):
                 "count": 0,
                 "predictions": [],
             })
+
+        self._validate_batch_feature_types(features_list)
 
         predictions = self._evaluate(features_list)
         self.touch()

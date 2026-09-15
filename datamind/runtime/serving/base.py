@@ -22,6 +22,7 @@ from datamind.core.capability import (
     ModelCapability,
     get_model_capability_list,
 )
+from datamind.core.inference.features import FeatureTransformer
 from datamind.models.schema import SchemaExtractor
 from datamind.runtime.registry import RuntimeModel
 
@@ -82,6 +83,10 @@ class BaseRuntimeService(ABC):
                 model_schema
             )
             or {}
+        )
+        self._feature_validator = FeatureTransformer(
+            feature_names=self.feature_names,
+            data_types=self.data_types,
         )
 
     @property
@@ -228,6 +233,7 @@ class BaseRuntimeService(ABC):
             "version_id": self.version_id,
             "framework": self.framework,
             "service_type": self.SERVICE_TYPE,
+            "task_type": self.SERVICE_TYPE,
             **result,
         }
 
@@ -241,6 +247,53 @@ class BaseRuntimeService(ABC):
           - access_count
         """
         self.runtime_model.touch()
+
+    def _validate_feature_types(
+            self,
+            features: dict[str, Any],
+            *,
+            record_index: int | None = None,
+    ) -> None:
+        """校验已配置特征的输入类型
+
+        校验非空特征值是否符合模型 Schema 声明的类型。
+        缺失值由具体模型处理。
+
+        参数：
+            features: 特征字典
+            record_index: 批量输入中的记录下标
+
+        异常：
+            TypeError: 一个或多个特征值与模型 Schema 类型不匹配
+        """
+        _, type_errors = self._feature_validator.validate(
+            features
+        )
+
+        if not type_errors:
+            return
+
+        details = "; ".join(
+            f"{name} 期望 {expected}，实际 {actual}"
+            for name, expected, actual in type_errors
+        )
+        prefix = (
+            "特征类型无效"
+            if record_index is None
+            else f"第 {record_index} 条记录的特征类型无效"
+        )
+        raise TypeError(f"{prefix}: {details}")
+
+    def _validate_batch_feature_types(
+            self,
+            features_list: list[dict[str, Any]],
+    ) -> None:
+        """逐条校验批量输入的特征类型。"""
+        for index, features in enumerate(features_list):
+            self._validate_feature_types(
+                features,
+                record_index=index,
+            )
 
     @staticmethod
     def _get_schema_feature_names(

@@ -1,12 +1,5 @@
 import { createDetailIcon, showJsonDialog } from "./details/common.js";
 
-const ROUTING_RULES_TEMPLATE = {
-  match: "all",
-  conditions: [
-    { field: "features.credit_utilization_ratio", op: "gte", value: 0.7 },
-  ],
-};
-
 /**
  * 管理控制台资源写入交互。
  *
@@ -25,6 +18,7 @@ const ROUTING_RULES_TEMPLATE = {
  * @property {string[]} model_types
  * @property {string[]} permissions
  * @property {ManagementRoleOption[]} roles
+ * @property {{schema: Object, example: Object}} routing_rules
  */
 
 /**
@@ -123,12 +117,24 @@ const modelTypesByFramework = {
   catboost: ["catboost"],
 };
 
+const taskTypeOptionsByModelType = {
+  logistic_regression: [["scoring", "评分"], ["classification", "分类"]],
+  decision_tree: [["classification", "分类"]],
+  random_forest: [["classification", "分类"]],
+  xgboost: [["classification", "分类"]],
+  lightgbm: [["classification", "分类"]],
+  catboost: [["classification", "分类"]],
+};
+
 const modelFileExtensionsByFramework = {
   sklearn: [".pkl", ".pickle", ".joblib"],
   xgboost: [".json", ".ubj", ".model"],
   lightgbm: [".txt", ".model"],
   catboost: [".cbm"],
 };
+
+const maxModelUploadMegabytes = 200;
+const maxModelUploadBytes = maxModelUploadMegabytes * 1024 * 1024;
 
 const permissionResourceLabels = {
   model: "模型",
@@ -1011,6 +1017,71 @@ function createDateTimeControl(field) {
  * @property {string | null} [uploaded_at] 服务端记录的上传时间
  */
 
+function formatFileSize(size) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * 创建统一的文件选择空状态和已选文件状态。
+ *
+ * @param {HTMLInputElement} input 原生文件输入框
+ * @param {number} [maxFileSize] 文件大小上限（字节）
+ */
+function createFileUploadView(input, maxFileSize = 0) {
+  const dropzone = document.createElement("button");
+  dropzone.type = "button";
+  dropzone.className = "management-json-dropzone";
+  dropzone.append(createDetailIcon("upload", "management-file-dropzone-icon"));
+  const prompt = document.createElement("strong");
+  prompt.append("拖拽文件到这里，或 ");
+  const choose = document.createElement("span");
+  choose.textContent = "点击选择文件";
+  prompt.append(choose);
+  const formats = document.createElement("small");
+  formats.className = "management-file-formats";
+  const limit = document.createElement("small");
+  limit.textContent = maxFileSize
+    ? `单个文件不超过 ${Math.round(maxFileSize / 1024 / 1024)} MB`
+    : "";
+  limit.hidden = !maxFileSize;
+  dropzone.append(prompt, formats, limit);
+  dropzone.addEventListener("click", () => input.click());
+
+  const fileInfo = document.createElement("div");
+  fileInfo.className = "management-upload-file";
+  fileInfo.append(createDetailIcon("payload", "management-upload-file-icon"));
+  const fileCopy = document.createElement("div");
+  const filename = document.createElement("span");
+  const metadata = document.createElement("small");
+  fileCopy.append(filename, metadata);
+  fileInfo.append(fileCopy);
+
+  function renderFormats() {
+    const extensions = input.accept
+      .split(",")
+      .map((value) => value.trim())
+      .filter((value) => value.startsWith("."));
+    formats.textContent = extensions.length
+      ? `支持格式：${extensions.join("、")}`
+      : "";
+    formats.hidden = extensions.length === 0;
+  }
+
+  function showFile(name, details = "") {
+    const selected = Boolean(name);
+    dropzone.hidden = selected;
+    fileInfo.hidden = !selected;
+    filename.textContent = name;
+    metadata.textContent = details;
+  }
+
+  renderFormats();
+  showFile("");
+  return { dropzone, fileInfo, renderFormats, showFile };
+}
+
 /**
  * 创建 JSON 配置上传控件。
  *
@@ -1022,6 +1093,7 @@ function createDateTimeControl(field) {
  * @param {RulesMetadata | null} [field.file] 文件元信息
  * @param {string} [field.mode] 表单模式
  * @param {string} [field.help] 辅助说明
+ * @param {Object.<string, *>} [field.template] 后端提供的配置示例
  */
 function appendJsonConfigField(body, field) {
   const container = document.createElement("div");
@@ -1072,11 +1144,15 @@ function appendJsonConfigField(body, field) {
   }
 
   if (field.name === "rules") {
+    const template = field.template || {};
     const links = document.createElement("div");
     links.className = "management-json-actions";
-    const example = button("查看配置示例", () => showJsonDialog("规则配置示例", ROUTING_RULES_TEMPLATE));
+    const example = button(
+      "查看配置示例",
+      () => showJsonDialog("规则配置示例", template),
+    );
     const download = button("下载模板", () => {
-      const blob = new Blob([JSON.stringify(ROUTING_RULES_TEMPLATE, null, 2) + "\n"], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(template, null, 2) + "\n"], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -1091,16 +1167,8 @@ function appendJsonConfigField(body, field) {
     links.append(example, download);
     heading.append(links);
   }
-  const dropzone = document.createElement("button");
-  dropzone.type = "button";
-  dropzone.className = "management-json-dropzone";
-  dropzone.textContent = "点击选择或拖入 JSON 文件";
-  dropzone.addEventListener("click", () => input.click());
-  const fileLabel = document.createElement("div");
-  fileLabel.className = "management-json-file";
-  const fileText = document.createElement("span");
-  const metadata = document.createElement("small");
-  fileLabel.append(fileText, metadata);
+  const uploadView = createFileUploadView(input);
+  const { dropzone, fileInfo } = uploadView;
   const view = button("预览", () => {
     preview.hidden = !preview.hidden;
     view.textContent = preview.hidden ? "预览" : "收起";
@@ -1141,20 +1209,18 @@ function appendJsonConfigField(body, field) {
     status.hidden = configured || creating || value.disabled;
     upload.textContent = "重新选择";
     upload.hidden = !configured;
-    dropzone.hidden = configured;
-    fileLabel.hidden = !configured;
     view.hidden = !configured;
     remove.hidden = !configured;
     undo.hidden = configured || (creating ? previous === null : value.disabled);
     preview.hidden = true;
     view.textContent = "预览";
-    fileText.textContent = filename || "规则 JSON";
-    metadata.textContent = filename
-      ? `${fileSize < 1024 ? `${fileSize} B` : `${(fileSize / 1024).toFixed(1)} KB`} · JSON 解析成功`
+    let fileDetails = filename
+      ? `${formatFileSize(fileSize)} · JSON 解析成功`
       : "";
     if (value.disabled && field.file?.uploaded_at) {
-      metadata.textContent += ` · 上传时间：${new Date(field.file.uploaded_at).toLocaleString("zh-CN", { hour12: false })}`;
+      fileDetails += ` · 上传时间：${new Date(field.file.uploaded_at).toLocaleString("zh-CN", { hour12: false })}`;
     }
+    uploadView.showFile(configured ? filename || "规则 JSON" : "", fileDetails);
     fileValue.disabled = value.disabled || !filename || !configured;
     fileValue.value = JSON.stringify({ name: filename, size: fileSize });
     view.setAttribute("aria-expanded", "false");
@@ -1175,7 +1241,7 @@ function appendJsonConfigField(body, field) {
     status.textContent = "正在读取配置…";
     status.hidden = false;
     view.hidden = true;
-    fileLabel.hidden = true;
+    fileInfo.hidden = true;
     undo.hidden = false;
     error.textContent = "";
     const data = new FormData();
@@ -1221,8 +1287,99 @@ function appendJsonConfigField(body, field) {
   });
 
   render();
-  panel.append(dropzone, fileLabel, status, actions, preview);
+  panel.append(dropzone, fileInfo, status, actions, preview);
   container.append(heading, panel, input, value, fileValue, error);
+  if (field.help) {
+    const help = document.createElement("small");
+    help.textContent = field.help;
+    container.append(help);
+  }
+  body.append(container);
+}
+
+/**
+ * 添加支持点击选择和拖放的文件上传字段。
+ *
+ * @param {HTMLElement} body 表单容器
+ * @param {Object} field 字段配置
+ * @param {string} field.name 字段名称
+ * @param {string} field.label 显示名称
+ * @param {boolean} [field.required] 是否必填
+ * @param {boolean} [field.wide] 是否占满表单宽度
+ * @param {string} [field.accept] 接受的文件类型
+ * @param {number} [field.maxFileSize] 文件大小上限（字节）
+ * @param {string} [field.help] 辅助说明
+ */
+function appendFileDropzoneField(body, field) {
+  const container = document.createElement("div");
+  container.className = field.wide ? "management-field wide" : "management-field";
+  const title = document.createElement("span");
+  appendFieldLabel(title, field.label, field.required);
+  const panel = document.createElement("div");
+  panel.className = "management-json-config management-file-upload";
+  const input = document.createElement("input");
+  input.type = "file";
+  input.name = field.name;
+  input.hidden = true;
+  input.required = Boolean(field.required);
+  if (field.accept) input.accept = field.accept;
+  const uploadView = createFileUploadView(input, field.maxFileSize);
+  const { dropzone, fileInfo } = uploadView;
+
+  const actions = document.createElement("div");
+  actions.className = "management-json-actions";
+  const replace = document.createElement("button");
+  replace.type = "button";
+  replace.className = "secondary-button";
+  replace.textContent = "重新选择";
+  replace.addEventListener("click", () => input.click());
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "secondary-button management-json-clear";
+  clear.textContent = "清除";
+  clear.addEventListener("click", () => {
+    input.value = "";
+    render();
+  });
+  actions.append(replace, clear);
+
+  const error = document.createElement("small");
+  error.setAttribute("role", "alert");
+
+  function render() {
+    const file = input.files?.[0];
+    uploadView.showFile(file?.name || "", file ? formatFileSize(file.size) : "");
+    actions.hidden = !file;
+    error.textContent = file && field.maxFileSize && file.size > field.maxFileSize
+      ? `模型文件不能超过 ${Math.round(field.maxFileSize / 1024 / 1024)} MB`
+      : "";
+  }
+
+  input.addEventListener("change", render);
+  panel.addEventListener("management:accept-change", uploadView.renderFormats);
+  panel.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    panel.classList.add("dragging");
+  });
+  panel.addEventListener("dragleave", (event) => {
+    if (!panel.contains(event.relatedTarget)) panel.classList.remove("dragging");
+  });
+  panel.addEventListener("drop", (event) => {
+    event.preventDefault();
+    panel.classList.remove("dragging");
+    const files = event.dataTransfer?.files;
+    if (!files?.length) return;
+    if (files.length !== 1) {
+      error.textContent = "请一次选择一个模型文件";
+      return;
+    }
+    input.files = files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  render();
+  panel.append(dropzone, fileInfo, actions);
+  container.append(title, panel, input, error);
   if (field.help) {
     const help = document.createElement("small");
     help.textContent = field.help;
@@ -1538,6 +1695,10 @@ function appendStandardField(body, field) {
   }
   if (field.type === "json-config") {
     appendJsonConfigField(body, field);
+    return;
+  }
+  if (field.type === "file-dropzone") {
+    appendFileDropzoneField(body, field);
     return;
   }
   const label = document.createElement("label");
@@ -1944,6 +2105,11 @@ export function createResourceManager({
 
       const updateAccept = () => {
         target.accept = (field.acceptByValue[source.value] || []).join(",");
+        target.closest(".management-field")
+          ?.querySelector(".management-file-upload")
+          ?.dispatchEvent(
+          new Event("management:accept-change"),
+        );
       };
       source.addEventListener("change", updateAccept);
       updateAccept();
@@ -2309,8 +2475,15 @@ export function createResourceManager({
           name: "task_type",
           label: "任务类型",
           type: "select",
-          options: [["scoring", "评分"], ["classification", "分类"]],
-          value: selectedModel?.task_type || "scoring",
+          options: taskTypeOptionsByModelType[
+            selectedModel?.model_type || "logistic_regression"
+          ],
+          value: selectedModel?.task_type
+            || ((selectedModel?.model_type || "logistic_regression") === "logistic_regression"
+              ? "scoring"
+              : "classification"),
+          optionsByField: "model_type",
+          optionsByValue: taskTypeOptionsByModelType,
           required: true,
         },
         {
@@ -2321,11 +2494,12 @@ export function createResourceManager({
         {
           name: "file",
           label: "模型文件",
-          type: "file",
+          type: "file-dropzone",
           required: true,
           wide: true,
           acceptByField: "framework",
           acceptByValue: modelFileExtensionsByFramework,
+          maxFileSize: maxModelUploadBytes,
         },
         {
           type: "section",
@@ -2355,6 +2529,9 @@ export function createResourceManager({
       onSubmit: async (formData) => {
         const file = formData.get("file");
         if (!(file instanceof File) || file.size === 0) throw new Error("请选择模型文件");
+        if (file.size > maxModelUploadBytes) {
+          throw new Error(`模型文件不能超过 ${maxModelUploadMegabytes} MB`);
+        }
         const framework = String(formData.get("framework") || "");
         const allowedExtensions = modelFileExtensionsByFramework[framework] || [];
         const filename = file.name.toLowerCase();
@@ -2400,6 +2577,14 @@ export function createResourceManager({
     const modelTypeInput = dialog.querySelector('[name="model_type"]');
     const taskTypeInput = dialog.querySelector('[name="task_type"]');
     const forceField = forceInput?.closest(".management-field");
+    if (
+      frameworkInput instanceof HTMLSelectElement
+      && modelTypeInput instanceof HTMLSelectElement
+    ) {
+      frameworkInput.addEventListener("change", () => {
+        modelTypeInput.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
     const updateForceVisibility = () => {
       if (!(forceField instanceof HTMLElement)) return;
       const conditionallyHidden = !registrationTarget.version_exists;
@@ -2490,7 +2675,10 @@ export function createResourceManager({
             frameworkInput.value = candidate.framework || "sklearn";
             frameworkInput.dispatchEvent(new Event("change", { bubbles: true }));
             modelTypeInput.value = candidate.model_type || modelTypeInput.value;
-            taskTypeInput.value = candidate.task_type || "scoring";
+            taskTypeInput.value = candidate.task_type
+              || (candidate.model_type === "logistic_regression"
+                ? "scoring"
+                : "classification");
           }
           updateForceVisibility();
           if (versionInput.value.trim()) synchronizeExistingVersion();
@@ -2613,7 +2801,7 @@ export function createResourceManager({
   }
 
   async function openRoutingCreateDialog() {
-    const [deploymentResponse, modelResponse, routingResponse] = await Promise.all([
+    const [deploymentResponse, modelResponse, routingResponse, options] = await Promise.all([
       request(
         "sections/deployments?page=1&page_size=100&sort_by=updated_at&sort_order=desc",
       ),
@@ -2623,6 +2811,7 @@ export function createResourceManager({
       request(
         "sections/routings?page=1&page_size=100&sort_by=updated_at&sort_order=desc",
       ),
+      getManagementOptions(),
     ]);
     const routedDeploymentIds = new Set(
       (Array.isArray(routingResponse?.items) ? routingResponse.items : [])
@@ -2706,6 +2895,7 @@ export function createResourceManager({
           label: "规则配置",
           type: "json-config",
           mode: "create",
+          template: options.routing_rules?.example || {},
           wide: true,
         },
         {
@@ -3397,7 +3587,7 @@ export function createResourceManager({
       openDeploymentEditDialog(record);
     }
     else if (actionConfig.action === "edit" && actionConfig.resource === "routings") {
-      openRoutingEditDialog(record);
+      void openRoutingEditDialog(record).catch((error) => toast(error.message));
     }
     else if (actionConfig.action === "edit" && actionConfig.resource === "experiments") {
       void openExperimentEditDialog(record).catch((error) => toast(error.message, "error"));
@@ -3565,7 +3755,8 @@ export function createResourceManager({
     });
   }
 
-  function openRoutingEditDialog(record) {
+  async function openRoutingEditDialog(record) {
+    const options = await getManagementOptions();
     createManagementDialog({
       title: "编辑路由",
       description: "修改路由名称、流量比例、生效时间和规则配置。",
@@ -3599,6 +3790,7 @@ export function createResourceManager({
           type: "json-config",
           value: record.rules,
           file: record.rules_metadata,
+          template: options.routing_rules?.example || {},
           wide: true,
         },
         {

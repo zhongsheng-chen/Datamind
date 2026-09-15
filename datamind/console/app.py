@@ -44,15 +44,14 @@ from starlette.responses import (
 from starlette.types import ASGIApp
 
 from datamind.auth.enums import RoleStatus
+from datamind.auth.events import record_authentication_event
 from datamind.auth.factory import create_auth_service
 from datamind.auth.permissions import has_permission
 from datamind.auth.schemas import (
     AuthenticatedUser,
+    LogoutResult,
 )
-from datamind.audit.enums import (
-    AuditSource,
-    AuditStatus,
-)
+from datamind.audit.enums import AuditSource
 from datamind.audit.recorder import AuditRecorder
 from datamind.context.keys import (
     HOSTNAME,
@@ -68,6 +67,7 @@ from datamind.context import (
 )
 from datamind.context.core import update_context
 from datamind.constants import (
+    MB,
     SUPPORTED_MODEL_TYPES,
     SUPPORTED_PERMISSIONS,
 )
@@ -101,6 +101,10 @@ from datamind.console.responses import (
 )
 from datamind.console.actions import (
     dispatch_resource_action,
+)
+from datamind.runtime.routing.schema import (
+    ROUTING_RULES_EXAMPLE,
+    RoutingRules,
 )
 from datamind.console.schemas import (
     DeploymentCreateRequest,
@@ -146,7 +150,8 @@ from datamind.utils import (
 
 
 _STATIC_DIR = Path(__file__).parent / "dist"
-_MAX_MODEL_UPLOAD_BYTES = 512 * 1024 * 1024
+_MAX_MODEL_UPLOAD_MB = 200
+_MAX_MODEL_UPLOAD_BYTES = _MAX_MODEL_UPLOAD_MB * MB
 _CAPABILITY_PERMISSIONS = {
     "models.create": "model.write",
     "versions.manage": "model.write",
@@ -331,24 +336,53 @@ async def _logout(
             False,
         )
     )
+    logout_result = getattr(
+        request.state,
+        "logout_result",
+        None,
+    )
+    result_identity = (
+        logout_result
+        if isinstance(
+            logout_result,
+            LogoutResult,
+        )
+        else None
+    )
+    actor_username = "anonymous"
+    target_id = "unknown"
+
+    if user is not None:
+        actor_username = user.username
+        target_id = user.user_id
+    elif result_identity is not None:
+        actor_username = (
+            result_identity.username
+            or result_identity.user_id
+            or actor_username
+        )
+        target_id = (
+            result_identity.user_id
+            or target_id
+        )
+
     await _record_authentication_event(
         request,
         action="auth.logout",
-        actor_username=(
-            user.username
-            if user is not None
-            else "anonymous"
-        ),
-        target_id=(
-            user.user_id
-            if user is not None
-            else "unknown"
-        ),
+        actor_username=actor_username,
+        target_id=target_id,
         successful=not revocation_failed,
         status_code=response.status_code,
         error=(
             "刷新令牌撤销失败"
             if revocation_failed
+            else None
+        ),
+        details=(
+            {
+                "revoked": result_identity.revoked,
+            }
+            if result_identity is not None
             else None
         ),
     )
@@ -480,6 +514,10 @@ async def _management_options(
             else []
         ),
         "roles": roles,
+        "routing_rules": {
+            "schema": RoutingRules.model_json_schema(),
+            "example": ROUTING_RULES_EXAMPLE,
+        },
     })
 
 
@@ -1722,53 +1760,26 @@ async def _record_authentication_event(
         successful: bool,
         status_code: int,
         error: str | None,
+        details: dict[str, object] | None = None,
 ) -> None:
     """记录不包含认证秘密的控制台认证事件"""
-    status = (
-        AuditStatus.SUCCESS
-        if successful
-        else AuditStatus.FAILED
-    )
     context = _http_actor_context(
         request,
         username=actor_username,
     )
-    if attempted_username is not None:
-        context["attempted_username"] = attempted_username
-    log = (
-        logger.info
-        if successful
-        else logger.warning
-    )
-    operation = action.partition(".")[2]
-    operation_label = {
-        "login": "登录",
-        "logout": "退出登录",
-    }.get(
-        operation,
-        operation,
-    )
-    log(
-        (
-            f"控制台{operation_label}成功"
-            if successful
-            else f"控制台{operation_label}失败"
-        ),
+    await record_authentication_event(
+        logger=logger,
+        recorder=AuditRecorder(),
+        channel="控制台",
         action=action,
-        status=str(status),
-        status_code=status_code,
-        **context,
-    )
-    await AuditRecorder().record(
-        action=action,
-        target_type="user",
+        actor_username=actor_username,
         target_id=target_id,
-        status=str(status),
-        error=error,
-        after={
-            "status_code": status_code,
-        },
+        successful=successful,
+        status_code=status_code,
         context=context,
+        attempted_username=attempted_username,
+        error=error,
+        details=details,
     )
 
 
@@ -1908,7 +1919,8 @@ async def _create_model(
 
                     if written > _MAX_MODEL_UPLOAD_BYTES:
                         raise ValueError(
-                            "模型文件不能超过 512 MB"
+                            "模型文件不能超过 "
+                            f"{_MAX_MODEL_UPLOAD_MB} MB"
                         )
 
                     stream.write(chunk)

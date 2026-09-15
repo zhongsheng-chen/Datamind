@@ -74,6 +74,7 @@ class FakeBooster:
             score
         )
         self.feature_names = feature_names
+        self.predicted_features: np.ndarray | None = None
 
     def get_score(
             self,
@@ -147,6 +148,24 @@ class FakeXGBoostModel:
     ) -> FakeBooster:
         """返回 Booster 测试替身"""
         return self._booster
+
+
+class NativeBooster(FakeBooster):
+    """直接加载的原生 XGBoost Booster 测试替身"""
+
+    def inplace_predict(
+            self,
+            X: np.ndarray,
+    ) -> np.ndarray:
+        """返回原生 Booster 的正类概率"""
+        features = np.asarray(X).copy()
+        self.predicted_features = features
+        return np.full(len(features), 0.7)
+
+    @staticmethod
+    def num_features() -> int:
+        """返回特征数量"""
+        return 2
 
 
 class ProbabilityOnlyModel:
@@ -466,6 +485,25 @@ def test_predict_probability_batch_matches_model(
     )
 
 
+def test_native_booster_predicts_probability() -> None:
+    """测试原生 Booster 可以直接执行概率预测"""
+    booster = NativeBooster({}, FEATURE_NAMES)
+    adapter = XGBoostAdapter(
+        booster,
+        feature_names=FEATURE_NAMES,
+    )
+
+    assert adapter.predict({
+        "feature_a": 1.0,
+        "feature_b": 2.0,
+    }) == pytest.approx(0.7)
+    assert booster.predicted_features is not None
+    np.testing.assert_array_equal(
+        booster.predicted_features,
+        np.array([[1.0, 2.0]]),
+    )
+
+
 def test_positive_class_zero_selects_first_probability_column(
         xgboost_model: XGBClassifier,
 ) -> None:
@@ -758,7 +796,7 @@ def test_missing_probability_interface_is_rejected(
     """测试拒绝不提供概率接口的模型"""
     with pytest.raises(
             TypeError,
-            match="仅支持提供 predict_proba 接口",
+            match="仅支持 XGBClassifier 或 Booster",
     ):
         XGBoostAdapter(
             model=MissingProbabilityModel(),

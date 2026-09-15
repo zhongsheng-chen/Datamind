@@ -22,6 +22,7 @@ EXPECTED_EXPORTS = {
     "LoginRequest",
     "RefreshTokenRequest",
     "LogoutRequest",
+    "LogoutResult",
     "TokenResponse",
     "AccessTokenClaims",
     "AuthenticatedUser",

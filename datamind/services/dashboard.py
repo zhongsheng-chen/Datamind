@@ -1607,6 +1607,12 @@ class DashboardService:
                 "model_name": record.get(
                     "model_name"
                 ),
+                "is_deleted": bool(
+                    record.get(
+                        "is_deleted",
+                        False,
+                    )
+                ),
                 "recent_count": recent_count,
                 "total_count": int(
                     record.get(
@@ -1884,6 +1890,11 @@ class DashboardService:
             "rollout_type": deployment.rollout_type,
             "role": deployment.role,
             "status": deployment.status,
+            "threshold": getattr(
+                deployment,
+                "threshold",
+                None,
+            ),
             "config": getattr(
                 deployment,
                 "config",
@@ -2060,6 +2071,9 @@ class DashboardService:
             "request_id": request.request_id,
             "model_id": request.model_id,
             "model_name": model_name,
+            "task_type": request_details.get(
+                "task_type"
+            ),
             "model_version": request_details.get(
                 "model_version"
             ),

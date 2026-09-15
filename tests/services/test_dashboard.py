@@ -606,6 +606,7 @@ def test_build_model_usage_calculates_recent_metrics() -> None:
         {
             "model_id": "mdl_test",
             "model_name": "scorecard",
+            "is_deleted": False,
             "recent_count": 8,
             "recent_success_count": 7,
             "recent_total_count": 10,
@@ -615,6 +616,7 @@ def test_build_model_usage_calculates_recent_metrics() -> None:
         {
             "model_id": "mdl_idle",
             "model_name": "legacy",
+            "is_deleted": True,
             "recent_count": 0,
             "recent_success_count": 0,
             "recent_total_count": 10,
@@ -627,6 +629,7 @@ def test_build_model_usage_calculates_recent_metrics() -> None:
         {
             "model_id": "mdl_test",
             "model_name": "scorecard",
+            "is_deleted": False,
             "recent_count": 8,
             "total_count": 120,
             "success_rate": 0.875,
@@ -636,6 +639,7 @@ def test_build_model_usage_calculates_recent_metrics() -> None:
         {
             "model_id": "mdl_idle",
             "model_name": "legacy",
+            "is_deleted": True,
             "recent_count": 0,
             "total_count": 24,
             "success_rate": None,
@@ -1669,6 +1673,7 @@ def test_deployment_item_includes_model_labels() -> None:
         rollout_type="canary",
         role="challenger",
         status="active",
+        threshold=0.5,
         updated_at=CURRENT_TIME,
     )
 
@@ -1684,6 +1689,7 @@ def test_deployment_item_includes_model_labels() -> None:
     assert result["model_version"] == "1.0.0"
     assert result["rollout_type"] == "canary"
     assert result["role"] == "challenger"
+    assert result["threshold"] == 0.5
     assert result["updated_at"] == "2026-08-05T01:30:00.000Z"
     assert result["created_at"] is None
 
@@ -1839,6 +1845,7 @@ def test_variant_item_includes_experiment_and_model_labels() -> None:
 def test_request_item_includes_model_and_decision_details() -> None:
     """测试 API 调用摘要包含模型、决策和预测详情"""
     prediction = {
+        "task_type": "scoring",
         "score": 680,
         "features": {"age": {"value": 35, "points": 680}},
     }
@@ -1868,6 +1875,7 @@ def test_request_item_includes_model_and_decision_details() -> None:
         request,
         details={
             "model_name": "scorecard",
+            "task_type": "scoring",
             "model_version": "1.0.0",
             "deployment_id": "dep_test",
             "decision_id": "dcs_test",
@@ -1881,6 +1889,7 @@ def test_request_item_includes_model_and_decision_details() -> None:
     assert result["response"] is request.response
     assert result["version_id"] == "ver_test"
     assert result["model_name"] == "scorecard"
+    assert result["task_type"] == "scoring"
     assert result["model_version"] == "1.0.0"
     assert result["deployment_id"] == "dep_test"
     assert result["decision_id"] == "dcs_test"

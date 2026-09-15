@@ -545,10 +545,13 @@ async def test_logout_is_idempotent(
 ) -> None:
     """验证退出登录撤销令牌且重复调用保持幂等"""
     token = create_token_record()
-    service, _, _, _, token_repo = create_service()
+    service, user_repo, _, _, token_repo = create_service()
+    user_repo.get_user.return_value = create_user()
     token_repo.get_token.side_effect = [
         token,
-        None,
+        create_token_record(
+            status=str(TokenStatus.REVOKED)
+        ),
     ]
     monkeypatch.setitem(
         vars(service_module),
@@ -559,14 +562,21 @@ async def test_logout_is_idempotent(
         "refresh_token": "refresh-token",
     })
 
-    assert await service.logout(
+    first_result = await service.logout(
         request,
         current_time=CURRENT_TIME,
-    ) is True
-    assert await service.logout(
+    )
+    second_result = await service.logout(
         request,
         current_time=CURRENT_TIME,
-    ) is False
+    )
+
+    assert first_result.revoked is True
+    assert first_result.user_id == "usr_test"
+    assert first_result.username == "alice"
+    assert second_result.revoked is False
+    assert second_result.user_id == "usr_test"
+    assert second_result.username == "alice"
     token_repo.revoke_token.assert_called_once()
 
 

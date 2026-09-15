@@ -33,6 +33,7 @@ from datamind.auth.schemas import (
     AuthenticatedUser,
     LoginRequest,
     LogoutRequest,
+    LogoutResult,
     RefreshTokenRequest,
     TokenResponse,
 )
@@ -220,12 +221,16 @@ async def logout(
                 service = auth_service(
                     session=uow.session
                 )
-                request.state.logout_token_revoked = await service.logout(
+                logout_result: LogoutResult = await service.logout(
                     LogoutRequest(
                         refresh_token=SecretStr(
                             refresh_token
                         )
                     )
+                )
+                request.state.logout_result = logout_result
+                request.state.logout_token_revoked = (
+                    logout_result.revoked
                 )
         except (
                 AuthError,

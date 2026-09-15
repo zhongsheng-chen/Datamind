@@ -406,6 +406,7 @@ export function createInferenceDetailController({
         ["状态", createStatusBadge(record.status)],
         ["来源", record.source],
         ["模型名称", record.model_name],
+        ["任务类型", record.task_type],
         ["版本", record.model_version],
         ["耗时", formatOptionalDuration(record.latency_ms)],
         ["调用用户", record.user],

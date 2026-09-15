@@ -47,6 +47,7 @@ def test_routing_table_and_columns() -> None:
         "enabled",
         "traffic_ratio",
         "rules",
+        "rules_metadata",
         "effective_from",
         "effective_to",
         "description",

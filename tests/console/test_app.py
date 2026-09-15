@@ -381,6 +381,57 @@ def test_console_source_uses_unversioned_imports() -> None:
             assert (source.parent / specifier).is_file(), specifier
 
 
+def test_registration_task_types_follow_model_type() -> None:
+    """测试注册表单按模型类型限制任务类型"""
+    source = _read_console_source("assets/management.js").text
+
+    assert "const taskTypeOptionsByModelType = {" in source
+    assert (
+        'logistic_regression: [["scoring", "评分"], '
+        '["classification", "分类"]]'
+    ) in source
+    for model_type in (
+        "decision_tree",
+        "random_forest",
+        "xgboost",
+        "lightgbm",
+        "catboost",
+    ):
+        assert (
+            f'{model_type}: [["classification", "分类"]]'
+        ) in source
+    assert 'optionsByField: "model_type"' in source
+    assert 'optionsByValue: taskTypeOptionsByModelType' in source
+    assert (
+        'modelTypeInput.dispatchEvent('
+        'new Event("change", { bubbles: true }))'
+    ) in source
+
+
+def test_model_registration_uses_file_dropzone() -> None:
+    """测试注册表单支持点击选择和拖入模型文件"""
+    source = _read_console_source("assets/management.js").text
+    registration = source.split(
+        'title: addingVersion ? "添加版本" : "注册模型"',
+        maxsplit=1,
+    )[1].split("onSubmit:", maxsplit=1)[0]
+
+    assert 'name: "file"' in registration
+    assert 'type: "file-dropzone"' in registration
+    assert 'acceptByField: "framework"' in registration
+
+
+def test_routing_rule_template_comes_from_backend_contract() -> None:
+    """测试路由表单使用后端提供的配置示例"""
+    source = _read_console_source("assets/management.js").text
+
+    assert "ROUTING_RULES_TEMPLATE" not in source
+    assert source.count(
+        "template: options.routing_rules?.example || {}"
+    ) == 2
+    assert 'showJsonDialog("规则配置示例", template)' in source
+
+
 @pytest.mark.asyncio
 async def test_console_page_is_available() -> None:
     """测试控制台页面可访问与前端源码约定"""
@@ -453,6 +504,11 @@ async def test_console_page_is_available() -> None:
     assert "累计调用排行" in response.text
     assert "调用量、成功率、平均耗时与流量占比" in response.text
     assert "各模型的历史调用规模" in response.text
+    assert "近 24 小时暂无模型调用" in script.text
+    assert "暂无历史模型调用" in script.text
+    assert "model-usage-deleted-badge" in script.text
+    assert "Number(record.recent_count) > 0" in script.text
+    assert "canViewModels && !record.is_deleted" in script.text
     assert 'label: "近 24 小时 API 调用"' in script.text
     assert 'label: "累计 API 调用"' in script.text
     assert 'label: "近 24 小时成功率"' in script.text
@@ -494,6 +550,7 @@ async def test_console_page_is_available() -> None:
     assert 'label: "实验"' in script.text
     assert 'label: "分组"' in script.text
     assert 'title: "API 调用记录"' in script.text
+    assert '["task_type", "任务类型"]' in script.text
     assert 'label: "决策记录"' in script.text
     assert 'title: "决策记录列表"' in script.text
     assert 'label: "执行记录"' in script.text
@@ -1311,6 +1368,7 @@ async def test_console_page_supports_realtime_details() -> None:
     assert '"inference-detail-drawer decision-detail-drawer"' in inference_source
     assert '"inference-detail-drawer execution-detail-drawer"' in inference_source
     assert '["调用 ID", () => createCopyableNavigationLink(' in inference_source
+    assert '["任务类型", record.task_type]' in inference_source
     assert '["决策 ID", () => createCopyableNavigationLink(' in inference_source
     assert '["主体标识", () => {' in inference_source
     assert 'identifier.classList.add("registry-subject-identifier")' in inference_source
@@ -1326,8 +1384,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert 'document.createTextNode("决策路径")' in inference_source
     assert 'label: "命中路由"' in inference_source
     assert 'label: "命中实验"' in inference_source
-    assert '分配主体：' not in inference_source
-    assert 'variantName ? `分组 ${variantName}`' not in inference_source
     assert 'record.strategy !== "manual"' in inference_source
     assert '{ ...record.context, bucket: record.bucket }' in inference_source
     assert '@type {{ assignment_source?: string | null } | null | undefined}' in (
@@ -1337,7 +1393,6 @@ async def test_console_page_supports_realtime_details() -> None:
     assert 'new_assignment: "新分配"' in inference_source
     assert 'existing_assignment: "复用分配"' in inference_source
     assert 'assignmentSourceMeta.title = description' in inference_source
-    assert '分配来源：' not in inference_source
     assert 'label: "命中部署"' in inference_source
     assert 'createDecisionPathAction(' in inference_source
     assert '"查看路由",' in inference_source
@@ -1566,6 +1621,21 @@ async def test_management_options_return_selectable_catalogs(
     assert response.status_code == 200
     payload = response.json()
     assert "logistic_regression" in payload["model_types"]
+    routing_rules = payload["routing_rules"]
+    assert routing_rules["example"] == {
+        "match": "all",
+        "conditions": [
+            {
+                "field": "features.credit_utilization_ratio",
+                "op": "gte",
+                "value": 0.7,
+            },
+        ],
+    }
+    assert routing_rules["schema"]["type"] == "object"
+    assert routing_rules["schema"]["examples"] == [
+        routing_rules["example"]
+    ]
     assert payload["permissions"][0] == "*"
     assert "model.read" in payload["permissions"]
     assert payload["roles"] == [

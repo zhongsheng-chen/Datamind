@@ -178,6 +178,15 @@ class ModelRegistrationService:
                 f"{model_type.value}"
             )
 
+        if (
+                task_type is TaskType.SCORING
+                and model_type is not ModelType.LOGISTIC_REGRESSION
+        ):
+            raise ValueError(
+                "只有逻辑回归模型支持评分任务，"
+                f"模型类型 {model_type} 只能执行分类任务"
+            )
+
         if not path.is_file():
             raise ArtifactError(
                 f"模型文件不存在: {model_path}"

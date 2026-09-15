@@ -55,8 +55,14 @@ Gain 特征重要性接口。
   })
 """
 
-from collections.abc import Iterable
-from typing import Any
+from collections.abc import (
+    Callable,
+    Iterable,
+)
+from typing import (
+    Any,
+    TypeVar,
+)
 
 import numpy as np
 import structlog
@@ -66,6 +72,17 @@ from datamind.core.capability import ModelCapability
 from datamind.core.inference.adapters.base import BaseModelAdapter
 
 logger = structlog.get_logger(__name__)
+
+_Result = TypeVar("_Result")
+
+
+def _call_model_method(
+        method: Callable[..., _Result],
+        *args: object,
+        **kwargs: object,
+) -> _Result:
+    """调用已验证的模型方法"""
+    return method(*args, **kwargs)
 
 
 class LightGBMAdapter(BaseModelAdapter):
@@ -93,11 +110,21 @@ class LightGBMAdapter(BaseModelAdapter):
         """检测当前 LightGBM 模型能力"""
         capabilities = ModelCapability.NONE
 
-        supports_proba = callable(
+        supports_sklearn_proba = callable(
             getattr(
                 self.model,
                 "predict_proba",
                 None,
+            )
+        )
+        supports_native_proba = (
+            callable(getattr(self.model, "predict", None))
+            and callable(
+                getattr(
+                    self.model,
+                    "feature_importance",
+                    None,
+                )
             )
         )
 
@@ -108,12 +135,17 @@ class LightGBMAdapter(BaseModelAdapter):
         )
 
         supports_importance = (
-            model_state.get(
-                "_Booster"
-            ) is not None
+            model_state.get("_Booster") is not None
+            or callable(
+                getattr(
+                    self.model,
+                    "feature_importance",
+                    None,
+                )
+            )
         )
 
-        if supports_proba:
+        if supports_sklearn_proba or supports_native_proba:
             capabilities |= (
                 ModelCapability.PREDICT_PROBA
                 | ModelCapability.BATCH_PREDICT
@@ -190,10 +222,27 @@ class LightGBMAdapter(BaseModelAdapter):
             ModelCapability.FEATURE_IMPORTANCE
         )
 
-        booster = self.model.booster_
+        booster = getattr(
+            self.model,
+            "booster_",
+            self.model,
+        )
+
+        importance_method: Callable[..., object] | None = getattr(
+            booster,
+            "feature_importance",
+            None,
+        )
+
+        if not callable(importance_method):
+            raise RuntimeError(
+                f"{self.__class__.__name__}: "
+                "模型不提供特征重要性接口"
+            )
 
         importance = np.asarray(
-            booster.feature_importance(
+            _call_model_method(
+                importance_method,
                 importance_type="gain"
             ),
             dtype=float,
@@ -203,14 +252,19 @@ class LightGBMAdapter(BaseModelAdapter):
             importance.size
         )
 
-        name_method = getattr(
+        name_method: Callable[
+            [],
+            list[str],
+        ] | None = getattr(
             booster,
             "feature_name",
             None,
         )
 
         if callable(name_method):
-            booster_names = booster.feature_name()
+            booster_names = _call_model_method(
+                name_method
+            )
         else:
             booster_names = None
 
@@ -236,16 +290,28 @@ class LightGBMAdapter(BaseModelAdapter):
             self,
     ) -> None:
         """校验模型为已训练的 LightGBM 二分类模型"""
-        if not callable(
+        supports_sklearn = callable(
+            getattr(
+                self.model,
+                "predict_proba",
+                None,
+            )
+        )
+        supports_native = (
+            callable(getattr(self.model, "predict", None))
+            and callable(
                 getattr(
                     self.model,
-                    "predict_proba",
+                    "feature_importance",
                     None,
                 )
-        ):
+            )
+        )
+
+        if not supports_sklearn and not supports_native:
             raise TypeError(
                 f"{self.__class__.__name__}: "
-                "仅支持提供 predict_proba 接口的 "
+                "仅支持 LGBMClassifier 或 Booster 形式的 "
                 "LightGBM 分类模型"
             )
 
@@ -255,19 +321,15 @@ class LightGBMAdapter(BaseModelAdapter):
             None,
         )
 
-        if classes is None:
+        if classes is None and not supports_native:
             raise ValueError(
                 f"{self.__class__.__name__}: "
                 "模型尚未训练或不属于分类模型"
             )
 
-        booster = getattr(
-            self.model,
-            "booster_",
-            None,
-        )
+        booster = getattr(self.model, "booster_", None)
 
-        if booster is None:
+        if booster is None and not supports_native:
             raise ValueError(
                 f"{self.__class__.__name__}: "
                 "模型尚未训练，缺少 booster_"
@@ -284,9 +346,37 @@ class LightGBMAdapter(BaseModelAdapter):
             X
         )
 
-        values = self.model.predict_proba(
-            array
+        predict_proba: Callable[
+            [np.ndarray],
+            object,
+        ] | None = getattr(
+            self.model,
+            "predict_proba",
+            None,
         )
+
+        if callable(predict_proba):
+            values = _call_model_method(
+                predict_proba,
+                array,
+            )
+        else:
+            positive = np.asarray(
+                self.model.predict(array),
+                dtype=float,
+            ).reshape(-1)
+            if self.positive_class == 0:
+                positive = 1.0 - positive
+            elif self.positive_class != 1:
+                raise ValueError(
+                    f"{self.__class__.__name__}: "
+                    "原生 Booster 的 positive_class "
+                    "仅支持 0 或 1"
+                )
+            values = np.column_stack((
+                1.0 - positive,
+                positive,
+            ))
 
         return self._extract_positive_probabilities(
             values

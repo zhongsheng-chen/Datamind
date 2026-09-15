@@ -83,6 +83,7 @@ from datamind.auth.schemas import (
     AuthenticatedUser,
     LoginRequest,
     LogoutRequest,
+    LogoutResult,
     RefreshTokenRequest,
     TokenResponse,
 )
@@ -426,7 +427,7 @@ class AuthService:
             *,
             revoked_by: str | None = None,
             current_time: datetime | None = None,
-    ) -> bool:
+    ) -> LogoutResult:
         """退出登录并撤销刷新令牌
 
         参数：
@@ -435,8 +436,7 @@ class AuthService:
             current_time: 当前时间（可选）
 
         返回：
-            True 表示本次撤销了有效令牌；
-            False 表示令牌不存在或已经撤销
+            撤销状态和刷新令牌所属用户身份
 
         说明：
             退出登录保持幂等，重复提交不会抛出异常。
@@ -456,13 +456,26 @@ class AuthService:
             token_hash=token_hash
         )
 
-        if (
-                token_record is None
-                or token_record.status == str(
-                    TokenStatus.REVOKED
-                )
+        if token_record is None:
+            return LogoutResult(
+                revoked=False,
+            )
+
+        user = await self.user_repo.get_user(
+            user_id=token_record.user_id
+        )
+        if token_record.status == str(
+                TokenStatus.REVOKED
         ):
-            return False
+            return LogoutResult(
+                revoked=False,
+                user_id=token_record.user_id,
+                username=(
+                    user.username
+                    if user is not None
+                    else None
+                ),
+            )
 
         self.token_repo.revoke_token(
             token_record,
@@ -474,7 +487,15 @@ class AuthService:
             revoked_at=now,
         )
 
-        return True
+        return LogoutResult(
+            revoked=True,
+            user_id=token_record.user_id,
+            username=(
+                user.username
+                if user is not None
+                else None
+            ),
+        )
 
     async def authenticate_access_token(
             self,

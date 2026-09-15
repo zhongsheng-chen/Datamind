@@ -88,6 +88,7 @@ import {
  * @typedef {Object} ModelUsageItem
  * @property {string} model_id
  * @property {string | null} model_name
+ * @property {boolean} is_deleted
  * @property {number} recent_count
  * @property {number} total_count
  * @property {number | null} success_rate
@@ -230,6 +231,7 @@ import {
  * @property {string} request_id
  * @property {string} model_id
  * @property {string | null} model_name
+ * @property {string | null} task_type
  * @property {string | null} model_version
  * @property {string | null} deployment_id
  * @property {string | null} decision_id
@@ -409,6 +411,7 @@ const sections = {
     columns: [
       ["request_id", "请求 ID", "mono"],
       ["model_name", "模型名称"],
+      ["task_type", "任务类型"],
       ["model_version", "版本"],
       ["source", "来源"],
       ["status", "状态", "status"],
