@@ -31,7 +31,10 @@ import datamind.cli.auth.login as login_module
 import datamind.cli.auth.logout as logout_module
 import datamind.cli.auth.whoami as whoami_module
 from datamind.auth.errors import InvalidCredentialsError
-from datamind.auth.schemas import TokenResponse
+from datamind.auth.schemas import (
+    LogoutResult,
+    TokenResponse,
+)
 from datamind.cli.credentials import CLICredentials
 from datamind.cli.errors import CredentialError
 from datamind.context import (
@@ -208,6 +211,11 @@ def test_login_saves_session_without_rendering_tokens(
         store,
     )
     log_contexts: list[dict[str, object]] = []
+    login_module.logger.debug.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
     login_module.logger.info.side_effect = (
         lambda *_args, **_kwargs: log_contexts.append(
             get_context().copy()
@@ -243,6 +251,10 @@ def test_login_saves_session_without_rendering_tokens(
         "hostname": "datamind-host",
         "user_agent": "datamind-cli",
     }
+    login_module.logger.debug.assert_called_once_with(
+        "开始 CLI 登录",
+        username="alice",
+    )
     assert len(log_contexts) == 2
     start_context, success_context = log_contexts
     trace_id = start_context["trace_id"]
@@ -261,6 +273,10 @@ def test_login_saves_session_without_rendering_tokens(
     assert success_context["source"] == "cli"
     assert success_context["ip"] == "127.0.0.1"
     assert success_context["hostname"] == "datamind-host"
+    login_complete = login_module.logger.info.call_args_list[-1]
+    assert login_complete.kwargs["action"] == "auth.login"
+    assert login_complete.kwargs["status"] == "success"
+    assert login_complete.kwargs["exit_code"] == 0
 
 
 def test_login_revokes_previous_session_before_saving_new_session(
@@ -273,7 +289,11 @@ def test_login_revokes_previous_session_before_saving_new_session(
         return_value=tokens
     )
     service.logout = AsyncMock(
-        return_value=True
+        return_value=LogoutResult(
+            revoked=True,
+            user_id="usr_current",
+            username="current-user",
+        )
     )
     store = MagicMock()
     store.load.return_value = create_credentials()
@@ -288,6 +308,11 @@ def test_login_revokes_previous_session_before_saving_new_session(
         store,
     )
     log_contexts: list[dict[str, object]] = []
+    login_module.logger.debug.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
     login_module.logger.info.side_effect = (
         lambda *_args, **_kwargs: log_contexts.append(
             get_context().copy()
@@ -319,6 +344,10 @@ def test_login_revokes_previous_session_before_saving_new_session(
     )
     assert log_contexts[0]["user"] == "current-user"
     assert log_contexts[1]["user"] == "alice"
+    login_module.logger.debug.assert_called_once_with(
+        "开始 CLI 登录",
+        username="alice",
+    )
 
 
 def test_login_replaces_invalid_stored_session(
@@ -490,7 +519,11 @@ def test_logout_revokes_and_clears_session(
     """测试退出登录撤销刷新令牌并清理凭据"""
     service = MagicMock()
     service.logout = AsyncMock(
-        return_value=True
+        return_value=LogoutResult(
+            revoked=True,
+            user_id="usr_current",
+            username="current-user",
+        )
     )
     store = MagicMock()
     store.load.return_value = create_credentials()
@@ -505,6 +538,11 @@ def test_logout_revokes_and_clears_session(
         store,
     )
     log_contexts: list[dict[str, object]] = []
+    logout_module.logger.debug.side_effect = (
+        lambda *_args, **_kwargs: log_contexts.append(
+            get_context().copy()
+        )
+    )
     logout_module.logger.info.side_effect = (
         lambda *_args, **_kwargs: log_contexts.append(
             get_context().copy()
@@ -542,12 +580,18 @@ def test_logout_revokes_and_clears_session(
     assert log_contexts[0]["source"] == "cli"
     assert log_contexts[0]["user"] == "current-user"
     assert log_contexts[1]["user"] == "current-user"
+    logout_module.logger.debug.assert_called_once_with(
+        "开始 CLI 退出登录"
+    )
     logout_complete = (
         logout_module.logger.info.call_args_list[-1]
     )
     assert logout_complete.kwargs[
-        "refresh_token_revoked"
+        "revoked"
     ] is True
+    assert logout_complete.kwargs["action"] == "auth.logout"
+    assert logout_complete.kwargs["status"] == "success"
+    assert logout_complete.kwargs["exit_code"] == 0
 
 
 @pytest.mark.parametrize(
@@ -639,6 +683,15 @@ def test_auth_commands_render_clean_error(
     assert request_id.startswith("req_")
     assert log_contexts[0]["source"] == "cli"
     assert log_contexts[0]["user"] == "current-user"
+    failure_log = command_module.logger.warning.call_args
+    expected_action = (
+        "auth.login"
+        if method_name == "login"
+        else "auth.logout"
+    )
+    assert failure_log.kwargs["action"] == expected_action
+    assert failure_log.kwargs["status"] == "failed"
+    assert failure_log.kwargs["exit_code"] == 1
 
 
 def test_whoami_renders_clean_error(

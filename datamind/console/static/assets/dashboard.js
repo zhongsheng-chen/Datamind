@@ -658,18 +658,46 @@ export function createDashboardController({
   
     if (!visible) return;
   
-    if (!records.length) {
-      for (const container of [
+    const recentRecords = records.filter(
+      (record) => Number(record.recent_count) > 0,
+    );
+    const historicalRecords = records.filter(
+      (record) => Number(record.total_count) > 0,
+    );
+
+    if (!recentRecords.length) {
+      renderModelUsageEmpty(
         recentModelUsageContent,
-        totalModelUsageContent,
-      ]) {
-        const empty = document.createElement("div");
-        empty.className = "model-usage-empty";
-        empty.textContent = "暂无模型调用数据";
-        container.append(empty);
-      }
-      return;
+        "近 24 小时暂无模型调用",
+      );
+    } else {
+      renderRecentModelUsage(
+        recentRecords,
+        Boolean(snapshot.access.models),
+      );
     }
+
+    if (!historicalRecords.length) {
+      renderModelUsageEmpty(
+        totalModelUsageContent,
+        "暂无历史模型调用",
+      );
+    } else {
+      renderModelUsageRanking(
+        historicalRecords,
+        Boolean(snapshot.access.models),
+      );
+    }
+  }
+
+  /**
+   * 渲染近 24 小时内实际发生调用的模型。
+   *
+   * @param {ModelUsageItem[]} records 模型调用记录
+   * @param {boolean} canViewModels 是否允许查看模型
+   * @returns {void} 无返回值
+   */
+  function renderRecentModelUsage(records, canViewModels) {
   
     const elements = createModelUsageTable([
       "模型",
@@ -679,7 +707,7 @@ export function createDashboardController({
       "调用占比",
     ]);
     const sortedRecords = [...records].sort((left, right) => (
-      right.recent_count - left.recent_count
+      Number(right.recent_count) - Number(left.recent_count)
       || right.total_count - left.total_count
       || compareModelUsageNames(left, right)
     ));
@@ -715,7 +743,7 @@ export function createDashboardController({
       }
   
       row.append(
-        createModelUsageNameCell(record, snapshot.access.models),
+        createModelUsageNameCell(record, canViewModels),
         recentCell,
         successCell,
         latencyCell,
@@ -725,10 +753,20 @@ export function createDashboardController({
     }
   
     recentModelUsageContent.append(elements.table);
-    renderModelUsageRanking(
-      records,
-      Boolean(snapshot.access.models),
-    );
+  }
+
+  /**
+   * 渲染模型调用统计空状态。
+   *
+   * @param {HTMLElement} container 空状态容器
+   * @param {string} message 提示文本
+   * @returns {void} 无返回值
+   */
+  function renderModelUsageEmpty(container, message) {
+    const empty = document.createElement("div");
+    empty.className = "model-usage-empty";
+    empty.textContent = message;
+    container.append(empty);
   }
   
   /**
@@ -849,8 +887,10 @@ export function createDashboardController({
    */
   function createModelUsageLink(record, canViewModels) {
     const name = record.model_name || record.model_id;
-  
-    if (canViewModels) {
+    const content = document.createElement("span");
+    content.className = "model-usage-identity";
+
+    if (canViewModels && !record.is_deleted) {
       const link = document.createElement("button");
       link.type = "button";
       link.className = "model-usage-link";
@@ -863,12 +903,21 @@ export function createDashboardController({
           `model_id:${record.model_id}`,
         );
       });
-      return link;
+      content.append(link);
+    } else {
+      const label = document.createElement("strong");
+      label.textContent = name;
+      content.append(label);
     }
-  
-    const label = document.createElement("strong");
-    label.textContent = name;
-    return label;
+
+    if (record.is_deleted) {
+      const status = document.createElement("span");
+      status.className = "model-usage-deleted-badge";
+      status.textContent = "已删除";
+      content.append(status);
+    }
+
+    return content;
   }
 
   return {

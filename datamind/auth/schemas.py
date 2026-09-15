@@ -6,6 +6,7 @@
   - LoginRequest: 登录请求
   - RefreshTokenRequest: 刷新访问令牌请求
   - LogoutRequest: 退出登录请求
+  - LogoutResult: 退出登录结果
   - TokenResponse: 令牌响应
   - AccessTokenClaims: 访问令牌声明
   - AuthenticatedUser: 已认证用户信息
@@ -17,6 +18,7 @@
       AuthenticatedUser,
       LoginRequest,
       LogoutRequest,
+      LogoutResult,
       RefreshTokenRequest,
       TokenResponse,
   )
@@ -136,6 +138,31 @@ class LogoutRequest(
         min_length=1,
         max_length=1024,
         description="需要撤销的刷新令牌",
+    )
+
+
+class LogoutResult(
+    AuthSchema
+):
+    """退出登录结果"""
+
+    revoked: bool = Field(
+        ...,
+        description="本次是否撤销了有效刷新令牌",
+    )
+
+    user_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="刷新令牌所属用户 ID",
+    )
+
+    username: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="刷新令牌所属用户名",
     )
 
 
@@ -269,6 +296,7 @@ __all__ = [
     "LoginRequest",
     "RefreshTokenRequest",
     "LogoutRequest",
+    "LogoutResult",
     "TokenResponse",
     "AccessTokenClaims",
     "AuthenticatedUser",
