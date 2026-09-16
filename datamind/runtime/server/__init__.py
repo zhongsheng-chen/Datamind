@@ -7,6 +7,7 @@
   - ControlRequest: 运行控制请求
   - DeploymentRequest: 部署查询请求
   - PredictRequest: 单条预测请求
+  - PredictionInstance: 批量预测中的单条预测实例
   - BatchPredictRequest: 批量预测请求
   - OutcomeFeedbackRequest: 业务结果回流请求
   - ServiceDeploymentNotFoundError: 服务部署不存在
@@ -35,6 +36,10 @@ from typing import Any, Final
 
 
 _EXPORTS: Final[dict[str, tuple[str, str]]] = {
+    "PredictionInstance": (
+        "datamind.runtime.server.schemas",
+        "PredictionInstance",
+    ),
     "BatchPredictRequest": (
         "datamind.runtime.server.schemas",
         "BatchPredictRequest",

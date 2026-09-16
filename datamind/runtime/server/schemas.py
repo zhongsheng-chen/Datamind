@@ -6,6 +6,7 @@
   - ControlRequest: 运行控制请求
   - DeploymentRequest: 部署查询请求
   - PredictRequest: 单条预测请求
+  - PredictionInstance: 批量预测中的单条预测实例
   - BatchPredictRequest: 批量预测请求
   - OutcomeFeedbackRequest: 业务结果回流请求
 
@@ -66,17 +67,27 @@ class PredictRequest(RuntimeRequest):
     subject_type: str | None = None
 
 
+class PredictionInstance(RuntimeRequest):
+    """批量预测中的单条预测实例"""
+
+    features: dict[str, Any] = Field(
+        min_length=1,
+    )
+    subject_key: str | None = None
+    subject_type: str | None = None
+
+
 class BatchPredictRequest(RuntimeRequest):
     """批量预测请求"""
 
-    deployment_id: str = Field(
+    model_name: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    instances: list[PredictionInstance] = Field(
         min_length=1,
     )
-    features_list: list[
-        dict[str, Any]
-    ] = Field(
-        min_length=1,
-    )
+    deployment_id: str | None = None
 
 
 class OutcomeFeedbackRequest(RuntimeRequest):

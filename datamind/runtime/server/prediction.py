@@ -51,7 +51,11 @@ from datamind.runtime.executor import (
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
 from datamind.runtime.responses import build_prediction_response
-from datamind.runtime.routing import RouteResult, RuntimeRouter
+from datamind.runtime.routing import (
+    RouteResult,
+    RoutingPlan,
+    RuntimeRouter,
+)
 from datamind.runtime.server.cache import ServiceCacheEntry
 from datamind.runtime.server.errors import (
     ServiceDeploymentNotFoundError,
@@ -61,6 +65,7 @@ from datamind.runtime.server.schemas import (
     BatchPredictRequest,
     OutcomeFeedbackRequest,
     PredictRequest,
+    PredictionInstance,
 )
 from datamind.runtime.server.timeout import (
     RequestTimeoutError,
@@ -191,16 +196,17 @@ class PredictionMixin:
 
         处理流程：
           - 创建请求记录
-          - 解析运行时路由
+          - 为请求解析运行时路由
           - 执行模型预测
           - 更新请求状态并创建决策记录
-          - 返回业务预测结果和请求 ID
+          - 返回预测结果和请求 ID
 
         参数：
             request: 单条预测请求
+            request_id: 请求 ID
 
         返回：
-            模型预测结果
+            单条预测结果
         """
         started_at = time.perf_counter()
 
@@ -399,10 +405,19 @@ class PredictionMixin:
             request: BatchPredictRequest,
             batch_id: str,
     ) -> dict[str, Any]:
-        """执行指定部署批量预测
+        """执行批量模型预测
+
+        处理流程：
+          - 创建每条请求的记录
+          - 为每条请求解析运行时路由
+          - 按主部署分组执行模型预测
+          - 按原始顺序整理预测结果
+          - 更新请求状态并创建决策记录
+          - 返回预测结果和请求 ID
 
         参数：
             request: 批量预测请求
+            batch_id: 批次请求 ID
 
         返回：
             批量预测结果
@@ -413,62 +428,64 @@ class PredictionMixin:
 
         try:
             async with request_budget(service_config.timeout) as budget:
-                if not request.features_list:
-                    raise ValueError(
-                        "features_list 不能为空"
-                    )
-
-                budget.enter_stage("deployment")
-                await self._validate_service_environment(
-                    deployment_id=request.deployment_id,
-                )
-
-                budget.enter_stage("model_load")
-                service = await self._get_service(
-                    request.deployment_id
-                )
-
                 request_ids = [
                     generate_random_id(
                         prefix="req"
                     )
-                    for _ in request.features_list
+                    for _ in request.instances
                 ]
                 decision_ids = [
                     generate_random_id(
                         prefix="dcs"
                     )
-                    for _ in request.features_list
+                    for _ in request.instances
                 ]
 
                 budget.enter_stage("request_record")
                 await self._create_batch_request_records(
                     batch_id=batch_id,
                     request_ids=request_ids,
-                    model_id=service.model_id,
+                    model_id=None,
+                    model_name=request.model_name,
                     deployment_id=request.deployment_id,
-                    features_list=request.features_list,
+                    instances=request.instances,
                 )
                 records_created = True
 
-                budget.enter_stage("prediction")
-                result = await asyncio.to_thread(
-                    service.predict_batch,
-                    request.features_list,
+                budget.enter_stage("model")
+                model_id = await self._resolve_model_id(
+                    model_name=request.model_name,
                 )
 
-                predictions = result.get(
-                    "predictions"
-                )
+                budget.enter_stage("routing")
+                routing_plans = []
 
-                if (
-                        not isinstance(predictions, list)
-                        or len(predictions)
-                        != len(request.features_list)
-                ):
-                    raise RuntimeError(
-                        "批量预测结果数量与请求数量不一致"
+                for instance in request.instances:
+                    routing_plans.append(
+                        await self.router.resolve(
+                            model_id=model_id,
+                            environment=(
+                                service_config.environment
+                            ),
+                            subject_key=instance.subject_key,
+                            subject_type=instance.subject_type,
+                            payload=instance.features,
+                            deployment_id=request.deployment_id,
+                            include_shadows=(
+                                runtime_config.shadow_enabled
+                            ),
+                        )
                     )
+
+                budget.enter_stage("prediction")
+                results, task_type = await self._execute_routed_batch(
+                    routing_plans=routing_plans,
+                    instances=request.instances,
+                )
+                predictions = [
+                    result.prediction
+                    for result in results
+                ]
 
                 responses = [
                     build_prediction_response(prediction, request_id=request_id)
@@ -480,39 +497,26 @@ class PredictionMixin:
                                      - started_at
                              ) * 1000
 
-                route = RouteResult(
-                    model_id=service.model_id,
-                    version_id=service.version_id,
-                    deployment_id=service.deployment_id,
-                    framework=service.framework,
-                    environment=str(
-                        service_config.environment
-                    ),
-                    source=str(
-                        DecisionStrategy.DEPLOYMENT
-                    ),
-                    strategy="manual",
-                    context={
-                        "batch_id": batch_id,
-                    },
-                )
-
                 budget.enter_stage("persistence")
-                await self._record_batch_success(
+                shadow_tasks = await self._record_batch_success(
                     batch_id=batch_id,
                     request_ids=request_ids,
                     decision_ids=decision_ids,
-                    route=route,
-                    predictions=predictions,
+                    results=results,
+                    routing_plans=routing_plans,
+                    instances=request.instances,
+                    responses=responses,
                     latency_ms=latency_ms,
+                )
+
+                budget.enter_stage("shadow_dispatch")
+                await self._submit_shadow_predictions(
+                    shadow_tasks
                 )
 
                 return {
                     "success": True,
-                    "task_type": result.get(
-                        "task_type",
-                        result.get("service_type"),
-                    ),
+                    "task_type": task_type,
                     "count": len(responses),
                     "predictions": responses,
                     "request_id": batch_id,
@@ -547,8 +551,9 @@ class PredictionMixin:
             self._logger.warning(
                 "批量预测请求处理失败",
                 request_id=batch_id,
+                model_name=request.model_name,
                 deployment_id=request.deployment_id,
-                batch_size=len(request.features_list),
+                batch_size=len(request.instances),
                 environment=service_config.environment,
                 worker_id=self.manager.worker_id,
                 **(
@@ -582,8 +587,9 @@ class PredictionMixin:
             self._logger.exception(
                 "批量预测请求处理异常",
                 request_id=batch_id,
+                model_name=request.model_name,
                 deployment_id=request.deployment_id,
-                batch_size=len(request.features_list),
+                batch_size=len(request.instances),
                 environment=service_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
@@ -592,14 +598,102 @@ class PredictionMixin:
 
             return response
 
+    async def _execute_routed_batch(
+            self,
+            *,
+            routing_plans: list[RoutingPlan],
+            instances: list[PredictionInstance],
+    ) -> tuple[list[ExecutionResult], str | None]:
+        """按主部署分组执行批量预测并恢复请求顺序。"""
+        indices_by_deployment: dict[str, list[int]] = {}
+
+        for index, routing_plan in enumerate(routing_plans):
+            indices_by_deployment.setdefault(
+                routing_plan.primary.deployment_id,
+                [],
+            ).append(index)
+
+        results_by_index: dict[int, ExecutionResult] = {}
+        task_type: str | None = None
+
+        for deployment_id, indices in indices_by_deployment.items():
+            service = await self._get_service(
+                deployment_id
+            )
+            features_list = [
+                instances[index].features
+                for index in indices
+            ]
+            started_at = time.perf_counter()
+            batch_result = await asyncio.to_thread(
+                service.predict_batch,
+                features_list,
+            )
+            latency_ms = (
+                                 time.perf_counter()
+                                 - started_at
+                         ) * 1000
+            predictions = batch_result.get(
+                "predictions"
+            )
+
+            if (
+                    not isinstance(predictions, list)
+                    or len(predictions) != len(indices)
+            ):
+                raise RuntimeError(
+                    "批量预测结果数量与请求数量不一致"
+                )
+
+            resolved_task_type = batch_result.get(
+                "task_type",
+                batch_result.get("service_type"),
+            )
+
+            if resolved_task_type is not None:
+                current_task_type = str(resolved_task_type)
+
+                if (
+                        task_type is not None
+                        and task_type != current_task_type
+                ):
+                    raise RuntimeError(
+                        "同一模型的批量预测返回了不同任务类型"
+                    )
+
+                task_type = current_task_type
+
+            for index, prediction in zip(
+                    indices,
+                    predictions,
+                    strict=True,
+            ):
+                results_by_index[index] = ExecutionResult(
+                    plan=ExecutionPlan(
+                        route=routing_plans[index].primary,
+                        execution_type=ExecutionType.PRIMARY,
+                    ),
+                    prediction=prediction,
+                    latency_ms=latency_ms,
+                )
+
+        return (
+            [
+                results_by_index[index]
+                for index in range(len(instances))
+            ],
+            task_type,
+        )
+
     @staticmethod
     async def _create_batch_request_records(
             *,
             batch_id: str,
             request_ids: list[str],
-            model_id: str,
-            deployment_id: str,
-            features_list: list[dict[str, Any]],
+            model_id: str | None,
+            model_name: str,
+            deployment_id: str | None,
+            instances: list[PredictionInstance],
     ) -> None:
         """在同一事务中创建批量请求记录"""
         request_context = get_context()
@@ -609,20 +703,24 @@ class PredictionMixin:
                 uow.session
             )
 
-            for index, (request_id, features) in enumerate(
+            for index, (request_id, instance) in enumerate(
                     zip(
                         request_ids,
-                        features_list,
+                        instances,
                     )
             ):
                 repository.create_request(
                     request_id=request_id,
                     model_id=model_id,
+                    model_name=model_name,
                     payload={
                         "batch_id": batch_id,
                         "batch_index": index,
+                        "model_name": model_name,
                         "deployment_id": deployment_id,
-                        "features": features,
+                        "subject_key": instance.subject_key,
+                        "subject_type": instance.subject_type,
+                        "features": instance.features,
                     },
                     source="http",
                     user=request_context.get(
@@ -639,11 +737,15 @@ class PredictionMixin:
             batch_id: str,
             request_ids: list[str],
             decision_ids: list[str],
-            route: RouteResult,
-            predictions: list[dict[str, Any]],
+            results: list[ExecutionResult],
+            routing_plans: list[RoutingPlan],
+            instances: list[PredictionInstance],
+            responses: list[dict[str, Any]],
             latency_ms: float,
-    ) -> None:
+    ) -> tuple[ShadowTask, ...]:
         """在同一事务中记录批量请求和决策结果"""
+        shadow_tasks: list[ShadowTask] = []
+
         async with UnitOfWork() as uow:
             request_repo = RequestRepository(
                 uow.session
@@ -657,21 +759,30 @@ class PredictionMixin:
             finished_at = datetime.now(
                 timezone.utc
             )
-            started_at = finished_at - timedelta(
-                milliseconds=latency_ms
-            )
 
             for index, (
                     request_id,
                     decision_id,
-                    prediction,
+                    result,
+                    routing_plan,
+                    instance,
+                    response,
             ) in enumerate(
                 zip(
                     request_ids,
                     decision_ids,
-                    predictions,
+                    results,
+                    routing_plans,
+                    instances,
+                    responses,
+                    strict=True,
                 )
             ):
+                route = result.route
+                prediction = result.prediction
+                started_at = finished_at - timedelta(
+                    milliseconds=result.latency_ms
+                )
                 request_record = await request_repo.get_request(
                     request_id
                 )
@@ -683,10 +794,8 @@ class PredictionMixin:
 
                 request_repo.mark_success(
                     request_record,
-                    response=build_prediction_response(
-                        prediction,
-                        request_id=request_id,
-                    ),
+                    model_id=route.model_id,
+                    response=response,
                     latency_ms=latency_ms,
                 )
                 decision_repo.create_decision(
@@ -694,9 +803,19 @@ class PredictionMixin:
                     request_id=request_id,
                     model_id=route.model_id,
                     version_id=route.version_id,
-                    source=DecisionStrategy.DEPLOYMENT,
+                    source=DecisionStrategy(
+                        route.source
+                    ),
                     deployment_id=route.deployment_id,
+                    experiment_id=route.experiment_id,
+                    variant_id=route.variant_id,
+                    assignment_id=route.assignment_id,
+                    subject_key=route.subject_key,
+                    subject_type=route.subject_type,
                     strategy=route.strategy,
+                    bucket=route.bucket,
+                    group=route.group,
+                    weight=route.weight,
                     decision=self._optional_string(
                         prediction.get("decision")
                     ),
@@ -711,13 +830,19 @@ class PredictionMixin:
                         prefix="exe"
                     ),
                     decision_id=decision_id,
-                    execution_type=ExecutionType.PRIMARY,
+                    execution_type=(
+                        result.plan.execution_type
+                    ),
                     status=ExecutionStatus.SUCCESS,
                     model_id=route.model_id,
                     version_id=route.version_id,
                     deployment_id=route.deployment_id,
                     routing_id=route.routing_id,
-                    prediction=prediction,
+                    prediction=(
+                        self._build_prediction_payload(
+                            prediction
+                        )
+                    ),
                     probability=self._optional_float(
                         prediction.get(
                             "probability"
@@ -728,7 +853,7 @@ class PredictionMixin:
                             "score"
                         )
                     ),
-                    latency_ms=latency_ms,
+                    latency_ms=result.latency_ms,
                     context=self._build_decision_context(
                         route,
                         batch_id=batch_id,
@@ -737,6 +862,46 @@ class PredictionMixin:
                     started_at=started_at,
                     finished_at=finished_at,
                 )
+
+                for shadow_route in routing_plan.shadows:
+                    execution_id = generate_random_id(
+                        prefix="exe"
+                    )
+                    shadow_plan = ExecutionPlan(
+                        route=shadow_route,
+                        execution_type=ExecutionType.SHADOW,
+                        timeout=runtime_config.shadow_timeout,
+                    )
+                    execution_repo.create_execution(
+                        execution_id=execution_id,
+                        decision_id=decision_id,
+                        execution_type=(
+                            shadow_plan.execution_type
+                        ),
+                        status=ExecutionStatus.QUEUED,
+                        model_id=shadow_route.model_id,
+                        version_id=shadow_route.version_id,
+                        deployment_id=(
+                            shadow_route.deployment_id
+                        ),
+                        routing_id=shadow_route.routing_id,
+                        context=self._build_decision_context(
+                            shadow_route,
+                            batch_id=batch_id,
+                            batch_index=index,
+                        ),
+                    )
+                    shadow_tasks.append(
+                        ShadowTask(
+                            execution_id=execution_id,
+                            request_id=request_id,
+                            decision_id=decision_id,
+                            plan=shadow_plan,
+                            features=deepcopy(instance.features),
+                        )
+                    )
+
+        return tuple(shadow_tasks)
 
     @staticmethod
     async def _mark_batch_failed(
