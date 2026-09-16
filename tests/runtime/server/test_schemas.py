@@ -7,6 +7,10 @@
     验证控制请求不接受客户端操作人
   - test_predict_request_rejects_internal_model_id:
     验证公开预测请求不再接受内部模型 ID
+  - test_batch_predict_request_accepts_instances:
+    验证批量预测请求使用实例列表
+  - test_batch_predict_request_rejects_legacy_features_list:
+    验证批量预测请求拒绝旧版特征列表
 """
 
 
@@ -14,6 +18,7 @@ import pytest
 from pydantic import ValidationError
 
 from datamind.runtime.server.schemas import (
+    BatchPredictRequest,
     ControlRequest,
     PredictRequest,
 )
@@ -37,4 +42,29 @@ def test_predict_request_rejects_internal_model_id() -> None:
         PredictRequest.model_validate({
             "model_id": "mdl_test",
             "features": {"age": 35},
+        })
+
+
+def test_batch_predict_request_accepts_instances() -> None:
+    """测试批量预测请求使用实例列表"""
+    request = BatchPredictRequest.model_validate({
+        "model_name": "scorecard",
+        "instances": [{
+            "subject_key": "customer_1",
+            "subject_type": "customer",
+            "features": {"age": 35},
+        }],
+    })
+
+    assert request.model_name == "scorecard"
+    assert request.instances[0].subject_key == "customer_1"
+    assert request.instances[0].features == {"age": 35}
+
+
+def test_batch_predict_request_rejects_legacy_features_list() -> None:
+    """测试批量预测请求拒绝旧版特征列表"""
+    with pytest.raises(ValidationError):
+        BatchPredictRequest.model_validate({
+            "deployment_id": "dep_test",
+            "features_list": [{"age": 35}],
         })

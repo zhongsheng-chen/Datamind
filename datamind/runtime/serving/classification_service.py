@@ -149,8 +149,8 @@ class ClassificationService(BaseRuntimeService):
             分类预测结果，包含分类标签、预测概率、分类阈值和模型运行信息
 
         异常：
-            ValueError: 特征为空或无效，或预测结果无效
-            TypeError: 单条预测结果类型无效
+            ValueError: 输入特征或分类结果无效
+            TypeError: 特征类型或预测结果结构无效
         """
         if not features:
             raise ValueError(
@@ -195,8 +195,8 @@ class ClassificationService(BaseRuntimeService):
             输入为空列表时，返回空结果列表，样本数量为 0。
 
         异常：
-            ValueError: 特征或预测结果无效
-            TypeError: 批量预测结果类型无效
+            ValueError: 输入特征或分类结果无效
+            TypeError: 特征类型或预测结果结构无效
             NotImplementedError: 模型不支持批量推理
         """
         self.require_capability(

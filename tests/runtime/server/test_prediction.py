@@ -11,6 +11,8 @@
     失败记录阻塞时结束等待并记录异常
   - test_predict_batch_records_each_request_and_decision:
     验证批量预测记录每项请求和决策
+  - test_execute_routed_batch_groups_deployments_and_restores_order:
+    验证批量预测按路由部署分组执行并恢复请求顺序
   - test_submit_outcome_calls_feedback_service:
     验证结果回流接口调用业务服务
   - test_predict_records_successful_decision:
@@ -61,14 +63,19 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from datamind.audit.errors import AuditWriteError
-from datamind.models.enums import ExecutionStatus, ExecutionType
+from datamind.models.enums import (
+    DecisionStrategy,
+    ExecutionStatus,
+    ExecutionType,
+)
 from datamind.models.errors import RuntimeRouteError
 from datamind.runtime.executor import ExecutionPlan, ExecutionResult
-from datamind.runtime.routing import RouteResult
+from datamind.runtime.routing import RouteResult, RoutingPlan
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
     OutcomeFeedbackRequest,
     PredictRequest,
+    PredictionInstance,
 )
 from datamind.runtime.shadow import ShadowTask
 
@@ -138,6 +145,18 @@ async def test_batch_timeout_uses_one_budget(runtime_server: Any,
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock()
     service._get_service = AsyncMock(return_value=MagicMock())
+    service.router.resolve.return_value = SimpleNamespace(
+        primary=RouteResult(
+            model_id="mdl_test",
+            version_id="ver_test",
+            deployment_id="dep_test",
+            framework="sklearn",
+            environment="testing",
+            source="deployment",
+            strategy="fallback",
+        ),
+        shadows=(),
+    )
     service._create_batch_request_records = AsyncMock()
     service._mark_batch_failed = AsyncMock()
     service._record_batch_success = AsyncMock()
@@ -151,7 +170,15 @@ async def test_batch_timeout_uses_one_budget(runtime_server: Any,
     )
     response = await service._predict_batch(
         request=BatchPredictRequest(
-            deployment_id="dep_test", features_list=[{"age": 35}, {"age": 45}],
+            model_name="scorecard",
+            instances=[
+                PredictionInstance(
+                    features={"age": 35},
+                ),
+                PredictionInstance(
+                    features={"age": 45},
+                ),
+            ],
         ),
         batch_id="req_batch",
     )
@@ -223,8 +250,27 @@ async def test_predict_batch_records_each_request_and_decision(
     service._get_service = AsyncMock(
         return_value=runtime_service
     )
+    route = RouteResult(
+        model_id="mdl_test",
+        version_id="ver_test",
+        deployment_id="dep_test",
+        framework="sklearn",
+        environment="testing",
+        source="experiment",
+        strategy="hash",
+        experiment_id="exp_test",
+        variant_id="var_test",
+        assignment_id="asn_test",
+        subject_key="customer_1",
+        subject_type="customer",
+        group="treatment",
+    )
+    service.router.resolve.return_value = SimpleNamespace(
+        primary=route,
+        shadows=(),
+    )
     service._create_batch_request_records = AsyncMock()
-    service._record_batch_success = AsyncMock()
+    service._record_batch_success = AsyncMock(return_value=())
     service._mark_batch_failed = AsyncMock()
     identifiers = iter((
         "req_1",
@@ -241,10 +287,18 @@ async def test_predict_batch_records_each_request_and_decision(
 
     result = await service._predict_batch(
         request=BatchPredictRequest(
-            deployment_id="dep_test",
-            features_list=[
-                {"age": 35},
-                {"age": 45},
+            model_name="scorecard",
+            instances=[
+                PredictionInstance(
+                    subject_key="customer_1",
+                    subject_type="customer",
+                    features={"age": 35},
+                ),
+                PredictionInstance(
+                    subject_key="customer_2",
+                    subject_type="customer",
+                    features={"age": 45},
+                ),
             ],
         ),
         batch_id="batch_test",
@@ -259,6 +313,15 @@ async def test_predict_batch_records_each_request_and_decision(
         "success", "score", "score_intercept", "features", "request_id",
     ]
     assert result["request_id"] == "batch_test"
+    assert service.router.resolve.await_count == 2
+    assert [
+        call.kwargs["subject_key"]
+        for call in service.router.resolve.await_args_list
+    ] == ["customer_1", "customer_2"]
+    assert [
+        call.kwargs["payload"]
+        for call in service.router.resolve.await_args_list
+    ] == [{"age": 35}, {"age": 45}]
     service._create_batch_request_records.assert_awaited_once()
     service._record_batch_success.assert_awaited_once()
     assert result["predictions"] == [
@@ -269,10 +332,92 @@ async def test_predict_batch_records_each_request_and_decision(
     assert recorded_call is not None
     assert recorded_call.kwargs["request_ids"] == ["req_1", "req_2"]
     assert recorded_call.kwargs["decision_ids"] == ["dcs_1", "dcs_2"]
-    assert recorded_call.kwargs["predictions"] == [
+    assert [
+        execution.prediction
+        for execution in recorded_call.kwargs["results"]
+    ] == [
         {"score": 680.0, **runtime_server.create_score_details(680.0)},
         {"score": 720.0, **runtime_server.create_score_details(720.0)},
     ]
+    assert recorded_call.kwargs["routing_plans"][0].primary is route
+
+
+@pytest.mark.asyncio
+async def test_execute_routed_batch_groups_deployments_and_restores_order(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试批量预测按路由部署分组执行并恢复请求顺序"""
+    service_module = runtime_server.load_service_module(monkeypatch)
+    service = runtime_server.create_service(service_module)
+    routes = [
+        RouteResult(
+            model_id="mdl_test",
+            version_id=f"ver_{index}",
+            deployment_id=deployment_id,
+            framework="sklearn",
+            environment="testing",
+            source="routing",
+            strategy="weighted",
+        )
+        for index, deployment_id in enumerate((
+            "dep_a",
+            "dep_b",
+            "dep_a",
+        ))
+    ]
+    routing_plans = [
+        RoutingPlan(primary=route)
+        for route in routes
+    ]
+    instances = [
+        PredictionInstance(features={"value": value})
+        for value in (10, 20, 30)
+    ]
+    service_a = SimpleNamespace(
+        predict_batch=MagicMock(return_value={
+            "task_type": "classification",
+            "predictions": [
+                {"prediction": 0},
+                {"prediction": 1},
+            ],
+        })
+    )
+    service_b = SimpleNamespace(
+        predict_batch=MagicMock(return_value={
+            "task_type": "classification",
+            "predictions": [
+                {"prediction": 1},
+            ],
+        })
+    )
+    services = {
+        "dep_a": service_a,
+        "dep_b": service_b,
+    }
+    service._get_service = AsyncMock(
+        side_effect=lambda deployment_id: services[deployment_id]
+    )
+
+    results, task_type = await service._execute_routed_batch(
+        routing_plans=routing_plans,
+        instances=instances,
+    )
+
+    assert task_type == "classification"
+    assert [result.prediction for result in results] == [
+        {"prediction": 0},
+        {"prediction": 1},
+        {"prediction": 1},
+    ]
+    assert [result.route for result in results] == routes
+    service_a.predict_batch.assert_called_once_with([
+        {"value": 10},
+        {"value": 30},
+    ])
+    service_b.predict_batch.assert_called_once_with([
+        {"value": 20},
+    ])
 
 
 @pytest.mark.asyncio
@@ -592,6 +737,18 @@ async def test_predict_batch_rejects_mismatched_result_count(
     service._get_service = AsyncMock(
         return_value=runtime_service
     )
+    service.router.resolve.return_value = SimpleNamespace(
+        primary=RouteResult(
+            model_id="mdl_test",
+            version_id="ver_test",
+            deployment_id="dep_test",
+            framework="sklearn",
+            environment="testing",
+            source="deployment",
+            strategy="fallback",
+        ),
+        shadows=(),
+    )
     service._create_batch_request_records = AsyncMock()
     service._record_batch_success = AsyncMock()
     service._mark_batch_failed = AsyncMock()
@@ -605,8 +762,10 @@ async def test_predict_batch_rejects_mismatched_result_count(
 
     result = await service._predict_batch(
         request=BatchPredictRequest(
-            deployment_id="dep_test",
-            features_list=[{"age": 35}],
+            model_name="scorecard",
+            instances=[PredictionInstance(
+                features={"age": 35},
+            )],
         ),
         batch_id="batch_test",
     )
@@ -633,9 +792,21 @@ async def test_predict_batch_handles_invalid_feature_type(
     )
     service._validate_service_environment = AsyncMock()
     service._get_service = AsyncMock(return_value=runtime_service)
+    service.router.resolve.return_value = SimpleNamespace(
+        primary=RouteResult(
+            model_id="mdl_test",
+            version_id="ver_test",
+            deployment_id="dep_test",
+            framework="sklearn",
+            environment="testing",
+            source="deployment",
+            strategy="fallback",
+        ),
+        shadows=(),
+    )
     service._create_batch_request_records = AsyncMock()
     service._mark_batch_failed = AsyncMock()
-    service._record_batch_success = AsyncMock()
+    service._record_batch_success = AsyncMock(return_value=())
     identifiers = iter(("req_1", "dcs_1"))
     runtime_server.patch_server_dependency(
         monkeypatch,
@@ -646,8 +817,12 @@ async def test_predict_batch_handles_invalid_feature_type(
 
     result = await service._predict_batch(
         request=BatchPredictRequest(
-            deployment_id="dep_test",
-            features_list=[{"annual_income": "not-a-number"}],
+            model_name="scorecard",
+            instances=[PredictionInstance(
+                features={
+                    "annual_income": "not-a-number",
+                },
+            )],
         ),
         batch_id="batch_test",
     )
@@ -684,19 +859,35 @@ async def test_create_batch_request_records(
     await service_module.DatamindRuntimeService.inner._create_batch_request_records(
         batch_id="batch_test",
         request_ids=["req_1", "req_2"],
-        model_id="mdl_test",
-        deployment_id="dep_test",
-        features_list=[{"age": 35}, {"age": 45}],
+        model_id=None,
+        model_name="scorecard",
+        deployment_id=None,
+        instances=[
+            PredictionInstance(
+                subject_key="customer_1",
+                subject_type="customer",
+                features={"age": 35},
+            ),
+            PredictionInstance(
+                subject_key="customer_2",
+                subject_type="customer",
+                features={"age": 45},
+            ),
+        ],
     )
 
     assert request_repo.create_request.call_count == 2
     assert request_repo.create_request.call_args_list[0].kwargs == {
         "request_id": "req_1",
-        "model_id": "mdl_test",
+        "model_id": None,
+        "model_name": "scorecard",
         "payload": {
             "batch_id": "batch_test",
             "batch_index": 0,
-            "deployment_id": "dep_test",
+            "model_name": "scorecard",
+            "deployment_id": None,
+            "subject_key": "customer_1",
+            "subject_type": "customer",
             "features": {"age": 35},
         },
         "source": "http",
@@ -733,46 +924,87 @@ async def test_record_batch_success_creates_decisions(
         deployment_id="dep_test",
         framework="sklearn",
         environment="testing",
-        source="deployment",
-        strategy="manual",
+        source="experiment",
+        strategy="hash",
+        experiment_id="exp_test",
+        variant_id="var_test",
+        assignment_id="asn_test",
+        subject_key="customer_1",
+        subject_type="customer",
+        group="treatment",
     )
+    shadow_route = RouteResult(
+        model_id="mdl_test",
+        version_id="ver_shadow",
+        deployment_id="dep_shadow",
+        framework="sklearn",
+        environment="testing",
+        source="shadow",
+        strategy="weighted",
+        routing_id="rtn_shadow",
+    )
+    prediction = {
+        "score": 720,
+        "probability": "0.8",
+        "decision": "approved",
+        **runtime_server.create_score_details(720.0),
+    }
+    response = {
+        "success": True,
+        **prediction,
+        "request_id": "req_1",
+    }
 
-    await service._record_batch_success(
+    shadow_tasks = await service._record_batch_success(
         batch_id="batch_test",
         request_ids=["req_1"],
         decision_ids=["dcs_1"],
-        route=route,
-        predictions=[{
-            "probability": "0.8",
-            "score": 720,
-            "decision": "approved",
-            **runtime_server.create_score_details(720.0),
-        }],
+        results=[ExecutionResult(
+            plan=ExecutionPlan(
+                route=route,
+                execution_type=ExecutionType.PRIMARY,
+            ),
+            prediction=prediction,
+            latency_ms=4.0,
+        )],
+        routing_plans=[RoutingPlan(
+            primary=route,
+            shadows=(shadow_route,),
+        )],
+        instances=[PredictionInstance(
+            subject_key="customer_1",
+            subject_type="customer",
+            features={"age": 35},
+        )],
+        responses=[response],
         latency_ms=10.0,
     )
 
     request_repo.mark_success.assert_called_once_with(
         request_record,
-        response={
-            "success": True,
-            "request_id": "req_1",
-            "probability": "0.8",
-            "score": 720,
-            "decision": "approved",
-            **runtime_server.create_score_details(720.0),
-        },
+        model_id="mdl_test",
+        response=response,
         latency_ms=10.0,
     )
+    assert len(shadow_tasks) == 1
+    assert shadow_tasks[0].request_id == "req_1"
+    assert shadow_tasks[0].plan.route is shadow_route
+    assert shadow_tasks[0].features == {"age": 35}
     assert decision_repo.create_decision.call_args.kwargs[
         "decision"
     ] == "approved"
+    decision = decision_repo.create_decision.call_args.kwargs
+    assert decision["source"] == DecisionStrategy.EXPERIMENT
+    assert decision["experiment_id"] == "exp_test"
+    assert decision["variant_id"] == "var_test"
+    assert decision["assignment_id"] == "asn_test"
     recorded_call = request_repo.mark_success.call_args
     assert recorded_call is not None
     assert list(recorded_call.kwargs["response"]) == [
         "success", "score", "probability", "decision", "score_intercept",
         "features", "request_id",
     ]
-    execution = execution_repo.create_execution.call_args.kwargs
+    execution = execution_repo.create_execution.call_args_list[0].kwargs
     assert execution["decision_id"] == "dcs_1"
     assert execution["model_id"] == "mdl_test"
     assert execution["version_id"] == "ver_test"
@@ -786,10 +1018,15 @@ async def test_record_batch_success_creates_decisions(
     assert execution["status"] == (
         ExecutionStatus.SUCCESS
     )
+    assert execution["latency_ms"] == 4.0
     assert execution["probability"] == 0.8
     assert execution["score"] == 720.0
     for key, value in runtime_server.create_score_details(720.0).items():
         assert execution["prediction"][key] == value
+    shadow_execution = execution_repo.create_execution.call_args_list[1].kwargs
+    assert shadow_execution["execution_type"] == ExecutionType.SHADOW
+    assert shadow_execution["status"] == ExecutionStatus.QUEUED
+    assert shadow_execution["deployment_id"] == "dep_shadow"
 
 
 @pytest.mark.asyncio
@@ -816,16 +1053,38 @@ async def test_record_batch_success_requires_request_record(
             batch_id="batch_test",
             request_ids=["req_1"],
             decision_ids=["dcs_1"],
-            route=RouteResult(
+            results=[ExecutionResult(
+                plan=ExecutionPlan(
+                    route=RouteResult(
+                        model_id="mdl_test",
+                        version_id="ver_test",
+                        deployment_id="dep_test",
+                        framework="sklearn",
+                        environment="testing",
+                        source="deployment",
+                        strategy="fallback",
+                    ),
+                    execution_type=ExecutionType.PRIMARY,
+                ),
+                prediction={},
+                latency_ms=4.0,
+            )],
+            routing_plans=[RoutingPlan(primary=RouteResult(
                 model_id="mdl_test",
                 version_id="ver_test",
                 deployment_id="dep_test",
                 framework="sklearn",
                 environment="testing",
                 source="deployment",
-                strategy="manual",
-            ),
-            predictions=[{}],
+                strategy="fallback",
+            ))],
+            instances=[PredictionInstance(
+                features={"age": 35},
+            )],
+            responses=[{
+                "success": True,
+                "request_id": "req_1",
+            }],
             latency_ms=10.0,
         )
 

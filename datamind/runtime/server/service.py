@@ -6,8 +6,8 @@
   - login: 使用本地账户登录
   - refresh: 续期并轮换刷新令牌
   - logout: 撤销刷新令牌
-  - predict: 单条模型推理
-  - predict_batch: 指定部署批量推理
+  - predict: 支持路由与实验分配的单条模型推理
+  - predict_batch: 支持路由与实验分配的批量模型推理
   - submit_outcome: 提交延迟业务结果
   - load: 设置部署期望状态为 loaded
   - unload: 设置部署期望状态为 unloaded
