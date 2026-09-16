@@ -22,6 +22,7 @@ EXPECTED_EXPORTS = {
     "DeploymentRequest",
     "OutcomeFeedbackRequest",
     "PredictRequest",
+    "PredictionInstance",
     "ServiceAuthenticationError",
     "ServiceAuthenticationUnavailableError",
     "ServiceAuthorizationError",

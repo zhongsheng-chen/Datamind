@@ -865,34 +865,42 @@ $singleResponse = Invoke-RestMethod `
 $singleResponse | ConvertTo-Json -Depth 20
 ```
 
-批量预测调用 `/predict/batch`。批量接口直接使用指定部署，`deployment_id` 和
-非空的 `features_list` 必填，不传 `model_name`、`subject_key` 或
-`subject_type`：
+批量预测调用 `/predict/batch`。`model_name` 和非空的 `instances` 必填；
+每个预测实例分别提供 `features`，并可按路由需求提供 `subject_key` 和
+`subject_type`。批量接口与单条接口使用相同的实验和路由规则：
 
 ```powershell
 $batchBody = @{
     request = @{
-        deployment_id = "dep_xxxxxxxxxxxxxxxx"
-        features_list = @(
+        model_name = "scorecard"
+        instances = @(
             @{
-                age = 35
-                annual_income = 120000.0
-                debt_to_income_ratio = 0.28
-                credit_utilization_ratio = 0.35
-                delinquency_count = 0
-                credit_history_years = 8.0
-                employment_type = "salaried"
-                residence_status = "mortgage"
+                subject_key = "customer_10001"
+                subject_type = "customer"
+                features = @{
+                    age = 35
+                    annual_income = 120000.0
+                    debt_to_income_ratio = 0.28
+                    credit_utilization_ratio = 0.35
+                    delinquency_count = 0
+                    credit_history_years = 8.0
+                    employment_type = "salaried"
+                    residence_status = "mortgage"
+                }
             },
             @{
-                age = 27
-                annual_income = 48000.0
-                debt_to_income_ratio = 0.62
-                credit_utilization_ratio = 0.78
-                delinquency_count = 2
-                credit_history_years = 1.5
-                employment_type = "contract"
-                residence_status = "rent"
+                subject_key = "customer_10002"
+                subject_type = "customer"
+                features = @{
+                    age = 27
+                    annual_income = 48000.0
+                    debt_to_income_ratio = 0.62
+                    credit_utilization_ratio = 0.78
+                    delinquency_count = 2
+                    credit_history_years = 1.5
+                    employment_type = "contract"
+                    residence_status = "rent"
+                }
             }
         )
     }
@@ -969,27 +977,35 @@ curl -fsS -X POST "http://localhost:8700/predict/batch" \
   --data-binary @- <<'JSON'
 {
   "request": {
-    "deployment_id": "dep_xxxxxxxxxxxxxxxx",
-    "features_list": [
+    "model_name": "scorecard",
+    "instances": [
       {
-        "age": 35,
-        "annual_income": 120000.0,
-        "debt_to_income_ratio": 0.28,
-        "credit_utilization_ratio": 0.35,
-        "delinquency_count": 0,
-        "credit_history_years": 8.0,
-        "employment_type": "salaried",
-        "residence_status": "mortgage"
+        "subject_key": "customer_10001",
+        "subject_type": "customer",
+        "features": {
+          "age": 35,
+          "annual_income": 120000.0,
+          "debt_to_income_ratio": 0.28,
+          "credit_utilization_ratio": 0.35,
+          "delinquency_count": 0,
+          "credit_history_years": 8.0,
+          "employment_type": "salaried",
+          "residence_status": "mortgage"
+        }
       },
       {
-        "age": 27,
-        "annual_income": 48000.0,
-        "debt_to_income_ratio": 0.62,
-        "credit_utilization_ratio": 0.78,
-        "delinquency_count": 2,
-        "credit_history_years": 1.5,
-        "employment_type": "contract",
-        "residence_status": "rent"
+        "subject_key": "customer_10002",
+        "subject_type": "customer",
+        "features": {
+          "age": 27,
+          "annual_income": 48000.0,
+          "debt_to_income_ratio": 0.62,
+          "credit_utilization_ratio": 0.78,
+          "delinquency_count": 2,
+          "credit_history_years": 1.5,
+          "employment_type": "contract",
+          "residence_status": "rent"
+        }
       }
     ]
   }
