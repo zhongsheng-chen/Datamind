@@ -115,8 +115,9 @@ class ScoringService(BaseRuntimeService):
             评分截距、特征评分明细和模型运行信息
 
         异常：
-            ValueError: 特征为空或无效、违约概率或信用分无效，或无法计算特征分
-            RuntimeError: WoE 转换结果与特征表不一致
+            ValueError: 输入特征或评分结果无效
+            TypeError: 特征类型无效
+            RuntimeError: 评分卡运行数据结构不一致
         """
         if not features:
             raise ValueError("features 不能为空")
@@ -144,8 +145,9 @@ class ScoringService(BaseRuntimeService):
             输入为空列表时，返回空结果列表，样本数量为 0。
 
         异常：
-            ValueError: 特征、违约概率或信用分无效，或无法计算特征分
-            RuntimeError: WoE 转换结果与特征表不一致
+            ValueError: 输入特征或评分结果无效
+            TypeError: 特征类型无效
+            RuntimeError: 评分卡运行数据结构不一致
             NotImplementedError: 模型不支持批量推理
         """
         self.require_capability(ModelCapability.BATCH_PREDICT)
