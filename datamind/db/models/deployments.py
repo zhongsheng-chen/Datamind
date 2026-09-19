@@ -190,7 +190,10 @@ class Deployment(
         server_default=text(
             "'inactive'"
         ),
-        comment="部署状态，可选值：active / inactive",
+        comment=(
+            "部署状态，可选值："
+            "active / inactive"
+        ),
     )
 
     rollout_type = Column(
@@ -227,7 +230,7 @@ class Deployment(
             timezone=True
         ),
         nullable=True,
-        comment="生效开始时间",
+        comment="生效时间",
     )
 
     effective_to = Column(
@@ -235,7 +238,7 @@ class Deployment(
             timezone=True
         ),
         nullable=True,
-        comment="生效结束时间",
+        comment="失效时间",
     )
 
     threshold = Column(

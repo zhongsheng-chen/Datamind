@@ -24,7 +24,7 @@ from datamind.audit.sinks import (
     AuditSink,
     DatabaseAuditSink,
 )
-from datamind.config import get_settings
+from datamind.config import get_audit_config
 from datamind.config.audit import AuditConfig
 
 logger = structlog.get_logger(__name__)
@@ -54,8 +54,14 @@ class AuditService:
             sink: AuditSink | None = None,
             config: AuditConfig | None = None,
     ) -> None:
+        """初始化审计服务
+
+        参数：
+            sink: 审计写入端，默认使用 DatabaseAuditSink
+            config: 审计配置，默认使用全局审计配置
+        """
         self._sink = sink or DatabaseAuditSink()
-        self._config = config or get_settings().audit
+        self._config = config or get_audit_config()
 
     async def record(
             self,

@@ -96,7 +96,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             secret_key: 秘密密钥
             bucket: 存储桶名称
             secure: 是否启用 TLS
-            base_prefix: 对象基础前缀
+            base_prefix: 对象基础前缀，默认为空
             region: 区域（可选）
         """
         normalized_bucket = bucket.strip()

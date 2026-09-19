@@ -9,6 +9,7 @@
   - PredictRequest: 单条预测请求
   - PredictionInstance: 批量预测中的单条预测实例
   - BatchPredictRequest: 批量预测请求
+  - BatchReferenceRequest: 批次状态、取消和重试请求
   - OutcomeFeedbackRequest: 业务结果回流请求
   - ServiceDeploymentNotFoundError: 服务部署不存在
   - ServiceEnvironmentMismatchError: 服务环境不匹配
@@ -43,6 +44,10 @@ _EXPORTS: Final[dict[str, tuple[str, str]]] = {
     "BatchPredictRequest": (
         "datamind.runtime.server.schemas",
         "BatchPredictRequest",
+    ),
+    "BatchReferenceRequest": (
+        "datamind.runtime.server.schemas",
+        "BatchReferenceRequest",
     ),
     "ControlRequest": ("datamind.runtime.server.schemas", "ControlRequest"),
     "DatamindRuntimeService": (

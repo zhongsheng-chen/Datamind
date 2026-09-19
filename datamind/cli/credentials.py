@@ -94,7 +94,11 @@ class CredentialStore:
             self,
             path: Path | None = None,
     ) -> None:
-        """初始化凭据存储"""
+        """初始化凭据存储
+
+        参数：
+            path: 凭据文件路径，默认自动获取用户配置目录
+        """
         self.path = (
             path
             if path is not None

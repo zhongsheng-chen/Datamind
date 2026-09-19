@@ -7,9 +7,12 @@
   - AuthConfig: 读取并校验认证服务配置
 
 环境变量：
-  - DATAMIND_AUTH_ENABLED: 是否启用认证功能，默认 false
-  - DATAMIND_AUTH_SECRET_KEY: JWT 签名密钥，默认空
-  - DATAMIND_AUTH_ALGORITHM: JWT 签名算法，默认 HS256
+  - DATAMIND_AUTH_ENABLED:
+    是否启用认证功能，默认 false
+  - DATAMIND_AUTH_SECRET_KEY:
+    JWT 签名密钥，默认空
+  - DATAMIND_AUTH_ALGORITHM:
+    JWT 签名算法，默认 HS256
   - DATAMIND_AUTH_ACCESS_TOKEN_EXPIRES_MINUTES:
     访问令牌有效时间，默认 30
   - DATAMIND_AUTH_REFRESH_TOKEN_EXPIRES_DAYS:

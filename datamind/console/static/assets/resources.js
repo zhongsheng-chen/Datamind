@@ -4,6 +4,14 @@ import {
   getDetailRoute,
   synchronizeDetailDrawer,
 } from "./details/common.js";
+import { createScorecardPage } from "./scorecard.js";
+import {
+  buildHashQuery as createHashQuery,
+  buildPageQuery as createPageQuery,
+  normalizeSortParameters as normalizeSort,
+  parsePageSize as parseConfiguredPageSize,
+  parseSortRules as parseSort,
+} from "./resources/query.js";
 
 /**
  * 创建资源列表控制器。
@@ -34,6 +42,7 @@ export function createResourceListController({
   backButton,
   createButton,
   createDataCell,
+  createAttemptExecutionPage,
   createSortHeader,
   dashboardView,
   dataPanel,
@@ -59,6 +68,8 @@ export function createResourceListController({
   selectionCount,
   selectionSummary,
   showAuditDetails,
+  showAttemptDetails,
+  showBatchDetails,
   showDecisionDetails,
   showDeploymentDrawer,
   showExecutionDetails,
@@ -86,13 +97,33 @@ export function createResourceListController({
   let sectionRequestKey = null;
   let versionRequestKey = null;
   let variantRequestKey = null;
+  let scorecardRequestKey = null;
   let detailRequestKey = null;
+  let attemptRequestKey = null;
   const tableScrollPositions = new Map();
+  const pageScrollPositions = new Map();
+
+  window.addEventListener("scroll", () => {
+    pageScrollPositions.set(getTableScrollScope(), {
+      left: window.scrollX,
+      top: window.scrollY,
+    });
+  }, { passive: true });
 
   function renderSection() {
     const snapshot = state.snapshot;
   
     if (snapshot === null) return;
+
+    const focusedControl = document.activeElement;
+    const focusKey = (
+      focusedControl instanceof HTMLInputElement
+      && tableContainer.contains(focusedControl)
+    ) ? focusedControl.dataset.renderFocusKey || "" : "";
+    const selectionStart = focusKey ? focusedControl.selectionStart : null;
+    const selectionEnd = focusKey ? focusedControl.selectionEnd : null;
+
+    restorePageScrollAfterRender();
   
     dashboardView.classList.toggle(
       "overview-active",
@@ -101,6 +132,17 @@ export function createResourceListController({
     dataPanel.classList.remove("access-empty");
   
     tableContainer.replaceChildren();
+    if (focusKey) {
+      window.queueMicrotask(() => {
+        const replacement = [...tableContainer.querySelectorAll(
+          "[data-render-focus-key]",
+        )].find((element) => element.dataset.renderFocusKey === focusKey);
+        if (!(replacement instanceof HTMLInputElement)) return;
+        replacement.focus({ preventScroll: true });
+        if (selectionStart === null || selectionEnd === null) return;
+        replacement.setSelectionRange(selectionStart, selectionEnd);
+      });
+    }
     backButton.hidden = true;
     createButton.hidden = true;
     selectionSummary.hidden = true;
@@ -152,7 +194,11 @@ export function createResourceListController({
         || modelRecords.find((record) => record.model_id === selectedModelId)
         || { model_id: selectedModelId, name: selectedModelId }
       );
-      renderModelVersionsPage(model);
+      if (state.selectedScorecardVersionId !== null) {
+        renderScorecardPage(model);
+      } else {
+        renderModelVersionsPage(model);
+      }
       return;
     }
   
@@ -168,8 +214,66 @@ export function createResourceListController({
       renderExperimentVariantsPage(experiment);
       return;
     }
+
+    if (state.active === "attempts" && state.selectedAttemptId !== null) {
+      renderAttemptPage();
+      return;
+    }
   
     renderSectionPage(config);
+  }
+
+  function renderAttemptPage() {
+    const view = state.selectedAttemptView === "shards" ? "shards" : "timeline";
+    const caption = document.querySelector("#section-caption");
+    document.querySelector("#page-title").textContent = "子任务执行";
+    document.querySelector("#section-title").textContent = "子任务执行详情";
+    caption.textContent = `执行实例 ${state.selectedAttemptId}`;
+    caption.hidden = false;
+    backButton.hidden = false;
+    backButton.textContent = "返回任务执行";
+    tableControls.setQueryAvailable(false);
+
+    if (state.attemptPageError !== null) {
+      renderEmpty("执行数据加载失败", state.attemptPageError);
+      return;
+    }
+    if (state.selectedAttempt === null) {
+      renderEmpty("正在加载执行数据", "请稍候…");
+      void loadAttemptPage(state.selectedAttemptId);
+      return;
+    }
+    tableContainer.append(createAttemptExecutionPage(state.selectedAttempt, view));
+  }
+
+  async function loadAttemptPage(attemptId) {
+    if (!attemptId || attemptRequestKey === attemptId) return;
+    attemptRequestKey = attemptId;
+    try {
+      const response = await request(
+        `sections/attempts?${buildPageQuery(1, 100, `attempt_id:${attemptId}`)}`,
+      );
+      if (state.selectedAttemptId !== attemptId) return;
+      const record = (Array.isArray(response?.items) ? response.items : [])
+        .find((item) => String(item.attempt_id) === attemptId);
+      if (!record) {
+        state.selectedAttempt = null;
+        state.attemptPageError = "执行实例不存在或无权查看";
+        renderSection();
+        return;
+      }
+      state.selectedAttempt = record;
+      state.attemptPageError = null;
+      renderSection();
+    } catch (error) {
+      if (state.selectedAttemptId !== attemptId) return;
+      state.attemptPageError = error instanceof Error
+        ? error.message
+        : "执行数据加载失败";
+      renderSection();
+    } finally {
+      if (attemptRequestKey === attemptId) attemptRequestKey = null;
+    }
   }
   
   /**
@@ -212,6 +316,8 @@ export function createResourceListController({
       variants: showVariantDetails,
       runtimes: showRuntimeDetails,
       requests: showRequestDetails,
+      batches: showBatchDetails,
+      attempts: showAttemptDetails,
       decisions: showDecisionDetails,
       executions: showExecutionDetails,
       audits: showAuditDetails,
@@ -283,6 +389,7 @@ export function createResourceListController({
         toast("详情记录不存在或无权查看");
         return;
       }
+      if (synchronizeDetailDrawer(activeRoute)) return;
       showRecordDetails(route.section, record);
     } catch (error) {
       if (getDetailRoute()?.id === route.id) {
@@ -331,32 +438,33 @@ export function createResourceListController({
    * @returns {void} 无返回值
    */
   function renderSectionPage(config) {
+    const currentView = getSectionView(state.active);
+    const currentConfig = config;
     document.querySelector("#section-title").textContent = config.title;
     document.querySelector("#page-title").textContent = config.label;
     const caption = document.querySelector("#section-caption");
     updateSearchForm(
       state.sectionQuery,
-      `查询${config.label}`,
+      `查询${currentConfig.label}`,
     );
     caption.textContent = `第 ${formatInteger(state.sectionPage)} 页`;
     caption.hidden = false;
     const inRecyclableSection = recyclableSections.has(state.active);
-    const currentView = getSectionView(state.active);
     const inTrash = inRecyclableSection && currentView === "trash";
-    const columns = inTrash ? deletedSectionColumns[state.active] : config.columns;
+    const columns = inTrash ? deletedSectionColumns[state.active] : currentConfig.columns;
   
     if (inRecyclableSection) {
-      showResourceViewToggle(config.label, currentView);
+      showResourceViewToggle(currentConfig.label, currentView);
       if (inTrash) createButton.hidden = true;
     }
   
     if (state.sectionError !== null) {
-      renderEmpty(`${config.label}加载失败`, state.sectionError);
+      renderEmpty(`${currentConfig.label}加载失败`, state.sectionError);
       return;
     }
   
     if (state.sectionData === null) {
-      renderEmpty(`正在加载${config.label}`, "请稍候…");
+      renderEmpty(`正在加载${currentConfig.label}`, "请稍候…");
       void loadSectionPage(
         state.active,
         state.sectionPage,
@@ -370,7 +478,7 @@ export function createResourceListController({
     const totalPages = formatInteger(state.sectionData.total_pages);
     const pageCount = formatInteger(records.length);
     const itemLabel = inTrash
-      ? `条已删除${config.label}`
+      ? `条已删除${currentConfig.label}`
       : "条";
     caption.textContent = state.sectionQuery
       ? `查询“${state.sectionQuery}” · 共 ${total} ${itemLabel} · 第 ${page}/${totalPages} 页 · 本页 ${pageCount} 条`
@@ -381,11 +489,11 @@ export function createResourceListController({
       renderEmpty(
         state.sectionQuery
           ? "没有匹配的记录"
-          : (inTrash ? "回收站为空" : `暂无${config.label}记录`),
+          : (inTrash ? "回收站为空" : `暂无${currentConfig.label}记录`),
         state.sectionQuery
           ? "请尝试其他关键词。"
           : (inTrash
-            ? `删除的${config.label}将在这里显示。`
+            ? `删除的${currentConfig.label}将在这里显示。`
             : (state.active === "runtimes"
               ? "当前没有在线或正在加载的实例。"
               : "数据产生后将在这里显示。")),
@@ -452,7 +560,7 @@ export function createResourceListController({
   
     renderPagination(
       state.sectionData,
-      `${config.label}分页`,
+      `${currentConfig.label}分页`,
       (page, pageSize) => navigateToSection(
         state.active,
         page,
@@ -694,6 +802,65 @@ export function createResourceListController({
       ),
     );
   }
+
+  function renderScorecardPage(model) {
+    const versionId = state.selectedScorecardVersionId;
+    summaryGrid.hidden = true;
+    createButton.hidden = true;
+    resourceViewToggle.hidden = true;
+    selectionSummary.hidden = true;
+    tableControls.setQueryAvailable(false);
+    document.querySelector("#page-title").textContent = "评分表";
+    document.querySelector("#section-title").textContent = `${model.name} 的评分表`;
+    const caption = document.querySelector("#section-caption");
+    caption.textContent = versionId ? `版本 ID：${versionId}` : "";
+    caption.hidden = false;
+    backButton.textContent = "返回版本";
+    backButton.hidden = false;
+
+    if (state.scorecardError !== null) {
+      renderEmpty("评分表加载失败", state.scorecardError);
+      return;
+    }
+    if (state.scorecardData === null) {
+      renderEmpty("正在加载评分表", "请稍候…");
+      void loadScorecardPage(String(versionId || ""));
+      return;
+    }
+    const version = state.scorecardData;
+    document.querySelector("#section-title").textContent = (
+      `${version.model_name || model.name} · 版本 ${version.version || "—"} 评分表`
+    );
+    tableContainer.append(createScorecardPage(version));
+  }
+
+  async function loadScorecardPage(versionId) {
+    if (!versionId || scorecardRequestKey === versionId) return;
+    scorecardRequestKey = versionId;
+    try {
+      const version = await request(
+        `versions/${encodeURIComponent(versionId)}/detail`,
+      );
+      if (state.selectedScorecardVersionId !== versionId) return;
+      state.scorecardData = version;
+      state.scorecardError = null;
+      if (!state.selectedModel) {
+        state.selectedModel = {
+          model_id: version.model_id,
+          name: version.model_name || version.model_id,
+        };
+      }
+      renderSection();
+    } catch (error) {
+      if (state.selectedScorecardVersionId !== versionId) return;
+      state.scorecardError = error instanceof Error
+        ? error.message
+        : "评分表加载失败";
+      renderSection();
+    } finally {
+      if (scorecardRequestKey === versionId) scorecardRequestKey = null;
+    }
+  }
   
   /**
    * 渲染指定实验的分组列表。
@@ -836,6 +1003,7 @@ export function createResourceListController({
         || state.sectionQuery !== query
         || state.sectionSort !== sortBy
         || state.sectionOrder !== sortOrder
+        || getSectionView(section) !== view
         || (
           recyclableSections.has(section)
           && (section === "versions"
@@ -869,6 +1037,7 @@ export function createResourceListController({
         || state.sectionQuery !== query
         || state.sectionSort !== sortBy
         || state.sectionOrder !== sortOrder
+        || getSectionView(section) !== view
         || (
           recyclableSections.has(section)
           && (section === "versions"
@@ -991,13 +1160,35 @@ export function createResourceListController({
     scrollContainer.append(table);
     tableContainer.append(scrollContainer);
     const scope = getTableScrollScope();
-    scrollContainer.scrollLeft = tableScrollPositions.get(scope) || 0;
+    const position = tableScrollPositions.get(scope) || { left: 0, top: 0 };
+    scrollContainer.scrollLeft = position.left;
+    scrollContainer.scrollTop = position.top;
     scrollContainer.addEventListener("scroll", () => {
-      tableScrollPositions.set(scope, scrollContainer.scrollLeft);
+      tableScrollPositions.set(scope, {
+        left: scrollContainer.scrollLeft,
+        top: scrollContainer.scrollTop,
+      });
     }, { passive: true });
   }
 
+  function restorePageScrollAfterRender() {
+    const scope = getTableScrollScope();
+    const position = pageScrollPositions.get(scope) || { left: 0, top: 0 };
+    window.requestAnimationFrame(() => {
+      if (getTableScrollScope() !== scope) return;
+      window.scrollTo(position.left, position.top);
+    });
+  }
+
   function getTableScrollScope() {
+    if (state.selectedScorecardVersionId !== null) {
+      return [
+        "scorecard",
+        state.selectedModelId,
+        state.selectedScorecardVersionId,
+      ].join(":");
+    }
+
     if (state.selectedModelId !== null) {
       return [
         "versions",
@@ -1044,6 +1235,10 @@ export function createResourceListController({
       return `variants:${state.selectedExperimentId}:${state.variantView}:${state.variantQuery}`;
     }
   
+    if (state.active === "requests") {
+      return `requests:${getSectionView("requests")}:${state.sectionQuery}`;
+    }
+
     if (recyclableSections.has(state.active)) {
       const view = state.active === "versions"
         ? state.versionView
@@ -1239,16 +1434,7 @@ export function createResourceListController({
     sortBy = "",
     sortOrder = "asc",
   ) {
-    const parameters = new URLSearchParams({
-      page: String(page),
-      page_size: String(pageSize),
-    });
-    if (query) parameters.set("q", query);
-    if (sortBy) {
-      parameters.set("sort", sortBy);
-      parameters.set("order", sortOrder);
-    }
-    return parameters.toString();
+    return createPageQuery(page, pageSize, query, sortBy, sortOrder);
   }
   
   function buildHashQuery(
@@ -1258,16 +1444,14 @@ export function createResourceListController({
     sortBy = "",
     sortOrder = "asc",
   ) {
-    const parameters = new URLSearchParams();
-    if (page > 1) parameters.set("page", String(page));
-    if (pageSize !== defaultPageSize) parameters.set("page_size", String(pageSize));
-    if (query) parameters.set("q", query);
-    if (sortBy) {
-      parameters.set("sort", sortBy);
-      parameters.set("order", sortOrder);
-    }
-    const value = parameters.toString();
-    return value ? `?${value}` : "";
+    return createHashQuery(
+      page,
+      pageSize,
+      query,
+      sortBy,
+      sortOrder,
+      defaultPageSize,
+    );
   }
   
   /**
@@ -1278,21 +1462,7 @@ export function createResourceListController({
    * @returns {[string, string]} 规范化后的字段和方向
    */
   function normalizeSortParameters(sortBy, sortOrder) {
-    const fields = (sortBy || "")
-      .split(",")
-      .map((field) => field.trim())
-      .filter((field, index, values) => field && values.indexOf(field) === index)
-      .slice(0, maxSortFields);
-  
-    if (!fields.length) return ["", "asc"];
-  
-    const directions = (sortOrder || "")
-      .split(",")
-      .map((direction) => (direction.trim().toLowerCase() === "desc" ? "desc" : "asc"));
-    return [
-      fields.join(","),
-      fields.map((_field, index) => directions[index] || "asc").join(","),
-    ];
+    return normalizeSort(sortBy, sortOrder, maxSortFields);
   }
   
   /**
@@ -1303,22 +1473,11 @@ export function createResourceListController({
    * @returns {{field: string, order: string}[]} 排序规则列表
    */
   function parseSortRules(sortBy, sortOrder) {
-    const [normalizedSort, normalizedOrder] = normalizeSortParameters(
-      sortBy,
-      sortOrder,
-    );
-    if (!normalizedSort) return [];
-    const fields = normalizedSort.split(",");
-    const directions = normalizedOrder.split(",");
-    return fields.map((field, index) => ({
-      field,
-      order: directions[index],
-    }));
+    return parseSort(sortBy, sortOrder, maxSortFields);
   }
   
   function parsePageSize(value) {
-    const pageSize = Number.parseInt(value || "", 10);
-    return pageSizeOptions.includes(pageSize) ? pageSize : defaultPageSize;
+    return parseConfiguredPageSize(value, pageSizeOptions, defaultPageSize);
   }
 
   return {

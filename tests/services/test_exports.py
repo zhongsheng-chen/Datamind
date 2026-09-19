@@ -13,20 +13,21 @@ import datamind.services as services
 import datamind.services.errors as service_errors
 
 
-EXPECTED_EXPORTS = {
-    "DashboardService",
-    "DeploymentLifecycleService",
-    "ExperimentLifecycleService",
+EXPECTED_EXPORTS = [
     "InitializationService",
     "IdentityService",
-    "ModelDeletionService",
-    "ModelLifecycleService",
     "ModelRegistrationService",
     "ModelCatalogService",
-    "OutcomeService",
-    "RuntimeControlService",
+    "ModelDeletionService",
+    "ModelLifecycleService",
+    "DeploymentLifecycleService",
     "RoutingLifecycleService",
-}
+    "ExperimentLifecycleService",
+    "BatchLifecycleService",
+    "RuntimeControlService",
+    "OutcomeService",
+    "DashboardService",
+]
 
 EXPECTED_ERROR_EXPORTS = {
     "AlreadyInitializedError",
@@ -39,9 +40,8 @@ EXPECTED_ERROR_EXPORTS = {
 
 
 def test_service_exports_expected_public_api() -> None:
-    """测试业务服务包公开完整且准确的 API"""
-    assert set(services.__all__) == EXPECTED_EXPORTS
-    assert len(services.__all__) == len(EXPECTED_EXPORTS)
+    """测试业务服务包按约定顺序公开完整且准确的 API"""
+    assert services.__all__ == EXPECTED_EXPORTS
 
 
 def test_all_declared_exports_are_available() -> None:

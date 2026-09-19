@@ -40,7 +40,11 @@ from typing import Any
 
 import structlog
 
-from datamind.config import get_settings
+from datamind.config import (
+    get_classification_config,
+    get_runtime_config,
+    get_scoring_config,
+)
 from datamind.config.classification import ClassificationConfig
 from datamind.config.scoring import ScoringConfig
 from datamind.constants import (
@@ -844,7 +848,7 @@ class DeploymentLifecycleService:
                     datetime.now(timezone.utc)
                     - timedelta(
                         seconds=(
-                            get_settings().runtime.heartbeat_interval
+                            get_runtime_config().heartbeat_interval
                             * 3
                         )
                     )
@@ -1038,14 +1042,14 @@ class DeploymentLifecycleService:
                 return ClassificationConfig(
                     threshold=threshold
                     if threshold is not None
-                    else ClassificationConfig().threshold
+                    else get_classification_config().threshold
                 ).threshold
 
             if task_type == "scoring":
                 return ScoringConfig(
                     threshold=threshold
                     if threshold is not None
-                    else ScoringConfig().threshold
+                    else get_scoring_config().threshold
                 ).threshold
 
             raise DeploymentError(

@@ -3,7 +3,8 @@
 验证页面、接口和静态资源路由集中注册且方法约束准确。
 
 核心功能：
-  - test_create_routes_registers_expected_endpoints: 验证控制台路由表
+  - test_create_routes_registers_expected_endpoints:
+    验证控制台路由表
 """
 
 from dataclasses import fields
@@ -54,6 +55,7 @@ def test_create_routes_registers_expected_endpoints() -> None:
     }
 
     assert http_routes["/health"] == {"GET", "HEAD"}
+    assert http_routes["/ready"] == {"GET", "HEAD"}
     assert http_routes["/api/models"] == {"POST"}
     assert http_routes[
         "/api/models/{model_id:str}/detail"

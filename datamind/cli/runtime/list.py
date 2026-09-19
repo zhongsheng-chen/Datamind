@@ -19,8 +19,8 @@ from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.config import get_settings
-from datamind.services import RuntimeControlService
+from datamind.config import get_service_config
+from datamind.services.control import RuntimeControlService
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,
@@ -57,7 +57,7 @@ def list_runtimes(
         ),
 ):
     """查询部署运行状态列表"""
-    environment = str(get_settings().service.environment)
+    environment = get_service_config().environment.value
 
     async def _run():
         if output not in ("text", "json"):

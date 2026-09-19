@@ -19,7 +19,7 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.cli.output import CLIConsole
 from datamind.models.errors import ModelError
-from datamind.services import ModelDeletionService
+from datamind.services.deletion import ModelDeletionService
 
 app = typer.Typer(help="永久清理模型命令")
 console = CLIConsole()

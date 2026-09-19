@@ -135,15 +135,14 @@ class AuthService:
             grant_repo: 角色授予仓储
             token_repo: 刷新令牌仓储
             secret_key: JWT 签名密钥
-            provider: 本地认证提供方（可选）
-            algorithm: JWT 签名算法
-            access_token_expires_minutes: 访问令牌有效分钟数
-            refresh_token_expires_days: 刷新令牌有效天数
-            max_failed_login_attempts: 本地认证最大连续失败次数
-            lock_minutes: 本地认证达到失败阈值后的锁定分钟数
-            local_allowed_networks: LOCAL 认证允许访问的网段
-            break_glass_access_token_expires_minutes:
-                应急访问令牌有效分钟数
+            provider: 本地认证提供方，默认使用 LocalAuthProvider
+            algorithm: JWT 签名算法，默认值为 HS256
+            access_token_expires_minutes: 访问令牌有效分钟数，默认值为 30
+            refresh_token_expires_days: 刷新令牌有效天数，默认值为 7
+            max_failed_login_attempts: 本地认证最大连续失败次数，默认值为 5
+            lock_minutes: 本地认证达到失败阈值后的锁定分钟数，默认值为 30
+            local_allowed_networks: LOCAL 认证允许访问的网段，默认为空
+            break_glass_access_token_expires_minutes: 应急访问令牌有效分钟数，默认值为 15
 
         异常：
             ValueError: 配置参数无效

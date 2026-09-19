@@ -32,8 +32,8 @@ class MutationResult(dict[str, Any]):
 
         参数：
             data: 返回给调用方的响应数据
-            before: 变更前的审计快照
-            after: 变更后的审计快照
+            before: 变更前的审计快照（可选）
+            after: 变更后的审计快照（可选）
         """
         super().__init__(data)
         self.before = before

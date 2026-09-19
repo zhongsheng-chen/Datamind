@@ -3,11 +3,16 @@
 验证浏览器登录、令牌轮换、会话查询和退出登录行为。
 
 核心功能：
-  - test_login_rejects_invalid_credentials: 验证登录失败响应与安全审计
-  - test_refresh_rotates_session_cookies: 验证会话令牌轮换
-  - test_refresh_clears_invalid_session: 验证失效会话清理
-  - test_logout_revokes_refresh_token: 验证退出登录与安全审计
-  - test_session_returns_authenticated_user: 验证会话用户查询
+  - test_login_rejects_invalid_credentials:
+    验证登录失败响应与安全审计
+  - test_refresh_rotates_session_cookies:
+    验证会话令牌轮换
+  - test_refresh_clears_invalid_session:
+    验证失效会话清理
+  - test_logout_revokes_refresh_token:
+    验证退出登录与安全审计
+  - test_session_returns_authenticated_user:
+    验证会话用户查询
 """
 
 import importlib
@@ -38,12 +43,8 @@ from datamind.auth.schemas import (
 )
 
 
-app_module = importlib.import_module(
-    "datamind.console.app"
-)
-cookies_module = importlib.import_module(
-    "datamind.console.cookies"
-)
+app_module = importlib.import_module("datamind.console.app")
+cookies_module = importlib.import_module("datamind.console.cookies")
 
 
 class FakeUnitOfWork:
@@ -58,9 +59,9 @@ class FakeUnitOfWork:
         return self
 
     async def __aexit__(
-            self,
-            exception_type: type[BaseException] | None,
-            *_args: object,
+        self,
+        exception_type: type[BaseException] | None,
+        *_args: object,
     ) -> bool:
         type(self).exit_exception_type = exception_type
         return False
@@ -74,18 +75,14 @@ def create_user() -> AuthenticatedUser:
         display_name="Alice",
         email="alice@example.com",
         status=UserStatus.ACTIVE,
-        roles=[
-            "developer"
-        ],
-        permissions=[
-            "model.read"
-        ],
+        roles=["developer"],
+        permissions=["model.read"],
     )
 
 
 def install_auth_service(
-        monkeypatch: pytest.MonkeyPatch,
-        service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    service: MagicMock,
 ) -> tuple[MagicMock, MagicMock]:
     """安装认证服务和隔离配置替身"""
     FakeUnitOfWork.exit_exception_type = None
@@ -101,12 +98,8 @@ def install_auth_service(
     )
     monkeypatch.setitem(
         vars(cookies_module),
-        "get_settings",
-        lambda: SimpleNamespace(
-            auth=SimpleNamespace(
-                refresh_token_expires_days=7
-            )
-        ),
+        "get_auth_config",
+        lambda: SimpleNamespace(refresh_token_expires_days=7),
     )
     audit_recorder = MagicMock()
     audit_recorder.record = AsyncMock()
@@ -131,14 +124,12 @@ def install_auth_service(
 
 @pytest.mark.asyncio
 async def test_login_rejects_invalid_credentials(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试登录拒绝无效用户名或密码"""
     service = MagicMock()
     service.login = AsyncMock(
-        side_effect=InvalidCredentialsError(
-            "invalid credentials"
-        )
+        side_effect=InvalidCredentialsError("invalid credentials")
     )
     audit_recorder, auth_logger = install_auth_service(
         monkeypatch,
@@ -146,10 +137,8 @@ async def test_login_rejects_invalid_credentials(
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         response = await client.post(
             "/api/login",
@@ -159,16 +148,12 @@ async def test_login_rejects_invalid_credentials(
             },
             headers={
                 "X-Request-ID": "req_login_failed",
-                "X-Trace-ID": (
-                    "0123456789abcdef0123456789abcdef"
-                ),
+                "X-Trace-ID": "0123456789abcdef0123456789abcdef",
             },
         )
 
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "用户名或密码错误"
-    }
+    assert response.json() == {"error": "用户名或密码错误"}
     assert FakeUnitOfWork.exit_exception_type is None
     audit_recorder.record.assert_awaited_once()
     audit_call = audit_recorder.record.await_args
@@ -176,24 +161,16 @@ async def test_login_rejects_invalid_credentials(
     assert audit_call.kwargs["action"] == "auth.login"
     assert audit_call.kwargs["target_id"] == "unknown"
     assert audit_call.kwargs["status"] == "failed"
-    assert audit_call.kwargs["context"]["user"] == (
-        "anonymous"
-    )
-    assert audit_call.kwargs["context"][
-        "attempted_username"
-    ] == "unregistered_user"
+    assert audit_call.kwargs["context"]["user"] == "anonymous"
+    assert audit_call.kwargs["context"]["attempted_username"] == "unregistered_user"
     assert audit_call.kwargs["after"] == {
         "status_code": 401,
     }
-    assert audit_call.kwargs["context"]["request_id"] == (
-        "req_login_failed"
-    )
+    assert audit_call.kwargs["context"]["request_id"] == "req_login_failed"
     auth_logger.warning.assert_called_once()
     warning_call = auth_logger.warning.call_args
     assert warning_call.kwargs["user"] == "anonymous"
-    assert warning_call.kwargs[
-        "attempted_username"
-    ] == "unregistered_user"
+    assert warning_call.kwargs["attempted_username"] == "unregistered_user"
     recorded = f"{audit_call!r}{auth_logger.warning.call_args!r}"
     assert "wrong" not in recorded
 
@@ -213,25 +190,21 @@ async def test_login_rejects_invalid_credentials(
     ],
 )
 async def test_login_reports_unavailable_user_status(
-        monkeypatch: pytest.MonkeyPatch,
-        error: AuthError,
-        message: str,
+    monkeypatch: pytest.MonkeyPatch,
+    error: AuthError,
+    message: str,
 ) -> None:
     """测试密码正确时返回明确的用户不可用状态"""
     service = MagicMock()
-    service.login = AsyncMock(
-        side_effect=error
-    )
+    service.login = AsyncMock(side_effect=error)
     install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         response = await client.post(
             "/api/login",
@@ -242,33 +215,25 @@ async def test_login_reports_unavailable_user_status(
         )
 
     assert response.status_code == 403
-    assert response.json() == {
-        "error": message
-    }
+    assert response.json() == {"error": message}
     assert FakeUnitOfWork.exit_exception_type is None
 
 
 @pytest.mark.asyncio
 async def test_login_reports_unavailable_database(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试登录在数据库异常时返回服务不可用"""
     service = MagicMock()
-    service.login = AsyncMock(
-        side_effect=SQLAlchemyError(
-            "database unavailable"
-        )
-    )
+    service.login = AsyncMock(side_effect=SQLAlchemyError("database unavailable"))
     install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         response = await client.post(
             "/api/login",
@@ -279,14 +244,12 @@ async def test_login_reports_unavailable_database(
         )
 
     assert response.status_code == 503
-    assert response.json() == {
-        "error": "认证服务暂不可用"
-    }
+    assert response.json() == {"error": "认证服务暂不可用"}
 
 
 @pytest.mark.asyncio
 async def test_login_without_refresh_token_clears_refresh_cookie(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试无刷新令牌的登录会话清理旧 Cookie"""
     service = MagicMock()
@@ -297,19 +260,15 @@ async def test_login_without_refresh_token_clears_refresh_cookie(
             expires_in=1800,
         )
     )
-    service.authenticate_access_token = AsyncMock(
-        return_value=create_user()
-    )
+    service.authenticate_access_token = AsyncMock(return_value=create_user())
     audit_recorder, auth_logger = install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="https://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="https://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_refresh",
@@ -323,24 +282,18 @@ async def test_login_without_refresh_token_clears_refresh_cookie(
             },
             headers={
                 "X-Request-ID": "req_login_success",
-                "X-Trace-ID": (
-                    "0123456789abcdef0123456789abcdef"
-                ),
+                "X-Trace-ID": "0123456789abcdef0123456789abcdef",
             },
         )
 
-    cookies = response.headers.get_list(
-        "set-cookie"
-    )
+    cookies = response.headers.get_list("set-cookie")
     assert response.status_code == 200
     assert any(
-        "datamind_console_access=access-token" in cookie
-        and "Secure" in cookie
+        "datamind_console_access=access-token" in cookie and "Secure" in cookie
         for cookie in cookies
     )
     assert any(
-        "datamind_console_refresh=" in cookie
-        and "Max-Age=0" in cookie
+        "datamind_console_refresh=" in cookie and "Max-Age=0" in cookie
         for cookie in cookies
     )
     audit_recorder.record.assert_awaited_once()
@@ -350,12 +303,8 @@ async def test_login_without_refresh_token_clears_refresh_cookie(
     assert audit_call.kwargs["target_id"] == "usr_alice"
     assert audit_call.kwargs["status"] == "success"
     assert audit_call.kwargs["context"]["user"] == "alice"
-    assert "attempted_username" not in (
-        audit_call.kwargs["context"]
-    )
-    assert audit_call.kwargs["context"]["hostname"] == (
-        "console-host"
-    )
+    assert "attempted_username" not in (audit_call.kwargs["context"])
+    assert audit_call.kwargs["context"]["hostname"] == "console-host"
     auth_logger.info.assert_called_once()
     recorded = f"{audit_call!r}{auth_logger.info.call_args!r}"
     assert "secret" not in recorded
@@ -364,7 +313,7 @@ async def test_login_without_refresh_token_clears_refresh_cookie(
 
 @pytest.mark.asyncio
 async def test_refresh_requires_refresh_cookie(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试缺少刷新令牌时返回未登录且不记录续期警告"""
     auth_logger = MagicMock()
@@ -374,25 +323,19 @@ async def test_refresh_requires_refresh_cookie(
         auth_logger,
     )
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
-        response = await client.post(
-            "/api/refresh"
-        )
+        response = await client.post("/api/refresh")
 
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "登录会话已过期"
-    }
+    assert response.json() == {"error": "登录会话已过期"}
     assert not auth_logger.mock_calls
 
 
 @pytest.mark.asyncio
 async def test_refresh_rotates_session_cookies(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试会话续期轮换访问令牌和刷新令牌"""
     service = MagicMock()
@@ -409,77 +352,54 @@ async def test_refresh_rotates_session_cookies(
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_refresh",
             "old-refresh-token",
         )
-        response = await client.post(
-            "/api/refresh"
-        )
+        response = await client.post("/api/refresh")
 
-    cookies = response.headers.get_list(
-        "set-cookie"
-    )
+    cookies = response.headers.get_list("set-cookie")
     assert response.status_code == 204
     assert any(
-        "datamind_console_access=new-access-token" in cookie
-        for cookie in cookies
+        "datamind_console_access=new-access-token" in cookie for cookie in cookies
     )
     assert any(
-        "datamind_console_refresh=new-refresh-token" in cookie
-        for cookie in cookies
+        "datamind_console_refresh=new-refresh-token" in cookie for cookie in cookies
     )
     refresh_call = service.refresh.await_args
     assert refresh_call is not None
     refresh_request = refresh_call.args[0]
-    assert (
-        refresh_request.refresh_token.get_secret_value()
-        == "old-refresh-token"
-    )
+    assert refresh_request.refresh_token.get_secret_value() == "old-refresh-token"
 
 
 @pytest.mark.asyncio
 async def test_refresh_clears_invalid_session(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试刷新令牌失效时清理浏览器会话"""
     service = MagicMock()
-    service.refresh = AsyncMock(
-        side_effect=AuthError(
-            "invalid refresh token"
-        )
-    )
+    service.refresh = AsyncMock(side_effect=AuthError("invalid refresh token"))
     _, auth_logger = install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_refresh",
             "invalid-token",
         )
-        response = await client.post(
-            "/api/refresh"
-        )
+        response = await client.post("/api/refresh")
 
-    cookies = response.headers.get_list(
-        "set-cookie"
-    )
+    cookies = response.headers.get_list("set-cookie")
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "登录会话已失效"
-    }
+    assert response.json() == {"error": "登录会话已失效"}
     auth_logger.info.assert_called_once()
     assert auth_logger.info.call_args.args[0] == "控制台会话已失效，需要重新登录"
     assert auth_logger.info.call_args.kwargs["status_code"] == 401
@@ -488,46 +408,33 @@ async def test_refresh_clears_invalid_session(
     auth_logger.warning.assert_not_called()
     auth_logger.error.assert_not_called()
     assert "invalid-token" not in repr(auth_logger.mock_calls)
-    assert sum(
-        "Max-Age=0" in cookie
-        for cookie in cookies
-    ) == 3
+    assert sum("Max-Age=0" in cookie for cookie in cookies) == 3
 
 
 @pytest.mark.asyncio
 async def test_refresh_reports_unavailable_database(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试会话续期在数据库异常时返回服务不可用"""
     service = MagicMock()
-    service.refresh = AsyncMock(
-        side_effect=SQLAlchemyError(
-            "database unavailable"
-        )
-    )
+    service.refresh = AsyncMock(side_effect=SQLAlchemyError("database unavailable"))
     _, auth_logger = install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_refresh",
             "refresh-token",
         )
-        response = await client.post(
-            "/api/refresh"
-        )
+        response = await client.post("/api/refresh")
 
     assert response.status_code == 503
-    assert response.json() == {
-        "error": "认证服务暂不可用"
-    }
+    assert response.json() == {"error": "认证服务暂不可用"}
     auth_logger.error.assert_called_once()
     assert auth_logger.error.call_args.kwargs["status_code"] == 503
     auth_logger.info.assert_not_called()
@@ -537,7 +444,7 @@ async def test_refresh_reports_unavailable_database(
 
 @pytest.mark.asyncio
 async def test_logout_revokes_refresh_token(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试退出登录撤销刷新令牌并清理 Cookie"""
     service = MagicMock()
@@ -549,9 +456,7 @@ async def test_logout_revokes_refresh_token(
         )
     )
     service.authenticate_access_token = AsyncMock(
-        side_effect=AuthError(
-            "access token expired"
-        )
+        side_effect=AuthError("access token expired")
     )
     audit_recorder, auth_logger = install_auth_service(
         monkeypatch,
@@ -559,10 +464,8 @@ async def test_logout_revokes_refresh_token(
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_refresh",
@@ -576,9 +479,7 @@ async def test_logout_revokes_refresh_token(
             "/api/logout",
             headers={
                 "X-Request-ID": "req_logout",
-                "X-Trace-ID": (
-                    "0123456789abcdef0123456789abcdef"
-                ),
+                "X-Trace-ID": "0123456789abcdef0123456789abcdef",
             },
         )
 
@@ -586,16 +487,11 @@ async def test_logout_revokes_refresh_token(
     logout_call = service.logout.await_args
     assert logout_call is not None
     logout_request = logout_call.args[0]
+    assert logout_request.refresh_token.get_secret_value() == "refresh-token"
     assert (
-        logout_request.refresh_token.get_secret_value()
-        == "refresh-token"
+        sum("Max-Age=0" in cookie for cookie in response.headers.get_list("set-cookie"))
+        == 3
     )
-    assert sum(
-        "Max-Age=0" in cookie
-        for cookie in response.headers.get_list(
-            "set-cookie"
-        )
-    ) == 3
     audit_recorder.record.assert_awaited_once()
     audit_call = audit_recorder.record.await_args
     assert audit_call is not None
@@ -615,33 +511,25 @@ async def test_logout_revokes_refresh_token(
 
 @pytest.mark.asyncio
 async def test_logout_ignores_revocation_failure(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试令牌撤销失败时仍完成本地退出"""
     service = MagicMock()
-    service.logout = AsyncMock(
-        side_effect=SQLAlchemyError(
-            "database unavailable"
-        )
-    )
+    service.logout = AsyncMock(side_effect=SQLAlchemyError("database unavailable"))
     audit_recorder, auth_logger = install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_refresh",
             "refresh-token",
         )
-        response = await client.post(
-            "/api/logout"
-        )
+        response = await client.post("/api/logout")
 
     assert response.status_code == 204
     audit_recorder.record.assert_awaited_once()
@@ -659,49 +547,39 @@ async def test_logout_ignores_revocation_failure(
 
 @pytest.mark.asyncio
 async def test_session_returns_authenticated_user(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试会话接口返回访问令牌对应的用户"""
     service = MagicMock()
-    service.authenticate_access_token = AsyncMock(
-        return_value=create_user()
-    )
+    service.authenticate_access_token = AsyncMock(return_value=create_user())
     install_auth_service(
         monkeypatch,
         service,
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_access",
             "access-token",
         )
-        response = await client.get(
-            "/api/session"
-        )
+        response = await client.get("/api/session")
 
     assert response.status_code == 200
     assert response.json()["username"] == "alice"
-    service.authenticate_access_token.assert_awaited_once_with(
-        "access-token"
-    )
+    service.authenticate_access_token.assert_awaited_once_with("access-token")
 
 
 @pytest.mark.asyncio
 async def test_session_rejects_invalid_access_token(
-        monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试会话接口拒绝无效访问令牌"""
     service = MagicMock()
     service.authenticate_access_token = AsyncMock(
-        side_effect=AuthError(
-            "invalid access token"
-        )
+        side_effect=AuthError("invalid access token")
     )
     install_auth_service(
         monkeypatch,
@@ -709,20 +587,253 @@ async def test_session_rejects_invalid_access_token(
     )
 
     async with AsyncClient(
-            transport=ASGITransport(
-                app=app_module.console_app
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
     ) as client:
         client.cookies.set(
             "datamind_console_access",
             "invalid-token",
         )
-        response = await client.get(
-            "/api/session"
-        )
+        response = await client.get("/api/session")
 
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "尚未登录"
+    assert response.json() == {"error": "尚未登录"}
+
+
+@pytest.mark.asyncio
+async def test_session_requires_login() -> None:
+    """测试会话接口拒绝未登录请求"""
+    async with AsyncClient(
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/api/session")
+
+    assert response.status_code == 401
+    assert response.json() == {"error": "尚未登录"}
+
+
+@pytest.mark.asyncio
+async def test_session_restores_missing_csrf_cookie(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试有效会话自动补发缺失的 CSRF Cookie"""
+    monkeypatch.setitem(
+        vars(app_module),
+        "_authenticate",
+        AsyncMock(return_value=create_user()),
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/api/session")
+
+    assert response.status_code == 200
+    csrf_cookie = next(
+        cookie
+        for cookie in response.headers.get_list("set-cookie")
+        if cookie.startswith("datamind_console_csrf=")
+    )
+    assert "SameSite=strict" in csrf_cookie
+
+
+@pytest.mark.asyncio
+async def test_login_creates_http_only_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试本地账户登录创建 HttpOnly 浏览器会话"""
+    service = MagicMock()
+    service.login = AsyncMock(
+        return_value=TokenResponse(
+            access_token="access-token",
+            refresh_token="refresh-token",
+            expires_in=1800,
+        )
+    )
+    service.authenticate_access_token = AsyncMock(return_value=create_user())
+    monkeypatch.setitem(
+        vars(app_module),
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "create_auth_service",
+        lambda *, session: service,
+    )
+    monkeypatch.setitem(
+        vars(cookies_module),
+        "get_auth_config",
+        lambda: SimpleNamespace(refresh_token_expires_days=7),
+    )
+    authentication_audit = AsyncMock()
+    monkeypatch.setitem(
+        vars(app_module),
+        "_record_authentication_event",
+        authentication_audit,
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/api/login",
+            json={
+                "username": "alice",
+                "password": "secret",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["username"] == "alice"
+    cookies = response.headers.get_list("set-cookie")
+    assert any(
+        "datamind_console_access=access-token" in cookie
+        and "HttpOnly" in cookie
+        and "SameSite=strict" in cookie
+        for cookie in cookies
+    )
+    assert any(
+        "datamind_console_refresh=refresh-token" in cookie and "HttpOnly" in cookie
+        for cookie in cookies
+    )
+    assert any(
+        "datamind_console_csrf=" in cookie and "SameSite=strict" in cookie
+        for cookie in cookies
+    )
+    authentication_audit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_change_password_is_available_without_admin_permission(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试普通登录用户可以修改自己的密码"""
+    user = create_user().model_copy(
+        update={
+            "permissions": [],
+        }
+    )
+    service = MagicMock()
+    service.change_password = AsyncMock(
+        return_value={
+            "user_id": user.user_id,
+            "username": user.username,
+            "password_changed_at": "2026-08-21T01:00:00Z",
+        }
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "_authenticate",
+        AsyncMock(return_value=user),
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "IdentityService",
+        lambda **_kwargs: service,
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
+    ) as client:
+        client.cookies.set(
+            "datamind_console_access",
+            "access-token",
+        )
+        client.cookies.set(
+            "datamind_console_refresh",
+            "refresh-token",
+        )
+        client.cookies.set(
+            "datamind_console_csrf",
+            "csrf-token",
+        )
+        response = await client.post(
+            "/api/account/password",
+            json={
+                "current_password": "current-secret",
+                "new_password": "new",
+            },
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": "csrf-token",
+            },
+        )
+
+    assert response.status_code == 200
+    service.change_password.assert_awaited_once_with(
+        username="alice",
+        current_password="current-secret",
+        new_password="new",
+        operator_id="usr_alice",
+        operator="alice",
+    )
+    cookies = response.headers.get_list("set-cookie")
+    assert any(
+        "datamind_console_access=" in cookie and "Max-Age=0" in cookie
+        for cookie in cookies
+    )
+    assert any(
+        "datamind_console_refresh=" in cookie and "Max-Age=0" in cookie
+        for cookie in cookies
+    )
+
+
+def test_user_payload_exposes_write_capabilities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试当前会话返回基于权限计算的管理能力"""
+    monkeypatch.setitem(
+        vars(app_module),
+        "_service_environment",
+        lambda: "testing",
+    )
+    user = create_user().model_copy(
+        update={
+            "permissions": [
+                "model.write",
+                "runtime.manage",
+            ]
+        }
+    )
+
+    payload = app_module._user_payload(user)
+
+    assert payload["environment"] == "testing"
+    assert payload["capabilities"] == {
+        capability: permission
+        in {
+            "model.write",
+            "runtime.manage",
+        }
+        for capability, permission in (app_module._CAPABILITY_PERMISSIONS.items())
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/overview",
+        "/api/models/mdl_test/versions",
+        "/api/experiments/exp_test/variants",
+        "/api/sections/models",
+        "/api/events",
+    ],
+)
+async def test_console_data_endpoints_require_login(
+    path: str,
+) -> None:
+    """测试控制台数据接口统一要求登录"""
+    async with AsyncClient(
+        transport=ASGITransport(app=app_module.console_app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get(path)
+
+    assert response.status_code == 401
+    assert response.json() == {"error": "尚未登录"}

@@ -17,8 +17,8 @@ import typer
 from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
-from datamind.config import get_settings
-from datamind.services import IdentityService
+from datamind.config import get_logging_config
+from datamind.services.identity import IdentityService
 from datamind.services.errors import IdentityError
 from datamind.utils.datetime import (
     format_datetime,
@@ -88,7 +88,7 @@ def show_user(
             )
             return
 
-        timezone_name = get_settings().logging.timezone
+        timezone_name = get_logging_config().timezone
         roles = (
             ", ".join(
                 result["roles"]

@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 
 import datamind.cli.common as common_module
 from datamind.cli.main import app
+from datamind.constants import Environment
 
 
 run_module = importlib.import_module(
@@ -28,8 +29,20 @@ run_module = importlib.import_module(
 runner = CliRunner()
 
 
+@pytest.mark.parametrize(
+    ("environment", "arguments", "reload_enabled"),
+    [
+        ("development", [], False),
+        ("development", ["--reload"], True),
+        ("production", [], False),
+        ("production", ["--reload"], True),
+    ],
+)
 def test_service_run_does_not_authenticate_cli_user(
         monkeypatch: pytest.MonkeyPatch,
+        environment: str,
+        arguments: list[str],
+        reload_enabled: bool,
 ) -> None:
     """测试服务启动不执行用户认证"""
     async def reject_authentication(
@@ -54,7 +67,7 @@ def test_service_run_does_not_authenticate_cli_user(
         logging=MagicMock(),
         service=SimpleNamespace(
             name="datamind",
-            environment="development",
+                environment=Environment(environment),
             host="127.0.0.1",
             port=8700,
             workers=1,
@@ -118,6 +131,7 @@ def test_service_run_does_not_authenticate_cli_user(
         [
             "service",
             "run",
+            *arguments,
         ],
     )
 
@@ -125,18 +139,19 @@ def test_service_run_does_not_authenticate_cli_user(
     assert "认证失败" not in result.output
     assert "NAME" not in result.output
     assert "ENVIRONMENT" in result.output
-    assert "development" in result.output
+    assert environment in result.output
     assert "BIND" in result.output
     assert "127.0.0.1:8700" in result.output
     assert "URL" in result.output
     assert "http://127.0.0.1:8700" in result.output
     assert "WORKERS" in result.output
     assert "RELOAD" in result.output
-    assert "disabled" in result.output
+    assert ("enabled" if reload_enabled else "disabled") in result.output
     assert "PID" in result.output
     assert "12345" in result.output
     assert "Press Ctrl+C to stop" in result.output
     command = popen.call_args.args[0]
+    assert ("--reload" in command) is reload_enabled
     assert "--quiet" in command
     completed_events = [
         call.kwargs

@@ -31,6 +31,8 @@
   - VariantRepository: 实验分组仓储
   - AssignmentRepository: 实验分配仓储
   - RequestRepository: 请求仓储
+  - BatchRepository: 异步预测批次仓储
+  - AttemptRepository: 批次执行尝试仓储
   - DecisionRepository: 请求决策仓储
   - ExecutionRepository: 模型执行仓储
   - OutcomePatch: 实验结果更新字段
@@ -80,6 +82,9 @@ from datamind.db.repositories.outcome import (
     OutcomeRepository,
 )
 from datamind.db.repositories.request import RequestRepository
+from datamind.db.repositories.batch import BatchRepository
+from datamind.db.repositories.attempt import AttemptRepository
+from datamind.db.repositories.shard import ShardRepository
 from datamind.db.repositories.role import (
     RolePatch,
     RoleRepository,
@@ -139,6 +144,9 @@ __all__ = [
     "VariantRepository",
     "AssignmentRepository",
     "RequestRepository",
+    "BatchRepository",
+    "AttemptRepository",
+    "ShardRepository",
     "DecisionRepository",
     "ExecutionRepository",
     "OutcomePatch",

@@ -79,8 +79,8 @@ class RoutingPatch:
         environment: 路由环境
         traffic_ratio: 流量占比
         rules: 路由规则配置
-        effective_from: 生效开始时间
-        effective_to: 生效结束时间
+        effective_from: 生效时间
+        effective_to: 失效时间
         description: 路由说明
     """
 
@@ -349,8 +349,8 @@ class RoutingRepository(BaseRepository):
             traffic_ratio: 流量占比（可选）
             enabled: 是否启用（可选）
             rules: 路由规则配置（可选）
-            effective_from: 生效开始时间（可选）
-            effective_to: 生效结束时间（可选）
+            effective_from: 生效时间（可选）
+            effective_to: 失效时间（可选）
             description: 路由说明（可选）
             created_by: 创建人（可选）
 
@@ -368,9 +368,7 @@ class RoutingRepository(BaseRepository):
             routing_id=routing_id,
             name=name,
             deployment_id=deployment_id,
-            environment=str(
-                environment
-            ),
+            environment=environment.value,
             rollout_type=rollout_type,
             traffic_ratio=float(
                 traffic_ratio

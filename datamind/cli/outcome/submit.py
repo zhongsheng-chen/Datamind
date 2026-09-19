@@ -23,7 +23,7 @@ from datamind.cli.output import CLIConsole
 
 from datamind.audit import audit
 from datamind.cli.common import cli_context
-from datamind.services import OutcomeService
+from datamind.services.outcome import OutcomeService
 from datamind.utils.datetime import format_iso_utc, parse_datetime
 from datamind.utils.generator import generate_random_id
 

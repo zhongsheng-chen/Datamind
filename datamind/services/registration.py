@@ -50,7 +50,8 @@ from datamind.db.repositories import (
     ScorecardRepository,
     VersionRepository,
 )
-from datamind.models.artifact import ModelArtifactLoader
+from datamind.models.artifact.loader import ModelArtifactLoader
+from datamind.models.artifact.formats import validate_artifact_extension
 from datamind.models.enums import (
     MetadataStatus,
     VersionStatus,
@@ -192,6 +193,10 @@ class ModelRegistrationService:
                 f"模型文件不存在: {model_path}"
             )
 
+        validate_artifact_extension(
+            framework=framework,
+            path=path,
+        )
         data = self._read_artifact(path)
         model = self._load_artifact(
             data=data,

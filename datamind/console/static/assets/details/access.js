@@ -6,6 +6,7 @@ import {
   createDetailDrawer,
   createDetailSection,
   createDetailSummary,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
 
@@ -51,7 +52,7 @@ export function createAccessDetailController({
         ["用户名", record.username],
         ["显示名称", record.display_name],
         ["邮箱", record.email],
-        ["状态", createStatusBadge(record.status)],
+        ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["角色", roles.length > 0 ? roles.join(", ") : null],
         ["最近登录", formatTime(record.last_login_at)],
         ["创建时间", formatTime(record.created_at)],
@@ -82,7 +83,7 @@ export function createAccessDetailController({
           "角色 ID",
         )],
         ["角色名称", record.name],
-        ["状态", createStatusBadge(record.status)],
+        ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["描述", record.description],
         ["权限", Array.isArray(record.permissions)
           ? record.permissions.join(", ")

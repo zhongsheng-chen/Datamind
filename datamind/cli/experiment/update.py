@@ -102,12 +102,12 @@ def update_experiment(
         effective_from: str | None = typer.Option(
             None,
             "--effective-from",
-            help="生效开始时间"
+            help="生效时间"
         ),
         effective_to: str | None = typer.Option(
             None,
             "--effective-to",
-            help="生效结束时间"
+            help="失效时间"
         ),
         output: str = typer.Option(
             "text",
@@ -122,7 +122,7 @@ def update_experiment(
     """
     settings = get_settings()
     timezone_name = settings.logging.timezone
-    service_environment = str(settings.service.environment)
+    service_environment = settings.service.environment.value
 
     @audit(
         action="experiment.update",
@@ -184,7 +184,7 @@ def update_experiment(
                 )
                 raise typer.Exit(code=1) from None
 
-            if str(experiment.environment) != service_environment:
+            if experiment.environment != service_environment:
                 console.error(
                     "实验更新失败：实验不属于当前服务环境\n"
                     f"服务环境：{service_environment}\n"
