@@ -52,7 +52,11 @@ class PredictionExecutor:
                 Awaitable[BaseRuntimeService],
             ],
     ) -> None:
-        """初始化模型预测执行器"""
+        """初始化模型预测执行器
+
+        参数：
+            service_loader: 根据部署 ID 加载运行时服务的异步函数
+        """
         self._service_loader = service_loader
 
     async def execute(

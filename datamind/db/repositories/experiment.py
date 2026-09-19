@@ -81,8 +81,8 @@ class ExperimentPatch:
         name: 实验名称
         description: 实验描述
         config: 实验配置
-        effective_from: 生效开始时间
-        effective_to: 生效结束时间
+        effective_from: 生效时间
+        effective_to: 失效时间
     """
 
     environment: Environment | None = None
@@ -480,8 +480,8 @@ class ExperimentRepository(BaseRepository):
             name: 实验名称（可选）
             description: 实验描述（可选）
             config: 实验配置（可选）
-            effective_from: 生效开始时间（可选）
-            effective_to: 生效结束时间（可选）
+            effective_from: 生效时间（可选）
+            effective_to: 失效时间（可选）
             created_by: 创建人（可选）
 
         返回：
@@ -490,9 +490,7 @@ class ExperimentRepository(BaseRepository):
         new_experiment = Experiment(
             experiment_id=experiment_id,
             model_id=model_id,
-            environment=str(
-                environment
-            ),
+            environment=environment.value,
             status=str(
                 ExperimentStatus.DRAFT
             ),
@@ -577,7 +575,7 @@ class ExperimentRepository(BaseRepository):
     ) -> Experiment:
         """启动实验
 
-        未配置生效开始时间时，使用实验启动时间。
+        未配置生效时间时，使用实验启动时间。
         """
         current_status = ExperimentStatus(
             experiment.status

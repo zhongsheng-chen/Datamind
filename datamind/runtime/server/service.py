@@ -7,7 +7,10 @@
   - refresh: 续期并轮换刷新令牌
   - logout: 撤销刷新令牌
   - predict: 支持路由与实验分配的单条模型推理
-  - predict_batch: 支持路由与实验分配的批量模型推理
+  - predict_batch: 提交支持路由与实验分配的异步批量模型推理
+  - batch_status: 查询异步预测批次状态和结果
+  - cancel_batch: 取消异步预测批次
+  - retry_batch: 重新提交失败或已取消的预测批次
   - submit_outcome: 提交延迟业务结果
   - load: 设置部署期望状态为 loaded
   - unload: 设置部署期望状态为 unloaded
@@ -39,7 +42,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.audit import AuditRecorder
-from datamind.config import get_settings
+from datamind.config import (
+    get_logging_config,
+    get_runtime_config,
+    get_service_config,
+)
 from datamind.db.core import UnitOfWork
 from datamind.logging import setup_logging
 from datamind.models.errors import (
@@ -52,7 +59,7 @@ from datamind.runtime.executor import (
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
 from datamind.runtime.routing import RuntimeRouter
-from datamind.runtime.shadow import ShadowDispatcher
+from datamind.runtime.task_queue import TaskPublisher
 from datamind.runtime.server.security import (
     RuntimeIdentity,
     RuntimeSecurity,
@@ -68,8 +75,8 @@ from datamind.services import RuntimeControlService
 
 logger = structlog.get_logger(__name__)
 
-service_config = get_settings().service
-runtime_config = get_settings().runtime
+service_config = get_service_config()
+runtime_config = get_runtime_config()
 
 
 def _get_service_instance_id() -> str | None:
@@ -197,11 +204,7 @@ class DatamindRuntimeService(
             self,
     ):
         """初始化当前 Worker 服务状态"""
-        settings = get_settings()
-
-        setup_logging(
-            settings.logging
-        )
+        setup_logging(get_logging_config())
 
         worker_id = _build_worker_id()
         service_instance_id = _get_service_instance_id()
@@ -251,17 +254,7 @@ class DatamindRuntimeService(
             service_loader=self._get_service,
         )
 
-        self.shadow_dispatcher = ShadowDispatcher(
-            handler=self._execute_shadow,
-            enabled=runtime_config.shadow_enabled,
-            queue_size=runtime_config.shadow_queue_size,
-            worker_count=(
-                runtime_config.shadow_worker_count
-            ),
-            shutdown_timeout=(
-                runtime_config.shadow_timeout
-            ),
-        )
+        self.task_publisher = TaskPublisher()
 
         self._logger.info(
             "运行时 Worker 初始化完成",
@@ -290,12 +283,29 @@ class DatamindRuntimeService(
           - 执行当前环境首次状态协调
           - 启动后台协调循环
         """
-        result = (
-            await self.reconciler.reconcile_once()
-        )
+        result: dict[str, int] = {
+            "checked": 0,
+            "loaded": 0,
+            "unloaded": 0,
+            "reloaded": 0,
+            "unchanged": 0,
+            "failed": 0,
+        }
+
+        try:
+            initial_result = await self.reconciler.reconcile_once()
+            result = initial_result.to_dict()
+
+        except (SQLAlchemyError, OSError) as exc:
+            # 首次协调失败不阻塞服务启动，后台循环将在依赖恢复后重试。
+            self._logger.warning(
+                "运行时首次状态协调等待数据库恢复",
+                worker_id=self.manager.worker_id,
+                environment=service_config.environment,
+                error=str(exc),
+            )
 
         await self.reconciler.start()
-        await self.shadow_dispatcher.start()
 
         self._logger.info(
             "运行时 Worker 启动完成",
@@ -303,7 +313,7 @@ class DatamindRuntimeService(
             environment=(
                 service_config.environment
             ),
-            **result.to_dict(),
+            **result,
         )
 
         _write_worker_ready_marker(
@@ -318,12 +328,10 @@ class DatamindRuntimeService(
         """关闭当前 Worker
 
         关闭流程：
-          - 等待影子预测队列停止
           - 停止 Reconciler
           - 卸载当前 Worker 已加载模型
           - 清理 RuntimeService 缓存
         """
-        await self.shadow_dispatcher.stop()
         await self.reconciler.stop()
 
         deployment_ids = [
@@ -390,12 +398,6 @@ class DatamindRuntimeService(
             "service_cache_count": len(
                 self._service_cache
             ),
-            "shadow_dispatcher_running": (
-                self.shadow_dispatcher.is_running
-            ),
-            "shadow_pending_count": (
-                self.shadow_dispatcher.pending_count
-            ),
             "configured_workers": (
                 service_config.workers
             ),
@@ -419,7 +421,7 @@ class DatamindRuntimeService(
 
             database_ready = True
 
-        except SQLAlchemyError as exc:
+        except (SQLAlchemyError, OSError) as exc:
             self._logger.warning(
                 "运行时就绪检查数据库不可用",
                 worker_id=self.manager.worker_id,
@@ -531,6 +533,9 @@ class DatamindRuntimeService(
             "RequestTimeoutError": 504,
             "TypeError": 400,
             "ValueError": 400,
+            "BatchNotFoundError": 404,
+            "BatchStateError": 409,
+            "TaskDispatchError": 503,
         }
 
         status_code = (

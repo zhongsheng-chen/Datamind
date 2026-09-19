@@ -25,8 +25,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from datamind.config import get_settings
-from datamind.db.core.url import get_db_url
+from datamind.config import get_database_config
 
 
 _engine: AsyncEngine | None = None
@@ -38,12 +37,10 @@ def create_engine() -> AsyncEngine:
     返回：
         AsyncEngine 实例
     """
-    settings = get_settings()
-    db = settings.database
-    url = get_db_url()
+    db = get_database_config()
 
     return create_async_engine(
-        url,
+        db.url,
         pool_size=db.pool_size,
         max_overflow=db.max_overflow,
         pool_timeout=db.pool_timeout,

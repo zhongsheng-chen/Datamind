@@ -11,7 +11,7 @@
   url = get_db_url()
 """
 
-from datamind.config import get_settings
+from datamind.config import get_database_config
 
 
 def get_db_url() -> str:
@@ -22,6 +22,4 @@ def get_db_url() -> str:
     返回：
         数据库连接 URL
     """
-    settings = get_settings()
-
-    return settings.database.url
+    return get_database_config().url

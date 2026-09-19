@@ -18,7 +18,7 @@
 
 from pathlib import Path
 
-from datamind.config.settings import get_settings
+from datamind.config.providers import get_storage_config
 from datamind.constants import StorageType
 from datamind.storage.errors import StorageKeyError
 
@@ -28,7 +28,7 @@ class StorageResolver:
 
     def __init__(self) -> None:
         """初始化存储路径解析器"""
-        self.settings = get_settings()
+        self.config = get_storage_config()
 
     def resolve(
         self,
@@ -47,7 +47,7 @@ class StorageResolver:
             ValueError: 不支持的存储类型
         """
         normalized_key = self._normalize_key(key)
-        storage_type = self.settings.storage.type
+        storage_type = self.config.type
 
         if storage_type == StorageType.LOCAL:
             return self._resolve_local(normalized_key)
@@ -76,7 +76,7 @@ class StorageResolver:
         """
         base_dir = (
             Path(
-                self.settings.storage.local.base_dir
+                self.config.local.base_dir
             )
             .expanduser()
             .resolve()
@@ -110,7 +110,7 @@ class StorageResolver:
         异常：
             StorageKeyError: 存储桶或基础前缀格式非法
         """
-        config = self.settings.storage.minio
+        config = self.config.minio
 
         bucket = config.bucket.strip()
 

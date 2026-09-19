@@ -42,6 +42,7 @@
   )
 """
 
+from importlib import import_module
 from typing import (
     Any,
     ClassVar,
@@ -52,14 +53,36 @@ from datamind.constants import (
     Framework,
 )
 from datamind.core.inference.adapters.base import BaseModelAdapter
-from datamind.core.inference.adapters.catboost import CatBoostAdapter
-from datamind.core.inference.adapters.lightgbm import LightGBMAdapter
-from datamind.core.inference.adapters.sklearn import SklearnAdapter
-from datamind.core.inference.adapters.xgboost import XGBoostAdapter
+from datamind.core.inference.errors import FrameworkDependencyError
 
 
 class ModelAdapterFactory:
     """模型适配器工厂"""
+
+    _BUILTIN_ADAPTERS: ClassVar[
+        dict[Framework, tuple[str, str, str]]
+    ] = {
+        Framework.SKLEARN: (
+            "datamind.core.inference.adapters.sklearn",
+            "SklearnAdapter",
+            "sklearn",
+        ),
+        Framework.XGBOOST: (
+            "datamind.core.inference.adapters.xgboost",
+            "XGBoostAdapter",
+            "xgboost",
+        ),
+        Framework.LIGHTGBM: (
+            "datamind.core.inference.adapters.lightgbm",
+            "LightGBMAdapter",
+            "lightgbm",
+        ),
+        Framework.CATBOOST: (
+            "datamind.core.inference.adapters.catboost",
+            "CatBoostAdapter",
+            "catboost",
+        ),
+    }
 
     _ADAPTERS: ClassVar[
         dict[
@@ -181,7 +204,10 @@ class ModelAdapterFactory:
             )
 
         if (
-                framework in cls._ADAPTERS
+                (
+                    framework in cls._ADAPTERS
+                    or framework in cls._BUILTIN_ADAPTERS
+                )
                 and not override
         ):
             framework_name = str(
@@ -208,34 +234,32 @@ class ModelAdapterFactory:
         )
 
         if adapter_class is None:
-            framework_name = str(
-                framework
-            )
+            builtin = cls._BUILTIN_ADAPTERS.get(framework)
 
-            raise ValueError(
-                "未注册模型适配器: "
-                f"{framework_name}"
-            )
+            if builtin is None:
+                raise ValueError(
+                    "未注册模型适配器: "
+                    f"{framework}"
+                )
+
+            module_name, class_name, dependency = builtin
+
+            try:
+                adapter_class = getattr(
+                    import_module(module_name),
+                    class_name,
+                )
+            except ModuleNotFoundError as error:
+                missing = error.name or dependency
+
+                if missing.split(".", 1)[0] != dependency:
+                    raise
+
+                raise FrameworkDependencyError(
+                    framework,
+                    missing,
+                ) from error
+
+            cls._ADAPTERS[framework] = adapter_class
 
         return adapter_class
-
-
-ModelAdapterFactory.register_adapter(
-    Framework.SKLEARN,
-    SklearnAdapter,
-)
-
-ModelAdapterFactory.register_adapter(
-    Framework.XGBOOST,
-    XGBoostAdapter,
-)
-
-ModelAdapterFactory.register_adapter(
-    Framework.LIGHTGBM,
-    LightGBMAdapter,
-)
-
-ModelAdapterFactory.register_adapter(
-    Framework.CATBOOST,
-    CatBoostAdapter,
-)

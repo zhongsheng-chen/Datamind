@@ -9,8 +9,10 @@ import {
   createDetailIcon,
   createDetailSection,
   createDetailSummary,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
+import { formatModelType, formatTaskType } from "../format.js";
 
 /**
  * 创建模型详情控制器。
@@ -66,7 +68,7 @@ export function createModelDetailController({
     section.className = "registry-detail-section registry-model-usage-section";
     const heading = document.createElement("h4");
     heading.append(
-      createDetailIcon("assignment", "registry-section-icon"),
+      createDetailIcon("link", "registry-section-icon"),
       document.createTextNode("关联资源"),
     );
     const grid = document.createElement("div");
@@ -269,7 +271,7 @@ export function createModelDetailController({
       buttons.push(button);
     }
     if (!model.deleted_at && hasCapability("models.create")) {
-      const button = createDetailAction("添加版本", "add", "primary");
+      const button = createDetailAction("添加版本", "add");
       button.addEventListener("click", () => {
         dialog.close();
         Promise.resolve(openVersionCreateDialog(model)).catch(
@@ -311,8 +313,8 @@ export function createModelDetailController({
           status: model.status,
           badges: [
             createDetailBadge(model.framework, "framework"),
-            createDetailBadge(model.model_type, "type"),
-            createDetailBadge(model.task_type, "task"),
+            createDetailBadge(formatModelType(model.model_type), "type"),
+            createDetailBadge(formatTaskType(model.task_type), "task"),
           ],
           createStatusBadge,
         }),
@@ -331,10 +333,10 @@ export function createModelDetailController({
           )],
           ["模型名称", model.name],
           ["显示名称", model.display_name],
-          ["状态", createStatusBadge(model.status)],
+          ["状态", formatStatusValue(model.status, createStatusBadge)],
           ["框架", model.framework],
-          ["类型", model.model_type],
-          ["任务类型", model.task_type],
+          ["类型", formatModelType(model.model_type)],
+          ["任务类型", formatTaskType(model.task_type)],
           ["描述", model.description],
           ["创建时间", formatTime(model.created_at)],
           ["更新时间", formatTime(model.updated_at)],

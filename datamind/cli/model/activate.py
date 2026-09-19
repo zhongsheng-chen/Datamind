@@ -20,7 +20,7 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.cli.output import CLIConsole
 from datamind.models.errors import ModelError
-from datamind.services import ModelLifecycleService
+from datamind.services.lifecycle import ModelLifecycleService
 
 app = typer.Typer(help="激活模型命令")
 console = CLIConsole()

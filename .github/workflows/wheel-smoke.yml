@@ -1,0 +1,80 @@
+name: Wheel Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/wheel-smoke.yml"
+      - "build_support/**"
+      - "datamind/**"
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "LICENSE"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.mjs"
+      - "tests/smoke/test_wheel.py"
+  push:
+    branches:
+      - dev
+    paths:
+      - ".github/workflows/wheel-smoke.yml"
+      - "build_support/**"
+      - "datamind/**"
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "LICENSE"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.mjs"
+      - "tests/smoke/test_wheel.py"
+
+jobs:
+  wheel-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
+        env:
+          POSTGRES_DB: wheel_smoke
+          POSTGRES_USER: wheel_smoke
+          POSTGRES_PASSWORD: wheel_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wheel_smoke -d wheel_smoke"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATAMIND_RUN_WHEEL_SMOKE: "1"
+      DATAMIND_SMOKE_DATABASE_URL: postgresql+asyncpg://wheel_smoke:wheel_smoke@127.0.0.1:5432/wheel_smoke
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install smoke test dependencies
+        run: pip install -e ".[test,release]"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Build console assets
+        run: |
+          npm ci
+          npm run build:console
+
+      - name: Run Wheel smoke test
+        run: pytest --color=no -ra tests/smoke/test_wheel.py

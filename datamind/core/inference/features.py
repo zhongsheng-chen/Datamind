@@ -61,8 +61,8 @@ class FeatureTransformer:
         """初始化特征转换器
 
         参数：
-            feature_names: 模型特征顺序；为空时不限定特征顺序
-            data_types: 特征名称到数据类型的映射
+            feature_names: 模型特征顺序（可选）；为空时不限定特征顺序
+            data_types: 特征名称到数据类型的映射（可选）
 
         异常：
             ValueError: 特征名称为空白或包含重复值

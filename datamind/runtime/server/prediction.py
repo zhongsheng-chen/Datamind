@@ -15,9 +15,9 @@
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 import bentoml
@@ -26,10 +26,15 @@ from structlog.typing import FilteringBoundLogger
 
 from datamind.audit import AuditRecorder
 from datamind.audit.errors import AuditError
-from datamind.config import get_settings
+from datamind.config import (
+    get_runtime_config,
+    get_service_config,
+)
 from datamind.context import get_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
+    AttemptRepository,
+    BatchRepository,
     DecisionRepository,
     DeploymentRepository,
     ExecutionRepository,
@@ -50,7 +55,10 @@ from datamind.runtime.executor import (
 )
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
-from datamind.runtime.responses import build_prediction_response
+from datamind.runtime.responses import (
+    build_batch_prediction_response,
+    build_prediction_response,
+)
 from datamind.runtime.routing import (
     RouteResult,
     RoutingPlan,
@@ -63,25 +71,31 @@ from datamind.runtime.server.errors import (
 )
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
+    BatchReferenceRequest,
     OutcomeFeedbackRequest,
-    PredictRequest,
     PredictionInstance,
+    PredictRequest,
 )
 from datamind.runtime.server.timeout import (
-    RequestTimeoutError,
     REQUEST_TIMEOUT_GRACE_SECONDS,
+    RequestTimeoutError,
     request_budget,
 )
-from datamind.runtime.shadow import ShadowDispatcher, ShadowTask
 from datamind.runtime.serving.base import BaseRuntimeService
 from datamind.runtime.serving.factory import RuntimeServiceFactory
+from datamind.runtime.shadow import ShadowTask
+from datamind.runtime.task_queue import (
+    BatchCancelledError,
+    TaskDispatchError,
+    TaskPublisher,
+)
 from datamind.services import OutcomeService
 from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
-service_config = get_settings().service
-runtime_config = get_settings().runtime
+service_config = get_service_config()
+runtime_config = get_runtime_config()
 
 
 class PredictionMixin:
@@ -91,7 +105,7 @@ class PredictionMixin:
     manager: RuntimeManager
     reconciler: RuntimeReconciler
     router: RuntimeRouter
-    shadow_dispatcher: ShadowDispatcher
+    task_publisher: TaskPublisher
     _audit_recorder: AuditRecorder
     _logger: FilteringBoundLogger
     _service_cache: dict[str, ServiceCacheEntry]
@@ -184,6 +198,9 @@ class PredictionMixin:
                 request=request,
                 request_id=request_id,
             ),
+            audit_action="prediction.invoke",
+            target_type="request",
+            target_id=request_id,
         )
 
     async def _predict(
@@ -386,141 +403,556 @@ class PredictionMixin:
     ) -> dict[str, Any]:
         """执行已认证的批量模型预测"""
         batch_id = generate_random_id(
-            prefix="req"
+            prefix="bat"
         )
 
-        return await self._execute_secured(
+        response = await self._execute_secured(
             ctx=ctx,
             permission="prediction.invoke",
             request_id=batch_id,
-            handler=lambda _identity: self._predict_batch(
+            handler=lambda _identity: self._submit_batch(
                 request=request,
                 batch_id=batch_id,
             ),
         )
 
-    async def _predict_batch(
+        if response.get("success"):
+            ctx.response.status_code = 202
+
+        return response
+
+    async def _submit_batch(
             self,
             *,
             request: BatchPredictRequest,
             batch_id: str,
     ) -> dict[str, Any]:
-        """执行批量模型预测
+        """持久化批量预测请求并提交异步任务"""
+        try:
+            model_id = await self._resolve_model_id(
+                model_name=request.model_name,
+            )
+        except ValueError as exc:
+            return {
+                "success": False,
+                "batch_id": batch_id,
+                "error": str(exc),
+                "error_type": exc.__class__.__name__,
+            }
 
-        处理流程：
-          - 创建每条请求的记录
-          - 为每条请求解析运行时路由
-          - 按主部署分组执行模型预测
-          - 按原始顺序整理预测结果
-          - 更新请求状态并创建决策记录
-          - 返回预测结果和请求 ID
+        task_id = generate_random_id(prefix="tsk")
+        request_context = get_context()
 
-        参数：
-            request: 批量预测请求
-            batch_id: 批次请求 ID
-
-        返回：
-            批量预测结果
-        """
-        request_ids: list[str] = []
-        records_created = False
-        started_at = time.perf_counter()
+        async with UnitOfWork() as uow:
+            BatchRepository(uow.session).create_batch(
+                batch_id=batch_id,
+                task_id=task_id,
+                model_id=model_id,
+                model_name=request.model_name,
+                deployment_id=request.deployment_id,
+                environment=service_config.environment.value,
+                payload=request.model_dump(mode="json"),
+                total_count=len(request.instances),
+                source="http",
+                user=request_context.get("user"),
+                ip=request_context.get("ip"),
+            )
+            AttemptRepository(uow.session).create_attempt(
+                batch_id=batch_id,
+                task_id=task_id,
+                attempt_number=1,
+            )
 
         try:
-            async with request_budget(service_config.timeout) as budget:
-                request_ids = [
-                    generate_random_id(
-                        prefix="req"
-                    )
-                    for _ in request.instances
-                ]
-                decision_ids = [
-                    generate_random_id(
-                        prefix="dcs"
-                    )
-                    for _ in request.instances
-                ]
+            self.task_publisher.submit_batch(
+                batch_id=batch_id,
+                task_id=task_id,
+            )
+        except TaskDispatchError as exc:
+            error = str(exc) or exc.__class__.__name__
 
-                budget.enter_stage("request_record")
-                await self._create_batch_request_records(
+            async with UnitOfWork() as uow:
+                await BatchRepository(uow.session).mark_failed(
                     batch_id=batch_id,
-                    request_ids=request_ids,
+                    error=error,
+                )
+                await AttemptRepository(uow.session).mark_finished(
+                    batch_id=batch_id,
+                    status="failed",
+                    error=error,
+                )
+
+            self._logger.exception(
+                "批量预测任务提交失败",
+                batch_id=batch_id,
+                task_id=task_id,
+                error=error,
+            )
+            return {
+                "success": False,
+                "batch_id": batch_id,
+                "status": "failed",
+                "error": "批量预测任务提交失败",
+                "error_type": "TaskDispatchError",
+            }
+
+        return {
+            "success": True,
+            "batch_id": batch_id,
+            "status": "queued",
+            "submitted_count": len(request.instances),
+            "status_url": "/predict/batch/status",
+        }
+
+    @bentoml.api(route="/predict/batch/status")
+    async def batch_status(
+            self,
+            request: BatchReferenceRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """查询已认证的批量预测任务状态"""
+        request_id = generate_random_id(prefix="req")
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="prediction.invoke",
+            request_id=request_id,
+            handler=lambda _identity: self._get_batch_status(
+                request.batch_id
+            ),
+        )
+
+    @staticmethod
+    async def _get_batch_status(batch_id: str) -> dict[str, Any]:
+        """查询批次状态和可用结果"""
+        async with UnitOfWork() as uow:
+            batch = await BatchRepository(uow.session).get_batch(batch_id)
+
+            if batch is None:
+                return {
+                    "success": False,
+                    "batch_id": batch_id,
+                    "error": f"批次不存在: {batch_id}",
+                    "error_type": "BatchNotFoundError",
+                }
+
+            return PredictionMixin._build_batch_status_response(batch)
+
+    @bentoml.api(route="/predict/batch/cancel")
+    async def cancel_batch(
+            self,
+            request: BatchReferenceRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """取消已认证的批量预测任务"""
+        request_id = generate_random_id(prefix="req")
+        return await self._execute_secured(
+            ctx=ctx,
+            permission="prediction.invoke",
+            request_id=request_id,
+            handler=lambda _identity: self._cancel_batch(
+                request.batch_id
+            ),
+        )
+
+    async def _cancel_batch(self, batch_id: str) -> dict[str, Any]:
+        """记录取消请求并撤销尚未执行的 Celery 任务"""
+        try:
+            async with UnitOfWork() as uow:
+                repository = BatchRepository(uow.session)
+                batch = await repository.get_batch(batch_id)
+
+                if batch is None:
+                    return {
+                        "success": False,
+                        "batch_id": batch_id,
+                        "error": f"批次不存在: {batch_id}",
+                        "error_type": "BatchNotFoundError",
+                    }
+
+                task_id = batch.task_id
+                batch = await repository.request_cancel(batch_id)
+                if batch.status == "cancelled":
+                    await AttemptRepository(uow.session).mark_finished(
+                        batch_id=batch_id,
+                        status="cancelled",
+                    )
+                response = self._build_batch_status_response(batch)
+        except ValueError as exc:
+            return {
+                "success": False,
+                "batch_id": batch_id,
+                "error": str(exc),
+                "error_type": "BatchStateError",
+            }
+
+        try:
+            self.task_publisher.revoke(task_id)
+        except TaskDispatchError as exc:
+            self._logger.warning(
+                "批量预测任务撤销消息发送失败",
+                batch_id=batch_id,
+                task_id=task_id,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+            )
+
+        return response
+
+    @bentoml.api(route="/predict/batch/retry")
+    async def retry_batch(
+            self,
+            request: BatchReferenceRequest,
+            ctx: bentoml.Context,
+    ) -> dict[str, Any]:
+        """重新提交已认证的失败或已取消批次"""
+        request_id = generate_random_id(prefix="req")
+        response = await self._execute_secured(
+            ctx=ctx,
+            permission="prediction.invoke",
+            request_id=request_id,
+            handler=lambda _identity: self._retry_batch(
+                request.batch_id
+            ),
+        )
+
+        if response.get("success"):
+            ctx.response.status_code = 202
+
+        return response
+
+    async def _retry_batch(self, batch_id: str) -> dict[str, Any]:
+        """为批次创建新的 Celery 任务并重新排队"""
+        task_id = generate_random_id(prefix="tsk")
+
+        try:
+            async with UnitOfWork() as uow:
+                repository = BatchRepository(uow.session)
+                batch = await repository.get_batch(batch_id)
+
+                if batch is None:
+                    return {
+                        "success": False,
+                        "batch_id": batch_id,
+                        "error": f"批次不存在: {batch_id}",
+                        "error_type": "BatchNotFoundError",
+                    }
+
+                batch = await repository.retry(
+                    batch_id,
+                    task_id=task_id,
+                )
+                await AttemptRepository(
+                    uow.session
+                ).create_next_attempt(
+                    batch_id=batch_id,
+                    task_id=task_id,
+                )
+        except ValueError as exc:
+            return {
+                "success": False,
+                "batch_id": batch_id,
+                "error": str(exc),
+                "error_type": "BatchStateError",
+            }
+
+        try:
+            self.task_publisher.submit_batch(
+                batch_id=batch_id,
+                task_id=task_id,
+            )
+        except TaskDispatchError as exc:
+            error = str(exc) or exc.__class__.__name__
+            async with UnitOfWork() as uow:
+                await BatchRepository(uow.session).mark_failed(
+                    batch_id=batch_id,
+                    error=error,
+                )
+                await AttemptRepository(uow.session).mark_finished(
+                    batch_id=batch_id,
+                    status="failed",
+                    error=error,
+                )
+            return {
+                "success": False,
+                "batch_id": batch_id,
+                "status": "failed",
+                "error": "批量预测任务重新提交失败",
+                "error_type": "TaskDispatchError",
+            }
+
+        return self._build_batch_status_response(batch)
+
+    @staticmethod
+    def _build_batch_status_response(batch: Any) -> dict[str, Any]:
+        """构造稳定的批次状态响应"""
+        response = {
+            "success": True,
+            "batch_id": batch.batch_id,
+            "status": batch.status,
+            "total_count": batch.total_count,
+            "completed_count": batch.completed_count,
+            "succeeded_count": batch.succeeded_count,
+            "failed_count": batch.failed_count,
+            "attempt_count": batch.attempt_count,
+            "created_at": format_iso_utc(batch.created_at),
+            "started_at": format_iso_utc(batch.started_at),
+            "finished_at": format_iso_utc(batch.finished_at),
+        }
+
+        if batch.error is not None:
+            response["error"] = batch.error
+
+        if batch.result is not None:
+            response["result"] = batch.result
+
+        return response
+
+    async def execute_batch_task(
+            self,
+            *,
+            request: BatchPredictRequest,
+            batch_id: str,
+            batch_indices: list[int] | None = None,
+            prepare_records: bool = True,
+            cancel_check: Callable[[], Awaitable[bool]] | None = None,
+            raise_errors: bool = False,
+    ) -> dict[str, Any]:
+        """执行并持久化批量模型预测分片
+
+        每条预测使用独立请求预算，批次准备、结果持久化和影子任务
+        发布不共享单条 HTTP 预测的总超时。
+        """
+        request_ids: list[str] = []
+        records_prepared = False
+        started_at = time.perf_counter()
+        selected_indices = (
+            list(range(len(request.instances)))
+            if batch_indices is None
+            else list(batch_indices)
+        )
+
+        if (
+                not selected_indices
+                or len(set(selected_indices)) != len(selected_indices)
+                or min(selected_indices) < 0
+                or max(selected_indices) >= len(request.instances)
+        ):
+            raise ValueError("批量分片下标无效")
+
+        try:
+            if prepare_records:
+                request_ids = await self._prepare_batch_request_records(
+                    batch_id=batch_id,
                     model_id=None,
                     model_name=request.model_name,
                     deployment_id=request.deployment_id,
                     instances=request.instances,
                 )
-                records_created = True
-
-                budget.enter_stage("model")
-                model_id = await self._resolve_model_id(
-                    model_name=request.model_name,
+            else:
+                request_ids = await self._load_batch_request_ids(
+                    batch_id=batch_id,
+                    expected_count=len(request.instances),
                 )
+            records_prepared = True
+            completed_responses = (
+                await self._load_batch_success_responses(batch_id)
+            )
+            model_id = await self._resolve_model_id(
+                model_name=request.model_name,
+            )
+            responses: list[dict[str, Any] | None] = [
+                completed_responses.get(index)
+                for index in range(len(request.instances))
+            ]
+            task_type: str | None = None
 
-                budget.enter_stage("routing")
-                routing_plans = []
+            for completed_response in responses:
+                if completed_response is None:
+                    continue
 
-                for instance in request.instances:
-                    routing_plans.append(
-                        await self.router.resolve(
+                completed_task_type = completed_response.get(
+                    "task_type"
+                )
+                if completed_task_type is None:
+                    continue
+
+                if not isinstance(completed_task_type, str):
+                    raise RuntimeError(
+                        "批次成功响应包含无效任务类型"
+                    )
+
+                task_type = completed_task_type
+                break
+
+            for index in selected_indices:
+                instance = request.instances[index]
+                if responses[index] is not None:
+                    continue
+
+                if (
+                        cancel_check is not None
+                        and await cancel_check()
+                ):
+                    raise BatchCancelledError(
+                        f"批次已取消: {batch_id}"
+                    )
+
+                request_id = request_ids[index]
+                item_started_at = time.perf_counter()
+                route: RouteResult | None = None
+
+                try:
+                    async with request_budget(
+                            service_config.timeout
+                    ) as budget:
+                        budget.enter_stage("routing")
+                        routing_plan = await self.router.resolve(
                             model_id=model_id,
-                            environment=(
-                                service_config.environment
-                            ),
+                            environment=service_config.environment,
                             subject_key=instance.subject_key,
                             subject_type=instance.subject_type,
                             payload=instance.features,
                             deployment_id=request.deployment_id,
-                            include_shadows=(
-                                runtime_config.shadow_enabled
-                            ),
+                            include_shadows=runtime_config.shadow_enabled,
                         )
+                        primary_route = routing_plan.primary
+                        route = primary_route
+                        service = await self._get_service(
+                            primary_route.deployment_id
+                        )
+                        budget.enter_stage("prediction")
+                        prediction = await asyncio.to_thread(
+                            service.predict,
+                            instance.features,
+                        )
+
+                    item_latency_ms = (
+                        time.perf_counter() - item_started_at
+                    ) * 1000
+                    response = build_prediction_response(
+                        prediction,
+                        request_id=request_id,
+                    )
+                    resolved_task_type = prediction.get(
+                        "task_type",
+                        prediction.get("service_type"),
                     )
 
-                budget.enter_stage("prediction")
-                results, task_type = await self._execute_routed_batch(
-                    routing_plans=routing_plans,
-                    instances=request.instances,
-                )
-                predictions = [
-                    result.prediction
-                    for result in results
-                ]
+                    if resolved_task_type is not None:
+                        current_task_type = str(resolved_task_type)
+                        if (
+                                task_type is not None
+                                and task_type != current_task_type
+                        ):
+                            raise RuntimeError(
+                                "同一模型的批量预测返回了不同任务类型"
+                            )
+                        task_type = current_task_type
 
-                responses = [
-                    build_prediction_response(prediction, request_id=request_id)
-                    for request_id, prediction in zip(request_ids, predictions, strict=True)
-                ]
+                    result = ExecutionResult(
+                        plan=ExecutionPlan(
+                            route=routing_plan.primary,
+                            execution_type=ExecutionType.PRIMARY,
+                        ),
+                        prediction=prediction,
+                        latency_ms=item_latency_ms,
+                    )
+                    shadow_tasks = await self._record_batch_success(
+                        batch_id=batch_id,
+                        request_ids=[request_id],
+                        decision_ids=[generate_random_id(prefix="dcs")],
+                        results=[result],
+                        routing_plans=[routing_plan],
+                        instances=[instance],
+                        responses=[response],
+                        latency_ms=item_latency_ms,
+                        batch_indices=[index],
+                    )
+                    responses[index] = response
+                    await self._submit_shadow_predictions(shadow_tasks)
+                except (
+                        ServiceDeploymentNotFoundError,
+                        ServiceEnvironmentMismatchError,
+                        RuntimeRouteError,
+                        RequestTimeoutError,
+                        RuntimeError,
+                        TypeError,
+                        ValueError,
+                ) as exc:
+                    error_response = self._build_error_response(
+                        request_id=request_id,
+                        error=exc,
+                    )
+                    await self._record_batch_item_failure(
+                        request_id=request_id,
+                        batch_id=batch_id,
+                        batch_index=index,
+                        model_id=model_id,
+                        route=route,
+                        error=exc,
+                        response=error_response,
+                        latency_ms=(
+                            time.perf_counter() - item_started_at
+                        ) * 1000,
+                    )
+                    responses[index] = error_response
+                except Exception as exc:
+                    error_response = self._build_error_response(
+                        request_id=request_id,
+                        error=exc,
+                    )
+                    await self._record_batch_item_failure(
+                        request_id=request_id,
+                        batch_id=batch_id,
+                        batch_index=index,
+                        model_id=model_id,
+                        route=route,
+                        error=exc,
+                        response=error_response,
+                        latency_ms=(
+                            time.perf_counter() - item_started_at
+                        ) * 1000,
+                    )
+                    responses[index] = error_response
+                    if raise_errors:
+                        raise
 
-                latency_ms = (
-                                     time.perf_counter()
-                                     - started_at
-                             ) * 1000
+            finalized_responses: list[dict[str, Any]] = []
+            for index in selected_indices:
+                response = responses[index]
+                if response is not None:
+                    finalized_responses.append(response)
 
-                budget.enter_stage("persistence")
-                shadow_tasks = await self._record_batch_success(
-                    batch_id=batch_id,
-                    request_ids=request_ids,
-                    decision_ids=decision_ids,
-                    results=results,
-                    routing_plans=routing_plans,
-                    instances=request.instances,
-                    responses=responses,
-                    latency_ms=latency_ms,
-                )
+            succeeded_count = sum(
+                response.get("success") is True
+                for response in finalized_responses
+            )
+            failed_count = len(finalized_responses) - succeeded_count
 
-                budget.enter_stage("shadow_dispatch")
-                await self._submit_shadow_predictions(
-                    shadow_tasks
-                )
+            return {
+                "success": failed_count == 0,
+                "task_type": task_type,
+                "count": len(finalized_responses),
+                "succeeded_count": succeeded_count,
+                "failed_count": failed_count,
+                "predictions": finalized_responses,
+                "batch_id": batch_id,
+            }
 
-                return {
-                    "success": True,
-                    "task_type": task_type,
-                    "count": len(responses),
-                    "predictions": responses,
-                    "request_id": batch_id,
-                }
+        except BatchCancelledError as exc:
+            await self._mark_batch_failed(
+                request_ids=[
+                    request_ids[index]
+                    for index in selected_indices
+                    if index < len(request_ids)
+                ],
+                records_created=records_prepared,
+                error=str(exc),
+                latency_ms=(
+                    time.perf_counter() - started_at
+                ) * 1000,
+            )
+            raise
 
         except (
                 ServiceDeploymentNotFoundError,
@@ -530,15 +962,19 @@ class PredictionMixin:
                 TypeError,
                 ValueError,
         ) as exc:
-            response = build_prediction_response(
+            response = build_batch_prediction_response(
                 self._build_error_response(request_id=batch_id, error=exc),
-                request_id=batch_id,
+                batch_id=batch_id,
             )
 
             await self._mark_batch_failed(
-                request_ids=request_ids,
+                request_ids=[
+                    request_ids[index]
+                    for index in selected_indices
+                    if index < len(request_ids)
+                ],
                 records_created=(
-                    records_created or isinstance(exc, RequestTimeoutError)
+                    records_prepared or isinstance(exc, RequestTimeoutError)
                 ),
                 error=str(exc),
                 response=response,
@@ -568,14 +1004,18 @@ class PredictionMixin:
             return response
 
         except Exception as exc:
-            response = build_prediction_response(
+            response = build_batch_prediction_response(
                 self._build_error_response(request_id=batch_id, error=exc),
-                request_id=batch_id,
+                batch_id=batch_id,
             )
 
             await self._mark_batch_failed(
-                request_ids=request_ids,
-                records_created=records_created,
+                request_ids=[
+                    request_ids[index]
+                    for index in selected_indices
+                    if index < len(request_ids)
+                ],
+                records_created=records_prepared,
                 error=str(exc),
                 response=response,
                 latency_ms=(
@@ -596,13 +1036,36 @@ class PredictionMixin:
                 error=str(exc),
             )
 
+            if raise_errors:
+                raise
+
             return response
+
+    async def prepare_batch_task(
+            self,
+            *,
+            request: BatchPredictRequest,
+            batch_id: str,
+    ) -> int:
+        """在发布分片任务前创建完整的幂等请求记录。"""
+        model_id = await self._resolve_model_id(
+            model_name=request.model_name,
+        )
+        await self._prepare_batch_request_records(
+            batch_id=batch_id,
+            model_id=model_id,
+            model_name=request.model_name,
+            deployment_id=request.deployment_id,
+            instances=request.instances,
+        )
+        return len(request.instances)
 
     async def _execute_routed_batch(
             self,
             *,
             routing_plans: list[RoutingPlan],
             instances: list[PredictionInstance],
+            cancel_check: Callable[[], Awaitable[bool]] | None = None,
     ) -> tuple[list[ExecutionResult], str | None]:
         """按主部署分组执行批量预测并恢复请求顺序。"""
         indices_by_deployment: dict[str, list[int]] = {}
@@ -617,6 +1080,12 @@ class PredictionMixin:
         task_type: str | None = None
 
         for deployment_id, indices in indices_by_deployment.items():
+            if (
+                    cancel_check is not None
+                    and await cancel_check()
+            ):
+                raise BatchCancelledError("批次已取消")
+
             service = await self._get_service(
                 deployment_id
             )
@@ -686,22 +1155,48 @@ class PredictionMixin:
         )
 
     @staticmethod
-    async def _create_batch_request_records(
+    async def _prepare_batch_request_records(
             *,
             batch_id: str,
-            request_ids: list[str],
             model_id: str | None,
             model_name: str,
             deployment_id: str | None,
             instances: list[PredictionInstance],
-    ) -> None:
-        """在同一事务中创建批量请求记录"""
+    ) -> list[str]:
+        """创建批次请求记录，重试时复用原请求 ID"""
         request_context = get_context()
 
         async with UnitOfWork() as uow:
             repository = RequestRepository(
                 uow.session
             )
+            existing = await repository.list_batch_requests(batch_id)
+
+            if existing:
+                expected_indices = list(range(len(instances)))
+                actual_indices = [
+                    item.batch_index
+                    for item in existing
+                ]
+
+                if actual_indices != expected_indices:
+                    raise RuntimeError(
+                        f"批次请求记录不完整: {batch_id}"
+                    )
+
+                for item in existing:
+                    if item.status != "success":
+                        repository.reset_for_retry(item)
+
+                return [
+                    item.request_id
+                    for item in existing
+                ]
+
+            request_ids = [
+                generate_random_id(prefix="req")
+                for _ in instances
+            ]
 
             for index, (request_id, instance) in enumerate(
                     zip(
@@ -713,9 +1208,9 @@ class PredictionMixin:
                     request_id=request_id,
                     model_id=model_id,
                     model_name=model_name,
+                    batch_id=batch_id,
+                    batch_index=index,
                     payload={
-                        "batch_id": batch_id,
-                        "batch_index": index,
                         "model_name": model_name,
                         "deployment_id": deployment_id,
                         "subject_key": instance.subject_key,
@@ -731,6 +1226,50 @@ class PredictionMixin:
                     ),
                 )
 
+            return request_ids
+
+    @staticmethod
+    async def _load_batch_success_responses(
+            batch_id: str,
+    ) -> dict[int, dict[str, Any]]:
+        """加载重试时需要跳过的成功条目响应"""
+        async with UnitOfWork() as uow:
+            records = await RequestRepository(
+                uow.session
+            ).list_batch_requests(batch_id)
+
+            return {
+                record.batch_index: record.response
+                for record in records
+                if record.status == "success"
+                and record.batch_index is not None
+                and isinstance(record.response, dict)
+            }
+
+    @staticmethod
+    async def _load_batch_request_ids(
+            *,
+            batch_id: str,
+            expected_count: int,
+    ) -> list[str]:
+        """按批次位置加载分片共享的请求 ID。"""
+        async with UnitOfWork() as uow:
+            records = await RequestRepository(
+                uow.session
+            ).list_batch_requests(batch_id)
+            actual_indices = [
+                record.batch_index
+                for record in records
+            ]
+            if actual_indices != list(range(expected_count)):
+                raise RuntimeError(
+                    f"批次请求记录不完整: {batch_id}"
+                )
+            return [
+                record.request_id
+                for record in records
+            ]
+
     async def _record_batch_success(
             self,
             *,
@@ -742,6 +1281,7 @@ class PredictionMixin:
             instances: list[PredictionInstance],
             responses: list[dict[str, Any]],
             latency_ms: float,
+            batch_indices: list[int] | None = None,
     ) -> tuple[ShadowTask, ...]:
         """在同一事务中记录批量请求和决策结果"""
         shadow_tasks: list[ShadowTask] = []
@@ -760,6 +1300,12 @@ class PredictionMixin:
                 timezone.utc
             )
 
+            resolved_indices = (
+                batch_indices
+                if batch_indices is not None
+                else list(range(len(request_ids)))
+            )
+
             for index, (
                     request_id,
                     decision_id,
@@ -767,7 +1313,8 @@ class PredictionMixin:
                     routing_plan,
                     instance,
                     response,
-            ) in enumerate(
+            ) in zip(
+                resolved_indices,
                 zip(
                     request_ids,
                     decision_ids,
@@ -776,7 +1323,8 @@ class PredictionMixin:
                     instances,
                     responses,
                     strict=True,
-                )
+                ),
+                strict=True,
             ):
                 route = result.route
                 prediction = result.prediction
@@ -795,6 +1343,7 @@ class PredictionMixin:
                 request_repo.mark_success(
                     request_record,
                     model_id=route.model_id,
+                    decision_id=decision_id,
                     response=response,
                     latency_ms=latency_ms,
                 )
@@ -1154,6 +1703,7 @@ class PredictionMixin:
             request_repo.mark_success(
                 request_record,
                 model_id=route.model_id,
+                decision_id=decision_id,
                 response=response,
                 latency_ms=latency_ms,
             )
@@ -1274,17 +1824,124 @@ class PredictionMixin:
             shadow_tasks
         )
 
+    async def _record_batch_item_failure(
+            self,
+            *,
+            request_id: str,
+            batch_id: str,
+            batch_index: int,
+            model_id: str | None,
+            route: RouteResult | None,
+            error: Exception,
+            response: dict[str, Any],
+            latency_ms: float,
+    ) -> None:
+        """记录批次条目的失败结果
+
+        路由尚未完成时只更新请求记录；确定执行目标后，额外记录
+        本次路由决策和主模型执行，保留批次重试前的执行轨迹。
+        """
+        if route is None:
+            await self._mark_request_failed(
+                request_id=request_id,
+                model_id=model_id,
+                error=str(error),
+                response=response,
+                latency_ms=latency_ms,
+            )
+            return
+
+        async with UnitOfWork() as uow:
+            request_repo = RequestRepository(uow.session)
+            decision_repo = DecisionRepository(uow.session)
+            execution_repo = ExecutionRepository(uow.session)
+            request_record = await request_repo.get_request(request_id)
+
+            if request_record is None:
+                logger.warning(
+                    "失败请求记录不存在",
+                    request_id=request_id,
+                )
+                return
+
+            if request_record.status == "success":
+                return
+
+            decision_id = generate_random_id(prefix="dcs")
+            request_repo.mark_failed(
+                request_record,
+                error=str(error),
+                model_id=route.model_id,
+                decision_id=decision_id,
+                response=response,
+                latency_ms=latency_ms,
+            )
+            context = self._build_decision_context(
+                route,
+                batch_id=batch_id,
+                batch_index=batch_index,
+            )
+            decision_repo.create_decision(
+                decision_id=decision_id,
+                request_id=request_id,
+                model_id=route.model_id,
+                version_id=route.version_id,
+                source=DecisionStrategy(route.source),
+                deployment_id=route.deployment_id,
+                experiment_id=route.experiment_id,
+                variant_id=route.variant_id,
+                assignment_id=route.assignment_id,
+                subject_key=route.subject_key,
+                subject_type=route.subject_type,
+                strategy=route.strategy,
+                bucket=route.bucket,
+                group=route.group,
+                weight=route.weight,
+                context=context,
+            )
+            finished_at = datetime.now(timezone.utc)
+            execution_repo.create_execution(
+                execution_id=generate_random_id(prefix="exe"),
+                decision_id=decision_id,
+                execution_type=ExecutionType.PRIMARY,
+                status=self._failure_execution_status(error),
+                model_id=route.model_id,
+                version_id=route.version_id,
+                deployment_id=route.deployment_id,
+                routing_id=route.routing_id,
+                latency_ms=latency_ms,
+                error_type=error.__class__.__name__,
+                error=str(error),
+                context=context,
+                started_at=(
+                    finished_at - timedelta(milliseconds=latency_ms)
+                ),
+                finished_at=finished_at,
+            )
+
+    @staticmethod
+    def _failure_execution_status(
+            error: Exception,
+    ) -> ExecutionStatus:
+        """根据异常语义确定模型执行失败状态"""
+        if isinstance(error, RequestTimeoutError):
+            return ExecutionStatus.TIMEOUT
+
+        return ExecutionStatus.FAILED
+
     async def _submit_shadow_predictions(
             self,
             tasks: tuple[ShadowTask, ...],
     ) -> None:
         """提交本次请求命中的影子预测"""
         for task in tasks:
-            accepted = self.shadow_dispatcher.submit(
-                task
-            )
-
-            if not accepted:
+            task_id = generate_random_id(prefix="tsk")
+            try:
+                self.task_publisher.submit_shadow(
+                    execution_id=task.execution_id,
+                    task_id=task_id,
+                )
+            except TaskDispatchError as exc:
                 self._logger.warning(
                     "影子预测任务未进入执行队列",
                     execution_id=task.execution_id,
@@ -1296,18 +1953,22 @@ class PredictionMixin:
                     routing_id=(
                         task.plan.route.routing_id
                     ),
+                    error_type=exc.__class__.__name__,
+                    error=str(exc),
                 )
                 await self._record_shadow_failure(
                     task=task,
-                    status=ExecutionStatus.REJECTED,
+                    status=ExecutionStatus.FAILED,
                     error="影子预测执行队列不可用或已满",
                     error_type="ShadowQueueRejected",
                     latency_ms=0.0,
                 )
 
-    async def _execute_shadow(
+    async def execute_shadow_task(
             self,
             task: ShadowTask,
+            *,
+            raise_errors: bool = False,
     ) -> None:
         """执行并记录单个影子预测"""
         started_at = time.perf_counter()
@@ -1418,6 +2079,119 @@ class PredictionMixin:
                         task.plan.route.deployment_id
                     ),
                 )
+
+            if raise_errors:
+                raise
+
+    @staticmethod
+    async def load_shadow_task(execution_id: str) -> ShadowTask | None:
+        """从持久化执行记录还原影子预测任务"""
+        async with UnitOfWork() as uow:
+            execution_repo = ExecutionRepository(uow.session)
+            decision_repo = DecisionRepository(uow.session)
+            request_repo = RequestRepository(uow.session)
+            deployment_repo = DeploymentRepository(uow.session)
+
+            execution = await execution_repo.get_execution(execution_id)
+
+            if execution is None:
+                return None
+
+            if execution.status != str(ExecutionStatus.QUEUED):
+                return None
+
+            decision = await decision_repo.get_by_decision_id(
+                execution.decision_id
+            )
+            if decision is None:
+                raise RuntimeError(
+                    f"影子执行关联的决策不存在: {execution.decision_id}"
+                )
+
+            request = await request_repo.get_request(decision.request_id)
+            if request is None:
+                raise RuntimeError(
+                    f"影子执行关联的请求不存在: {decision.request_id}"
+                )
+
+            if execution.deployment_id is None:
+                raise RuntimeError(
+                    f"影子执行缺少部署 ID: {execution_id}"
+                )
+
+            deployment = await deployment_repo.get_deployment(
+                execution.deployment_id
+            )
+            if deployment is None:
+                raise RuntimeError(
+                    f"影子执行关联的部署不存在: {execution.deployment_id}"
+                )
+
+            payload = request.payload or {}
+            features = payload.get("features")
+            if not isinstance(features, dict) or not features:
+                raise RuntimeError(
+                    f"影子执行关联的请求缺少特征: {request.request_id}"
+                )
+
+            execution_context = dict(execution.context or {})
+            route_context = {
+                key: value
+                for key, value in execution_context.items()
+                if key not in {
+                    "framework",
+                    "environment",
+                    "worker_id",
+                    "batch_id",
+                    "batch_index",
+                    "routing_id",
+                }
+            }
+            route = RouteResult(
+                model_id=execution.model_id,
+                version_id=execution.version_id,
+                deployment_id=execution.deployment_id,
+                framework=deployment.framework,
+                environment=deployment.environment,
+                source=str(DecisionStrategy.SHADOW),
+                strategy=decision.strategy or "manual",
+                experiment_id=decision.experiment_id,
+                variant_id=decision.variant_id,
+                assignment_id=decision.assignment_id,
+                routing_id=execution.routing_id,
+                subject_key=decision.subject_key,
+                subject_type=decision.subject_type,
+                bucket=decision.bucket,
+                group=decision.group,
+                weight=decision.weight,
+                context=route_context,
+            )
+
+            return ShadowTask(
+                execution_id=execution.execution_id,
+                request_id=request.request_id,
+                decision_id=decision.decision_id,
+                plan=ExecutionPlan(
+                    route=route,
+                    execution_type=ExecutionType.SHADOW,
+                    timeout=runtime_config.shadow_timeout,
+                ),
+                features=deepcopy(features),
+            )
+
+    @staticmethod
+    async def reset_shadow_for_retry(execution_id: str) -> None:
+        """将瞬时失败的影子执行重新置为等待状态"""
+        async with UnitOfWork() as uow:
+            repository = ExecutionRepository(uow.session)
+            execution = await repository.get_execution(execution_id)
+
+            if execution is None:
+                raise RuntimeError(
+                    f"影子模型执行记录不存在: {execution_id}"
+                )
+
+            repository.reset_for_retry(execution)
 
     async def _record_shadow_success(
             self,

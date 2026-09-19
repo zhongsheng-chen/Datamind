@@ -123,7 +123,7 @@ class ABTestEngine:
             experiment_repo: 实验仓储
             variant_repo: 实验分组仓储
             assignment_repo: 实验分配仓储
-            assigner: 实验分配器（可选）
+            assigner: 实验分配器，默认使用 ExperimentAssigner
         """
         self.experiment_repo = experiment_repo
         self.variant_repo = variant_repo

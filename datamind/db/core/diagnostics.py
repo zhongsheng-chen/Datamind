@@ -18,7 +18,7 @@ import structlog
 from sqlalchemy.engine import make_url
 from sqlalchemy.pool import QueuePool
 
-from datamind.config import get_settings
+from datamind.config import get_database_config
 from datamind.db.core.engine import get_engine
 from datamind.db.core.url import get_db_url
 
@@ -82,8 +82,7 @@ def get_db_pool_diagnostics(
         overflow 表示当前溢出连接数量，
         连接池刚初始化时可能为负数。
     """
-    settings = get_settings()
-    db = settings.database
+    db = get_database_config()
 
     pool = _get_queue_pool()
 

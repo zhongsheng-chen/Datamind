@@ -23,7 +23,7 @@ from typing import Any
 
 import structlog
 
-from datamind.config import get_settings
+from datamind.config import get_logging_config
 from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
@@ -89,7 +89,7 @@ class ExperimentLifecycleService:
         resolved_strategy = AssignmentStrategy(
             strategy
         )
-        timezone_name = get_settings().logging.timezone
+        timezone_name = get_logging_config().timezone
         start = parse_datetime(
             effective_from,
             timezone_name=timezone_name,
@@ -101,7 +101,7 @@ class ExperimentLifecycleService:
 
         if end is not None and start is not None and end <= start:
             raise InvalidExperimentConfigError(
-                "生效结束时间必须晚于生效开始时间"
+                "失效时间必须晚于生效时间"
             )
 
         if resolved_strategy is AssignmentStrategy.HASH and traffic_ratio <= 0:
@@ -290,7 +290,7 @@ class ExperimentLifecycleService:
                     raise InvalidExperimentConfigError("只有手动分配策略支持指定客户")
                 current_config.pop("manual_assignments", None)
 
-            timezone_name = get_settings().logging.timezone
+            timezone_name = get_logging_config().timezone
             start = (
                 parse_datetime(effective_from, timezone_name=timezone_name)
                 if effective_from is not None
@@ -303,7 +303,7 @@ class ExperimentLifecycleService:
             )
             if end is not None and start is not None and end <= start:
                 raise InvalidExperimentConfigError(
-                    "生效结束时间必须晚于生效开始时间"
+                    "失效时间必须晚于生效时间"
                 )
 
             before = self._experiment_result(experiment)

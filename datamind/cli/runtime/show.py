@@ -21,7 +21,7 @@ from rich.table import Table
 
 from datamind.cli.common import cli_context
 from datamind.models.errors import DeploymentError
-from datamind.services import RuntimeControlService
+from datamind.services.control import RuntimeControlService
 from datamind.utils.datetime import (
     format_datetime,
     format_iso_utc,

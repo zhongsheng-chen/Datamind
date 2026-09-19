@@ -29,6 +29,7 @@ from typing import (
 
 import structlog
 from pydantic import ValidationError
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.applications import Starlette
 from starlette.datastructures import UploadFile
@@ -71,7 +72,7 @@ from datamind.constants import (
     SUPPORTED_MODEL_TYPES,
     SUPPORTED_PERMISSIONS,
 )
-from datamind.config import get_settings
+from datamind.config import get_service_config
 from datamind.db.core import UnitOfWork
 from datamind.db.models.outbox import OutboxEvent
 from datamind.db.repositories import (
@@ -106,6 +107,7 @@ from datamind.runtime.routing.schema import (
     ROUTING_RULES_EXAMPLE,
     RoutingRules,
 )
+from datamind.runtime.task_queue import TaskDispatchError
 from datamind.console.schemas import (
     DeploymentCreateRequest,
     DeploymentUpdateRequest,
@@ -130,7 +132,11 @@ from datamind.models.errors import (
     ExperimentError,
     ModelError,
 )
+from datamind.models.artifact.formats import (
+    artifact_extension_capabilities,
+)
 from datamind.services import (
+    BatchLifecycleService,
     DashboardService,
     DeploymentLifecycleService,
     ExperimentLifecycleService,
@@ -153,6 +159,7 @@ _STATIC_DIR = Path(__file__).parent / "dist"
 _MAX_MODEL_UPLOAD_MB = 200
 _MAX_MODEL_UPLOAD_BYTES = _MAX_MODEL_UPLOAD_MB * MB
 _CAPABILITY_PERMISSIONS = {
+    "batches.manage": "prediction.invoke",
     "models.create": "model.write",
     "versions.manage": "model.write",
     "deployments.create": "deployment.write",
@@ -194,6 +201,30 @@ async def _health(
     """返回管理控制台健康状态"""
     return JSONResponse({
         "status": "ok",
+    })
+
+
+async def _ready(
+        _request: Request,
+) -> JSONResponse:
+    """返回管理控制台就绪状态"""
+    try:
+        async with UnitOfWork() as uow:
+            await uow.session.execute(
+                text("SELECT 1")
+            )
+    except (SQLAlchemyError, OSError):
+        return JSONResponse(
+            {
+                "status": "not_ready",
+                "database_ready": False,
+            },
+            status_code=503,
+        )
+
+    return JSONResponse({
+        "status": "ready",
+        "database_ready": True,
     })
 
 
@@ -504,6 +535,14 @@ async def _management_options(
                 required_permission="model.write",
             )
             else []
+        ),
+        "artifact_extensions": (
+            artifact_extension_capabilities()
+            if has_permission(
+                granted_permissions=user.permissions,
+                required_permission="model.write",
+            )
+            else {}
         ),
         "permissions": (
             [
@@ -1850,7 +1889,7 @@ def _service_environment(
 ) -> str:
     """返回当前控制台实例管理的唯一环境。"""
     return str(
-        get_settings().service.environment
+        get_service_config().environment.value
     )
 
 
@@ -2569,11 +2608,12 @@ async def _reset_user_password(
 async def _resource_action(
         request: Request,
 ) -> JSONResponse:
-    """执行部署、路由、实验、分组或身份管理操作"""
+    """执行批次及管理资源操作"""
     resource = request.path_params["resource"]
     identifier = request.path_params["identifier"]
     action = request.path_params["action"]
     permission_map = {
+        "batches": "prediction.invoke",
         "models": "model.write",
         "deployments": (
             "deployment.delete"
@@ -2642,14 +2682,20 @@ async def _resource_action(
                     user=authenticated_user,
                 )
             ),
+            batch_factory=BatchLifecycleService,
         )
 
         if resource not in {"users", "roles"}:
+            target_type = (
+                "batch"
+                if resource == "batches"
+                else resource.rstrip("s")
+            )
             await _record_write_audit(
                 request,
                 user=authenticated_user,
                 action=f"console.{resource}.{action}",
-                target_type=resource.rstrip("s"),
+                target_type=target_type,
                 target_id=identifier,
                 result=result,
             )
@@ -2661,6 +2707,7 @@ async def _resource_action(
             IdentityError,
             ModelError,
             ExperimentError,
+            TaskDispatchError,
             SQLAlchemyError,
     ) as error:
         return _write_error_response(error)
@@ -2741,6 +2788,7 @@ console_app = Starlette(
     routes=create_routes(
         ConsoleHandlers(
             health=_health,
+            ready=_ready,
             page=_page,
             login=_login,
             refresh=_refresh,

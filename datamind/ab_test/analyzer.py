@@ -146,7 +146,7 @@ class ABTestAnalyzer:
             experiment_repo: 实验仓储
             variant_repo: 实验分组仓储
             outcome_repo: 实验结果仓储
-            metric_evaluator: A/B 实验指标评估器（可选）
+            metric_evaluator: A/B 实验指标评估器，默认使用 ABTestMetricEvaluator
         """
         self.experiment_repo = experiment_repo
         self.variant_repo = variant_repo

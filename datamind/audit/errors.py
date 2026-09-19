@@ -25,6 +25,11 @@ class AuditValidationError(AuditError):
     """审计事件校验失败"""
 
     def __init__(self, message: str = "审计事件校验失败") -> None:
+        """初始化审计事件校验异常
+
+        参数：
+            message: 异常消息，默认使用审计事件校验失败提示
+        """
         super().__init__(message)
 
 
@@ -32,4 +37,9 @@ class AuditWriteError(AuditError):
     """审计事件写入失败"""
 
     def __init__(self, message: str = "审计事件写入失败") -> None:
+        """初始化审计事件写入异常
+
+        参数：
+            message: 异常消息，默认使用审计事件写入失败提示
+        """
         super().__init__(message)

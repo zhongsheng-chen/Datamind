@@ -1,6 +1,6 @@
 """管理控制台查询服务
 
-聚合模型、版本、部署、路由、运行状态、API 调用、决策、执行、实验和审计记录，
+聚合模型、版本、部署、路由、运行状态、批量任务、API 调用、决策、执行、实验和审计记录，
 生成控制台快照和分页查询结果。
 
 核心功能：
@@ -65,6 +65,8 @@ _SECTION_PERMISSIONS = {
     "routings": "routing.read",
     "runtimes": "runtime.read",
     "requests": "request.read",
+    "batches": "request.read",
+    "attempts": "request.read",
     "decisions": "request.read",
     "executions": "request.read",
     "experiments": "experiment.read",
@@ -398,6 +400,30 @@ class DashboardService:
                         ),
                     )
                     for request in requests
+                ]
+
+            if access["batches"]:
+                batches = await dashboard_repo.search_records(
+                    section="batches",
+                    query="",
+                    limit=limit,
+                    offset=0,
+                )
+                batch_deployments = (
+                    await dashboard_repo.get_batch_deployment_stats(
+                        batch.batch_id
+                        for batch in batches
+                    )
+                )
+                sections["batches"] = [
+                    self._batch_item(
+                        batch,
+                        deployments=batch_deployments.get(
+                            batch.batch_id,
+                            [],
+                        ),
+                    )
+                    for batch in batches
                 ]
 
             if access["decisions"]:
@@ -899,6 +925,11 @@ class DashboardService:
                     ),
                     "experiment_name": experiment.name,
                     "experiment_status": experiment.status,
+                    "experiment_config": getattr(
+                        experiment,
+                        "config",
+                        None,
+                    ),
                 }
                 for variant in variants
             }
@@ -1022,6 +1053,8 @@ class DashboardService:
                     or normalized_record_ids is not None
                     or deleted
                     or section in {
+                        "batches",
+                        "attempts",
                         "models",
                         "deployments",
                         "executions",
@@ -1194,6 +1227,40 @@ class DashboardService:
                         ),
                     )
                     for request in page_records
+                ]
+            elif section == "batches":
+                batch_deployments = (
+                    await dashboard_repo.get_batch_deployment_stats(
+                        batch.batch_id
+                        for batch in records
+                    )
+                )
+                items = [
+                    self._batch_item(
+                        batch,
+                        deployments=batch_deployments.get(
+                            batch.batch_id,
+                            [],
+                        ),
+                    )
+                    for batch in records
+                ]
+            elif section == "attempts":
+                attempt_shard_details = (
+                    await dashboard_repo.get_attempt_shard_details(
+                        attempt.attempt_id
+                        for attempt in records
+                    )
+                )
+                items = [
+                    self._attempt_item(
+                        attempt,
+                        shards=attempt_shard_details.get(
+                            attempt.attempt_id,
+                            [],
+                        ),
+                    )
+                    for attempt in records
                 ]
             elif section == "decisions":
                 page_records = records
@@ -1758,7 +1825,7 @@ class DashboardService:
     def _version_item(
             version: Any,
             *,
-            labels: dict[str, str | None] | None = None,
+            labels: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """转换模型版本摘要"""
         version_labels = labels or {}
@@ -2069,6 +2136,8 @@ class DashboardService:
 
         return {
             "request_id": request.request_id,
+            "batch_id": getattr(request, "batch_id", None),
+            "batch_index": getattr(request, "batch_index", None),
             "model_id": request.model_id,
             "model_name": model_name,
             "task_type": request_details.get(
@@ -2102,6 +2171,108 @@ class DashboardService:
             "created_at": format_iso_utc(
                 request.created_at
             ),
+        }
+
+    @staticmethod
+    def _batch_item(
+            batch: Any,
+            *,
+            deployments: Iterable[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        """转换预测批次摘要"""
+        return {
+            "batch_id": batch.batch_id,
+            "task_id": batch.task_id,
+            "model_id": batch.model_id,
+            "model_name": batch.model_name,
+            "deployment_id": batch.deployment_id,
+            "deployments": list(deployments),
+            "environment": batch.environment,
+            "status": batch.status,
+            "payload": batch.payload,
+            "result": batch.result,
+            "error": batch.error,
+            "total_count": batch.total_count,
+            "completed_count": batch.completed_count,
+            "succeeded_count": batch.succeeded_count,
+            "failed_count": batch.failed_count,
+            "attempt_count": batch.attempt_count,
+            "retry_count": max(
+                batch.attempt_count - 1,
+                0,
+            ),
+            "cancel_requested_at": format_iso_utc(
+                batch.cancel_requested_at
+            ),
+            "started_at": format_iso_utc(batch.started_at),
+            "finished_at": format_iso_utc(batch.finished_at),
+            "source": batch.source,
+            "user": batch.user,
+            "ip": batch.ip,
+            "created_at": format_iso_utc(batch.created_at),
+            "updated_at": format_iso_utc(batch.updated_at),
+        }
+
+    @staticmethod
+    def _attempt_item(
+            attempt: Any,
+            *,
+            shards: Iterable[dict[str, Any]] = (),
+    ) -> dict[str, Any]:
+        """转换批次执行尝试摘要及实时分片进度。"""
+        shard_items = []
+        worker_ids = []
+        completed_count = 0
+        total_count = 0
+        for detail in shards:
+            shard = detail["record"]
+            if shard.worker_id and shard.worker_id not in worker_ids:
+                worker_ids.append(shard.worker_id)
+            completed_count += detail["completed_count"]
+            total_count += detail["total_count"]
+            shard_items.append({
+                "shard_id": shard.shard_id,
+                "task_id": shard.task_id,
+                "start_index": shard.start_index,
+                "end_index": shard.end_index,
+                "status": shard.status,
+                "worker_id": shard.worker_id,
+                "error": shard.error,
+                "total_count": detail["total_count"],
+                "completed_count": detail["completed_count"],
+                "succeeded_count": detail["succeeded_count"],
+                "failed_count": detail["failed_count"],
+                "queued_at": format_iso_utc(shard.queued_at),
+                "started_at": format_iso_utc(shard.started_at),
+                "finished_at": format_iso_utc(shard.finished_at),
+            })
+        return {
+            "attempt_id": attempt.attempt_id,
+            "batch_id": attempt.batch_id,
+            "task_id": attempt.task_id,
+            "attempt_number": attempt.attempt_number,
+            "status": attempt.status,
+            "worker_id": attempt.worker_id,
+            "worker_ids": worker_ids,
+            "worker_count": len(worker_ids),
+            "completed_count": completed_count,
+            "total_count": total_count,
+            "progress_percent": (
+                round(completed_count * 100 / total_count, 2)
+                if total_count
+                else 0
+            ),
+            "progress_text": f"{completed_count}/{total_count}",
+            "shards": shard_items,
+            "error": attempt.error,
+            "retry_scheduled_at": format_iso_utc(
+                attempt.retry_scheduled_at
+            ),
+            "queued_at": format_iso_utc(attempt.queued_at),
+            "started_at": format_iso_utc(attempt.started_at),
+            "finished_at": format_iso_utc(attempt.finished_at),
+            "created_at": format_iso_utc(attempt.created_at),
+            "updated_at": format_iso_utc(attempt.updated_at),
         }
 
     @staticmethod
@@ -2406,10 +2577,15 @@ class DashboardService:
     def _variant_item(
             variant: Any,
             *,
-            labels: dict[str, str | None] | None = None,
+            labels: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """转换实验分组摘要"""
         variant_labels = labels or {}
+        experiment_config = variant_labels.get(
+            "experiment_config"
+        )
+        if not isinstance(experiment_config, dict):
+            experiment_config = {}
 
         return {
             "variant_id": variant.variant_id,
@@ -2419,6 +2595,12 @@ class DashboardService:
             ),
             "experiment_status": variant_labels.get(
                 "experiment_status"
+            ),
+            "experiment_strategy": experiment_config.get(
+                "strategy"
+            ),
+            "experiment_traffic_ratio": experiment_config.get(
+                "traffic_ratio"
             ),
             "name": variant.name,
             "deployment_id": variant.deployment_id,

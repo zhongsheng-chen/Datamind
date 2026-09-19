@@ -45,6 +45,7 @@ from sqlalchemy import (
     Column,
     Float,
     Index,
+    Integer,
     String,
     text,
 )
@@ -75,6 +76,10 @@ class Request(
             "model_id",
         ),
         Index(
+            "idx_requests_batch_id",
+            "batch_id",
+        ),
+        Index(
             "idx_requests_model_name",
             "model_name",
         ),
@@ -99,6 +104,15 @@ class Request(
             "request_id",
             unique=True,
         ),
+        Index(
+            "uk_requests_batch_position",
+            "batch_id",
+            "batch_index",
+            unique=True,
+            postgresql_where=text(
+                "batch_id IS NOT NULL"
+            ),
+        ),
         CheckConstraint(
             (
                 "status IN ("
@@ -115,6 +129,21 @@ class Request(
                 "OR latency_ms >= 0"
             ),
             name="latency_ms_non_negative",
+        ),
+        CheckConstraint(
+            (
+                "(batch_id IS NULL AND batch_index IS NULL) "
+                "OR (batch_id IS NOT NULL "
+                "AND batch_index IS NOT NULL)"
+            ),
+            name="batch_fields_consistent",
+        ),
+        CheckConstraint(
+            (
+                "batch_index IS NULL "
+                "OR batch_index >= 0"
+            ),
+            name="batch_index_non_negative",
         ),
         CheckConstraint(
             (
@@ -136,6 +165,24 @@ class Request(
         String(64),
         nullable=False,
         comment="请求 ID，请求的唯一标识",
+    )
+
+    latest_decision_id = Column(
+        String(64),
+        nullable=True,
+        comment="最近一次决策 ID",
+    )
+
+    batch_id = Column(
+        String(64),
+        nullable=True,
+        comment="批次 ID，同一批量预测中的请求共享该标识",
+    )
+
+    batch_index = Column(
+        Integer,
+        nullable=True,
+        comment="请求在批量预测中的位置，从 0 开始",
     )
 
     model_id = Column(

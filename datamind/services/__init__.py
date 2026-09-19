@@ -1,7 +1,7 @@
 """业务服务模块
 
-提供模型注册、删除恢复与制品清理、模型生命周期管理、
-部署、路由和实验生命周期管理、运行控制与系统初始化服务。
+提供系统初始化、身份管理、模型管理、资源生命周期管理、
+运行控制、结果回流和控制台查询服务。
 
 核心功能：
   - InitializationService: 系统初始化服务
@@ -13,6 +13,7 @@
   - DeploymentLifecycleService: 模型部署生命周期服务
   - RoutingLifecycleService: 路由生命周期服务
   - ExperimentLifecycleService: 实验生命周期服务
+  - BatchLifecycleService: 批次生命周期服务
   - RuntimeControlService: 部署运行期望状态控制服务
   - OutcomeService: 实验结果回流服务
   - DashboardService: 管理控制台查询服务
@@ -28,24 +29,30 @@
       DeploymentLifecycleService,
       RoutingLifecycleService,
       ExperimentLifecycleService,
+      BatchLifecycleService,
       RuntimeControlService,
       OutcomeService,
       DashboardService,
   )
 """
 
-from datamind.services.control import RuntimeControlService
-from datamind.services.catalog import ModelCatalogService
-from datamind.services.dashboard import DashboardService
-from datamind.services.deletion import ModelDeletionService
-from datamind.services.deployment import DeploymentLifecycleService
-from datamind.services.experiment import ExperimentLifecycleService
-from datamind.services.initialization import InitializationService
-from datamind.services.identity import IdentityService
-from datamind.services.lifecycle import ModelLifecycleService
-from datamind.services.outcome import OutcomeService
-from datamind.services.registration import ModelRegistrationService
-from datamind.services.routing import RoutingLifecycleService
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from datamind.services.batch import BatchLifecycleService
+    from datamind.services.catalog import ModelCatalogService
+    from datamind.services.control import RuntimeControlService
+    from datamind.services.dashboard import DashboardService
+    from datamind.services.deletion import ModelDeletionService
+    from datamind.services.deployment import DeploymentLifecycleService
+    from datamind.services.experiment import ExperimentLifecycleService
+    from datamind.services.identity import IdentityService
+    from datamind.services.initialization import InitializationService
+    from datamind.services.lifecycle import ModelLifecycleService
+    from datamind.services.outcome import OutcomeService
+    from datamind.services.registration import ModelRegistrationService
+    from datamind.services.routing import RoutingLifecycleService
 
 __all__ = [
     "InitializationService",
@@ -57,7 +64,40 @@ __all__ = [
     "DeploymentLifecycleService",
     "RoutingLifecycleService",
     "ExperimentLifecycleService",
+    "BatchLifecycleService",
     "RuntimeControlService",
     "OutcomeService",
     "DashboardService",
 ]
+
+
+_SERVICE_MODULES = {
+    "InitializationService": "initialization",
+    "IdentityService": "identity",
+    "ModelRegistrationService": "registration",
+    "ModelCatalogService": "catalog",
+    "ModelDeletionService": "deletion",
+    "ModelLifecycleService": "lifecycle",
+    "DeploymentLifecycleService": "deployment",
+    "RoutingLifecycleService": "routing",
+    "ExperimentLifecycleService": "experiment",
+    "BatchLifecycleService": "batch",
+    "RuntimeControlService": "control",
+    "OutcomeService": "outcome",
+    "DashboardService": "dashboard",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """按需加载业务服务，避免包导入触发运行时基础设施配置"""
+    module_name = _SERVICE_MODULES.get(name)
+
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    value = getattr(
+        import_module(f"{__name__}.{module_name}"),
+        name,
+    )
+    globals()[name] = value
+    return value

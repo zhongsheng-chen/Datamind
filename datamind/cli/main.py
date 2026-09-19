@@ -26,7 +26,7 @@ from importlib.metadata import version
 
 import typer
 
-from datamind._build import BUILD_COMMIT
+from datamind._build import BUILD_COMMIT, BUILD_DATE
 from datamind.cli.auth.login import login
 from datamind.cli.auth.logout import logout
 from datamind.cli.auth.whoami import whoami
@@ -41,12 +41,12 @@ from datamind.cli.role import app as role_app
 from datamind.cli.runtime import app as runtime_app
 from datamind.cli.service import app as service_app
 from datamind.cli.user import app as user_app
-from datamind.config import get_settings
+from datamind.config import get_logging_config
 from datamind.logging import setup_logging
 
 
 def version_callback(value: bool) -> None:
-    """显示版本
+    """显示版本信息
 
     参数：
         value: 是否触发版本显示
@@ -54,12 +54,10 @@ def version_callback(value: bool) -> None:
     if not value:
         return
 
-    app_version = version("datamind")
+    message = f"datamind version {version('datamind')}"
 
-    message = f"datamind version {app_version}"
-
-    if BUILD_COMMIT != "dev":
-        message += f" (commit {BUILD_COMMIT})"
+    if BUILD_COMMIT != "dev" and BUILD_DATE is not None:
+        message += f" (commit {BUILD_COMMIT}, built {BUILD_DATE})"
 
     typer.echo(message)
 
@@ -74,33 +72,23 @@ app = typer.Typer(
 
 @app.callback()
 def main(
-        _version_option: bool = typer.Option(
-            False,
-            "--version",
-            help="显示版本信息",
-            callback=version_callback,
-            is_eager=True,
-        ),
+    _version_option: bool = typer.Option(
+        False,
+        "--version",
+        help="显示版本信息",
+        callback=version_callback,
+        is_eager=True,
+    ),
 ) -> None:
     """Datamind CLI 主入口"""
-    setup_logging(
-        get_settings().logging
-    )
+    setup_logging(get_logging_config())
 
 
 # 注册顶层命令和子命令组
-app.command("init")(
-    initialize
-)
-app.command("login")(
-    login
-)
-app.command("logout")(
-    logout
-)
-app.command("whoami")(
-    whoami
-)
+app.command("init")(initialize)
+app.command("login")(login)
+app.command("logout")(logout)
+app.command("whoami")(whoami)
 app.add_typer(model_app, name="model")
 app.add_typer(deployment_app, name="deployment")
 app.add_typer(experiment_app, name="experiment")

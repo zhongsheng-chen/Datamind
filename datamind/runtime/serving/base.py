@@ -52,8 +52,8 @@ class BaseRuntimeService(ABC):
 
         参数：
             runtime_model: 已加载的运行时模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
+            feature_names: 特征名称列表（可选）
+            data_types: 特征类型映射（可选）
 
         异常：
             ValueError: runtime_model 为空

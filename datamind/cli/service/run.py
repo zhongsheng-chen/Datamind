@@ -257,22 +257,22 @@ def run_service(
         host: str | None = typer.Option(
             None,
             "--host",
-            help="监听地址，未指定时读取服务配置"
+            help="监听地址，默认 0.0.0.0"
         ),
         port: int | None = typer.Option(
             None,
             "--port",
-            help="监听端口，未指定时读取服务配置"
+            help="监听端口，默认 8700"
         ),
         reload: bool = typer.Option(
             False,
             "--reload",
-            help="代码变更时自动重载"
+            help="代码变更后自动重载"
         ),
         verbose: bool = typer.Option(
             False,
             "--verbose",
-            help="显示 BentoML 运行日志",
+            help="显示 BentoML 警告和信息日志",
         ),
 ):
     """启动 Datamind 模型服务"""
@@ -285,8 +285,7 @@ def run_service(
     service_config = settings.service
     expected_workers = int(service_config.workers)
 
-    environment = service_config.environment
-
+    environment = service_config.environment.value
     resolved_host = (
         host
         if host is not None
@@ -314,7 +313,6 @@ def run_service(
             run_host: str,
             run_port: int,
             reload_enabled: bool,
-            verbose_logs: bool,
     ) -> ServiceStartupResult:
         """启动服务子进程并等待 Worker 就绪"""
         nonlocal process
@@ -352,7 +350,7 @@ def run_service(
         if reload_enabled:
             command.append("--reload")
 
-        if not verbose_logs:
+        if not verbose:
             command.append("--quiet")
 
         current_service_instance_id: str = uuid.uuid4().hex
@@ -436,7 +434,7 @@ def run_service(
             url=result["url"],
             workers=result["workers"],
             reload=result["reload"],
-            verbose=verbose_logs,
+            verbose=verbose,
             service_target=SERVICE_TARGET,
             service_instance_id=current_service_instance_id,
             ready_dir=str(current_ready_dir),
@@ -452,6 +450,11 @@ def run_service(
             )
 
         except TimeoutError as exc:
+            started_process.terminate()
+            await asyncio.to_thread(
+                started_process.wait
+            )
+
             logger.error(
                 "Datamind 服务启动失败",
                 service_name=result["name"],
@@ -464,11 +467,6 @@ def run_service(
                 ready_dir=str(current_ready_dir),
                 pid=result["pid"],
                 error=str(exc),
-            )
-
-            started_process.terminate()
-            await asyncio.to_thread(
-                started_process.wait
             )
 
             raise typer.Exit(1)
@@ -611,7 +609,6 @@ def run_service(
                 run_host=resolved_host,
                 run_port=resolved_port,
                 reload_enabled=reload,
-                verbose_logs=verbose,
             )
 
             if process is None:

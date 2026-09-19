@@ -1,4 +1,4 @@
-"""分类模型运行服务
+"""分类任务运行时服务
 
 提供二分类模型的在线推理能力。
 
@@ -36,7 +36,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 
 
 class ClassificationService(BaseRuntimeService):
-    """分类模型运行服务
+    """分类任务运行时服务
 
     基于分类模型和分类阈值生成二分类结果。
 
@@ -55,13 +55,13 @@ class ClassificationService(BaseRuntimeService):
             data_types: dict[str, DataType] | None = None,
             threshold: float = 0.5,
     ):
-        """初始化分类模型运行服务
+        """初始化分类任务运行时服务
 
         参数：
             runtime_model: 已加载的运行时模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
-            threshold: 分类阈值
+            feature_names: 特征名称列表（可选）
+            data_types: 特征类型映射（可选）
+            threshold: 分类阈值，默认值为 0.5
 
         异常：
             ValueError: 分类阈值不在 [0, 1] 范围内

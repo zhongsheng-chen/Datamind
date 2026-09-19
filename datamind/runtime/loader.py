@@ -41,14 +41,10 @@ class ModelLoader:
         """初始化模型加载器
 
         参数：
-            storage: 模型制品存储，默认使用全局存储实例
+            storage: 模型制品存储，默认按需获取全局存储实例
             backend: BentoML 模型后端，默认使用 BentoBackend
         """
-        self._storage = (
-            storage
-            if storage is not None
-            else get_storage()
-        )
+        self._storage = storage
         self._backend = (
             backend
             if backend is not None
@@ -92,6 +88,9 @@ class ModelLoader:
             )
         except NotFound:
             pass
+
+        if self._storage is None:
+            self._storage = get_storage()
 
         data = self._storage.load_by_key(
             model_key

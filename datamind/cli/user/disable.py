@@ -16,7 +16,7 @@ import typer
 from datamind.cli.output import CLIConsole
 
 from datamind.cli.common import cli_context
-from datamind.services import IdentityService
+from datamind.services.identity import IdentityService
 from datamind.services.errors import IdentityError
 
 

@@ -8,8 +8,8 @@
 使用示例：
   from datamind.models.artifact.io import temp_file
 
-  with temp_file(data, ".onnx") as path:
-      model = ort.InferenceSession(path)
+  with temp_file(data, ".cbm") as path:
+      model.load_model(path)
 """
 
 import os
@@ -28,7 +28,7 @@ def temp_file(data: bytes, suffix: str) -> Iterator[str]:
 
     参数：
         data: 二进制数据
-        suffix: 文件后缀（如 .keras / .cbm / .onnx）
+        suffix: 文件后缀（如 .cbm）
 
     返回：
         临时文件路径

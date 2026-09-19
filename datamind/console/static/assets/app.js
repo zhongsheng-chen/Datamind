@@ -138,6 +138,9 @@ import {
  * @property {string} variant_id
  * @property {string} experiment_id
  * @property {string | null} experiment_name
+ * @property {string | null} experiment_status
+ * @property {string | null} experiment_strategy
+ * @property {number | null} experiment_traffic_ratio
  * @property {string} name
  * @property {string} deployment_id
  * @property {string | null} model_name
@@ -229,6 +232,8 @@ import {
 /**
  * @typedef {Object} ConsoleRequest
  * @property {string} request_id
+ * @property {string | null} batch_id
+ * @property {number | null} batch_index
  * @property {string} model_id
  * @property {string | null} model_name
  * @property {string | null} task_type
@@ -373,7 +378,7 @@ const sections = {
       ["model_name", "模型名称"],
       ["status", "状态", "status"],
       ["effective_from", "生效时间", "time"],
-      ["effective_to", "结束时间", "time"],
+      ["effective_to", "失效时间", "time"],
       ["updated_at", "更新时间", "time"],
       ["variant_count", "分组", "variant-count"],
     ],
@@ -405,6 +410,34 @@ const sections = {
       ["last_heartbeat_at", "最近心跳", "time"],
     ],
   },
+  batches: {
+    label: "批量任务",
+    title: "批量任务列表",
+    columns: [
+      ["batch_id", "批次 ID", "mono"],
+      ["status", "状态", "task-status"],
+      ["attempt_count", "执行次数"],
+      ["retry_count", "重试次数"],
+      ["user", "提交用户"],
+      ["created_at", "提交时间", "time"],
+      ["finished_at", "完成时间", "time"],
+    ],
+  },
+  attempts: {
+    label: "任务执行",
+    title: "任务执行记录",
+    columns: [
+      ["task_id", "任务 ID", "mono"],
+      ["batch_id", "批次 ID", "mono"],
+      ["attempt_number", "执行序号"],
+      ["status", "状态", "task-status"],
+      ["progress_text", "处理进度"],
+      ["worker_ids", "执行节点", "list"],
+      ["queued_at", "排队时间", "time"],
+      ["started_at", "开始时间", "time"],
+      ["finished_at", "完成时间", "time"],
+    ],
+  },
   requests: {
     label: "API 调用",
     title: "API 调用记录",
@@ -428,8 +461,8 @@ const sections = {
       ["request_id", "请求 ID", "request-link"],
       ["model_name", "模型名称"],
       ["model_version", "版本"],
-      ["source", "来源"],
-      ["strategy", "策略"],
+      ["source", "来源", "decision-source"],
+      ["strategy", "策略", "decision-strategy"],
       ["decision", "决策结果", "decision"],
       ["probability", "概率", "probability"],
       ["score", "评分", "score"],
@@ -444,7 +477,7 @@ const sections = {
       ["execution_type", "执行类型", "execution-type"],
       ["model_name", "模型名称"],
       ["model_version", "版本"],
-      ["status", "状态", "status"],
+      ["status", "状态", "task-status"],
       ["probability", "概率", "probability"],
       ["score", "评分", "score"],
       ["latency_ms", "耗时（毫秒）", "duration"],
@@ -568,6 +601,8 @@ const sectionIdFields = {
   variants: "variant_id",
   runtimes: "runtime_id",
   requests: "request_id",
+  batches: "batch_id",
+  attempts: "attempt_id",
   decisions: "decision_id",
   executions: "execution_id",
   audits: "audit_id",
@@ -594,8 +629,15 @@ const state = {
   active: null,
   selectedModelId: /** @type {string | null} */ (null),
   selectedModel: /** @type {ConsoleModel | null} */ (null),
+  selectedScorecardVersionId: /** @type {string | null} */ (null),
+  scorecardData: null,
+  scorecardError: null,
   selectedExperimentId: /** @type {string | null} */ (null),
   selectedExperiment: /** @type {ExperimentReference | null} */ (null),
+  selectedAttemptId: /** @type {string | null} */ (null),
+  selectedAttempt: null,
+  selectedAttemptView: /** @type {string | null} */ (null),
+  attemptPageError: null,
   sectionPage: 1,
   sectionPageSize: defaultPageSize,
   sectionQuery: "",
@@ -780,6 +822,9 @@ const resourceListController = createResourceListController({
   backButton,
   createButton,
   createDataCell: presentationController.createDataCell,
+  createAttemptExecutionPage: (record, view) => (
+    inferenceDetailController.createAttemptExecutionPage(record, view)
+  ),
   createSortHeader: presentationController.createSortHeader,
   dashboardView,
   dataPanel,
@@ -819,6 +864,12 @@ const resourceListController = createResourceListController({
   showModelDrawer: (record) => showModelDrawer(record),
   showRequestDetails: (record) => (
     inferenceDetailController.showRequestDrawer(record)
+  ),
+  showBatchDetails: (record) => (
+    inferenceDetailController.showBatchDrawer(record)
+  ),
+  showAttemptDetails: (record) => (
+    inferenceDetailController.showAttemptDrawer(record)
   ),
   showRoleDrawer: (record) => accessDetailController.showRoleDrawer(record),
   showRoutingDrawer: (record) => showRoutingDrawer(record),
@@ -989,6 +1040,7 @@ const managementController = createResourceManager({
     renderAccount(user);
   },
   onSessionEnded: showLogin,
+  onShowBatch: (record) => inferenceDetailController.showBatchDrawer(record),
   onShowModel: (record) => showModelDrawer(record),
   onShowModelVersions: navigationController.navigateToModelVersions,
   onShowVersion: (record) => showVersionDrawer(record),
@@ -1020,11 +1072,11 @@ showVersionDrawer = createVersionDetailController({
   getRecordActions: managementController.getRecordActions,
   hasCapability,
   navigateToModelVersions: navigationController.navigateToModelVersions,
+  navigateToScorecard: navigationController.navigateToScorecard,
   navigateToSection: navigationController.navigateToSection,
   openDeploymentCreateDialog: managementController.openDeploymentCreateDialog,
   request,
   runRecordAction: managementController.runRecordAction,
-  showModelDrawer,
   toast,
 });
 
@@ -1063,7 +1115,6 @@ const showRuntimeDetails = createRuntimeDetailController({
 
 const experimentDetailController = createExperimentDetailController({
   createCopyableNavigationLink: presentationController.createCopyableNavigationLink,
-  createSectionNavigationLink: presentationController.createSectionNavigationLink,
   createStatusBadge: presentationController.createStatusBadge,
   formatPercentage,
   formatTime,
@@ -1086,7 +1137,10 @@ const inferenceDetailController = createInferenceDetailController({
   formatPercentage,
   formatProbability,
   formatScore,
+  formatDecisionSource: presentationController.formatDecisionSource,
+  formatDecisionStrategy: presentationController.formatDecisionStrategy,
   formatTime,
+  navigateToAttemptView: navigationController.navigateToAttemptView,
   navigateToSection: navigationController.navigateToSection,
   sectionIdFields,
 });
@@ -1245,6 +1299,9 @@ function showLogin(message = "") {
   state.snapshot = null;
   state.selectedModelId = null;
   state.selectedModel = null;
+  state.selectedScorecardVersionId = null;
+  state.scorecardData = null;
+  state.scorecardError = null;
   state.selectedExperimentId = null;
   state.selectedExperiment = null;
   state.sectionQuery = "";
@@ -1317,9 +1374,12 @@ async function refreshOverview(silent) {
     }
 
     const listRefreshPaused = (
-      state.active !== null
-      && state.active !== "overview"
-      && tableControls.hasQueryDraft()
+      state.selectedScorecardVersionId !== null
+      || (
+        state.active !== null
+        && state.active !== "overview"
+        && tableControls.hasQueryDraft()
+      )
     );
 
     dashboardController.renderNavigation();
@@ -1528,8 +1588,15 @@ function getAvailableSections(snapshot) {
 function resetDetailRoute() {
   state.selectedModelId = null;
   state.selectedModel = null;
+  state.selectedScorecardVersionId = null;
+  state.scorecardData = null;
+  state.scorecardError = null;
   state.selectedExperimentId = null;
   state.selectedExperiment = null;
+  state.selectedAttemptId = null;
+  state.selectedAttempt = null;
+  state.selectedAttemptView = null;
+  state.attemptPageError = null;
   state.versionView = "versions";
   state.sectionView = "active";
   state.variantView = "active";
@@ -1876,9 +1943,20 @@ document.querySelector("#console-home-button").addEventListener("click", () => {
   navigationController.navigateToOverview();
   sidebar.classList.remove("open");
 });
-backButton.addEventListener("click", () => navigationController.navigateToSection(
-  state.selectedExperimentId !== null ? "experiments" : "models",
-));
+backButton.addEventListener("click", () => {
+  if (state.selectedAttemptId !== null) {
+    navigationController.navigateToSection("attempts");
+    return;
+  }
+  if (state.selectedScorecardVersionId !== null) {
+    const model = getSelectedModel();
+    if (model !== null) navigationController.navigateToModelVersions(model);
+    return;
+  }
+  navigationController.navigateToSection(
+    state.selectedExperimentId !== null ? "experiments" : "models",
+  );
+});
 window.addEventListener("popstate", () => {
   const snapshot = state.snapshot;
 

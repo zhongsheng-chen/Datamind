@@ -9,7 +9,8 @@
   - threshold: 评分决策阈值，评分大于等于该值时通过
 
 环境变量：
-  - DATAMIND_SCORING_THRESHOLD: 评分决策阈值，默认 600.0
+  - DATAMIND_SCORING_THRESHOLD:
+    评分决策阈值，默认 600.0
 
 使用示例：
   from datamind.config.scoring import ScoringConfig

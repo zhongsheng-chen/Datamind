@@ -39,7 +39,7 @@ def test_get_credentials_path_uses_environment_override(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """验证环境变量覆盖凭据路径"""
+    """测试环境变量覆盖凭据路径"""
     expected_path = (
         tmp_path
         / "custom-credentials.json"
@@ -55,7 +55,7 @@ def test_get_credentials_path_uses_environment_override(
 def test_credential_store_saves_and_loads_tokens(
         tmp_path: Path,
 ) -> None:
-    """验证原子保存和读取令牌"""
+    """测试原子保存和读取令牌"""
     path = tmp_path / "credentials.json"
     store = CredentialStore(
         path
@@ -88,7 +88,7 @@ def test_credential_store_saves_and_loads_tokens(
 def test_credential_store_rejects_invalid_content(
         tmp_path: Path,
 ) -> None:
-    """验证拒绝损坏的凭据文件"""
+    """测试拒绝损坏的凭据文件"""
     path = tmp_path / "credentials.json"
     path.write_text(
         "not-json",
@@ -110,7 +110,7 @@ def test_credential_store_rejects_invalid_content(
 def test_credential_store_clears_credentials(
         tmp_path: Path,
 ) -> None:
-    """验证删除本地登录凭据"""
+    """测试删除本地登录凭据"""
     store = CredentialStore(
         tmp_path / "credentials.json"
     )

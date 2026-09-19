@@ -100,7 +100,12 @@ class LocalAuthProvider(
             user_repo: UserRepository,
             config: LocalProviderConfig | None = None,
     ) -> None:
-        """初始化本地认证提供方"""
+        """初始化本地认证提供方
+
+        参数：
+            user_repo: 用户仓储
+            config: 本地认证配置，默认使用 LocalProviderConfig
+        """
         self.user_repo = user_repo
         self.config = (
             config

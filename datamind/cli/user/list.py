@@ -20,8 +20,8 @@ from rich.table import Table
 
 from datamind.auth.enums import UserStatus
 from datamind.cli.common import cli_context
-from datamind.config import get_settings
-from datamind.services import IdentityService
+from datamind.config import get_logging_config
+from datamind.services.identity import IdentityService
 from datamind.utils.datetime import (
     format_datetime,
     parse_datetime,
@@ -128,7 +128,7 @@ def list_users(
         table.add_column("DISPLAY NAME")
         table.add_column("ROLES")
         table.add_column("UPDATED AT")
-        timezone_name = get_settings().logging.timezone
+        timezone_name = get_logging_config().timezone
 
         for item in result:
             table.add_row(

@@ -105,7 +105,12 @@ class IdentityService:
             audit_source: AuditSource = AuditSource.CLI,
             audit_context: dict[str, Any] | None = None,
     ) -> None:
-        """初始化身份管理服务"""
+        """初始化身份管理服务
+
+        参数：
+            audit_source: 审计来源，默认使用 CLI
+            audit_context: 审计上下文（可选）
+        """
         self._audit_source = audit_source
         self._audit_context = (
             sanitize_audit_mapping(

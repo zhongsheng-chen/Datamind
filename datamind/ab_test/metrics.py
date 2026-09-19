@@ -156,8 +156,8 @@ class ABTestMetricEvaluator:
         """初始化 A/B 实验指标评估器
 
         参数：
-            bad_label: 坏样本标签
-            overdue_bad_threshold: 坏样本逾期天数阈值
+            bad_label: 坏样本标签，默认值为 bad
+            overdue_bad_threshold: 坏样本逾期天数阈值，默认值为 30
         """
         self.bad_label = bad_label
         self.overdue_bad_threshold = overdue_bad_threshold

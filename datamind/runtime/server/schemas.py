@@ -8,6 +8,7 @@
   - PredictRequest: 单条预测请求
   - PredictionInstance: 批量预测中的单条预测实例
   - BatchPredictRequest: 批量预测请求
+  - BatchReferenceRequest: 批次引用请求
   - OutcomeFeedbackRequest: 业务结果回流请求
 
 使用示例：
@@ -88,6 +89,15 @@ class BatchPredictRequest(RuntimeRequest):
         min_length=1,
     )
     deployment_id: str | None = None
+
+
+class BatchReferenceRequest(RuntimeRequest):
+    """批次引用请求"""
+
+    batch_id: str = Field(
+        min_length=1,
+        max_length=64,
+    )
 
 
 class OutcomeFeedbackRequest(RuntimeRequest):

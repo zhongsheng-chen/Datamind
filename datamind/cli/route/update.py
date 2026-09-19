@@ -75,12 +75,12 @@ def update_route(
         effective_from: str | None = typer.Option(
             None,
             "--effective-from",
-            help="生效开始时间"
+            help="生效时间"
         ),
         effective_to: str | None = typer.Option(
             None,
             "--effective-to",
-            help="生效结束时间"
+            help="失效时间"
         ),
         output: str = typer.Option(
             "text",
@@ -95,7 +95,7 @@ def update_route(
     """
     settings = get_settings()
     timezone_name = settings.logging.timezone
-    service_environment = str(settings.service.environment)
+    service_environment = settings.service.environment.value
 
     @audit(
         action="route.update",
@@ -226,7 +226,7 @@ def update_route(
                 )
                 raise typer.Exit(code=1) from None
 
-            if str(deployment.environment) != service_environment:
+            if deployment.environment != service_environment:
                 console.error(
                     "更新路由失败：路由环境与部署环境不一致\n"
                     f"部署环境：{deployment.environment}\n"

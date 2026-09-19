@@ -22,7 +22,7 @@ from datamind.models.errors import (
     DeploymentError,
     InvalidModelStateError,
 )
-from datamind.services import DeploymentLifecycleService
+from datamind.services.deployment import DeploymentLifecycleService
 
 app = typer.Typer(help="启用部署并启动运行实例")
 console = CLIConsole()

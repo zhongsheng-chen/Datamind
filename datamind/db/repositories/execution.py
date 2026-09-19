@@ -9,6 +9,7 @@
   - mark_running: 标记模型执行开始
   - mark_success: 标记模型执行成功
   - mark_failed: 标记模型执行未成功
+  - reset_for_retry: 重置影子模型执行状态
 """
 
 from datetime import (
@@ -30,13 +31,11 @@ TERMINAL_EXECUTION_STATUSES = frozenset({
     ExecutionStatus.SUCCESS,
     ExecutionStatus.FAILED,
     ExecutionStatus.TIMEOUT,
-    ExecutionStatus.REJECTED,
     ExecutionStatus.CANCELLED,
 })
 FAILED_EXECUTION_STATUSES = frozenset({
     ExecutionStatus.FAILED,
     ExecutionStatus.TIMEOUT,
-    ExecutionStatus.REJECTED,
     ExecutionStatus.CANCELLED,
 })
 
@@ -343,6 +342,48 @@ class ExecutionRepository(BaseRepository):
         if latency_ms is not None:
             execution.latency_ms = latency_ms
 
+        return execution
+
+    @staticmethod
+    def reset_for_retry(execution: Execution) -> Execution:
+        """重置未成功的影子执行以便重试
+
+        参数：
+            execution: 模型执行记录
+
+        返回：
+            重新进入 queued 状态的模型执行记录
+
+        异常：
+            ValueError: 执行不是影子执行或当前状态不允许重试
+        """
+        execution_type = ExecutionType(
+            execution.execution_type
+        )
+
+        if execution_type != ExecutionType.SHADOW:
+            raise ValueError(
+                "只有影子模型执行可以重试"
+            )
+
+        current_status = ExecutionStatus(
+            execution.status
+        )
+
+        if current_status not in FAILED_EXECUTION_STATUSES:
+            raise ValueError(
+                "只有未成功的影子模型执行可以重试"
+            )
+
+        execution.status = str(ExecutionStatus.QUEUED)
+        execution.prediction = None
+        execution.probability = None
+        execution.score = None
+        execution.latency_ms = None
+        execution.error_type = None
+        execution.error = None
+        execution.started_at = None
+        execution.finished_at = None
         return execution
 
     @staticmethod

@@ -109,8 +109,8 @@ class Inference:
 
         参数：
             model: 已训练模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
+            feature_names: 特征名称列表（可选）
+            data_types: 特征类型映射（可选）
             positive_class: 正类标签，默认值为 1
         """
         self.adapter: BaseModelAdapter = (

@@ -19,7 +19,7 @@ from datamind.cli.output import CLIConsole
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.models.errors import ExperimentError
-from datamind.services import ExperimentLifecycleService
+from datamind.services.experiment import ExperimentLifecycleService
 
 app = typer.Typer(help="删除实验分组命令")
 console = CLIConsole()

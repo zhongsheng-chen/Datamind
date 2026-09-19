@@ -9,6 +9,8 @@ import {
   createDetailSummary,
   createErrorDetailSection,
   createJsonDetailSection,
+  formatBadgeValue,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
 
@@ -64,15 +66,18 @@ export function createRuntimeDetailController({
         )],
         ["模型名称", record.model_name],
         ["版本", record.model_version],
-        ["角色", createDeploymentRoleBadge(record.role)],
+        ["角色", formatBadgeValue(record.role, createDeploymentRoleBadge)],
         ["框架", record.framework],
         ["运行节点", record.worker_id],
         ["创建时间", formatTime(record.created_at)],
         ["更新时间", formatTime(record.updated_at)],
       ], dialog, "info", appendRequestDetail),
       createDetailSection("运行状态", [
-        ["状态", createStatusBadge(record.status)],
-        ["健康状态", createStatusBadge(record.health_status)],
+        ["状态", formatStatusValue(record.status, createStatusBadge)],
+        ["健康状态", formatStatusValue(
+          record.health_status,
+          createStatusBadge,
+        )],
         ["Generation", record.applied_generation],
         ["加载时间", formatTime(record.loaded_at)],
         ["卸载时间", formatTime(record.unloaded_at)],
@@ -90,7 +95,7 @@ export function createRuntimeDetailController({
 
     const buttons = [];
     if (record.deployment_id) {
-      const viewDeployment = createDetailAction("查看部署", "external");
+      const viewDeployment = createDetailAction("查看部署", "view");
       viewDeployment.addEventListener("click", () => {
         dialog.close();
         navigateToSection(

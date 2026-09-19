@@ -95,6 +95,14 @@ class LightGBMAdapter(BaseModelAdapter):
             data_types: dict[str, DataType] | None = None,
             positive_class: Any = 1,
     ) -> None:
+        """初始化 LightGBM 模型适配器
+
+        参数：
+            model: 已训练模型
+            feature_names: 特征名称列表（可选）
+            data_types: 特征类型映射（可选）
+            positive_class: 正类标签，默认值为 1
+        """
         super().__init__(
             model=model,
             feature_names=feature_names,

@@ -19,7 +19,7 @@ from datamind.cli.output import CLIConsole
 def test_cli_console_writes_status_to_stdout(
         capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """验证状态和常规内容输出到标准输出"""
+    """测试状态和常规内容输出到标准输出"""
     console = CLIConsole()
 
     console.info("操作成功")
@@ -51,7 +51,7 @@ def test_cli_console_writes_errors_to_stderr(
         capsys: pytest.CaptureFixture[str],
         output_format: str,
 ) -> None:
-    """验证文本和 JSON 错误输出到标准错误"""
+    """测试文本和 JSON 错误输出到标准错误"""
     console = CLIConsole()
 
     console.error(

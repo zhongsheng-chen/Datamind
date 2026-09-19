@@ -19,7 +19,7 @@ from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.cli.output import CLIConsole
 from datamind.models.errors import DeploymentError
-from datamind.services import DeploymentLifecycleService
+from datamind.services.deployment import DeploymentLifecycleService
 
 app = typer.Typer(help="停用部署并停止运行实例")
 console = CLIConsole()

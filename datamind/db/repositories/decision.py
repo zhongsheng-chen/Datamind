@@ -132,19 +132,26 @@ class DecisionRepository(BaseRepository):
             self,
             request_id: str,
     ) -> Decision | None:
-        """获取请求的决策结果
+        """获取请求最近一次决策结果
 
         参数：
             request_id: 请求 ID
 
         返回：
-            决策记录对象，不存在时返回 None
+            最近一次决策记录对象，不存在时返回 None
         """
-        stmt = select(
-            Decision
-        ).where(
-            Decision.request_id
-            == request_id
+        stmt = (
+            select(Decision)
+            .where(
+                Decision.request_id
+                == request_id
+            )
+            .order_by(
+                Decision.decided_at.desc(),
+                Decision.created_at.desc(),
+                Decision.id.desc(),
+            )
+            .limit(1)
         )
 
         result = await self.session.execute(

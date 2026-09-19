@@ -12,7 +12,7 @@ from datetime import (
     timedelta,
     timezone,
 )
-from datamind.config import get_settings
+from datamind.config import get_runtime_config
 from datamind.constants.runtime_status import (
     ACTIVE_RUNTIME_STATUSES,
     RuntimeHealthStatus,
@@ -36,7 +36,7 @@ class RuntimePresence:
     ) -> "RuntimePresence":
         """根据心跳配置创建当前在线状态判定"""
         heartbeat_interval = (
-            get_settings().runtime.heartbeat_interval
+            get_runtime_config().heartbeat_interval
         )
         stale_at = (
             current_time

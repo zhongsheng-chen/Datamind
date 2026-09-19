@@ -8,6 +8,8 @@ import {
   createDetailIcon,
   createDetailSection,
   createDetailSummary,
+  formatBadgeValue,
+  formatStatusValue,
   mountDetailDrawer,
   showJsonDialog,
 } from "./common.js";
@@ -305,7 +307,7 @@ export function createRoutingDetailController({
           "路由 ID",
         )],
         ["路由名称", record.name],
-        ["状态", createStatusBadge(record.status)],
+        ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["描述", record.description],
         ["创建时间", formatTime(record.created_at)],
         ["更新时间", formatTime(record.updated_at)],
@@ -314,7 +316,10 @@ export function createRoutingDetailController({
       createRulesSection(record.rules),
       createDetailSection("路由配置", [
         ["发布类型", record.rollout_type],
-        ["路由角色", createDeploymentRoleBadge(record.rollout_group)],
+        ["路由角色", formatBadgeValue(
+          record.rollout_group,
+          createDeploymentRoleBadge,
+        )],
         ["流量比例", formatPercentage(record.traffic_ratio)],
       ], dialog, "routing", appendRequestDetail),
       createDetailSection("生效配置", [
@@ -331,20 +336,17 @@ export function createRoutingDetailController({
     );
     for (const actionConfig of actions) {
       let label = `${actionConfig.label}路由`;
-      let icon = actionConfig.action === "enable" ? "start" : "stop";
       if (actionConfig.action === "edit") {
         label = "编辑路由";
-        icon = "edit";
       } else if (actionConfig.action === "delete") {
         label = "删除路由";
-        icon = "delete";
       }
       const button = createDetailAction(
         label,
-        icon,
+        actionConfig.action,
         ["disable", "delete"].includes(actionConfig.action)
           ? "danger"
-          : actionConfig.action === "enable" ? "primary" : "",
+          : "",
       );
       button.addEventListener("click", () => {
         dialog.close();

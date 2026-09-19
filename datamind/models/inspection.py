@@ -46,10 +46,27 @@
 """
 
 import math
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
-from optbinning import Scorecard
+
+
+def _scorecard_class() -> type[Any]:
+    """按需加载评分卡类型，并允许测试替换类型边界"""
+    overridden = globals().get("Scorecard")
+    if overridden is not None:
+        return cast(type[Any], overridden)
+
+    from optbinning import Scorecard
+
+    return Scorecard
+
+
+def __getattr__(name: str) -> Any:
+    """兼容按模块属性替换 Scorecard，同时避免基础 CLI 提前加载可选依赖"""
+    if name == "Scorecard":
+        return _scorecard_class()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class ScorecardInspector:
@@ -68,14 +85,17 @@ class ScorecardInspector:
         异常：
             TypeError: 模型不是评分卡
         """
-        if not isinstance(model, Scorecard):
+        scorecard_class = _scorecard_class()
+
+        if not isinstance(model, scorecard_class):
             raise TypeError(
                 "评分任务模型类型不匹配："
-                f"期望 {Scorecard.__name__}，实际 {type(model).__name__}"
+                f"期望 {scorecard_class.__name__}，实际 {type(model).__name__}"
             )
-        binning_process = model.binning_process_
+        scorecard = cast(Any, model)
+        binning_process = scorecard.binning_process_
         summaries = cls._convert_records(binning_process.summary())
-        scorecard_rows = cls._convert_records(model.table(style="detailed"))
+        scorecard_rows = cls._convert_records(scorecard.table(style="detailed"))
         scorecard_by_variable: dict[str, list[dict[str, Any]]] = {}
         for row in scorecard_rows:
             scorecard_by_variable.setdefault(
@@ -95,18 +115,20 @@ class ScorecardInspector:
                         add_totals=False,
                     )
                 )
-            variables.append({
-                "name": name,
-                "dtype": summary.get("dtype"),
-                "status": summary.get("status"),
-                "selected": bool(summary.get("selected")),
-                "n_bins": summary.get("n_bins"),
-                "iv": summary.get("iv"),
-                "js": summary.get("js"),
-                "gini": summary.get("gini"),
-                "quality_score": summary.get("quality_score"),
-                "bins": rows,
-            })
+            variables.append(
+                {
+                    "name": name,
+                    "dtype": summary.get("dtype"),
+                    "status": summary.get("status"),
+                    "selected": bool(summary.get("selected")),
+                    "n_bins": summary.get("n_bins"),
+                    "iv": summary.get("iv"),
+                    "js": summary.get("js"),
+                    "gini": summary.get("gini"),
+                    "quality_score": summary.get("quality_score"),
+                    "bins": rows,
+                }
+            )
 
         points_by_variable: dict[str, list[float]] = {}
         for row in scorecard_rows:
@@ -120,22 +142,30 @@ class ScorecardInspector:
 
         scaling_parameters = {
             str(key): cls._convert_value(value)
-            for key, value in (model.scaling_method_params or {}).items()
+            for key, value in (scorecard.scaling_method_params or {}).items()
         }
-        estimator = model.estimator_
+        estimator = scorecard.estimator_
+        score_intercept = (
+            float(scorecard.intercept_)
+            if scorecard.intercept_based
+            and isinstance(scorecard.intercept_, (int, float, np.number))
+            else 0.0
+        )
         return {
             "scaling": {
-                "method": model.scaling_method,
+                "method": scorecard.scaling_method,
                 "parameters": scaling_parameters,
-                "intercept_based": bool(model.intercept_based),
-                "reverse_scorecard": bool(model.reverse_scorecard),
-                "rounding": bool(model.rounding),
+                "intercept_based": bool(scorecard.intercept_based),
+                "reverse_scorecard": bool(scorecard.reverse_scorecard),
+                "rounding": bool(scorecard.rounding),
                 "minimum_score": sum(
                     min(points) for points in points_by_variable.values()
-                ),
+                )
+                + score_intercept,
                 "maximum_score": sum(
                     max(points) for points in points_by_variable.values()
-                ),
+                )
+                + score_intercept,
             },
             "estimator": {
                 "class_name": type(estimator).__name__,
@@ -143,7 +173,7 @@ class ScorecardInspector:
                     cls._convert_value(item)
                     for item in getattr(estimator, "classes_", [])
                 ],
-                "intercept": cls._convert_value(getattr(model, "intercept_", None)),
+                "intercept": cls._convert_value(getattr(scorecard, "intercept_", None)),
             },
             "variable_count": len(variables),
             "selected_variable_count": sum(
@@ -187,7 +217,8 @@ class ScorecardInspector:
             {
                 str(key): (
                     cls._format_bin_label(value)
-                    if key == "Bin" else cls._convert_value(value)
+                    if key == "Bin"
+                    else cls._convert_value(value)
                 )
                 for key, value in record.items()
             }

@@ -1,3 +1,4 @@
-"""Build metadata."""
+"""Datamind build metadata."""
 
-BUILD_COMMIT = "dev"
+BUILD_COMMIT: str = "dev"
+BUILD_DATE: str | None = None

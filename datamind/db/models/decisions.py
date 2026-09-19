@@ -41,6 +41,7 @@ from sqlalchemy import (
     Float,
     Index,
     String,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
@@ -62,6 +63,13 @@ class Decision(
     __tablename__ = "decisions"
 
     __table_args__ = (
+        Index(
+            "idx_decisions_request_latest",
+            "request_id",
+            text("decided_at DESC"),
+            text("created_at DESC"),
+            text("id DESC"),
+        ),
         Index(
             "idx_decisions_model_id",
             "model_id",
@@ -101,11 +109,6 @@ class Decision(
         Index(
             "uk_decisions_decision_id",
             "decision_id",
-            unique=True,
-        ),
-        Index(
-            "uk_decisions_request_id",
-            "request_id",
             unique=True,
         ),
         CheckConstraint(

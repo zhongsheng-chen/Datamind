@@ -289,9 +289,7 @@ class ControlRepository(BaseRepository):
         new_control = Control(
             control_id=control_id,
             deployment_id=deployment_id,
-            environment=str(
-                environment
-            ),
+            environment=environment.value,
             desired_status=str(
                 RuntimeControlStatus.UNLOADED
             ),

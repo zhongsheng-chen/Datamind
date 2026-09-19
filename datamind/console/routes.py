@@ -34,6 +34,7 @@ class ConsoleHandlers:
     """管理控制台路由处理器"""
 
     health: RouteHandler
+    ready: RouteHandler
     page: RouteHandler
     login: RouteHandler
     refresh: RouteHandler
@@ -79,6 +80,7 @@ def create_routes(
     """创建管理控制台路由表"""
     return [
         Route("/health", handlers.health, methods=["GET"]),
+        Route("/ready", handlers.ready, methods=["GET"]),
         Route("/", handlers.page, methods=["GET"]),
         Route("/api/login", handlers.login, methods=["POST"]),
         Route("/api/refresh", handlers.refresh, methods=["POST"]),

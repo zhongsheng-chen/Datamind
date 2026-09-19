@@ -1,0 +1,74 @@
+name: Docker Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+    paths:
+      - ".github/workflows/docker-smoke.yml"
+      - "build_support/**"
+      - "datamind/**"
+      - "docker/Dockerfile"
+      - "LICENSE"
+      - "package.json"
+      - "package-lock.json"
+      - "pyproject.toml"
+      - "scripts/**"
+      - "tests/smoke/test_docker.py"
+      - "vite.config.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        framework:
+          - sklearn
+          - xgboost
+          - lightgbm
+          - catboost
+          - full
+
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
+        env:
+          POSTGRES_DB: docker_smoke
+          POSTGRES_USER: docker_smoke
+          POSTGRES_PASSWORD: docker_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U docker_smoke -d docker_smoke"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATAMIND_RUN_DOCKER_SMOKE: "1"
+      DATAMIND_SMOKE_DATABASE_URL: postgresql+asyncpg://docker_smoke:docker_smoke@host.docker.internal:5432/docker_smoke
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install smoke test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run Docker smoke test
+        run: >-
+          pytest --color=no -ra tests/smoke/test_docker.py
+          --framework=${{ matrix.framework }}

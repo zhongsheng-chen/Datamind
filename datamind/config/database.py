@@ -14,13 +14,19 @@
   - echo: 是否打印 SQL 语句
 
 环境变量：
-  - DATAMIND_DATABASE_URL: 数据库连接 URL，必填，例如
-      postgresql+asyncpg://user:password@localhost:5432/dbname
-  - DATAMIND_DATABASE_POOL_SIZE: 连接池大小，默认 10
-  - DATAMIND_DATABASE_MAX_OVERFLOW: 最大溢出连接数，默认 20
-  - DATAMIND_DATABASE_POOL_TIMEOUT: 获取连接超时时间，默认 30
-  - DATAMIND_DATABASE_POOL_RECYCLE: 连接回收时间，默认 3600
-  - DATAMIND_DATABASE_ECHO: 是否打印 SQL，默认 false
+  - DATAMIND_DATABASE_URL:
+    数据库连接 URL，必填，例如
+    postgresql+asyncpg://user:password@localhost:5432/dbname
+  - DATAMIND_DATABASE_POOL_SIZE:
+    连接池大小，默认 10
+  - DATAMIND_DATABASE_MAX_OVERFLOW:
+    最大溢出连接数，默认 20
+  - DATAMIND_DATABASE_POOL_TIMEOUT:
+    获取连接超时时间，默认 30
+  - DATAMIND_DATABASE_POOL_RECYCLE:
+    连接回收时间，默认 3600
+  - DATAMIND_DATABASE_ECHO:
+    是否打印 SQL，默认 false
 
 使用示例：
   from datamind.config.database import DatabaseConfig

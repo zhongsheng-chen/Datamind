@@ -11,9 +11,12 @@
   - startup_timeout: 控制台启动超时时间（秒），范围 1 到 600
 
 环境变量：
-  - DATAMIND_CONSOLE_HOST: 监听地址，默认 127.0.0.1
-  - DATAMIND_CONSOLE_PORT: 监听端口，默认 8701
-  - DATAMIND_CONSOLE_STARTUP_TIMEOUT: 控制台启动超时时间，默认 120 秒
+  - DATAMIND_CONSOLE_HOST:
+    监听地址，默认 127.0.0.1
+  - DATAMIND_CONSOLE_PORT:
+    监听端口，默认 8701
+  - DATAMIND_CONSOLE_STARTUP_TIMEOUT:
+    控制台启动超时时间，默认 120 秒
 
 使用示例：
   from datamind.config.console import ConsoleConfig

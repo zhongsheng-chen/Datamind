@@ -3,10 +3,14 @@
 验证访问令牌、刷新令牌和 CSRF Cookie 的写入、补发与清理行为。
 
 核心功能：
-  - test_set_session_cookies_writes_complete_session: 验证完整会话写入
-  - test_set_session_cookies_clears_missing_refresh_token: 验证应急会话处理
-  - test_ensure_csrf_cookie_only_writes_when_missing: 验证 CSRF Cookie 补发
-  - test_clear_session_cookies_expires_all_session_cookies: 验证会话清理
+  - test_set_session_cookies_writes_complete_session:
+    验证完整会话写入
+  - test_set_session_cookies_clears_missing_refresh_token:
+    验证应急会话处理
+  - test_ensure_csrf_cookie_only_writes_when_missing:
+    验证 CSRF Cookie 补发
+  - test_clear_session_cookies_expires_all_session_cookies:
+    验证会话清理
 """
 
 import importlib
@@ -70,11 +74,9 @@ def install_cookie_settings(
     """安装固定的 Cookie 配置和随机令牌"""
     monkeypatch.setitem(
         vars(cookies_module),
-        "get_settings",
+        "get_auth_config",
         lambda: SimpleNamespace(
-            auth=SimpleNamespace(
-                refresh_token_expires_days=7
-            )
+            refresh_token_expires_days=7
         ),
     )
     monkeypatch.setitem(

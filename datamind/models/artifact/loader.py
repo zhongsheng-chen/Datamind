@@ -16,6 +16,8 @@
 
 from typing import Any
 
+from datamind.constants import Framework
+from datamind.core.inference.errors import FrameworkDependencyError
 from datamind.models.artifact.register import get_handler
 
 
@@ -38,4 +40,15 @@ class ModelArtifactLoader:
         """
         handler = get_handler(framework)
 
-        return handler(data)
+        try:
+            return handler(data)
+        except ModuleNotFoundError as error:
+            try:
+                framework_name: Framework | str = Framework(framework)
+            except ValueError:
+                framework_name = framework
+
+            raise FrameworkDependencyError(
+                framework_name,
+                error.name or "unknown",
+            ) from error

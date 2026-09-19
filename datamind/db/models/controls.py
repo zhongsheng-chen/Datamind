@@ -123,7 +123,10 @@ class Control(
         server_default=text(
             "'unloaded'"
         ),
-        comment="期望运行状态，可选值：loaded / unloaded",
+        comment=(
+            "期望运行状态，可选值："
+            "loaded / unloaded"
+        ),
     )
 
     generation = Column(

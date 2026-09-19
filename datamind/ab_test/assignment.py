@@ -646,8 +646,8 @@ class ExperimentAssigner:
         """初始化实验分配器
 
         参数：
-            hash_assigner: 稳定 Hash 分配器
-            manual_assigner: 手工指定分配器
+            hash_assigner: 稳定 Hash 分配器，默认使用 StableHashAssigner
+            manual_assigner: 手工指定分配器，默认使用 ManualAssigner
         """
         self.hash_assigner = hash_assigner or StableHashAssigner()
         self.manual_assigner = manual_assigner or ManualAssigner()

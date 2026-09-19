@@ -119,11 +119,9 @@ def configure_module(
     if module is list_module:
         monkeypatch.setitem(
             namespace,
-            "get_settings",
+            "get_service_config",
             lambda: SimpleNamespace(
-                service=SimpleNamespace(
-                    environment=Environment.DEVELOPMENT
-                )
+                environment=Environment.DEVELOPMENT
             ),
         )
 
@@ -139,7 +137,7 @@ def printed_json(console: MagicMock) -> Any:
 def test_route_list_filters_and_displays_current_deployment_release(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由列表按部署筛选并显示部署当前发布信息。"""
+    """测试路由列表按部署筛选并显示部署当前发布信息"""
     routing_repo, deployment_repo, console = configure_module(
         monkeypatch,
         list_module,
@@ -183,7 +181,7 @@ def test_route_list_filters_and_displays_current_deployment_release(
 def test_route_show_displays_current_deployment_release(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由详情忽略旧快照并显示部署当前发布信息。"""
+    """测试路由详情忽略旧快照并显示部署当前发布信息"""
     _, deployment_repo, console = configure_module(
         monkeypatch,
         show_module,

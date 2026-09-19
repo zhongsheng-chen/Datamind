@@ -9,13 +9,14 @@ import {
   createDetailIcon,
   createDetailSection,
   createDetailSummary,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
 
 /**
  * 创建实验与分组详情控制器。
  *
- * 详情分别呈现实验配置、分组分配和关联部署。
+ * 详情分别呈现实验配置、分组分配和关联资源。
  *
  * @param {Object.<string, *>} dependencies 页面基础能力
  * @returns {{
@@ -25,7 +26,6 @@ import {
  */
 export function createExperimentDetailController({
   createCopyableNavigationLink,
-  createSectionNavigationLink,
   createStatusBadge,
   formatPercentage,
   formatTime,
@@ -128,18 +128,19 @@ export function createExperimentDetailController({
         : action.action === "delete"
           ? `删除${resourceName}`
           : `${action.label}${resourceName}`;
-      const icon = action.action === "edit"
-        ? "edit"
-        : action.action === "delete"
-          ? "delete"
-          : action.action === "start"
-            ? "start"
-            : action.action === "pause" || action.action === "stop"
-              ? "stop"
-              : "activity";
-      const tone = action.action === "delete"
+      const icon = [
+        "edit",
+        "delete",
+        "start",
+        "pause",
+        "stop",
+        "complete",
+        "enable",
+        "disable",
+      ].includes(action.action) ? action.action : "activity";
+      const tone = ["delete", "stop"].includes(action.action)
         ? "danger"
-        : action.action === "start" ? "primary" : "";
+        : "";
       const button = createDetailAction(label, icon, tone);
       button.disabled = Boolean(action.disabled);
       if (action.disabledReason) button.title = action.disabledReason;
@@ -415,7 +416,7 @@ export function createExperimentDetailController({
             "实验 ID",
           )],
           ["实验名称", record.name],
-          ["状态", createStatusBadge(record.status)],
+          ["状态", formatStatusValue(record.status, createStatusBadge)],
           ["描述", record.description],
           ["生效时间", formatTime(record.effective_from)],
           ["失效时间", formatTime(record.effective_to)],
@@ -445,56 +446,114 @@ export function createExperimentDetailController({
     }
   }
 
-  function createVariantDeploymentSection(record, dialog) {
-    const section = document.createElement("section");
-    section.className = [
-      "registry-detail-section",
-      "variant-deployment-section",
-    ].join(" ");
-    const heading = document.createElement("h4");
-    heading.append(
-      createDetailIcon("external", "registry-section-icon"),
-      document.createTextNode("关联部署"),
-    );
+  function createVariantRelationCard({
+    iconKind,
+    name,
+    metadata,
+    actionLabel,
+    ariaLabel,
+    onClick,
+  }) {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "variant-deployment-card";
-    card.setAttribute(
-      "aria-label",
-      `查看部署：${record.model_name || "未命名模型"} ${record.model_version || ""}`.trim(),
-    );
+    card.className = "variant-related-card";
+    card.setAttribute("aria-label", ariaLabel);
     const icon = createDetailIcon(
-      "model",
-      "variant-deployment-icon",
+      iconKind,
+      "variant-related-icon",
     );
     const content = document.createElement("span");
-    content.className = "variant-deployment-content";
-    const modelName = document.createElement("strong");
-    modelName.textContent = record.model_name || "未命名模型";
-    const metadata = document.createElement("span");
-    metadata.className = "variant-deployment-meta";
-    metadata.textContent = record.model_version
-      ? `版本 ${record.model_version}`
-      : "未标注版本";
-    content.append(modelName, metadata);
+    content.className = "variant-related-content";
+    const relationName = document.createElement("strong");
+    relationName.textContent = name;
+    const relationMetadata = document.createElement("span");
+    relationMetadata.className = "variant-related-meta";
+    relationMetadata.textContent = metadata;
+    content.append(relationName);
+    if (metadata) content.append(relationMetadata);
     const action = document.createElement("span");
-    action.className = "variant-deployment-action";
-    const actionLabel = document.createElement("span");
-    actionLabel.textContent = "查看部署";
+    action.className = "variant-related-action";
+    const actionText = document.createElement("span");
+    actionText.textContent = actionLabel;
     const arrow = document.createElement("span");
-    arrow.className = "variant-deployment-arrow";
+    arrow.className = "variant-related-arrow";
     arrow.textContent = "›";
-    action.append(actionLabel, arrow);
+    action.append(actionText, arrow);
     card.append(icon, content, action);
-    card.addEventListener("click", () => {
-      dialog.close();
-      navigateToSection(
-        "deployments",
-        1,
-        `deployment_id:${record.deployment_id}`,
-      );
+    card.addEventListener("click", onClick);
+    return card;
+  }
+
+  function experimentAssignmentSummary(record) {
+    const strategy = String(record.experiment_strategy || "").toLowerCase();
+    const summary = strategy ? [strategyLabel(strategy)] : [];
+    const rawTrafficRatio = record.experiment_traffic_ratio;
+    const trafficRatio = Number(rawTrafficRatio);
+    if (
+      strategy !== "manual"
+      && rawTrafficRatio !== null
+      && rawTrafficRatio !== undefined
+      && rawTrafficRatio !== ""
+      && Number.isFinite(trafficRatio)
+    ) {
+      summary.push(`曝光 ${formatPercentage(trafficRatio)}`);
+    }
+    return summary.join(" · ");
+  }
+
+  function createVariantExperimentCard(record, dialog) {
+    return createVariantRelationCard({
+      iconKind: "experiment",
+      name: record.experiment_name || "未命名实验",
+      metadata: experimentAssignmentSummary(record),
+      actionLabel: "查看实验",
+      ariaLabel: `查看实验：${record.experiment_name || "未命名实验"}`,
+      onClick: () => {
+        dialog.close();
+        navigateToSection(
+          "experiments",
+          1,
+          `experiment_id:${record.experiment_id}`,
+        );
+      },
     });
-    section.append(heading, card);
+  }
+
+  function createVariantDeploymentCard(record, dialog) {
+    return createVariantRelationCard({
+      iconKind: "model",
+      name: record.model_name || "未命名模型",
+      metadata: record.model_version
+        ? `版本 ${record.model_version}`
+        : "未标注版本",
+      actionLabel: "查看部署",
+      ariaLabel: `查看部署：${record.model_name || "未命名模型"} ${record.model_version || ""}`.trim(),
+      onClick: () => {
+        dialog.close();
+        navigateToSection(
+          "deployments",
+          1,
+          `deployment_id:${record.deployment_id}`,
+        );
+      },
+    });
+  }
+
+  function createVariantRelationsSection(record, dialog) {
+    const section = document.createElement("section");
+    section.className = "registry-detail-section variant-related-section";
+    const heading = document.createElement("h4");
+    heading.append(
+      createDetailIcon("link", "registry-section-icon"),
+      document.createTextNode("关联资源"),
+    );
+    const list = document.createElement("div");
+    list.className = "variant-related-list";
+    list.append(
+      createVariantExperimentCard(record, dialog),
+      createVariantDeploymentCard(record, dialog),
+    );
+    section.append(heading, list);
     return section;
   }
 
@@ -532,19 +591,9 @@ export function createExperimentDetailController({
           },
           "分组 ID",
         )],
-        ["分组名称", () => createSectionNavigationLink(
-          record.variant_id,
-          "variants",
-          dialog,
-          record.name || record.variant_id,
-        )],
-        ["实验名称", () => createSectionNavigationLink(
-          record.experiment_id,
-          "experiments",
-          dialog,
-          record.experiment_name || record.experiment_id,
-        )],
-        ["状态", createStatusBadge(record.status)],
+        ["分组名称", record.name],
+        ["实验名称", record.experiment_name],
+        ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["分组类型", record.group_type],
         ["流量权重", formatPercentage(record.weight)],
         ["是否对照组", record.is_control ? "是" : "否"],
@@ -552,7 +601,7 @@ export function createExperimentDetailController({
         ["创建时间", formatTime(record.created_at)],
         ["更新时间", formatTime(record.updated_at)],
       ], dialog, "info", appendRequestDetail),
-      createVariantDeploymentSection(record, dialog),
+      createVariantRelationsSection(record, dialog),
     );
     appendResourceActions(dialog, "variants", record, "分组");
     mountDetailDrawer(dialog, { section: "variants", id: record.variant_id });

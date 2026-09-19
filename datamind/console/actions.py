@@ -26,6 +26,7 @@ async def dispatch_resource_action(
         routing_factory: ServiceFactory,
         experiment_factory: ServiceFactory,
         identity_factory: ServiceFactory,
+        batch_factory: ServiceFactory,
 ) -> dict[str, Any]:
     """根据资源和动作调用相应领域服务。"""
     if resource == "models":
@@ -171,6 +172,15 @@ async def dispatch_resource_action(
             username=username,
             identity_factory=identity_factory,
         )
+
+    if resource == "batches":
+        service = batch_factory()
+
+        if action == "cancel":
+            return await service.cancel(batch_id=identifier)
+        if action == "retry":
+            return await service.retry(batch_id=identifier)
+        raise ValueError(f"不支持的批次操作: {action}")
 
     raise ValueError(f"不支持的管理资源: {resource}")
 

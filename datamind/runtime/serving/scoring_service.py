@@ -1,4 +1,4 @@
-"""评分卡运行服务
+"""评分任务运行时服务
 
 提供评分卡模型的在线评分能力。
 
@@ -39,7 +39,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 
 
 class ScoringService(BaseRuntimeService):
-    """评分卡运行服务
+    """评分任务运行时服务
 
     基于评分卡模型和评分阈值生成评分结果。
 
@@ -58,13 +58,13 @@ class ScoringService(BaseRuntimeService):
             data_types: dict[str, DataType] | None = None,
             threshold: float = 600.0,
     ) -> None:
-        """初始化评分卡运行服务
+        """初始化评分任务运行时服务
 
         参数：
             runtime_model: 已加载的运行时模型
-            feature_names: 特征名称列表
-            data_types: 特征类型映射
-            threshold: 评分阈值
+            feature_names: 特征名称列表（可选）
+            data_types: 特征类型映射（可选）
+            threshold: 评分阈值，默认值为 600
 
         异常：
             TypeError: 模型类型不匹配

@@ -6,12 +6,11 @@
   - get_backend: 根据配置创建存储后端
 
 使用示例：
-  from datamind.config.settings import get_settings
+  from datamind.config.storage import StorageConfig
   from datamind.storage.factory import get_backend
 
-  settings = get_settings()
   backend = get_backend(
-      settings.storage
+      StorageConfig()
   )
 """
 

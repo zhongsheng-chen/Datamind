@@ -1,7 +1,4 @@
-"""Datamind 核心包
-
-提供平台核心功能并定义全局路径常量（PACKAGE_ROOT / PROJECT_ROOT）。
-"""
+"""Datamind 开放式模型服务管理平台。"""
 
 from pathlib import Path
 

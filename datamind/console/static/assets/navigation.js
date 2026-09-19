@@ -10,6 +10,8 @@
  *   applyRoute: (available: string[]) => void,
  *   navigateToExperimentVariants: (experiment: ExperimentReference, page?: number, query?: string, sortBy?: string, sortOrder?: string, pageSize?: number, view?: string) => void,
  *   navigateToModelVersions: (model: ConsoleModel, page?: number, query?: string, sortBy?: string, sortOrder?: string, pageSize?: number, view?: string) => void,
+ *   navigateToAttemptView: (record: Object|string, view: string) => void,
+ *   navigateToScorecard: (version: Object.<string, *>) => void,
  *   navigateToOverview: () => void,
  *   navigateToSection: (section: string, page?: number, query?: string, sortBy?: string, sortOrder?: string, pageSize?: number, view?: string) => void,
  *   updateSearchForm: (query: string, placeholder: string) => void
@@ -74,8 +76,15 @@ export function createNavigationController({
     state.active = section;
     state.selectedModelId = null;
     state.selectedModel = null;
+    state.selectedScorecardVersionId = null;
+    state.scorecardData = null;
+    state.scorecardError = null;
     state.selectedExperimentId = null;
     state.selectedExperiment = null;
+    state.selectedAttemptId = null;
+    state.selectedAttempt = null;
+    state.selectedAttemptView = null;
+    state.attemptPageError = null;
     state.sectionPage = page;
     state.sectionPageSize = pageSize;
     state.sectionQuery = query;
@@ -133,8 +142,15 @@ export function createNavigationController({
   ) {
     const modelId = model.model_id;
     state.active = "models";
+    state.selectedAttemptId = null;
+    state.selectedAttempt = null;
+    state.selectedAttemptView = null;
+    state.attemptPageError = null;
     state.selectedModelId = modelId;
     state.selectedModel = model;
+    state.selectedScorecardVersionId = null;
+    state.scorecardData = null;
+    state.scorecardError = null;
     state.selectedExperimentId = null;
     state.selectedExperiment = null;
     state.versionPage = page;
@@ -153,6 +169,54 @@ export function createNavigationController({
       null,
       "",
       `#models/${encodeURIComponent(modelId)}/versions${viewQuery}`,
+    );
+    renderNavigation();
+    renderSection();
+  }
+
+  function navigateToAttemptView(record, view) {
+    const attemptId = typeof record === "string"
+      ? record
+      : String(record?.attempt_id || "");
+    const targetView = view === "shards" ? "shards" : "timeline";
+    if (!attemptId) return;
+    state.active = "attempts";
+    state.selectedAttemptId = attemptId;
+    state.selectedAttempt = typeof record === "object" ? record : null;
+    state.selectedAttemptView = targetView;
+    state.attemptPageError = null;
+    window.history.pushState(
+      null,
+      "",
+      `#attempts/${encodeURIComponent(attemptId)}/${targetView}`,
+    );
+    renderNavigation();
+    renderSection();
+  }
+
+  function navigateToScorecard(version) {
+    const modelId = String(version.model_id || "");
+    const versionId = String(version.version_id || "");
+    if (!modelId || !versionId) return;
+    state.active = "models";
+    state.selectedModelId = modelId;
+    state.selectedModel = {
+      model_id: modelId,
+      name: version.model_name || modelId,
+    };
+    state.selectedScorecardVersionId = versionId;
+    state.scorecardData = version.scorecard?.details ? version : null;
+    state.scorecardError = null;
+    state.selectedExperimentId = null;
+    state.selectedExperiment = null;
+    state.selectedAttemptId = null;
+    state.selectedAttempt = null;
+    state.selectedAttemptView = null;
+    state.attemptPageError = null;
+    window.history.pushState(
+      null,
+      "",
+      `#models/${encodeURIComponent(modelId)}/versions/${encodeURIComponent(versionId)}/scorecard`,
     );
     renderNavigation();
     renderSection();
@@ -181,8 +245,15 @@ export function createNavigationController({
   ) {
     const experimentId = experiment.experiment_id;
     state.active = "experiments";
+    state.selectedAttemptId = null;
+    state.selectedAttempt = null;
+    state.selectedAttemptView = null;
+    state.attemptPageError = null;
     state.selectedModelId = null;
     state.selectedModel = null;
+    state.selectedScorecardVersionId = null;
+    state.scorecardData = null;
+    state.scorecardError = null;
     state.selectedExperimentId = experimentId;
     state.selectedExperiment = experiment;
     state.variantPage = page;
@@ -222,6 +293,48 @@ export function createNavigationController({
       return;
     }
   
+    const scorecardRoute = route.match(
+      /^models\/([^/]+)\/versions\/([^/]+)\/scorecard$/,
+    );
+
+    if (scorecardRoute && available.includes("models")) {
+      const modelId = decodeURIComponent(scorecardRoute[1]);
+      const versionId = decodeURIComponent(scorecardRoute[2]);
+      if (state.selectedModelId !== modelId) state.selectedModel = null;
+      if (state.selectedScorecardVersionId !== versionId) {
+        state.scorecardData = null;
+        state.scorecardError = null;
+      }
+      state.active = "models";
+      state.selectedModelId = modelId;
+      state.selectedScorecardVersionId = versionId;
+      state.selectedExperimentId = null;
+      state.selectedExperiment = null;
+      return;
+    }
+
+    const attemptRoute = route.match(/^attempts\/([^/]+)\/(timeline|shards)$/);
+
+    if (attemptRoute && available.includes("attempts")) {
+      const attemptId = decodeURIComponent(attemptRoute[1]);
+      if (state.selectedAttemptId !== attemptId) state.selectedAttempt = null;
+      state.active = "attempts";
+      state.selectedAttemptId = attemptId;
+      state.selectedAttemptView = attemptRoute[2];
+      state.attemptPageError = null;
+      state.selectedModelId = null;
+      state.selectedModel = null;
+      state.selectedScorecardVersionId = null;
+      state.selectedExperimentId = null;
+      state.selectedExperiment = null;
+      return;
+    }
+
+    state.selectedAttemptId = null;
+    state.selectedAttempt = null;
+    state.selectedAttemptView = null;
+    state.attemptPageError = null;
+
     const versionRoute = route.match(/^models\/([^/]+)\/versions(?:\?(.+))?$/);
   
     if (versionRoute && available.includes("models")) {
@@ -252,6 +365,9 @@ export function createNavigationController({
   
       state.active = "models";
       state.selectedModelId = modelId;
+      state.selectedScorecardVersionId = null;
+      state.scorecardData = null;
+      state.scorecardError = null;
       state.selectedExperimentId = null;
       state.selectedExperiment = null;
       state.versionPage = page;
@@ -294,6 +410,9 @@ export function createNavigationController({
       state.active = "experiments";
       state.selectedModelId = null;
       state.selectedModel = null;
+      state.selectedScorecardVersionId = null;
+      state.scorecardData = null;
+      state.scorecardError = null;
       state.selectedExperimentId = experimentId;
       state.variantPage = page;
       state.variantPageSize = pageSize;
@@ -315,7 +434,8 @@ export function createNavigationController({
       parameters.get("sort"),
       parameters.get("order"),
     );
-    const view = recyclableSections.has(section) && parameters.get("view") === "trash"
+    const requestedView = parameters.get("view");
+    const view = recyclableSections.has(section) && requestedView === "trash"
       ? "trash"
       : "active";
   
@@ -355,6 +475,9 @@ export function createNavigationController({
       : "active";
     state.selectedModelId = null;
     state.selectedModel = null;
+    state.selectedScorecardVersionId = null;
+    state.scorecardData = null;
+    state.scorecardError = null;
     state.selectedExperimentId = null;
     state.selectedExperiment = null;
     state.versionData = null;
@@ -365,8 +488,10 @@ export function createNavigationController({
 
   return {
     applyRoute,
+    navigateToAttemptView,
     navigateToExperimentVariants,
     navigateToModelVersions,
+    navigateToScorecard,
     navigateToOverview,
     navigateToSection,
     updateSearchForm,

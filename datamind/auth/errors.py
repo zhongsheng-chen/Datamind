@@ -45,6 +45,11 @@ class AuthError(Exception):
             self,
             message: str | None = None,
     ) -> None:
+        """初始化认证异常
+
+        参数：
+            message: 异常消息，默认使用当前异常类型的默认消息
+        """
         resolved_message = (
             message
             if message is not None

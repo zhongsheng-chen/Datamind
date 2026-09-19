@@ -2,6 +2,76 @@
 
 import { createDetailIcon } from "./details/common.js";
 
+const STATUS_LABELS = Object.freeze({
+  active: "已启用",
+  enabled: "已启用",
+  inactive: "已停用",
+  deprecated: "已弃用",
+  archived: "已归档",
+  retired: "已退役",
+  purge_pending: "等待清理",
+  purged: "已清理",
+  purge_failed: "清理失败",
+  draft: "草稿",
+  paused: "已暂停",
+  stopped: "已停止",
+  completed: "已完成",
+  starting: "启动中",
+  stopping: "停止中",
+  queued: "排队中",
+  running: "运行中",
+  retrying: "等待重试",
+  succeeded: "成功",
+  partially_succeeded: "部分成功",
+  success: "成功",
+  failed: "失败",
+  error: "异常",
+  timeout: "超时",
+  cancelling: "取消中",
+  cancelled: "已取消",
+  pending: "待处理",
+  received: "已接收",
+  healthy: "健康",
+  unhealthy: "异常",
+  unknown: "未知",
+  loaded: "已加载",
+  loading: "加载中",
+  unloaded: "已卸载",
+  unloading: "卸载中",
+  revoked: "已撤销",
+  disabled: "已禁用",
+  locked: "已锁定",
+  lost: "已失联",
+  expired: "已过期",
+  ok: "正常",
+  optimal: "最优",
+  feasible: "可行",
+  infeasible: "不可行",
+  unbounded: "无界",
+});
+const TASK_STATUS_LABELS = Object.freeze({
+  ...STATUS_LABELS,
+  running: "执行中",
+});
+const DECISION_SOURCE_LABELS = Object.freeze({
+  routing: "流量路由",
+  experiment: "实验分组",
+  deployment: "默认部署",
+  shadow: "影子路由",
+  manual: "指定部署",
+});
+const DECISION_STRATEGY_LABELS = Object.freeze({
+  weighted: "权重分流",
+  hash: "哈希分流",
+  manual: "手动指定",
+  fallback: "默认兜底",
+});
+
+function formatDecisionEnum(value, labels) {
+  const rawValue = String(value ?? "");
+  return labels[rawValue.toLowerCase()] ?? (rawValue || "—");
+}
+
 /**
  * 创建通用展示组件控制器。
  *
@@ -17,7 +87,9 @@ import { createDetailIcon } from "./details/common.js";
  *   createExecutionTypeBadge: (value: unknown) => HTMLSpanElement,
  *   createSectionNavigationLink: (value: string | null, section: string, dialog: HTMLDialogElement, label?: string | null) => string | null | HTMLButtonElement,
  *   createSortHeader: (column: ColumnConfig, activeSort: string, activeOrder: string, navigate: (sortBy: string, sortOrder: string) => void) => HTMLTableCellElement,
- *   createStatusBadge: (value: unknown) => HTMLSpanElement
+ *   createStatusBadge: (value: unknown, context?: string) => HTMLSpanElement,
+ *   formatDecisionSource: (value: unknown) => string,
+ *   formatDecisionStrategy: (value: unknown) => string
  * }} 通用展示组件入口
  */
 export function createPresentationController({
@@ -128,10 +200,17 @@ export function createPresentationController({
   
   function createDataCell(value, kind = "", record = null) {
     const cell = document.createElement("td");
-    if (kind === "status") {
-      cell.append(createStatusBadge(value));
+    if (kind === "status" || kind === "task-status") {
+      cell.append(createStatusBadge(
+        value,
+        kind === "task-status" ? "task" : "default",
+      ));
     } else if (kind === "decision") {
       cell.append(createDecisionBadge(value));
+    } else if (kind === "decision-source") {
+      cell.textContent = formatDecisionSource(value);
+    } else if (kind === "decision-strategy") {
+      cell.textContent = formatDecisionStrategy(value);
     } else if (kind === "runtime-worker" && record !== null) {
       const workerId = String(value || "");
       const match = workerId.match(/^(.*)-(\d+)$/);
@@ -187,6 +266,18 @@ export function createPresentationController({
         ),
       );
       link.title = "查看 API 调用";
+      cell.append(link);
+    } else if (kind === "batch-link" && value != null) {
+      const batchId = String(value);
+      const link = createNavigationLink(
+        batchId,
+        () => navigateToSection(
+          "batches",
+          1,
+          `batch_id:${batchId}`,
+        ),
+      );
+      link.title = "查看批量任务";
       cell.append(link);
     } else if (kind === "permissions") {
       cell.append(createPermissionSummary(value, record));
@@ -267,10 +358,13 @@ export function createPresentationController({
     return summary;
   }
   
-  function createStatusBadge(value) {
+  function createStatusBadge(value, context = "default") {
     const badge = document.createElement("span");
     badge.className = `status ${statusTone(value)}`.trim();
-    badge.textContent = value ?? "—";
+    const rawStatus = String(value ?? "");
+    const status = rawStatus.toLowerCase();
+    const labels = context === "task" ? TASK_STATUS_LABELS : STATUS_LABELS;
+    badge.textContent = labels[status] ?? (rawStatus || "—");
     return badge;
   }
 
@@ -283,12 +377,20 @@ export function createPresentationController({
   function createDecisionBadge(value) {
     const badge = document.createElement("span");
     const labels = { approve: "通过", reject: "拒绝" };
-    const decision = String(value ?? "");
+    const decision = String(value ?? "").toLowerCase() || "reject";
     const tone = decision === "reject" ? "danger"
       : decision === "approve" ? "" : "neutral";
     badge.className = `status ${tone}`.trim();
-    badge.textContent = labels[decision] ?? (decision || "—");
+    badge.textContent = labels[decision] ?? decision;
     return badge;
+  }
+
+  function formatDecisionSource(value) {
+    return formatDecisionEnum(value, DECISION_SOURCE_LABELS);
+  }
+
+  function formatDecisionStrategy(value) {
+    return formatDecisionEnum(value, DECISION_STRATEGY_LABELS);
   }
   
   function createDeploymentRoleBadge(value) {
@@ -436,5 +538,7 @@ export function createPresentationController({
     createSectionNavigationLink,
     createSortHeader,
     createStatusBadge,
+    formatDecisionSource,
+    formatDecisionStrategy,
   };
 }

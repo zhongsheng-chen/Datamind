@@ -143,7 +143,10 @@ class Assignment(
     strategy = Column(
         String(20),
         nullable=False,
-        comment="分配策略，可选值：hash / manual",
+        comment=(
+            "分配策略，可选值："
+            "hash / manual"
+        ),
     )
 
     bucket = Column(
