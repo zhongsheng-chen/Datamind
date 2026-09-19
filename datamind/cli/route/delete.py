@@ -18,7 +18,7 @@ import typer
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.cli.output import CLIConsole
-from datamind.services import RoutingLifecycleService
+from datamind.services.routing import RoutingLifecycleService
 
 app = typer.Typer(help="删除路由命令")
 console = CLIConsole()

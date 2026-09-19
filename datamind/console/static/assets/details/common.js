@@ -3,6 +3,7 @@
 const svgNamespace = "http://www.w3.org/2000/svg";
 
 const iconPaths = {
+  activate: ["m9 7 8 5-8 5V7Z"],
   activity: ["M4 12h3l2-5 4 10 2-5h5"],
   add: ["M12 5v14", "M5 12h14"],
   arrow: ["m9 6 6 6-6 6"],
@@ -23,6 +24,7 @@ const iconPaths = {
   ],
   check: ["m5 12.5 4.2 4.2L19 7"],
   close: ["M6 6l12 12", "M18 6 6 18"],
+  complete: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "m8 12 3 3 5-6"],
   copy: ["M9 9h10v10H9Z", "M5 5h10v4", "M5 5v10h4"],
   config: [
     "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
@@ -36,11 +38,20 @@ const iconPaths = {
     "M19 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
     "M19 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
   ],
+  deployment: [
+    "M12 3v10",
+    "m8 9 4 4 4-4",
+    "M4 16h16v5H4Z",
+    "M8 18.5h.01",
+    "M11 18.5h5",
+  ],
   deactivate: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "m7.5 16.5 9-9"],
   delete: ["M4 6h16", "m9 6 1-2h4l1 2", "M19 6l-1 14H6L5 6", "M10 10v6", "M14 10v6"],
+  disable: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "m7.5 16.5 9-9"],
   deploy: ["m9 7 8 5-8 5V7Z"],
   edit: ["M4 20h4L19 9l-4-4L4 16v4Z", "m13.5 6.5 4 4"],
   effective: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "m8 12 3 3 5-6"],
+  enable: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "m8 12 3 3 5-6"],
   error: [
     "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
     "M12 7v6",
@@ -75,6 +86,16 @@ const iconPaths = {
     "M8 15h8",
     "m13 12 3 3-3 3",
   ],
+  parallel: [
+    "M4 12h5",
+    "M9 6v12",
+    "M9 6h6",
+    "M9 12h6",
+    "M9 18h6",
+    "M19 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
+    "M19 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
+    "M19 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
+  ],
   prediction: [
     "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z",
     "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z",
@@ -103,9 +124,11 @@ const iconPaths = {
     "M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3",
   ],
   download: ["M12 3v12", "m7 10 5 5 5-5", "M4 16v5h16v-5"],
+  pause: ["M9 7v10", "M15 7v10"],
   runtime: ["M3 13h4l2.2-7 4.3 13 3-9 2.2 5H21"],
   start: ["m9 7 8 5-8 5V7Z"],
   stop: ["M6 6h12v12H6Z"],
+  time: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M12 7v5l3 2"],
   traffic: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "m8 16 8-8", "M8.5 8.5h.01", "M15.5 15.5h.01"],
   user: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", "M4 21a8 8 0 0 1 16 0"],
   variant: ["M6 4v16", "M18 4v6a4 4 0 0 1-4 4H6", "m14 4 4 4 4-4"],
@@ -159,6 +182,34 @@ export function createDetailBadge(value, tone = "") {
 }
 
 /**
+ * 将徽标的本地化文案用于详情字段的纯文本展示。
+ *
+ * @param {unknown} value 字段值
+ * @param {(value: unknown, ...args: unknown[]) => HTMLElement} createBadge 徽标工厂
+ * @param {...unknown} args 徽标工厂的附加参数
+ * @returns {string} 徽标的本地化文本
+ */
+export function formatBadgeValue(value, createBadge, ...args) {
+  return createBadge(value, ...args).textContent || "—";
+}
+
+/**
+ * 将状态值格式化为用于基本信息字段的纯文本。
+ *
+ * @param {unknown} value 状态值
+ * @param {(value: unknown, context?: string) => HTMLElement} createStatusBadge 状态徽标工厂
+ * @param {string} [context="default"] 状态上下文
+ * @returns {string} 本地化状态文本
+ */
+export function formatStatusValue(
+  value,
+  createStatusBadge,
+  context = "default",
+) {
+  return formatBadgeValue(value, createStatusBadge, context);
+}
+
+/**
  * 向详情定义列表追加信息项。
  *
  * @param {HTMLElement} container 信息项容器
@@ -203,13 +254,24 @@ export function createDetailDrawer(title, className = "") {
   close.className = "registry-drawer-close";
   close.setAttribute("aria-label", `关闭${title}`);
   close.append(createDetailIcon("close"));
-  close.addEventListener("click", () => dialog.close());
+  const dismiss = () => {
+    dialog.dataset.userDismissed = "true";
+    clearDetailRoute(
+      dialog.dataset.detailSection,
+      dialog.dataset.detailId,
+    );
+    dialog.close();
+  };
+  close.addEventListener("click", dismiss);
   header.append(heading, close);
   const body = document.createElement("div");
   body.className = "request-drawer-body registry-detail-body";
   dialog.append(header, body);
   dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) dialog.close();
+    if (event.target === dialog) dismiss();
+  });
+  dialog.addEventListener("cancel", () => {
+    dialog.dataset.userDismissed = "true";
   });
   dialog.addEventListener("close", () => dialog.remove());
   return { dialog, body };
@@ -510,27 +572,65 @@ export function getDetailRoute() {
 }
 
 /**
+ * 在当前地址中同步清除指定详情路由。
+ *
+ * @param {string | undefined} section 详情资源分区
+ * @param {string | undefined} id 详情记录标识
+ * @returns {boolean} 是否清除了当前详情路由
+ */
+function clearDetailRoute(section, id) {
+  const activeRoute = getDetailRoute();
+  if (
+    !section
+    || !id
+    || activeRoute?.section !== section
+    || activeRoute.id !== id
+  ) return false;
+
+  const [path, query = ""] = window.location.hash.slice(1).split("?", 2);
+  const parameters = new URLSearchParams(query);
+  parameters.delete("detail");
+  const normalizedQuery = parameters.toString();
+  const nextState = { ...(window.history.state || {}) };
+  delete nextState.detailRoute;
+  window.history.replaceState(
+    Object.keys(nextState).length > 0 ? nextState : null,
+    "",
+    `#${path}${normalizedQuery ? `?${normalizedQuery}` : ""}`,
+  );
+  return true;
+}
+
+/**
  * 关闭与当前路由不一致的详情抽屉。
  *
  * @param {{section: string, id: string} | null} route 当前详情路由
  * @returns {boolean} 是否已有匹配的详情抽屉
  */
 export function synchronizeDetailDrawer(route) {
-  const opened = document.querySelector(
+  const opened = [...document.querySelectorAll(
     "dialog.registry-detail-drawer[data-detail-section]",
-  );
+  )].filter((dialog) => dialog instanceof HTMLDialogElement);
+  let matched = false;
 
-  if (!(opened instanceof HTMLDialogElement)) return false;
-  if (
-    route !== null
-    && opened.dataset.detailSection === route.section
-    && opened.dataset.detailId === route.id
-  ) return true;
+  for (const dialog of opened) {
+    const isMatch = (
+      !matched
+      && dialog.open
+      && route !== null
+      && dialog.dataset.detailSection === route.section
+      && dialog.dataset.detailId === route.id
+    );
+    if (isMatch) {
+      matched = true;
+      continue;
+    }
 
-  opened.dataset.routeSync = "true";
-  if (opened.open) opened.close();
-  else opened.remove();
-  return false;
+    dialog.dataset.routeSync = "true";
+    if (dialog.open) dialog.close();
+    else dialog.remove();
+  }
+  return matched;
 }
 
 /**
@@ -548,6 +648,15 @@ export function mountDetailDrawer(dialog, route) {
   dialog.dataset.detailSection = section;
   dialog.dataset.detailId = id;
 
+  for (const opened of document.querySelectorAll(
+    "dialog.registry-detail-drawer[data-detail-section]",
+  )) {
+    if (!(opened instanceof HTMLDialogElement) || opened === dialog) continue;
+    opened.dataset.routeSync = "true";
+    if (opened.open) opened.close();
+    else opened.remove();
+  }
+
   if (
     currentRoute?.section !== section
     || currentRoute.id !== id
@@ -563,30 +672,16 @@ export function mountDetailDrawer(dialog, route) {
   }
 
   dialog.addEventListener("close", () => {
-    window.queueMicrotask(() => {
-      const activeRoute = getDetailRoute();
+    const clearActiveRoute = () => {
+      if (dialog.dataset.routeSync === "true") return;
+      clearDetailRoute(section, id);
+    };
 
-      if (
-        dialog.dataset.routeSync === "true"
-        || activeRoute?.section !== section
-        || activeRoute.id !== id
-      ) return;
-
-      if (window.history.state?.detailRoute === routeKey) {
-        window.history.back();
-        return;
-      }
-
-      const [path, query = ""] = window.location.hash.slice(1).split("?", 2);
-      const parameters = new URLSearchParams(query);
-      parameters.delete("detail");
-      const normalizedQuery = parameters.toString();
-      window.history.replaceState(
-        null,
-        "",
-        `#${path}${normalizedQuery ? `?${normalizedQuery}` : ""}`,
-      );
-    });
+    if (dialog.dataset.userDismissed === "true") {
+      clearActiveRoute();
+      return;
+    }
+    window.queueMicrotask(clearActiveRoute);
   });
   document.body.append(dialog);
   dialog.showModal();

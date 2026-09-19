@@ -6,11 +6,13 @@
 核心功能：
   - get_request: 获取请求记录
   - list_requests: 获取请求记录列表
+  - list_batch_requests: 获取批次请求记录
   - list_recent_requests: 获取最近请求列表
   - list_model_requests: 获取模型请求列表
   - create_request: 创建请求记录
   - mark_success: 标记请求处理成功
   - mark_failed: 标记请求处理失败
+  - reset_for_retry: 重置批次请求的失败状态
 
 使用示例：
   from datamind.db.core import UnitOfWork
@@ -124,6 +126,7 @@ class RequestRepository(BaseRepository):
             self,
             *,
             request_id: str | None = None,
+            batch_id: str | None = None,
             model_id: str | None = None,
             source: str | None = None,
             status: str | None = None,
@@ -136,6 +139,7 @@ class RequestRepository(BaseRepository):
 
         参数：
             request_id: 请求 ID（可选）
+            batch_id: 批次 ID（可选）
             model_id: 模型 ID（可选）
             source: 请求来源（可选）
             status: 请求状态（可选）
@@ -163,6 +167,12 @@ class RequestRepository(BaseRepository):
             stmt = stmt.where(
                 Request.request_id
                 == request_id
+            )
+
+        if batch_id is not None:
+            stmt = stmt.where(
+                Request.batch_id
+                == batch_id
             )
 
         if model_id is not None:
@@ -237,6 +247,26 @@ class RequestRepository(BaseRepository):
             offset=offset,
         )
 
+    async def list_batch_requests(
+            self,
+            batch_id: str,
+    ) -> list[Request]:
+        """获取批次请求列表
+
+        参数：
+            batch_id: 批次 ID
+
+        返回：
+            请求记录列表，按批次位置升序排列
+        """
+        stmt = (
+            select(Request)
+            .where(Request.batch_id == batch_id)
+            .order_by(Request.batch_index.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_model_requests(
             self,
             model_id: str,
@@ -264,6 +294,8 @@ class RequestRepository(BaseRepository):
             self,
             *,
             request_id: str,
+            batch_id: str | None = None,
+            batch_index: int | None = None,
             model_id: str | None = None,
             model_name: str | None = None,
             payload: dict | None = None,
@@ -278,6 +310,8 @@ class RequestRepository(BaseRepository):
 
         参数：
             request_id: 请求 ID
+            batch_id: 批次 ID（可选）
+            batch_index: 请求在批次中的位置（可选）
             model_id: 模型 ID（可选）
             model_name: 模型名称（可选）
             payload: 请求输入数据（可选）
@@ -290,17 +324,31 @@ class RequestRepository(BaseRepository):
             创建后的请求记录对象
 
         异常：
-            ValueError: latency_ms 小于 0
+            ValueError: 批次字段不完整、批次位置小于 0，或 latency_ms 小于 0
         """
         self._validate_latency_ms(
             latency_ms
         )
+
+        if (batch_id is None) != (batch_index is None):
+            raise ValueError(
+                "batch_id 和 batch_index 必须同时提供"
+            )
+
+        if batch_index is not None and batch_index < 0:
+            raise ValueError(
+                "batch_index 不能小于 0"
+            )
 
         new_request = Request(
             request_id=request_id,
             payload=payload,
             status="received",
         )
+
+        if batch_id is not None and batch_index is not None:
+            new_request.batch_id = batch_id
+            new_request.batch_index = batch_index
 
         if model_id is not None:
             new_request.model_id = model_id
@@ -331,6 +379,7 @@ class RequestRepository(BaseRepository):
             request: Request,
             *,
             model_id: str | None = None,
+            decision_id: str | None = None,
             response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
@@ -339,6 +388,7 @@ class RequestRepository(BaseRepository):
         参数：
             request: 请求记录对象
             model_id: 模型 ID（可选）
+            decision_id: 最近一次决策 ID（可选）
             response: 请求处理结果（可选）
             latency_ms: 处理耗时（可选）
 
@@ -358,6 +408,9 @@ class RequestRepository(BaseRepository):
         if model_id is not None:
             request.model_id = model_id
 
+        if decision_id is not None:
+            request.latest_decision_id = decision_id
+
         if response is not None:
             request.response = response
 
@@ -372,6 +425,7 @@ class RequestRepository(BaseRepository):
             *,
             error: str,
             model_id: str | None = None,
+            decision_id: str | None = None,
             response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
@@ -381,6 +435,7 @@ class RequestRepository(BaseRepository):
             request: 请求记录对象
             error: 错误信息
             model_id: 模型 ID（可选）
+            decision_id: 最近一次决策 ID（可选）
             response: 请求处理结果（可选）
             latency_ms: 处理耗时（可选）
 
@@ -400,10 +455,30 @@ class RequestRepository(BaseRepository):
         if model_id is not None:
             request.model_id = model_id
 
+        if decision_id is not None:
+            request.latest_decision_id = decision_id
+
         if response is not None:
             request.response = response
 
         if latency_ms is not None:
             request.latency_ms = latency_ms
 
+        return request
+
+    @staticmethod
+    def reset_for_retry(request: Request) -> Request:
+        """将未成功的批次请求重置为待处理状态"""
+        if request.batch_id is None or request.batch_index is None:
+            raise ValueError("只有批次请求可以重置后重试")
+
+        if request.status not in {"received", "failed"}:
+            raise ValueError(
+                f"状态 {request.status} 的请求不能重试"
+            )
+
+        request.status = "received"
+        request.response = None
+        request.error = None
+        request.latency_ms = None
         return request

@@ -33,6 +33,6 @@ class Environment(str, Enum):
 
 
 SUPPORTED_ENVIRONMENTS: FrozenSet[str] = frozenset(
-    str(environment)
+    environment.value
     for environment in Environment
 )

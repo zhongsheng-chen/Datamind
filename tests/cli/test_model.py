@@ -122,7 +122,7 @@ def test_deletion_commands_render_clean_business_error(
         arguments: list[str],
         message_prefix: str,
 ) -> None:
-    """验证模型删除相关命令使用简洁的业务错误提示"""
+    """测试模型删除相关命令使用简洁的业务错误提示"""
     error_message = (
         "模型或版本存在活动部署，请先禁用相关部署"
     )

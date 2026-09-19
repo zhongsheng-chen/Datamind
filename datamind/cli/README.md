@@ -44,7 +44,7 @@ CLI 采用单环境模式。资源创建、更新、查询和服务启动统一�
 alembic upgrade head
 ```
 
-首次部署前在 `.env` 中配置管理员凭据：
+首次部署前在 `.env.example` 中配置管理员凭据：
 
 ```dotenv
 DATAMIND_INIT_ADMIN_USERNAME=admin
@@ -58,7 +58,7 @@ datamind init
 ```
 
 初始化命令不会在终端读取用户名或密码。用户名和密码未配置时均使用 `admin`。
-生产环境应在初始化前通过环境变量或 `.env` 覆盖密码；初始化完成后，应从
+生产环境应在初始化前通过环境变量或 `.env.example` 覆盖密码；初始化完成后，应从
 运行环境中移除 `DATAMIND_INIT_ADMIN_PASSWORD`。
 
 初始化完成后登录：
@@ -74,7 +74,7 @@ datamind login --username admin
 Linux 凭据默认保存在 `~/.config/datamind/credentials.json`，文件权限为
 `0600`。Windows 凭据默认保存在
 `%APPDATA%\datamind\credentials.json`。`DATAMIND_ACCESS_TOKEN` 仅作为
-CI、容器和临时自动化任务的覆盖入口，不应写入共享的 `.env`。
+CI、容器和临时自动化任务的覆盖入口，不应写入共享的 `.env.example`。
 
 ### 命令总览
 
@@ -873,8 +873,8 @@ datamind experiment create
 | `--traffic-ratio <ratio>` | 实验流量比例；`hash` 策略范围为 `(0, 1]`，`manual` 策略范围为 `[0, 1]`             |
 | `--bucket-key <key>` | 分桶主体字段，例如 `customer_id`、`order_id`、`application_id`，默认 `customer_id` |
 | `--description <description>` | 实验描述                                                                           |
-| `--effective-from <datetime>` | 生效开始时间；默认当前 UTC 时间                                                    |
-| `--effective-to <datetime>` | 生效结束时间；默认不限制结束时间                                                   |
+| `--effective-from <datetime>` | 生效时间；默认当前 UTC 时间                                                        |
+| `--effective-to <datetime>` | 失效时间；默认不限制失效时间                                                       |
 | `--format <text| json>`                                                                             | 输出格式，默认 `text` |
 
 #### 补充说明
@@ -937,8 +937,8 @@ datamind experiment update <experiment-id>
 | `--traffic-ratio <ratio>` | 更新实验流量比例；`hash` 策略范围为 `(0, 1]`，`manual` 策略范围为 `[0, 1]` |
 | `--bucket-key <key>` | 更新分桶主体字段 |
 | `--description <description>` | 更新实验描述 |
-| `--effective-from <datetime>` | 更新生效开始时间 |
-| `--effective-to <datetime>` | 更新生效结束时间 |
+| `--effective-from <datetime>` | 更新生效时间 |
+| `--effective-to <datetime>` | 更新失效时间 |
 | `--format <text|json>` | 输出格式，默认 `text` |
 
 #### 更新限制

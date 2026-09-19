@@ -78,12 +78,12 @@ def create_route(
         effective_from: str | None = typer.Option(
             None,
             "--effective-from",
-            help="生效开始时间。默认不设置"
+            help="生效时间。默认不设置"
         ),
         effective_to: str | None = typer.Option(
             None,
             "--effective-to",
-            help="生效结束时间。默认不设置"
+            help="失效时间。默认不设置"
         ),
         enabled: bool = typer.Option(
             False,

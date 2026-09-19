@@ -21,12 +21,12 @@ import typer
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.cli.output import CLIConsole
-from datamind.config import get_settings
+from datamind.config import get_service_config
 from datamind.models.errors import (
     DeploymentError,
     InvalidModelStateError,
 )
-from datamind.services import DeploymentLifecycleService
+from datamind.services.deployment import DeploymentLifecycleService
 
 app = typer.Typer(help="创建部署命令")
 console = CLIConsole()
@@ -143,8 +143,7 @@ def create_deployment(
     全量发布自动使用 champion，影子发布自动使用 shadow；
     金丝雀发布需要通过 --role 指定 champion 或 challenger。
     """
-    settings = get_settings()
-    service_config = settings.service
+    service_config = get_service_config()
 
     environment = service_config.environment
     normalized_rollout, resolved_role = _resolve_release_options(

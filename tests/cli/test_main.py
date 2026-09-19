@@ -7,6 +7,8 @@
     验证主入口使用日志配置初始化日志系统
   - test_main_help_lists_command_groups:
     验证主入口列出全部命令组
+  - test_main_version_reports_build_identity:
+    验证版本命令仅为正式构建展示 Commit 与 Build Date
   - test_init_help_lists_initialization_options:
     验证系统初始化命令可用
   - test_main_help_lists_session_commands:
@@ -19,11 +21,11 @@
     验证全部业务命令能够生成帮助信息
 """
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 import typer
+from click import unstyle
 from typer.core import TyperGroup
 from typer.testing import CliRunner
 
@@ -114,6 +116,42 @@ SERVICE_ENVIRONMENT_COMMANDS = [
 ]
 
 
+@pytest.mark.parametrize(
+    ("commit", "build_date", "expected"),
+    [
+        (
+            "dev",
+            None,
+            "datamind version 0.1.0",
+        ),
+        (
+            "0123456789abcdef0123456789abcdef01234567",
+            "2026-09-21T02:09:32Z",
+            (
+                "datamind version 0.1.0 "
+                "(commit 0123456789abcdef0123456789abcdef01234567, "
+                "built 2026-09-21T02:09:32Z)"
+            ),
+        ),
+    ],
+)
+def test_main_version_reports_build_identity(
+        monkeypatch: pytest.MonkeyPatch,
+        commit: str,
+        build_date: str | None,
+        expected: str,
+) -> None:
+    """测试开发构建隐藏默认值，正式构建展示完整构建身份"""
+    monkeypatch.setitem(vars(main_module), "BUILD_COMMIT", commit)
+    monkeypatch.setitem(vars(main_module), "BUILD_DATE", build_date)
+    monkeypatch.setitem(vars(main_module), "version", lambda _name: "0.1.0")
+
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert unstyle(result.stdout).strip() == expected
+
+
 def test_main_initializes_configured_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -122,10 +160,8 @@ def test_main_initializes_configured_logging(
     setup_logging = MagicMock()
     monkeypatch.setitem(
         vars(main_module),
-        "get_settings",
-        lambda: SimpleNamespace(
-            logging=logging_config
-        ),
+        "get_logging_config",
+        lambda: logging_config,
     )
     monkeypatch.setitem(
         vars(main_module),
@@ -173,7 +209,7 @@ def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
 
 @pytest.mark.parametrize("command", SERVICE_ENVIRONMENT_COMMANDS)
 def test_cli_uses_configured_service_environment(command: str) -> None:
-    """测试单环境 CLI 不公开环境参数。"""
+    """测试单环境 CLI 不公开环境参数"""
     result = runner.invoke(
         app,
         [*command.split(), "--help"],
@@ -223,8 +259,10 @@ def test_outcome_submit_help_lists_link_fields() -> None:
     )
 
     assert result.exit_code == 0
-    assert "--decision-id" in result.stdout
-    assert "--request-id" in result.stdout
+    output = unstyle(result.stdout)
+
+    assert "--decision-id" in output
+    assert "--request-id" in output
 
 
 def test_identity_help_lists_management_commands() -> None:
@@ -284,4 +322,4 @@ def test_business_command_help_is_available(
     assert "--owner" not in result.stdout
 
     if command_path == "model list":
-        assert "--created-by" in result.stdout
+        assert "--created-by" in unstyle(result.stdout)

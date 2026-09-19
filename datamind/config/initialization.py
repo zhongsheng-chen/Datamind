@@ -6,8 +6,10 @@
   - InitializationConfig: 读取系统初始化配置
 
 环境变量：
-  - DATAMIND_INIT_ADMIN_USERNAME: 管理员用户名，默认 admin
-  - DATAMIND_INIT_ADMIN_PASSWORD: 管理员密码，默认 admin
+  - DATAMIND_INIT_ADMIN_USERNAME:
+    管理员用户名，默认 admin
+  - DATAMIND_INIT_ADMIN_PASSWORD:
+    管理员密码，默认 admin
 
 使用示例：
   from datamind.config.initialization import InitializationConfig

@@ -14,7 +14,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from datamind.auth.schemas import TokenResponse
-from datamind.config import get_settings
+from datamind.config import get_auth_config
 
 
 ACCESS_COOKIE = "datamind_console_access"
@@ -108,7 +108,7 @@ def clear_session_cookies(
 def _refresh_cookie_seconds() -> int:
     """返回刷新会话 Cookie 的有效秒数"""
     return (
-        get_settings().auth.refresh_token_expires_days
+        get_auth_config().refresh_token_expires_days
         * 24
         * 60
         * 60

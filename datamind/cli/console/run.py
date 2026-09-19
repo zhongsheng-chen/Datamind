@@ -130,7 +130,7 @@ def wait_for_console_ready(
         )
 
     logger.warning(
-        "管理控制台就绪探测超时",
+        "Datamind 管理控制台就绪探测超时",
         readiness_url=access_url,
         timeout_seconds=timeout_seconds,
         last_failure=last_failure,
@@ -168,7 +168,7 @@ def stop_console_process(
         return True
     except (OSError, subprocess.SubprocessError) as exc:
         logger.error(
-            "管理控制台进程树清理失败",
+            "Datamind 管理控制台进程树清理失败",
             pid=process.pid,
             error_type=type(exc).__name__,
         )
@@ -182,12 +182,19 @@ def run_console(
         host: str | None = typer.Option(
             None,
             "--host",
-            help="监听地址，未指定时读取控制台配置",
+            help="监听地址，默认 127.0.0.1",
         ),
         port: int | None = typer.Option(
             None,
             "--port",
-            help="监听端口，未指定时读取控制台配置",
+            help="监听端口，默认 8701",
+        ),
+        startup_timeout: int | None = typer.Option(
+            None,
+            "--startup-timeout",
+            min=1,
+            max=600,
+            help="等待控制台就绪的最长时间（秒），默认 120",
         ),
         reload: bool = typer.Option(
             False,
@@ -197,14 +204,7 @@ def run_console(
         verbose: bool = typer.Option(
             False,
             "--verbose",
-            help="显示 BentoML 运行日志",
-        ),
-        startup_timeout: int | None = typer.Option(
-            None,
-            "--startup-timeout",
-            min=1,
-            max=600,
-            help="等待控制台就绪的最长时间（秒），未指定时读取控制台配置",
+            help="显示 BentoML 警告和信息日志",
         ),
 ) -> None:
     """启动管理控制台"""
@@ -237,7 +237,7 @@ def run_console(
             "--port 必须在 1 到 65535 之间"
         )
 
-    environment = settings.service.environment
+    environment = settings.service.environment.value
 
     command = [
         sys.executable,
@@ -268,7 +268,7 @@ def run_console(
     readiness_url = build_http_url(
         host=normalized_host,
         port=resolved_port,
-        path="/readyz",
+        path="/ready",
     )
     app_version = get_app_version()
     listen_address = build_bind_address(
@@ -288,7 +288,7 @@ def run_console(
         )
     except OSError as exc:
         logger.error(
-            "管理控制台启动失败",
+            "Datamind 管理控制台启动失败",
             service_instance_id=service_instance_id,
             service_name=CONSOLE_SERVICE_NAME,
             version=app_version,
@@ -301,7 +301,7 @@ def run_console(
             error=str(exc),
         )
         console.error(
-            "管理控制台启动失败："
+            "Datamind 管理控制台启动失败："
             "无法启动 BentoML"
         )
         raise typer.Exit(
@@ -319,7 +319,7 @@ def run_console(
         "pid": process.pid,
     }
     logger.debug(
-        "管理控制台子进程已启动",
+        "Datamind 管理控制台子进程已启动",
         verbose=verbose,
         service_target=CONSOLE_TARGET,
         **startup_context,
@@ -337,14 +337,14 @@ def run_console(
                 elapsed_seconds = round(time.monotonic() - started_at, 2)
                 cleanup_complete = stop_console_process(process)
                 logger.error(
-                    "管理控制台启动超时",
+                    "Datamind 管理控制台启动超时",
                     timeout_seconds=resolved_startup_timeout,
                     elapsed_seconds=elapsed_seconds,
                     cleanup_complete=cleanup_complete,
                     **startup_context,
                 )
                 console.error(
-                    "管理控制台启动失败："
+                    "Datamind 管理控制台启动失败："
                     f"等待服务就绪超时（{resolved_startup_timeout} 秒）。"
                     "可使用 --startup-timeout 调整等待时间，"
                     "或使用 --verbose 查看启动日志。"
@@ -356,7 +356,7 @@ def run_console(
                 )
 
             logger.error(
-                "管理控制台启动前异常退出",
+                "Datamind 管理控制台启动前异常退出",
                 return_code=return_code,
                 **startup_context,
             )
@@ -365,7 +365,7 @@ def run_console(
             )
 
         logger.info(
-            "管理控制台启动完成",
+            "Datamind 管理控制台启动完成",
             elapsed_seconds=round(time.monotonic() - started_at, 2),
             **startup_context,
         )
@@ -385,27 +385,27 @@ def run_console(
         return_code = process.wait()
     except KeyboardInterrupt:
         if not stop_console_process(process):
-            console.error("管理控制台停止失败，请检查后台进程。")
+            console.error("Datamind 管理控制台停止失败，请检查后台进程。")
             raise typer.Exit(code=1) from None
         return_code = process.returncode
         logger.info(
-            "管理控制台已停止",
+            "Datamind 管理控制台已停止",
             return_code=return_code,
             **startup_context,
         )
-        console.warning("\n管理控制台已停止")
+        console.warning("\nDatamind 管理控制台已停止")
         return
 
     if return_code == 0:
         logger.info(
-            "管理控制台进程已退出",
+            "Datamind 管理控制台进程已退出",
             return_code=return_code,
             **startup_context,
         )
         return
 
     logger.error(
-        "管理控制台异常退出",
+        "Datamind 管理控制台异常退出",
         return_code=return_code,
         **startup_context,
     )

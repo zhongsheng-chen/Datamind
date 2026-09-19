@@ -1,0 +1,128 @@
+x-datamind-service: &datamind-service
+  image: "${DATAMIND_IMAGE_REPOSITORY:-docker.io/zhongshengchen/datamind}:${DATAMIND_IMAGE_TAG:?DATAMIND_IMAGE_TAG is required}"
+  env_file:
+    - ${DATAMIND_ENV_FILE:-.env.docker}
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 30s
+
+services:
+  runtime:
+    <<: *datamind-service
+    command:
+      - python
+      - -m
+      - bentoml
+      - serve
+      - datamind.runtime.server.service:DatamindRuntimeService
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8700"
+    environment:
+      DATAMIND_HEALTHCHECK_URL: http://127.0.0.1:8700/ready
+    ports:
+      - "${DATAMIND_RUNTIME_PORT:-8700}:8700"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - datamind.runtime.server.entrypoints.healthcheck
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  console:
+    <<: *datamind-service
+    command:
+      - python
+      - -m
+      - bentoml
+      - serve
+      - datamind.console.service:DatamindConsoleService
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8701"
+    environment:
+      DATAMIND_HEALTHCHECK_URL: http://127.0.0.1:8701/ready
+    ports:
+      - "${DATAMIND_CONSOLE_PORT:-8701}:8701"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - datamind.console.entrypoints.healthcheck
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  batch-worker-1:
+    <<: *datamind-service
+    command:
+      - python
+      - -m
+      - datamind.runtime.task_queue.entrypoints.worker
+    environment:
+      DATAMIND_TASK_WORKER_NAME: datamind-batch-worker
+      DATAMIND_TASK_WORKER_ROLE: batch
+      DATAMIND_TASK_WORKER_CONCURRENCY: "1"
+    healthcheck: &worker-healthcheck
+      test:
+        - CMD
+        - python
+        - -m
+        - datamind.runtime.task_queue.entrypoints.healthcheck
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  batch-worker-2:
+    <<: *datamind-service
+    command:
+      - python
+      - -m
+      - datamind.runtime.task_queue.entrypoints.worker
+    environment:
+      DATAMIND_TASK_WORKER_NAME: datamind-batch-worker
+      DATAMIND_TASK_WORKER_ROLE: batch
+      DATAMIND_TASK_WORKER_CONCURRENCY: "1"
+    healthcheck: *worker-healthcheck
+
+  shadow-worker:
+    <<: *datamind-service
+    command:
+      - python
+      - -m
+      - datamind.runtime.task_queue.entrypoints.worker
+    environment:
+      DATAMIND_TASK_WORKER_NAME: datamind-shadow-worker
+      DATAMIND_TASK_WORKER_ROLE: shadow
+      DATAMIND_TASK_WORKER_CONCURRENCY: "1"
+    healthcheck: *worker-healthcheck
+
+  migrate:
+    <<: *datamind-service
+    command:
+      - alembic
+      - upgrade
+      - head
+    profiles:
+      - tools
+    restart: "no"
+
+  init:
+    <<: *datamind-service
+    command:
+      - datamind
+      - init
+    profiles:
+      - tools
+    restart: "no"

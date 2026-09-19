@@ -23,7 +23,10 @@ from datamind.auth.providers import (
     LocalProviderConfig,
 )
 from datamind.auth.service import AuthService
-from datamind.config import get_settings
+from datamind.config.providers import (
+    get_auth_config,
+    get_service_config,
+)
 from datamind.constants import Environment
 from datamind.db.repositories import (
     GrantRepository,
@@ -48,8 +51,8 @@ def create_auth_service(
     异常：
         AuthError: 认证功能未启用或生产网段未配置
     """
-    settings = get_settings()
-    auth_config = settings.auth
+    auth_config = get_auth_config()
+    service_config = get_service_config()
     local_config = auth_config.local
 
     if not auth_config.enabled:
@@ -58,7 +61,7 @@ def create_auth_service(
         )
 
     if (
-            settings.service.environment
+            service_config.environment
             in {
                 Environment.STAGING,
                 Environment.PRODUCTION,

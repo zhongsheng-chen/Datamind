@@ -31,8 +31,7 @@ from datamind.audit.service import (
     AuditResult,
     AuditService,
 )
-from datamind.config import get_settings
-from datamind.config.audit import AuditConfig
+from datamind.config import get_audit_config
 from datamind.context import get_context
 from datamind.context.keys import (
     HOSTNAME,
@@ -54,7 +53,12 @@ class AuditRecorder:
             *,
             service: AuditService | None = None,
     ) -> None:
-        self._config: AuditConfig = get_settings().audit
+        """初始化审计记录器
+
+        参数：
+            service: 审计服务，默认使用 AuditService
+        """
+        self._config = get_audit_config()
         self._context = get_context
         self._service = service or AuditService(
             config=self._config

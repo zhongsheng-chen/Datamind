@@ -1,13 +1,13 @@
 """运行时服务工厂
 
-根据模型任务类型创建对应的运行时服务。
+根据任务类型创建运行时服务。
 
 核心功能：
   - create: 根据 task_type 创建运行时服务
 
 支持的任务类型：
-  - classification: 分类模型服务
-  - scoring: 评分模型服务
+  - classification: 分类服务
+  - scoring: 评分服务
 
 使用示例：
   from datamind.runtime.serving.factory import RuntimeServiceFactory
@@ -26,25 +26,43 @@
   })
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from datamind.config.classification import ClassificationConfig
 from datamind.config.scoring import ScoringConfig
 from datamind.constants import DataType
 from datamind.runtime.registry import RuntimeModel
 from datamind.runtime.serving.base import BaseRuntimeService
-from datamind.runtime.serving.classification_service import (
-    ClassificationService,
-)
-from datamind.runtime.serving.scoring_service import (
-    ScoringService,
-)
+
+if TYPE_CHECKING:
+    from datamind.runtime.serving.classification_service import (
+        ClassificationService,
+    )
+    from datamind.runtime.serving.scoring_service import ScoringService
+
+
+def _classification_service_type() -> type[ClassificationService]:
+    """按需加载分类任务运行时服务。"""
+    from datamind.runtime.serving.classification_service import (
+        ClassificationService,
+    )
+
+    return ClassificationService
+
+
+def _scoring_service_type() -> type[ScoringService]:
+    """按需加载评分任务运行时服务。"""
+    from datamind.runtime.serving.scoring_service import ScoringService
+
+    return ScoringService
 
 
 class RuntimeServiceFactory:
     """运行时服务工厂
 
-    根据任务类型创建对应的运行时服务。
+    根据任务类型创建运行时服务。
     """
 
     SUPPORTED_TASK_TYPES = {
@@ -69,7 +87,7 @@ class RuntimeServiceFactory:
             task_type: 任务类型，为 None 时从 metadata 获取
             feature_names: 特征名称列表
             data_types: 特征类型映射
-            threshold: 分类阈值
+            threshold: 阈值
 
         返回：
             具体运行时服务实例
@@ -99,7 +117,7 @@ class RuntimeServiceFactory:
                 config_type=ClassificationConfig,
             )
 
-            return ClassificationService(
+            return _classification_service_type()(
                 runtime_model=runtime_model,
                 feature_names=feature_names,
                 data_types=data_types,
@@ -112,7 +130,7 @@ class RuntimeServiceFactory:
                 threshold=threshold,
                 config_type=ScoringConfig,
             )
-            return ScoringService(
+            return _scoring_service_type()(
                 runtime_model=runtime_model,
                 feature_names=feature_names,
                 data_types=data_types,

@@ -1,5 +1,44 @@
 "use strict";
 
+const modelTypeLabels = {
+  logistic_regression: "逻辑回归",
+  decision_tree: "决策树",
+  random_forest: "随机森林",
+  xgboost: "XGBoost",
+  lightgbm: "LightGBM",
+  catboost: "CatBoost",
+};
+
+const taskTypeLabels = {
+  scoring: "评分",
+  classification: "分类",
+  regression: "回归",
+};
+
+/**
+ * 格式化模型类型枚举。
+ *
+ * @param {unknown} value 模型类型
+ * @returns {string} 中文展示名称
+ */
+export function formatModelType(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const key = String(value).toLowerCase();
+  return modelTypeLabels[key] || String(value);
+}
+
+/**
+ * 格式化任务类型枚举。
+ *
+ * @param {unknown} value 任务类型
+ * @returns {string} 中文展示名称
+ */
+export function formatTaskType(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const key = String(value).toLowerCase();
+  return taskTypeLabels[key] || String(value);
+}
+
 /**
  * 格式化导航栏中的资源数量。
  *
@@ -48,14 +87,16 @@ export function formatDuration(value) {
 }
 
 /**
- * 格式化可为空的毫秒时长。
+ * 格式化可为空的毫秒时长，并使用中文单位。
  *
  * @param {unknown} value 原始时长
- * @returns {string} 带毫秒单位的时长文本
+ * @returns {string} 带中文毫秒单位的时长文本
  */
 export function formatOptionalDuration(value) {
   if (value === null || value === undefined) return "—";
-  return `${formatDuration(value)} ms`;
+  const milliseconds = Number(value);
+  if (!Number.isFinite(milliseconds)) return "—";
+  return `${formatDuration(milliseconds)} 毫秒`;
 }
 
 /**
@@ -187,7 +228,7 @@ export function formatTime(value) {
 export function statusTone(value) {
   const status = String(value || "").toLowerCase();
   if (["failed", "error", "timeout", "lost", "unhealthy", "rejected", "cancelled", "disabled", "archived", "stopped"].includes(status)) return "danger";
-  if (["inactive", "pending", "queued", "paused", "starting", "stopping", "loading", "unloading", "unloaded"].includes(status)) return "warning";
+  if (["inactive", "pending", "queued", "retrying", "paused", "starting", "stopping", "loading", "unloading", "unloaded"].includes(status)) return "warning";
   if (["healthy", "running"].includes(status)) return "success";
   if (["draft", "received"].includes(status)) return "info";
   if (status === "deprecated") return "deprecated";

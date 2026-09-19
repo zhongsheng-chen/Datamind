@@ -107,7 +107,6 @@ class Execution(
                 "'success', "
                 "'failed', "
                 "'timeout', "
-                "'rejected', "
                 "'cancelled'"
                 ")"
             ),
@@ -158,21 +157,24 @@ class Execution(
     decision_id = Column(
         String(64),
         nullable=False,
-        comment="关联的决策 ID，不建立数据库外键",
+        comment="决策 ID",
     )
 
     execution_type = Column(
         String(20),
         nullable=False,
-        comment="执行类型，可选值：primary / shadow",
+        comment=(
+            "执行类型，可选值："
+            "primary / shadow"
+        ),
     )
 
     status = Column(
         String(20),
         nullable=False,
         comment=(
-            "执行状态，可选值：queued / running / success / failed / "
-            "timeout / rejected / cancelled"
+            "执行状态，可选值："
+            "queued / running / success / failed / timeout / cancelled"
         ),
     )
 
