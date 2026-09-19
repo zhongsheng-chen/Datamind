@@ -9,7 +9,8 @@
   - threshold: 分类阈值，概率大于该值时预测为正类
 
 环境变量：
-  - DATAMIND_CLASSIFICATION_THRESHOLD: 分类阈值，默认 0.5
+  - DATAMIND_CLASSIFICATION_THRESHOLD:
+    分类阈值，默认 0.5
 
 使用示例：
   from datamind.config.classification import ClassificationConfig

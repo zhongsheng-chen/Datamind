@@ -13,6 +13,8 @@
     验证模型生命周期动作使用模型 ID
   - test_dispatch_variant_toggle_maps_active_flag:
     验证实验分组开关映射启用状态
+  - test_dispatch_batch_actions:
+    验证批次取消和重试动作分派到批次生命周期服务
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -42,6 +44,7 @@ def _arguments(**overrides: object) -> dict[str, object]:
         "routing_factory": _unused_factory,
         "experiment_factory": _unused_factory,
         "identity_factory": _unused_factory,
+        "batch_factory": _unused_factory,
     }
     arguments.update(overrides)
     return arguments
@@ -63,7 +66,7 @@ async def test_dispatch_restore_actions(
         method: str,
         identifier_name: str,
 ) -> None:
-    """测试可回收资源统一调用各自的恢复方法。"""
+    """测试可回收资源统一调用各自的恢复方法"""
     service = MagicMock()
     setattr(
         service,
@@ -96,7 +99,7 @@ async def test_dispatch_restore_actions(
 
 @pytest.mark.asyncio
 async def test_dispatch_version_purge_keeps_reason() -> None:
-    """测试版本永久清理交由删除服务并保留原因。"""
+    """测试版本永久清理交由删除服务并保留原因"""
     service = MagicMock()
     service.purge = AsyncMock(
         return_value={"version_id": "ver_test"}
@@ -152,7 +155,7 @@ async def test_dispatch_model_deletion_actions_use_model_id(
         action: str,
         expected_arguments: dict[str, str],
 ) -> None:
-    """测试模型回收站动作按模型 ID 调用删除服务。"""
+    """测试模型回收站动作按模型 ID 调用删除服务"""
     service = MagicMock()
     setattr(
         service,
@@ -182,7 +185,7 @@ async def test_dispatch_model_deletion_actions_use_model_id(
 async def test_dispatch_model_lifecycle_actions_use_model_id(
         action: str,
 ) -> None:
-    """测试模型生命周期动作按模型 ID 调用生命周期服务。"""
+    """测试模型生命周期动作按模型 ID 调用生命周期服务"""
     service = MagicMock()
     setattr(
         service,
@@ -208,7 +211,7 @@ async def test_dispatch_model_lifecycle_actions_use_model_id(
 
 @pytest.mark.asyncio
 async def test_dispatch_variant_toggle_maps_active_flag() -> None:
-    """测试分组启停动作统一映射为活动状态。"""
+    """测试分组启停动作统一映射为活动状态"""
     service = MagicMock()
     service.set_variant_active = AsyncMock(
         return_value={"variant_id": "var_test"}
@@ -227,4 +230,32 @@ async def test_dispatch_variant_toggle_maps_active_flag() -> None:
         variant_id="var_test",
         active=False,
         updated_by="operator",
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["cancel", "retry"])
+async def test_dispatch_batch_actions(
+        action: str,
+) -> None:
+    """测试批次动作按批次 ID 调用生命周期服务"""
+    service = MagicMock()
+    setattr(
+        service,
+        action,
+        AsyncMock(return_value={"batch_id": "bat_test"}),
+    )
+
+    result = await dispatch_resource_action(
+        **_arguments(
+            resource="batches",
+            identifier="bat_test",
+            action=action,
+            batch_factory=lambda: service,
+        )
+    )
+
+    assert result["batch_id"] == "bat_test"
+    getattr(service, action).assert_awaited_once_with(
+        batch_id="bat_test"
     )

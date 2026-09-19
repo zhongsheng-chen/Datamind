@@ -73,8 +73,8 @@ class DeploymentPatch:
         environment: 部署环境
         rollout_type: 发布类型
         role: 部署角色
-        effective_from: 生效开始时间
-        effective_to: 生效结束时间
+        effective_from: 生效时间
+        effective_to: 失效时间
         threshold: 决策阈值
         description: 部署描述
     """
@@ -324,8 +324,8 @@ class DeploymentRepository(BaseRepository):
             environment: 部署环境
             rollout_type: 发布类型（可选）
             role: 部署角色（可选）
-            effective_from: 生效开始时间（可选）
-            effective_to: 生效结束时间（可选）
+            effective_from: 生效时间（可选）
+            effective_to: 失效时间（可选）
             threshold: 决策阈值（可选）
             description: 部署描述（可选）
             deployed_by: 部署人（可选）
@@ -340,9 +340,7 @@ class DeploymentRepository(BaseRepository):
             framework=str(
                 framework
             ),
-            environment=str(
-                environment
-            ),
+            environment=environment.value,
             status=str(
                 DeploymentStatus.INACTIVE
             ),
@@ -433,7 +431,7 @@ class DeploymentRepository(BaseRepository):
     ) -> Deployment:
         """启用部署
 
-        启用时清除旧的生效结束时间，避免部署状态为 active
+        启用时清除旧的失效时间，避免部署状态为 active
         但有效期已经结束的矛盾状态。
 
         参数：
@@ -473,7 +471,7 @@ class DeploymentRepository(BaseRepository):
     ) -> Deployment:
         """停用部署
 
-        首次停用时记录生效结束时间；
+        首次停用时记录失效时间；
         重复停用时保留原结束时间。
 
         参数：

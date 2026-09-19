@@ -9,8 +9,10 @@ import {
   createDetailIcon,
   createDetailSection,
   createDetailSummary,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
+import { formatModelType, formatTaskType } from "../format.js";
 
 /**
  * @typedef {Object} ScorecardScalingParameters
@@ -76,29 +78,25 @@ export function createVersionDetailController({
   getRecordActions,
   hasCapability,
   navigateToModelVersions,
+  navigateToScorecard,
   navigateToSection,
   openDeploymentCreateDialog,
   request,
   runRecordAction,
-  showModelDrawer,
   toast,
 }) {
-  function createFileIdentifier(value, label, truncate = false) {
+  function createFileIdentifier(value, label) {
     if (!value) return "—";
     const identifier = createCopyableNavigationLink(value, null, label);
     if (identifier instanceof HTMLElement) {
       identifier.classList.add("registry-version-file-identifier");
-      identifier.classList.toggle(
-        "registry-version-file-identifier-truncated",
-        truncate,
-      );
       identifier.title = value;
     }
     return identifier;
   }
 
   function createFileInformationSection(version, dialog) {
-    return createDetailSection(
+    const section = createDetailSection(
       "文件信息",
       [
         ["制品 ID", () => createFileIdentifier(
@@ -112,18 +110,18 @@ export function createVersionDetailController({
         ["文件路径", () => createFileIdentifier(
           version.model_key,
           "文件路径",
-          true,
         )],
         ["SHA-256 校验值", () => createFileIdentifier(
           version.artifact_sha256,
           "SHA-256 校验值",
-          true,
         )],
       ],
       dialog,
       "artifact",
       appendRequestDetail,
     );
+    section.classList.add("registry-version-file-section");
+    return section;
   }
 
   function formatScorecardNumber(value, digits = 4) {
@@ -265,7 +263,7 @@ export function createVersionDetailController({
       ["Gini", formatScorecardNumber(variable.gini)],
       ["JS", formatScorecardNumber(variable.js)],
       ["质量分", formatScorecardNumber(variable.quality_score)],
-      ["分箱状态", variable.status],
+      ["分箱状态", createStatusBadge(variable.status)],
     ];
     for (const [label, value] of fields) appendRequestDetail(list, label, value);
     return list;
@@ -434,9 +432,17 @@ export function createVersionDetailController({
   function appendVersionFooter(dialog, version, related) {
     const buttons = [];
     const actions = getRecordActions("versions", version);
+    if (version.task_type === "scoring" && version.scorecard?.details) {
+      const button = createDetailAction("查看评分表", "view");
+      button.addEventListener("click", () => {
+        dialog.close();
+        navigateToScorecard(version);
+      });
+      buttons.push(button);
+    }
     const deploymentTotal = Number(related.deployments?.total || 0);
     if (deploymentTotal > 0) {
-      const button = createDetailAction("查看部署", "model");
+      const button = createDetailAction("查看部署", "view");
       button.addEventListener("click", () => {
         dialog.close();
         navigateToSection(
@@ -451,7 +457,7 @@ export function createVersionDetailController({
       && String(version.status || "").toLowerCase() === "active"
       && hasCapability("deployments.create")
     ) {
-      const button = createDetailAction("部署版本", "deploy", "primary");
+      const button = createDetailAction("部署版本", "deploy");
       button.addEventListener("click", () => {
         dialog.close();
         Promise.resolve(openDeploymentCreateDialog(version)).catch(
@@ -467,8 +473,8 @@ export function createVersionDetailController({
       const activating = lifecycle.action === "activate";
       const button = createDetailAction(
         activating ? "激活版本" : "停用版本",
-        activating ? "start" : "deactivate",
-        activating ? "primary" : "danger",
+        lifecycle.action,
+        activating ? "" : "danger",
       );
       button.addEventListener("click", () => {
         dialog.close();
@@ -494,14 +500,11 @@ export function createVersionDetailController({
         "版本详情",
         "version-detail-drawer",
       );
-      const modelLink = document.createElement("button");
-      modelLink.type = "button";
-      modelLink.className = "request-link";
-      modelLink.textContent = version.model_name || version.model_id || "—";
-      modelLink.addEventListener("click", () => {
-        dialog.close();
-        showModelDrawer({ model_id: version.model_id });
-      });
+      const scorecardDetails = (
+        version.task_type === "scoring" && version.scorecard?.details
+          ? /** @type {ScorecardDetails} */ (version.scorecard.details)
+          : null
+      );
       body.append(
         createDetailSummary({
           icon: "model",
@@ -510,8 +513,8 @@ export function createVersionDetailController({
           status: version.status,
           badges: [
             createDetailBadge(version.framework, "framework"),
-            createDetailBadge(version.model_type, "type"),
-            createDetailBadge(version.task_type, "task"),
+            createDetailBadge(formatModelType(version.model_type), "type"),
+            createDetailBadge(formatTaskType(version.task_type), "task"),
           ],
           createStatusBadge,
         }),
@@ -529,12 +532,12 @@ export function createVersionDetailController({
               },
               "版本 ID",
             )],
-            ["模型名称", modelLink],
+            ["模型名称", version.model_name || version.model_id],
             ["显示名称", version.display_name],
-            ["状态", createStatusBadge(version.status)],
+            ["状态", formatStatusValue(version.status, createStatusBadge)],
             ["框架", version.framework],
-            ["类型", version.model_type],
-            ["任务类型", version.task_type],
+            ["类型", formatModelType(version.model_type)],
+            ["任务类型", formatTaskType(version.task_type)],
             ["描述", version.description],
             ["创建时间", formatTime(version.created_at)],
             ["更新时间", formatTime(version.updated_at)],
@@ -544,10 +547,10 @@ export function createVersionDetailController({
           appendRequestDetail,
         ),
         createFileInformationSection(version, dialog),
-        ...(version.task_type === "scoring" && version.scorecard?.details
+        ...(scorecardDetails
           ? [
-              createScorecardParameters(version.scorecard.details, dialog),
-              createBinningSection(version.scorecard.details),
+              createScorecardParameters(scorecardDetails, dialog),
+              createBinningSection(scorecardDetails),
             ]
           : []),
         createRelatedResourcesSection(version, related, dialog),

@@ -38,6 +38,7 @@ from unittest.mock import (
 )
 
 import pytest
+from click import unstyle
 from rich.text import Text
 from typer.testing import CliRunner
 
@@ -478,7 +479,7 @@ def test_create_role_rejects_mixed_permission_options() -> None:
     assert result.exit_code != 0
     assert (
         "--all-permissions 与 --permission 不能同时指定"
-        in result.output
+        in unstyle(result.output)
     )
 
 
@@ -509,11 +510,9 @@ def test_user_list_renders_count_and_updated_at(
     )
     monkeypatch.setitem(
         vars(user_list_module),
-        "get_settings",
+        "get_logging_config",
         lambda: SimpleNamespace(
-            logging=SimpleNamespace(
-                timezone="Asia/Shanghai"
-            )
+            timezone="Asia/Shanghai"
         ),
     )
 
@@ -560,11 +559,9 @@ def test_role_list_renders_count_and_updated_at(
     )
     monkeypatch.setitem(
         vars(role_list_module),
-        "get_settings",
+        "get_logging_config",
         lambda: SimpleNamespace(
-            logging=SimpleNamespace(
-                timezone="Asia/Shanghai"
-            )
+            timezone="Asia/Shanghai"
         ),
     )
 
@@ -612,11 +609,9 @@ def test_show_user_renders_standard_detail_layout(
     )
     monkeypatch.setitem(
         vars(show_module),
-        "get_settings",
+        "get_logging_config",
         lambda: SimpleNamespace(
-            logging=SimpleNamespace(
-                timezone="Asia/Shanghai"
-            )
+            timezone="Asia/Shanghai"
         ),
     )
 
@@ -667,11 +662,9 @@ def test_show_role_renders_standard_detail_layout(
     )
     monkeypatch.setitem(
         vars(role_show_module),
-        "get_settings",
+        "get_logging_config",
         lambda: SimpleNamespace(
-            logging=SimpleNamespace(
-                timezone="Asia/Shanghai"
-            )
+            timezone="Asia/Shanghai"
         ),
     )
 

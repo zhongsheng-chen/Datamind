@@ -3,11 +3,11 @@
 验证独立 BentoML 控制台服务的初始化行为。
 
 核心功能：
-  - test_console_service_initializes_logging: 验证控制台日志初始化
+  - test_console_service_initializes_logging:
+    验证控制台日志初始化
 """
 
 import importlib
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -34,10 +34,8 @@ def test_console_service_initializes_logging(
     setup_logging = MagicMock()
     monkeypatch.setitem(
         vars(service_module),
-        "get_settings",
-        lambda: SimpleNamespace(
-            logging=logging_config
-        ),
+        "get_logging_config",
+        lambda: logging_config,
     )
     monkeypatch.setitem(
         vars(service_module),

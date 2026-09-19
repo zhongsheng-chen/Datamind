@@ -32,7 +32,7 @@
 
 from functools import lru_cache
 
-from datamind.config.settings import get_settings
+from datamind.config.providers import get_storage_config
 from datamind.storage.admin import StorageAdmin
 
 
@@ -250,10 +250,8 @@ def get_storage() -> Storage:
     返回：
         全局唯一的 Storage 实例
     """
-    settings = get_settings()
-
     storage_admin = StorageAdmin(
-        settings.storage
+        get_storage_config()
     )
 
     return Storage(

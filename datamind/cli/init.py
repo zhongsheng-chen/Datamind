@@ -16,7 +16,7 @@ import typer
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.cli.output import CLIConsole
-from datamind.config import get_settings
+from datamind.config import get_initialization_config
 from datamind.audit.enums import AuditSource
 from datamind.constants.identity import SYSTEM_BOOTSTRAP_ACTOR
 from datamind.context import generate_trace_id
@@ -57,7 +57,7 @@ def initialize() -> None:
                 "Datamind 已经完成初始化"
             )
 
-        config = get_settings().initialization
+        config = get_initialization_config()
         password = (
             config.admin_password.get_secret_value()
         )

@@ -44,7 +44,7 @@ def create_variant(
 
 
 def test_add_rejects_variant_deployment() -> None:
-    """验证新增分组拒绝复用已有分组的部署"""
+    """测试新增分组拒绝复用已有分组的部署"""
     variants = [
         create_variant(
             variant_id="var_control",
@@ -72,7 +72,7 @@ def test_add_rejects_variant_deployment() -> None:
 
 
 def test_add_accepts_incomplete_active_weight_sum() -> None:
-    """验证草稿阶段允许启用权重总和暂时小于 1"""
+    """测试草稿阶段允许启用权重总和暂时小于 1"""
     add_module._validate_active_weight_sum(
         experiment=Experiment(
             config={
@@ -91,7 +91,7 @@ def test_add_accepts_incomplete_active_weight_sum() -> None:
 
 
 def test_add_rejects_active_weight_sum_above_one() -> None:
-    """验证新增分组拒绝启用权重总和超过 1"""
+    """测试新增分组拒绝启用权重总和超过 1"""
     with pytest.raises(
             InvalidExperimentConfigError,
             match="权重之和不能大于 1",
@@ -114,7 +114,7 @@ def test_add_rejects_active_weight_sum_above_one() -> None:
 
 
 def test_add_skips_weight_sum_for_manual_strategy() -> None:
-    """验证手动分配策略不限制分组权重总和"""
+    """测试手动分配策略不限制分组权重总和"""
     add_module._validate_active_weight_sum(
         experiment=Experiment(
             config={
@@ -133,7 +133,7 @@ def test_add_skips_weight_sum_for_manual_strategy() -> None:
 
 
 def test_update_rejects_other_variant_deployment() -> None:
-    """验证更新分组拒绝复用其他分组的部署"""
+    """测试更新分组拒绝复用其他分组的部署"""
     variants = [
         create_variant(
             variant_id="var_control",
@@ -158,7 +158,7 @@ def test_update_rejects_other_variant_deployment() -> None:
 
 
 def test_activate_rejects_other_active_variant() -> None:
-    """验证启用分组拒绝与其他启用分组共用部署"""
+    """测试启用分组拒绝与其他启用分组共用部署"""
     variants = [
         create_variant(
             variant_id="var_control",

@@ -7,6 +7,8 @@ import {
   createDetailDrawer,
   createDetailSection,
   createDetailSummary,
+  formatBadgeValue,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
 
@@ -43,9 +45,13 @@ export function createDeploymentDetailController({
     runtimeData = null,
     loadState = "loading",
   ) {
-    const fields = [["当前状态", createStatusBadge(record.status)]];
     const deploymentActive = String(record.status || "").toLowerCase()
       === "active";
+    const runtimeStatus = deploymentActive ? "running" : "stopped";
+    const fields = [[
+      "当前状态",
+      formatStatusValue(runtimeStatus, createStatusBadge),
+    ]];
     if (!deploymentActive) {
       fields.push(["运行实例", "当前没有运行实例"]);
       return fields;
@@ -93,7 +99,10 @@ export function createDeploymentDetailController({
         new Date(right).getTime() - new Date(left).getTime()
       ))[0];
 
-    fields.push(["健康状态", createStatusBadge(healthStatus)]);
+    fields.push([
+      "健康状态",
+      formatStatusValue(healthStatus, createStatusBadge),
+    ]);
     if (generations.length === 1) {
       fields.push(["控制版本", generations[0]]);
     } else if (generations.length > 1) {
@@ -177,19 +186,27 @@ export function createDeploymentDetailController({
     );
     body.append(
       createDetailSection("发布配置", [
-        ["发布类型", createDeploymentRolloutBadge(record.rollout_type)],
-        ["角色", createDeploymentRoleBadge(record.role)],
-        ["决策阈值", record.threshold],
-        ["开始时间", formatTime(record.effective_from)],
+        ["发布类型", formatBadgeValue(
+          record.rollout_type,
+          createDeploymentRolloutBadge,
+        )],
+        ["角色", formatBadgeValue(record.role, createDeploymentRoleBadge)],
+        ...(
+          String(record.rollout_type || "").toLowerCase() !== "shadow"
+          && String(record.role || "").toLowerCase() !== "shadow"
+            ? [["决策阈值", record.threshold]]
+            : []
+        ),
+        ["生效时间", formatTime(record.effective_from)],
         ...(record.effective_to
-          ? [["结束时间", formatTime(record.effective_to)]]
+          ? [["失效时间", formatTime(record.effective_to)]]
           : []),
       ], dialog, "release", appendRequestDetail),
       runtimeSection,
     );
 
     const buttons = [];
-    const runtimeButton = createDetailAction("查看运行实例", "monitor");
+    const runtimeButton = createDetailAction("查看运行实例", "view");
     runtimeButton.addEventListener("click", () => {
       dialog.close();
       navigateToSection(
@@ -213,12 +230,10 @@ export function createDeploymentDetailController({
         : `${actionConfig.label}部署`;
       const button = createDetailAction(
         label,
-        actionConfig.action === "edit"
-          ? "edit"
-          : actionConfig.action === "enable" ? "start" : "stop",
+        actionConfig.action,
         actionConfig.action === "disable"
           ? "danger"
-          : actionConfig.action === "enable" ? "primary" : "",
+          : "",
       );
       button.addEventListener("click", () => {
         dialog.close();

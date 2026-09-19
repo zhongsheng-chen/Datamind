@@ -18,7 +18,7 @@ import bentoml
 import structlog
 
 from datamind.console.app import console_app
-from datamind.config import get_settings
+from datamind.config import get_logging_config
 from datamind.logging import setup_logging
 
 
@@ -37,7 +37,7 @@ class DatamindConsoleService:
     def __init__(self) -> None:
         """初始化控制台日志"""
         setup_logging(
-            get_settings().logging
+            get_logging_config()
         )
         logger = structlog.get_logger(__name__).bind(pid=os.getpid())
         service_instance_id = os.environ.get("DATAMIND_SERVICE_INSTANCE_ID")

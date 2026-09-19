@@ -102,7 +102,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/build/
 develop-eggs/
 dist/
 downloads/
@@ -143,6 +143,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.pytest-tmp-*/
 cover/
 
 # Translations
@@ -215,6 +216,7 @@ celerybeat.pid
 
 # Environments
 .env
+docker/.env.docker
 .venv
 env/
 venv/
@@ -265,6 +267,8 @@ examples/**/artifacts/
 # Frontend dependencies and package cache
 node_modules/
 .npm-cache/
+playwright-report/
+test-results/
 
 # Log files
 logs/

@@ -1,58 +1,59 @@
 """管理控制台查询仓储
 
-提供管理控制台各数据页面的记录总数、关键词查询、字段化查询和时间范围查询。
+提供管理控制台记录查询、关联信息补充和调用指标统计能力。
 
 核心功能：
-  - DashboardRepository.get_counts: 获取控制台页面记录总数
-  - DashboardRepository.count_records: 获取查询结果总数
-  - DashboardRepository.get_request_metrics: 获取 API 调用核心指标
-  - DashboardRepository.get_request_trend: 获取 API 调用趋势
-  - DashboardRepository.get_model_request_stats: 获取模型调用统计
-  - DashboardRepository.get_execution_details: 获取模型执行关联信息
-  - DashboardRepository.get_decision_executions: 获取决策的模型执行
-  - DashboardRepository.get_variant_counts: 获取实验分组数量
-  - DashboardRepository.get_version_labels: 获取版本对应的模型名称
-  - DashboardRepository.get_experiment_labels: 获取实验模型信息
-  - DashboardRepository.get_variant_labels: 获取分组实验和模型信息
-  - DashboardRepository.search_records: 查询控制台页面记录
-  - DashboardRepository.search_variants: 查询实验分组
+  - get_counts: 获取控制台页面记录总数
+  - count_records: 获取查询结果总数
+  - search_records: 查询控制台页面记录
+  - get_version_labels: 获取版本关联信息
+  - get_user_roles: 获取用户角色
+  - get_deployment_labels: 获取部署关联信息
+  - get_experiment_labels: 获取实验关联信息
+  - get_variant_labels: 获取实验分组关联信息
+  - get_request_details: 获取 API 调用关联信息
+  - get_batch_deployment_stats: 获取批次实际命中部署统计
+  - get_attempt_shard_details: 获取执行尝试的分片详情
+  - get_decision_details: 获取决策关联信息
+  - get_execution_details: 获取模型执行关联信息
+  - get_decision_executions: 获取决策的模型执行
+  - get_variant_counts: 获取实验分组数量
+  - search_variants: 查询实验分组
+  - get_request_trend: 获取 API 调用趋势
+  - get_request_metrics: 获取 API 调用核心指标
+  - get_model_request_stats: 获取模型调用统计
 
 使用示例：
+  from datamind.db.core import UnitOfWork
+  from datamind.db.repositories.dashboard import DashboardRepository
+
   async with UnitOfWork() as uow:
-      counts = await DashboardRepository(
+      repo = DashboardRepository(
           uow.session
-      ).get_counts([
+      )
+
+      counts = await repo.get_counts([
           "models",
           "deployments",
       ])
 """
 
-import re
-import shlex
 from collections.abc import Iterable
-from dataclasses import dataclass
 from datetime import (
     datetime,
     timedelta,
-    timezone,
 )
-from enum import Enum
-from typing import Any
+from typing import (
+    Any,
+    TypedDict,
+)
 
 from sqlalchemy import (
     and_,
-    case,
     func,
-    or_,
     select,
 )
-from datamind.config import get_settings
-from datamind.constants.runtime_status import (
-    ACTIVE_RUNTIME_STATUSES,
-    RuntimeHealthStatus,
-)
 from datamind.db.models import (
-    Audit,
     Decision,
     Deployment,
     Execution,
@@ -62,1223 +63,33 @@ from datamind.db.models import (
     Request,
     Routing,
     Role,
-    Runtime,
-    User,
+    Shard,
     Variant,
     Version,
 )
+from datamind.db.repositories._dashboard_search import (
+    _build_record_statement,
+    _build_search_predicates,
+    _runtime_active_predicate,
+    _runtime_health_status_expression,
+)
+from datamind.db.repositories._dashboard_sections import (
+    _REQUEST_MODEL_NAME,
+    _SECTION_DEFINITIONS,
+)
 from datamind.db.repositories.base import BaseRepository
 from datamind.runtime.presence import RuntimePresence
-from datamind.utils.datetime import get_timezone
 from datamind.utils.sorting import parse_sort_specs
 
 
-_REQUEST_MODEL_NAME = func.coalesce(
-    Request.model_name,
-    Metadata.name,
-)
-
-
-def _runtime_stale_predicate(
-        presence: RuntimePresence,
-) -> Any:
-    """构建活动实例心跳过期条件。"""
-    return or_(
-        and_(
-            Runtime.status.in_(("starting", "stopping")),
-            Runtime.updated_at < presence.stale_at,
-        ),
-        and_(
-            Runtime.status == "running",
-            func.coalesce(
-                Runtime.last_heartbeat_at,
-                Runtime.updated_at,
-            ) < presence.stale_at,
-        ),
-    )
-
-
-def _runtime_active_predicate(
-        presence: RuntimePresence,
-) -> Any:
-    """构建当前在线运行实例条件。"""
-    return and_(
-        Runtime.status.in_(ACTIVE_RUNTIME_STATUSES),
-        ~_runtime_stale_predicate(presence),
-    )
-
-
-def _runtime_health_status_expression(
-        presence: RuntimePresence,
-) -> Any:
-    """根据最近活动时间构建运行实例健康状态"""
-    stale = _runtime_stale_predicate(presence)
-    return case(
-        (
-            stale,
-            RuntimeHealthStatus.UNHEALTHY.value,
-        ),
-        else_=RuntimeHealthStatus.HEALTHY.value,
-    )
-
-
-_SECTION_MODELS: dict[str, type[Any]] = {
-    "models": Metadata,
-    "versions": Version,
-    "deployments": Deployment,
-    "routings": Routing,
-    "runtimes": Runtime,
-    "requests": Request,
-    "decisions": Decision,
-    "executions": Execution,
-    "experiments": Experiment,
-    "variants": Variant,
-    "audits": Audit,
-    "users": User,
-    "roles": Role,
-}
-
-_SECTION_DELETED_COLUMNS: dict[str, Any] = {
-    "models": Metadata.deleted_at,
-    "versions": Version.deleted_at,
-    "deployments": Deployment.deleted_at,
-    "routings": Routing.deleted_at,
-    "experiments": Experiment.deleted_at,
-    "variants": Variant.deleted_at,
-    "users": User.deleted_at,
-    "roles": Role.deleted_at,
-}
-
-_SECTION_ID_COLUMNS: dict[str, Any] = {
-    "models": Metadata.model_id,
-    "versions": Version.version_id,
-    "deployments": Deployment.deployment_id,
-    "routings": Routing.routing_id,
-    "runtimes": Runtime.runtime_id,
-    "requests": Request.request_id,
-    "decisions": Decision.decision_id,
-    "executions": Execution.execution_id,
-    "experiments": Experiment.experiment_id,
-    "variants": Variant.variant_id,
-    "audits": Audit.audit_id,
-    "users": User.user_id,
-    "roles": Role.role_id,
-}
-
-class _QueryFieldType(str, Enum):
-    """控制台查询字段类型"""
-
-    TEXT = "text"
-    DATETIME = "datetime"
-
-
-@dataclass(
-    frozen=True,
-    slots=True,
-)
-class _QueryField:
-    """控制台查询字段定义"""
-
-    column: Any
-    type: _QueryFieldType
-
-
-def _text_field(
-        column: Any,
-) -> _QueryField:
-    """定义文本查询字段"""
-    return _QueryField(
-        column=column,
-        type=_QueryFieldType.TEXT,
-    )
-
-
-def _time_field(
-        column: Any,
-) -> _QueryField:
-    """定义时间查询字段"""
-    return _QueryField(
-        column=column,
-        type=_QueryFieldType.DATETIME,
-    )
-
-
-_SECTION_QUERY_FIELDS: dict[str, dict[str, _QueryField]] = {
-    "models": {
-        "model_id": _text_field(Metadata.model_id),
-        "name": _text_field(Metadata.name),
-        "display_name": _text_field(Metadata.display_name),
-        "framework": _text_field(Metadata.framework),
-        "model_type": _text_field(Metadata.model_type),
-        "task_type": _text_field(Metadata.task_type),
-        "status": _text_field(Metadata.status),
-        "created_at": _time_field(Metadata.created_at),
-        "updated_at": _time_field(Metadata.updated_at),
-        "deleted_at": _time_field(Metadata.deleted_at),
-        "restored_at": _time_field(Metadata.restored_at),
-        "archived_at": _time_field(Metadata.archived_at),
-    },
-    "versions": {
-        "version_id": _text_field(Version.version_id),
-        "model_id": _text_field(Version.model_id),
-        "model_name": _text_field(Metadata.name),
-        "display_name": _text_field(Metadata.display_name),
-        "model_version": _text_field(Version.version),
-        "framework": _text_field(Version.framework),
-        "status": _text_field(Version.status),
-        "created_at": _time_field(Version.created_at),
-        "updated_at": _time_field(Version.updated_at),
-        "deleted_at": _time_field(Version.deleted_at),
-        "restored_at": _time_field(Version.restored_at),
-        "archived_at": _time_field(Version.archived_at),
-    },
-    "deployments": {
-        "deployment_id": _text_field(Deployment.deployment_id),
-        "model_id": _text_field(Deployment.model_id),
-        "version_id": _text_field(Deployment.version_id),
-        "model_name": _text_field(Metadata.name),
-        "model_version": _text_field(Version.version),
-        "environment": _text_field(Deployment.environment),
-        "framework": _text_field(Deployment.framework),
-        "rollout_type": _text_field(Deployment.rollout_type),
-        "role": _text_field(Deployment.role),
-        "status": _text_field(Deployment.status),
-        "created_at": _time_field(Deployment.created_at),
-        "updated_at": _time_field(Deployment.updated_at),
-        "effective_from": _time_field(Deployment.effective_from),
-        "effective_to": _time_field(Deployment.effective_to),
-    },
-    "routings": {
-        "routing_id": _text_field(Routing.routing_id),
-        "name": _text_field(Routing.name),
-        "deployment_id": _text_field(Routing.deployment_id),
-        "model_id": _text_field(Deployment.model_id),
-        "version_id": _text_field(Deployment.version_id),
-        "model_name": _text_field(Metadata.name),
-        "model_version": _text_field(Version.version),
-        "environment": _text_field(Routing.environment),
-        "rollout_type": _text_field(Routing.rollout_type),
-        "rollout_group": _text_field(Routing.rollout_group),
-        "description": _text_field(Routing.description),
-        "effective_from": _time_field(Routing.effective_from),
-        "effective_to": _time_field(Routing.effective_to),
-        "created_at": _time_field(Routing.created_at),
-        "updated_at": _time_field(Routing.updated_at),
-    },
-    "runtimes": {
-        "runtime_id": _text_field(Runtime.runtime_id),
-        "deployment_id": _text_field(Runtime.deployment_id),
-        "model_id": _text_field(Runtime.model_id),
-        "version_id": _text_field(Runtime.version_id),
-        "model_name": _text_field(Metadata.name),
-        "model_version": _text_field(Version.version),
-        "role": _text_field(Deployment.role),
-        "worker_id": _text_field(Runtime.worker_id),
-        "framework": _text_field(Runtime.framework),
-        "status": _text_field(Runtime.status),
-        "created_at": _time_field(Runtime.created_at),
-        "updated_at": _time_field(Runtime.updated_at),
-        "loaded_at": _time_field(Runtime.loaded_at),
-        "unloaded_at": _time_field(Runtime.unloaded_at),
-        "last_heartbeat_at": _time_field(Runtime.last_heartbeat_at),
-    },
-    "requests": {
-        "request_id": _text_field(Request.request_id),
-        "model_id": _text_field(Request.model_id),
-        "model_name": _text_field(_REQUEST_MODEL_NAME),
-        "task_type": _text_field(Metadata.task_type),
-        "model_version": _text_field(Version.version),
-        "source": _text_field(Request.source),
-        "status": _text_field(Request.status),
-        "user": _text_field(Request.user),
-        "ip": _text_field(Request.ip),
-        "created_at": _time_field(Request.created_at),
-        "updated_at": _time_field(Request.updated_at),
-    },
-    "decisions": {
-        "decision_id": _text_field(Decision.decision_id),
-        "request_id": _text_field(Decision.request_id),
-        "experiment_id": _text_field(Decision.experiment_id),
-        "model_id": _text_field(Decision.model_id),
-        "version_id": _text_field(Decision.version_id),
-        "deployment_id": _text_field(Decision.deployment_id),
-        "model_name": _text_field(Metadata.name),
-        "model_version": _text_field(Version.version),
-        "source": _text_field(Decision.source),
-        "strategy": _text_field(Decision.strategy),
-        "subject_key": _text_field(Decision.subject_key),
-        "subject_type": _text_field(Decision.subject_type),
-        "decision": _text_field(Decision.decision),
-        "created_at": _time_field(Decision.created_at),
-        "updated_at": _time_field(Decision.updated_at),
-        "decided_at": _time_field(Decision.decided_at),
-    },
-    "executions": {
-        "execution_id": _text_field(Execution.execution_id),
-        "decision_id": _text_field(Execution.decision_id),
-        "request_id": _text_field(Decision.request_id),
-        "model_id": _text_field(Execution.model_id),
-        "version_id": _text_field(Execution.version_id),
-        "deployment_id": _text_field(Execution.deployment_id),
-        "model_name": _text_field(Metadata.name),
-        "model_version": _text_field(Version.version),
-        "execution_type": _text_field(Execution.execution_type),
-        "status": _text_field(Execution.status),
-        "error_type": _text_field(Execution.error_type),
-        "error": _text_field(Execution.error),
-        "created_at": _time_field(Execution.created_at),
-        "updated_at": _time_field(Execution.updated_at),
-        "started_at": _time_field(Execution.started_at),
-        "finished_at": _time_field(Execution.finished_at),
-    },
-    "experiments": {
-        "experiment_id": _text_field(Experiment.experiment_id),
-        "model_id": _text_field(Experiment.model_id),
-        "name": _text_field(Experiment.name),
-        "model_name": _text_field(Metadata.name),
-        "environment": _text_field(Experiment.environment),
-        "status": _text_field(Experiment.status),
-        "created_at": _time_field(Experiment.created_at),
-        "updated_at": _time_field(Experiment.updated_at),
-        "effective_from": _time_field(Experiment.effective_from),
-        "effective_to": _time_field(Experiment.effective_to),
-    },
-    "variants": {
-        "variant_id": _text_field(Variant.variant_id),
-        "experiment_id": _text_field(Variant.experiment_id),
-        "experiment_name": _text_field(Experiment.name),
-        "name": _text_field(Variant.name),
-        "deployment_id": _text_field(Variant.deployment_id),
-        "model_name": _text_field(Metadata.name),
-        "model_version": _text_field(Version.version),
-        "status": _text_field(Variant.status),
-        "created_at": _time_field(Variant.created_at),
-        "updated_at": _time_field(Variant.updated_at),
-    },
-    "audits": {
-        "audit_id": _text_field(Audit.audit_id),
-        "action": _text_field(Audit.action),
-        "target_type": _text_field(Audit.target_type),
-        "target_id": _text_field(Audit.target_id),
-        "user": _text_field(Audit.user),
-        "source": _text_field(Audit.source),
-        "status": _text_field(Audit.status),
-        "request_id": _text_field(Audit.request_id),
-        "trace_id": _text_field(Audit.trace_id),
-        "created_at": _time_field(Audit.created_at),
-        "updated_at": _time_field(Audit.updated_at),
-        "occurred_at": _time_field(Audit.occurred_at),
-    },
-    "users": {
-        "user_id": _text_field(User.user_id),
-        "username": _text_field(User.username),
-        "display_name": _text_field(User.display_name),
-        "email": _text_field(User.email),
-        "status": _text_field(User.status),
-        "created_at": _time_field(User.created_at),
-        "updated_at": _time_field(User.updated_at),
-        "deleted_at": _time_field(User.deleted_at),
-        "last_login_at": _time_field(User.last_login_at),
-    },
-    "roles": {
-        "role_id": _text_field(Role.role_id),
-        "name": _text_field(Role.name),
-        "description": _text_field(Role.description),
-        "status": _text_field(Role.status),
-        "created_at": _time_field(Role.created_at),
-        "updated_at": _time_field(Role.updated_at),
-        "deleted_at": _time_field(Role.deleted_at),
-    },
-}
-
-_SECTION_KEYWORD_COLUMNS: dict[str, tuple[Any, ...]] = {
-    section: tuple(
-        field.column
-        for field in fields.values()
-        if field.type is _QueryFieldType.TEXT
-    )
-    for section, fields in _SECTION_QUERY_FIELDS.items()
-}
-
-_SECTION_QUERY_FIELD_ALIASES: dict[str, dict[str, str]] = {
-    "models": {
-        "id": "model_id",
-        "model": "name",
-        "time": "updated_at",
-    },
-    "versions": {
-        "id": "version_id",
-        "model": "model_name",
-        "version": "model_version",
-        "time": "updated_at",
-    },
-    "deployments": {
-        "id": "deployment_id",
-        "model": "model_name",
-        "version": "model_version",
-        "time": "updated_at",
-    },
-    "routings": {
-        "id": "routing_id",
-        "routing": "name",
-        "model": "model_name",
-        "version": "model_version",
-        "time": "updated_at",
-    },
-    "runtimes": {
-        "id": "runtime_id",
-        "model": "model_name",
-        "version": "model_version",
-        "worker": "worker_id",
-        "time": "updated_at",
-    },
-    "requests": {
-        "id": "request_id",
-        "model": "model_name",
-        "version": "model_version",
-        "time": "created_at",
-    },
-    "decisions": {
-        "id": "decision_id",
-        "experiment": "experiment_id",
-        "model": "model_name",
-        "version": "model_version",
-        "subject": "subject_key",
-        "time": "decided_at",
-    },
-    "executions": {
-        "id": "execution_id",
-        "model": "model_name",
-        "version": "model_version",
-        "type": "execution_type",
-        "time": "started_at",
-    },
-    "experiments": {
-        "id": "experiment_id",
-        "experiment": "name",
-        "model": "model_name",
-        "time": "updated_at",
-    },
-    "variants": {
-        "id": "variant_id",
-        "variant": "name",
-        "experiment": "experiment_name",
-        "model": "model_name",
-        "version": "model_version",
-        "time": "updated_at",
-    },
-    "audits": {
-        "id": "audit_id",
-        "time": "occurred_at",
-    },
-    "users": {
-        "id": "user_id",
-        "user": "username",
-        "time": "updated_at",
-    },
-    "roles": {
-        "id": "role_id",
-        "role": "name",
-        "time": "updated_at",
-    },
-}
-
-_LATEST_VERSION = (
-    select(
-        Version.version
-    )
-    .where(
-        Version.model_id
-        == Metadata.model_id
-    )
-    .order_by(
-        Version.created_at.desc()
-    )
-    .limit(1)
-    .correlate(Metadata)
-    .scalar_subquery()
-)
-
-_VERSION_COUNT = (
-    select(
-        func.count()
-    )
-    .select_from(
-        Version
-    )
-    .where(
-        Version.model_id
-        == Metadata.model_id,
-        Version.deleted_at.is_(
-            None
-        ),
-    )
-    .correlate(Metadata)
-    .scalar_subquery()
-)
-
-_VARIANT_COUNT = (
-    select(
-        func.count()
-    )
-    .select_from(
-        Variant
-    )
-    .where(
-        Variant.experiment_id
-        == Experiment.experiment_id,
-        Variant.deleted_at.is_(
-            None
-        ),
-    )
-    .correlate(
-        Experiment
-    )
-    .scalar_subquery()
-)
-
-_EXPERIMENT_MODEL_NAME = (
-    select(
-        Metadata.name
-    )
-    .where(
-        Metadata.model_id
-        == Experiment.model_id
-    )
-    .correlate(Experiment)
-    .scalar_subquery()
-)
-
-_SECTION_SORT_COLUMNS: dict[str, dict[str, Any]] = {
-    "models": {
-        "name": Metadata.name,
-        "display_name": Metadata.display_name,
-        "model_id": Metadata.model_id,
-        "framework": Metadata.framework,
-        "model_type": Metadata.model_type,
-        "task_type": Metadata.task_type,
-        "status": Metadata.status,
-        "latest_version": _LATEST_VERSION,
-        "version_count": _VERSION_COUNT,
-        "updated_at": Metadata.updated_at,
-    },
-    "versions": {
-        "version": Version.version,
-        "version_id": Version.version_id,
-        "model_name": Metadata.name,
-        "display_name": Metadata.display_name,
-        "model_id": Version.model_id,
-        "framework": Version.framework,
-        "artifact_revision": Version.artifact_revision,
-        "status": Version.status,
-        "updated_at": Version.updated_at,
-    },
-    "deployments": {
-        "deployment_id": Deployment.deployment_id,
-        "model_name": Metadata.name,
-        "model_id": Deployment.model_id,
-        "model_version": Version.version,
-        "version_id": Deployment.version_id,
-        "environment": Deployment.environment,
-        "framework": Deployment.framework,
-        "rollout_type": Deployment.rollout_type,
-        "role": Deployment.role,
-        "status": Deployment.status,
-        "updated_at": Deployment.updated_at,
-    },
-    "routings": {
-        "routing_id": Routing.routing_id,
-        "name": Routing.name,
-        "deployment_id": Routing.deployment_id,
-        "model_name": Metadata.name,
-        "model_version": Version.version,
-        "environment": Routing.environment,
-        "rollout_type": Routing.rollout_type,
-        "rollout_group": Routing.rollout_group,
-        "traffic_ratio": Routing.traffic_ratio,
-        "status": Routing.enabled,
-        "effective_from": Routing.effective_from,
-        "effective_to": Routing.effective_to,
-        "updated_at": Routing.updated_at,
-    },
-    "runtimes": {
-        "runtime_id": Runtime.runtime_id,
-        "deployment_id": Runtime.deployment_id,
-        "model_name": Metadata.name,
-        "model_version": Version.version,
-        "role": Deployment.role,
-        "worker_id": Runtime.worker_id,
-        "framework": Runtime.framework,
-        "status": Runtime.status,
-        "last_heartbeat_at": Runtime.last_heartbeat_at,
-        "updated_at": Runtime.updated_at,
-    },
-    "requests": {
-        "request_id": Request.request_id,
-        "model_id": Request.model_id,
-        "model_name": _REQUEST_MODEL_NAME,
-        "model_version": Version.version,
-        "payload": Request.payload,
-        "prediction": Execution.prediction,
-        "source": Request.source,
-        "status": Request.status,
-        "latency_ms": Request.latency_ms,
-        "user": Request.user,
-        "ip": Request.ip,
-        "created_at": Request.created_at,
-    },
-    "decisions": {
-        "decision_id": Decision.decision_id,
-        "request_id": Decision.request_id,
-        "model_name": Metadata.name,
-        "model_version": Version.version,
-        "deployment_id": Decision.deployment_id,
-        "source": Decision.source,
-        "strategy": Decision.strategy,
-        "probability": Execution.probability,
-        "score": Execution.score,
-        "decision": Decision.decision,
-        "decided_at": Decision.decided_at,
-    },
-    "executions": {
-        "execution_id": Execution.execution_id,
-        "decision_id": Execution.decision_id,
-        "request_id": Decision.request_id,
-        "model_name": Metadata.name,
-        "model_version": Version.version,
-        "deployment_id": Execution.deployment_id,
-        "execution_type": Execution.execution_type,
-        "status": Execution.status,
-        "probability": Execution.probability,
-        "score": Execution.score,
-        "latency_ms": Execution.latency_ms,
-        "started_at": Execution.started_at,
-        "finished_at": Execution.finished_at,
-    },
-    "experiments": {
-        "name": Experiment.name,
-        "experiment_id": Experiment.experiment_id,
-        "model_id": Experiment.model_id,
-        "model_name": _EXPERIMENT_MODEL_NAME,
-        "environment": Experiment.environment,
-        "status": Experiment.status,
-        "effective_from": Experiment.effective_from,
-        "effective_to": Experiment.effective_to,
-        "updated_at": Experiment.updated_at,
-        "variant_count": _VARIANT_COUNT,
-    },
-    "variants": {
-        "variant_id": Variant.variant_id,
-        "experiment_id": Variant.experiment_id,
-        "experiment_name": Experiment.name,
-        "name": Variant.name,
-        "model_name": Metadata.name,
-        "model_version": Version.version,
-        "deployment_id": Variant.deployment_id,
-        "weight": Variant.weight,
-        "is_control": Variant.is_control,
-        "status": Variant.status,
-        "updated_at": Variant.updated_at,
-    },
-    "audits": {
-        "action": Audit.action,
-        "audit_id": Audit.audit_id,
-        "target_type": Audit.target_type,
-        "target_id": Audit.target_id,
-        "user": Audit.user,
-        "source": Audit.source,
-        "status": Audit.status,
-        "occurred_at": Audit.occurred_at,
-    },
-    "users": {
-        "user_id": User.user_id,
-        "username": User.username,
-        "display_name": User.display_name,
-        "email": User.email,
-        "status": User.status,
-        "last_login_at": User.last_login_at,
-        "updated_at": User.updated_at,
-    },
-    "roles": {
-        "role_id": Role.role_id,
-        "name": Role.name,
-        "status": Role.status,
-        "updated_at": Role.updated_at,
-    },
-}
-
-_SECTION_ORDER_COLUMNS: dict[str, tuple[Any, ...]] = {
-    "models": (
-        Metadata.updated_at.desc(),
-        Metadata.created_at.desc(),
-    ),
-    "versions": (
-        Version.created_at.desc(),
-    ),
-    "deployments": (
-        Deployment.updated_at.desc(),
-        Deployment.created_at.desc(),
-    ),
-    "routings": (
-        Routing.updated_at.desc(),
-        Routing.created_at.desc(),
-    ),
-    "runtimes": (
-        Runtime.updated_at.desc(),
-        Runtime.created_at.desc(),
-    ),
-    "requests": (
-        Request.created_at.desc(),
-    ),
-    "decisions": (
-        Decision.decided_at.desc(),
-        Decision.created_at.desc(),
-    ),
-    "executions": (
-        Execution.created_at.desc(),
-        Execution.id.desc(),
-    ),
-    "experiments": (
-        Experiment.updated_at.desc(),
-        Experiment.created_at.desc(),
-    ),
-    "variants": (
-        Variant.updated_at.desc(),
-        Variant.created_at.desc(),
-    ),
-    "audits": (
-        Audit.occurred_at.desc(),
-        Audit.created_at.desc(),
-    ),
-    "users": (
-        User.updated_at.desc(),
-        User.created_at.desc(),
-    ),
-    "roles": (
-        Role.updated_at.desc(),
-        Role.created_at.desc(),
-    ),
-}
-
-
-def _parse_search_terms(
-        *,
-        section: str,
-        query: str,
-) -> tuple[tuple[str | None, str], ...]:
-    """解析普通关键词和字段化查询条件"""
-    field_query = re.search(
-        r"(?:^|\s)[A-Za-z_][A-Za-z0-9_-]*:",
-        query,
-    ) is not None
-
-    if not field_query:
-        return ((None, query),)
-
-    try:
-        tokens = shlex.split(
-            re.sub(
-                (
-                    r"(\d{4}[-/]\d{2}[-/]\d{2})\s+"
-                    r"(\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?"
-                    r"(?:Z|[+-]\d{2}:\d{2})?)"
-                ),
-                r"\1T\2",
-                query,
-            )
-        )
-    except ValueError as error:
-        raise ValueError(
-            "查询条件中的引号不完整"
-        ) from error
-
-    if not tokens:
-        return ()
-
-    fields = _SECTION_QUERY_FIELDS[section]
-    aliases = _SECTION_QUERY_FIELD_ALIASES[section]
-    terms: list[tuple[str | None, str]] = []
-
-    for token in tokens:
-        if ":" not in token:
-            terms.append((
-                None,
-                token,
-            ))
-            continue
-
-        raw_field, value = token.split(
-            ":",
-            maxsplit=1,
-        )
-        field = raw_field.lower().replace(
-            "-",
-            "_",
-        )
-        field = aliases.get(
-            field,
-            field,
-        )
-
-        if field not in fields:
-            supported_fields = ", ".join(
-                sorted({
-                    *fields,
-                    *aliases,
-                })
-            )
-            raise ValueError(
-                f"不支持的查询字段: {raw_field}；"
-                f"当前页面支持: {supported_fields}"
-            )
-
-        if not value:
-            raise ValueError(
-                f"查询字段 {raw_field} 缺少值"
-            )
-
-        terms.append((
-            field,
-            value,
-        ))
-
-    return tuple(terms)
-
-
-def _parse_query_time(
-        value: str,
-) -> tuple[datetime, bool]:
-    """按控制台本地时区解析查询时间"""
-    normalized_value = value.replace(
-        "/",
-        "-",
-    )
-    date_only = re.fullmatch(
-        r"\d{4}-\d{2}-\d{2}",
-        normalized_value,
-    ) is not None
-    normalized = (
-        f"{normalized_value}T00:00:00"
-        if date_only
-        else (
-            f"{normalized_value[:-1]}+00:00"
-            if normalized_value.endswith("Z")
-            else normalized_value
-        )
-    )
-
-    try:
-        parsed = datetime.fromisoformat(
-            normalized
-        )
-    except ValueError as error:
-        raise ValueError(
-            f"时间查询值格式无效: {value}"
-        ) from error
-
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(
-            tzinfo=get_timezone(
-                get_settings().logging.timezone
-            )
-        )
-
-    return (
-        parsed.astimezone(timezone.utc),
-        date_only,
-    )
-
-
-def _build_time_predicate(
-        *,
-        column: Any,
-        value: str,
-) -> Any:
-    """构建单日或起止时间范围条件"""
-    if ".." not in value:
-        instant, date_only = _parse_query_time(
-            value
-        )
-
-        if date_only:
-            next_day, _ = _parse_query_time(
-                (
-                    datetime.fromisoformat(
-                        value.replace(
-                            "/",
-                            "-",
-                        )
-                    )
-                    + timedelta(days=1)
-                ).date().isoformat()
-            )
-            return and_(
-                column >= instant,
-                column < next_day,
-            )
-
-        return column == instant
-
-    raw_start, raw_end = value.split(
-        "..",
-        maxsplit=1,
-    )
-
-    if not raw_start and not raw_end:
-        raise ValueError(
-            "时间范围不能同时缺少起止时间"
-        )
-
-    start = (
-        _parse_query_time(raw_start)[0]
-        if raw_start
-        else None
-    )
-    end: datetime | None = None
-    end_is_exclusive = False
-
-    if raw_end:
-        end, end_is_date = _parse_query_time(
-            raw_end
-        )
-
-        if end_is_date:
-            end, _ = _parse_query_time(
-                (
-                    datetime.fromisoformat(
-                        raw_end.replace(
-                            "/",
-                            "-",
-                        )
-                    )
-                    + timedelta(days=1)
-                ).date().isoformat()
-            )
-            end_is_exclusive = True
-
-    if (
-            start is not None
-            and end is not None
-            and (
-                start >= end
-                if end_is_exclusive
-                else start > end
-            )
-    ):
-        raise ValueError(
-            "时间范围的起始时间不能晚于结束时间"
-        )
-
-    conditions = []
-
-    if start is not None:
-        conditions.append(
-            column >= start
-        )
-
-    if end is not None:
-        conditions.append(
-            column < end
-            if end_is_exclusive
-            else column <= end
-        )
-
-    return and_(*conditions)
-
-
-def _build_search_predicates(
-        *,
-        section: str,
-        query: str,
-) -> tuple[Any, ...]:
-    """构建字段化查询的 SQL 匹配条件"""
-    predicates = []
-
-    for field, value in _parse_search_terms(
-            section=section,
-            query=query,
-    ):
-        query_field = (
-            _SECTION_QUERY_FIELDS[section][field]
-            if field is not None
-            else None
-        )
-
-        if (
-                query_field is not None
-                and query_field.type
-                is _QueryFieldType.DATETIME
-        ):
-            predicates.append(
-                _build_time_predicate(
-                    column=query_field.column,
-                    value=value,
-                )
-            )
-            continue
-
-        escaped_value = (
-            value
-            .replace("\\", "\\\\")
-            .replace("%", "\\%")
-            .replace("_", "\\_")
-        )
-        pattern = (
-            f"%{escaped_value}%"
-            if query_field is None
-            else escaped_value
-        )
-        columns = (
-            _SECTION_KEYWORD_COLUMNS[section]
-            if query_field is None
-            else (
-                query_field.column,
-            )
-        )
-        predicates.append(
-            or_(*(
-                column.ilike(
-                    pattern,
-                    escape="\\",
-                )
-                for column in columns
-            ))
-        )
-
-    return tuple(predicates)
-
-
-def _build_record_statement(
-        *,
-        section: str,
-        query: str,
-        model_id: str | None = None,
-        experiment_id: str | None = None,
-        record_ids: Iterable[str] | None = None,
-        only_deleted: bool = False,
-        presence: RuntimePresence | None = None,
-) -> Any:
-    """构建控制台记录查询语句"""
-    if section not in _SECTION_MODELS:
-        raise ValueError(
-            f"不支持的控制台页面: {section}"
-        )
-
-    model = _SECTION_MODELS[section]
-    stmt = select(
-        model
-    )
-
-    if section == "versions":
-        stmt = stmt.outerjoin(
-            Metadata,
-            Metadata.model_id
-            == Version.model_id,
-        )
-    elif section == "deployments":
-        stmt = (
-            stmt
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Deployment.model_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Deployment.version_id,
-            )
-        )
-    elif section == "routings":
-        stmt = (
-            stmt
-            .outerjoin(
-                Deployment,
-                Deployment.deployment_id
-                == Routing.deployment_id,
-            )
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Deployment.model_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Deployment.version_id,
-            )
-        )
-    elif section == "runtimes":
-        stmt = (
-            stmt
-            .outerjoin(
-                Deployment,
-                Deployment.deployment_id
-                == Runtime.deployment_id,
-            )
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Runtime.model_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Runtime.version_id,
-            )
-        )
-    elif section == "requests":
-        stmt = (
-            stmt
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Request.model_id,
-            )
-            .outerjoin(
-                Decision,
-                Decision.request_id
-                == Request.request_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Decision.version_id,
-            )
-            .outerjoin(
-                Execution,
-                and_(
-                    Execution.decision_id
-                    == Decision.decision_id,
-                    Execution.execution_type
-                    == "primary",
-                ),
-            )
-        )
-    elif section == "decisions":
-        stmt = (
-            stmt
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Decision.model_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Decision.version_id,
-            )
-            .outerjoin(
-                Execution,
-                and_(
-                    Execution.decision_id
-                    == Decision.decision_id,
-                    Execution.execution_type
-                    == "primary",
-                ),
-            )
-        )
-    elif section == "executions":
-        stmt = (
-            stmt
-            .outerjoin(
-                Decision,
-                Decision.decision_id
-                == Execution.decision_id,
-            )
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Execution.model_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Execution.version_id,
-            )
-        )
-    elif section == "experiments":
-        stmt = stmt.outerjoin(
-            Metadata,
-            Metadata.model_id
-            == Experiment.model_id,
-        )
-    elif section == "variants":
-        stmt = (
-            stmt
-            .outerjoin(
-                Experiment,
-                Experiment.experiment_id
-                == Variant.experiment_id,
-            )
-            .outerjoin(
-                Deployment,
-                Deployment.deployment_id
-                == Variant.deployment_id,
-            )
-            .outerjoin(
-                Metadata,
-                Metadata.model_id
-                == Deployment.model_id,
-            )
-            .outerjoin(
-                Version,
-                Version.version_id
-                == Deployment.version_id,
-            )
-        )
-
-    if query:
-        stmt = stmt.where(
-            *_build_search_predicates(
-                section=section,
-                query=query,
-            )
-        )
-
-    if section in _SECTION_DELETED_COLUMNS:
-        deleted_column = _SECTION_DELETED_COLUMNS[section]
-        stmt = stmt.where(
-            deleted_column.is_not(None)
-            if only_deleted
-            else deleted_column.is_(None)
-        )
-
-    if section == "runtimes":
-        stmt = stmt.where(
-            _runtime_active_predicate(
-                presence or RuntimePresence.current()
-            )
-        )
-
-    if model_id is not None:
-        if section != "versions":
-            raise ValueError(
-                "model_id 仅支持模型版本查询"
-            )
-
-        stmt = stmt.where(
-            Version.model_id == model_id
-        )
-
-    if experiment_id is not None:
-        if section != "variants":
-            raise ValueError(
-                "experiment_id 仅支持实验分组查询"
-            )
-
-        stmt = stmt.where(
-            Variant.experiment_id == experiment_id
-        )
-
-    if record_ids is not None:
-        stmt = stmt.where(
-            _SECTION_ID_COLUMNS[section].in_(
-                tuple(record_ids)
-            )
-        )
-
-    return stmt
+class AttemptShardDetail(TypedDict):
+    """执行尝试分片详情"""
+
+    record: Shard
+    total_count: int
+    completed_count: int
+    succeeded_count: int
+    failed_count: int
 
 
 class DashboardRepository(BaseRepository):
@@ -1290,7 +101,18 @@ class DashboardRepository(BaseRepository):
             *,
             presence: RuntimePresence | None = None,
     ) -> dict[str, int]:
-        """获取指定控制台页面的记录总数"""
+        """获取指定控制台页面的记录总数
+
+        参数：
+            sections: 控制台页面名称集合
+            presence: 运行实例在线状态判定参数（可选）
+
+        返回：
+            页面名称与记录总数的映射
+
+        异常：
+            ValueError: 包含不支持的控制台页面
+        """
         selected_sections = tuple(
             dict.fromkeys(
                 sections
@@ -1298,7 +120,7 @@ class DashboardRepository(BaseRepository):
         )
         unsupported_sections = set(
             selected_sections
-        ) - _SECTION_MODELS.keys()
+        ) - _SECTION_DEFINITIONS.keys()
 
         if unsupported_sections:
             raise ValueError(
@@ -1316,18 +138,17 @@ class DashboardRepository(BaseRepository):
         count_expressions = []
 
         for section in selected_sections:
-            model = _SECTION_MODELS[section]
+            definition = _SECTION_DEFINITIONS[section]
             count_stmt = select(
                 func.count()
             ).select_from(
-                model
+                definition.model
             )
 
-            if section in _SECTION_DELETED_COLUMNS:
+            deleted_column = definition.deleted_column
+            if deleted_column is not None:
                 count_stmt = count_stmt.where(
-                    _SECTION_DELETED_COLUMNS[
-                        section
-                    ].is_(
+                    deleted_column.is_(
                         None
                     )
                 )
@@ -1371,7 +192,23 @@ class DashboardRepository(BaseRepository):
             only_deleted: bool = False,
             presence: RuntimePresence | None = None,
     ) -> int:
-        """获取指定查询条件下的记录总数"""
+        """获取指定查询条件下的记录总数
+
+        参数：
+            section: 控制台页面名称
+            query: 关键词或字段化查询表达式
+            model_id: 模型 ID（可选）
+            experiment_id: 实验 ID（可选）
+            record_ids: 记录 ID 集合（可选）
+            only_deleted: 是否只统计逻辑删除记录
+            presence: 运行实例在线状态判定参数（可选）
+
+        返回：
+            符合条件的记录总数
+
+        异常：
+            ValueError: 页面或查询条件不受支持
+        """
         stmt = _build_record_statement(
             section=section,
             query=query,
@@ -1412,7 +249,27 @@ class DashboardRepository(BaseRepository):
             only_deleted: bool = False,
             presence: RuntimePresence | None = None,
     ) -> list[Any]:
-        """查询、排序并分页返回指定控制台页面记录"""
+        """查询、排序并分页返回指定控制台页面记录
+
+        参数：
+            section: 控制台页面名称
+            query: 关键词或字段化查询表达式
+            limit: 返回数量限制
+            offset: 分页偏移
+            model_id: 模型 ID（可选）
+            experiment_id: 实验 ID（可选）
+            record_ids: 记录 ID 集合（可选）
+            sort_by: 排序字段表达式（可选）
+            sort_order: 默认排序方向
+            only_deleted: 是否只查询逻辑删除记录
+            presence: 运行实例在线状态判定参数（可选）
+
+        返回：
+            符合条件的控制台记录列表
+
+        异常：
+            ValueError: 页面、查询条件或排序字段不受支持
+        """
         stmt = _build_record_statement(
             section=section,
             query=query,
@@ -1423,16 +280,15 @@ class DashboardRepository(BaseRepository):
             presence=presence,
         )
 
-        id_column = _SECTION_ID_COLUMNS[section]
+        definition = _SECTION_DEFINITIONS[section]
+        id_column = definition.id_column
         sort_specs = parse_sort_specs(
             sort_by=sort_by,
             sort_order=sort_order,
         )
 
         if sort_specs:
-            sort_columns = _SECTION_SORT_COLUMNS[
-                section
-            ]
+            sort_columns = definition.sort_columns
             ordered_columns = []
             sorted_id = False
 
@@ -1465,7 +321,7 @@ class DashboardRepository(BaseRepository):
             order_columns = tuple(ordered_columns)
         else:
             order_columns = (
-                *_SECTION_ORDER_COLUMNS[section],
+                *definition.order_columns,
                 id_column.asc(),
             )
 
@@ -1484,7 +340,14 @@ class DashboardRepository(BaseRepository):
             self,
             version_ids: Iterable[str],
     ) -> dict[str, dict[str, str | None]]:
-        """获取版本对应的模型名称"""
+        """获取版本关联信息
+
+        参数：
+            version_ids: 版本 ID 集合
+
+        返回：
+            版本 ID 与模型名称、显示名称的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 version_ids
@@ -1531,7 +394,14 @@ class DashboardRepository(BaseRepository):
             self,
             user_ids: Iterable[str],
     ) -> dict[str, list[str]]:
-        """获取用户的有效角色名称"""
+        """获取用户的有效角色名称
+
+        参数：
+            user_ids: 用户 ID 集合
+
+        返回：
+            用户 ID 与有效角色名称列表的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 user_ids
@@ -1583,7 +453,14 @@ class DashboardRepository(BaseRepository):
             self,
             deployment_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取部署对应的模型、版本和发布信息"""
+        """获取部署关联信息
+
+        参数：
+            deployment_ids: 部署 ID 集合
+
+        返回：
+            部署 ID 与模型、版本和发布信息的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 deployment_ids
@@ -1655,7 +532,14 @@ class DashboardRepository(BaseRepository):
             self,
             experiment_ids: Iterable[str],
     ) -> dict[str, dict[str, str | None]]:
-        """获取实验对应的模型名称"""
+        """获取实验关联信息
+
+        参数：
+            experiment_ids: 实验 ID 集合
+
+        返回：
+            实验 ID 与模型名称的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 experiment_ids
@@ -1698,8 +582,15 @@ class DashboardRepository(BaseRepository):
     async def get_variant_labels(
             self,
             variant_ids: Iterable[str],
-    ) -> dict[str, dict[str, str | None]]:
-        """获取分组对应的实验和模型信息"""
+    ) -> dict[str, dict[str, Any]]:
+        """获取实验分组关联信息
+
+        参数：
+            variant_ids: 分组 ID 集合
+
+        返回：
+            分组 ID 与实验、模型及版本信息的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 variant_ids
@@ -1717,6 +608,9 @@ class DashboardRepository(BaseRepository):
                 ),
                 Experiment.status.label(
                     "experiment_status"
+                ),
+                Experiment.config.label(
+                    "experiment_config"
                 ),
                 Metadata.name.label(
                     "model_name"
@@ -1763,6 +657,9 @@ class DashboardRepository(BaseRepository):
                 "experiment_status": row[
                     "experiment_status"
                 ],
+                "experiment_config": row[
+                    "experiment_config"
+                ],
                 "model_name": row[
                     "model_name"
                 ],
@@ -1777,7 +674,14 @@ class DashboardRepository(BaseRepository):
             self,
             request_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取 API 调用对应的模型和决策详情"""
+        """获取 API 调用关联信息
+
+        参数：
+            request_ids: 请求 ID 集合
+
+        返回：
+            请求 ID 与模型、版本、决策及预测信息的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 request_ids
@@ -1809,8 +713,8 @@ class DashboardRepository(BaseRepository):
             )
             .outerjoin(
                 Decision,
-                Decision.request_id
-                == Request.request_id,
+                Decision.decision_id
+                == Request.latest_decision_id,
             )
             .outerjoin(
                 Version,
@@ -1849,11 +753,208 @@ class DashboardRepository(BaseRepository):
             for row in result.mappings().all()
         }
 
+    async def get_batch_deployment_stats(
+            self,
+            batch_ids: Iterable[str],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """获取批次实际命中的部署统计
+
+        参数：
+            batch_ids: 批次 ID 集合
+
+        返回：
+            批次 ID 与主执行、影子执行命中部署统计的映射
+        """
+        identifiers = tuple(
+            dict.fromkeys(
+                batch_ids
+            )
+        )
+
+        if not identifiers:
+            return {}
+
+        execution_count = func.count(
+            Execution.execution_id
+        ).label("execution_count")
+        stmt = (
+            select(
+                Request.batch_id,
+                Execution.deployment_id,
+                Execution.execution_type,
+                Metadata.name.label(
+                    "model_name"
+                ),
+                Version.version.label(
+                    "model_version"
+                ),
+                execution_count,
+            )
+            .join(
+                Decision,
+                Decision.decision_id
+                == Request.latest_decision_id,
+            )
+            .join(
+                Execution,
+                Execution.decision_id
+                == Decision.decision_id,
+            )
+            .outerjoin(
+                Metadata,
+                Metadata.model_id
+                == Execution.model_id,
+            )
+            .outerjoin(
+                Version,
+                Version.version_id
+                == Execution.version_id,
+            )
+            .where(
+                Request.batch_id.in_(
+                    identifiers
+                ),
+                Execution.deployment_id.is_not(None),
+            )
+            .group_by(
+                Request.batch_id,
+                Execution.deployment_id,
+                Execution.execution_type,
+                Metadata.name,
+                Version.version,
+            )
+            .order_by(
+                Request.batch_id.asc(),
+                Execution.execution_type.asc(),
+                Execution.deployment_id.asc(),
+            )
+        )
+        result = await self.session.execute(stmt)
+        deployments: dict[str, list[dict[str, Any]]] = {}
+
+        for row in result.mappings().all():
+            deployments.setdefault(
+                row["batch_id"],
+                [],
+            ).append({
+                "deployment_id": row["deployment_id"],
+                "execution_type": row["execution_type"],
+                "model_name": row["model_name"],
+                "model_version": row["model_version"],
+                "execution_count": row["execution_count"],
+            })
+
+        return deployments
+
+    async def get_attempt_shard_details(
+            self,
+            attempt_ids: Iterable[str],
+    ) -> dict[str, list[AttemptShardDetail]]:
+        """获取执行尝试的分片及处理进度
+
+        参数：
+            attempt_ids: 执行尝试 ID 集合
+
+        返回：
+            执行尝试 ID 与分片及其处理进度列表的映射
+        """
+        identifiers = tuple(
+            dict.fromkeys(
+                attempt_ids
+            )
+        )
+
+        if not identifiers:
+            return {}
+
+        completed_count = func.count(
+            Request.request_id
+        ).filter(
+            Request.status.in_((
+                "success",
+                "failed",
+            ))
+        ).label(
+            "completed_count"
+        )
+        succeeded_count = func.count(
+            Request.request_id
+        ).filter(
+            Request.status == "success"
+        ).label(
+            "succeeded_count"
+        )
+        failed_count = func.count(
+            Request.request_id
+        ).filter(
+            Request.status == "failed"
+        ).label(
+            "failed_count"
+        )
+        stmt = (
+            select(
+                Shard,
+                completed_count,
+                succeeded_count,
+                failed_count,
+            )
+            .outerjoin(
+                Request,
+                and_(
+                    Request.batch_id == Shard.batch_id,
+                    Request.batch_index >= Shard.start_index,
+                    Request.batch_index < Shard.end_index,
+                ),
+            )
+            .where(
+                Shard.attempt_id.in_(
+                    identifiers
+                )
+            )
+            .group_by(
+                Shard.id
+            )
+            .order_by(
+                Shard.attempt_id,
+                Shard.start_index,
+            )
+        )
+        result = await self.session.execute(
+            stmt
+        )
+        details: dict[str, list[AttemptShardDetail]] = {}
+
+        for (
+            shard,
+            completed,
+            succeeded,
+            failed,
+        ) in result.all():
+            details.setdefault(
+                shard.attempt_id,
+                [],
+            ).append({
+                "record": shard,
+                "total_count": shard.end_index - shard.start_index,
+                "completed_count": int(completed),
+                "succeeded_count": int(succeeded),
+                "failed_count": int(failed),
+            })
+
+        return details
+
     async def get_decision_details(
             self,
             decision_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取决策对应的模型和主执行详情"""
+        """获取决策关联信息
+
+        参数：
+            decision_ids: 决策 ID 集合
+
+        返回：
+            决策 ID 与模型、实验、部署、路由及主执行信息的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 decision_ids
@@ -1978,7 +1079,14 @@ class DashboardRepository(BaseRepository):
             self,
             execution_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取模型执行对应的请求和模型信息"""
+        """获取模型执行关联信息
+
+        参数：
+            execution_ids: 执行 ID 集合
+
+        返回：
+            执行 ID 与请求、模型、版本及路由信息的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 execution_ids
@@ -2050,7 +1158,14 @@ class DashboardRepository(BaseRepository):
             self,
             decision_ids: Iterable[str],
     ) -> dict[str, list[dict[str, Any]]]:
-        """获取决策对应的全部主执行和影子执行"""
+        """获取决策对应的全部主执行和影子执行
+
+        参数：
+            decision_ids: 决策 ID 集合
+
+        返回：
+            决策 ID 与模型执行信息列表的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 decision_ids
@@ -2131,7 +1246,14 @@ class DashboardRepository(BaseRepository):
             self,
             experiment_ids: Iterable[str],
     ) -> dict[str, int]:
-        """获取实验对应的分组数量"""
+        """获取实验对应的分组数量
+
+        参数：
+            experiment_ids: 实验 ID 集合
+
+        返回：
+            实验 ID 与未删除分组数量的映射
+        """
         identifiers = tuple(
             dict.fromkeys(
                 experiment_ids
@@ -2181,7 +1303,22 @@ class DashboardRepository(BaseRepository):
             sort_by: str | None = None,
             sort_order: str = "asc",
     ) -> list[Variant]:
-        """查询、排序并分页返回实验分组"""
+        """查询、排序并分页返回实验分组
+
+        参数：
+            experiment_id: 实验 ID
+            query: 关键词或字段化查询表达式
+            limit: 返回数量限制
+            offset: 分页偏移
+            sort_by: 排序字段表达式（可选）
+            sort_order: 默认排序方向
+
+        返回：
+            符合条件的实验分组列表
+
+        异常：
+            ValueError: 查询条件或排序字段不受支持
+        """
         sort_columns = {
             "name": Variant.name,
             "variant_id": Variant.variant_id,
@@ -2288,7 +1425,16 @@ class DashboardRepository(BaseRepository):
             interval: timedelta,
             origin: datetime,
     ) -> list[dict[str, Any]]:
-        """按指定时间间隔获取 API 调用量"""
+        """按指定时间间隔获取 API 调用趋势
+
+        参数：
+            since: 统计起始时间
+            interval: 时间分桶间隔
+            origin: 时间分桶基准点
+
+        返回：
+            各时间分桶的调用量、成功量和失败量列表
+        """
         bucket = func.date_bin(
             interval,
             Request.created_at,
@@ -2361,7 +1507,15 @@ class DashboardRepository(BaseRepository):
             since: datetime,
             previous_since: datetime,
     ) -> dict[str, Any]:
-        """获取当前和上一周期的 API 调用核心指标"""
+        """获取当前和上一周期的 API 调用核心指标
+
+        参数：
+            since: 当前统计周期起始时间
+            previous_since: 上一统计周期起始时间
+
+        返回：
+            调用量、成功量、失败量、耗时及上一周期调用量
+        """
         current_filter = Request.created_at >= since
         previous_filter = and_(
             Request.created_at >= previous_since,
@@ -2458,7 +1612,14 @@ class DashboardRepository(BaseRepository):
             *,
             since: datetime,
     ) -> list[dict[str, Any]]:
-        """获取全部模型的最近调用表现和累计调用量"""
+        """获取全部模型的最近调用表现和累计调用量
+
+        参数：
+            since: 最近调用统计起始时间
+
+        返回：
+            各模型的近期调用指标和历史累计调用量列表
+        """
         recent_count = func.count(
             Request.request_id
         ).filter(

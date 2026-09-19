@@ -12,10 +12,14 @@
   - retry_base_delay: 重试基础延迟（秒）
 
 环境变量：
-  - DATAMIND_AUDIT_ENABLED: 是否启用审计组件，默认 true
-  - DATAMIND_AUDIT_FAILURE_MODE: 失败处理模式，默认 open
-  - DATAMIND_AUDIT_MAX_RETRIES: 最大尝试次数，默认 2
-  - DATAMIND_AUDIT_RETRY_BASE_DELAY: 重试基础延迟，默认 0.05
+  - DATAMIND_AUDIT_ENABLED:
+    是否启用审计组件，默认 true
+  - DATAMIND_AUDIT_FAILURE_MODE:
+    失败处理模式，默认 open
+  - DATAMIND_AUDIT_MAX_RETRIES:
+    最大尝试次数，默认 2
+  - DATAMIND_AUDIT_RETRY_BASE_DELAY:
+    重试基础延迟，默认 0.05
 """
 
 from pydantic import model_validator

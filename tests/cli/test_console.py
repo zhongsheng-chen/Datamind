@@ -3,19 +3,32 @@
 验证控制台启动参数、BentoML 子进程和退出状态处理。
 
 核心功能：
-  - test_console_run_rejects_invalid_timeout: 验证启动超时参数范围
-  - test_stop_console_process_on_windows: 验证 Windows 定向清理进程树
-  - test_stop_console_process_reports_failure: 验证清理失败可见
-  - test_stop_console_process_on_posix: 验证独立进程组清理
-  - test_wait_for_console_ready_uses_direct_http_connection: 验证直接探测服务
-  - test_wait_for_console_ready_rejects_non_ready_response: 验证未就绪响应
-  - test_wait_for_console_ready_reports_last_failure: 验证超时日志保留失败原因
-  - test_console_run_starts_bentoml_service: 验证启动控制台服务
-  - test_console_run_uses_configured_network: 验证读取控制台网络配置
-  - test_console_run_rejects_startup_timeout: 验证服务就绪超时
-  - test_console_run_rejects_invalid_port: 验证监听端口
-  - test_console_run_propagates_process_error: 验证异常退出码
-  - test_console_run_stops_process_on_interrupt: 验证中断处理
+  - test_console_run_rejects_invalid_timeout:
+    验证启动超时参数范围
+  - test_stop_console_process_on_windows:
+    验证 Windows 定向清理进程树
+  - test_stop_console_process_reports_failure:
+    验证清理失败可见
+  - test_stop_console_process_on_posix:
+    验证独立进程组清理
+  - test_wait_for_console_ready_uses_direct_http_connection:
+    验证直接探测服务
+  - test_wait_for_console_ready_rejects_non_ready_response:
+    验证未就绪响应
+  - test_wait_for_console_ready_reports_last_failure:
+    验证超时日志保留失败原因
+  - test_console_run_starts_bentoml_service:
+    验证启动控制台服务
+  - test_console_run_uses_configured_network:
+    验证读取控制台网络配置
+  - test_console_run_rejects_startup_timeout:
+    验证服务就绪超时
+  - test_console_run_rejects_invalid_port:
+    验证监听端口
+  - test_console_run_propagates_process_error:
+    验证异常退出码
+  - test_console_run_stops_process_on_interrupt:
+    验证中断处理
 """
 
 from types import SimpleNamespace
@@ -25,10 +38,12 @@ from unittest.mock import (
 )
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 import datamind.cli.console.run as run_module
 from datamind.cli.main import app
+from datamind.constants import Environment
 
 
 runner = CliRunner()
@@ -56,7 +71,7 @@ def mock_console_settings(
             startup_timeout=120,
         ),
         service=SimpleNamespace(
-            environment="development",
+            environment=Environment.DEVELOPMENT,
         ),
     )
     monkeypatch.setitem(
@@ -112,7 +127,7 @@ def test_wait_for_console_ready_uses_direct_http_connection(
 
     assert WAIT_FOR_CONSOLE_READY(
         process,
-        "http://127.0.0.1:8701/readyz",
+        "http://127.0.0.1:8701/ready",
         timeout_seconds=90,
     )
     connection_factory.assert_called_once_with(
@@ -122,7 +137,7 @@ def test_wait_for_console_ready_uses_direct_http_connection(
     )
     connection.request.assert_called_once_with(
         "GET",
-        "/readyz",
+        "/ready",
         headers={
             "Connection": "close",
         },
@@ -160,7 +175,7 @@ def test_wait_for_console_ready_rejects_non_ready_response(
 
     assert not WAIT_FOR_CONSOLE_READY(
         process,
-        "http://127.0.0.1:8701/readyz",
+        "http://127.0.0.1:8701/ready",
         timeout_seconds=120,
     )
     connection.close.assert_called_once_with()
@@ -198,12 +213,12 @@ def test_wait_for_console_ready_reports_last_failure(
 
     assert not WAIT_FOR_CONSOLE_READY(
         process,
-        "http://127.0.0.1:8701/readyz",
+        "http://127.0.0.1:8701/ready",
         timeout_seconds=1,
     )
     structured_logger.warning.assert_called_once_with(
-        "管理控制台就绪探测超时",
-        readiness_url="http://127.0.0.1:8701/readyz",
+        "Datamind 管理控制台就绪探测超时",
+        readiness_url="http://127.0.0.1:8701/ready",
         timeout_seconds=1,
         last_failure="OSError: connection refused",
     )
@@ -254,28 +269,29 @@ def test_console_run_starts_bentoml_service(
     )
 
     assert result.exit_code == 0
-    assert "Datamind v0.1.0" in result.output
-    assert "Powered by Zhongsheng Chen" in result.output
-    assert "NAME" not in result.output
-    assert "ENVIRONMENT" in result.output
-    assert "development" in result.output
-    assert "BIND" in result.output
-    assert "0.0.0.0:3200" in result.output
-    assert "URL" in result.output
-    assert "http://127.0.0.1:3200" in result.output
-    assert "RELOAD" in result.output
-    assert "enabled" in result.output
-    assert "PID" in result.output
-    assert "4321" in result.output
-    assert "STATUS" not in result.output
-    assert "HEALTH" not in result.output
-    assert "Press Ctrl+C to stop" in result.output
+    output = unstyle(result.output)
+    assert "Datamind v0.1.0" in output
+    assert "Powered by Zhongsheng Chen" in output
+    assert "NAME" not in output
+    assert "ENVIRONMENT" in output
+    assert "development" in output
+    assert "BIND" in output
+    assert "0.0.0.0:3200" in output
+    assert "URL" in output
+    assert "http://127.0.0.1:3200" in output
+    assert "RELOAD" in output
+    assert "enabled" in output
+    assert "PID" in output
+    assert "4321" in output
+    assert "STATUS" not in output
+    assert "HEALTH" not in output
+    assert "Press Ctrl+C to stop" in output
     completed_events = [
         keyword_arguments
         for positional_arguments, keyword_arguments
         in structured_logger.info.call_args_list
         if positional_arguments == (
-            "管理控制台启动完成",
+            "Datamind 管理控制台启动完成",
         )
     ]
     assert len(completed_events) == 1
@@ -295,7 +311,7 @@ def test_console_run_starts_bentoml_service(
     }
     mock_console_readiness.assert_called_once_with(
         process,
-        "http://127.0.0.1:3200/readyz",
+        "http://127.0.0.1:3200/ready",
         timeout_seconds=180,
     )
     popen.assert_called_once_with([
@@ -360,7 +376,7 @@ def test_console_run_uses_configured_network(
     assert "disabled" in result.output
     mock_console_readiness.assert_called_once_with(
         process,
-        "http://127.0.0.1:8801/readyz",
+        "http://127.0.0.1:8801/ready",
         timeout_seconds=timeout_override if timeout_override is not None else 240,
     )
     popen.assert_called_once_with([
@@ -414,7 +430,7 @@ def test_console_run_rejects_invalid_timeout(timeout: str) -> None:
     """测试启动等待时间必须在支持范围内"""
     result = runner.invoke(app, ["console", "run", "--startup-timeout", timeout])
     assert result.exit_code == 2
-    assert "--startup-timeout" in result.output
+    assert "--startup-timeout" in unstyle(result.output)
 
 
 def test_stop_console_process_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -475,7 +491,7 @@ def test_console_run_rejects_invalid_port() -> None:
     )
 
     assert result.exit_code == 2
-    assert "--port 必须在 1 到 65535 之间" in result.output
+    assert "--port 必须在 1 到 65535 之间" in unstyle(result.output)
 
 
 def test_console_run_rejects_startup_timeout(
@@ -515,7 +531,7 @@ def test_console_run_rejects_startup_timeout(
     assert "Powered by Zhongsheng Chen" not in result.output
     wait_until_ready.assert_called_once_with(
         process,
-        "http://127.0.0.1:8701/readyz",
+        "http://127.0.0.1:8701/ready",
         timeout_seconds=120,
     )
     mock_console_stop.assert_called_once_with(process)
@@ -573,5 +589,5 @@ def test_console_run_stops_process_on_interrupt(
     )
 
     assert result.exit_code == 0
-    assert "管理控制台已停止" in result.output
+    assert "Datamind 管理控制台已停止" in result.output
     mock_console_stop.assert_called_once_with(process)

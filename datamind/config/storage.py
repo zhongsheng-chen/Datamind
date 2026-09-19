@@ -31,21 +31,32 @@ MinIO 存储：
 环境变量：
 
 通用：
-  - DATAMIND_STORAGE_TYPE: 存储类型，默认 local
-  - DATAMIND_STORAGE_MAX_FILE_SIZE: 文件大小上限，默认 209715200
-  - DATAMIND_STORAGE_MODEL_DIR: 模型目录，默认 models
+  - DATAMIND_STORAGE_TYPE:
+    存储类型，默认 local
+  - DATAMIND_STORAGE_MAX_FILE_SIZE:
+    文件大小上限，默认 209715200
+  - DATAMIND_STORAGE_MODEL_DIR:
+    模型目录，默认 models
 
 本地存储：
-  - DATAMIND_STORAGE_LOCAL_BASE_DIR: 本地基础目录，默认 ./data
+  - DATAMIND_STORAGE_LOCAL_BASE_DIR:
+    本地基础目录，默认 ./data
 
 MinIO 存储：
-  - DATAMIND_STORAGE_MINIO_ENDPOINT: 服务端点，默认 localhost:9000
-  - DATAMIND_STORAGE_MINIO_BUCKET: 存储桶，默认 datamind
-  - DATAMIND_STORAGE_MINIO_ACCESS_KEY: 访问密钥，默认空
-  - DATAMIND_STORAGE_MINIO_SECRET_KEY: 秘密密钥，默认空
-  - DATAMIND_STORAGE_MINIO_SECURE: 是否启用 TLS，默认 false
-  - DATAMIND_STORAGE_MINIO_REGION: 区域，默认 None
-  - DATAMIND_STORAGE_MINIO_BASE_PREFIX: 基础前缀，默认 datamind
+  - DATAMIND_STORAGE_MINIO_ENDPOINT:
+    服务端点，默认 localhost:9000
+  - DATAMIND_STORAGE_MINIO_BUCKET:
+    存储桶，默认 datamind
+  - DATAMIND_STORAGE_MINIO_ACCESS_KEY:
+    访问密钥，默认空
+  - DATAMIND_STORAGE_MINIO_SECRET_KEY:
+    秘密密钥，默认空
+  - DATAMIND_STORAGE_MINIO_SECURE:
+    是否启用 TLS，默认 false
+  - DATAMIND_STORAGE_MINIO_REGION:
+    区域，默认 None
+  - DATAMIND_STORAGE_MINIO_BASE_PREFIX:
+    基础前缀，默认 datamind
 
 使用示例：
   from datamind.config.storage import StorageConfig

@@ -190,7 +190,6 @@ class ExecutionStatus(BaseEnum):
     SUCCESS = "success"
     FAILED = "failed"
     TIMEOUT = "timeout"
-    REJECTED = "rejected"
     CANCELLED = "cancelled"
 
 

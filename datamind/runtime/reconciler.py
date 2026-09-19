@@ -198,13 +198,13 @@ class RuntimeReconciler:
                 当前 Worker 所属运行环境
 
             interval_seconds:
-                状态协调间隔，单位秒
+                状态协调间隔，单位秒，默认值为 2
 
             heartbeat_interval_seconds:
-                运行时心跳更新间隔，单位秒
+                运行时心跳更新间隔，单位秒，默认值为 30
 
             operator:
-                默认系统操作人
+                系统操作人，默认值为 system
 
             service_instance_id:
                 所属服务实例 ID（可选）
@@ -475,6 +475,7 @@ class RuntimeReconciler:
                 raise
 
             except (
+                    OSError,
                     SQLAlchemyError,
                     RuntimeError,
                     ValueError,

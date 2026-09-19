@@ -20,6 +20,8 @@
   - Variant: 实验分组表
   - Assignment: 实验分配表
   - Request: 请求记录表
+  - Batch: 异步预测批次表
+  - Attempt: 批次执行尝试表
   - Decision: 请求决策表
   - Execution: 模型执行表
   - Outcome: 实验结果表
@@ -61,6 +63,9 @@ from datamind.db.models.experiments import Experiment
 from datamind.db.models.variants import Variant
 from datamind.db.models.assignments import Assignment
 from datamind.db.models.requests import Request
+from datamind.db.models.batches import Batch
+from datamind.db.models.attempts import Attempt
+from datamind.db.models.shards import Shard
 from datamind.db.models.decisions import Decision
 from datamind.db.models.executions import Execution
 from datamind.db.models.outcomes import Outcome
@@ -86,6 +91,9 @@ __all__ = [
     "Variant",
     "Assignment",
     "Request",
+    "Batch",
+    "Attempt",
+    "Shard",
     "Decision",
     "Execution",
     "Outcome",

@@ -9,17 +9,17 @@
   - reconcile_interval: 运行状态协调间隔（秒）
   - heartbeat_interval: Worker 运行心跳间隔（秒）
   - shadow_enabled: 是否执行影子预测
-  - shadow_queue_size: 单个 Worker 的影子任务队列容量
-  - shadow_worker_count: 单个 Worker 的影子执行并发数
   - shadow_timeout: 单次影子预测超时时间（秒）
 
 环境变量：
-  - DATAMIND_RUNTIME_RECONCILE_INTERVAL: 状态协调间隔，默认 2.0
-  - DATAMIND_RUNTIME_HEARTBEAT_INTERVAL: 运行心跳间隔，默认 30.0
-  - DATAMIND_RUNTIME_SHADOW_ENABLED: 是否执行影子预测，默认 true
-  - DATAMIND_RUNTIME_SHADOW_QUEUE_SIZE: 影子任务队列容量，默认 1024
-  - DATAMIND_RUNTIME_SHADOW_WORKER_COUNT: 影子执行并发数，默认 2
-  - DATAMIND_RUNTIME_SHADOW_TIMEOUT: 影子预测超时时间，默认 5.0
+  - DATAMIND_RUNTIME_RECONCILE_INTERVAL:
+    状态协调间隔，默认 2.0
+  - DATAMIND_RUNTIME_HEARTBEAT_INTERVAL:
+    运行心跳间隔，默认 30.0
+  - DATAMIND_RUNTIME_SHADOW_ENABLED:
+    是否执行影子预测，默认 true
+  - DATAMIND_RUNTIME_SHADOW_TIMEOUT:
+    影子预测超时时间，默认 5.0
 
 使用示例：
   from datamind.config.runtime import RuntimeConfig
@@ -51,8 +51,6 @@ class RuntimeConfig(BaseSettings):
     heartbeat_interval: float = 30.0
 
     shadow_enabled: bool = True
-    shadow_queue_size: int = 1024
-    shadow_worker_count: int = 2
     shadow_timeout: float = 5.0
 
     @model_validator(mode="after")
@@ -68,18 +66,6 @@ class RuntimeConfig(BaseSettings):
             raise ValueError(
                 "heartbeat_interval 必须大于 0，"
                 f"当前值：{self.heartbeat_interval}"
-            )
-
-        if self.shadow_queue_size < 1:
-            raise ValueError(
-                "shadow_queue_size 必须大于等于 1，"
-                f"当前值：{self.shadow_queue_size}"
-            )
-
-        if self.shadow_worker_count < 1:
-            raise ValueError(
-                "shadow_worker_count 必须大于等于 1，"
-                f"当前值：{self.shadow_worker_count}"
             )
 
         if self.shadow_timeout <= 0:

@@ -33,7 +33,10 @@ from starlette.requests import Request
 from datamind.auth.errors import AuthError, PermissionDeniedError
 from datamind.auth.factory import create_auth_service
 from datamind.auth.permissions import require_permission
-from datamind.config import get_settings
+from datamind.config.providers import (
+    get_auth_config,
+    get_service_config,
+)
 from datamind.constants import Environment
 from datamind.context.scope import context_scope
 from datamind.db.core import UnitOfWork
@@ -107,10 +110,11 @@ class RuntimeSecurity:
             permission: str,
     ) -> RuntimeIdentity:
         """认证请求并校验权限"""
-        settings = get_settings()
+        auth_config = get_auth_config()
+        service_config = get_service_config()
 
-        if not settings.auth.enabled:
-            if settings.service.environment in (
+        if not auth_config.enabled:
+            if service_config.environment in (
                     Environment.STAGING,
                     Environment.PRODUCTION,
             ):

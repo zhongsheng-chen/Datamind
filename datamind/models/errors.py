@@ -37,6 +37,11 @@ class ModelError(Exception):
     """模型基础异常"""
 
     def __init__(self, message: str):
+        """初始化模型异常
+
+        参数：
+            message: 异常消息
+        """
         super().__init__(message)
         self.message = message
 
@@ -65,6 +70,11 @@ class ExperimentError(Exception):
     """实验基础异常"""
 
     def __init__(self, message: str):
+        """初始化实验异常
+
+        参数：
+            message: 异常消息
+        """
         super().__init__(message)
         self.message = message
 

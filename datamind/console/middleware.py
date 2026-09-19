@@ -31,6 +31,12 @@ class RequestContextMiddleware:
             app: ASGIApp,
             context_factory: Callable[[Request], dict[str, object]],
     ) -> None:
+        """初始化请求上下文中间件
+
+        参数：
+            app: 下游 ASGI 应用
+            context_factory: 根据请求创建日志上下文的函数
+        """
         self.app = app
         self.context_factory = context_factory
 
@@ -58,6 +64,11 @@ class SecurityHeadersMiddleware:
             self,
             app: ASGIApp,
     ) -> None:
+        """初始化安全响应头中间件
+
+        参数：
+            app: 下游 ASGI 应用
+        """
         self.app = app
 
     async def __call__(

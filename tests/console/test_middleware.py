@@ -3,10 +3,14 @@
 验证控制台请求日志上下文隔离及浏览器安全响应头。
 
 核心功能：
-  - test_request_context_matches_audit: 验证日志和审计上下文一致及退出恢复
-  - test_request_context_isolates_concurrent_requests: 验证并发请求上下文隔离
-  - test_security_headers_adds_browser_protections: 验证通用安全响应头
-  - test_security_headers_adds_hsts_only_for_https: 验证 HSTS 使用条件
+  - test_request_context_matches_audit:
+    验证日志和审计上下文一致及退出恢复
+  - test_request_context_isolates_concurrent_requests:
+    验证并发请求上下文隔离
+  - test_security_headers_adds_browser_protections:
+    验证通用安全响应头
+  - test_security_headers_adds_hsts_only_for_https:
+    验证 HSTS 使用条件
 """
 
 import asyncio
@@ -22,6 +26,7 @@ import pytest
 from starlette.responses import PlainTextResponse
 from starlette.requests import Request
 
+from datamind.audit.enums import AuditSource
 from datamind.console.middleware import (
     RequestContextMiddleware,
     security_headers,
@@ -29,19 +34,20 @@ from datamind.console.middleware import (
 from datamind.context.core import get_context
 from datamind.context.scope import context_scope
 from datamind.logging.processors import add_context
+from tests.console._app_support import app_module, create_user
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fail", [False, True])
 async def test_request_context_matches_audit(
-        monkeypatch: pytest.MonkeyPatch,
-        fail: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    fail: bool,
 ) -> None:
     """测试日志与审计使用相同上下文且异常后恢复外层上下文"""
     console = importlib.import_module("datamind.console.app")
     user = SimpleNamespace(username="admin")
-    monkeypatch.setattr(
-        console.browser_auth,
+    monkeypatch.setitem(
+        vars(console.browser_auth),
         "authenticate",
         AsyncMock(return_value=user),
     )
@@ -66,8 +72,8 @@ async def test_request_context_matches_audit(
     with context_scope(request_id="outer", user="outer"):
         previous = get_context().copy()
         async with AsyncClient(
-                transport=ASGITransport(app=middleware),
-                base_url="http://testserver",
+            transport=ASGITransport(app=middleware),
+            base_url="http://testserver",
         ) as client:
             if fail:
                 with pytest.raises(RuntimeError, match="request failed"):
@@ -108,8 +114,8 @@ async def test_request_context_isolates_concurrent_requests() -> None:
     )
     previous = get_context().copy()
     async with AsyncClient(
-            transport=ASGITransport(app=middleware),
-            base_url="http://testserver",
+        transport=ASGITransport(app=middleware),
+        base_url="http://testserver",
     ) as client:
         await asyncio.gather(
             client.get("/first", headers={"X-Request-ID": "req_first"}),
@@ -132,26 +138,19 @@ async def app(scope, receive, send) -> None:
 async def test_security_headers_adds_browser_protections() -> None:
     """测试 HTTP 响应包含通用浏览器安全头"""
     async with AsyncClient(
-            transport=ASGITransport(
-                app=security_headers(app)
-            ),
-            base_url="http://testserver",
+        transport=ASGITransport(app=security_headers(app)),
+        base_url="http://testserver",
     ) as client:
         response = await client.get("/")
 
     assert response.status_code == 200
-    assert response.headers[
-        "content-security-policy"
-    ].startswith("default-src 'self'")
-    assert response.headers[
-        "x-content-type-options"
-    ] == "nosniff"
-    assert response.headers[
-        "referrer-policy"
-    ] == "no-referrer"
-    assert response.headers[
-        "permissions-policy"
-    ] == "camera=(), microphone=(), geolocation=()"
+    assert response.headers["content-security-policy"].startswith("default-src 'self'")
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert (
+        response.headers["permissions-policy"]
+        == "camera=(), microphone=(), geolocation=()"
+    )
     assert "strict-transport-security" not in response.headers
 
 
@@ -159,13 +158,57 @@ async def test_security_headers_adds_browser_protections() -> None:
 async def test_security_headers_adds_hsts_only_for_https() -> None:
     """测试 HTTPS 响应启用严格传输安全策略"""
     async with AsyncClient(
-            transport=ASGITransport(
-                app=security_headers(app)
-            ),
-            base_url="https://testserver",
+        transport=ASGITransport(app=security_headers(app)),
+        base_url="https://testserver",
     ) as client:
         response = await client.get("/")
 
-    assert response.headers[
-        "strict-transport-security"
-    ] == "max-age=31536000"
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_http_audit_context_generates_missing_identifiers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试控制台为缺失标识的 HTTP 审计补全上下文"""
+    monkeypatch.setitem(
+        vars(app_module),
+        "generate_random_id",
+        lambda *, prefix: f"{prefix}_generated",
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "generate_trace_id",
+        lambda: "fedcba9876543210fedcba9876543210",
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "get_hostname",
+        lambda: "console-host",
+    )
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/deployments",
+            "raw_path": b"/api/deployments",
+            "query_string": b"",
+            "headers": [],
+            "client": ("127.0.0.1", 50000),
+            "server": ("localhost", 80),
+        }
+    )
+
+    context = app_module._http_audit_context(
+        request,
+        user=create_user(),
+    )
+
+    assert context == {
+        "user": "alice",
+        "source": AuditSource.HTTP,
+        "ip": "127.0.0.1",
+        "request_id": "req_generated",
+        "trace_id": "fedcba9876543210fedcba9876543210",
+        "hostname": "console-host",
+    }

@@ -17,15 +17,24 @@
   - enable_health_check: 是否启用健康检查
 
 环境变量：
-  - DATAMIND_SERVICE_NAME: 服务名称，默认 datamind
-  - DATAMIND_SERVICE_VERSION: 服务版本，默认 1.0.0
-  - DATAMIND_SERVICE_ENVIRONMENT: 运行环境，必填
-  - DATAMIND_SERVICE_HOST: 监听地址，默认 0.0.0.0
-  - DATAMIND_SERVICE_PORT: 监听端口，默认 8700
-  - DATAMIND_SERVICE_WORKERS: 工作进程数，默认 4
-  - DATAMIND_SERVICE_TIMEOUT: 预测请求超时时间，默认 30 秒
-  - DATAMIND_SERVICE_ENABLE_DOCS: 是否启用文档，默认 true
-  - DATAMIND_SERVICE_ENABLE_HEALTH_CHECK: 是否启用健康检查，默认 true
+  - DATAMIND_SERVICE_NAME:
+    服务名称，默认 datamind
+  - DATAMIND_SERVICE_VERSION:
+    服务版本，默认 1.0.0
+  - DATAMIND_SERVICE_ENVIRONMENT:
+    运行环境，必填
+  - DATAMIND_SERVICE_HOST:
+    监听地址，默认 0.0.0.0
+  - DATAMIND_SERVICE_PORT:
+    监听端口，默认 8700
+  - DATAMIND_SERVICE_WORKERS:
+    工作进程数，默认 4
+  - DATAMIND_SERVICE_TIMEOUT:
+    预测请求超时时间，默认 30 秒
+  - DATAMIND_SERVICE_ENABLE_DOCS:
+    是否启用文档，默认 true
+  - DATAMIND_SERVICE_ENABLE_HEALTH_CHECK:
+    是否启用健康检查，默认 true
 
 使用示例：
   from datamind.config.service import ServiceConfig

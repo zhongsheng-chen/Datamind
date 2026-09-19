@@ -12,6 +12,7 @@ import {
   createErrorDetailSection,
   createJsonCode,
   createJsonDetailSection,
+  formatStatusValue,
   mountDetailDrawer,
 } from "./common.js";
 
@@ -42,6 +43,8 @@ export function createAuditDetailController({
     request: "requests",
     decision: "decisions",
     execution: "executions",
+    batch: "batches",
+    batche: "batches",
     user: "users",
     role: "roles",
   };
@@ -70,18 +73,21 @@ export function createAuditDetailController({
 
   function showAuditDrawer(record) {
     if (!record) return;
+    const targetType = record.target_type === "batche"
+      ? "batch"
+      : record.target_type;
     const { dialog, body } = createDetailDrawer(
       "审计记录详情",
       "audit-detail-drawer",
     );
     const targetSection = targetSections[
-      String(record.target_type || "").toLowerCase()
+      String(targetType || "").toLowerCase()
     ];
     body.append(
       createDetailSummary({
         icon: "audit",
         title: record.action || record.operation || "审计操作",
-        subtitle: [record.target_type, record.target_id]
+        subtitle: [targetType, record.target_id]
           .filter(Boolean)
           .join(" · "),
         status: record.status,
@@ -107,7 +113,7 @@ export function createAuditDetailController({
         ["操作", record.action],
         ["操作名称", record.operation],
         ["资源", record.resource],
-        ["目标类型", record.target_type],
+        ["目标类型", targetType],
         ["目标资源", () => {
           if (record.target_type === "system" && record.target_id === "datamind") {
             return record.target_id;
@@ -119,7 +125,7 @@ export function createAuditDetailController({
             "目标资源",
           );
         }],
-        ["状态", createStatusBadge(record.status)],
+        ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["来源", record.source],
         ["操作人", record.user],
         ["发生时间", formatTime(record.occurred_at)],
@@ -141,7 +147,7 @@ export function createAuditDetailController({
       body.append(createJsonDetailSection("审计上下文", record.context, "metadata"));
     }
     if (targetSection && record.target_id) {
-      const target = createDetailAction("查看目标资源", "external", "primary");
+      const target = createDetailAction("查看目标资源", "view");
       target.addEventListener("click", () => {
         dialog.close();
         navigateToSection(

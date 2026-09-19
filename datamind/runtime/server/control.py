@@ -18,7 +18,7 @@ from typing import Any
 import bentoml
 from structlog.typing import FilteringBoundLogger
 
-from datamind.config import get_settings
+from datamind.config import get_service_config
 from datamind.models.errors import InvalidDeploymentStateError, RuntimeRouteError
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
@@ -32,7 +32,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 from datamind.services import RuntimeControlService
 from datamind.utils.generator import generate_random_id
 
-service_config = get_settings().service
+service_config = get_service_config()
 
 
 class RuntimeControlMixin:

@@ -217,7 +217,7 @@ class Experiment(
             timezone=True
         ),
         nullable=True,
-        comment="生效开始时间",
+        comment="生效时间",
     )
 
     effective_to = Column(
@@ -225,7 +225,7 @@ class Experiment(
             timezone=True
         ),
         nullable=True,
-        comment="生效结束时间",
+        comment="失效时间",
     )
 
     created_by = Column(

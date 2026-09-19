@@ -47,6 +47,7 @@ from datamind.logging.render import (
 
 _LOG_LISTENER: QueueListener | None = None
 _LOG_HANDLERS: list[logging.Handler] = []
+_ROOT_HANDLERS: list[logging.Handler] = []
 
 
 def _logger_factory(
@@ -94,8 +95,10 @@ def shutdown_logging() -> None:
     """
     global _LOG_LISTENER
     global _LOG_HANDLERS
+    global _ROOT_HANDLERS
 
     datamind_logger = logging.getLogger("datamind")
+    root_logger = logging.getLogger()
 
     if _LOG_LISTENER is not None:
         try:
@@ -106,6 +109,10 @@ def shutdown_logging() -> None:
 
     handlers = list(datamind_logger.handlers)
 
+    for handler in _ROOT_HANDLERS:
+        if handler in root_logger.handlers:
+            root_logger.removeHandler(handler)
+
     for handler in _LOG_HANDLERS:
         if handler not in handlers:
             handlers.append(handler)
@@ -115,6 +122,7 @@ def shutdown_logging() -> None:
 
     datamind_logger.handlers = []
     _LOG_HANDLERS = []
+    _ROOT_HANDLERS = []
 
 
 def setup_logging(
@@ -127,6 +135,7 @@ def setup_logging(
     """
     global _LOG_LISTENER
     global _LOG_HANDLERS
+    global _ROOT_HANDLERS
 
     shutdown_logging()
 
@@ -194,26 +203,47 @@ def setup_logging(
         cache_logger_on_first_use=False,
     )
 
+    # 第三方 LogRecord 已完成级别过滤，跳过首个 filter_by_level。
     formatter = structlog.stdlib.ProcessorFormatter(
         processor=renderer,
-        foreign_pre_chain=processors,
+        foreign_pre_chain=processors[1:],
     )
 
     output_handlers: list[logging.Handler] = []
 
     if config.enable_console:
+        console_handler = create_console_handler(
+            formatter
+        )
+        console_handler.setLevel(
+            getattr(
+                logging,
+                str(config.console_level).upper(),
+            )
+        )
         output_handlers.append(
-            create_console_handler(formatter)
+            console_handler
         )
 
     if config.enable_file:
         file_handler = create_file_handler(config)
         file_handler.setFormatter(formatter)
         output_handlers.append(file_handler)
+    else:
+        file_handler = None
 
     datamind_logger = logging.getLogger("datamind")
     datamind_logger.setLevel(level)
     datamind_logger.propagate = False
+
+    # 第三方服务日志经 root 写入文件，避免重复输出到控制台。
+    if file_handler is not None:
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+        _ROOT_HANDLERS = [file_handler]
+
+    else:
+        _ROOT_HANDLERS = []
 
     if config.enable_async and output_handlers:
         queue_handler, listener = create_async_handler(

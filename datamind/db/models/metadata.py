@@ -148,7 +148,10 @@ class Metadata(
     task_type = Column(
         String(50),
         nullable=False,
-        comment="任务类型，可选值：classification / scoring",
+        comment=(
+            "任务类型，可选值："
+            "classification / scoring"
+        ),
     )
 
     framework = Column(

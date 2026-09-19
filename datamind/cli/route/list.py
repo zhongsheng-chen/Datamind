@@ -19,7 +19,7 @@ from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.config import get_settings
+from datamind.config import get_service_config
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     DeploymentRepository,
@@ -92,7 +92,7 @@ def list_routes(
         ),
 ):
     """列出路由规则"""
-    environment = get_settings().service.environment
+    environment = get_service_config().environment
 
     async def _run():
         if output not in ("text", "json"):

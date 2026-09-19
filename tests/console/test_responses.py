@@ -3,9 +3,12 @@
 验证通用错误响应结构与客户端地址读取行为。
 
 核心功能：
-  - test_error_response_uses_consistent_payload: 验证错误响应结构
-  - test_client_ip_reads_request_client: 验证客户端地址读取
-  - test_client_ip_returns_none_without_client: 验证缺失客户端地址
+  - test_error_response_uses_consistent_payload:
+    验证错误响应结构
+  - test_client_ip_reads_request_client:
+    验证客户端地址读取
+  - test_client_ip_returns_none_without_client:
+    验证缺失客户端地址
 """
 
 import json
