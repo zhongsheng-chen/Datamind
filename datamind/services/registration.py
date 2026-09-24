@@ -1,4 +1,4 @@
-"""模型注册服务
+"""模型注册服务.
 
 负责校验模型制品、生成独立修订并更新版本的当前制品投影。
 
@@ -74,10 +74,10 @@ logger = structlog.get_logger(__name__)
 
 
 class ModelRegistrationService:
-    """模型注册服务"""
+    """模型注册服务."""
 
     def __init__(self) -> None:
-        """初始化模型注册服务"""
+        """初始化模型注册服务."""
         self.storage = get_storage()
         self.backend = BentoBackend()
 
@@ -98,7 +98,7 @@ class ModelRegistrationService:
             created_by: str | None = None,
             force: bool = False,
     ) -> dict[str, Any]:
-        """注册模型或模型制品修订
+        """注册模型或模型制品修订.
 
         首次提交创建模型版本及 revision 1 制品。版本已存在时，
         未指定 force 且摘要相同则按幂等成功返回；指定 force
@@ -454,7 +454,7 @@ class ModelRegistrationService:
 
     @staticmethod
     def _read_artifact(path: Path) -> bytes:
-        """读取模型制品"""
+        """读取模型制品."""
         try:
             return path.read_bytes()
         except OSError as exc:
@@ -474,7 +474,7 @@ class ModelRegistrationService:
             data: bytes,
             framework: str,
     ) -> Any:
-        """加载并校验模型制品"""
+        """加载并校验模型制品."""
         try:
             return ModelArtifactLoader.load(
                 data=data,
@@ -497,7 +497,7 @@ class ModelRegistrationService:
             framework: str,
             sha256: str,
     ) -> str:
-        """生成模型摘要"""
+        """生成模型摘要."""
         content = json.dumps(
             {
                 "framework": framework.lower(),
@@ -520,7 +520,7 @@ class ModelRegistrationService:
             filename: str,
             data: bytes,
     ) -> str:
-        """保存制品对象并注册事务回滚补偿"""
+        """保存制品对象并注册事务回滚补偿."""
         key = self.storage.save(
             model_name,
             version,
@@ -542,7 +542,7 @@ class ModelRegistrationService:
             description: str | None,
             is_new_version: bool,
     ) -> None:
-        """校验模型元数据是否允许注册"""
+        """校验模型元数据是否允许注册."""
         if metadata is None:
             return
 
@@ -571,7 +571,7 @@ class ModelRegistrationService:
             version_record: Any,
             deployment_repo: DeploymentRepository,
     ) -> None:
-        """校验已有版本是否允许创建下一制品修订"""
+        """校验已有版本是否允许创建下一制品修订."""
         if VersionStatus(version_record.status) != VersionStatus.INACTIVE:
             raise InvalidModelStateError(
                 "只有 inactive 模型版本允许强制注册新制品修订"
@@ -595,7 +595,7 @@ class ModelRegistrationService:
             artifact: Any,
             action: str,
     ) -> dict[str, Any]:
-        """构造模型注册结果"""
+        """构造模型注册结果."""
         return {
             "name": name,
             "model_id": version_record.model_id,
@@ -628,7 +628,7 @@ class ModelRegistrationService:
         }
 
     def _delete_storage_key(self, key: str) -> None:
-        """回滚注册过程中写入的存储对象"""
+        """回滚注册过程中写入的存储对象."""
         self.storage.delete_by_key(
             key=key,
             strict=False,
@@ -636,7 +636,7 @@ class ModelRegistrationService:
 
     @staticmethod
     def _delete_bento_model(tag: str) -> None:
-        """回滚注册过程中写入的 BentoML 模型"""
+        """回滚注册过程中写入的 BentoML 模型."""
         import bentoml
 
         for model in bentoml.models.list():

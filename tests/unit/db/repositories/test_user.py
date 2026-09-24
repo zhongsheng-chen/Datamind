@@ -1,4 +1,4 @@
-"""用户仓储测试
+"""用户仓储测试.
 
 验证用户查询、列表筛选、创建、资料更新、密码更新、
 状态流转和登录状态记录能力。
@@ -72,7 +72,7 @@ CURRENT_TIME = datetime(
 def create_user(
         **overrides: Any,
 ) -> User:
-    """创建用户测试对象"""
+    """创建用户测试对象."""
     values: dict[str, Any] = {
         "user_id": "usr_0123456789abcdef",
         "username": "alice",
@@ -107,7 +107,7 @@ def create_repository(
     MagicMock,
     AsyncMock,
 ]:
-    """创建用户仓储及异步会话替身"""
+    """创建用户仓储及异步会话替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -148,7 +148,7 @@ def create_repository(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -196,7 +196,7 @@ async def test_get_user_queries_by_single_condition(
         arguments: dict[str, str],
         expected_condition: str,
 ) -> None:
-    """测试按用户 ID、用户名或邮箱查询"""
+    """测试按用户 ID、用户名或邮箱查询."""
     expected_user = create_user()
     repository, _, execute = create_repository(
         scalar_result=expected_user
@@ -250,7 +250,7 @@ async def test_get_user_queries_by_single_condition(
 async def test_get_user_rejects_invalid_conditions(
         arguments: dict[str, str],
 ) -> None:
-    """测试查询条件必须且只能提供一个"""
+    """测试查询条件必须且只能提供一个."""
     repository, _, execute = create_repository()
 
     with pytest.raises(
@@ -269,7 +269,7 @@ async def test_get_user_rejects_invalid_conditions(
 
 @pytest.mark.asyncio
 async def test_get_user_returns_none_when_not_found() -> None:
-    """测试用户不存在时返回 None"""
+    """测试用户不存在时返回 None."""
     repository, _, _ = create_repository(
         scalar_result=None
     )
@@ -283,7 +283,7 @@ async def test_get_user_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_users_uses_default_order_and_limit() -> None:
-    """测试用户列表默认排序和数量限制"""
+    """测试用户列表默认排序和数量限制."""
     users = [
         create_user()
     ]
@@ -314,7 +314,7 @@ async def test_list_users_uses_default_order_and_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_users_builds_filtered_query() -> None:
-    """测试用户列表筛选、排序和分页"""
+    """测试用户列表筛选、排序和分页."""
     users = [
         create_user(
             status=str(
@@ -353,7 +353,7 @@ async def test_list_users_builds_filtered_query() -> None:
 
 @pytest.mark.asyncio
 async def test_list_users_allows_unlimited_query() -> None:
-    """测试用户列表允许不设置分页"""
+    """测试用户列表允许不设置分页."""
     repository, _, execute = create_repository()
 
     await repository.list_users(
@@ -380,7 +380,7 @@ async def test_list_users_allows_unlimited_query() -> None:
 async def test_list_active_users_delegates_to_list_users(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试活跃用户列表复用通用查询"""
+    """测试活跃用户列表复用通用查询."""
     users = [
         create_user()
     ]
@@ -409,7 +409,7 @@ async def test_list_active_users_delegates_to_list_users(
 
 
 def test_user_patch_uses_slots_and_defaults() -> None:
-    """测试用户更新结构默认值和 slots"""
+    """测试用户更新结构默认值和 slots."""
     patch = UserPatch()
 
     assert patch.username is None
@@ -422,7 +422,7 @@ def test_user_patch_uses_slots_and_defaults() -> None:
 
 
 def test_create_user() -> None:
-    """测试创建用户并加入数据库会话"""
+    """测试创建用户并加入数据库会话."""
     repository, session, _ = create_repository()
 
     user = repository.create_user(
@@ -450,7 +450,7 @@ def test_create_user() -> None:
 
 
 def test_update_user() -> None:
-    """测试用户资料更新"""
+    """测试用户资料更新."""
     repository, _, _ = create_repository()
     user = create_user()
     original_password_hash = user.password_hash
@@ -476,7 +476,7 @@ def test_update_user() -> None:
 
 
 def test_update_user_ignores_none_fields() -> None:
-    """测试用户更新忽略值为 None 的字段"""
+    """测试用户更新忽略值为 None 的字段."""
     repository, _, _ = create_repository()
     user = create_user(
         updated_by="usr_original"
@@ -496,7 +496,7 @@ def test_update_user_ignores_none_fields() -> None:
 
 
 def test_replace_profile() -> None:
-    """测试完整替换用户资料并支持清空可选字段"""
+    """测试完整替换用户资料并支持清空可选字段."""
     repository, _, _ = create_repository()
     user = create_user()
 
@@ -522,7 +522,7 @@ def test_replace_profile() -> None:
 
 
 def test_update_password_with_explicit_time() -> None:
-    """测试使用指定时间更新密码哈希"""
+    """测试使用指定时间更新密码哈希."""
     repository, _, _ = create_repository()
     user = create_user()
 
@@ -542,7 +542,7 @@ def test_update_password_with_explicit_time() -> None:
 def test_update_password_uses_current_utc_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未指定时间时使用当前 UTC 时间"""
+    """测试未指定时间时使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -577,7 +577,7 @@ def test_update_password_uses_current_utc_time(
 
 # noinspection PyUnreachableCode
 def test_activate_user() -> None:
-    """测试启用用户并清除锁定状态"""
+    """测试启用用户并清除锁定状态."""
     repository, _, _ = create_repository()
     user = create_user(
         status=str(
@@ -601,7 +601,7 @@ def test_activate_user() -> None:
 
 # noinspection PyUnreachableCode
 def test_disable_user() -> None:
-    """测试停用用户并清除临时锁定时间"""
+    """测试停用用户并清除临时锁定时间."""
     repository, _, _ = create_repository()
     user = create_user(
         failed_login_count=3,
@@ -622,7 +622,7 @@ def test_disable_user() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_deleted_user() -> None:
-    """测试逻辑删除用户并保留身份记录"""
+    """测试逻辑删除用户并保留身份记录."""
     repository, _, _ = create_repository()
     user = create_user(
         status=str(
@@ -650,7 +650,7 @@ def test_mark_deleted_user() -> None:
 
 # noinspection PyUnreachableCode
 def test_restore_user() -> None:
-    """测试恢复逻辑删除用户"""
+    """测试恢复逻辑删除用户."""
     repository, _, _ = create_repository()
     user = create_user(
         status=str(
@@ -681,7 +681,7 @@ def test_restore_user() -> None:
 
 
 def test_lock_user() -> None:
-    """测试锁定用户"""
+    """测试锁定用户."""
     repository, _, _ = create_repository()
     user = create_user()
 
@@ -699,7 +699,7 @@ def test_lock_user() -> None:
 
 # noinspection PyUnreachableCode
 def test_unlock_user() -> None:
-    """测试解锁用户并清除失败次数"""
+    """测试解锁用户并清除失败次数."""
     repository, _, _ = create_repository()
     user = create_user(
         status=str(
@@ -722,7 +722,7 @@ def test_unlock_user() -> None:
 
 
 def test_status_update_preserves_existing_updated_by() -> None:
-    """测试未提供更新人时保留原更新人"""
+    """测试未提供更新人时保留原更新人."""
     repository, _, _ = create_repository()
     user = create_user(
         updated_by="usr_original"
@@ -736,7 +736,7 @@ def test_status_update_preserves_existing_updated_by() -> None:
 
 
 def test_record_login_success_with_explicit_time() -> None:
-    """测试记录登录成功并清除失败次数"""
+    """测试记录登录成功并清除失败次数."""
     repository, _, _ = create_repository()
     user = create_user(
         failed_login_count=4
@@ -755,7 +755,7 @@ def test_record_login_success_with_explicit_time() -> None:
 def test_record_login_success_uses_current_utc_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未指定登录时间时使用当前 UTC 时间"""
+    """测试未指定登录时间时使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -791,7 +791,7 @@ def test_record_login_success_uses_current_utc_time(
 
 
 def test_record_login_failure() -> None:
-    """测试登录失败次数递增"""
+    """测试登录失败次数递增."""
     repository, _, _ = create_repository()
     user = create_user(
         failed_login_count=2

@@ -1,4 +1,4 @@
-"""管理控制台写操作结构测试
+"""管理控制台写操作结构测试.
 
 验证控制台请求的空白处理、列表规范化和字段边界。
 
@@ -42,7 +42,7 @@ from tests.console._app_support import FakeUnitOfWork, app_module, create_user
 
 
 def test_routing_create_defaults_to_disabled() -> None:
-    """测试新路由默认保持停用"""
+    """测试新路由默认保持停用."""
     request = RoutingCreateRequest(
         name="scorecard-route",
         deployment_id="dep_test",
@@ -53,7 +53,7 @@ def test_routing_create_defaults_to_disabled() -> None:
 
 
 def test_routing_requests_accept_effective_window() -> None:
-    """测试路由创建和更新请求接受生效区间"""
+    """测试路由创建和更新请求接受生效区间."""
     created = RoutingCreateRequest(
         name="scorecard-route",
         deployment_id="dep_test",
@@ -72,7 +72,7 @@ def test_routing_requests_accept_effective_window() -> None:
 
 
 def test_console_request_strips_string_fields() -> None:
-    """测试请求字符串自动移除首尾空白"""
+    """测试请求字符串自动移除首尾空白."""
     request = UserCreateRequest(
         username="  alice  ",
         password="secret",
@@ -84,7 +84,7 @@ def test_console_request_strips_string_fields() -> None:
 
 
 def test_user_roles_are_normalized() -> None:
-    """测试用户角色移除空值并规范化空白"""
+    """测试用户角色移除空值并规范化空白."""
     created = UserCreateRequest(
         username="alice",
         password="secret",
@@ -132,7 +132,7 @@ def test_duplicate_user_roles_are_rejected(
     request_type,
     payload: dict[str, object],
 ) -> None:
-    """测试规范化后重复的用户角色被拒绝"""
+    """测试规范化后重复的用户角色被拒绝."""
     with pytest.raises(
         ValidationError,
         match="角色不能重复",
@@ -141,7 +141,7 @@ def test_duplicate_user_roles_are_rejected(
 
 
 def test_role_permissions_are_normalized() -> None:
-    """测试角色权限移除空值并拒绝重复值"""
+    """测试角色权限移除空值并拒绝重复值."""
     request = RoleUpdateRequest(
         description="模型开发角色",
         permissions=[
@@ -180,7 +180,7 @@ def test_invalid_model_registration_is_rejected(
     field: str,
     value: str,
 ) -> None:
-    """测试模型名称和版本不符合约束时被拒绝"""
+    """测试模型名称和版本不符合约束时被拒绝."""
     payload = {
         "name": "scorecard",
         "version": "1.0.0",
@@ -195,7 +195,7 @@ def test_invalid_model_registration_is_rejected(
 
 
 def test_extra_fields_are_rejected() -> None:
-    """测试控制台请求拒绝未声明字段"""
+    """测试控制台请求拒绝未声明字段."""
     with pytest.raises(
         ValidationError,
         match="Extra inputs are not permitted",
@@ -212,7 +212,7 @@ def test_extra_fields_are_rejected() -> None:
 async def test_model_registration_target_does_not_require_csrf(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试只读的模型注册检查不要求 CSRF 令牌"""
+    """测试只读的模型注册检查不要求 CSRF 令牌."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -280,7 +280,7 @@ async def test_model_registration_target_does_not_require_csrf(
 
 
 def test_console_password_requests_accept_short_passwords() -> None:
-    """测试控制台密码请求只要求密码非空"""
+    """测试控制台密码请求只要求密码非空."""
     created = UserCreateRequest(
         username="alice",
         password="x",
@@ -336,6 +336,6 @@ def test_environment_is_not_a_console_write_parameter(
     schema: type[BaseModel],
     payload: dict[str, object],
 ) -> None:
-    """测试单环境控制台拒绝客户端指定资源环境"""
+    """测试单环境控制台拒绝客户端指定资源环境."""
     with pytest.raises(ValidationError):
         schema.model_validate(payload)

@@ -1,4 +1,4 @@
-"""审计配置
+"""审计配置.
 
 定义审计服务的启用状态、失败策略和数据库重试参数。
 
@@ -32,7 +32,7 @@ from datamind.audit.policy import AuditFailureMode
 
 
 class AuditConfig(BaseSettings):
-    """审计配置类"""
+    """审计配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_AUDIT_",
@@ -48,7 +48,7 @@ class AuditConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "AuditConfig":
-        """校验审计配置参数"""
+        """校验审计配置参数."""
         if self.max_retries < 1:
             raise ValueError(
                 "max_retries 必须大于等于 1，"

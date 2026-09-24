@@ -1,4 +1,4 @@
-"""运行时任务发布器测试
+"""运行时任务发布器测试.
 
 验证批量预测和影子预测任务的队列发布与撤销委托行为。
 
@@ -24,7 +24,7 @@ from datamind.runtime.task_queue.publisher import (
 
 
 def test_submit_batch_uses_batch_queue() -> None:
-    """测试批量预测只发布引用标识到批次队列"""
+    """测试批量预测只发布引用标识到批次队列."""
     config = TaskQueueConfig()
 
     celery_app = MagicMock()
@@ -46,7 +46,7 @@ def test_submit_batch_uses_batch_queue() -> None:
 
 
 def test_submit_shadow_uses_shadow_queue() -> None:
-    """测试影子预测只发布执行 ID 到影子队列"""
+    """测试影子预测只发布执行 ID 到影子队列."""
     config = TaskQueueConfig()
 
     celery_app = MagicMock()
@@ -68,7 +68,7 @@ def test_submit_shadow_uses_shadow_queue() -> None:
 
 
 def test_submit_batch_chunk_uses_batch_queue() -> None:
-    """测试批量分片带全局下标范围发布。"""
+    """测试批量分片带全局下标范围发布."""
     config = TaskQueueConfig()
     celery_app = MagicMock()
     with patch.dict(vars(publisher_module), {"celery_app": celery_app}):
@@ -94,7 +94,7 @@ def test_submit_batch_chunk_uses_batch_queue() -> None:
 
 
 def test_revoke_delegates_to_celery_control() -> None:
-    """测试撤销请求委托给 Celery 控制面"""
+    """测试撤销请求委托给 Celery 控制面."""
     celery_app = MagicMock()
     with patch.dict(
         vars(publisher_module),

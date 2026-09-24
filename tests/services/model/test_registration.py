@@ -1,4 +1,4 @@
-"""模型注册服务测试
+"""模型注册服务测试.
 
 验证首次注册、幂等注册、受控制修订和回滚补偿。
 
@@ -59,7 +59,7 @@ from datamind.services import ModelRegistrationService
 
 
 class FakeUnitOfWork:
-    """注册服务测试工作单元"""
+    """注册服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -72,12 +72,12 @@ class FakeUnitOfWork:
         return False
 
     def on_rollback(self, _callback: object) -> None:
-        """记录回滚补偿"""
+        """记录回滚补偿."""
 
 
 @pytest.fixture
 def sklearn_artifact_path(tmp_path: Path) -> Path:
-    """创建供注册流程测试使用的合法扩展名制品"""
+    """创建供注册流程测试使用的合法扩展名制品."""
     path = tmp_path / "model.pkl"
     path.write_bytes(b"model data")
     return path
@@ -87,7 +87,7 @@ def sklearn_artifact_path(tmp_path: Path) -> Path:
 def configure_scorecard_details(
         monkeypatch: pytest.MonkeyPatch,
 ) -> MagicMock:
-    """配置评分卡详情提取与仓储替身"""
+    """配置评分卡详情提取与仓储替身."""
     repository = MagicMock()
     repository.get_scorecard = AsyncMock(return_value=None)
     monkeypatch.setattr(
@@ -107,7 +107,7 @@ def configure_scorecard_details(
 async def test_register_rejects_invalid_semantic_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝不符合语义化版本规范的模型版本"""
+    """测试拒绝不符合语义化版本规范的模型版本."""
     monkeypatch.setitem(
         vars(register_module),
         "get_storage",
@@ -135,7 +135,7 @@ async def test_register_rejects_invalid_semantic_version(
 async def test_register_rejects_invalid_model_name(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试在处理制品前拒绝无效的模型机器名称"""
+    """测试在处理制品前拒绝无效的模型机器名称."""
     monkeypatch.setitem(
         vars(register_module),
         "get_storage",
@@ -169,7 +169,7 @@ async def test_register_creates_model_version_and_artifact(
         configure_scorecard_details: MagicMock,
         sklearn_artifact_path: Path,
 ) -> None:
-    """测试注册创建模型版本及制品记录"""
+    """测试注册创建模型版本及制品记录."""
     model_path = sklearn_artifact_path
     storage = MagicMock()
     storage.save.return_value = (
@@ -319,7 +319,7 @@ async def test_register_returns_unchanged_for_same_digest(
         force: bool,
         sklearn_artifact_path: Path,
 ) -> None:
-    """测试已有版本制品摘要相同时始终幂等返回"""
+    """测试已有版本制品摘要相同时始终幂等返回."""
     model_path = sklearn_artifact_path
     storage = MagicMock()
     backend = MagicMock()
@@ -437,7 +437,7 @@ async def test_register_returns_unchanged_for_same_digest(
 def test_save_artifact_registers_rollback_cleanup(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试保存制品后注册存储回滚补偿"""
+    """测试保存制品后注册存储回滚补偿."""
     storage = MagicMock()
     storage.save.return_value = "models/model.pkl"
     monkeypatch.setitem(
@@ -511,7 +511,7 @@ async def test_register_rejects_existing_version(
         message: str,
         sklearn_artifact_path: Path,
 ) -> None:
-    """测试拒绝覆盖不符合制品修订条件的已有版本"""
+    """测试拒绝覆盖不符合制品修订条件的已有版本."""
     model_path = sklearn_artifact_path
     storage = MagicMock()
     backend = MagicMock()
@@ -606,7 +606,7 @@ async def test_register_force_creates_new_artifact_revision(
         monkeypatch: pytest.MonkeyPatch,
         sklearn_artifact_path: Path,
 ) -> None:
-    """测试 force 为内容变化的未发布版本创建新制品修订"""
+    """测试 force 为内容变化的未发布版本创建新制品修订."""
     model_path = sklearn_artifact_path
     current_digest = "old-digest"
     metadata = SimpleNamespace(status="active")
@@ -764,7 +764,7 @@ async def test_register_force_creates_new_artifact_revision(
 
 @pytest.mark.asyncio
 async def test_force_validation_rejects_deployment_history() -> None:
-    """测试存在部署历史时拒绝强制注册"""
+    """测试存在部署历史时拒绝强制注册."""
     deployment_repo = MagicMock()
     deployment_repo.list_deployments = AsyncMock(
         return_value=[SimpleNamespace(deployment_id="dep_test")]
@@ -786,7 +786,7 @@ async def test_register_rejects_missing_model_file(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试注册前拒绝不存在的模型文件"""
+    """测试注册前拒绝不存在的模型文件."""
     monkeypatch.setitem(
         vars(register_module),
         "get_storage",
@@ -817,7 +817,7 @@ async def test_register_rejects_unsupported_extension_before_loading(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试非法后缀在进入模型加载器前被拒绝"""
+    """测试非法后缀在进入模型加载器前被拒绝."""
     model_path = tmp_path / "model.onnx"
     model_path.write_bytes(b"invalid")
     loader = MagicMock()
@@ -858,7 +858,7 @@ async def test_register_supported_extension_still_uses_artifact_loader(
         monkeypatch: pytest.MonkeyPatch,
         sklearn_artifact_path: Path,
 ) -> None:
-    """测试合法后缀不会替代模型加载器的内容校验"""
+    """测试合法后缀不会替代模型加载器的内容校验."""
     loader = MagicMock(side_effect=ValueError("invalid artifact"))
     monkeypatch.setitem(
         vars(register_module),
@@ -899,7 +899,7 @@ def test_registration_wraps_artifact_errors(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试统一转换模型文件读取和加载异常"""
+    """测试统一转换模型文件读取和加载异常."""
     test_logger = MagicMock()
     monkeypatch.setattr(
         register_module,
@@ -983,7 +983,7 @@ def test_validate_metadata_rejects_invalid_registration(
         error_type: type[Exception],
         message: str,
 ) -> None:
-    """测试拒绝归档模型和已有模型描述变更"""
+    """测试拒绝归档模型和已有模型描述变更."""
     metadata = SimpleNamespace(
         status=status,
         description=None,
@@ -999,7 +999,7 @@ def test_validate_metadata_rejects_invalid_registration(
 
 
 def test_validate_metadata_accepts_unchanged_description() -> None:
-    """测试注册新版本时允许重复提供相同模型描述"""
+    """测试注册新版本时允许重复提供相同模型描述."""
     ModelRegistrationService._validate_metadata(
         metadata=SimpleNamespace(
             status="inactive",
@@ -1027,7 +1027,7 @@ async def test_register_rejects_scoring_for_non_logistic_model(
         framework: str,
         model_type: str,
 ) -> None:
-    """测试只有逻辑回归模型允许注册评分任务"""
+    """测试只有逻辑回归模型允许注册评分任务."""
     monkeypatch.setitem(
         vars(register_module),
         "get_storage",
@@ -1062,7 +1062,7 @@ def test_delete_bento_model_is_idempotent(
         monkeypatch: pytest.MonkeyPatch,
         matching_model: bool,
 ) -> None:
-    """测试回滚时幂等删除匹配的 BentoML 模型"""
+    """测试回滚时幂等删除匹配的 BentoML 模型."""
     model = SimpleNamespace(
         tag=(
             "scorecard:target"

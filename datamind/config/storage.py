@@ -1,4 +1,4 @@
-"""存储配置
+"""存储配置.
 
 定义模型文件的存储后端和连接参数，支持本地存储和 MinIO 对象存储。
 
@@ -89,7 +89,7 @@ from datamind.constants import (
 
 
 class LocalStorageConfig(BaseSettings):
-    """本地存储配置"""
+    """本地存储配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_STORAGE_LOCAL_",
@@ -102,7 +102,7 @@ class LocalStorageConfig(BaseSettings):
 
 
 class MinIOStorageConfig(BaseSettings):
-    """MinIO 存储配置"""
+    """MinIO 存储配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_STORAGE_MINIO_",
@@ -121,7 +121,7 @@ class MinIOStorageConfig(BaseSettings):
 
 
 class StorageConfig(BaseSettings):
-    """存储配置类"""
+    """存储配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_STORAGE_",
@@ -143,7 +143,7 @@ class StorageConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "StorageConfig":
-        """校验存储配置参数"""
+        """校验存储配置参数."""
         if self.max_file_size <= 0:
             raise ValueError(
                 "max_file_size 必须大于 0，"

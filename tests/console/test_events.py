@@ -1,4 +1,4 @@
-"""控制台实时事件代理测试
+"""控制台实时事件代理测试.
 
 验证事件代理的订阅、生命周期、事件轮询和通知连接行为。
 
@@ -45,7 +45,7 @@ events_module = importlib.import_module("datamind.console.events")
 
 
 class FakeUnitOfWork:
-    """控制台事件测试工作单元"""
+    """控制台事件测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -61,7 +61,7 @@ class FakeUnitOfWork:
 async def test_subscribe_returns_isolated_queue(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试订阅返回独立且有界的事件队列"""
+    """测试订阅返回独立且有界的事件队列."""
     start = AsyncMock()
     monkeypatch.setattr(
         ConsoleEventBroker,
@@ -84,7 +84,7 @@ async def test_subscribe_returns_isolated_queue(
 async def test_start_and_stop_manage_background_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启动幂等且停止时清理后台状态"""
+    """测试启动幂等且停止时清理后台状态."""
     broker = ConsoleEventBroker()
     started = asyncio.Event()
 
@@ -120,7 +120,7 @@ async def test_start_and_stop_manage_background_task(
 async def test_initialize_cursor_reads_latest_event_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试初始化游标只读取一次最新事件"""
+    """测试初始化游标只读取一次最新事件."""
     repository = MagicMock()
     repository.get_latest_event_id = AsyncMock(return_value=17)
     monkeypatch.setitem(
@@ -146,7 +146,7 @@ async def test_initialize_cursor_reads_latest_event_once(
 async def test_poll_once_replays_all_event_batches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试轮询连续读取并广播全部事件批次"""
+    """测试轮询连续读取并广播全部事件批次."""
     first_batch = [SimpleNamespace(event_id=event_id) for event_id in range(1, 201)]
     second_batch = [SimpleNamespace(event_id=201)]
     repository = MagicMock()
@@ -199,7 +199,7 @@ async def test_poll_once_replays_all_event_batches(
 async def test_cleanup_removes_expired_events_once_per_interval(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试过期事件清理受时间间隔限制"""
+    """测试过期事件清理受时间间隔限制."""
     repository = MagicMock()
     repository.delete_events_before = AsyncMock()
     monkeypatch.setitem(
@@ -225,7 +225,7 @@ async def test_cleanup_removes_expired_events_once_per_interval(
 async def test_poll_safely_suppresses_replay_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试安全轮询吞掉普通回放异常"""
+    """测试安全轮询吞掉普通回放异常."""
     broker = ConsoleEventBroker()
     poll_once = AsyncMock(side_effect=RuntimeError("database unavailable"))
     monkeypatch.setattr(
@@ -243,7 +243,7 @@ async def test_poll_safely_suppresses_replay_error(
 async def test_poll_safely_preserves_cancellation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试安全轮询继续传播任务取消"""
+    """测试安全轮询继续传播任务取消."""
     broker = ConsoleEventBroker()
     monkeypatch.setattr(
         broker,
@@ -256,7 +256,7 @@ async def test_poll_safely_preserves_cancellation(
 
 
 def test_receive_notification_broadcasts_latest_cursor() -> None:
-    """测试数据库通知广播最新事件游标"""
+    """测试数据库通知广播最新事件游标."""
     broker = ConsoleEventBroker()
     first_queue: asyncio.Queue[int] = asyncio.Queue(maxsize=1)
     second_queue: asyncio.Queue[int] = asyncio.Queue(maxsize=1)
@@ -283,7 +283,7 @@ def test_receive_notification_broadcasts_latest_cursor() -> None:
 def test_receive_notification_wakes_polling_for_invalid_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试无效通知仍唤醒数据库轮询"""
+    """测试无效通知仍唤醒数据库轮询."""
     broker = ConsoleEventBroker()
     broadcast = MagicMock()
     monkeypatch.setattr(
@@ -307,7 +307,7 @@ def test_receive_notification_wakes_polling_for_invalid_payload(
 async def test_listen_closes_connection_when_cancelled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试通知监听取消时移除监听器并关闭连接"""
+    """测试通知监听取消时移除监听器并关闭连接."""
 
     async def cancel_wait_for(
         awaitable: Coroutine[object, object, object],
@@ -353,7 +353,7 @@ async def test_listen_closes_connection_when_cancelled(
 async def test_run_polls_during_notification_reconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试通知异常后轮询事件并重新连接"""
+    """测试通知异常后轮询事件并重新连接."""
     broker = ConsoleEventBroker()
     monkeypatch.setattr(
         broker,
@@ -393,7 +393,7 @@ async def test_run_polls_during_notification_reconnect(
 def test_get_notification_dsn_supports_postgresql_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试通知连接地址仅支持 PostgreSQL"""
+    """测试通知连接地址仅支持 PostgreSQL."""
     monkeypatch.setitem(
         vars(events_module),
         "get_db_url",
@@ -415,7 +415,7 @@ def test_get_notification_dsn_supports_postgresql_only(
 
 @pytest.mark.asyncio
 async def test_stop_is_idempotent() -> None:
-    """测试未启动的事件代理可以安全停止"""
+    """测试未启动的事件代理可以安全停止."""
     broker = ConsoleEventBroker()
 
     await broker.stop()
@@ -426,7 +426,7 @@ async def test_stop_is_idempotent() -> None:
 async def test_stream_events_starts_with_consistent_sync(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次连接从最新游标执行一致性同步"""
+    """测试首次连接从最新游标执行一致性同步."""
 
     async def get_event_window() -> tuple[int | None, int]:
         return None, 12
@@ -459,7 +459,7 @@ async def test_stream_events_starts_with_consistent_sync(
 async def test_stream_events_filters_topics_by_permission(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试事件流只推送当前用户有权查看的主题"""
+    """测试事件流只推送当前用户有权查看的主题."""
     events = [
         OutboxEvent(
             event_id=6,
@@ -515,12 +515,12 @@ async def test_stream_events_filters_topics_by_permission(
 async def test_events_streams_only_granted_topics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试事件接口仅建立有权限主题的事件流"""
+    """测试事件接口仅建立有权限主题的事件流."""
     user = create_user()
     received_topics: set[str] | None = None
 
     class DashboardStub:
-        """控制台权限测试服务"""
+        """控制台权限测试服务."""
 
         @staticmethod
         def get_access(
@@ -578,7 +578,7 @@ async def test_events_streams_only_granted_topics(
 async def test_stream_events_reports_expired_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试事件流定期校验并报告登录会话过期"""
+    """测试事件流定期校验并报告登录会话过期."""
 
     async def get_event_window() -> tuple[int, int]:
         return 1, 1
@@ -639,7 +639,7 @@ async def test_stream_events_reports_expired_session(
 async def test_stream_events_sends_heartbeat_for_valid_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试有效会话在空闲时接收 SSE 心跳"""
+    """测试有效会话在空闲时接收 SSE 心跳."""
 
     async def get_event_window() -> tuple[int, int]:
         return 1, 1
@@ -699,7 +699,7 @@ async def test_stream_events_sends_heartbeat_for_valid_session(
 async def test_event_repository_helpers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试事件游标范围和增量事件查询"""
+    """测试事件游标范围和增量事件查询."""
     event = OutboxEvent(
         event_id=8,
         topic="models",
@@ -736,7 +736,7 @@ async def test_event_repository_helpers(
 
 @pytest.mark.asyncio
 async def test_event_query_waits_for_cleanup_when_cancelled() -> None:
-    """测试事件查询取消时等待数据库清理完成"""
+    """测试事件查询取消时等待数据库清理完成."""
     query_started = asyncio.Event()
     allow_query_completion = asyncio.Event()
 
@@ -760,7 +760,7 @@ async def test_event_query_waits_for_cleanup_when_cancelled() -> None:
 
 
 def test_event_cursor_and_sse_encoding_helpers() -> None:
-    """测试事件游标解析和 SSE 消息编码"""
+    """测试事件游标解析和 SSE 消息编码."""
     assert app_module._parse_event_cursor(None) is None
     assert app_module._parse_event_cursor("invalid") is None
     assert app_module._parse_event_cursor("-1") is None

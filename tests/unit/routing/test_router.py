@@ -1,4 +1,4 @@
-"""运行时路由器测试
+"""运行时路由器测试.
 
 验证手工部署、实验、灰度路由和默认部署的解析优先级及边界条件。
 
@@ -36,7 +36,7 @@ from datamind.runtime.routing import (
 
 
 class FakeUnitOfWork:
-    """运行时路由测试工作单元"""
+    """运行时路由测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -53,7 +53,7 @@ class FakeUnitOfWork:
 
 
 def create_deployment(deployment_id: str) -> SimpleNamespace:
-    """创建可路由部署测试对象"""
+    """创建可路由部署测试对象."""
     return SimpleNamespace(
         deployment_id=deployment_id,
         model_id="mdl_test",
@@ -72,7 +72,7 @@ def create_deployment(deployment_id: str) -> SimpleNamespace:
 def create_shadow_deployment(
         deployment_id: str,
 ) -> SimpleNamespace:
-    """创建影子部署测试对象"""
+    """创建影子部署测试对象."""
     deployment = create_deployment(
         deployment_id
     )
@@ -84,7 +84,7 @@ def create_shadow_deployment(
 def create_ab_test_result(
         deployment_id: str = "dep_experiment",
 ) -> ABTestResult:
-    """创建 A/B 实验命中结果"""
+    """创建 A/B 实验命中结果."""
     return ABTestResult(
         experiment_id="exp_test",
         variant_id="var_test",
@@ -124,7 +124,7 @@ def configure_router(
         active_deployments: list[SimpleNamespace] | None = None,
         ab_result: ABTestResult | None = None,
 ) -> tuple[RuntimeRouter, AsyncMock, AsyncMock, AsyncMock]:
-    """配置路由器及仓储替身"""
+    """配置路由器及仓储替身."""
     deployment_repo = AsyncMock()
     deployment_repo.get_deployment.return_value = deployment
     deployment_repo.list_active_deployments.return_value = (
@@ -180,7 +180,7 @@ def create_routing(
         deployment_id: str,
         ratio: float,
 ) -> Routing:
-    """创建路由规则测试对象"""
+    """创建路由配置测试对象."""
     return Routing(
         routing_id=routing_id,
         name=f"{routing_id}-route",
@@ -195,7 +195,7 @@ def create_routing(
 
 
 def test_routing_effective_window_controls_eligibility() -> None:
-    """测试路由仅在自身生效区间内参与流量分配"""
+    """测试路由仅在自身生效区间内参与流量分配."""
     now = datetime(2026, 8, 29, 0, 0, tzinfo=timezone.utc)
     routing = create_routing("rtn_test", "dep_test", 1.0)
     one_minute = timedelta(minutes=1.0)
@@ -220,7 +220,7 @@ async def resolve_routing(
         subject_key: str | None = "customer_10001",
         payload: dict[str, object] | None = None,
 ) -> RouteResult:
-    """执行指定哈希点和候选比例的路由解析"""
+    """执行指定哈希点和候选比例的路由解析."""
     router = RuntimeRouter()
     monkeypatch.setattr(
         router,
@@ -283,7 +283,7 @@ async def resolve_routing(
 async def test_routing_ratio_preserves_default_traffic(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未进入灰度比例时交给默认部署"""
+    """测试未进入灰度比例时交给默认部署."""
     result = await resolve_routing(
         monkeypatch,
         ratio=0.5,
@@ -298,7 +298,7 @@ async def test_routing_ratio_preserves_default_traffic(
 async def test_routing_ratio_selects_candidate(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试进入灰度比例时命中候选部署"""
+    """测试进入灰度比例时命中候选部署."""
     result = await resolve_routing(
         monkeypatch,
         ratio=0.05,
@@ -314,7 +314,7 @@ async def test_routing_ratio_selects_candidate(
 async def test_routing_context_uses_bucket_value(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由上下文使用分桶值字段且不再输出旧字段"""
+    """测试路由上下文使用分桶值字段且不再输出旧字段."""
     result = await resolve_routing(
         monkeypatch,
         ratio=0.05,
@@ -331,7 +331,7 @@ async def test_routing_context_uses_bucket_value(
 async def test_routing_rejects_total_ratio_above_one(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝启用路由总占比超过 1"""
+    """测试拒绝启用路由总占比超过 1."""
     with pytest.raises(RuntimeRouteError, match="总和不能大于 1"):
         await resolve_routing(
             monkeypatch,
@@ -369,7 +369,7 @@ async def test_routing_uses_stable_payload_identifier(
         payload: dict[str, object],
         expected: str | None,
 ) -> None:
-    """测试稳定路由键使用首个有效标量标识"""
+    """测试稳定路由键使用首个有效标量标识."""
     result = await resolve_routing(
         monkeypatch,
         ratio=0.05,
@@ -382,7 +382,7 @@ async def test_routing_uses_stable_payload_identifier(
 
 
 def test_route_result_converts_to_dict() -> None:
-    """测试路由结果完整转换为字典"""
+    """测试路由结果完整转换为字典."""
     result = RouteResult(
         model_id="mdl_test",
         version_id="ver_test",
@@ -429,7 +429,7 @@ async def test_resolve_rejects_missing_required_parameter(
         environment: str,
         message: str,
 ) -> None:
-    """测试路由解析拒绝空模型或环境"""
+    """测试路由解析拒绝空模型或环境."""
     with pytest.raises(
             RuntimeRouteError,
             match=message,
@@ -444,7 +444,7 @@ async def test_resolve_rejects_missing_required_parameter(
 async def test_resolve_uses_manual_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试显式部署通过校验后直接命中"""
+    """测试显式部署通过校验后直接命中."""
     deployment = create_deployment("dep_manual")
     router, deployment_repo, _, engine_assign = configure_router(
         monkeypatch,
@@ -502,7 +502,7 @@ async def test_resolve_rejects_invalid_manual_deployment(
         deployment: SimpleNamespace | None,
         message: str,
 ) -> None:
-    """测试显式部署拒绝不存在、模型不符或不可用状态"""
+    """测试显式部署拒绝不存在、模型不符或不可用状态."""
     router, _, _, _ = configure_router(
         monkeypatch,
         deployment=deployment,
@@ -531,7 +531,7 @@ async def test_resolve_rejects_ineffective_manual_deployment(
         monkeypatch: pytest.MonkeyPatch,
         boundary: str,
 ) -> None:
-    """测试显式部署拒绝尚未生效或已经失效的部署"""
+    """测试显式部署拒绝尚未生效或已经失效的部署."""
     now = datetime.now(timezone.utc)
     deployment = create_deployment("dep_manual")
 
@@ -561,7 +561,7 @@ async def test_resolve_rejects_ineffective_manual_deployment(
 async def test_resolve_uses_ab_test_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 A/B 实验命中可用部署"""
+    """测试 A/B 实验命中可用部署."""
     deployment = create_deployment("dep_experiment")
     router, _, _, engine_assign = configure_router(
         monkeypatch,
@@ -594,7 +594,7 @@ async def test_resolve_uses_ab_test_deployment(
 async def test_resolve_wraps_ab_test_assignment_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 A/B 实验参数错误转换为路由错误"""
+    """测试 A/B 实验参数错误转换为路由错误."""
     router, _, _, engine_assign = configure_router(
         monkeypatch
     )
@@ -623,7 +623,7 @@ async def test_invalid_ab_test_deployment_falls_back(
         monkeypatch: pytest.MonkeyPatch,
         invalid_reason: str,
 ) -> None:
-    """测试实验部署失效时回滚分配并回退默认部署"""
+    """测试实验部署失效时回滚分配并回退默认部署."""
     experiment_deployment = create_deployment("dep_experiment")
 
     if invalid_reason == "model":
@@ -660,7 +660,7 @@ async def test_invalid_ab_test_deployment_falls_back(
 async def test_resolve_uses_first_active_deployment_without_champion(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试没有主部署时使用首个可用部署"""
+    """测试没有主部署时使用首个可用部署."""
     deployment = create_deployment("dep_first")
     deployment.role = "challenger"
     router, _, _, _ = configure_router(
@@ -682,7 +682,7 @@ async def test_resolve_uses_first_active_deployment_without_champion(
 async def test_resolve_rejects_missing_available_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试没有实验、路由和默认部署时抛出路由错误"""
+    """测试没有实验、路由和默认部署时抛出路由错误."""
     router, _, _, _ = configure_router(monkeypatch)
 
     with pytest.raises(
@@ -699,7 +699,7 @@ async def test_resolve_rejects_missing_available_deployment(
 async def test_resolve_skips_shadow_routing_for_primary_result(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试影子路由不参与主路由流量分配"""
+    """测试影子路由不参与主路由流量分配."""
     primary = create_deployment(
         "dep_primary"
     )
@@ -755,7 +755,7 @@ async def test_resolve_skips_shadow_routing_for_primary_result(
 async def test_resolve_includes_independently_matched_shadow(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由计划包含独立命中的影子部署"""
+    """测试路由计划包含独立命中的影子部署."""
     router, deployment_repo, routing_repo, _ = configure_router(
         monkeypatch,
     )
@@ -821,7 +821,7 @@ async def test_resolve_includes_independently_matched_shadow(
 async def test_resolve_can_disable_shadow_resolution(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试配置关闭时不查询影子路由"""
+    """测试配置关闭时不查询影子路由."""
     router, _, routing_repo, _ = configure_router(
         monkeypatch,
     )

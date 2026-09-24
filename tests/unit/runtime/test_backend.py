@@ -1,4 +1,4 @@
-"""BentoML 模型后端测试
+"""BentoML 模型后端测试.
 
 验证框架后端选择以及模型保存和加载委托行为。
 
@@ -33,14 +33,14 @@ from datamind.runtime.backend import BentoBackend
 def test_backend_resolves_supported_framework(
         framework: str,
 ) -> None:
-    """测试解析受支持的 BentoML 框架后端"""
+    """测试解析受支持的 BentoML 框架后端."""
     assert BentoBackend._get_backend(
         framework
     ) is backend_module.FRAMEWORK_TO_BENTOML[framework]
 
 
 def test_backend_rejects_unsupported_framework() -> None:
-    """测试拒绝不受支持的模型框架"""
+    """测试拒绝不受支持的模型框架."""
     with pytest.raises(
             KeyError,
             match="不支持的框架: onnx",
@@ -51,7 +51,7 @@ def test_backend_rejects_unsupported_framework() -> None:
 def test_save_delegates_to_framework_backend(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试保存模型委托给对应框架后端"""
+    """测试保存模型委托给对应框架后端."""
     framework_backend = MagicMock()
     expected = object()
     framework_backend.save_model.return_value = expected
@@ -80,7 +80,7 @@ def test_save_delegates_to_framework_backend(
 def test_load_delegates_to_framework_backend(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试加载模型委托给对应框架后端"""
+    """测试加载模型委托给对应框架后端."""
     framework_backend = MagicMock()
     expected = object()
     framework_backend.load_model.return_value = expected

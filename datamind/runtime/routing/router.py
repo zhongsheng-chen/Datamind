@@ -1,4 +1,4 @@
-"""运行时路由器
+"""运行时路由器.
 
 根据请求上下文选择最终命中的部署 ID。
 
@@ -71,7 +71,7 @@ logger = structlog.get_logger(__name__)
 
 @dataclass(slots=True)
 class RouteResult:
-    """路由结果
+    """路由结果.
 
     属性：
         model_id: 模型 ID
@@ -116,7 +116,7 @@ class RouteResult:
     context: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """转换为字典."""
         return {
             "model_id": self.model_id,
             "version_id": self.version_id,
@@ -140,17 +140,17 @@ class RouteResult:
 
 @dataclass(slots=True)
 class RoutingPlan:
-    """主路由与影子路由计划"""
+    """主路由与影子路由计划."""
 
     primary: RouteResult
     shadows: tuple[RouteResult, ...] = ()
 
 
 class RuntimeRouter:
-    """运行时路由器"""
+    """运行时路由器."""
 
     def __init__(self) -> None:
-        """初始化运行时路由器"""
+        """初始化运行时路由器."""
         self.matcher = RuleMatcher()
 
     async def resolve(
@@ -165,7 +165,7 @@ class RuntimeRouter:
             now: datetime | None = None,
             include_shadows: bool = True,
     ) -> RoutingPlan:
-        """解析请求路由计划
+        """解析请求路由计划.
 
         主路由按以下优先级解析：
           - 显式指定 deployment_id
@@ -235,7 +235,7 @@ class RuntimeRouter:
             deployment_id: str | None = None,
             now: datetime | None = None,
     ) -> RouteResult:
-        """解析主路由"""
+        """解析主路由."""
         if not model_id:
             raise RuntimeRouteError("模型 ID 不能为空")
 
@@ -323,7 +323,7 @@ class RuntimeRouter:
             environment: str,
             now: datetime,
     ) -> RouteResult:
-        """解析指定部署路由"""
+        """解析指定部署路由."""
         deployment = await deployment_repo.get_deployment(
             deployment_id,
         )
@@ -375,7 +375,7 @@ class RuntimeRouter:
             environment: str,
             now: datetime,
     ) -> RouteResult | None:
-        """解析 A/B 实验路由"""
+        """解析 A/B 实验路由."""
         engine = ABTestEngine(
             experiment_repo=ExperimentRepository(uow.session),
             variant_repo=VariantRepository(uow.session),
@@ -476,7 +476,7 @@ class RuntimeRouter:
             environment: str,
             now: datetime,
     ) -> RouteResult | None:
-        """解析 routing 表路由"""
+        """解析 routing 表路由."""
         routings = await routing_repo.list_enabled_routings(
             environment=Environment(
                 environment
@@ -620,7 +620,7 @@ class RuntimeRouter:
             environment: str,
             now: datetime,
     ) -> RouteResult | None:
-        """解析默认部署路由"""
+        """解析默认部署路由."""
         deployments = await deployment_repo.list_active_deployments(
             model_id,
             environment=Environment(
@@ -677,7 +677,7 @@ class RuntimeRouter:
             primary_deployment_id: str,
             now: datetime,
     ) -> list[RouteResult]:
-        """解析本次请求命中的影子部署"""
+        """解析本次请求命中的影子部署."""
         async with UnitOfWork() as uow:
             deployment_repo = DeploymentRepository(
                 uow.session
@@ -807,7 +807,7 @@ class RuntimeRouter:
             result: ABTestResult,
             deployment: Deployment,
     ) -> RouteResult:
-        """构造 A/B 实验路由结果"""
+        """构造 A/B 实验路由结果."""
         duplicate_fields = {
             "assignment_id",
             "bucket",
@@ -872,7 +872,7 @@ class RuntimeRouter:
             weight: float | None = None,
             context: dict | None = None,
     ) -> RouteResult:
-        """构造部署路由结果"""
+        """构造部署路由结果."""
         return RouteResult(
             model_id=deployment.model_id,
             version_id=deployment.version_id,
@@ -897,7 +897,7 @@ class RuntimeRouter:
     def _payload_key(
             payload: dict | None,
     ) -> str | None:
-        """从 payload 中取一个稳定路由键
+        """从 payload 中取一个稳定路由键.
 
         说明：
           - A/B 实验分桶主体由 ABTestEngine 根据 bucket_key 解析
@@ -929,7 +929,7 @@ class RuntimeRouter:
             environment: str,
             now: datetime,
     ) -> bool:
-        """判断部署是否可路由"""
+        """判断部署是否可路由."""
         if deployment.status != str(DeploymentStatus.ACTIVE):
             return False
 
@@ -942,7 +942,7 @@ class RuntimeRouter:
     def _is_shadow_deployment(
             deployment: Deployment,
     ) -> bool:
-        """判断部署是否为影子部署"""
+        """判断部署是否为影子部署."""
         return (
             deployment.rollout_type
             == RolloutType.SHADOW.value
@@ -956,7 +956,7 @@ class RuntimeRouter:
             *,
             now: datetime,
     ) -> bool:
-        """判断部署是否处于生效时间范围"""
+        """判断部署是否处于生效时间范围."""
         current_time = to_utc(now)
         effective_from = deployment.effective_from
         effective_to = deployment.effective_to
@@ -981,7 +981,7 @@ class RuntimeRouter:
             *,
             now: datetime,
     ) -> bool:
-        """判断路由是否处于生效时间范围。"""
+        """判断路由是否处于生效时间范围."""
         current_time = to_utc(now)
         effective_from = getattr(routing, "effective_from", None)
         effective_to = getattr(routing, "effective_to", None)
@@ -1004,7 +1004,7 @@ class RuntimeRouter:
     def _hash_ratio(
             *parts: str,
     ) -> tuple[float, str]:
-        """计算稳定哈希比例
+        """计算稳定哈希比例.
 
         返回：
             ratio: 0 到 1 之间的小数
@@ -1027,7 +1027,7 @@ class RuntimeRouter:
             *,
             default: float,
     ) -> float:
-        """安全转换 float"""
+        """安全转换 float."""
         if value is None:
             return default
 
@@ -1043,5 +1043,5 @@ class RuntimeRouter:
             min_value: float,
             max_value: float,
     ) -> float:
-        """限制数值范围"""
+        """限制数值范围."""
         return max(min_value, min(max_value, value))

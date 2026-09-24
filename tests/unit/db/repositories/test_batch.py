@@ -1,4 +1,4 @@
-"""预测批次仓储测试
+"""预测批次仓储测试.
 
 验证预测批次的创建、启动、取消、重试和部分成功状态迁移。
 
@@ -36,7 +36,7 @@ from datamind.db.repositories.batch import BatchRepository
 def create_repository(
         batch: Batch | None = None,
 ) -> tuple[BatchRepository, MagicMock]:
-    """创建使用会话替身的批次仓储。"""
+    """创建使用会话替身的批次仓储."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = batch
     session = MagicMock(spec=AsyncSession)
@@ -49,7 +49,7 @@ def create_repository(
 
 
 def create_batch(**overrides: object) -> Batch:
-    """创建批次记录测试对象。"""
+    """创建批次记录测试对象."""
     values = {
         "batch_id": "bat_test",
         "task_id": "tsk_test",
@@ -71,7 +71,7 @@ def create_batch(**overrides: object) -> Batch:
 
 
 def test_create_batch() -> None:
-    """测试创建等待执行的批次"""
+    """测试创建等待执行的批次."""
     repository, session = create_repository()
 
     batch = repository.create_batch(
@@ -101,7 +101,7 @@ def test_create_batch() -> None:
 
 @pytest.mark.asyncio
 async def test_start_matches_current_task() -> None:
-    """测试只有当前 Celery 任务能够启动等待批次"""
+    """测试只有当前 Celery 任务能够启动等待批次."""
     batch = create_batch()
     repository, _ = create_repository(batch)
 
@@ -118,7 +118,7 @@ async def test_start_matches_current_task() -> None:
 
 @pytest.mark.asyncio
 async def test_start_resumes_retrying_batch() -> None:
-    """测试当前 Celery 任务能够恢复等待重试的批次"""
+    """测试当前 Celery 任务能够恢复等待重试的批次."""
     batch = create_batch(status="retrying", attempt_count=1)
     repository, _ = create_repository(batch)
 
@@ -134,7 +134,7 @@ async def test_start_resumes_retrying_batch() -> None:
 
 @pytest.mark.asyncio
 async def test_start_ignores_stale_task() -> None:
-    """测试重试后到达的旧消息不会执行批次"""
+    """测试重试后到达的旧消息不会执行批次."""
     batch = create_batch(task_id="tsk_new")
     repository, _ = create_repository(batch)
 
@@ -149,7 +149,7 @@ async def test_start_ignores_stale_task() -> None:
 
 @pytest.mark.asyncio
 async def test_request_cancel_running_batch() -> None:
-    """测试运行中批次进入协作式取消状态"""
+    """测试运行中批次进入协作式取消状态."""
     batch = create_batch(status="running")
     repository, _ = create_repository(batch)
 
@@ -161,7 +161,7 @@ async def test_request_cancel_running_batch() -> None:
 
 @pytest.mark.asyncio
 async def test_retry_assigns_new_task_id() -> None:
-    """测试业务重试生成新的 Celery 任务标识"""
+    """测试业务重试生成新的 Celery 任务标识."""
     batch = create_batch(status="failed", error="failed")
     repository, _ = create_repository(batch)
 
@@ -177,7 +177,7 @@ async def test_retry_assigns_new_task_id() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_retrying_preserves_task_id() -> None:
-    """测试自动重试复用任务标识并保留执行进度"""
+    """测试自动重试复用任务标识并保留执行进度."""
     batch = create_batch(
         status="running",
         attempt_count=1,
@@ -202,7 +202,7 @@ async def test_mark_retrying_preserves_task_id() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_partially_succeeded() -> None:
-    """测试批次可以记录成功和失败条目数量"""
+    """测试批次可以记录成功和失败条目数量."""
     batch = create_batch(status="running", total_count=3)
     repository, _ = create_repository(batch)
     response = {"succeeded_count": 2, "failed_count": 1}
@@ -223,7 +223,7 @@ async def test_mark_partially_succeeded() -> None:
 
 @pytest.mark.asyncio
 async def test_retry_partially_succeeded_batch() -> None:
-    """测试部分成功批次可以重新提交失败条目"""
+    """测试部分成功批次可以重新提交失败条目."""
     batch = create_batch(
         status="partially_succeeded",
         completed_count=2,

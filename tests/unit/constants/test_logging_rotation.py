@@ -1,4 +1,4 @@
-"""日志轮转枚举测试
+"""日志轮转枚举测试.
 
 验证日志轮转策略、轮转时间、字符串转换和支持集合。
 
@@ -38,7 +38,7 @@ def test_rotation_type_value(
     rotation_type: RotationType,
     expected: str,
 ) -> None:
-    """测试日志轮转策略枚举值"""
+    """测试日志轮转策略枚举值."""
     assert rotation_type.value == expected
 
 
@@ -62,7 +62,7 @@ def test_rotation_when_value(
     rotation_when: RotationWhen,
     expected: str,
 ) -> None:
-    """测试日志轮转时间枚举值"""
+    """测试日志轮转时间枚举值."""
     assert rotation_when.value == expected
 
 
@@ -73,7 +73,7 @@ def test_rotation_when_value(
 def test_rotation_type_string_conversion(
     rotation_type: RotationType,
 ) -> None:
-    """测试日志轮转策略字符串转换"""
+    """测试日志轮转策略字符串转换."""
     assert str(rotation_type) == rotation_type.value
 
 
@@ -84,12 +84,12 @@ def test_rotation_type_string_conversion(
 def test_rotation_when_string_conversion(
     rotation_when: RotationWhen,
 ) -> None:
-    """测试日志轮转时间字符串转换"""
+    """测试日志轮转时间字符串转换."""
     assert str(rotation_when) == rotation_when.value
 
 
 def test_supported_rotation_types() -> None:
-    """测试支持的日志轮转策略集合"""
+    """测试支持的日志轮转策略集合."""
     assert SUPPORTED_ROTATION_TYPES == frozenset(
         member.value
         for member in RotationType
@@ -101,7 +101,7 @@ def test_supported_rotation_types() -> None:
 
 
 def test_supported_rotation_when() -> None:
-    """测试支持的日志轮转时间集合"""
+    """测试支持的日志轮转时间集合."""
     assert SUPPORTED_ROTATION_WHEN == frozenset(
         member.value
         for member in RotationWhen

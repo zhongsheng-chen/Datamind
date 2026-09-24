@@ -1,4 +1,4 @@
-"""Console 写操作 HTTP 契约测试
+"""Console 写操作 HTTP 契约测试.
 
 验证控制台写接口的权限、CSRF、防重复提交、审计以及错误响应契约。
 """
@@ -19,7 +19,7 @@ from tests.console._app_support import app_module, create_user
 async def test_create_deployment_requires_csrf_and_permission(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试部署创建同时校验写权限和 CSRF 令牌"""
+    """测试部署创建同时校验写权限和 CSRF 令牌."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -144,7 +144,7 @@ async def test_create_deployment_requires_csrf_and_permission(
 async def test_register_model_uploads_model_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型注册接口接收并解析 Schema 文件"""
+    """测试模型注册接口接收并解析 Schema 文件."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -224,7 +224,7 @@ async def test_register_model_uploads_model_file(
 async def test_update_model_information(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型显示名称和描述更新接口"""
+    """测试模型显示名称和描述更新接口."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -292,7 +292,7 @@ async def test_update_model_information(
 async def test_update_version_information(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本说明更新接口"""
+    """测试模型版本说明更新接口."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -359,7 +359,7 @@ async def test_update_version_information(
 async def test_identity_manager_updates_user_and_role(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试身份管理员更新用户资料和角色权限"""
+    """测试身份管理员更新用户资料和角色权限."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -478,7 +478,7 @@ async def test_identity_manager_updates_user_and_role(
 async def test_version_restore_and_purge_actions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台接入版本恢复和永久清理服务"""
+    """测试控制台接入版本恢复和永久清理服务."""
     user = create_user().model_copy(update={"permissions": ["model.write"]})
     deletion_service = MagicMock()
     deletion_service.restore = AsyncMock(
@@ -542,7 +542,7 @@ async def test_version_restore_and_purge_actions(
 async def test_model_lifecycle_action_is_exposed_over_http(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型生命周期动作可通过统一管理接口调用"""
+    """测试模型生命周期动作可通过统一管理接口调用."""
     user = create_user().model_copy(update={"permissions": ["model.write"]})
     lifecycle_service = MagicMock()
     lifecycle_service.deactivate = AsyncMock(
@@ -594,7 +594,7 @@ async def test_model_lifecycle_action_is_exposed_over_http(
 async def test_routing_enable_audit_records_state_change(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由启用审计仅记录状态变化"""
+    """测试路由启用审计仅记录状态变化."""
     user = create_user().model_copy(update={"permissions": ["routing.write"]})
     result = MutationResult(
         {
@@ -661,7 +661,7 @@ async def test_batch_action_is_exposed_over_http(
     action: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批次取消和重试可通过统一管理接口调用"""
+    """测试批次取消和重试可通过统一管理接口调用."""
     user = create_user().model_copy(update={"permissions": ["prediction.invoke"]})
     service = MagicMock()
     setattr(

@@ -1,4 +1,4 @@
-"""模型枚举测试
+"""模型枚举测试.
 
 验证模型生命周期、部署、实验和决策枚举的稳定取值。
 
@@ -109,7 +109,7 @@ def test_enum_values_match_contract(
         enum_type: type[BaseEnum],
         expected_values: set[str],
 ) -> None:
-    """测试模型枚举取值符合公共契约"""
+    """测试模型枚举取值符合公共契约."""
     assert {
         member.value
         for member in enum_type
@@ -126,12 +126,12 @@ def test_enum_values_match_contract(
 def test_base_enum_returns_string_value(
         member: BaseEnum,
 ) -> None:
-    """测试字符串枚举转换为原始取值"""
+    """测试字符串枚举转换为原始取值."""
     assert str(member) == member.value
 
 
 def test_enum_uses_string_dictionary_semantics() -> None:
-    """测试枚举与字符串共享字典键语义"""
+    """测试枚举与字符串共享字典键语义."""
     values: dict[str, str] = {
         MetadataStatus.ACTIVE: "matched"
     }

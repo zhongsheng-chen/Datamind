@@ -1,4 +1,4 @@
-"""查看用户命令
+"""查看用户命令.
 
 提供 LOCAL 用户详情查询功能。
 
@@ -49,7 +49,7 @@ def show_user(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """查看用户"""
+    """查看用户."""
     async def runner() -> None:
         if output not in (
                 "text",

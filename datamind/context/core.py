@@ -1,4 +1,4 @@
-"""上下文核心
+"""上下文核心.
 
 基于 structlog.contextvars 实现请求级上下文传递，
 支持异步任务和并发场景。
@@ -47,7 +47,7 @@ from structlog.contextvars import (
 def set_context(
         **kwargs: Any,
 ) -> None:
-    """设置上下文
+    """设置上下文.
 
     清除所有现有上下文，然后设置新上下文。
 
@@ -63,7 +63,7 @@ def set_context(
 
 
 def get_context() -> dict[str, Any]:
-    """获取当前上下文
+    """获取当前上下文.
 
     返回：
         当前上下文字典
@@ -72,14 +72,14 @@ def get_context() -> dict[str, Any]:
 
 
 def clear_context() -> None:
-    """清除当前上下文"""
+    """清除当前上下文."""
     clear_contextvars()
 
 
 def update_context(
         **kwargs: Any,
 ) -> None:
-    """更新上下文
+    """更新上下文.
 
     追加或覆盖指定字段，不影响其他字段。
 

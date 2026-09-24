@@ -1,4 +1,4 @@
-"""创建用户命令
+"""创建用户命令.
 
 提供 LOCAL 用户创建和初始角色授予功能。
 
@@ -55,7 +55,7 @@ def create_user(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """创建用户"""
+    """创建用户."""
     password = typer.prompt(
         "用户密码",
         hide_input=True,

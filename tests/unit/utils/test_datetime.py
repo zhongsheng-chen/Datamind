@@ -1,4 +1,4 @@
-"""日期时间工具测试
+"""日期时间工具测试.
 
 验证时区读取、日期时间解析、UTC 与本地时间转换和格式化行为。
 
@@ -65,7 +65,7 @@ import datamind.utils.datetime as datetime_utils
 def test_get_timezone_defaults_to_utc(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未配置 TZ 时默认使用 UTC"""
+    """测试未配置 TZ 时默认使用 UTC."""
     monkeypatch.delenv(
         "TZ",
         raising=False,
@@ -79,7 +79,7 @@ def test_get_timezone_defaults_to_utc(
 def test_get_timezone_reads_environment_variable(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从 TZ 环境变量读取时区名称"""
+    """测试从 TZ 环境变量读取时区名称."""
     requested_names: list[str] = []
 
     def create_zone_info(
@@ -114,7 +114,7 @@ def test_get_timezone_reads_environment_variable(
 def test_get_timezone_rejects_invalid_timezone(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试非法时区名称抛出异常"""
+    """测试非法时区名称抛出异常."""
     monkeypatch.setenv(
         "TZ",
         "Invalid/Timezone",
@@ -127,7 +127,7 @@ def test_get_timezone_rejects_invalid_timezone(
 
 
 def test_parse_datetime_returns_none_for_none() -> None:
-    """测试 None 解析后返回 None"""
+    """测试 None 解析后返回 None."""
     assert (
         datetime_utils.parse_datetime(
             None
@@ -197,7 +197,7 @@ def test_parse_datetime_returns_utc_datetime(
         raw: str,
         expected: datetime,
 ) -> None:
-    """测试解析不同时间表示并统一转换为 UTC"""
+    """测试解析不同时间表示并统一转换为 UTC."""
     assert (
         datetime_utils.parse_datetime(
             raw
@@ -207,7 +207,7 @@ def test_parse_datetime_returns_utc_datetime(
 
 
 def test_parse_datetime_uses_explicit_timezone_for_naive_value() -> None:
-    """测试无时区输入按显式指定的本地时区解析"""
+    """测试无时区输入按显式指定的本地时区解析."""
     result = datetime_utils.parse_datetime(
         "2026-07-23 16:30:15",
         timezone_name="Asia/Shanghai",
@@ -225,7 +225,7 @@ def test_parse_datetime_uses_explicit_timezone_for_naive_value() -> None:
 
 
 def test_parse_datetime_preserves_input_timezone_offset() -> None:
-    """测试输入时区优先于无时区输入的默认时区"""
+    """测试输入时区优先于无时区输入的默认时区."""
     result = datetime_utils.parse_datetime(
         "2026-07-23T16:30:15+02:00",
         timezone_name="Asia/Shanghai",
@@ -254,7 +254,7 @@ def test_parse_datetime_preserves_input_timezone_offset() -> None:
 def test_parse_datetime_rejects_invalid_value(
         raw: str,
 ) -> None:
-    """测试非法日期时间字符串抛出 ValueError"""
+    """测试非法日期时间字符串抛出 ValueError."""
     with pytest.raises(
             ValueError
     ):
@@ -264,14 +264,14 @@ def test_parse_datetime_rejects_invalid_value(
 
 
 def test_to_utc_returns_none_for_none() -> None:
-    """测试 None 转换为 UTC 时返回 None"""
+    """测试 None 转换为 UTC 时返回 None."""
     assert datetime_utils.to_utc(
         None
     ) is None
 
 
 def test_to_utc_treats_naive_datetime_as_utc() -> None:
-    """测试无时区时间按 UTC 处理"""
+    """测试无时区时间按 UTC 处理."""
     dt = datetime(
         2026,
         7,
@@ -298,7 +298,7 @@ def test_to_utc_treats_naive_datetime_as_utc() -> None:
 
 
 def test_to_utc_converts_aware_datetime() -> None:
-    """测试带时区时间正确转换为 UTC"""
+    """测试带时区时间正确转换为 UTC."""
     dt = datetime(
         2026,
         7,
@@ -331,7 +331,7 @@ def test_to_utc_converts_aware_datetime() -> None:
 
 
 def test_to_local_returns_none_for_none() -> None:
-    """测试 None 转换为本地时间时返回 None"""
+    """测试 None 转换为本地时间时返回 None."""
     assert datetime_utils.to_local(
         None
     ) is None
@@ -340,7 +340,7 @@ def test_to_local_returns_none_for_none() -> None:
 def test_to_local_treats_naive_datetime_as_utc(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试无时区时间按 UTC 转换为本地时间"""
+    """测试无时区时间按 UTC 转换为本地时间."""
     local_timezone = timezone(
         timedelta(
             hours=8
@@ -379,7 +379,7 @@ def test_to_local_treats_naive_datetime_as_utc(
 def test_to_local_converts_aware_datetime(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试带时区时间正确转换为本地时间"""
+    """测试带时区时间正确转换为本地时间."""
     local_timezone = timezone(
         timedelta(
             hours=8
@@ -417,7 +417,7 @@ def test_to_local_converts_aware_datetime(
 
 
 def test_format_datetime_returns_placeholder_for_none() -> None:
-    """测试 None 格式化后返回占位符"""
+    """测试 None 格式化后返回占位符."""
     assert (
         datetime_utils.format_datetime(
             None
@@ -429,7 +429,7 @@ def test_format_datetime_returns_placeholder_for_none() -> None:
 def test_format_datetime_uses_local_timezone(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按本地时区使用默认格式输出"""
+    """测试按本地时区使用默认格式输出."""
     monkeypatch.setitem(
         vars(datetime_utils),
         "get_timezone",
@@ -460,7 +460,7 @@ def test_format_datetime_uses_local_timezone(
 def test_format_datetime_supports_custom_format(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试支持自定义日期时间格式"""
+    """测试支持自定义日期时间格式."""
     monkeypatch.setitem(
         vars(datetime_utils),
         "get_timezone",
@@ -486,7 +486,7 @@ def test_format_datetime_supports_custom_format(
 
 
 def test_format_datetime_supports_explicit_timezone() -> None:
-    """测试支持显式指定应用时区"""
+    """测试支持显式指定应用时区."""
     dt = datetime(
         2026,
         8,
@@ -506,7 +506,7 @@ def test_format_datetime_supports_explicit_timezone() -> None:
 
 
 def test_format_iso_utc_returns_none_for_none() -> None:
-    """测试 None 格式化为 ISO 8601 UTC 时返回 None"""
+    """测试 None 格式化为 ISO 8601 UTC 时返回 None."""
     assert (
         datetime_utils.format_iso_utc(
             None
@@ -516,7 +516,7 @@ def test_format_iso_utc_returns_none_for_none() -> None:
 
 
 def test_format_iso_utc_converts_timezone_and_truncates_microseconds() -> None:
-    """测试转换为 UTC 并截断到毫秒精度"""
+    """测试转换为 UTC 并截断到毫秒精度."""
     dt = datetime(
         2026,
         7,
@@ -540,7 +540,7 @@ def test_format_iso_utc_converts_timezone_and_truncates_microseconds() -> None:
 
 
 def test_format_iso_utc_includes_zero_milliseconds() -> None:
-    """测试无微秒时仍输出三位毫秒"""
+    """测试无微秒时仍输出三位毫秒."""
     dt = datetime(
         2026,
         7,
@@ -559,7 +559,7 @@ def test_format_iso_utc_includes_zero_milliseconds() -> None:
 
 
 def test_format_iso_utc_treats_naive_datetime_as_utc() -> None:
-    """测试无时区时间按 UTC 格式化"""
+    """测试无时区时间按 UTC 格式化."""
     dt = datetime(
         2026,
         7,
@@ -578,7 +578,7 @@ def test_format_iso_utc_treats_naive_datetime_as_utc() -> None:
 
 
 def test_iso_format_and_parse_support_round_trip() -> None:
-    """测试 ISO 8601 UTC 格式化结果可以重新解析"""
+    """测试 ISO 8601 UTC 格式化结果可以重新解析."""
     dt = datetime(
         2026,
         7,

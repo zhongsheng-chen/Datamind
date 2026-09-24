@@ -1,4 +1,4 @@
-"""日志增强处理器
+"""日志增强处理器.
 
 提供日志事件的时间戳补充、上下文补充、敏感信息脱敏和采样能力。
 
@@ -78,7 +78,7 @@ def add_timestamp(
         timezone: str,
         date_format: str | None = None,
 ) -> Processor:
-    """添加带时区的时间戳
+    """添加带时区的时间戳.
 
     参数：
         timezone: IANA 时区名称，如 Asia/Shanghai
@@ -111,7 +111,7 @@ def add_timestamp(
 
 
 def add_context() -> Processor:
-    """补充标准上下文字段
+    """补充标准上下文字段.
 
     已存在的事件字段优先，
     不会被当前上下文中的同名字段覆盖。
@@ -146,7 +146,7 @@ def mask_sensitive(
         prefix: int = 2,
         suffix: int = 2,
 ) -> Processor:
-    """递归脱敏敏感信息
+    """递归脱敏敏感信息.
 
     参数：
         mask_char: 脱敏字符，只能包含一个字符
@@ -262,7 +262,7 @@ def mask_sensitive(
 
 
 def sampling(rate: float) -> Processor:
-    """对普通日志进行采样
+    """对普通日志进行采样.
 
     warning、error、critical、fatal 级别以及包含异常信息的日志
     不参与采样，始终保留。

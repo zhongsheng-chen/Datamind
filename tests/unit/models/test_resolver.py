@@ -1,4 +1,4 @@
-"""模型解析器测试
+"""模型解析器测试.
 
 验证模型和版本解析及版本归属约束。
 
@@ -38,7 +38,7 @@ from datamind.models.resolver import ModelResolver
 
 @pytest.mark.asyncio
 async def test_resolve_model_prioritizes_model_id() -> None:
-    """测试同时提供模型 ID 和名称时优先按 ID 查询"""
+    """测试同时提供模型 ID 和名称时优先按 ID 查询."""
     model = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -63,7 +63,7 @@ async def test_resolve_model_prioritizes_model_id() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_model_falls_back_to_name() -> None:
-    """测试模型 ID 未命中时按名称回退查询"""
+    """测试模型 ID 未命中时按名称回退查询."""
     model = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -92,7 +92,7 @@ async def test_resolve_model_falls_back_to_name() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_model_rejects_unknown_model() -> None:
-    """测试拒绝不存在的模型"""
+    """测试拒绝不存在的模型."""
     metadata_repo = AsyncMock()
     metadata_repo.get_model.return_value = None
     resolver = ModelResolver(
@@ -111,7 +111,7 @@ async def test_resolve_model_rejects_unknown_model() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_model_requires_identifier() -> None:
-    """测试解析模型必须提供模型标识"""
+    """测试解析模型必须提供模型标识."""
     metadata_repo = AsyncMock()
     resolver = ModelResolver(
         metadata_repo,
@@ -129,7 +129,7 @@ async def test_resolve_model_requires_identifier() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_prioritizes_version_id() -> None:
-    """测试同时提供版本 ID 和版本号时优先按 ID 查询"""
+    """测试同时提供版本 ID 和版本号时优先按 ID 查询."""
     version = SimpleNamespace(version_id="ver_test", model_id="mdl_test")
     version_repo = AsyncMock()
     version_repo.get_version.return_value = version
@@ -150,7 +150,7 @@ async def test_resolve_version_prioritizes_version_id() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_falls_back_to_version_number() -> None:
-    """测试未提供版本 ID 时按版本号查询"""
+    """测试未提供版本 ID 时按版本号查询."""
     expected = SimpleNamespace(
         version_id="ver_test",
         model_id="mdl_test",
@@ -182,7 +182,7 @@ async def test_resolve_version_falls_back_to_version_number() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_includes_archived_version() -> None:
-    """测试按版本号解析时返回归档版本"""
+    """测试按版本号解析时返回归档版本."""
     archived_version = SimpleNamespace(
         version_id="ver_archived",
         model_id="mdl_test",
@@ -214,7 +214,7 @@ async def test_resolve_version_includes_archived_version() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_rejects_foreign_model_version() -> None:
-    """测试拒绝属于其他模型的版本"""
+    """测试拒绝属于其他模型的版本."""
     version_repo = AsyncMock()
     version_repo.get_version.return_value = SimpleNamespace(
         version_id="ver_foreign",
@@ -231,7 +231,7 @@ async def test_resolve_version_rejects_foreign_model_version() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_rejects_unknown_version_number() -> None:
-    """测试拒绝不存在的版本号"""
+    """测试拒绝不存在的版本号."""
     version_repo = AsyncMock()
     version_repo.list_versions.return_value = []
     resolver = ModelResolver(
@@ -248,7 +248,7 @@ async def test_resolve_version_rejects_unknown_version_number() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_rejects_unknown_version_id() -> None:
-    """测试拒绝不存在的版本 ID"""
+    """测试拒绝不存在的版本 ID."""
     version_repo = AsyncMock()
     version_repo.get_version.return_value = None
     resolver = ModelResolver(
@@ -265,7 +265,7 @@ async def test_resolve_version_rejects_unknown_version_id() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_version_requires_identifier() -> None:
-    """测试解析版本必须提供版本标识"""
+    """测试解析版本必须提供版本标识."""
     version_repo = AsyncMock()
     resolver = ModelResolver(
         AsyncMock(),

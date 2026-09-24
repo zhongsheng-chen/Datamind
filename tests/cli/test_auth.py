@@ -1,4 +1,4 @@
-"""CLI 认证会话命令测试
+"""CLI 认证会话命令测试.
 
 验证本地登录、身份查询和退出登录命令。
 
@@ -49,7 +49,7 @@ runner = CliRunner()
 
 
 class FakeUnitOfWork:
-    """认证命令测试工作单元"""
+    """认证命令测试工作单元."""
 
     exit_exception_type: type[BaseException] | None = None
 
@@ -74,7 +74,7 @@ async def fake_cli_context(
         user: object | None = None,
         error: Exception | None = None,
 ) -> AsyncIterator[SimpleNamespace]:
-    """创建身份查询命令测试上下文"""
+    """创建身份查询命令测试上下文."""
     if error is not None:
         raise error
 
@@ -105,7 +105,7 @@ async def fake_cli_context(
 def isolate_cli_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """隔离认证命令日志"""
+    """隔离认证命令日志."""
     for command_module in (
             login_module,
             logout_module,
@@ -119,7 +119,7 @@ def isolate_cli_logging(
 
 
 def create_tokens() -> TokenResponse:
-    """创建认证命令测试令牌"""
+    """创建认证命令测试令牌."""
     return TokenResponse(
         access_token="access-token",
         refresh_token="refresh-token",
@@ -128,7 +128,7 @@ def create_tokens() -> TokenResponse:
 
 
 def create_credentials() -> CLICredentials:
-    """创建认证命令测试凭据"""
+    """创建认证命令测试凭据."""
     return CLICredentials(
         access_token="access-token",
         refresh_token="refresh-token",
@@ -140,7 +140,7 @@ def install_auth_service(
         command_module: ModuleType,
         service: MagicMock,
 ) -> None:
-    """安装认证服务替身"""
+    """安装认证服务替身."""
     FakeUnitOfWork.exit_exception_type = None
     monkeypatch.setitem(
         vars(command_module),
@@ -181,7 +181,7 @@ def install_store(
         command_module: ModuleType,
         store: MagicMock,
 ) -> None:
-    """安装 CLI 凭据存储替身"""
+    """安装 CLI 凭据存储替身."""
     monkeypatch.setitem(
         vars(command_module),
         "CredentialStore",
@@ -192,7 +192,7 @@ def install_store(
 def test_login_saves_session_without_rendering_tokens(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试登录保存会话且不显示令牌"""
+    """测试登录保存会话且不显示令牌."""
     tokens = create_tokens()
     service = MagicMock()
     service.login = AsyncMock(
@@ -282,7 +282,7 @@ def test_login_saves_session_without_rendering_tokens(
 def test_login_revokes_previous_session_before_saving_new_session(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试登录成功后撤销并替换已有本地会话"""
+    """测试登录成功后撤销并替换已有本地会话."""
     tokens = create_tokens()
     service = MagicMock()
     service.login = AsyncMock(
@@ -353,7 +353,7 @@ def test_login_revokes_previous_session_before_saving_new_session(
 def test_login_replaces_invalid_stored_session(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有凭据损坏时仍可保存新的登录会话"""
+    """测试已有凭据损坏时仍可保存新的登录会话."""
     tokens = create_tokens()
     service = MagicMock()
     service.login = AsyncMock(
@@ -394,7 +394,7 @@ def test_login_replaces_invalid_stored_session(
 def test_login_failure_preserves_previous_session(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试新登录失败时不撤销或覆盖已有会话"""
+    """测试新登录失败时不撤销或覆盖已有会话."""
     service = MagicMock()
     service.login = AsyncMock(
         side_effect=InvalidCredentialsError(
@@ -434,7 +434,7 @@ def test_login_failure_preserves_previous_session(
 def test_whoami_uses_cli_context(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试身份查询使用当前 CLI 登录会话"""
+    """测试身份查询使用当前 CLI 登录会话."""
     user = SimpleNamespace(
         username="alice",
         model_dump=lambda **_kwargs: {
@@ -500,7 +500,7 @@ def test_whoami_uses_cli_context(
 
 
 def test_whoami_does_not_expose_format_option() -> None:
-    """测试身份查询仅提供文本输出"""
+    """测试身份查询仅提供文本输出."""
     result = runner.invoke(
         app,
         [
@@ -516,7 +516,7 @@ def test_whoami_does_not_expose_format_option() -> None:
 def test_logout_revokes_and_clears_session(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试退出登录撤销刷新令牌并清理凭据"""
+    """测试退出登录撤销刷新令牌并清理凭据."""
     service = MagicMock()
     service.logout = AsyncMock(
         return_value=LogoutResult(
@@ -633,7 +633,7 @@ def test_auth_commands_render_clean_error(
         input_text: str | None,
         expected_message: str,
 ) -> None:
-    """测试认证失败输出简洁错误且不显示 traceback"""
+    """测试认证失败输出简洁错误且不显示 traceback."""
     service = MagicMock()
     setattr(
         service,
@@ -697,7 +697,7 @@ def test_auth_commands_render_clean_error(
 def test_whoami_renders_clean_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试身份查询失败时不显示 traceback"""
+    """测试身份查询失败时不显示 traceback."""
     monkeypatch.setitem(
         vars(whoami_module),
         "cli_context",

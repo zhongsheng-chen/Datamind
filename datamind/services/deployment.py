@@ -1,4 +1,4 @@
-"""模型部署服务
+"""模型部署服务.
 
 负责模型部署的创建、状态迁移与逻辑删除。
 
@@ -88,7 +88,7 @@ logger = structlog.get_logger(__name__)
 
 
 class DeploymentLifecycleService:
-    """模型部署服务"""
+    """模型部署服务."""
 
     async def create_deployment(
             self,
@@ -104,7 +104,7 @@ class DeploymentLifecycleService:
             description: str | None = None,
             deployed_by: str | None = None,
     ) -> dict[str, Any]:
-        """创建部署
+        """创建部署.
 
         参数：
             name: 模型名称（可选）
@@ -226,7 +226,7 @@ class DeploymentLifecycleService:
             rollout_type: str,
             role: str,
     ) -> None:
-        """校验发布方式和部署角色"""
+        """校验发布方式和部署角色."""
         try:
             rollout = RolloutType(
                 rollout_type
@@ -277,7 +277,7 @@ class DeploymentLifecycleService:
             deployment_id: str,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """启用部署并请求 Worker 装载模型
+        """启用部署并请求 Worker 装载模型.
 
         参数：
             deployment_id: 部署 ID
@@ -395,7 +395,7 @@ class DeploymentLifecycleService:
             deployment_id: str,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """禁用部署
+        """禁用部署.
 
         参数：
             deployment_id: 部署 ID
@@ -554,7 +554,7 @@ class DeploymentLifecycleService:
             description: str | None = None,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """更新已停用部署的发布方式、运行配置和说明"""
+        """更新已停用部署的发布方式、运行配置和说明."""
         async with UnitOfWork() as uow:
             deployment_repo = DeploymentRepository(uow.session)
             deployment = await deployment_repo.get_deployment(deployment_id)
@@ -678,7 +678,7 @@ class DeploymentLifecycleService:
             reason: str | None = None,
             deleted_by: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除已停用且已卸载的部署"""
+        """逻辑删除已停用且已卸载的部署."""
         async with UnitOfWork() as uow:
             deployment_repo = DeploymentRepository(
                 uow.session
@@ -878,7 +878,7 @@ class DeploymentLifecycleService:
             deployment_id: str,
             restored_by: str | None = None,
     ) -> dict[str, Any]:
-        """恢复逻辑删除的部署，恢复后保持停用"""
+        """恢复逻辑删除的部署，恢复后保持停用."""
         async with UnitOfWork() as uow:
             deployment_repo = DeploymentRepository(
                 uow.session
@@ -922,7 +922,7 @@ class DeploymentLifecycleService:
             task_type: str,
             threshold: float | None,
     ) -> float:
-        """解析并校验决策阈值
+        """解析并校验决策阈值.
 
         参数：
             task_type: 任务类型

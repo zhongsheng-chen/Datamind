@@ -1,4 +1,4 @@
-"""角色授予仓储
+"""角色授予仓储.
 
 提供用户角色关系的查询、创建、撤销和重新激活能力。
 
@@ -40,7 +40,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class GrantRepository(BaseRepository):
-    """角色授予仓储"""
+    """角色授予仓储."""
 
     async def get_grant(
             self,
@@ -49,7 +49,7 @@ class GrantRepository(BaseRepository):
             user_id: str | None = None,
             role_id: str | None = None,
     ) -> Grant | None:
-        """获取单个角色授予记录
+        """获取单个角色授予记录.
 
         参数：
             grant_id: 授予 ID（可选）
@@ -103,7 +103,7 @@ class GrantRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Grant]:
-        """获取角色授予列表
+        """获取角色授予列表.
 
         参数：
             user_id: 用户 ID（可选）
@@ -166,7 +166,7 @@ class GrantRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Grant]:
-        """获取有效角色授予列表
+        """获取有效角色授予列表.
 
         参数：
             user_id: 用户 ID（可选）
@@ -195,7 +195,7 @@ class GrantRepository(BaseRepository):
             granted_by: str | None = None,
             granted_at: datetime | None = None,
     ) -> Grant:
-        """创建角色授予记录
+        """创建角色授予记录.
 
         参数：
             grant_id: 授予 ID
@@ -236,7 +236,7 @@ class GrantRepository(BaseRepository):
             granted_by: str | None = None,
             granted_at: datetime | None = None,
     ) -> Grant:
-        """重新激活角色授予
+        """重新激活角色授予.
 
         参数：
             grant: 角色授予对象
@@ -268,7 +268,7 @@ class GrantRepository(BaseRepository):
             revoked_by: str | None = None,
             revoked_at: datetime | None = None,
     ) -> Grant:
-        """撤销角色授予
+        """撤销角色授予.
 
         参数：
             grant: 角色授予对象

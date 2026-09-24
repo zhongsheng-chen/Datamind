@@ -1,4 +1,4 @@
-"""模型元数据仓储
+"""模型元数据仓储.
 
 提供模型元数据的查询、创建、更新和生命周期管理能力。
 
@@ -65,7 +65,7 @@ from datamind.models.guard import ModelGuard
 
 @dataclass(slots=True)
 class MetadataPatch:
-    """模型元数据更新结构
+    """模型元数据更新结构.
 
     注意：
         不允许通过 patch 修改 status，
@@ -89,7 +89,7 @@ class MetadataPatch:
 
 
 class MetadataRepository(BaseRepository):
-    """模型元数据仓储"""
+    """模型元数据仓储."""
 
     async def get_model(
             self,
@@ -97,7 +97,7 @@ class MetadataRepository(BaseRepository):
             model_id: str | None = None,
             name: str | None = None,
     ) -> Metadata | None:
-        """获取单个模型
+        """获取单个模型.
 
         参数：
             model_id: 模型 ID（可选）
@@ -163,7 +163,7 @@ class MetadataRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Metadata]:
-        """获取模型列表
+        """获取模型列表.
 
         参数：
             model_type: 模型类型（可选）
@@ -275,7 +275,7 @@ class MetadataRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Metadata]:
-        """获取活跃模型列表
+        """获取活跃模型列表.
 
         参数：
             limit: 返回数量限制（可选）
@@ -303,7 +303,7 @@ class MetadataRepository(BaseRepository):
             created_by: str | None = None,
             updated_by: str | None = None,
     ) -> Metadata:
-        """创建模型
+        """创建模型.
 
         新建的模型处于 inactive 状态。
 
@@ -363,7 +363,7 @@ class MetadataRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Metadata:
-        """更新模型元数据
+        """更新模型元数据.
 
         参数：
             metadata: 模型元数据对象
@@ -413,7 +413,7 @@ class MetadataRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Metadata:
-        """归档模型
+        """归档模型.
 
         仅允许从 inactive 或 deprecated 状态归档。
         archived 为终态，归档后不允许重新激活。
@@ -465,7 +465,7 @@ class MetadataRepository(BaseRepository):
             deletion_id: str | None = None,
             deletion_reason: str | None = None,
     ) -> Metadata:
-        """标记模型已删除
+        """标记模型已删除.
 
         记录删除信息并将模型归档。模型已经被删除时原样返回。
 
@@ -517,7 +517,7 @@ class MetadataRepository(BaseRepository):
             *,
             restored_by: str | None = None,
     ) -> Metadata:
-        """恢复模型
+        """恢复模型.
 
         将已逻辑删除的模型恢复为 inactive 状态，
         并清除删除和归档信息。模型未被删除时原样返回。
@@ -557,7 +557,7 @@ class MetadataRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Metadata:
-        """激活模型
+        """激活模型.
 
         仅允许从 inactive 状态激活。
         archived 为终态，不能重新激活。

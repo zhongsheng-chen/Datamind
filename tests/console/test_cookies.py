@@ -1,4 +1,4 @@
-"""管理控制台会话 Cookie 测试
+"""管理控制台会话 Cookie 测试.
 
 验证访问令牌、刷新令牌和 CSRF Cookie 的写入、补发与清理行为。
 
@@ -41,7 +41,7 @@ def create_request(
         scheme: str = "http",
         cookie: str | None = None,
 ) -> Request:
-    """创建 Cookie 测试请求"""
+    """创建 Cookie 测试请求."""
     headers = []
 
     if cookie is not None:
@@ -71,7 +71,7 @@ def create_request(
 def install_cookie_settings(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """安装固定的 Cookie 配置和随机令牌"""
+    """安装固定的 Cookie 配置和随机令牌."""
     monkeypatch.setitem(
         vars(cookies_module),
         "get_auth_config",
@@ -87,7 +87,7 @@ def install_cookie_settings(
 
 
 def test_set_session_cookies_writes_complete_session() -> None:
-    """测试 HTTPS 会话写入完整且安全的 Cookie"""
+    """测试 HTTPS 会话写入完整且安全的 Cookie."""
     response = Response()
     tokens = TokenResponse(
         access_token="access-token",
@@ -132,7 +132,7 @@ def test_set_session_cookies_writes_complete_session() -> None:
 
 
 def test_set_session_cookies_clears_missing_refresh_token() -> None:
-    """测试不签发刷新令牌时清除旧刷新 Cookie"""
+    """测试不签发刷新令牌时清除旧刷新 Cookie."""
     response = Response()
 
     set_session_cookies(
@@ -157,7 +157,7 @@ def test_set_session_cookies_clears_missing_refresh_token() -> None:
 
 
 def test_ensure_csrf_cookie_only_writes_when_missing() -> None:
-    """测试仅在请求缺少 CSRF Cookie 时补发"""
+    """测试仅在请求缺少 CSRF Cookie 时补发."""
     missing_response = Response()
     ensure_csrf_cookie(
         response=missing_response,
@@ -184,7 +184,7 @@ def test_ensure_csrf_cookie_only_writes_when_missing() -> None:
 
 
 def test_clear_session_cookies_expires_all_session_cookies() -> None:
-    """测试清理全部控制台会话 Cookie"""
+    """测试清理全部控制台会话 Cookie."""
     response = Response()
 
     clear_session_cookies(response)

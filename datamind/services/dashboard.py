@@ -1,4 +1,4 @@
-"""管理控制台查询服务
+"""管理控制台查询服务.
 
 聚合模型、版本、部署、路由、运行状态、批量任务、API 调用、决策、执行、实验和审计记录，
 生成控制台快照和分页查询结果。
@@ -117,7 +117,7 @@ _REQUEST_TREND_ORIGIN = datetime(
 def _runtime_activity_at(
         runtime: Any,
 ) -> datetime | None:
-    """返回用于判断运行实例在线状态的最近活动时间"""
+    """返回用于判断运行实例在线状态的最近活动时间."""
     if str(runtime.status) == "running":
         return (
             getattr(runtime, "last_heartbeat_at", None)
@@ -128,13 +128,13 @@ def _runtime_activity_at(
 
 
 class DashboardService:
-    """管理控制台查询服务"""
+    """管理控制台查询服务."""
 
     @staticmethod
     def get_access(
             permissions: Iterable[str],
     ) -> dict[str, bool]:
-        """获取当前用户的控制台数据访问范围"""
+        """获取当前用户的控制台数据访问范围."""
         granted = tuple(
             permissions
         )
@@ -154,7 +154,7 @@ class DashboardService:
             limit: int = 20,
             trend_range: str = "24h",
     ) -> dict[str, Any]:
-        """获取当前用户可查看的控制台数据"""
+        """获取当前用户可查看的控制台数据."""
         if limit <= 0 or limit > 100:
             raise ValueError(
                 "limit 必须在 1 到 100 之间"
@@ -600,7 +600,7 @@ class DashboardService:
             *,
             model_id: str,
     ) -> dict[str, Any] | None:
-        """获取模型详情"""
+        """获取模型详情."""
         if not model_id:
             raise ValueError(
                 "model_id 不能为空"
@@ -634,7 +634,7 @@ class DashboardService:
             *,
             version_id: str,
     ) -> dict[str, Any] | None:
-        """获取模型版本详情"""
+        """获取模型版本详情."""
         if not version_id:
             raise ValueError(
                 "version_id 不能为空"
@@ -707,7 +707,7 @@ class DashboardService:
             record_ids: Iterable[str] | None = None,
             deleted: bool = False,
     ) -> dict[str, Any]:
-        """获取模型版本分页数据"""
+        """获取模型版本分页数据."""
         if not model_id:
             raise ValueError(
                 "model_id 不能为空"
@@ -822,7 +822,7 @@ class DashboardService:
             record_ids: Iterable[str] | None = None,
             deleted: bool = False,
     ) -> dict[str, Any]:
-        """获取实验分组分页数据"""
+        """获取实验分组分页数据."""
         if not experiment_id:
             raise ValueError(
                 "experiment_id 不能为空"
@@ -977,7 +977,7 @@ class DashboardService:
             record_ids: Iterable[str] | None = None,
             deleted: bool = False,
     ) -> dict[str, Any]:
-        """获取控制台页面分页数据"""
+        """获取控制台页面分页数据."""
         if section not in _SECTION_PERMISSIONS:
             raise ValueError(
                 f"不支持的控制台页面: {section}"
@@ -1406,7 +1406,7 @@ class DashboardService:
             limit: int,
             offset: int,
     ) -> list[Any]:
-        """获取未使用关键词筛选的页面记录"""
+        """获取未使用关键词筛选的页面记录."""
         if section == "models":
             return await MetadataRepository(
                 session
@@ -1470,7 +1470,7 @@ class DashboardService:
     def _normalize_query(
             query: str,
     ) -> str:
-        """规范化控制台查询关键词"""
+        """规范化控制台查询关键词."""
         normalized_query = query.strip()
 
         if len(normalized_query) > 100:
@@ -1484,7 +1484,7 @@ class DashboardService:
     def _normalize_record_ids(
             record_ids: Iterable[str] | None,
     ) -> tuple[str, ...] | None:
-        """规范化待导出的记录 ID"""
+        """规范化待导出的记录 ID."""
         if record_ids is None:
             return None
 
@@ -1521,7 +1521,7 @@ class DashboardService:
             sort_by: str | None,
             sort_order: str,
     ) -> tuple[str | None, str]:
-        """规范化控制台排序参数"""
+        """规范化控制台排序参数."""
         return encode_sort_specs(
             parse_sort_specs(
                 sort_by=sort_by,
@@ -1535,7 +1535,7 @@ class DashboardService:
             current_time: datetime,
             trend_range: str,
     ) -> tuple[datetime, timedelta, str, int]:
-        """解析 API 调用趋势的时间范围和聚合粒度"""
+        """解析 API 调用趋势的时间范围和聚合粒度."""
         try:
             duration, step, interval = (
                 _REQUEST_TREND_PERIODS[
@@ -1577,7 +1577,7 @@ class DashboardService:
             step: timedelta,
             points: int,
     ) -> list[dict[str, Any]]:
-        """按指定粒度补齐 API 调用趋势"""
+        """按指定粒度补齐 API 调用趋势."""
         counts: dict[datetime, dict[str, int]] = {}
 
         for record in records:
@@ -1646,7 +1646,7 @@ class DashboardService:
     def _build_model_usage(
             records: Iterable[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """构建模型调用概况"""
+        """构建模型调用概况."""
         usage: list[dict[str, Any]] = []
 
         for record in records:
@@ -1708,7 +1708,7 @@ class DashboardService:
     def _build_request_summary(
             metrics: dict[str, Any],
     ) -> dict[str, Any]:
-        """构建 API 调用核心指标"""
+        """构建 API 调用核心指标."""
         request_count = int(
             metrics.get(
                 "request_count",
@@ -1766,7 +1766,7 @@ class DashboardService:
             versions: Iterable[Any],
             version_count: int,
     ) -> dict[str, Any]:
-        """转换模型摘要"""
+        """转换模型摘要."""
         version_items = [
             DashboardService._version_item(
                 version
@@ -1827,7 +1827,7 @@ class DashboardService:
             *,
             labels: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """转换模型版本摘要"""
+        """转换模型版本摘要."""
         version_labels = labels or {}
 
         return {
@@ -1920,7 +1920,7 @@ class DashboardService:
 
     @staticmethod
     def _deletion_fields(record: Any) -> dict[str, Any]:
-        """转换逻辑删除审计字段"""
+        """转换逻辑删除审计字段."""
         return {
             "deleted_by": getattr(record, "deleted_by", None),
             "deletion_reason": getattr(
@@ -1939,7 +1939,7 @@ class DashboardService:
             *,
             labels: dict[str, str | None] | None = None,
     ) -> dict[str, Any]:
-        """转换部署摘要"""
+        """转换部署摘要."""
         deployment_labels = labels or {}
 
         return {
@@ -2010,7 +2010,7 @@ class DashboardService:
             *,
             labels: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """转换路由摘要"""
+        """转换路由摘要."""
         routing_labels = labels or {}
 
         return {
@@ -2095,7 +2095,7 @@ class DashboardService:
             *,
             details: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """转换 API 调用摘要"""
+        """转换 API 调用摘要."""
         request_details = details or {}
         payload = request.payload
         model_name = (
@@ -2179,7 +2179,7 @@ class DashboardService:
             *,
             deployments: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
-        """转换预测批次摘要"""
+        """转换预测批次摘要."""
         return {
             "batch_id": batch.batch_id,
             "task_id": batch.task_id,
@@ -2219,7 +2219,7 @@ class DashboardService:
             *,
             shards: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
-        """转换批次执行尝试摘要及实时分片进度。"""
+        """转换批次执行尝试摘要及实时分片进度."""
         shard_items = []
         worker_ids = []
         completed_count = 0
@@ -2282,7 +2282,7 @@ class DashboardService:
             details: dict[str, Any] | None = None,
             executions: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
-        """转换决策记录摘要"""
+        """转换决策记录摘要."""
         decision_details = details or {}
         decision_context = decision.context or {}
 
@@ -2370,7 +2370,7 @@ class DashboardService:
             details: dict[str, Any] | None = None,
             request_id: str | None = None,
     ) -> dict[str, Any]:
-        """转换模型执行记录摘要"""
+        """转换模型执行记录摘要."""
         execution_details = details or {}
 
         return {
@@ -2426,7 +2426,7 @@ class DashboardService:
             labels: dict[str, str | None] | None = None,
             presence: RuntimePresence,
     ) -> dict[str, Any]:
-        """转换运行状态摘要"""
+        """转换运行状态摘要."""
         runtime_labels = labels or {}
         status = str(runtime.status)
         health_status = presence.health_status(
@@ -2521,7 +2521,7 @@ class DashboardService:
             variant_count: int = 0,
             labels: dict[str, str | None] | None = None,
     ) -> dict[str, Any]:
-        """转换实验摘要"""
+        """转换实验摘要."""
         experiment_labels = labels or {}
 
         return {
@@ -2579,7 +2579,7 @@ class DashboardService:
             *,
             labels: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """转换实验分组摘要"""
+        """转换实验分组摘要."""
         variant_labels = labels or {}
         experiment_config = variant_labels.get(
             "experiment_config"
@@ -2637,7 +2637,7 @@ class DashboardService:
     def _audit_item(
             audit: Any,
     ) -> dict[str, Any]:
-        """转换审计摘要"""
+        """转换审计摘要."""
         return {
             "audit_id": audit.audit_id,
             "action": audit.action,
@@ -2707,7 +2707,7 @@ class DashboardService:
             *,
             roles: Iterable[str],
     ) -> dict[str, Any]:
-        """转换用户摘要"""
+        """转换用户摘要."""
         return {
             "user_id": user.user_id,
             "username": user.username,
@@ -2734,7 +2734,7 @@ class DashboardService:
     def _role_item(
             role: Any,
     ) -> dict[str, Any]:
-        """转换角色摘要"""
+        """转换角色摘要."""
         permissions = role.permissions
         permission_items = (
             list(permissions)

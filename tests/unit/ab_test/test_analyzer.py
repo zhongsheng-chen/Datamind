@@ -1,4 +1,4 @@
-"""A/B 实验分析测试
+"""A/B 实验分析测试.
 
 验证实验与分组分析、基准组解析、指标聚合和告警生成。
 
@@ -24,7 +24,7 @@ from datamind.models.enums import AssignmentStrategy
 
 
 def create_analyzer() -> tuple[ABTestAnalyzer, AsyncMock, AsyncMock, AsyncMock]:
-    """创建实验分析器及仓储替身"""
+    """创建实验分析器及仓储替身."""
     experiment_repo = AsyncMock()
     variant_repo = AsyncMock()
     outcome_repo = AsyncMock()
@@ -44,7 +44,7 @@ def create_analyzer() -> tuple[ABTestAnalyzer, AsyncMock, AsyncMock, AsyncMock]:
 def create_experiment(
         **overrides: Any,
 ) -> SimpleNamespace:
-    """创建实验测试对象"""
+    """创建实验测试对象."""
     values = {
         "experiment_id": "exp_test",
         "model_id": "mdl_test",
@@ -68,7 +68,7 @@ def create_variant(
         status: str = "active",
         config: object | None = None,
 ) -> SimpleNamespace:
-    """创建实验分组测试对象"""
+    """创建实验分组测试对象."""
     return SimpleNamespace(
         variant_id=variant_id,
         experiment_id="exp_test",
@@ -91,7 +91,7 @@ def create_outcome(
         variant_id: object,
         **overrides: Any,
 ) -> SimpleNamespace:
-    """创建实验结果测试对象"""
+    """创建实验结果测试对象."""
     values = {
         "experiment_id": "exp_test",
         "variant_id": variant_id,
@@ -109,7 +109,7 @@ def create_outcome(
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_aggregates_variants_and_metrics() -> None:
-    """测试汇总实验、分组和指标"""
+    """测试汇总实验、分组和指标."""
     analyzer, experiment_repo, variant_repo, outcome_repo = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment()
     control = create_variant(
@@ -133,7 +133,7 @@ async def test_analyze_experiment_aggregates_variants_and_metrics() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_rejects_missing_experiment() -> None:
-    """测试实验不存在时拒绝分析"""
+    """测试实验不存在时拒绝分析."""
     analyzer, experiment_repo, _, _ = create_analyzer()
     experiment_repo.get_experiment.return_value = None
 
@@ -143,7 +143,7 @@ async def test_analyze_experiment_rejects_missing_experiment() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_rejects_missing_id() -> None:
-    """测试拒绝空实验 ID"""
+    """测试拒绝空实验 ID."""
     analyzer, _, _, _ = create_analyzer()
 
     with pytest.raises(ValueError, match="实验 ID 不能为空"):
@@ -152,7 +152,7 @@ async def test_analyze_experiment_rejects_missing_id() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_rejects_missing_variants() -> None:
-    """测试拒绝没有分组的实验"""
+    """测试拒绝没有分组的实验."""
     analyzer, experiment_repo, variant_repo, _ = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment()
     variant_repo.list_variants.return_value = []
@@ -163,7 +163,7 @@ async def test_analyze_experiment_rejects_missing_variants() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_rejects_unknown_baseline() -> None:
-    """测试拒绝不存在的基准分组"""
+    """测试拒绝不存在的基准分组."""
     analyzer, experiment_repo, variant_repo, _ = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment()
     variant_repo.list_variants.return_value = [
@@ -179,7 +179,7 @@ async def test_analyze_experiment_rejects_unknown_baseline() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_uses_explicit_baseline() -> None:
-    """测试优先使用显式指定的基准分组"""
+    """测试优先使用显式指定的基准分组."""
     analyzer, experiment_repo, variant_repo, outcome_repo = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment()
     variants = [
@@ -203,7 +203,7 @@ async def test_analyze_experiment_uses_explicit_baseline() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_builds_data_quality_warnings() -> None:
-    """测试为无效、未知和缺少结果的分组生成告警"""
+    """测试为无效、未知和缺少结果的分组生成告警."""
     analyzer, experiment_repo, variant_repo, outcome_repo = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment()
     control = create_variant(
@@ -239,7 +239,7 @@ async def test_analyze_experiment_builds_data_quality_warnings() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_warns_without_outcomes_or_baseline() -> None:
-    """测试实验无结果且无基准分组时生成告警"""
+    """测试实验无结果且无基准分组时生成告警."""
     analyzer, experiment_repo, variant_repo, outcome_repo = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment()
     variant_repo.list_variants.return_value = [
@@ -259,7 +259,7 @@ async def test_analyze_experiment_warns_without_outcomes_or_baseline() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_variant() -> None:
-    """测试分析单个实验分组及其指标"""
+    """测试分析单个实验分组及其指标."""
     analyzer, _, variant_repo, outcome_repo = create_analyzer()
     variant = create_variant(
         "var_treatment",
@@ -297,7 +297,7 @@ async def test_analyze_variant_rejects_invalid_target(
         variant: object | None,
         message: str,
 ) -> None:
-    """测试拒绝空或不存在的实验分组"""
+    """测试拒绝空或不存在的实验分组."""
     analyzer, _, variant_repo, _ = create_analyzer()
     variant_repo.get_variant.return_value = variant
 
@@ -309,7 +309,7 @@ async def test_analyze_variant_rejects_invalid_target(
 
 @pytest.mark.asyncio
 async def test_analyze_experiment_rejects_invalid_strategy() -> None:
-    """测试拒绝不支持的实验分配策略"""
+    """测试拒绝不支持的实验分配策略."""
     analyzer, experiment_repo, _, _ = create_analyzer()
     experiment_repo.get_experiment.return_value = create_experiment(
         config={

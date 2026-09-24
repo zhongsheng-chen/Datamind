@@ -1,4 +1,4 @@
-"""A/B 实验分配测试
+"""A/B 实验分配测试.
 
 验证稳定 Hash 分配、手工指定分配和策略分发。
 
@@ -30,7 +30,7 @@ from datamind.models.enums import AssignmentStrategy
 
 
 def create_variants(*weights: float) -> list[SimpleNamespace]:
-    """创建实验分组测试对象"""
+    """创建实验分组测试对象."""
     return [
         SimpleNamespace(
             variant_id=f"var_{index}",
@@ -42,7 +42,7 @@ def create_variants(*weights: float) -> list[SimpleNamespace]:
 
 
 def test_stable_hash_assignment_is_deterministic() -> None:
-    """测试相同主体稳定命中相同分组"""
+    """测试相同主体稳定命中相同分组."""
     assigner = StableHashAssigner()
     variants = create_variants(0.5, 0.5)
 
@@ -68,7 +68,7 @@ def test_stable_hash_assignment_is_deterministic() -> None:
 
 
 def test_stable_hash_assignment_result_is_valid() -> None:
-    """测试哈希分配结果包含有效的分桶值和分组位置"""
+    """测试哈希分配结果包含有效的分桶值和分组位置."""
     result = StableHashAssigner().assign(
         experiment_id="exp_test",
         subject_key="customer_10001",
@@ -97,7 +97,7 @@ def test_stable_hash_rejects_missing_identifiers(
         subject_key: str,
         message: str,
 ) -> None:
-    """测试拒绝缺少实验 ID 或分桶主体"""
+    """测试拒绝缺少实验 ID 或分桶主体."""
     with pytest.raises(ValueError, match=message):
         StableHashAssigner().assign(
             experiment_id=experiment_id,
@@ -119,7 +119,7 @@ def test_stable_hash_rejects_invalid_traffic_ratio(
         traffic_ratio: float,
         message: str,
 ) -> None:
-    """测试拒绝越界的实验曝光比例"""
+    """测试拒绝越界的实验曝光比例."""
     with pytest.raises(ValueError, match=message):
         StableHashAssigner().assign(
             experiment_id="exp_test",
@@ -131,7 +131,7 @@ def test_stable_hash_rejects_invalid_traffic_ratio(
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
 def test_stable_hash_rejects_non_finite_values(value: float) -> None:
-    """测试拒绝非有限曝光比例和分组权重"""
+    """测试拒绝非有限曝光比例和分组权重."""
     assigner = StableHashAssigner()
 
     with pytest.raises(ValueError, match="曝光比例必须是有限数值"):
@@ -152,7 +152,7 @@ def test_stable_hash_rejects_non_finite_values(value: float) -> None:
 
 
 def test_stable_hash_rejects_negative_weight() -> None:
-    """测试拒绝负分组权重"""
+    """测试拒绝负分组权重."""
     with pytest.raises(ValueError, match="权重不能小于 0"):
         StableHashAssigner().assign(
             experiment_id="exp_test",
@@ -173,7 +173,7 @@ def test_stable_hash_rejects_invalid_active_weights(
         weights: tuple[float, ...],
         message: str,
 ) -> None:
-    """测试拒绝无可用分组或权重总和非法"""
+    """测试拒绝无可用分组或权重总和非法."""
     with pytest.raises(ValueError, match=message):
         StableHashAssigner().assign(
             experiment_id="exp_test",
@@ -184,7 +184,7 @@ def test_stable_hash_rejects_invalid_active_weights(
 
 
 def test_stable_hash_returns_none_outside_exposure() -> None:
-    """测试主体未进入实验曝光比例时返回 None"""
+    """测试主体未进入实验曝光比例时返回 None."""
     subject_key = next(
         f"customer_{index}"
         for index in range(1000)
@@ -215,7 +215,7 @@ def test_manual_assignment(
         target_field: str,
         target: str,
 ) -> None:
-    """测试按分组 ID 或名称执行手工分配"""
+    """测试按分组 ID 或名称执行手工分配."""
     assigner = ManualAssigner()
     result = assigner.assign(
         experiment_id="exp_test",
@@ -256,7 +256,7 @@ def test_manual_assignment(
 def test_manual_assignment_uses_subject_mapping(
         mapping_value: object,
 ) -> None:
-    """测试从主体映射中解析手工指定分组"""
+    """测试从主体映射中解析手工指定分组."""
     result = ManualAssigner().assign(
         experiment_id="exp_test",
         subject_key="customer_10001",
@@ -271,7 +271,7 @@ def test_manual_assignment_uses_subject_mapping(
 
 
 def test_manual_assignment_returns_none_without_target() -> None:
-    """测试未提供有效手工目标时返回 None"""
+    """测试未提供有效手工目标时返回 None."""
     result = ManualAssigner().assign(
         experiment_id="exp_test",
         subject_key="customer_10001",
@@ -298,7 +298,7 @@ def test_manual_assignment_rejects_invalid_request(
         weights: tuple[float, ...],
         message: str,
 ) -> None:
-    """测试手工分配拒绝缺少标识或无可用分组"""
+    """测试手工分配拒绝缺少标识或无可用分组."""
     with pytest.raises(ValueError, match=message):
         ManualAssigner().assign(
             experiment_id=experiment_id,
@@ -322,7 +322,7 @@ def test_manual_assignment_rejects_invalid_request(
 def test_manual_assignment_returns_none_for_invalid_mapping(
         manual_assignments: dict[str, object],
 ) -> None:
-    """测试主体映射缺失或不含目标字段时返回 None"""
+    """测试主体映射缺失或不含目标字段时返回 None."""
     result = ManualAssigner().assign(
         experiment_id="exp_test",
         subject_key="customer_10001",
@@ -334,7 +334,7 @@ def test_manual_assignment_returns_none_for_invalid_mapping(
 
 
 def test_manual_assignment_rejects_unavailable_target() -> None:
-    """测试拒绝不存在或权重为零的手工目标"""
+    """测试拒绝不存在或权重为零的手工目标."""
     with pytest.raises(
             ValueError,
             match="手工指定 Variant 不存在或不可用",
@@ -357,7 +357,7 @@ def test_manual_assignment_rejects_unavailable_target() -> None:
 def test_experiment_assigner_dispatches_strategy(
         strategy: AssignmentStrategy,
 ) -> None:
-    """测试统一分配器按策略执行分配"""
+    """测试统一分配器按策略执行分配."""
     result = ExperimentAssigner().assign(
         strategy=strategy,
         experiment_id="exp_test",
@@ -371,7 +371,7 @@ def test_experiment_assigner_dispatches_strategy(
 
 
 def test_experiment_assigner_rejects_unknown_strategy() -> None:
-    """测试统一分配器拒绝未知策略"""
+    """测试统一分配器拒绝未知策略."""
     with pytest.raises(ValueError, match="不支持的实验分配策略"):
         ExperimentAssigner().assign(
             strategy="random",

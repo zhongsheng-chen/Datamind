@@ -1,4 +1,4 @@
-"""运行时服务健康检查测试
+"""运行时服务健康检查测试.
 
 验证健康检查请求和服务不可用时的失败结果。
 
@@ -19,7 +19,7 @@ import datamind.runtime.server.entrypoints.healthcheck as healthcheck_module
 def test_healthcheck_calls_ready_endpoint(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试健康检查使用约定的就绪接口"""
+    """测试健康检查使用约定的就绪接口."""
     monkeypatch.setenv(
         "DATAMIND_HEALTHCHECK_URL",
         "http://runtime.example/ready",
@@ -44,7 +44,7 @@ def test_healthcheck_calls_ready_endpoint(
 def test_healthcheck_handles_unavailable_service(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试服务不可用时返回健康检查失败"""
+    """测试服务不可用时返回健康检查失败."""
     monkeypatch.setenv(
         "DATAMIND_HEALTHCHECK_URL",
         "http://runtime.example/ready",

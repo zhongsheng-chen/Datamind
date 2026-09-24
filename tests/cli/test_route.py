@@ -1,4 +1,4 @@
-"""路由 CLI 测试
+"""路由 CLI 测试.
 
 验证路由列表和详情的输出契约。
 
@@ -31,7 +31,7 @@ show_module = importlib.import_module(
 
 
 class FakeUnitOfWork:
-    """路由命令测试工作单元。"""
+    """路由命令测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -47,12 +47,12 @@ class FakeUnitOfWork:
 async def fake_cli_context(
         **_kwargs: object,
 ) -> AsyncIterator[SimpleNamespace]:
-    """创建已认证的 CLI 上下文替身。"""
+    """创建已认证的 CLI 上下文替身."""
     yield SimpleNamespace(user="alice")
 
 
 def create_route() -> SimpleNamespace:
-    """创建带旧发布快照的路由。"""
+    """创建带旧发布快照的路由."""
     return SimpleNamespace(
         routing_id="rtn_test",
         name="scorecard-route",
@@ -75,7 +75,7 @@ def create_route() -> SimpleNamespace:
 
 
 def create_deployment() -> SimpleNamespace:
-    """创建包含当前发布信息的部署。"""
+    """创建包含当前发布信息的部署."""
     return SimpleNamespace(
         deployment_id="dep_test",
         environment="development",
@@ -88,7 +88,7 @@ def configure_module(
         monkeypatch: pytest.MonkeyPatch,
         module: object,
 ) -> tuple[MagicMock, MagicMock, MagicMock]:
-    """配置路由命令依赖。"""
+    """配置路由命令依赖."""
     routing_repo = MagicMock()
     routing_repo.get_routing = AsyncMock(
         return_value=create_route()
@@ -129,7 +129,7 @@ def configure_module(
 
 
 def printed_json(console: MagicMock) -> Any:
-    """读取命令输出的 JSON。"""
+    """读取命令输出的 JSON."""
     payload = console.print_json.call_args.args[0]
     return json.loads(payload)
 
@@ -137,7 +137,7 @@ def printed_json(console: MagicMock) -> Any:
 def test_route_list_filters_and_displays_current_deployment_release(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由列表按部署筛选并显示部署当前发布信息"""
+    """测试路由列表按部署筛选并显示部署当前发布信息."""
     routing_repo, deployment_repo, console = configure_module(
         monkeypatch,
         list_module,
@@ -181,7 +181,7 @@ def test_route_list_filters_and_displays_current_deployment_release(
 def test_route_show_displays_current_deployment_release(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由详情忽略旧快照并显示部署当前发布信息"""
+    """测试路由详情忽略旧快照并显示部署当前发布信息."""
     _, deployment_repo, console = configure_module(
         monkeypatch,
         show_module,

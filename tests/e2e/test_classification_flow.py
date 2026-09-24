@@ -1,4 +1,4 @@
-"""Classification 后端完整业务链路 E2E
+"""Classification 后端完整业务链路 E2E.
 
 验证真实 sklearn 分类模型从注册、激活、部署和路由，到 RuntimeManager
 加载、预测以及 Request/Decision/Execution/Audit 持久化的完整流程。
@@ -38,7 +38,7 @@ async def test_classification_backend_flow(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试分类模型从注册到预测、执行记录及审计持久化"""
+    """测试分类模型从注册到预测、执行记录及审计持久化."""
     del datamind_database
     configure_isolated_runtime(tmp_path=tmp_path, monkeypatch=monkeypatch)
 

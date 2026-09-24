@@ -1,4 +1,4 @@
-"""后端 E2E 测试辅助工具
+"""后端 E2E 测试辅助工具.
 
 封装分类、评分和 Canary 场景共用的环境隔离、模型制品写入、
 注册部署以及运行时预测流程。
@@ -29,7 +29,7 @@ def configure_isolated_runtime(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """配置仅用于当前 E2E case 的本地制品与 BentoML 目录"""
+    """配置仅用于当前 E2E case 的本地制品与 BentoML 目录."""
     monkeypatch.setenv("DATAMIND_STORAGE_TYPE", "local")
     monkeypatch.setenv("DATAMIND_AUTH_ENABLED", "false")
     monkeypatch.setenv("DATAMIND_SERVICE_ENVIRONMENT", "testing")
@@ -42,7 +42,7 @@ def configure_isolated_runtime(
 
 
 def write_model(path: Path, model: Any) -> Path:
-    """将真实训练模型写为注册服务可读取的 pkl 文件"""
+    """将真实训练模型写为注册服务可读取的 pkl 文件."""
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, path)
     return path
@@ -54,7 +54,7 @@ async def register_and_deploy(
     task_type: str,
     threshold: float | None = None,
 ) -> dict[str, str]:
-    """通过真实业务 Service 完成注册、激活、部署和路由启用"""
+    """通过真实业务 Service 完成注册、激活、部署和路由启用."""
     from datamind.services import (
         DeploymentLifecycleService,
         ModelLifecycleService,
@@ -113,7 +113,7 @@ async def invoke_prediction(
     deployment: dict[str, str],
     features: dict[str, Any],
 ) -> tuple[dict[str, Any], str]:
-    """使用真实 RuntimeManager、Router 与 PredictionExecutor 执行预测"""
+    """使用真实 RuntimeManager、Router 与 PredictionExecutor 执行预测."""
     from datamind.runtime.server.schemas import PredictRequest
     from datamind.runtime.server.service import DatamindRuntimeService
 

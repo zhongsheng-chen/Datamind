@@ -1,4 +1,4 @@
-"""删除实验命令
+"""删除实验命令.
 
 提供实验逻辑删除功能。
 
@@ -49,7 +49,7 @@ def delete_experiment(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """逻辑删除草稿或已归档实验及其分组"""
+    """逻辑删除草稿或已归档实验及其分组."""
 
     @audit(
         action="experiment.delete",

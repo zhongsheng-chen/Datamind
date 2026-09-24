@@ -1,4 +1,4 @@
-"""授予角色命令
+"""授予角色命令.
 
 提供授予用户角色的功能。
 
@@ -37,7 +37,7 @@ def grant_role(
             help="角色名称",
         ),
 ) -> None:
-    """授予用户角色"""
+    """授予用户角色."""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",

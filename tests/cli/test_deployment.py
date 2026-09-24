@@ -1,4 +1,4 @@
-"""部署 CLI 测试
+"""部署 CLI 测试.
 
 验证部署命令能够将业务异常转换为清晰的命令行提示。
 
@@ -43,7 +43,7 @@ create_module = importlib.import_module(
 async def fake_cli_context(
         **_kwargs: object,
 ) -> AsyncIterator[SimpleNamespace]:
-    """创建已认证的 CLI 上下文替身"""
+    """创建已认证的 CLI 上下文替身."""
     yield SimpleNamespace(
         user="alice"
     )
@@ -54,7 +54,7 @@ def configure_deployment_module(
         module: ModuleType,
         service: MagicMock,
 ) -> MagicMock:
-    """配置部署命令依赖"""
+    """配置部署命令依赖."""
     console = MagicMock()
     monkeypatch.setitem(
         vars(module),
@@ -117,7 +117,7 @@ def test_deployment_mutation_reports_business_error(
         error: Exception,
         message: str,
 ) -> None:
-    """测试部署状态变更命令处理业务异常"""
+    """测试部署状态变更命令处理业务异常."""
     service = MagicMock()
     method = AsyncMock(
         side_effect=error
@@ -159,7 +159,7 @@ def test_deployment_mutation_reports_business_error(
 def test_deployment_create_rejects_invalid_release_role_before_context(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建命令在认证和数据库访问前拒绝非法发布角色组合"""
+    """测试创建命令在认证和数据库访问前拒绝非法发布角色组合."""
     service_config = SimpleNamespace(
         environment="development",
     )
@@ -209,7 +209,7 @@ def test_resolve_release_options(
         role: str | None,
         expected: tuple[str, str],
 ) -> None:
-    """测试 CLI 自动推导固定角色并规范化金丝雀角色"""
+    """测试 CLI 自动推导固定角色并规范化金丝雀角色."""
     assert create_module._resolve_release_options(
         rollout=rollout,
         role=role,
@@ -217,7 +217,7 @@ def test_resolve_release_options(
 
 
 def test_canary_deployment_requires_explicit_role() -> None:
-    """测试金丝雀发布必须明确选择部署角色"""
+    """测试金丝雀发布必须明确选择部署角色."""
     with pytest.raises(
             typer.BadParameter,
             match="金丝雀发布必须指定 --role",

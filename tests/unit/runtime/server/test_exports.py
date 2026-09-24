@@ -1,4 +1,4 @@
-"""运行时服务接口包公共导出测试
+"""运行时服务接口包公共导出测试.
 
 验证运行时服务接口包公开 API 的完整性和可访问性。
 
@@ -33,7 +33,7 @@ EXPECTED_EXPORTS = {
 
 
 def test_server_exports_expected_public_api() -> None:
-    """测试运行时服务接口包公开完整且准确的 API"""
+    """测试运行时服务接口包公开完整且准确的 API."""
     assert set(server.__all__) == EXPECTED_EXPORTS
     assert len(server.__all__) == len(EXPECTED_EXPORTS)
 
@@ -41,7 +41,7 @@ def test_server_exports_expected_public_api() -> None:
 def test_all_declared_exports_are_available(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_ENVIRONMENT",
         "testing",
@@ -52,7 +52,7 @@ def test_all_declared_exports_are_available(
 
 
 def test_core_functions_document_all_exports() -> None:
-    """测试模块核心功能完整列出公共 API"""
+    """测试模块核心功能完整列出公共 API."""
     documentation = server.__doc__ or ""
     core_functions = documentation.partition("核心功能：")[2].partition(
         "使用示例："

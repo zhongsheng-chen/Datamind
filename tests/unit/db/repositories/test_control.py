@@ -1,4 +1,4 @@
-"""模型运行控制仓储测试
+"""模型运行控制仓储测试.
 
 验证 ControlRepository 的控制记录查询、列表筛选、创建，
 以及 loaded、unloaded 和 reload 操作的 generation 管理。
@@ -45,7 +45,7 @@ from datamind.models.enums import RuntimeControlStatus
 def create_control(
         **overrides: Any,
 ) -> Control:
-    """创建运行控制测试对象"""
+    """创建运行控制测试对象."""
     values: dict[str, Any] = {
         "control_id": "ctl_0123456789abcdef",
         "deployment_id": "dep_0123456789abcdef",
@@ -75,7 +75,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建运行控制仓储及会话方法替身"""
+    """创建运行控制仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -123,7 +123,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -139,7 +139,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -152,7 +152,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_control() -> None:
-    """测试按控制 ID 查询"""
+    """测试按控制 ID 查询."""
     expected = create_control()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -180,7 +180,7 @@ async def test_get_control() -> None:
 
 @pytest.mark.asyncio
 async def test_get_control_returns_none_when_not_found() -> None:
-    """测试控制记录不存在时返回 None"""
+    """测试控制记录不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_control(
@@ -193,7 +193,7 @@ async def test_get_control_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_control() -> None:
-    """测试按部署 ID 查询控制记录"""
+    """测试按部署 ID 查询控制记录."""
     expected = create_control()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -220,7 +220,7 @@ async def test_get_deployment_control() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_control_returns_none() -> None:
-    """测试部署没有控制记录时返回 None"""
+    """测试部署没有控制记录时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_deployment_control(
@@ -233,7 +233,7 @@ async def test_get_deployment_control_returns_none() -> None:
 
 @pytest.mark.asyncio
 async def test_list_controls_without_filters() -> None:
-    """测试无筛选时返回全部记录并按时间倒序"""
+    """测试无筛选时返回全部记录并按时间倒序."""
     controls = [
         create_control()
     ]
@@ -263,7 +263,7 @@ async def test_list_controls_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_controls_applies_filters_and_pagination() -> None:
-    """测试环境、状态、审计字段筛选和分页"""
+    """测试环境、状态、审计字段筛选和分页."""
     controls = [
         create_control(
             environment="staging",
@@ -332,7 +332,7 @@ async def test_list_controls_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_controls_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_controls(
@@ -382,7 +382,7 @@ async def test_list_controls_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -398,7 +398,7 @@ async def test_list_controls_rejects_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_loaded_controls() -> None:
-    """测试获取指定环境中期望加载的控制记录"""
+    """测试获取指定环境中期望加载的控制记录."""
     controls = [
         create_control(
             environment="production",
@@ -438,7 +438,7 @@ async def test_list_loaded_controls() -> None:
 
 
 def test_create_control() -> None:
-    """测试创建控制记录并设置初始状态"""
+    """测试创建控制记录并设置初始状态."""
     repository, _, add = create_repository()
 
     control = repository.create_control(
@@ -468,7 +468,7 @@ def test_create_control() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_control_allows_missing_creator() -> None:
-    """测试创建控制记录时允许省略创建人"""
+    """测试创建控制记录时允许省略创建人."""
     repository, _, add = create_repository()
 
     control = repository.create_control(
@@ -490,7 +490,7 @@ def test_create_control_allows_missing_creator() -> None:
 
 
 def test_set_loaded() -> None:
-    """测试从 unloaded 设置为 loaded"""
+    """测试从 unloaded 设置为 loaded."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -513,7 +513,7 @@ def test_set_loaded() -> None:
 
 
 def test_set_loaded_without_operator() -> None:
-    """测试加载时未提供操作人则保留原值"""
+    """测试加载时未提供操作人则保留原值."""
     repository, _, _ = create_repository()
     control = create_control(
         generation=3,
@@ -534,7 +534,7 @@ def test_set_loaded_without_operator() -> None:
 
 
 def test_set_loaded_accepts_empty_operator() -> None:
-    """测试加载时允许写入空字符串操作人"""
+    """测试加载时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     control = create_control()
 
@@ -547,7 +547,7 @@ def test_set_loaded_accepts_empty_operator() -> None:
 
 
 def test_set_loaded_is_idempotent() -> None:
-    """测试重复设置 loaded 保持幂等"""
+    """测试重复设置 loaded 保持幂等."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -573,7 +573,7 @@ def test_set_loaded_is_idempotent() -> None:
 
 
 def test_set_unloaded() -> None:
-    """测试从 loaded 设置为 unloaded"""
+    """测试从 loaded 设置为 unloaded."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -596,7 +596,7 @@ def test_set_unloaded() -> None:
 
 
 def test_set_unloaded_without_operator() -> None:
-    """测试卸载时未提供操作人则保留原值"""
+    """测试卸载时未提供操作人则保留原值."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -620,7 +620,7 @@ def test_set_unloaded_without_operator() -> None:
 
 
 def test_set_unloaded_accepts_empty_operator() -> None:
-    """测试卸载时允许写入空字符串操作人"""
+    """测试卸载时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -637,7 +637,7 @@ def test_set_unloaded_accepts_empty_operator() -> None:
 
 
 def test_set_unloaded_is_idempotent() -> None:
-    """测试重复设置 unloaded 保持幂等"""
+    """测试重复设置 unloaded 保持幂等."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -663,7 +663,7 @@ def test_set_unloaded_is_idempotent() -> None:
 
 
 def test_request_reload() -> None:
-    """测试 loaded 状态可以请求重新加载"""
+    """测试 loaded 状态可以请求重新加载."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -686,7 +686,7 @@ def test_request_reload() -> None:
 
 
 def test_request_reload_without_operator() -> None:
-    """测试重新加载时未提供操作人则保留原值"""
+    """测试重新加载时未提供操作人则保留原值."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -707,7 +707,7 @@ def test_request_reload_without_operator() -> None:
 
 
 def test_request_reload_accepts_empty_operator() -> None:
-    """测试重新加载时允许写入空字符串操作人"""
+    """测试重新加载时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=str(
@@ -735,7 +735,7 @@ def test_request_reload_accepts_empty_operator() -> None:
 def test_request_reload_rejects_non_loaded_status(
         desired_status: str,
 ) -> None:
-    """测试非 loaded 状态不能请求重新加载"""
+    """测试非 loaded 状态不能请求重新加载."""
     repository, _, _ = create_repository()
     control = create_control(
         desired_status=desired_status,

@@ -1,4 +1,4 @@
-"""管理控制台查询服务测试
+"""管理控制台查询服务测试.
 
 验证控制台数据按权限查询、转换并限制返回数量。
 
@@ -55,7 +55,7 @@ CURRENT_TIME = datetime(
 
 
 class FakeUnitOfWork:
-    """控制台查询测试工作单元"""
+    """控制台查询测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -70,7 +70,7 @@ class FakeUnitOfWork:
 def install_repositories(
         monkeypatch: pytest.MonkeyPatch,
 ) -> dict[str, MagicMock]:
-    """替换控制台查询仓储"""
+    """替换控制台查询仓储."""
     repositories = {
         "MetadataRepository": MagicMock(),
         "VersionRepository": MagicMock(),
@@ -230,7 +230,7 @@ def install_repositories(
 async def test_snapshot_only_queries_authorized_sections(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台只查询当前用户有权查看的数据"""
+    """测试控制台只查询当前用户有权查看的数据."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -295,7 +295,7 @@ async def test_snapshot_only_queries_authorized_sections(
 async def test_snapshot_serializes_authorized_records(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台转换有权查看的最近记录"""
+    """测试控制台转换有权查看的最近记录."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -457,7 +457,7 @@ async def test_snapshot_serializes_authorized_records(
 
 
 def test_build_request_trend_preserves_outcomes() -> None:
-    """测试 API 调用趋势区分成功和失败次数"""
+    """测试 API 调用趋势区分成功和失败次数."""
     result = DashboardService._build_request_trend(
         records=[
             {
@@ -484,7 +484,7 @@ def test_build_request_trend_preserves_outcomes() -> None:
 
 
 def test_role_item_marks_builtin_role() -> None:
-    """测试控制台角色摘要标识内置角色"""
+    """测试控制台角色摘要标识内置角色."""
     role = SimpleNamespace(
         role_id="rol_admin",
         name="administrator",
@@ -512,7 +512,7 @@ def test_role_item_marks_builtin_role() -> None:
 
 
 def test_identity_sections_require_manage_permission() -> None:
-    """测试控制台用户和角色页面仅对身份管理员开放"""
+    """测试控制台用户和角色页面仅对身份管理员开放."""
     reader_access = DashboardService.get_access([
         "identity.read"
     ])
@@ -566,7 +566,7 @@ def test_resolve_request_trend_period(
         expected_interval: str,
         expected_points: int,
 ) -> None:
-    """测试趋势时间范围映射到固定聚合粒度"""
+    """测试趋势时间范围映射到固定聚合粒度."""
     start, step, interval, points = (
         DashboardService._resolve_request_trend_period(
             current_time=CURRENT_TIME,
@@ -582,7 +582,7 @@ def test_resolve_request_trend_period(
 
 
 def test_resolve_request_trend_period_rejects_unknown_range() -> None:
-    """测试拒绝不支持的趋势时间范围"""
+    """测试拒绝不支持的趋势时间范围."""
     with pytest.raises(
             ValueError,
             match="trend_range 只支持",
@@ -594,7 +594,7 @@ def test_resolve_request_trend_period_rejects_unknown_range() -> None:
 
 
 def test_build_request_summary_calculates_core_metrics() -> None:
-    """测试 API 调用核心指标计算成功率和周期变化"""
+    """测试 API 调用核心指标计算成功率和周期变化."""
     result = DashboardService._build_request_summary({
         "request_count": 1284,
         "success_count": 1267,
@@ -621,7 +621,7 @@ def test_build_request_summary_calculates_core_metrics() -> None:
 
 
 def test_build_model_usage_calculates_recent_metrics() -> None:
-    """测试模型调用概况计算最近表现和累计调用量"""
+    """测试模型调用概况计算最近表现和累计调用量."""
     result = DashboardService._build_model_usage([
         {
             "model_id": "mdl_test",
@@ -680,7 +680,7 @@ def test_build_model_usage_calculates_recent_metrics() -> None:
 async def test_snapshot_rejects_invalid_limit(
         limit: int,
 ) -> None:
-    """测试控制台拒绝非法返回数量"""
+    """测试控制台拒绝非法返回数量."""
     with pytest.raises(
             ValueError,
             match="limit 必须在 1 到 100 之间",
@@ -695,7 +695,7 @@ async def test_snapshot_rejects_invalid_limit(
 async def test_get_model_versions_returns_page(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本分页返回精确总数"""
+    """测试模型版本分页返回精确总数."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -769,7 +769,7 @@ async def test_get_model_versions_returns_page(
 async def test_get_model_versions_supports_recycle_bin(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本分页可以仅返回逻辑删除记录"""
+    """测试模型版本分页可以仅返回逻辑删除记录."""
     repositories = install_repositories(monkeypatch)
     repositories["MetadataRepository"].get_model.return_value = (
         SimpleNamespace(name="scorecard")
@@ -801,7 +801,7 @@ async def test_get_model_versions_supports_recycle_bin(
 
 @pytest.mark.asyncio
 async def test_get_model_versions_rejects_invalid_page() -> None:
-    """测试模型版本分页拒绝非法页码"""
+    """测试模型版本分页拒绝非法页码."""
     with pytest.raises(
             ValueError,
             match="page 必须大于等于 1",
@@ -816,7 +816,7 @@ async def test_get_model_versions_rejects_invalid_page() -> None:
 async def test_get_experiment_variants_returns_page(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试实验分组使用独立分页数据"""
+    """测试实验分组使用独立分页数据."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -887,7 +887,7 @@ async def test_get_experiment_variants_returns_page(
 async def test_get_experiment_variants_searches_and_sorts(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试实验分组查询和排序在数据库分页前完成"""
+    """测试实验分组查询和排序在数据库分页前完成."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -923,7 +923,7 @@ async def test_get_experiment_variants_searches_and_sorts(
 async def test_get_experiment_variants_supports_recycle_bin(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试实验详情中的分组回收站仅查询已删除记录"""
+    """测试实验详情中的分组回收站仅查询已删除记录."""
     repositories = install_repositories(monkeypatch)
     repositories["ExperimentRepository"].get_experiment.return_value = (
         SimpleNamespace(
@@ -1270,7 +1270,7 @@ async def test_get_section_returns_page(
         record: SimpleNamespace,
         identifier: str,
 ) -> None:
-    """测试所有控制台页面使用统一分页"""
+    """测试所有控制台页面使用统一分页."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -1381,7 +1381,7 @@ async def test_get_section_returns_page(
 async def test_get_section_searches_by_keyword(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试页面查询使用规范化关键词和统一分页"""
+    """测试页面查询使用规范化关键词和统一分页."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -1446,7 +1446,7 @@ async def test_get_section_searches_by_keyword(
 async def test_get_section_returns_deleted_versions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试全局版本回收站仅返回已逻辑删除版本"""
+    """测试全局版本回收站仅返回已逻辑删除版本."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -1504,7 +1504,7 @@ async def test_get_section_returns_deleted_versions(
 async def test_get_section_returns_deleted_models(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型回收站仅返回整体逻辑删除的模型"""
+    """测试模型回收站仅返回整体逻辑删除的模型."""
     repositories = install_repositories(monkeypatch)
     record = SimpleNamespace(
         model_id="mdl_deleted",
@@ -1553,7 +1553,7 @@ async def test_get_section_returns_deleted_models(
 async def test_get_version_detail_includes_model_metadata(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试版本详情通过模型仓储补齐模型信息"""
+    """测试版本详情通过模型仓储补齐模型信息."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -1626,7 +1626,7 @@ async def test_get_version_detail_includes_model_metadata(
 async def test_get_section_filters_selected_records(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试页面查询可限定为待导出的已选记录"""
+    """测试页面查询可限定为待导出的已选记录."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -1689,7 +1689,7 @@ async def test_get_section_filters_selected_records(
 async def test_get_section_sorts_before_pagination(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试页面排序由数据库查询在分页前完成"""
+    """测试页面排序由数据库查询在分页前完成."""
     repositories = install_repositories(
         monkeypatch
     )
@@ -1739,7 +1739,7 @@ async def test_get_section_sorts_before_pagination(
 async def test_get_section_normalizes_multiple_sort_fields(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试页面查询规范化多字段排序参数"""
+    """测试页面查询规范化多字段排序参数."""
     repositories = install_repositories(monkeypatch)
     repositories["DashboardRepository"].count_records.return_value = 0
 
@@ -1764,7 +1764,7 @@ async def test_get_section_normalizes_multiple_sort_fields(
 
 
 def test_deployment_item_includes_model_labels() -> None:
-    """测试部署摘要包含模型名称和版本号"""
+    """测试部署摘要包含模型名称和版本号."""
     deployment = SimpleNamespace(
         deployment_id="dep_test",
         model_id="mdl_test",
@@ -1796,7 +1796,7 @@ def test_deployment_item_includes_model_labels() -> None:
 
 
 def test_routing_item_uses_current_deployment_release_values() -> None:
-    """测试路由摘要以关联部署的当前发布信息为准"""
+    """测试路由摘要以关联部署的当前发布信息为准."""
     routing = SimpleNamespace(
         routing_id="rtn_test",
         name="scorecard-route",
@@ -1830,7 +1830,7 @@ def test_routing_item_uses_current_deployment_release_values() -> None:
 
 
 def test_runtime_item_includes_deployment_labels() -> None:
-    """测试运行实例摘要包含模型和部署角色"""
+    """测试运行实例摘要包含模型和部署角色."""
     runtime = SimpleNamespace(
         runtime_id="rtm_test",
         deployment_id="dep_test",
@@ -1863,7 +1863,7 @@ def test_runtime_item_includes_deployment_labels() -> None:
 
 
 def test_runtime_item_reports_unhealthy_worker() -> None:
-    """测试过期心跳仅影响健康状态并格式化 Worker 名称"""
+    """测试过期心跳仅影响健康状态并格式化 Worker 名称."""
     runtime = SimpleNamespace(
         runtime_id="rtm_stale",
         deployment_id="dep_test",
@@ -1889,7 +1889,7 @@ def test_runtime_item_reports_unhealthy_worker() -> None:
 
 
 def test_experiment_item_includes_variant_count() -> None:
-    """测试实验摘要包含分组数量和更新时间"""
+    """测试实验摘要包含分组数量和更新时间."""
     experiment = SimpleNamespace(
         experiment_id="exp_test",
         model_id="mdl_test",
@@ -1912,7 +1912,7 @@ def test_experiment_item_includes_variant_count() -> None:
 
 
 def test_variant_item_includes_experiment_and_model_labels() -> None:
-    """测试分组摘要包含实验名称和部署模型版本"""
+    """测试分组摘要包含实验名称和部署模型版本."""
     variant = SimpleNamespace(
         variant_id="var_test",
         experiment_id="exp_test",
@@ -1950,7 +1950,7 @@ def test_variant_item_includes_experiment_and_model_labels() -> None:
 
 
 def test_variant_item_does_not_invent_experiment_allocation() -> None:
-    """测试实验分流配置缺失时不伪造默认值"""
+    """测试实验分流配置缺失时不伪造默认值."""
     variant = SimpleNamespace(
         variant_id="var_test",
         experiment_id="exp_test",
@@ -1974,7 +1974,7 @@ def test_variant_item_does_not_invent_experiment_allocation() -> None:
 
 
 def test_request_item_includes_model_and_decision_details() -> None:
-    """测试 API 调用摘要包含模型、决策和预测详情"""
+    """测试 API 调用摘要包含模型、决策和预测详情."""
     prediction = {
         "task_type": "scoring",
         "score": 680,
@@ -2032,7 +2032,7 @@ def test_request_item_includes_model_and_decision_details() -> None:
 
 
 def test_request_item_includes_failure_details() -> None:
-    """测试失败 API 调用包含错误和请求中的部署 ID"""
+    """测试失败 API 调用包含错误和请求中的部署 ID."""
     request = SimpleNamespace(
         request_id="req_failed",
         model_id=None,
@@ -2073,7 +2073,7 @@ def test_request_item_includes_failure_details() -> None:
 
 
 def test_batch_item_includes_progress_and_payload() -> None:
-    """测试批次摘要包含进度、请求负载和执行结果"""
+    """测试批次摘要包含进度、请求负载和执行结果."""
     batch = SimpleNamespace(
         batch_id="bat_test",
         task_id="tsk_test",
@@ -2131,7 +2131,7 @@ def test_batch_item_includes_progress_and_payload() -> None:
 
 
 def test_decision_item_includes_trace_and_route_details() -> None:
-    """测试决策摘要包含追踪、预测、路由和模型执行信息"""
+    """测试决策摘要包含追踪、预测、路由和模型执行信息."""
     prediction = {"probability": 0.25, "score": 680}
     shadow_prediction = {"score": 675}
     decision = SimpleNamespace(

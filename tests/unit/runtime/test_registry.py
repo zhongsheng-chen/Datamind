@@ -1,4 +1,4 @@
-"""运行时模型注册表测试
+"""运行时模型注册表测试.
 
 验证模型注册、查询、访问统计、卸载和失败重载恢复能力。
 
@@ -29,7 +29,7 @@ from datamind.runtime.registry import RuntimeModel, RuntimeRegistry
 
 
 def test_runtime_model_touch_and_to_dict() -> None:
-    """测试运行时模型记录访问并转换为字典"""
+    """测试运行时模型记录访问并转换为字典."""
     loaded_at = datetime.now(timezone.utc)
     runtime_model = RuntimeModel(
         deployment_id="dep_test",
@@ -59,7 +59,7 @@ def test_runtime_model_touch_and_to_dict() -> None:
 
 
 def test_register_copies_metadata() -> None:
-    """测试注册模型时复制元数据"""
+    """测试注册模型时复制元数据."""
     registry = RuntimeRegistry()
     metadata = {
         "task_type": "scoring",
@@ -93,7 +93,7 @@ def test_register_copies_metadata() -> None:
 def test_register_rejects_missing_required_field(
         field: str,
 ) -> None:
-    """测试注册模型拒绝空必填字段"""
+    """测试注册模型拒绝空必填字段."""
     values = {
         "deployment_id": "dep_test",
         "model_id": "mdl_test",
@@ -113,7 +113,7 @@ def test_register_rejects_missing_required_field(
 
 
 def test_register_rejects_missing_model() -> None:
-    """测试注册模型拒绝空模型对象"""
+    """测试注册模型拒绝空模型对象."""
     with pytest.raises(
             ValueError,
             match="model 不能为空",
@@ -128,7 +128,7 @@ def test_register_rejects_missing_model() -> None:
 
 
 def test_get_updates_access_state() -> None:
-    """测试查询运行时模型默认更新访问状态"""
+    """测试查询运行时模型默认更新访问状态."""
     registry = RuntimeRegistry()
     model = object()
     runtime_model = registry.register(
@@ -147,7 +147,7 @@ def test_get_updates_access_state() -> None:
 
 
 def test_missing_or_empty_deployment_returns_empty_result() -> None:
-    """测试空标识和未知部署返回空结果"""
+    """测试空标识和未知部署返回空结果."""
     registry = RuntimeRegistry()
 
     assert registry.get("") is None
@@ -159,7 +159,7 @@ def test_missing_or_empty_deployment_returns_empty_result() -> None:
 
 
 def test_registry_collection_operations() -> None:
-    """测试注册表查询、卸载和清空操作"""
+    """测试注册表查询、卸载和清空操作."""
     registry = RuntimeRegistry()
     first = registry.register(
         deployment_id="dep_1",
@@ -192,7 +192,7 @@ def test_registry_collection_operations() -> None:
 
 
 def test_restore_preserves_previous_runtime_model() -> None:
-    """测试恢复原运行时模型对象"""
+    """测试恢复原运行时模型对象."""
     registry = RuntimeRegistry()
     previous = registry.register(
         deployment_id="dep_test",

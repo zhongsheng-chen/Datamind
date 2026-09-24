@@ -1,4 +1,4 @@
-"""内网管理控制台公共导出测试
+"""内网管理控制台公共导出测试.
 
 验证控制台包公开 API 的完整性和可访问性。
 
@@ -25,7 +25,7 @@ EXPECTED_EXPORTS = {
 
 
 def test_console_exports_expected_public_api() -> None:
-    """测试控制台包公开完整且准确的 API"""
+    """测试控制台包公开完整且准确的 API."""
     assert set(console.__all__) == EXPECTED_EXPORTS
 
     for name in console.__all__:
@@ -39,7 +39,7 @@ def test_console_exports_expected_public_api() -> None:
 async def test_section_export_streams_filtered_csv(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试导出当前筛选和排序条件下的全部记录"""
+    """测试导出当前筛选和排序条件下的全部记录."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -177,7 +177,7 @@ async def test_trace_exports_preserve_complete_id_relationships(
     section: str,
     item: dict[str, str],
 ) -> None:
-    """测试调用链导出保留完整 ID 对应关系"""
+    """测试调用链导出保留完整 ID 对应关系."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -240,7 +240,7 @@ async def test_trace_exports_preserve_complete_id_relationships(
 async def test_section_export_only_selected_records(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试导出接口只查询用户选择的记录"""
+    """测试导出接口只查询用户选择的记录."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -330,7 +330,7 @@ async def test_section_export_only_selected_records(
 
 
 def test_export_filename_uses_uniform_local_timestamp() -> None:
-    """测试导出文件名统一使用页面名称和本地时间"""
+    """测试导出文件名统一使用页面名称和本地时间."""
     export_filename = vars(app_module)["_export_filename"]
     filename = export_filename(
         "versions",
@@ -353,7 +353,7 @@ def test_export_filename_uses_uniform_local_timestamp() -> None:
 async def test_section_export_requires_export_permission(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试导出接口要求独立数据导出权限"""
+    """测试导出接口要求独立数据导出权限."""
     service = MagicMock()
     service.get_access.return_value = {
         "models": True,

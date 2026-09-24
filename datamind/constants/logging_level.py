@@ -1,4 +1,4 @@
-"""日志级别枚举
+"""日志级别枚举.
 
 定义日志输出级别，用于日志过滤和审计。
 
@@ -20,7 +20,7 @@ from typing import FrozenSet
 
 
 class LogLevel(str, Enum):
-    """日志级别字符串枚举"""
+    """日志级别字符串枚举."""
 
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -31,7 +31,7 @@ class LogLevel(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

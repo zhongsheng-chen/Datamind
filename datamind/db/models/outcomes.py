@@ -1,4 +1,4 @@
-"""实验结果表
+"""实验结果表.
 
 记录请求或实验分配主体的后验结果，
 用于 A/B 测试效果评估、模型表现监控和业务指标统计。
@@ -56,7 +56,7 @@ class Outcome(
     TimestampMixin,
     Base,
 ):
-    """实验结果表"""
+    """实验结果表."""
 
     __tablename__ = "outcomes"
 
@@ -234,7 +234,7 @@ class Outcome(
     def __repr__(
             self,
     ) -> str:
-        """返回实验结果字符串表示"""
+        """返回实验结果字符串表示."""
         return (
             f"<Outcome("
             f"outcome_id='{self.outcome_id}', "

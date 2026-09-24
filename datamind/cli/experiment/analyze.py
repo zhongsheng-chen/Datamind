@@ -1,4 +1,4 @@
-"""实验分析命令
+"""实验分析命令.
 
 提供 A/B 实验效果分析功能。
 
@@ -52,7 +52,7 @@ def analyze_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """分析实验效果"""
+    """分析实验效果."""
 
     async def _run():
         if output not in ("text", "json"):
@@ -103,7 +103,7 @@ def analyze_experiment(
 
 
 def _print_analysis(result: dict[str, Any]) -> None:
-    """打印实验分析结果
+    """打印实验分析结果.
 
     参数：
         result: 实验分析结果
@@ -142,7 +142,7 @@ def _print_analysis(result: dict[str, Any]) -> None:
 
 
 def _print_metrics_table(variants: dict[str, Any]) -> None:
-    """打印分组指标表
+    """打印分组指标表.
 
     参数：
         variants: 分组指标字典
@@ -178,7 +178,7 @@ def _print_metrics_table(variants: dict[str, Any]) -> None:
 
 
 def _print_comparison_table(comparisons: dict[str, Any]) -> None:
-    """打印 Lift 对比表
+    """打印 Lift 对比表.
 
     参数：
         comparisons: Lift 对比结果
@@ -220,10 +220,10 @@ def _print_comparison_table(comparisons: dict[str, Any]) -> None:
 
 
 def _format_rate(value: float) -> str:
-    """格式化比例"""
+    """格式化比例."""
     return f"{value:.2%}"
 
 
 def _format_float(value: float) -> str:
-    """格式化浮点数"""
+    """格式化浮点数."""
     return f"{value:.4f}"

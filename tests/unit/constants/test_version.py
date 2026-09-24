@@ -1,4 +1,4 @@
-"""模型版本常量测试
+"""模型版本常量测试.
 
 验证模型版本正则表达式接受和拒绝的版本格式。
 
@@ -31,7 +31,7 @@ from datamind.constants.version import (
 def test_model_version_pattern_accepts_semantic_versions(
         version: str,
 ) -> None:
-    """测试接受语义化模型版本"""
+    """测试接受语义化模型版本."""
     assert re.fullmatch(
         SUPPORTED_MODEL_VERSION_PATTERN,
         version,
@@ -52,7 +52,7 @@ def test_model_version_pattern_accepts_semantic_versions(
 def test_model_version_pattern_rejects_invalid_versions(
         version: str,
 ) -> None:
-    """测试拒绝非语义化模型版本"""
+    """测试拒绝非语义化模型版本."""
     assert re.fullmatch(
         SUPPORTED_MODEL_VERSION_PATTERN,
         version,

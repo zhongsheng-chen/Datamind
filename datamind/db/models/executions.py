@@ -1,4 +1,4 @@
-"""模型执行表
+"""模型执行表.
 
 记录产生最终决策的主模型执行和异步影子模型执行，
 用于执行状态追踪、结果比较、异常排查和性能分析。
@@ -46,7 +46,7 @@ class Execution(
     TimestampMixin,
     Base,
 ):
-    """模型执行记录表"""
+    """模型执行记录表."""
 
     __tablename__ = "executions"
 
@@ -267,7 +267,7 @@ class Execution(
     def __repr__(
             self,
     ) -> str:
-        """返回模型执行记录的字符串表示"""
+        """返回模型执行记录的字符串表示."""
         return (
             f"<Execution("
             f"execution_id='{self.execution_id}', "

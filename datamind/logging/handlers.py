@@ -1,4 +1,4 @@
-"""日志输出通道处理器
+"""日志输出通道处理器.
 
 只负责日志输出，不包含日志加工逻辑。
 
@@ -47,7 +47,7 @@ from datamind.constants import RotationType
 
 
 def create_file_handler(config: LoggingConfig) -> logging.Handler:
-    """创建文件日志 handler
+    """创建文件日志 handler.
 
     参数：
         config: 日志配置对象
@@ -90,7 +90,7 @@ def create_file_handler(config: LoggingConfig) -> logging.Handler:
 def create_console_handler(
         formatter: logging.Formatter,
 ) -> logging.Handler:
-    """创建控制台日志 handler
+    """创建控制台日志 handler.
 
     参数：
         formatter: 日志格式化器
@@ -111,7 +111,7 @@ def create_console_handler(
 def create_async_handler(
         handlers: list[logging.Handler],
 ) -> tuple[QueueHandler, QueueListener]:
-    """创建基于队列的异步日志 handler
+    """创建基于队列的异步日志 handler.
 
     参数：
         handlers: 负责实际输出的日志 handler 列表

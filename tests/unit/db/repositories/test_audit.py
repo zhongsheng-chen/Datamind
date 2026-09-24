@@ -1,4 +1,4 @@
-"""审计日志仓储测试
+"""审计日志仓储测试.
 
 验证 AuditRepository 的审计日志查询、显式筛选、排序、分页、
 辅助列表方法，以及不可变审计记录的创建和字段校验。
@@ -71,7 +71,7 @@ EARLIER_TIME = datetime(
 def create_audit(
         **overrides: Any,
 ) -> Audit:
-    """创建审计日志测试对象"""
+    """创建审计日志测试对象."""
     values: dict[str, Any] = {
         "audit_id": "aud_0123456789abcdef",
         "action": "model.register",
@@ -116,7 +116,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建审计仓储及会话方法替身"""
+    """创建审计仓储及会话方法替身."""
     result = MagicMock()
 
     scalar_collection = MagicMock()
@@ -161,7 +161,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -176,7 +176,7 @@ def get_executed_statement(
 
 @pytest.mark.asyncio
 async def test_get_by_audit_id() -> None:
-    """测试按唯一审计 ID 查询单条记录"""
+    """测试按唯一审计 ID 查询单条记录."""
     audit = create_audit()
     repository, execute, _add = create_repository()
     result = execute.return_value
@@ -193,7 +193,7 @@ async def test_get_by_audit_id() -> None:
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -206,7 +206,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_list_audits_without_filters() -> None:
-    """测试无筛选时返回全部日志并按时间倒序"""
+    """测试无筛选时返回全部日志并按时间倒序."""
     audits = [
         create_audit()
     ]
@@ -236,7 +236,7 @@ async def test_list_audits_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_audits_applies_filters_and_pagination() -> None:
-    """测试全部审计字段筛选、排序和分页"""
+    """测试全部审计字段筛选、排序和分页."""
     audits = [
         create_audit(
             status="failed",
@@ -335,7 +335,7 @@ async def test_list_audits_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_audits_orders_ascending() -> None:
-    """测试审计日志支持按时间升序排列"""
+    """测试审计日志支持按时间升序排列."""
     repository, execute, _ = create_repository()
 
     await repository.list_audits(
@@ -357,7 +357,7 @@ async def test_list_audits_orders_ascending() -> None:
 
 @pytest.mark.asyncio
 async def test_list_audits_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_audits(
@@ -419,7 +419,7 @@ async def test_list_methods_reject_negative_pagination(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试审计列表方法拒绝负数分页参数"""
+    """测试审计列表方法拒绝负数分页参数."""
     repository, execute, _ = create_repository()
     method = getattr(
         repository,
@@ -439,7 +439,7 @@ async def test_list_methods_reject_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_entity_history() -> None:
-    """测试实体变更历史使用目标筛选和升序排列"""
+    """测试实体变更历史使用目标筛选和升序排列."""
     audits = [
         create_audit()
     ]
@@ -480,7 +480,7 @@ async def test_list_entity_history() -> None:
 
 @pytest.mark.asyncio
 async def test_list_failed_operations_uses_default_limit() -> None:
-    """测试失败操作默认返回 100 条"""
+    """测试失败操作默认返回 100 条."""
     audits = [
         create_audit(
             status="failed"
@@ -511,7 +511,7 @@ async def test_list_failed_operations_uses_default_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_failed_operations_accepts_custom_pagination() -> None:
-    """测试失败操作支持自定义分页"""
+    """测试失败操作支持自定义分页."""
     repository, execute, _ = create_repository()
 
     await repository.list_failed_operations(
@@ -532,7 +532,7 @@ async def test_list_failed_operations_accepts_custom_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_user_actions_uses_default_limit() -> None:
-    """测试用户操作默认返回 100 条"""
+    """测试用户操作默认返回 100 条."""
     audits = [
         create_audit()
     ]
@@ -566,7 +566,7 @@ async def test_list_user_actions_uses_default_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_user_actions_accepts_custom_pagination() -> None:
-    """测试用户操作支持自定义分页"""
+    """测试用户操作支持自定义分页."""
     repository, execute, _ = create_repository()
 
     await repository.list_user_actions(
@@ -590,7 +590,7 @@ async def test_list_user_actions_accepts_custom_pagination() -> None:
 
 
 def test_create_audit() -> None:
-    """测试创建完整审计日志"""
+    """测试创建完整审计日志."""
     repository, _, add = create_repository()
 
     audit = repository.create_audit(
@@ -665,7 +665,7 @@ def test_create_audit() -> None:
 def test_create_audit_uses_optional_defaults(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建审计日志的默认状态和当前时间"""
+    """测试创建审计日志的默认状态和当前时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -725,7 +725,7 @@ def test_create_audit_uses_optional_defaults(
 def test_create_audit_accepts_valid_sources(
         source: AuditSource,
 ) -> None:
-    """测试创建审计日志接受全部合法来源"""
+    """测试创建审计日志接受全部合法来源."""
     repository, _, add = create_repository()
 
     audit = repository.create_audit(
@@ -756,7 +756,7 @@ def test_create_audit_accepts_valid_sources(
 def test_create_audit_accepts_valid_statuses(
         status: AuditStatus,
 ) -> None:
-    """测试创建审计日志接受全部合法状态"""
+    """测试创建审计日志接受全部合法状态."""
     repository, _, add = create_repository()
 
     audit = repository.create_audit(

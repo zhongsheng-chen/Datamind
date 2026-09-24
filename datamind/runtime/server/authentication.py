@@ -1,4 +1,4 @@
-"""运行时认证接口
+"""运行时认证接口.
 
 通过挂载的 Starlette 应用提供登录、令牌续期和退出接口，
 使认证端点可以直接表达 HTTP 状态码、响应头和空响应体。
@@ -64,7 +64,7 @@ logger = structlog.get_logger(__name__)
 def _prepare_response(
         response: Response,
 ) -> Response:
-    """为认证响应设置禁止缓存头"""
+    """为认证响应设置禁止缓存头."""
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
 
@@ -76,7 +76,7 @@ def _json_response(
         *,
         status_code: int = 200,
 ) -> Response:
-    """构造禁止缓存的 JSON 响应"""
+    """构造禁止缓存的 JSON 响应."""
     return _prepare_response(
         JSONResponse(
             content=content,
@@ -89,7 +89,7 @@ async def _parse_request(
         request: Request,
         model: type[_RequestModel],
 ) -> _RequestModel | Response:
-    """解析并校验认证请求"""
+    """解析并校验认证请求."""
     try:
         return model.model_validate_json(
             await request.body()
@@ -114,7 +114,7 @@ async def _parse_request(
 def _request_ip(
         request: Request,
 ) -> str | None:
-    """读取客户端 IP"""
+    """读取客户端 IP."""
     client = request.client
 
     return (
@@ -127,7 +127,7 @@ def _request_ip(
 def _request_id(
         request: Request,
 ) -> str:
-    """读取可信长度的请求 ID，缺失时生成新 ID"""
+    """读取可信长度的请求 ID，缺失时生成新 ID."""
     request_id = request.headers.get(
         "x-request-id",
         "",
@@ -143,7 +143,7 @@ def _request_id(
 def _trace_id(
         request: Request,
 ) -> str:
-    """读取 W3C 追踪 ID，缺失或无效时生成新 ID"""
+    """读取 W3C 追踪 ID，缺失或无效时生成新 ID."""
     traceparent = request.headers.get(
         "traceparent",
         "",
@@ -170,7 +170,7 @@ def _authentication_context(
         *,
         username: str,
 ) -> dict[str, object]:
-    """构建运行时认证事件上下文"""
+    """构建运行时认证事件上下文."""
     return {
         USER: username,
         SOURCE: AuditSource.HTTP,
@@ -193,7 +193,7 @@ async def _record_event(
         error: str | None = None,
         details: dict[str, object] | None = None,
 ) -> None:
-    """记录运行时认证日志和审计事件"""
+    """记录运行时认证日志和审计事件."""
     await record_authentication_event(
         logger=logger,
         recorder=AuditRecorder(),
@@ -216,7 +216,7 @@ async def _record_event(
 async def login(
         request: Request,
 ) -> Response:
-    """使用本地用户名和密码登录"""
+    """使用本地用户名和密码登录."""
     login_request = await _parse_request(
         request,
         LoginRequest,
@@ -312,7 +312,7 @@ async def login(
 async def refresh(
         request: Request,
 ) -> Response:
-    """续期并轮换刷新令牌"""
+    """续期并轮换刷新令牌."""
     refresh_request = await _parse_request(
         request,
         RefreshTokenRequest,
@@ -364,7 +364,7 @@ async def refresh(
 async def logout(
         request: Request,
 ) -> Response:
-    """撤销刷新令牌"""
+    """撤销刷新令牌."""
     logout_request = await _parse_request(
         request,
         LogoutRequest,

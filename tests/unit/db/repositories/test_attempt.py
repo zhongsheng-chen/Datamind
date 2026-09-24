@@ -1,4 +1,4 @@
-"""批次执行尝试仓储测试
+"""批次执行尝试仓储测试.
 
 验证批次执行尝试的创建、启动、结束和自动重试状态迁移。
 
@@ -29,7 +29,7 @@ def create_repository(
         *,
         scalar: object = None,
 ) -> tuple[AttemptRepository, MagicMock]:
-    """创建使用会话替身的执行尝试仓储"""
+    """创建使用会话替身的执行尝试仓储."""
     result = MagicMock()
     result.scalar_one.return_value = scalar
     result.scalar_one_or_none.return_value = scalar
@@ -43,7 +43,7 @@ def create_repository(
 
 
 def create_attempt(**overrides: object) -> Attempt:
-    """创建执行尝试测试对象"""
+    """创建执行尝试测试对象."""
     values: dict[str, object] = {
         "attempt_id": "att_test",
         "batch_id": "bat_test",
@@ -56,7 +56,7 @@ def create_attempt(**overrides: object) -> Attempt:
 
 
 def test_create_attempt() -> None:
-    """测试创建等待执行的尝试"""
+    """测试创建等待执行的尝试."""
     repository, session = create_repository()
 
     attempt = repository.create_attempt(
@@ -73,7 +73,7 @@ def test_create_attempt() -> None:
 
 @pytest.mark.asyncio
 async def test_create_next_attempt() -> None:
-    """测试按照已有历史生成下一次尝试"""
+    """测试按照已有历史生成下一次尝试."""
     repository, _ = create_repository(scalar=2)
 
     attempt = await repository.create_next_attempt(
@@ -87,7 +87,7 @@ async def test_create_next_attempt() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_started() -> None:
-    """测试尝试进入运行状态并记录 Worker"""
+    """测试尝试进入运行状态并记录 Worker."""
     attempt = create_attempt(attempt_number=2)
     repository, _ = create_repository(scalar=attempt)
 
@@ -108,7 +108,7 @@ async def test_mark_started() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_finished() -> None:
-    """测试尝试进入最终状态"""
+    """测试尝试进入最终状态."""
     attempt = create_attempt(status="running")
     repository, _ = create_repository(scalar=attempt)
 
@@ -125,7 +125,7 @@ async def test_mark_finished() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_retry_scheduled() -> None:
-    """测试失败尝试记录自动重试时间"""
+    """测试失败尝试记录自动重试时间."""
     attempt = create_attempt(status="running")
     repository, _ = create_repository(scalar=attempt)
 

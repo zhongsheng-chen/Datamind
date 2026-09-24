@@ -1,4 +1,4 @@
-"""系统初始化 CLI 测试
+"""系统初始化 CLI 测试.
 
 验证配置驱动的非交互初始化、成功输出和简洁错误处理。
 
@@ -59,7 +59,7 @@ def install_service(
         username: str = "admin",
         password: str = "secret",
 ) -> MagicMock:
-    """替换系统初始化服务和主机信息"""
+    """替换系统初始化服务和主机信息."""
     settings_loader = MagicMock(
         return_value=SimpleNamespace(
             admin_username=username,
@@ -93,7 +93,7 @@ def install_service(
 
 
 def create_service() -> AsyncMock:
-    """创建成功的系统初始化服务替身"""
+    """创建成功的系统初始化服务替身."""
     service = AsyncMock()
     service.is_initialized.return_value = False
     service.initialize.return_value = InitializationResult(
@@ -109,7 +109,7 @@ def create_service() -> AsyncMock:
 def test_init_uses_configured_credentials(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试使用配置中的管理员凭据完成初始化"""
+    """测试使用配置中的管理员凭据完成初始化."""
     service = create_service()
     install_service(
         monkeypatch,
@@ -144,7 +144,7 @@ def test_init_uses_configured_credentials(
 def test_init_rejects_missing_admin_password(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未配置管理员密码时拒绝初始化"""
+    """测试未配置管理员密码时拒绝初始化."""
     service = create_service()
     install_service(
         monkeypatch,
@@ -168,7 +168,7 @@ def test_init_rejects_missing_admin_password(
 
 
 def test_init_help_does_not_accept_credentials() -> None:
-    """测试初始化命令不接收管理员凭据参数"""
+    """测试初始化命令不接收管理员凭据参数."""
     result = runner.invoke(
         app,
         [
@@ -185,7 +185,7 @@ def test_init_help_does_not_accept_credentials() -> None:
 def test_init_skips_initialized_system(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试系统已初始化时跳过配置读取并正常退出"""
+    """测试系统已初始化时跳过配置读取并正常退出."""
     service = create_service()
     service.is_initialized.return_value = True
     settings_loader = install_service(
@@ -211,7 +211,7 @@ def test_init_skips_initialized_system(
 def test_init_handles_concurrent_initialization(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试预检查后其他进程完成初始化时正常退出"""
+    """测试预检查后其他进程完成初始化时正常退出."""
     service = create_service()
     service.initialize.side_effect = AlreadyInitializedError(
         "Datamind 已经完成初始化"
@@ -234,7 +234,7 @@ def test_init_handles_concurrent_initialization(
 def test_init_renders_clean_database_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库结构异常时输出简洁迁移提示"""
+    """测试数据库结构异常时输出简洁迁移提示."""
     service = create_service()
     service.is_initialized.side_effect = SQLAlchemyError(
         "relation systems does not exist"
@@ -275,7 +275,7 @@ def test_init_records_outcome_logs(
         status: str,
         exit_code: int,
 ) -> None:
-    """测试跳过及失败日志携带请求标识且不暴露原始异常"""
+    """测试跳过及失败日志携带请求标识且不暴露原始异常."""
     service = create_service()
     captured = {}
 

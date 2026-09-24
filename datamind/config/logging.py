@@ -1,4 +1,4 @@
-"""日志配置
+"""日志配置.
 
 定义日志级别、输出格式、文件轮转、保留策略、采样和脱敏参数。
 
@@ -108,7 +108,7 @@ from datamind.constants import (
 
 
 class LoggingConfig(BaseSettings):
-    """日志配置类"""
+    """日志配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_LOG_",
@@ -148,7 +148,7 @@ class LoggingConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "LoggingConfig":
-        """校验日志配置参数"""
+        """校验日志配置参数."""
         if not self.encoding.strip():
             raise ValueError(
                 "encoding 不能为空"

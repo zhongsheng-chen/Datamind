@@ -1,4 +1,4 @@
-"""模型运行表
+"""模型运行表.
 
 记录部署在各 Worker 中的实际运行状态，
 用于区分部署配置状态和模型真实加载状态。
@@ -51,7 +51,7 @@ class Runtime(
     TimestampMixin,
     Base,
 ):
-    """模型运行表"""
+    """模型运行表."""
 
     __tablename__ = "runtimes"
 
@@ -250,7 +250,7 @@ class Runtime(
     def __repr__(
             self,
     ) -> str:
-        """返回模型运行记录字符串表示"""
+        """返回模型运行记录字符串表示."""
         return (
             f"<Runtime("
             f"runtime_id='{self.runtime_id}', "

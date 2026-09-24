@@ -1,4 +1,4 @@
-"""存储后端工厂测试
+"""存储后端工厂测试.
 
 验证工厂根据存储类型创建后端并正确传递配置参数。
 
@@ -27,7 +27,7 @@ from datamind.storage.base import BaseStorageBackend
 
 
 class DummyBackend(BaseStorageBackend):
-    """用于验证工厂返回值的测试存储后端"""
+    """用于验证工厂返回值的测试存储后端."""
 
     def __init__(self) -> None:
         self.objects: dict[str, bytes] = {}
@@ -37,21 +37,21 @@ class DummyBackend(BaseStorageBackend):
         key: str,
         data: bytes,
     ) -> None:
-        """保存测试对象"""
+        """保存测试对象."""
         self.objects[key] = data
 
     def get_object(
         self,
         key: str,
     ) -> bytes:
-        """读取测试对象"""
+        """读取测试对象."""
         return self.objects[key]
 
     def delete_object(
         self,
         key: str,
     ) -> None:
-        """删除测试对象"""
+        """删除测试对象."""
         self.objects.pop(
             key,
             None,
@@ -61,14 +61,14 @@ class DummyBackend(BaseStorageBackend):
         self,
         key: str,
     ) -> bool:
-        """检查测试对象是否存在"""
+        """检查测试对象是否存在."""
         return key in self.objects
 
     def list_objects(
         self,
         prefix: str,
     ) -> list[str]:
-        """列出匹配前缀的测试对象"""
+        """列出匹配前缀的测试对象."""
         return sorted(
             key
             for key in self.objects
@@ -80,7 +80,7 @@ def create_config(
     *,
     storage_type: StorageType | str,
 ) -> StorageConfig:
-    """创建不读取外部配置源的存储配置"""
+    """创建不读取外部配置源的存储配置."""
     local = LocalStorageConfig.model_construct(
         base_dir=Path("/srv/datamind/data")
     )
@@ -106,7 +106,7 @@ def create_config(
 def test_get_backend_creates_local_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地类型创建本地存储后端"""
+    """测试本地类型创建本地存储后端."""
     expected_backend = DummyBackend()
     received: dict[str, Any] = {}
 
@@ -150,7 +150,7 @@ def test_get_backend_creates_local_backend(
 def test_get_backend_creates_minio_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 MinIO 类型创建 MinIO 存储后端"""
+    """测试 MinIO 类型创建 MinIO 存储后端."""
     expected_backend = DummyBackend()
     received: dict[str, Any] = {}
 
@@ -218,7 +218,7 @@ def test_get_backend_creates_minio_backend(
 def test_get_backend_rejects_unknown_storage_type(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝未知存储类型"""
+    """测试拒绝未知存储类型."""
 
     def fail_local_backend(
         **_options: Any,

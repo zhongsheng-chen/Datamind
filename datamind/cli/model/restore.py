@@ -1,4 +1,4 @@
-"""恢复模型命令
+"""恢复模型命令.
 
 提供模型或模型版本的逻辑删除恢复功能。
 
@@ -35,7 +35,7 @@ def _validate_target(
         version_id: str | None,
         output: str,
 ) -> None:
-    """校验模型恢复目标和输出格式"""
+    """校验模型恢复目标和输出格式."""
     if not (name or model_id):
         raise typer.BadParameter(
             "必须提供 <name> 或 --model-id"
@@ -84,7 +84,7 @@ def restore_model(
             help="输出格式：text / json"
         ),
 ) -> None:
-    """恢复逻辑删除的模型或模型版本"""
+    """恢复逻辑删除的模型或模型版本."""
 
     @audit(
         action="model.restore",

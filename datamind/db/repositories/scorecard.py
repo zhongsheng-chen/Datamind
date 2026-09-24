@@ -1,4 +1,4 @@
-"""评分卡仓储
+"""评分卡仓储.
 
 提供评分卡的查询、创建和更新能力。
 
@@ -29,13 +29,13 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class ScorecardRepository(BaseRepository):
-    """评分卡仓储"""
+    """评分卡仓储."""
 
     async def get_scorecard(
             self,
             version_id: str,
     ) -> Scorecard | None:
-        """获取评分卡
+        """获取评分卡.
 
         参数：
             version_id: 模型版本 ID
@@ -62,7 +62,7 @@ class ScorecardRepository(BaseRepository):
             details: dict,
             details_version: int = 1,
     ) -> Scorecard:
-        """创建评分卡
+        """创建评分卡.
 
         参数：
             scorecard_id: 评分卡 ID
@@ -92,7 +92,7 @@ class ScorecardRepository(BaseRepository):
             details: dict,
             details_version: int = 1,
     ) -> Scorecard:
-        """更新评分卡
+        """更新评分卡.
 
         参数：
             scorecard: 评分卡记录

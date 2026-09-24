@@ -1,4 +1,4 @@
-"""角色授予模型测试
+"""角色授予模型测试.
 
 验证角色授予表名称、字段定义、服务端默认值、索引、
 检查约束、字段注释和字符串表示。
@@ -55,7 +55,7 @@ from datamind.db.models.grants import Grant
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -86,7 +86,7 @@ REVOKED_AT = datetime(
 def normalize_sql(
         value: Any,
 ) -> str:
-    """规范化 SQL 文本，便于断言"""
+    """规范化 SQL 文本，便于断言."""
     return " ".join(
         str(
             value
@@ -100,7 +100,7 @@ def normalize_sql(
 def get_server_default(
         column_name: str,
 ) -> str | None:
-    """获取字段的服务端默认值"""
+    """获取字段的服务端默认值."""
     column = GRANT_TABLE.columns[
         column_name
     ]
@@ -117,7 +117,7 @@ def get_server_default(
 def get_index(
         index_name: str,
 ) -> Index:
-    """按名称获取角色授予表索引"""
+    """按名称获取角色授予表索引."""
     for index in GRANT_TABLE.indexes:
         if index.name == index_name:
             return index
@@ -130,7 +130,7 @@ def get_index(
 def get_index_column_names(
         index: Index,
 ) -> list[str]:
-    """获取索引字段名称"""
+    """获取索引字段名称."""
     actual_columns: list[str] = []
 
     for expression in index.expressions:
@@ -164,7 +164,7 @@ def get_index_column_names(
 def get_constraint(
         constraint_name: str,
 ) -> CheckConstraint:
-    """按基础名称获取角色授予表检查约束"""
+    """按基础名称获取角色授予表检查约束."""
     expected_name = (
         f"ck_{Grant.__tablename__}_"
         f"{constraint_name}"
@@ -210,13 +210,13 @@ def get_constraint(
 
 
 def test_grant_table_name() -> None:
-    """测试角色授予表名称"""
+    """测试角色授予表名称."""
     assert Grant.__tablename__ == "grants"
     assert GRANT_TABLE.name == "grants"
 
 
 def test_grant_contains_mixin_columns() -> None:
-    """测试主键和时间戳混入字段"""
+    """测试主键和时间戳混入字段."""
     column_names = set(
         GRANT_TABLE.columns.keys()
     )
@@ -240,7 +240,7 @@ def test_grant_contains_mixin_columns() -> None:
 
 
 def test_grant_business_columns() -> None:
-    """测试角色授予业务字段集合"""
+    """测试角色授予业务字段集合."""
     column_names = set(
         GRANT_TABLE.columns.keys()
     )
@@ -303,7 +303,7 @@ def test_grant_string_columns(
         expected_length: int,
         expected_nullable: bool,
 ) -> None:
-    """测试字符串字段长度和可空性"""
+    """测试字符串字段长度和可空性."""
     column = GRANT_TABLE.columns[
         column_name
     ]
@@ -336,7 +336,7 @@ def test_grant_datetime_columns(
         column_name: str,
         expected_nullable: bool,
 ) -> None:
-    """测试授予和撤销时间字段"""
+    """测试授予和撤销时间字段."""
     column = GRANT_TABLE.columns[
         column_name
     ]
@@ -350,14 +350,14 @@ def test_grant_datetime_columns(
 
 
 def test_grant_status_server_default() -> None:
-    """测试授予状态服务端默认值"""
+    """测试授予状态服务端默认值."""
     assert get_server_default(
         "status"
     ) == "'active'"
 
 
 def test_granted_at_server_default() -> None:
-    """测试授予时间由数据库生成"""
+    """测试授予时间由数据库生成."""
     default_sql = get_server_default(
         "granted_at"
     )
@@ -439,7 +439,7 @@ def test_grant_indexes(
         expected_columns: list[str],
         expected_unique: bool,
 ) -> None:
-    """测试普通索引、联合索引和唯一索引"""
+    """测试普通索引、联合索引和唯一索引."""
     index = get_index(
         index_name
     )
@@ -510,7 +510,7 @@ def test_grant_check_constraints(
         constraint_name: str,
         expected_fragments: list[str],
 ) -> None:
-    """测试角色授予数据完整性约束"""
+    """测试角色授予数据完整性约束."""
     constraint = get_constraint(
         constraint_name
     )
@@ -569,7 +569,7 @@ def test_grant_column_comments(
         column_name: str,
         expected_comment: str,
 ) -> None:
-    """测试关键字段注释"""
+    """测试关键字段注释."""
     column = GRANT_TABLE.columns[
         column_name
     ]
@@ -579,7 +579,7 @@ def test_grant_column_comments(
 
 # noinspection PyUnreachableCode
 def test_active_grant_constructor() -> None:
-    """测试有效角色授予模型构造"""
+    """测试有效角色授予模型构造."""
     grant = Grant(
         grant_id="grt_0123456789abcdef",
         user_id="usr_0123456789abcdef",
@@ -606,7 +606,7 @@ def test_active_grant_constructor() -> None:
 
 
 def test_revoked_grant_constructor() -> None:
-    """测试已撤销角色授予模型构造"""
+    """测试已撤销角色授予模型构造."""
     grant = Grant(
         grant_id="grt_revoked",
         user_id="usr_0123456789abcdef",
@@ -626,7 +626,7 @@ def test_revoked_grant_constructor() -> None:
 
 # noinspection PyUnreachableCode
 def test_grant_allows_empty_optional_fields() -> None:
-    """测试可选字段允许省略"""
+    """测试可选字段允许省略."""
     grant = Grant(
         grant_id="grt_minimum",
         user_id="usr_0123456789abcdef",
@@ -641,7 +641,7 @@ def test_grant_allows_empty_optional_fields() -> None:
 
 
 def test_grant_repr() -> None:
-    """测试角色授予字符串表示"""
+    """测试角色授予字符串表示."""
     grant = Grant(
         grant_id="grt_0123456789abcdef",
         user_id="usr_0123456789abcdef",

@@ -1,4 +1,4 @@
-"""CLI 终端输出
+"""CLI 终端输出.
 
 统一命令状态、警告、错误、常规内容和 JSON 的输出方式。
 
@@ -16,10 +16,10 @@ from rich.console import Console
 class CLIConsole(
     Console
 ):
-    """提供统一语义输出的 CLI Console"""
+    """提供统一语义输出的 CLI Console."""
 
     def __init__(self) -> None:
-        """初始化标准输出和标准错误 Console"""
+        """初始化标准输出和标准错误 Console."""
         super().__init__()
         self._error_console = Console(
             stderr=True
@@ -29,7 +29,7 @@ class CLIConsole(
             self,
             message: str,
     ) -> None:
-        """输出成功或提示信息"""
+        """输出成功或提示信息."""
         self.print(
             message,
             style="green",
@@ -39,7 +39,7 @@ class CLIConsole(
             self,
             message: str,
     ) -> None:
-        """输出警告信息"""
+        """输出警告信息."""
         self.print(
             message,
             style="yellow",
@@ -52,7 +52,7 @@ class CLIConsole(
             output_format: str = "text",
             error_type: str | None = None,
     ) -> None:
-        """向标准错误流输出文本或 JSON 错误"""
+        """向标准错误流输出文本或 JSON 错误."""
         if output_format == "json":
             payload = {
                 "success": False,

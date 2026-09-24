@@ -1,4 +1,4 @@
-"""管理控制台健康检查测试
+"""管理控制台健康检查测试.
 
 验证健康检查地址和服务不可用时的失败结果。
 
@@ -19,7 +19,7 @@ import datamind.console.entrypoints.healthcheck as healthcheck_module
 def test_healthcheck_calls_configured_endpoint(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试健康检查使用容器配置的地址"""
+    """测试健康检查使用容器配置的地址."""
     monkeypatch.setenv(
         "DATAMIND_HEALTHCHECK_URL",
         "http://console.example/ready",
@@ -41,7 +41,7 @@ def test_healthcheck_calls_configured_endpoint(
 def test_healthcheck_handles_unavailable_console(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台不可用时返回健康检查失败"""
+    """测试控制台不可用时返回健康检查失败."""
     monkeypatch.setenv(
         "DATAMIND_HEALTHCHECK_URL",
         "http://console.example/ready",

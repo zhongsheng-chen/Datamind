@@ -1,4 +1,4 @@
-"""业务服务模块
+"""业务服务模块.
 
 提供系统初始化、身份管理、模型管理、资源生命周期管理、
 运行控制、结果回流和控制台查询服务。
@@ -89,7 +89,7 @@ _SERVICE_MODULES = {
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载业务服务，避免包导入触发运行时基础设施配置"""
+    """按需加载业务服务，避免包导入触发运行时基础设施配置."""
     module_name = _SERVICE_MODULES.get(name)
 
     if module_name is None:

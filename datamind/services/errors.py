@@ -1,4 +1,4 @@
-"""业务服务异常定义
+"""业务服务异常定义.
 
 统一定义业务服务使用的异常类型。
 
@@ -29,35 +29,35 @@
 
 
 class InitializationError(Exception):
-    """系统初始化异常"""
+    """系统初始化异常."""
 
 
 class AlreadyInitializedError(
     InitializationError
 ):
-    """系统已经完成初始化"""
+    """系统已经完成初始化."""
 
 
 class IdentityError(Exception):
-    """身份管理基础异常"""
+    """身份管理基础异常."""
 
 
 class IdentityConflictError(
     IdentityError
 ):
-    """身份状态冲突异常"""
+    """身份状态冲突异常."""
 
 
 class UserNotFoundError(
     IdentityError
 ):
-    """用户不存在异常"""
+    """用户不存在异常."""
 
 
 class RoleNotFoundError(
     IdentityError
 ):
-    """角色不存在异常"""
+    """角色不存在异常."""
 
 
 __all__ = [

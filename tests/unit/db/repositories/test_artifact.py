@@ -1,4 +1,4 @@
-"""模型制品仓储测试
+"""模型制品仓储测试.
 
 验证制品修订的创建、查询和永久清理状态转换。
 
@@ -25,7 +25,7 @@ from datamind.db.repositories.artifact import ArtifactRepository
 
 
 def create_repository() -> tuple[ArtifactRepository, AsyncMock, MagicMock]:
-    """创建制品仓储及会话替身"""
+    """创建制品仓储及会话替身."""
     result = MagicMock()
     execute = AsyncMock(return_value=result)
     add = MagicMock()
@@ -38,7 +38,7 @@ def create_repository() -> tuple[ArtifactRepository, AsyncMock, MagicMock]:
 
 
 def create_artifact(**overrides: object) -> Artifact:
-    """创建制品测试对象"""
+    """创建制品测试对象."""
     values: dict[str, object] = {
         "artifact_id": "art_0123456789abcdef",
         "version_id": "ver_0123456789abcdef",
@@ -56,7 +56,7 @@ def create_artifact(**overrides: object) -> Artifact:
 
 
 def test_create_artifact() -> None:
-    """测试创建 active 制品修订"""
+    """测试创建 active 制品修订."""
     repository, _, _ = create_repository()
 
     artifact = repository.create_artifact(
@@ -78,7 +78,7 @@ def test_create_artifact() -> None:
 
 @pytest.mark.asyncio
 async def test_get_current_artifact() -> None:
-    """测试查询当前生效制品"""
+    """测试查询当前生效制品."""
     expected = create_artifact()
     repository, execute, result = create_repository()
     result.scalar_one_or_none.return_value = expected
@@ -93,7 +93,7 @@ async def test_get_current_artifact() -> None:
 
 
 def test_artifact_lifecycle() -> None:
-    """测试制品生命周期状态转换"""
+    """测试制品生命周期状态转换."""
     artifact = create_artifact()
 
     ArtifactRepository.retire_artifact(

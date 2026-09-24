@@ -1,4 +1,4 @@
-"""链路追踪 ID 工具
+"""链路追踪 ID 工具.
 
 提供链路追踪 ID 的生成与校验能力，
 用于请求上下文、日志关联和审计追踪。
@@ -36,7 +36,7 @@ _INVALID_TRACE_ID: Final[str] = "0" * TRACE_ID_LENGTH
 
 
 def generate_trace_id() -> str:
-    """生成链路追踪 ID
+    """生成链路追踪 ID.
 
     生成不带前缀的 32 位小写十六进制字符串，
     并排除全零值。
@@ -56,7 +56,7 @@ def generate_trace_id() -> str:
 def is_valid_trace_id(
         trace_id: str | None,
 ) -> bool:
-    """校验链路追踪 ID
+    """校验链路追踪 ID.
 
     合法值必须是 32 位小写十六进制字符串，
     且不能全为零。

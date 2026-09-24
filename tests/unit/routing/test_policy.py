@@ -1,4 +1,4 @@
-"""运行时路由流量策略测试
+"""运行时路由流量策略测试.
 
 验证路由流量占比使用绝对比例且总和不超过 1。
 
@@ -19,7 +19,7 @@ from datamind.runtime.routing import validate_traffic_allocation
 
 
 def test_validate_traffic_allocation() -> None:
-    """测试返回有效路由总占比"""
+    """测试返回有效路由总占比."""
     total = validate_traffic_allocation([
         SimpleNamespace(traffic_ratio=0.1),
         SimpleNamespace(traffic_ratio=0.2),
@@ -29,7 +29,7 @@ def test_validate_traffic_allocation() -> None:
 
 
 def test_validate_traffic_allocation_rejects_invalid_total() -> None:
-    """测试拒绝超过全部流量的配置"""
+    """测试拒绝超过全部流量的配置."""
     with pytest.raises(ValueError, match="总和不能大于 1"):
         validate_traffic_allocation([
             SimpleNamespace(traffic_ratio=0.6),
@@ -52,7 +52,7 @@ def test_validate_traffic_allocation_rejects_invalid_ratio(
         ratio: object,
         message: str,
 ) -> None:
-    """测试拒绝非法单项流量占比"""
+    """测试拒绝非法单项流量占比."""
     with pytest.raises(
             ValueError,
             match=message,

@@ -1,4 +1,4 @@
-"""模型版本仓储
+"""模型版本仓储.
 
 提供模型版本的查询、创建、更新和生命周期管理能力。
 
@@ -75,7 +75,7 @@ from datamind.models.guard import ModelGuard
 
 @dataclass(slots=True)
 class VersionPatch:
-    """模型版本更新结构
+    """模型版本更新结构.
 
     注意：
         不允许通过 patch 修改 status 和生命周期字段，
@@ -103,13 +103,13 @@ class VersionPatch:
 
 
 class VersionRepository(BaseRepository):
-    """模型版本仓储"""
+    """模型版本仓储."""
 
     async def get_version(
             self,
             version_id: str,
     ) -> Version | None:
-        """获取指定版本
+        """获取指定版本.
 
         参数：
             version_id: 版本 ID
@@ -133,7 +133,7 @@ class VersionRepository(BaseRepository):
             self,
             version_id: str,
     ) -> Version | None:
-        """获取并锁定指定模型版本"""
+        """获取并锁定指定模型版本."""
         stmt = select(
             Version
         ).where(
@@ -150,7 +150,7 @@ class VersionRepository(BaseRepository):
             self,
             model_id: str,
     ) -> Version | None:
-        """获取最新版本
+        """获取最新版本.
 
         参数：
             model_id: 模型 ID
@@ -192,7 +192,7 @@ class VersionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Version]:
-        """获取版本列表
+        """获取版本列表.
 
         参数：
             model_id: 模型 ID（可选）
@@ -312,7 +312,7 @@ class VersionRepository(BaseRepository):
             created_by: str | None = None,
             artifact_revision: int = 1,
     ) -> Version:
-        """创建版本
+        """创建版本.
 
         新建的版本处于 inactive 状态。
 
@@ -376,7 +376,7 @@ class VersionRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Version:
-        """更新版本
+        """更新版本.
 
         参数：
             version: 版本对象
@@ -422,7 +422,7 @@ class VersionRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Version:
-        """归档版本
+        """归档版本.
 
         仅允许从 inactive 或 deprecated 状态归档。
         archived 为终态，归档后不允许重新激活。
@@ -474,7 +474,7 @@ class VersionRepository(BaseRepository):
             deletion_id: str | None = None,
             deletion_reason: str | None = None,
     ) -> Version:
-        """标记版本已删除
+        """标记版本已删除.
 
         记录删除信息并将版本归档。版本已经被删除时原样返回。
 
@@ -536,7 +536,7 @@ class VersionRepository(BaseRepository):
             description: str | None,
             updated_by: str | None = None,
     ) -> Version:
-        """切换当前制品
+        """切换当前制品.
 
         将版本切换到指定制品修订，并同步制品位置、
         模型参数、评估指标和版本说明。
@@ -580,7 +580,7 @@ class VersionRepository(BaseRepository):
             *,
             restored_by: str | None = None,
     ) -> Version:
-        """恢复版本
+        """恢复版本.
 
         将已逻辑删除的版本恢复为 inactive 状态，
         并清除删除和归档信息。版本未被删除时原样返回。
@@ -620,7 +620,7 @@ class VersionRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Version:
-        """激活版本
+        """激活版本.
 
         仅允许从 inactive 状态激活。
         archived 为终态，不能重新激活。
@@ -665,7 +665,7 @@ class VersionRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Version:
-        """废弃版本
+        """废弃版本.
 
         允许从 active 或 inactive 状态废弃。
 

@@ -1,4 +1,4 @@
-"""认证配置
+"""认证配置.
 
 定义本地认证、JWT 和应急账户参数。
 
@@ -53,7 +53,7 @@ from pydantic_settings import (
 
 
 class LocalAuthConfig(BaseSettings):
-    """本地认证配置"""
+    """本地认证配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_AUTH_LOCAL_",
@@ -71,7 +71,7 @@ class LocalAuthConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "LocalAuthConfig":
-        """校验本地认证配置参数"""
+        """校验本地认证配置参数."""
         if self.max_failed_login_attempts <= 0:
             raise ValueError(
                 "max_failed_login_attempts 必须大于 0，"
@@ -108,7 +108,7 @@ class LocalAuthConfig(BaseSettings):
 
 
 class AuthConfig(BaseSettings):
-    """认证配置类"""
+    """认证配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_AUTH_",
@@ -128,7 +128,7 @@ class AuthConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "AuthConfig":
-        """校验认证配置参数"""
+        """校验认证配置参数."""
         if not self.algorithm.strip():
             raise ValueError(
                 "algorithm 不能为空"

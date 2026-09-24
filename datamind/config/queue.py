@@ -1,4 +1,4 @@
-"""异步任务队列配置
+"""异步任务队列配置.
 
 定义 Celery Broker、批量预测队列和影子预测队列参数。
 
@@ -47,7 +47,7 @@ from pydantic_settings import (
 
 
 class TaskQueueConfig(BaseSettings):
-    """异步任务队列配置类"""
+    """异步任务队列配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_TASK_QUEUE_",
@@ -66,7 +66,7 @@ class TaskQueueConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "TaskQueueConfig":
-        """校验异步任务队列配置参数"""
+        """校验异步任务队列配置参数."""
         if not self.broker_url.strip():
             raise ValueError("broker_url 不能为空")
 

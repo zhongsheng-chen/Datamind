@@ -1,4 +1,4 @@
-"""模型加载组件
+"""模型加载组件.
 
 负责将统一存储中的模型制品同步至 BentoML Model Store，
 并从 BentoML 加载模型对象。
@@ -31,14 +31,14 @@ from datamind.storage import Storage, get_storage
 
 
 class ModelLoader:
-    """模型加载器"""
+    """模型加载器."""
 
     def __init__(
             self,
             storage: Storage | None = None,
             backend: BentoBackend | None = None,
     ) -> None:
-        """初始化模型加载器
+        """初始化模型加载器.
 
         参数：
             storage: 模型制品存储，默认按需获取全局存储实例
@@ -58,7 +58,7 @@ class ModelLoader:
             bento_tag: str,
             model_key: str,
     ) -> Any:
-        """同步并加载模型
+        """同步并加载模型.
 
         参数：
             framework: 模型框架

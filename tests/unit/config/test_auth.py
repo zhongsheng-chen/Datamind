@@ -1,6 +1,6 @@
-"""认证配置测试
+"""认证配置测试.
 
-验证 LOCAL 认证、JWT 和应急账户配置的默认值、环境变量和校验规则。
+验证 LOCAL 认证、JWT 和应急账户配置的默认值、环境变量和校验约束。
 
 核心功能：
   - test_local_auth_config_defaults:
@@ -36,7 +36,7 @@ from datamind.config.auth import (
 
 
 class IsolatedLocalAuthConfig(LocalAuthConfig):
-    """隔离环境文件的本地认证配置"""
+    """隔离环境文件的本地认证配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_AUTH_LOCAL_",
@@ -47,7 +47,7 @@ class IsolatedLocalAuthConfig(LocalAuthConfig):
 
 
 class IsolatedAuthConfig(AuthConfig):
-    """隔离环境文件的认证配置"""
+    """隔离环境文件的认证配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_AUTH_",
@@ -62,7 +62,7 @@ class IsolatedAuthConfig(AuthConfig):
 
 
 def test_local_auth_config_defaults() -> None:
-    """测试本地认证配置默认值"""
+    """测试本地认证配置默认值."""
     config = IsolatedLocalAuthConfig()
 
     assert config.max_failed_login_attempts == 5
@@ -76,7 +76,7 @@ def test_local_auth_config_defaults() -> None:
 def test_local_auth_config_reads_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地认证配置读取环境变量"""
+    """测试本地认证配置读取环境变量."""
     monkeypatch.setenv(
         "DATAMIND_AUTH_LOCAL_MAX_FAILED_LOGIN_ATTEMPTS",
         "8",
@@ -145,7 +145,7 @@ def test_local_auth_config_validates_parameters(
         values: dict[str, Any],
         message: str,
 ) -> None:
-    """测试本地认证配置拒绝非法参数"""
+    """测试本地认证配置拒绝非法参数."""
     with pytest.raises(
             ValidationError,
             match=message,
@@ -156,7 +156,7 @@ def test_local_auth_config_validates_parameters(
 
 
 def test_auth_config_defaults() -> None:
-    """测试认证服务配置默认值"""
+    """测试认证服务配置默认值."""
     config = IsolatedAuthConfig()
 
     assert config.enabled is False
@@ -173,7 +173,7 @@ def test_auth_config_defaults() -> None:
 def test_auth_config_reads_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证服务配置读取环境变量"""
+    """测试认证服务配置读取环境变量."""
     monkeypatch.setenv(
         "DATAMIND_AUTH_ENABLED",
         "true",
@@ -235,7 +235,7 @@ def test_auth_config_validates_parameters(
         values: dict[str, Any],
         message: str,
 ) -> None:
-    """测试认证服务配置拒绝非法参数"""
+    """测试认证服务配置拒绝非法参数."""
     with pytest.raises(
             ValidationError,
             match=message,
@@ -255,13 +255,13 @@ def test_auth_config_validates_parameters(
 def test_auth_configs_are_frozen(
         config: LocalAuthConfig | AuthConfig,
 ) -> None:
-    """测试认证配置不可修改"""
+    """测试认证配置不可修改."""
     with pytest.raises(ValidationError):
         config.enabled = True  # type: ignore[attr-defined]
 
 
 def test_auth_configs_ignore_extra_fields() -> None:
-    """测试认证配置忽略无关字段"""
+    """测试认证配置忽略无关字段."""
     config = IsolatedAuthConfig.model_validate({
         "unknown": "ignored",
     })

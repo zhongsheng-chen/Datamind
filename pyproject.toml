@@ -5,7 +5,7 @@ backend-path = ["."]
 
 
 [project]
-name = "datamind"
+name = "pydatamind"
 version = "0.1.0"
 description = "开放式模型服务管理平台"
 readme = "README.md"
@@ -55,7 +55,9 @@ test = [
 
 release = [
     "build>=1.2.0",
+    "packaging>=24.0",
     "setuptools>=77.0.3",
+    "twine>=6.2.0,<7.0.0",
     "wheel>=0.45.0",
 ]
 
@@ -110,8 +112,8 @@ include-package-data = false
 
 
 [tool.setuptools.cmdclass]
-build_py = "build_support.commands.BuildPy"
-sdist = "build_support.commands.Sdist"
+build_py = "build_support.backend.commands.BuildPy"
+sdist = "build_support.backend.commands.Sdist"
 
 
 [tool.setuptools.packages.find]
@@ -160,7 +162,7 @@ target-version = "py312"
 
 
 [tool.ruff.lint]
-select = ["E4", "E9", "F"]
+select = ["E4", "E9", "F", "D400"]
 
 
 [tool.ruff.lint.per-file-ignores]

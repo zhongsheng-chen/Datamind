@@ -1,4 +1,4 @@
-"""认证令牌仓储测试
+"""认证令牌仓储测试.
 
 验证刷新令牌查询、列表筛选、创建、使用时间记录、
 单令牌撤销和用户全部令牌撤销能力。
@@ -80,7 +80,7 @@ TOKEN_HASH = (
 def create_token(
         **overrides: Any,
 ) -> Token:
-    """创建刷新令牌测试对象"""
+    """创建刷新令牌测试对象."""
     values: dict[str, Any] = {
         "token_id": "tok_0123456789abcdef",
         "user_id": "usr_0123456789abcdef",
@@ -111,7 +111,7 @@ def create_repository(
     MagicMock,
     AsyncMock,
 ]:
-    """创建令牌仓储及异步会话替身"""
+    """创建令牌仓储及异步会话替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -152,7 +152,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话最近执行的查询语句"""
+    """获取异步会话最近执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -168,7 +168,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -210,7 +210,7 @@ async def test_get_token_queries_by_single_condition(
         arguments: dict[str, str],
         expected_condition: str,
 ) -> None:
-    """测试按令牌 ID 或令牌哈希查询"""
+    """测试按令牌 ID 或令牌哈希查询."""
     expected_token = create_token()
     repository, _, execute = create_repository(
         scalar_result=expected_token
@@ -246,7 +246,7 @@ async def test_get_token_queries_by_single_condition(
 async def test_get_token_rejects_invalid_conditions(
         arguments: dict[str, str],
 ) -> None:
-    """测试查询条件必须且只能提供一个"""
+    """测试查询条件必须且只能提供一个."""
     repository, _, execute = create_repository()
 
     with pytest.raises(
@@ -265,7 +265,7 @@ async def test_get_token_rejects_invalid_conditions(
 
 @pytest.mark.asyncio
 async def test_get_token_returns_none_when_not_found() -> None:
-    """测试刷新令牌不存在时返回 None"""
+    """测试刷新令牌不存在时返回 None."""
     repository, _, _ = create_repository(
         scalar_result=None
     )
@@ -279,7 +279,7 @@ async def test_get_token_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_get_token_can_lock_record_for_update() -> None:
-    """测试刷新令牌轮换查询可以锁定记录"""
+    """测试刷新令牌轮换查询可以锁定记录."""
     repository, _, execute = create_repository(
         scalar_result=create_token()
     )
@@ -300,7 +300,7 @@ async def test_get_token_can_lock_record_for_update() -> None:
 
 @pytest.mark.asyncio
 async def test_list_tokens_uses_default_order_and_limit() -> None:
-    """测试令牌列表默认排序和数量限制"""
+    """测试令牌列表默认排序和数量限制."""
     tokens = [
         create_token()
     ]
@@ -329,7 +329,7 @@ async def test_list_tokens_uses_default_order_and_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_tokens_builds_filtered_query() -> None:
-    """测试令牌列表筛选、排序和分页"""
+    """测试令牌列表筛选、排序和分页."""
     expires_before = (
         CURRENT_TIME
         + timedelta(
@@ -389,7 +389,7 @@ async def test_list_tokens_builds_filtered_query() -> None:
 
 @pytest.mark.asyncio
 async def test_list_tokens_uses_strict_expires_after() -> None:
-    """测试过期时间下限使用严格大于条件"""
+    """测试过期时间下限使用严格大于条件."""
     repository, _, execute = create_repository()
 
     await repository.list_tokens(
@@ -408,7 +408,7 @@ async def test_list_tokens_uses_strict_expires_after() -> None:
 
 @pytest.mark.asyncio
 async def test_list_tokens_allows_unlimited_query() -> None:
-    """测试令牌列表允许不设置分页"""
+    """测试令牌列表允许不设置分页."""
     repository, _, execute = create_repository()
 
     await repository.list_tokens(
@@ -430,7 +430,7 @@ async def test_list_tokens_allows_unlimited_query() -> None:
 async def test_list_active_tokens_delegates_to_list_tokens(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试有效令牌查询复用通用查询"""
+    """测试有效令牌查询复用通用查询."""
     tokens = [
         create_token()
     ]
@@ -466,7 +466,7 @@ async def test_list_active_tokens_delegates_to_list_tokens(
 async def test_list_active_tokens_uses_current_utc_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试有效令牌查询默认使用当前 UTC 时间"""
+    """测试有效令牌查询默认使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -513,7 +513,7 @@ async def test_list_active_tokens_uses_current_utc_time(
 
 # noinspection PyUnreachableCode
 def test_create_token_uses_defaults() -> None:
-    """测试创建默认有效刷新令牌"""
+    """测试创建默认有效刷新令牌."""
     repository, session, _ = create_repository()
 
     token = repository.create_token(
@@ -541,7 +541,7 @@ def test_create_token_uses_defaults() -> None:
 
 
 def test_create_token_with_client_information() -> None:
-    """测试创建包含客户端信息的刷新令牌"""
+    """测试创建包含客户端信息的刷新令牌."""
     repository, session, _ = create_repository()
 
     token = repository.create_token(
@@ -564,7 +564,7 @@ def test_create_token_with_client_information() -> None:
 
 
 def test_record_token_use_with_explicit_time() -> None:
-    """测试使用指定时间记录刷新令牌使用时间"""
+    """测试使用指定时间记录刷新令牌使用时间."""
     repository, _, _ = create_repository()
     token = create_token()
 
@@ -580,7 +580,7 @@ def test_record_token_use_with_explicit_time() -> None:
 def test_record_token_use_uses_current_utc_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试记录使用时间默认使用当前 UTC 时间"""
+    """测试记录使用时间默认使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -613,7 +613,7 @@ def test_record_token_use_uses_current_utc_time(
 
 
 def test_revoke_token_with_explicit_values() -> None:
-    """测试使用指定信息撤销刷新令牌"""
+    """测试使用指定信息撤销刷新令牌."""
     repository, _, _ = create_repository()
     token = create_token()
 
@@ -633,7 +633,7 @@ def test_revoke_token_with_explicit_values() -> None:
 
 # noinspection PyUnreachableCode
 def test_revoke_token_allows_optional_metadata() -> None:
-    """测试撤销令牌时允许不提供撤销人和原因"""
+    """测试撤销令牌时允许不提供撤销人和原因."""
     repository, _, _ = create_repository()
     token = create_token()
 
@@ -649,7 +649,7 @@ def test_revoke_token_allows_optional_metadata() -> None:
 
 
 def test_revoke_token_is_idempotent() -> None:
-    """测试重复撤销不会覆盖原撤销信息"""
+    """测试重复撤销不会覆盖原撤销信息."""
     original_revoked_at = (
         CURRENT_TIME
         - timedelta(
@@ -682,7 +682,7 @@ def test_revoke_token_is_idempotent() -> None:
 def test_revoke_token_uses_current_utc_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试撤销令牌默认使用当前 UTC 时间"""
+    """测试撤销令牌默认使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -718,7 +718,7 @@ def test_revoke_token_uses_current_utc_time(
 async def test_revoke_user_tokens(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试撤销用户的全部有效刷新令牌"""
+    """测试撤销用户的全部有效刷新令牌."""
     tokens = [
         create_token(
             token_id="tok_1",
@@ -782,7 +782,7 @@ async def test_revoke_user_tokens(
 async def test_revoke_user_tokens_returns_empty_list(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试用户没有有效令牌时返回空列表"""
+    """测试用户没有有效令牌时返回空列表."""
     repository, _, _ = create_repository()
     list_tokens = AsyncMock(
         return_value=[]
@@ -813,7 +813,7 @@ async def test_revoke_user_tokens_returns_empty_list(
 async def test_revoke_user_tokens_uses_single_current_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量撤销默认使用同一个当前 UTC 时间"""
+    """测试批量撤销默认使用同一个当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):

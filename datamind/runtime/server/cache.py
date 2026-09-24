@@ -1,4 +1,4 @@
-"""运行时服务缓存结构
+"""运行时服务缓存结构.
 
 核心功能：
   - ServiceCacheEntry: 保存 Worker 本地服务缓存项
@@ -20,7 +20,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 
 @dataclass(slots=True)
 class ServiceCacheEntry:
-    """Worker 本地服务缓存项
+    """Worker 本地服务缓存项.
 
     属性：
         service: RuntimeService 实例

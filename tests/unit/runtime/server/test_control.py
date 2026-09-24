@@ -1,4 +1,4 @@
-"""运行时部署控制接口测试
+"""运行时部署控制接口测试.
 
 验证部署加载、卸载、状态查询及环境校验行为。
 
@@ -48,7 +48,7 @@ async def test_control_operation_updates_desired_state(
         monkeypatch: pytest.MonkeyPatch,
         action: str,
 ) -> None:
-    """测试运行控制操作更新期望状态"""
+    """测试运行控制操作更新期望状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock()
@@ -89,7 +89,7 @@ async def test_control_operation_returns_validation_error(
         monkeypatch: pytest.MonkeyPatch,
         action: str,
 ) -> None:
-    """测试运行控制校验失败时返回标准错误响应"""
+    """测试运行控制校验失败时返回标准错误响应."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock(
@@ -115,7 +115,7 @@ async def test_unload_returns_deployment_state_error(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试卸载启用部署时返回部署状态错误"""
+    """测试卸载启用部署时返回部署状态错误."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock()
@@ -142,7 +142,7 @@ async def test_status_combines_control_and_local_state(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试部署状态查询合并控制、运行记录和本地状态"""
+    """测试部署状态查询合并控制、运行记录和本地状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock()
@@ -196,7 +196,7 @@ async def test_validate_service_environment_rejects_invalid_deployment(
         deployment: SimpleNamespace | None,
         error_type: type[Exception],
 ) -> None:
-    """测试服务环境校验拒绝无效部署"""
+    """测试服务环境校验拒绝无效部署."""
     service_module = runtime_server.load_service_module(monkeypatch)
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
@@ -219,7 +219,7 @@ async def test_validate_service_environment_accepts_active_deployment(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试服务环境校验接受当前环境的活跃部署"""
+    """测试服务环境校验接受当前环境的活跃部署."""
     service_module = runtime_server.load_service_module(monkeypatch)
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(

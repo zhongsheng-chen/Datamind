@@ -1,4 +1,4 @@
-"""预测批次仓储
+"""预测批次仓储.
 
 提供预测批次记录的创建、查询和状态迁移能力。
 
@@ -58,7 +58,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class BatchRepository(BaseRepository):
-    """预测批次仓储"""
+    """预测批次仓储."""
 
     async def get_batch(
             self,
@@ -66,7 +66,7 @@ class BatchRepository(BaseRepository):
             *,
             for_update: bool = False,
     ) -> Batch | None:
-        """获取预测批次
+        """获取预测批次.
 
         参数：
             batch_id: 批次 ID
@@ -100,7 +100,7 @@ class BatchRepository(BaseRepository):
             user: str | None,
             ip: str | None,
     ) -> Batch:
-        """创建等待执行的预测批次
+        """创建等待执行的预测批次.
 
         参数：
             batch_id: 批次 ID
@@ -162,7 +162,7 @@ class BatchRepository(BaseRepository):
             batch_id: str,
             task_id: str,
     ) -> Batch | None:
-        """标记预测批次开始执行
+        """标记预测批次开始执行.
 
         仅当前 Celery 任务可以启动处于 queued 或 retrying 状态的批次。
 
@@ -195,7 +195,7 @@ class BatchRepository(BaseRepository):
         return batch
 
     async def request_cancel(self, batch_id: str) -> Batch:
-        """请求取消预测批次
+        """请求取消预测批次.
 
         等待执行的批次直接进入 cancelled 状态，运行中的批次进入
         cancelling 状态并等待执行器协作式取消。
@@ -230,7 +230,7 @@ class BatchRepository(BaseRepository):
             *,
             task_id: str,
     ) -> Batch:
-        """重新提交失败或已取消的预测批次
+        """重新提交失败或已取消的预测批次.
 
         参数：
             batch_id: 批次 ID
@@ -270,7 +270,7 @@ class BatchRepository(BaseRepository):
             *,
             error: str,
     ) -> Batch:
-        """标记预测批次等待自动重试
+        """标记预测批次等待自动重试.
 
         用于 Celery 自动重试，不更换任务 ID，也不清空累计执行进度。
 
@@ -302,7 +302,7 @@ class BatchRepository(BaseRepository):
             batch_id: str,
             result: dict[str, Any],
     ) -> Batch:
-        """标记预测批次执行成功
+        """标记预测批次执行成功.
 
         参数：
             batch_id: 批次 ID
@@ -332,7 +332,7 @@ class BatchRepository(BaseRepository):
             error: str,
             result: dict[str, Any] | None = None,
     ) -> Batch:
-        """标记预测批次执行失败
+        """标记预测批次执行失败.
 
         参数：
             batch_id: 批次 ID
@@ -372,7 +372,7 @@ class BatchRepository(BaseRepository):
             succeeded_count: int,
             failed_count: int,
     ) -> Batch:
-        """标记预测批次部分成功
+        """标记预测批次部分成功.
 
         参数：
             batch_id: 批次 ID
@@ -413,7 +413,7 @@ class BatchRepository(BaseRepository):
             succeeded_count: int = 0,
             failed_count: int = 0,
     ) -> Batch:
-        """标记预测批次已取消
+        """标记预测批次已取消.
 
         参数：
             batch_id: 批次 ID
@@ -447,7 +447,7 @@ class BatchRepository(BaseRepository):
         return batch
 
     async def is_cancel_requested(self, batch_id: str) -> bool:
-        """判断预测批次是否已请求取消
+        """判断预测批次是否已请求取消.
 
         参数：
             batch_id: 批次 ID
@@ -463,7 +463,7 @@ class BatchRepository(BaseRepository):
         )
 
     async def _require_batch(self, batch_id: str) -> Batch:
-        """获取并锁定必须存在的预测批次"""
+        """获取并锁定必须存在的预测批次."""
         batch = await self.get_batch(batch_id, for_update=True)
 
         if batch is None:
@@ -475,7 +475,7 @@ class BatchRepository(BaseRepository):
             self,
             batch_id: str,
     ) -> Batch:
-        """获取并锁定必须处于运行状态的预测批次"""
+        """获取并锁定必须处于运行状态的预测批次."""
         batch = await self._require_batch(batch_id)
 
         if batch.status != "running":
@@ -487,5 +487,5 @@ class BatchRepository(BaseRepository):
 
     @staticmethod
     def _finish(batch: Batch) -> None:
-        """记录预测批次结束时间"""
+        """记录预测批次结束时间."""
         batch.finished_at = datetime.now(timezone.utc)

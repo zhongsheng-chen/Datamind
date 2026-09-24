@@ -1,4 +1,4 @@
-"""数据库变更事件测试
+"""数据库变更事件测试.
 
 验证业务模型变更事件的注册、事件记录和 PostgreSQL 通知。
 
@@ -24,7 +24,7 @@ def create_connection(
         dialect_name: str,
         event_id: int = 10,
 ) -> MagicMock:
-    """创建同步数据库连接替身"""
+    """创建同步数据库连接替身."""
     connection = MagicMock()
     connection.dialect.name = dialect_name
     result = MagicMock()
@@ -37,7 +37,7 @@ def create_connection(
 def test_create_listener_writes_model_event(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试监听器写入模型事件"""
+    """测试监听器写入模型事件."""
     write_event = MagicMock()
     monkeypatch.setitem(
         vars(events_module),
@@ -70,7 +70,7 @@ def test_create_listener_writes_model_event(
 
 
 def test_write_event_notifies_postgresql() -> None:
-    """测试 PostgreSQL 事件通知"""
+    """测试 PostgreSQL 事件通知."""
     connection = create_connection(
         dialect_name="postgresql",
         event_id=20,
@@ -97,7 +97,7 @@ def test_write_event_notifies_postgresql() -> None:
 
 
 def test_write_event_skips_notification_for_other_dialects() -> None:
-    """测试其他数据库不发送 PostgreSQL 通知"""
+    """测试其他数据库不发送 PostgreSQL 通知."""
     connection = create_connection(
         dialect_name="sqlite"
     )

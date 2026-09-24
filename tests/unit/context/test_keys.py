@@ -1,4 +1,4 @@
-"""上下文键测试
+"""上下文键测试.
 
 验证标准上下文键的名称、唯一性、完整性和固定顺序。
 
@@ -35,7 +35,7 @@ EXPECTED_KEYS = (
 
 
 def test_context_key_values() -> None:
-    """测试上下文键使用预期字段名"""
+    """测试上下文键使用预期字段名."""
     assert TRACE_ID == "trace_id"
     assert REQUEST_ID == "request_id"
     assert SOURCE == "source"
@@ -45,7 +45,7 @@ def test_context_key_values() -> None:
 
 
 def test_context_keys_are_unique() -> None:
-    """测试所有标准上下文键互不重复"""
+    """测试所有标准上下文键互不重复."""
     assert len(
         EXPECTED_KEYS
     ) == len(
@@ -56,7 +56,7 @@ def test_context_keys_are_unique() -> None:
 
 
 def test_all_keys_contains_every_standard_key() -> None:
-    """测试 ALL_KEYS 包含全部标准上下文键"""
+    """测试 ALL_KEYS 包含全部标准上下文键."""
     assert set(
         ALL_KEYS
     ) == {
@@ -70,5 +70,5 @@ def test_all_keys_contains_every_standard_key() -> None:
 
 
 def test_all_keys_preserves_standard_order() -> None:
-    """测试 ALL_KEYS 保持标准上下文键顺序"""
+    """测试 ALL_KEYS 保持标准上下文键顺序."""
     assert ALL_KEYS == EXPECTED_KEYS

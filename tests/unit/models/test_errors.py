@@ -1,4 +1,4 @@
-"""模型异常测试
+"""模型异常测试.
 
 验证模型与实验异常的继承关系和错误信息契约。
 
@@ -59,7 +59,7 @@ EXPERIMENT_ERROR_TYPES: list[type[ExperimentError]] = [
 def test_model_error_preserves_message(
         error_type: type[ModelError],
 ) -> None:
-    """测试模型异常保留错误信息"""
+    """测试模型异常保留错误信息."""
     error = error_type("模型错误")
 
     assert error.message == "模型错误"
@@ -73,7 +73,7 @@ def test_model_error_preserves_message(
 def test_experiment_error_preserves_message(
         error_type: type[ExperimentError],
 ) -> None:
-    """测试实验异常保留错误信息"""
+    """测试实验异常保留错误信息."""
     error = error_type("实验错误")
 
     assert error.message == "实验错误"
@@ -94,7 +94,7 @@ def test_specialized_error_inheritance(
         error_type: type[Exception],
         base_type: type[Exception],
 ) -> None:
-    """测试专用异常继承正确的基础异常"""
+    """测试专用异常继承正确的基础异常."""
     assert issubclass(
         error_type,
         base_type,

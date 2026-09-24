@@ -1,4 +1,4 @@
-"""禁用部署命令
+"""禁用部署命令.
 
 提供部署禁用功能，并自动请求 Worker 停止运行实例。
 
@@ -39,7 +39,7 @@ def disable_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """停用部署并停止运行实例"""
+    """停用部署并停止运行实例."""
 
     @audit(
         action="deploy.disable",

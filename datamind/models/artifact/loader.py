@@ -1,4 +1,4 @@
-"""模型产物加载器
+"""模型产物加载器.
 
 将模型文件字节流反序列化为 Python 模型对象。
 
@@ -22,11 +22,11 @@ from datamind.models.artifact.register import get_handler
 
 
 class ModelArtifactLoader:
-    """模型产物加载器"""
+    """模型产物加载器."""
 
     @classmethod
     def load(cls, framework: str, data: bytes) -> Any:
-        """加载模型对象
+        """加载模型对象.
 
         参数：
             framework: 模型框架

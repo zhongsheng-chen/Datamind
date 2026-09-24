@@ -1,4 +1,4 @@
-"""批次生命周期服务测试
+"""批次生命周期服务测试.
 
 验证批次取消和重新提交时的状态持久化与任务队列交互。
 
@@ -19,20 +19,20 @@ from datamind.services.batch import BatchLifecycleService
 
 
 class FakeUnitOfWork:
-    """提供批次服务测试所需的异步工作单元"""
+    """提供批次服务测试所需的异步工作单元."""
 
     session = MagicMock()
 
     async def __aenter__(self) -> "FakeUnitOfWork":
-        """进入测试工作单元"""
+        """进入测试工作单元."""
         return self
 
     async def __aexit__(self, *_args: object) -> None:
-        """退出测试工作单元"""
+        """退出测试工作单元."""
 
 
 def create_batch(**overrides: object) -> SimpleNamespace:
-    """创建批次状态测试对象"""
+    """创建批次状态测试对象."""
     values = {
         "batch_id": "bat_test",
         "task_id": "tsk_test",
@@ -56,7 +56,7 @@ def replace_batch_dependency(
         name: str,
         replacement: object,
 ) -> None:
-    """替换批次服务依赖并在测试结束后自动恢复"""
+    """替换批次服务依赖并在测试结束后自动恢复."""
     monkeypatch.setattr(batch_module, name, replacement)
 
 
@@ -64,7 +64,7 @@ def replace_batch_dependency(
 async def test_cancel_updates_state_and_revokes_task(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试取消批次后发送任务撤销消息"""
+    """测试取消批次后发送任务撤销消息."""
     batch = create_batch(status="cancelled")
     repository = MagicMock()
     repository.get_batch = AsyncMock(return_value=batch)
@@ -101,7 +101,7 @@ async def test_cancel_updates_state_and_revokes_task(
 async def test_retry_updates_state_and_submits_new_task(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重试批次后发布新的执行任务"""
+    """测试重试批次后发布新的执行任务."""
     batch = create_batch(task_id="tsk_new")
     repository = MagicMock()
     repository.retry = AsyncMock(return_value=batch)

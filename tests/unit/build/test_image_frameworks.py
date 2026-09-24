@@ -1,6 +1,7 @@
-"""模型框架依赖配置测试
+"""模型框架依赖配置测试.
 
-验证 Python extras、Docker 镜像构建选项与核心模块的可选依赖边界。
+验证 Python extras 与 Docker 镜像构建选项保持一致，并确认核心模块无需安装
+可选模型框架。
 
 核心功能：
   - test_image_frameworks_and_extras_are_aligned:
@@ -21,7 +22,7 @@ import tomllib
 from packaging.requirements import Requirement
 
 from datamind.constants import Framework
-from scripts.build_docker import (
+from build_support.docker import (
     DEFAULT_FRAMEWORK,
     SUPPORTED_FRAMEWORKS,
 )
@@ -32,7 +33,7 @@ MODEL_FRAMEWORKS = {framework.value for framework in Framework}
 
 
 def optional_dependencies() -> dict[str, list[str]]:
-    """读取项目可选依赖。"""
+    """读取项目可选依赖."""
     with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
         document = tomllib.load(pyproject_file)
 
@@ -40,7 +41,7 @@ def optional_dependencies() -> dict[str, list[str]]:
 
 
 def test_image_frameworks_and_extras_are_aligned() -> None:
-    """测试镜像框架选项与 Python extra 保持一致。"""
+    """测试镜像框架选项与 Python extra 保持一致."""
     extras = optional_dependencies()
 
     assert SUPPORTED_FRAMEWORKS == MODEL_FRAMEWORKS | {"full"}
@@ -49,7 +50,7 @@ def test_image_frameworks_and_extras_are_aligned() -> None:
 
 
 def test_full_extra_covers_framework_extras() -> None:
-    """测试 full extra 覆盖全部专用框架依赖。"""
+    """测试 full extra 覆盖全部专用框架依赖."""
     extras = optional_dependencies()
     framework_dependencies = {
         dependency
@@ -61,7 +62,7 @@ def test_full_extra_covers_framework_extras() -> None:
 
 
 def test_scorecard_dependency_uses_supported_version_range() -> None:
-    """测试评分卡依赖使用已验证的版本范围。"""
+    """测试评分卡依赖使用已验证的版本范围."""
     requirement = next(
         Requirement(dependency)
         for dependency in optional_dependencies()["sklearn"]
@@ -73,7 +74,7 @@ def test_scorecard_dependency_uses_supported_version_range() -> None:
 
 
 def test_dockerfile_uses_framework_extra_without_dependency_matrix() -> None:
-    """测试 Dockerfile 仅消费受控 extra，不复制框架依赖清单。"""
+    """测试 Dockerfile 仅消费受控 extra，不复制框架依赖清单."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(
         encoding="utf-8"
     )
@@ -86,7 +87,7 @@ def test_dockerfile_uses_framework_extra_without_dependency_matrix() -> None:
 
 
 def test_core_imports_do_not_require_optional_frameworks() -> None:
-    """测试 Datamind 核心入口不依赖可选模型框架。"""
+    """测试 Datamind 核心入口不依赖可选模型框架."""
     script = """
 import importlib.abc
 import sys

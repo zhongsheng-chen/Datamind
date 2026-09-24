@@ -1,4 +1,4 @@
-"""系统初始化配置
+"""系统初始化配置.
 
 定义首次初始化使用的管理员账户凭据。
 
@@ -30,7 +30,7 @@ from pydantic_settings import (
 
 
 class InitializationConfig(BaseSettings):
-    """系统初始化配置"""
+    """系统初始化配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_INIT_",
@@ -48,7 +48,7 @@ class InitializationConfig(BaseSettings):
             cls,
             value: str,
     ) -> str:
-        """校验并规范化管理员用户名"""
+        """校验并规范化管理员用户名."""
         normalized = value.strip()
 
         if not normalized:

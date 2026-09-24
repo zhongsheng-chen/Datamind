@@ -1,4 +1,4 @@
-"""模型适配器工厂测试
+"""模型适配器工厂测试.
 
 验证模型框架识别、适配器创建、适配器注册和异常处理。
 
@@ -66,7 +66,7 @@ pytestmark = pytest.mark.framework
 
 
 class DummyAdapter(BaseModelAdapter):
-    """测试模型适配器"""
+    """测试模型适配器."""
 
     SUPPORTED_CAPABILITIES = ModelCapability.PREDICT_PROBA
 
@@ -74,22 +74,22 @@ class DummyAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """返回固定概率"""
+        """返回固定概率."""
         return 0.5
 
 
 class InvalidAdapter:
-    """未继承基础适配器的测试类"""
+    """未继承基础适配器的测试类."""
 
 
 class UnsupportedModel:
-    """不属于已支持框架的测试模型"""
+    """不属于已支持框架的测试模型."""
 
 
 @pytest.fixture(autouse=True)
 def restore_sklearn_adapter(
 ) -> Iterator[None]:
-    """测试结束后恢复 Sklearn 适配器注册"""
+    """测试结束后恢复 Sklearn 适配器注册."""
     original_adapter = (
         ModelAdapterFactory.get_adapter_class(
             Framework.SKLEARN
@@ -110,7 +110,7 @@ def restore_sklearn_adapter(
 @pytest.fixture
 def logistic_model(
 ) -> LogisticRegression:
-    """提供已训练逻辑回归模型"""
+    """提供已训练逻辑回归模型."""
     X = np.array([
         [-2.0, -1.0],
         [-1.0, -0.5],
@@ -166,7 +166,7 @@ def test_get_framework_recognizes_supported_frameworks(
         module_name: str,
         expected_framework: Framework,
 ) -> None:
-    """测试识别已支持的模型框架"""
+    """测试识别已支持的模型框架."""
     model_class = type(
         "FrameworkModel",
         (),
@@ -187,7 +187,7 @@ def test_get_framework_recognizes_supported_frameworks(
 
 def test_get_framework_accepts_sklearn_root_module(
 ) -> None:
-    """测试识别 sklearn 根模块"""
+    """测试识别 sklearn 根模块."""
     model_class = type(
         "SklearnRootModel",
         (),
@@ -206,7 +206,7 @@ def test_get_framework_accepts_sklearn_root_module(
 
 def test_get_framework_rejects_none(
 ) -> None:
-    """测试模型不能为空"""
+    """测试模型不能为空."""
     with pytest.raises(
             ValueError,
             match="model 不能为空",
@@ -218,7 +218,7 @@ def test_get_framework_rejects_none(
 
 def test_get_framework_rejects_unsupported_model(
 ) -> None:
-    """测试拒绝未支持的模型类型"""
+    """测试拒绝未支持的模型类型."""
     with pytest.raises(
             ValueError,
             match="不支持的模型类型: UnsupportedModel",
@@ -256,7 +256,7 @@ def test_get_adapter_class_returns_builtin_adapter(
         framework: Framework,
         expected_adapter: type[BaseModelAdapter],
 ) -> None:
-    """测试获取内置模型适配器类"""
+    """测试获取内置模型适配器类."""
     assert (
         ModelAdapterFactory.get_adapter_class(
             framework
@@ -268,7 +268,7 @@ def test_get_adapter_class_returns_builtin_adapter(
 def test_get_adapter_class_reports_missing_framework_dependency(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试缺少框架依赖时返回明确安装建议。"""
+    """测试缺少框架依赖时返回明确安装建议."""
     monkeypatch.setattr(
         ModelAdapterFactory,
         "_ADAPTERS",
@@ -300,7 +300,7 @@ def test_get_adapter_class_reports_missing_framework_dependency(
 def test_create_returns_sklearn_adapter(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试创建 Sklearn 模型适配器"""
+    """测试创建 Sklearn 模型适配器."""
     feature_names = [
         "feature_a",
         "feature_b",
@@ -331,7 +331,7 @@ def test_create_returns_sklearn_adapter(
 
 def test_register_adapter_rejects_duplicate_without_override(
 ) -> None:
-    """测试禁止未授权的重复注册"""
+    """测试禁止未授权的重复注册."""
     with pytest.raises(
             ValueError,
             match="模型适配器已注册: sklearn",
@@ -344,7 +344,7 @@ def test_register_adapter_rejects_duplicate_without_override(
 
 def test_register_adapter_allows_override(
 ) -> None:
-    """测试允许覆盖已注册适配器"""
+    """测试允许覆盖已注册适配器."""
     ModelAdapterFactory.register_adapter(
         Framework.SKLEARN,
         DummyAdapter,
@@ -362,7 +362,7 @@ def test_register_adapter_allows_override(
 def test_create_uses_overridden_adapter(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试创建模型时使用覆盖后的适配器"""
+    """测试创建模型时使用覆盖后的适配器."""
     ModelAdapterFactory.register_adapter(
         Framework.SKLEARN,
         DummyAdapter,
@@ -398,7 +398,7 @@ def test_create_uses_overridden_adapter(
 def test_register_adapter_rejects_invalid_framework(
         framework: Any,
 ) -> None:
-    """测试框架参数必须是 Framework 枚举"""
+    """测试框架参数必须是 Framework 枚举."""
     with pytest.raises(
             TypeError,
             match="framework 必须是 Framework 枚举",
@@ -421,7 +421,7 @@ def test_register_adapter_rejects_invalid_framework(
 def test_register_adapter_rejects_invalid_adapter_class(
         adapter_class: Any,
 ) -> None:
-    """测试适配器类必须继承基础适配器"""
+    """测试适配器类必须继承基础适配器."""
     with pytest.raises(
             TypeError,
             match="adapter_class 必须继承 BaseModelAdapter",

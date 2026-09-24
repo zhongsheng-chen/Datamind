@@ -1,4 +1,4 @@
-"""Scoring 后端完整业务链路 E2E
+"""Scoring 后端完整业务链路 E2E.
 
 验证真实 optbinning.Scorecard 从注册、激活、部署和路由，到 RuntimeManager
 加载、评分以及 Request/Decision/Execution/Audit 持久化的完整流程。
@@ -34,7 +34,7 @@ pytestmark = pytest.mark.e2e
 
 
 def fit_scorecard() -> Scorecard:
-    """拟合用于完整后端流程的真实评分卡"""
+    """拟合用于完整后端流程的真实评分卡."""
     records: list[dict[str, object]] = []
     labels: list[int] = []
 
@@ -96,7 +96,7 @@ async def test_scoring_backend_flow(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试评分卡从注册到评分、执行记录及审计持久化"""
+    """测试评分卡从注册到评分、执行记录及审计持久化."""
     del datamind_database
     configure_isolated_runtime(tmp_path=tmp_path, monkeypatch=monkeypatch)
 

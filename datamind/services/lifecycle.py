@@ -1,4 +1,4 @@
-"""模型生命周期管理服务
+"""模型生命周期管理服务.
 
 负责模型和版本的状态管理。
 
@@ -47,7 +47,7 @@ logger = structlog.get_logger(__name__)
 
 
 class ModelLifecycleService:
-    """模型生命周期管理服务
+    """模型生命周期管理服务.
 
     负责模型元数据和模型版本的启用、停用等生命周期操作。
     """
@@ -62,7 +62,7 @@ class ModelLifecycleService:
             version: str | None,
             version_id: str | None,
     ) -> tuple[Metadata, Version | None]:
-        """解析生命周期操作的模型和版本"""
+        """解析生命周期操作的模型和版本."""
         if version_id is not None and model_id is None and name is None:
             version_record = await version_repo.get_version(
                 version_id
@@ -104,7 +104,7 @@ class ModelLifecycleService:
             version_id: str | None = None,
             updated_by: str = "system",
     ) -> MutationResult:
-        """激活模型或指定模型版本
+        """激活模型或指定模型版本.
 
         如果指定 version 或 version_id，则激活指定版本和模型。
         如果未指定版本，则激活模型及其全部 inactive 版本。
@@ -274,7 +274,7 @@ class ModelLifecycleService:
             version_id: str | None = None,
             updated_by: str = "system",
     ) -> dict[str, Any]:
-        """停用模型或模型版本
+        """停用模型或模型版本.
 
         如果指定 version 或 version_id，则停用指定版本。
         如果未指定版本，则停用模型及其全部 active 版本。
@@ -457,7 +457,7 @@ class ModelLifecycleService:
             version_id: str | None = None,
             updated_by: str = "system",
     ) -> dict[str, Any]:
-        """弃用模型或指定模型版本
+        """弃用模型或指定模型版本.
 
         如果指定 version 或 version_id，则弃用指定版本。
         如果未指定版本，则弃用模型及其全部 active、inactive 版本。
@@ -646,7 +646,7 @@ class ModelLifecycleService:
             version_id: str | None = None,
             updated_by: str = "system",
     ) -> dict[str, Any]:
-        """归档模型或指定模型版本
+        """归档模型或指定模型版本.
 
         指定 ``version_id`` 时仅归档该版本；指定 ``model_id`` 时归档
         模型及其全部 inactive、deprecated 版本。两种操作都会拒绝仍有

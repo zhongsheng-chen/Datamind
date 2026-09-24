@@ -1,4 +1,4 @@
-"""推理响应
+"""推理响应.
 
 统一构造分类、评分及预测失败时的接口响应。
 
@@ -54,7 +54,7 @@ def build_prediction_response(
         *,
         request_id: str,
 ) -> dict[str, Any]:
-    """构造预测响应
+    """构造预测响应.
 
     筛选响应字段并附加请求 ID，不修改原始结果。
 
@@ -74,7 +74,7 @@ def build_prediction_response(
 def _select_prediction_fields(
         prediction: dict[str, Any],
 ) -> dict[str, Any]:
-    """筛选允许公开的预测响应字段。"""
+    """筛选允许公开的预测响应字段."""
     task_type = prediction.get(
         "task_type",
         prediction.get("service_type"),
@@ -100,7 +100,7 @@ def build_batch_prediction_response(
         *,
         batch_id: str,
 ) -> dict[str, Any]:
-    """构造批量预测响应
+    """构造批量预测响应.
 
     筛选响应字段并附加批次 ID，不修改原始结果。
 

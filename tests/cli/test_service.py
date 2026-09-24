@@ -1,4 +1,4 @@
-"""模型服务 CLI 测试
+"""模型服务 CLI 测试.
 
 验证模型服务进程启动不依赖本地 CLI 登录会话。
 
@@ -44,7 +44,7 @@ def test_service_run_does_not_authenticate_cli_user(
         arguments: list[str],
         reload_enabled: bool,
 ) -> None:
-    """测试服务启动不执行用户认证"""
+    """测试服务启动不执行用户认证."""
     async def reject_authentication(
             _context: object,
     ) -> None:

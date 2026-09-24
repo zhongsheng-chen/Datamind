@@ -1,4 +1,4 @@
-"""运行时配置
+"""运行时配置.
 
 定义状态协调、心跳与影子执行参数。
 
@@ -38,7 +38,7 @@ from pydantic_settings import (
 
 
 class RuntimeConfig(BaseSettings):
-    """运行时配置类"""
+    """运行时配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_RUNTIME_",
@@ -55,7 +55,7 @@ class RuntimeConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "RuntimeConfig":
-        """校验运行时配置参数"""
+        """校验运行时配置参数."""
         if self.reconcile_interval <= 0:
             raise ValueError(
                 "reconcile_interval 必须大于 0，"

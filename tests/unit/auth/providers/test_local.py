@@ -1,4 +1,4 @@
-"""本地认证提供方测试
+"""本地认证提供方测试.
 
 验证本地认证配置、用户状态校验、密码校验、登录失败锁定、
 临时锁定自动解除、密码哈希升级和统一身份返回逻辑。
@@ -73,7 +73,7 @@ CURRENT_TIME = datetime(
 def create_user(
         **overrides: Any,
 ) -> SimpleNamespace:
-    """创建本地认证测试用户"""
+    """创建本地认证测试用户."""
     values: dict[str, Any] = {
         "user_id": "usr_123456789abc",
         "username": "alice",
@@ -101,7 +101,7 @@ def create_user_repo(
         *,
         user: SimpleNamespace | None = None,
 ) -> MagicMock:
-    """创建用户仓储测试替身"""
+    """创建用户仓储测试替身."""
     user_repo = MagicMock()
     user_repo.get_user = AsyncMock(
         return_value=user
@@ -152,7 +152,7 @@ def test_local_provider_config_validates_parameters(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试本地认证配置参数"""
+    """测试本地认证配置参数."""
     with pytest.raises(
             ValueError,
             match=expected_message,
@@ -163,7 +163,7 @@ def test_local_provider_config_validates_parameters(
 
 
 def test_local_provider_config_uses_defaults() -> None:
-    """测试本地认证配置默认值"""
+    """测试本地认证配置默认值."""
     config = LocalProviderConfig()
 
     assert config.max_failed_login_attempts == 5
@@ -176,7 +176,7 @@ def test_local_provider_config_uses_defaults() -> None:
 async def test_authenticate_requires_break_glass_user(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试应急模式拒绝普通本地账户"""
+    """测试应急模式拒绝普通本地账户."""
     user = create_user(
         is_break_glass=False
     )
@@ -215,7 +215,7 @@ async def test_authenticate_requires_break_glass_user(
 async def test_authenticate_returns_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地认证成功并返回统一身份"""
+    """测试本地认证成功并返回统一身份."""
     user = create_user()
     user_repo = create_user_repo(
         user=user
@@ -274,7 +274,7 @@ async def test_authenticate_returns_identity(
 async def test_authenticate_rejects_missing_user(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试用户不存在时拒绝认证"""
+    """测试用户不存在时拒绝认证."""
     user_repo = create_user_repo()
     provider = LocalAuthProvider(
         user_repo=user_repo
@@ -348,7 +348,7 @@ async def test_authenticate_validates_user_status(
         locked_until: datetime | None,
         expected_error: type[Exception],
 ) -> None:
-    """测试停用、锁定和未知状态用户"""
+    """测试停用、锁定和未知状态用户."""
     user = create_user(
         status=str(
             status
@@ -393,7 +393,7 @@ async def test_authenticate_validates_user_status(
 async def test_authenticate_does_not_disclose_disabled_user_for_wrong_password(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试密码错误时不暴露用户停用状态"""
+    """测试密码错误时不暴露用户停用状态."""
     user = create_user(
         status=str(
             UserStatus.DISABLED
@@ -431,7 +431,7 @@ async def test_authenticate_does_not_disclose_disabled_user_for_wrong_password(
 async def test_authenticate_unlocks_expired_lock(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试临时锁定到期后自动解锁"""
+    """测试临时锁定到期后自动解锁."""
     user = create_user(
         status=str(
             UserStatus.LOCKED
@@ -483,7 +483,7 @@ async def test_authenticate_unlocks_expired_lock(
 async def test_authenticate_rejects_missing_password_hash(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地用户缺少密码哈希时拒绝认证"""
+    """测试本地用户缺少密码哈希时拒绝认证."""
     user = create_user(
         password_hash=None
     )
@@ -520,7 +520,7 @@ async def test_authenticate_rejects_missing_password_hash(
 async def test_authenticate_records_login_failure(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试密码错误时记录登录失败"""
+    """测试密码错误时记录登录失败."""
     user = create_user(
         failed_login_count=2
     )
@@ -573,7 +573,7 @@ async def test_authenticate_records_login_failure(
 async def test_authenticate_locks_user_at_failure_threshold(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试达到失败阈值时锁定用户"""
+    """测试达到失败阈值时锁定用户."""
     user = create_user(
         failed_login_count=4
     )
@@ -637,7 +637,7 @@ async def test_authenticate_locks_user_at_failure_threshold(
 async def test_authenticate_upgrades_password_hash(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按当前 Argon2 参数升级密码哈希"""
+    """测试按当前 Argon2 参数升级密码哈希."""
     user = create_user(
         password_changed_at=None
     )
@@ -690,7 +690,7 @@ async def test_authenticate_upgrades_password_hash(
 async def test_authenticate_preserves_password_changed_at(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试升级密码哈希时保留原密码变更时间"""
+    """测试升级密码哈希时保留原密码变更时间."""
     password_changed_at = (
         CURRENT_TIME
         - timedelta(
@@ -760,7 +760,7 @@ async def test_authenticate_skips_password_hash_upgrade(
         upgrade_password_hash: bool,
         needs_upgrade: bool,
 ) -> None:
-    """测试关闭或无需升级时不更新密码哈希"""
+    """测试关闭或无需升级时不更新密码哈希."""
     user = create_user()
     user_repo = create_user_repo(
         user=user
@@ -820,7 +820,7 @@ async def test_authenticate_skips_password_hash_upgrade(
 
 @pytest.mark.asyncio
 async def test_authenticate_rejects_naive_current_time() -> None:
-    """测试拒绝不包含时区的当前时间"""
+    """测试拒绝不包含时区的当前时间."""
     user_repo = create_user_repo(
         user=create_user()
     )

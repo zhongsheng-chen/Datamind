@@ -1,4 +1,4 @@
-"""管理控制台资源动作分派。
+"""管理控制台资源动作分派.
 
 将资源生命周期动作与 ASGI 请求处理解耦，避免控制台应用入口持续膨胀。
 """
@@ -28,7 +28,7 @@ async def dispatch_resource_action(
         identity_factory: ServiceFactory,
         batch_factory: ServiceFactory,
 ) -> dict[str, Any]:
-    """根据资源和动作调用相应领域服务。"""
+    """根据资源和动作调用相应领域服务."""
     if resource == "models":
         if action in {"activate", "deactivate", "deprecate", "archive"}:
             lifecycle_service = model_lifecycle_factory()
@@ -194,7 +194,7 @@ async def _dispatch_version_action(
         lifecycle_factory: ServiceFactory,
         deletion_factory: ServiceFactory,
 ) -> dict[str, Any]:
-    """分派模型版本生命周期和删除动作。"""
+    """分派模型版本生命周期和删除动作."""
     if action in {"activate", "deactivate", "deprecate", "archive"}:
         service = lifecycle_factory()
         handler = getattr(service, action)
@@ -235,7 +235,7 @@ async def _dispatch_identity_action(
         username: str,
         identity_factory: ServiceFactory,
 ) -> dict[str, Any]:
-    """分派用户和角色管理动作。"""
+    """分派用户和角色管理动作."""
     service = identity_factory(
         audit_source=AuditSource.HTTP,
     )

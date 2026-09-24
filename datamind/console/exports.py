@@ -1,4 +1,4 @@
-"""管理控制台导出格式
+"""管理控制台导出格式.
 
 负责生成 CSV 行、转换字段值和统一导出文件名。
 
@@ -26,7 +26,7 @@ def encode_csv_row(
         *,
         header: bool = False,
 ) -> str:
-    """编码 CSV 表头或数据行"""
+    """编码 CSV 表头或数据行."""
     output = io.StringIO(
         newline=""
     )
@@ -53,7 +53,7 @@ def encode_csv_row(
 def csv_value(
         value: Any,
 ) -> Any:
-    """转换 CSV 字段并规避表格公式注入"""
+    """转换 CSV 字段并规避表格公式注入."""
     if value is None:
         return ""
 
@@ -90,7 +90,7 @@ def export_filename(
         now: datetime | None = None,
         timezone_name: str | None = None,
 ) -> str:
-    """生成统一的控制台导出文件名"""
+    """生成统一的控制台导出文件名."""
     export_time = (
         now
         if now is not None

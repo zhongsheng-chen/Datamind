@@ -1,4 +1,4 @@
-"""模型部署生命周期服务测试
+"""模型部署生命周期服务测试.
 
 验证部署创建、启用、禁用、运行控制同步和配置校验。
 
@@ -62,7 +62,7 @@ from datamind.services import DeploymentLifecycleService
 
 
 class FakeUnitOfWork:
-    """部署服务测试工作单元"""
+    """部署服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -75,7 +75,7 @@ class FakeUnitOfWork:
 
 
 def create_deployment(*, status: str = "inactive") -> SimpleNamespace:
-    """创建部署测试对象"""
+    """创建部署测试对象."""
     return SimpleNamespace(
         deployment_id="dep_test",
         model_id="mdl_test",
@@ -104,7 +104,7 @@ def configure_service(
         referenced_variants: list[object] | None = None,
         routings: list[object] | None = None,
 ) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
-    """配置部署服务依赖替身"""
+    """配置部署服务依赖替身."""
     model = (
         SimpleNamespace(
             model_id="mdl_test",
@@ -247,7 +247,7 @@ def configure_service(
 async def test_create_deployment_passes_normalized_values(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建部署并向仓储传递规范化参数"""
+    """测试创建部署并向仓储传递规范化参数."""
     deployment_repo, _, resolver, _ = configure_service(
         monkeypatch,
     )
@@ -284,7 +284,7 @@ async def test_create_deployment_passes_normalized_values(
 async def test_create_shadow_deployment_passes_normalized_values(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建影子部署并传递规范化发布参数"""
+    """测试创建影子部署并传递规范化发布参数."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
     )
@@ -308,7 +308,7 @@ async def test_create_shadow_deployment_passes_normalized_values(
 async def test_create_scoring_deployment_uses_default_threshold(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试评分部署保存默认决策阈值"""
+    """测试评分部署保存默认决策阈值."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         task_type="scoring",
@@ -360,7 +360,7 @@ def test_validate_release_mode_rejects_invalid_combinations(
         role: str,
         message: str,
 ) -> None:
-    """测试拒绝不合法的发布方式和部署角色组合"""
+    """测试拒绝不合法的发布方式和部署角色组合."""
     with pytest.raises(
             DeploymentError,
             match=message,
@@ -375,7 +375,7 @@ def test_validate_release_mode_rejects_invalid_combinations(
 async def test_create_deployment_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型不存在时拒绝创建部署"""
+    """测试模型不存在时拒绝创建部署."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         model_exists=False,
@@ -393,7 +393,7 @@ async def test_create_deployment_rejects_missing_model(
 async def test_create_deployment_rejects_missing_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本不存在时拒绝创建部署"""
+    """测试模型版本不存在时拒绝创建部署."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         version_exists=False,
@@ -412,7 +412,7 @@ async def test_create_deployment_rejects_missing_version(
 async def test_create_deployment_rejects_invalid_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝未知部署环境"""
+    """测试拒绝未知部署环境."""
     deployment_repo, _, _, _ = configure_service(monkeypatch)
 
     with pytest.raises(ValueError, match="not a valid Environment"):
@@ -436,7 +436,7 @@ def test_resolve_threshold_accepts_supported_tasks(
         task_type: str,
         threshold: float,
 ) -> None:
-    """测试接受合法的分类和评分决策阈值"""
+    """测试接受合法的分类和评分决策阈值."""
     result = DeploymentLifecycleService._resolve_threshold(
         task_type=task_type,
         threshold=threshold,
@@ -446,7 +446,7 @@ def test_resolve_threshold_accepts_supported_tasks(
 
 
 def test_resolve_threshold_rejects_unsupported_task() -> None:
-    """测试有配置时拒绝未知任务类型"""
+    """测试有配置时拒绝未知任务类型."""
     with pytest.raises(DeploymentError, match="不支持的任务类型"):
         DeploymentLifecycleService._resolve_threshold(
             task_type="unknown",
@@ -455,7 +455,7 @@ def test_resolve_threshold_rejects_unsupported_task() -> None:
 
 
 def test_resolve_threshold_wraps_validation_error() -> None:
-    """测试将配置模型校验异常转换为部署异常"""
+    """测试将配置模型校验异常转换为部署异常."""
     with pytest.raises(DeploymentError, match="配置校验失败"):
         DeploymentLifecycleService._resolve_threshold(
             task_type="classification",
@@ -467,7 +467,7 @@ def test_resolve_threshold_wraps_validation_error() -> None:
 async def test_enable_deployment_activates_valid_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用满足条件的部署"""
+    """测试启用满足条件的部署."""
     deployment = create_deployment()
     deployment_repo, control_repo, _, _ = configure_service(
         monkeypatch,
@@ -500,7 +500,7 @@ async def test_enable_deployment_activates_valid_deployment(
 async def test_enable_deployment_reuses_runtime_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重新启用部署时复用运行控制记录"""
+    """测试重新启用部署时复用运行控制记录."""
     control = SimpleNamespace(
         desired_status="unloaded",
         generation=2,
@@ -527,7 +527,7 @@ async def test_enable_deployment_reuses_runtime_control(
 async def test_enable_rejects_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用不存在的部署时报错"""
+    """测试启用不存在的部署时报错."""
     deployment_repo, _, _, _ = configure_service(monkeypatch)
 
     with pytest.raises(DeploymentNotFoundError, match="部署不存在"):
@@ -542,7 +542,7 @@ async def test_enable_rejects_missing_deployment(
 async def test_enable_rejects_inactive_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试非活动版本不能启用部署"""
+    """测试非活动版本不能启用部署."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(),
@@ -561,7 +561,7 @@ async def test_enable_rejects_inactive_version(
 async def test_enable_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型不存在时拒绝启用部署"""
+    """测试模型不存在时拒绝启用部署."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(),
@@ -580,7 +580,7 @@ async def test_enable_rejects_missing_model(
 async def test_disable_sets_runtime_control_unloaded(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试禁用部署同步请求 Worker 卸载模型"""
+    """测试禁用部署同步请求 Worker 卸载模型."""
     deployment = create_deployment(status="active")
     control = SimpleNamespace(
         desired_status="loaded",
@@ -615,7 +615,7 @@ async def test_disable_sets_runtime_control_unloaded(
 async def test_disable_creates_runtime_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次禁用部署时创建 unloaded 控制记录"""
+    """测试首次禁用部署时创建 unloaded 控制记录."""
     deployment = create_deployment(status="active")
     _, control_repo, _, _ = configure_service(
         monkeypatch,
@@ -640,7 +640,7 @@ async def test_disable_creates_runtime_control(
 async def test_disable_rejects_running_experiment_reference(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试运行中实验引用部署时拒绝禁用"""
+    """测试运行中实验引用部署时拒绝禁用."""
     deployment = create_deployment(
         status="active"
     )
@@ -679,7 +679,7 @@ async def test_disable_rejects_running_experiment_reference(
 async def test_disable_allows_unreferenced_running_experiment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试运行中实验未引用当前部署时允许禁用"""
+    """测试运行中实验未引用当前部署时允许禁用."""
     deployment = create_deployment(
         status="active"
     )
@@ -707,7 +707,7 @@ async def test_disable_allows_unreferenced_running_experiment(
 async def test_disable_cascades_to_enabled_routings(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试禁用部署时级联禁用已启用路由"""
+    """测试禁用部署时级联禁用已启用路由."""
     routings = [
         SimpleNamespace(
             routing_id="rtn_first",
@@ -746,7 +746,7 @@ async def test_disable_cascades_to_enabled_routings(
 async def test_enable_does_not_restore_disabled_routings(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重新启用部署不会自动恢复路由"""
+    """测试重新启用部署不会自动恢复路由."""
     routing = SimpleNamespace(
         routing_id="rtn_disabled",
         enabled=False,
@@ -770,7 +770,7 @@ async def test_enable_does_not_restore_disabled_routings(
 async def test_disable_rejects_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试禁用不存在的部署时报错"""
+    """测试禁用不存在的部署时报错."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch
     )
@@ -787,7 +787,7 @@ async def test_disable_rejects_missing_deployment(
 async def test_update_deployment_normalizes_release_values(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试仅允许编辑停用部署并规范化发布参数"""
+    """测试仅允许编辑停用部署并规范化发布参数."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(),
@@ -846,7 +846,7 @@ async def test_update_deployment_normalizes_release_values(
 async def test_update_deployment_to_full_sets_routing_to_100_percent(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试切换为全量发布时同步固定现有路由比例"""
+    """测试切换为全量发布时同步固定现有路由比例."""
     deployment = create_deployment()
     deployment.rollout_type = "canary"
     deployment.role = "challenger"
@@ -885,7 +885,7 @@ async def test_update_deployment_to_full_sets_routing_to_100_percent(
 async def test_update_deployment_rejects_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用状态部署必须先停用再编辑"""
+    """测试启用状态部署必须先停用再编辑."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(status="active"),
@@ -907,7 +907,7 @@ async def test_update_deployment_rejects_active_deployment(
 async def test_disable_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型不存在时拒绝禁用部署"""
+    """测试模型不存在时拒绝禁用部署."""
     deployment_repo, _, _, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(status="active"),

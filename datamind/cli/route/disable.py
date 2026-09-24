@@ -1,4 +1,4 @@
-"""禁用路由命令
+"""禁用路由命令.
 
 提供路由规则禁用功能。
 
@@ -44,7 +44,7 @@ def disable_route(
             help="输出格式：text / json"
         ),
 ):
-    """禁用路由规则"""
+    """禁用路由规则."""
 
     @audit(
         action="route.disable",

@@ -1,4 +1,4 @@
-"""运行时服务工厂
+"""运行时服务工厂.
 
 根据任务类型创建运行时服务。
 
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
 
 def _classification_service_type() -> type[ClassificationService]:
-    """按需加载分类任务运行时服务。"""
+    """按需加载分类任务运行时服务."""
     from datamind.runtime.serving.classification_service import (
         ClassificationService,
     )
@@ -53,14 +53,14 @@ def _classification_service_type() -> type[ClassificationService]:
 
 
 def _scoring_service_type() -> type[ScoringService]:
-    """按需加载评分任务运行时服务。"""
+    """按需加载评分任务运行时服务."""
     from datamind.runtime.serving.scoring_service import ScoringService
 
     return ScoringService
 
 
 class RuntimeServiceFactory:
-    """运行时服务工厂
+    """运行时服务工厂.
 
     根据任务类型创建运行时服务。
     """
@@ -80,7 +80,7 @@ class RuntimeServiceFactory:
             data_types: dict[str, DataType] | None = None,
             threshold: float | None = None,
     ) -> BaseRuntimeService:
-        """创建运行时服务
+        """创建运行时服务.
 
         参数：
             runtime_model: 已加载运行时模型
@@ -148,7 +148,7 @@ class RuntimeServiceFactory:
             runtime_model: RuntimeModel,
             task_type: str | None,
     ) -> str:
-        """解析任务类型
+        """解析任务类型.
 
         优先级：
           - 显式传入 task_type
@@ -216,7 +216,7 @@ class RuntimeServiceFactory:
                 ClassificationConfig | ScoringConfig
             ],
     ) -> float:
-        """解析任务决策阈值
+        """解析任务决策阈值.
 
         优先级：
           - 显式传入的 threshold
