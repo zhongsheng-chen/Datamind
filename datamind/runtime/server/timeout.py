@@ -1,4 +1,4 @@
-"""预测请求时间预算
+"""预测请求时间预算.
 
 统一管理单条和批量预测请求的截止时间，
 记录处理阶段并将预算耗尽转换为请求超时异常。
@@ -28,10 +28,10 @@ REQUEST_TIMEOUT_GRACE_SECONDS = 5
 
 
 class RequestTimeoutError(RuntimeError):
-    """预测请求处理预算耗尽"""
+    """预测请求处理预算耗尽."""
 
     def __init__(self, seconds: float, stage: str) -> None:
-        """初始化请求超时异常
+        """初始化请求超时异常.
 
         参数：
             seconds: 请求超时时间（秒）
@@ -46,7 +46,7 @@ class RequestTimeoutError(RuntimeError):
 
 @dataclass
 class RequestBudget:
-    """请求时间预算
+    """请求时间预算.
 
     属性：
         seconds: 请求超时时间（秒）
@@ -59,7 +59,7 @@ class RequestBudget:
     stage: str = "request"
 
     def enter_stage(self, stage: str) -> None:
-        """检查剩余时间并切换处理阶段
+        """检查剩余时间并切换处理阶段.
 
         参数：
             stage: 下一处理阶段
@@ -74,7 +74,7 @@ class RequestBudget:
 
 @asynccontextmanager
 async def request_budget(seconds: float) -> AsyncIterator[RequestBudget]:
-    """建立共享截止时间的请求作用域
+    """建立共享截止时间的请求作用域.
 
     路由、模型加载、预测及结果保存共享同一预算。
     下游自身的超时和外部取消保持原始异常，不转换为请求超时。

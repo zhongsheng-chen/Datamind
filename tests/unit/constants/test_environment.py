@@ -1,4 +1,4 @@
-"""服务环境枚举测试
+"""服务环境枚举测试.
 
 验证 Environment 的成员、字符串行为和支持集合。
 
@@ -36,7 +36,7 @@ EXPECTED_ENVIRONMENTS = {
 
 
 def test_environment_members_and_values() -> None:
-    """测试服务环境枚举包含预期成员和值"""
+    """测试服务环境枚举包含预期成员和值."""
     assert {
         member: member.value
         for member in Environment
@@ -54,7 +54,7 @@ def test_environment_string_behavior(
         member: Environment,
         expected_value: str,
 ) -> None:
-    """测试服务环境枚举具有字符串语义"""
+    """测试服务环境枚举具有字符串语义."""
     assert isinstance(
         member,
         str,
@@ -95,19 +95,19 @@ def test_environment_can_be_created_from_value(
         value: str,
         expected_member: Environment,
 ) -> None:
-    """测试可以通过字符串值反向构造服务环境"""
+    """测试可以通过字符串值反向构造服务环境."""
     assert Environment(value) is expected_member
 
 
 def test_supported_environments_contains_all_values() -> None:
-    """测试支持集合包含全部服务环境值"""
+    """测试支持集合包含全部服务环境值."""
     assert SUPPORTED_ENVIRONMENTS == frozenset(
         EXPECTED_ENVIRONMENTS.values()
     )
 
 
 def test_supported_environments_matches_enum_members() -> None:
-    """测试支持集合与枚举成员保持一致"""
+    """测试支持集合与枚举成员保持一致."""
     assert {
         str(environment)
         for environment in SUPPORTED_ENVIRONMENTS
@@ -129,6 +129,6 @@ def test_supported_environments_matches_enum_members() -> None:
 def test_invalid_environment_raises_value_error(
         value: str,
 ) -> None:
-    """测试非法服务环境不能构造枚举"""
+    """测试非法服务环境不能构造枚举."""
     with pytest.raises(ValueError):
         Environment(value)

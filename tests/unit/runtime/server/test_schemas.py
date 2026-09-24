@@ -1,4 +1,4 @@
-"""运行时请求结构测试
+"""运行时请求结构测试.
 
 验证运行控制和预测请求的字段约束。
 
@@ -25,7 +25,7 @@ from datamind.runtime.server.schemas import (
 
 
 def test_control_request_rejects_operator() -> None:
-    """测试控制请求不接受客户端操作人"""
+    """测试控制请求不接受客户端操作人."""
     with pytest.raises(
             ValidationError,
             match="operator",
@@ -37,7 +37,7 @@ def test_control_request_rejects_operator() -> None:
 
 
 def test_predict_request_rejects_internal_model_id() -> None:
-    """测试公开预测请求不再接受内部模型 ID"""
+    """测试公开预测请求不再接受内部模型 ID."""
     with pytest.raises(ValidationError):
         PredictRequest.model_validate({
             "model_id": "mdl_test",
@@ -46,7 +46,7 @@ def test_predict_request_rejects_internal_model_id() -> None:
 
 
 def test_batch_predict_request_accepts_instances() -> None:
-    """测试批量预测请求使用实例列表"""
+    """测试批量预测请求使用实例列表."""
     request = BatchPredictRequest.model_validate({
         "model_name": "scorecard",
         "instances": [{
@@ -62,7 +62,7 @@ def test_batch_predict_request_accepts_instances() -> None:
 
 
 def test_batch_predict_request_rejects_legacy_features_list() -> None:
-    """测试批量预测请求拒绝旧版特征列表"""
+    """测试批量预测请求拒绝旧版特征列表."""
     with pytest.raises(ValidationError):
         BatchPredictRequest.model_validate({
             "deployment_id": "dep_test",

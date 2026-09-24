@@ -1,4 +1,4 @@
-"""运行实例状态枚举
+"""运行实例状态枚举.
 
 集中定义数据库运行状态和查询时派生的健康状态，避免运行时、仓储和服务层
 分别维护字符串常量。
@@ -14,7 +14,7 @@ from typing import Final
 
 
 class RuntimeStatus(str, Enum):
-    """数据库存储的运行实例生命周期状态"""
+    """数据库存储的运行实例生命周期状态."""
 
     STARTING = "starting"
     RUNNING = "running"
@@ -23,19 +23,19 @@ class RuntimeStatus(str, Enum):
     FAILED = "failed"
 
     def __str__(self) -> str:
-        """返回运行状态字符串"""
+        """返回运行状态字符串."""
         return self.value
 
 
 class RuntimeHealthStatus(str, Enum):
-    """查询时派生的运行实例健康状态"""
+    """查询时派生的运行实例健康状态."""
 
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
     UNKNOWN = "unknown"
 
     def __str__(self) -> str:
-        """返回健康状态字符串"""
+        """返回健康状态字符串."""
         return self.value
 
 

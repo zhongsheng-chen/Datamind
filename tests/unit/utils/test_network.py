@@ -1,4 +1,4 @@
-"""网络工具测试
+"""网络工具测试.
 
 验证主机 IP 获取、网络异常回退、Socket 参数和主机名获取行为。
 
@@ -25,7 +25,7 @@ import datamind.utils.network as network_utils
 
 
 class FakeSocket:
-    """测试用 Socket 对象"""
+    """测试用 Socket 对象."""
 
     def __init__(
             self,
@@ -85,7 +85,7 @@ class FakeSocket:
 def test_get_host_ip_returns_socket_address(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试返回用于对外通信的主机 IP"""
+    """测试返回用于对外通信的主机 IP."""
     fake_socket = FakeSocket(
         ip="192.168.1.100"
     )
@@ -132,7 +132,7 @@ def test_get_host_ip_returns_socket_address(
 def test_get_host_ip_returns_loopback_when_connect_fails(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试连接失败时回退到回环地址"""
+    """测试连接失败时回退到回环地址."""
     fake_socket = FakeSocket(
         connect_error=OSError(
             "network unavailable"
@@ -159,7 +159,7 @@ def test_get_host_ip_returns_loopback_when_connect_fails(
 def test_get_host_ip_returns_loopback_when_getsockname_fails(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试读取主机地址失败时回退到回环地址"""
+    """测试读取主机地址失败时回退到回环地址."""
     fake_socket = FakeSocket(
         getsockname_error=OSError(
             "address unavailable"
@@ -182,7 +182,7 @@ def test_get_host_ip_returns_loopback_when_getsockname_fails(
 def test_get_host_ip_returns_loopback_when_socket_creation_fails(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建 Socket 失败时回退到回环地址"""
+    """测试创建 Socket 失败时回退到回环地址."""
     def create_socket(
             *args: Any,
     ) -> FakeSocket:
@@ -207,7 +207,7 @@ def test_get_host_ip_returns_loopback_when_socket_creation_fails(
 def test_get_hostname_returns_socket_hostname(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试返回当前主机名"""
+    """测试返回当前主机名."""
     monkeypatch.setitem(
         vars(network_utils.socket),
         "gethostname",

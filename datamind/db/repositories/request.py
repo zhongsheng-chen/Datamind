@@ -1,4 +1,4 @@
-"""请求仓储
+"""请求仓储.
 
 提供请求及处理结果的查询与写入能力，
 用于调用追踪、异常排查和性能分析。
@@ -59,7 +59,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class RequestRepository(BaseRepository):
-    """请求仓储"""
+    """请求仓储."""
 
     @staticmethod
     def _validate_pagination(
@@ -67,7 +67,7 @@ class RequestRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if (
                 limit is not None
                 and limit < 0
@@ -88,7 +88,7 @@ class RequestRepository(BaseRepository):
     def _validate_latency_ms(
             latency_ms: float | None,
     ) -> None:
-        """校验处理耗时"""
+        """校验处理耗时."""
         if (
                 latency_ms is not None
                 and latency_ms < 0
@@ -101,7 +101,7 @@ class RequestRepository(BaseRepository):
             self,
             request_id: str,
     ) -> Request | None:
-        """获取请求记录
+        """获取请求记录.
 
         参数：
             request_id: 请求 ID
@@ -135,7 +135,7 @@ class RequestRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Request]:
-        """获取请求记录列表
+        """获取请求记录列表.
 
         参数：
             request_id: 请求 ID（可选）
@@ -233,7 +233,7 @@ class RequestRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Request]:
-        """获取最近请求列表
+        """获取最近请求列表.
 
         参数：
             limit: 返回数量限制，默认 100
@@ -251,7 +251,7 @@ class RequestRepository(BaseRepository):
             self,
             batch_id: str,
     ) -> list[Request]:
-        """获取批次请求列表
+        """获取批次请求列表.
 
         参数：
             batch_id: 批次 ID
@@ -274,7 +274,7 @@ class RequestRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Request]:
-        """获取模型请求列表
+        """获取模型请求列表.
 
         参数：
             model_id: 模型 ID
@@ -304,7 +304,7 @@ class RequestRepository(BaseRepository):
             user: str | None = None,
             ip: str | None = None,
     ) -> Request:
-        """创建请求记录
+        """创建请求记录.
 
         新建请求固定处于 received 状态。
 
@@ -383,7 +383,7 @@ class RequestRepository(BaseRepository):
             response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
-        """标记请求处理成功
+        """标记请求处理成功.
 
         参数：
             request: 请求记录对象
@@ -429,7 +429,7 @@ class RequestRepository(BaseRepository):
             response: dict | None = None,
             latency_ms: float | None = None,
     ) -> Request:
-        """标记请求处理失败
+        """标记请求处理失败.
 
         参数：
             request: 请求记录对象
@@ -468,7 +468,7 @@ class RequestRepository(BaseRepository):
 
     @staticmethod
     def reset_for_retry(request: Request) -> Request:
-        """将未成功的批次请求重置为待处理状态"""
+        """将未成功的批次请求重置为待处理状态."""
         if request.batch_id is None or request.batch_index is None:
             raise ValueError("只有批次请求可以重置后重试")
 

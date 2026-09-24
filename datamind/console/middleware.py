@@ -1,4 +1,4 @@
-"""管理控制台 HTTP 中间件
+"""管理控制台 HTTP 中间件.
 
 负责绑定请求日志上下文，并为浏览器响应附加安全策略和防护响应头。
 
@@ -24,14 +24,14 @@ from datamind.context.scope import context_scope
 
 
 class RequestContextMiddleware:
-    """在 HTTP 请求生命周期内绑定日志上下文"""
+    """在 HTTP 请求生命周期内绑定日志上下文."""
 
     def __init__(
             self,
             app: ASGIApp,
             context_factory: Callable[[Request], dict[str, object]],
     ) -> None:
-        """初始化请求上下文中间件
+        """初始化请求上下文中间件.
 
         参数：
             app: 下游 ASGI 应用
@@ -58,13 +58,13 @@ class RequestContextMiddleware:
 
 
 class SecurityHeadersMiddleware:
-    """为控制台响应增加浏览器安全头"""
+    """为控制台响应增加浏览器安全头."""
 
     def __init__(
             self,
             app: ASGIApp,
     ) -> None:
-        """初始化安全响应头中间件
+        """初始化安全响应头中间件.
 
         参数：
             app: 下游 ASGI 应用
@@ -121,7 +121,7 @@ def security_headers(
         app: ASGIApp,
         /,
 ) -> ASGIApp:
-    """创建安全响应头中间件"""
+    """创建安全响应头中间件."""
     return SecurityHeadersMiddleware(
         app
     )

@@ -1,4 +1,4 @@
-"""运行时 Celery 应用
+"""运行时 Celery 应用.
 
 定义运行时异步任务的 Celery 应用，配置 Redis Broker、消息可靠性
 和队列路由。批量预测与影子预测使用不同队列，执行状态及结果由
@@ -24,7 +24,7 @@ from datamind.config.queue import TaskQueueConfig
 def create_celery_app(
         config: TaskQueueConfig | None = None,
 ) -> Celery:
-    """根据任务队列配置创建 Celery 应用"""
+    """根据任务队列配置创建 Celery 应用."""
     resolved_config = config or get_task_queue_config()
 
     app = Celery(

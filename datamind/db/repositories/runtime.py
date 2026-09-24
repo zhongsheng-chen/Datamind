@@ -1,4 +1,4 @@
-"""模型运行仓储
+"""模型运行仓储.
 
 提供模型运行状态的查询与管理能力。
 
@@ -67,7 +67,7 @@ from datamind.db.repositories.base import BaseRepository
 
 @dataclass(slots=True)
 class RuntimePatch:
-    """运行更新结构
+    """运行更新结构.
 
     注意：
         不允许通过 patch 修改 status 和生命周期时间字段，
@@ -89,13 +89,13 @@ class RuntimePatch:
 
 
 class RuntimeRepository(BaseRepository):
-    """模型运行仓储"""
+    """模型运行仓储."""
 
     async def get_runtime(
             self,
             runtime_id: str,
     ) -> Runtime | None:
-        """获取运行记录
+        """获取运行记录.
 
         参数：
             runtime_id: 运行 ID
@@ -122,7 +122,7 @@ class RuntimeRepository(BaseRepository):
             *,
             worker_id: str = "default",
     ) -> Runtime | None:
-        """获取部署对应的运行记录
+        """获取部署对应的运行记录.
 
         参数：
             deployment_id: 部署 ID
@@ -161,7 +161,7 @@ class RuntimeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Runtime]:
-        """获取运行记录列表
+        """获取运行记录列表.
 
         参数：
             runtime_id: 运行 ID（可选）
@@ -291,7 +291,7 @@ class RuntimeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Runtime]:
-        """获取运行中实例
+        """获取运行中实例.
 
         参数：
             model_id: 模型 ID（可选）
@@ -321,7 +321,7 @@ class RuntimeRepository(BaseRepository):
             stale_before: datetime,
             exclude_worker_id: str | None = None,
     ) -> list[str]:
-        """将指定环境中失联的活动实例标记为失败。"""
+        """将指定环境中失联的活动实例标记为失败."""
         if not environment:
             raise ValueError(
                 "environment 不能为空"
@@ -391,7 +391,7 @@ class RuntimeRepository(BaseRepository):
             error: str | None = None,
             context: dict | None = None,
     ) -> Runtime:
-        """创建运行记录
+        """创建运行记录.
 
         新建运行记录默认处于 stopped 状态。
 
@@ -463,7 +463,7 @@ class RuntimeRepository(BaseRepository):
             runtime: Runtime,
             patch: RuntimePatch,
     ) -> Runtime:
-        """更新运行记录
+        """更新运行记录.
 
         参数：
             runtime: 运行记录对象
@@ -506,7 +506,7 @@ class RuntimeRepository(BaseRepository):
             worker_id: str,
             generation: int,
     ) -> Runtime | None:
-        """更新部署运行记录已应用的控制版本号
+        """更新部署运行记录已应用的控制版本号.
 
         参数：
             deployment_id: 部署 ID
@@ -535,7 +535,7 @@ class RuntimeRepository(BaseRepository):
             started_by: str | None = None,
             context: dict | None = None,
     ) -> Runtime:
-        """标记运行实例为启动中
+        """标记运行实例为启动中.
 
         参数：
             runtime: 运行记录对象
@@ -566,7 +566,7 @@ class RuntimeRepository(BaseRepository):
             loaded_at: datetime | None = None,
             applied_generation: int | None = None,
     ) -> Runtime:
-        """标记运行实例为运行中
+        """标记运行实例为运行中.
 
         参数：
             runtime: 运行记录对象
@@ -610,7 +610,7 @@ class RuntimeRepository(BaseRepository):
             *,
             stopped_by: str | None = None,
     ) -> Runtime:
-        """标记运行实例为停止中"""
+        """标记运行实例为停止中."""
         runtime.status = "stopping"
         runtime.error = None
 
@@ -628,7 +628,7 @@ class RuntimeRepository(BaseRepository):
             unloaded_at: datetime | None = None,
             applied_generation: int | None = None,
     ) -> Runtime:
-        """标记运行实例为已停止
+        """标记运行实例为已停止.
 
         参数：
             runtime: 运行记录对象
@@ -669,7 +669,7 @@ class RuntimeRepository(BaseRepository):
             started_by: str | None = None,
             context: dict | None = None,
     ) -> Runtime:
-        """标记运行记录为失败
+        """标记运行记录为失败.
 
         参数：
             runtime: 运行记录对象
@@ -697,7 +697,7 @@ class RuntimeRepository(BaseRepository):
             *,
             heartbeat_at: datetime | None = None,
     ) -> Runtime:
-        """更新运行心跳
+        """更新运行心跳.
 
         参数：
             runtime: 运行记录对象

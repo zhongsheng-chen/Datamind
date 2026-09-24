@@ -1,4 +1,4 @@
-"""运行时预测处理测试
+"""运行时预测处理测试.
 
 验证结果回流、单条与批量预测、记录持久化和影子执行行为。
 
@@ -94,7 +94,7 @@ async def test_predict_timeout_records_failure(
         monkeypatch: pytest.MonkeyPatch,
         stage: str,
 ) -> None:
-    """测试请求预算覆盖各阶段，取消后不会继续成功流程"""
+    """测试请求预算覆盖各阶段，取消后不会继续成功流程."""
     service_module = runtime_server.load_service_module(monkeypatch)
     runtime_server.patch_server_dependency(
         monkeypatch,
@@ -142,7 +142,7 @@ async def test_predict_timeout_records_failure(
 async def test_batch_timeout_isolated_per_item(runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条预测超时只标记当前条目并继续执行批次"""
+    """测试单条预测超时只标记当前条目并继续执行批次."""
     service_module = runtime_server.load_service_module(monkeypatch)
     runtime_server.patch_server_dependency(
         monkeypatch,
@@ -208,7 +208,7 @@ async def test_batch_timeout_isolated_per_item(runtime_server: Any,
 async def test_failure_finalization_is_bounded(runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试失败记录阻塞时结束等待并记录异常"""
+    """测试失败记录阻塞时结束等待并记录异常."""
     service_module = runtime_server.load_service_module(monkeypatch)
     runtime_server.patch_server_dependency(
         monkeypatch,
@@ -234,7 +234,7 @@ async def test_predict_batch_records_each_request_and_decision(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量预测记录每项请求和决策"""
+    """测试批量预测记录每项请求和决策."""
     service_module = runtime_server.load_service_module(
         monkeypatch
     )
@@ -358,7 +358,7 @@ async def test_execute_routed_batch_groups_deployments_and_restores_order(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量预测按路由部署分组执行并恢复请求顺序"""
+    """测试批量预测按路由部署分组执行并恢复请求顺序."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     routes = [
@@ -436,7 +436,7 @@ async def test_submit_outcome_calls_feedback_service(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试结果回流接口调用业务服务"""
+    """测试结果回流接口调用业务服务."""
     service_module = runtime_server.load_service_module(
         monkeypatch
     )
@@ -492,7 +492,7 @@ async def test_predict_records_successful_decision(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条预测创建请求并记录成功决策"""
+    """测试单条预测创建请求并记录成功决策."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     route = RouteResult(
@@ -630,7 +630,7 @@ async def test_predict_returns_error_and_marks_request_failed(
         failure_source: str,
         error: Exception,
 ) -> None:
-    """测试预测失败时返回标准错误并标记请求"""
+    """测试预测失败时返回标准错误并标记请求."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._create_request_record = AsyncMock()
@@ -677,7 +677,7 @@ async def test_predict_returns_error_for_unknown_model_name(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型名称不存在时保留失败请求记录"""
+    """测试模型名称不存在时保留失败请求记录."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._resolve_model_id.side_effect = ValueError(
@@ -727,7 +727,7 @@ async def test_predict_batch_allows_partial_success(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条失败不回滚已经成功的批次条目"""
+    """测试单条失败不回滚已经成功的批次条目."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     runtime_service = SimpleNamespace(
@@ -795,7 +795,7 @@ async def test_predict_batch_handles_invalid_feature_type(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量预测将非法特征类型作为请求错误处理"""
+    """测试批量预测将非法特征类型作为请求错误处理."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     runtime_service = SimpleNamespace(
@@ -857,7 +857,7 @@ async def test_prepare_batch_request_records(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量请求记录包含批次索引和调用上下文"""
+    """测试批量请求记录包含批次索引和调用上下文."""
     service_module = runtime_server.load_service_module(monkeypatch)
     request_repo, _, _, _ = runtime_server.install_repositories(
         service_module,
@@ -925,7 +925,7 @@ async def test_prepare_batch_request_records_reuses_failed_requests(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批次重试跳过成功记录并复用失败请求 ID"""
+    """测试批次重试跳过成功记录并复用失败请求 ID."""
     service_module = runtime_server.load_service_module(monkeypatch)
     request_repo, _, _, _ = runtime_server.install_repositories(
         service_module,
@@ -970,7 +970,7 @@ async def test_record_batch_success_creates_decisions(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量成功处理更新请求并创建决策"""
+    """测试批量成功处理更新请求并创建决策."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     request_record = object()
@@ -1104,7 +1104,7 @@ async def test_record_batch_success_requires_request_record(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量成功处理要求原始请求记录存在"""
+    """测试批量成功处理要求原始请求记录存在."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     request_repo = MagicMock()
@@ -1164,7 +1164,7 @@ async def test_record_batch_item_failure_creates_failed_execution(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由后的批次失败记录决策和主执行"""
+    """测试路由后的批次失败记录决策和主执行."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     request_record = SimpleNamespace(status="received")
@@ -1240,7 +1240,7 @@ async def test_record_batch_item_failure_without_route_updates_request_only(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试路由前的批次失败只更新请求记录"""
+    """测试路由前的批次失败只更新请求记录."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._mark_request_failed = AsyncMock()
@@ -1272,7 +1272,7 @@ async def test_mark_batch_failed_updates_existing_records(
         monkeypatch: pytest.MonkeyPatch,
         record_status: str,
 ) -> None:
-    """测试批量失败处理只更新存在的请求记录"""
+    """测试批量失败处理只更新存在的请求记录."""
     service_module = runtime_server.load_service_module(monkeypatch)
     request_record = SimpleNamespace(status=record_status)
     request_repo = MagicMock()
@@ -1319,7 +1319,7 @@ async def test_create_and_mark_single_request_record(
         monkeypatch: pytest.MonkeyPatch,
         record_status: str,
 ) -> None:
-    """测试创建请求记录并更新失败状态"""
+    """测试创建请求记录并更新失败状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     request_record = SimpleNamespace(status=record_status)
     request_repo = MagicMock()
@@ -1384,7 +1384,7 @@ async def test_record_prediction_success_creates_decision(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条预测成功时更新请求并创建决策"""
+    """测试单条预测成功时更新请求并创建决策."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     request_record = object()
@@ -1544,7 +1544,7 @@ async def test_record_prediction_success_requires_request_record(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条成功处理要求请求记录存在"""
+    """测试单条成功处理要求请求记录存在."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     request_repo = MagicMock()
@@ -1594,7 +1594,7 @@ async def test_record_shadow_success_updates_execution(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试影子预测成功后更新对应执行记录"""
+    """测试影子预测成功后更新对应执行记录."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     execution = MagicMock()
@@ -1665,7 +1665,7 @@ async def test_execute_shadow_records_success_without_response(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试影子预测成功时只更新影子执行记录"""
+    """测试影子预测成功时只更新影子执行记录."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._record_shadow_success = AsyncMock()
@@ -1724,7 +1724,7 @@ async def test_execute_shadow_isolates_failure_and_writes_audit(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试影子预测失败不向主调用方传播"""
+    """测试影子预测失败不向主调用方传播."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.executor.execute.side_effect = RuntimeError(
@@ -1789,7 +1789,7 @@ async def test_execute_shadow_isolates_audit_error(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试影子预测失败不受审计写入异常影响"""
+    """测试影子预测失败不受审计写入异常影响."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.executor.execute.side_effect = RuntimeError(
@@ -1832,7 +1832,7 @@ async def test_mark_prediction_failed_handles_persistence_error(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试记录预测失败异常不会覆盖原始错误"""
+    """测试记录预测失败异常不会覆盖原始错误."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._mark_request_failed = AsyncMock(
@@ -1868,7 +1868,7 @@ def test_prediction_payload_and_optional_values(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试决策负载过滤和可选值安全转换"""
+    """测试决策负载过滤和可选值安全转换."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service_class = service_module.DatamindRuntimeService.inner
     request = PredictRequest(
@@ -1912,7 +1912,7 @@ async def test_resolve_model_id_uses_model_name(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试运行时按公开模型名称解析内部模型 ID"""
+    """测试运行时按公开模型名称解析内部模型 ID."""
     service_module = runtime_server.load_service_module(monkeypatch)
     repo = MagicMock()
     repo.get_model = AsyncMock(
@@ -1954,7 +1954,7 @@ async def test_submit_batch_persists_before_publishing(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试异步批次先持久化再发布轻量级引用消息"""
+    """测试异步批次先持久化再发布轻量级引用消息."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     repository = MagicMock()
@@ -2015,7 +2015,7 @@ async def test_submit_batch_rejects_unknown_model_before_persisting(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量提交在模型不存在时返回请求错误且不创建批次"""
+    """测试批量提交在模型不存在时返回请求错误且不创建批次."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     repository_factory = MagicMock()
@@ -2057,7 +2057,7 @@ async def test_get_batch_status_returns_persisted_result(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批次状态查询以 PostgreSQL 记录为准"""
+    """测试批次状态查询以 PostgreSQL 记录为准."""
     service_module = runtime_server.load_service_module(monkeypatch)
     batch = SimpleNamespace(
         batch_id="bat_test",
@@ -2095,7 +2095,7 @@ async def test_cancel_batch_records_request_and_revokes_task(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试取消同时更新业务状态并撤销 Celery 任务"""
+    """测试取消同时更新业务状态并撤销 Celery 任务."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     batch = SimpleNamespace(
@@ -2147,7 +2147,7 @@ async def test_cancel_batch_keeps_persisted_state_when_revoke_fails(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Broker 不可用时仍返回已经持久化的取消状态"""
+    """测试 Broker 不可用时仍返回已经持久化的取消状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     batch = SimpleNamespace(
@@ -2191,7 +2191,7 @@ async def test_retry_batch_uses_new_celery_task_id(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试业务重试不会复用可能已被撤销的 Celery 任务 ID"""
+    """测试业务重试不会复用可能已被撤销的 Celery 任务 ID."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     batch = SimpleNamespace(

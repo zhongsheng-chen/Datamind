@@ -1,4 +1,4 @@
-"""模型运行控制仓储
+"""模型运行控制仓储.
 
 提供模型运行期望状态的查询与管理能力。
 
@@ -73,13 +73,13 @@ from datamind.models.enums import RuntimeControlStatus
 
 
 class ControlRepository(BaseRepository):
-    """模型运行控制仓储"""
+    """模型运行控制仓储."""
 
     async def get_control(
             self,
             control_id: str,
     ) -> Control | None:
-        """获取运行控制记录
+        """获取运行控制记录.
 
         参数：
             control_id: 控制 ID
@@ -104,7 +104,7 @@ class ControlRepository(BaseRepository):
             self,
             deployment_id: str,
     ) -> Control | None:
-        """获取部署对应的运行控制记录
+        """获取部署对应的运行控制记录.
 
         参数：
             deployment_id: 部署 ID
@@ -137,7 +137,7 @@ class ControlRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Control]:
-        """获取运行控制记录列表
+        """获取运行控制记录列表.
 
         参数：
             control_id: 控制 ID（可选）
@@ -245,7 +245,7 @@ class ControlRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Control]:
-        """获取期望加载的运行控制记录
+        """获取期望加载的运行控制记录.
 
         参数：
             environment: 运行环境（可选）
@@ -272,7 +272,7 @@ class ControlRepository(BaseRepository):
             environment: Environment,
             created_by: str | None = None,
     ) -> Control:
-        """创建运行控制记录
+        """创建运行控制记录.
 
         新创建的运行控制记录默认状态为 unloaded，
         初始控制版本号为 1。
@@ -312,7 +312,7 @@ class ControlRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Control:
-        """设置期望状态为 loaded
+        """设置期望状态为 loaded.
 
         当当前状态不是 loaded 时：
 
@@ -351,7 +351,7 @@ class ControlRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Control:
-        """设置期望状态为 unloaded
+        """设置期望状态为 unloaded.
 
         当当前状态不是 unloaded 时：
 
@@ -390,7 +390,7 @@ class ControlRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Control:
-        """请求重新加载模型
+        """请求重新加载模型.
 
         reload 不改变 desired_status，
         通过 generation 递增通知各 Worker

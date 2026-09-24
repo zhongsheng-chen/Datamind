@@ -1,4 +1,4 @@
-"""管理控制台静态资源
+"""管理控制台静态资源.
 
 为构建产物提供静态文件响应，并按文件类型设置浏览器缓存策略。
 
@@ -15,10 +15,10 @@ from starlette.types import Scope
 
 
 class ConsoleStaticFiles(StaticFiles):
-    """管理控制台静态资源服务"""
+    """管理控制台静态资源服务."""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
-        """返回静态资源响应
+        """返回静态资源响应.
 
         参数：
             path: 相对资源路径

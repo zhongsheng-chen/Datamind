@@ -1,6 +1,6 @@
-"""Datamind 模型框架集成冒烟测试
+"""Datamind 模型框架集成验证脚本.
 
-验证各可选模型框架能够通过 Datamind 加载模型制品并执行推理。
+验证各可选模型框架与 Datamind 的集成能否完成模型训练、制品加载和推理。
 
 运行方式：
   python -m scripts.verify_framework sklearn
@@ -32,7 +32,7 @@ TARGET = np.array([0, 0, 1, 1, 0, 1])
 
 
 def verify_prediction(model: object) -> None:
-    """验证制品加载、适配器选择与概率预测。
+    """验证制品加载、适配器选择与概率预测.
 
     参数：
         model: 已加载的模型对象
@@ -47,7 +47,7 @@ def verify_prediction(model: object) -> None:
 
 
 def verify_sklearn() -> None:
-    """验证 Sklearn 模型制品。"""
+    """验证 Sklearn 模型制品."""
     import joblib
     import optbinning
     from sklearn.linear_model import LogisticRegression
@@ -61,7 +61,7 @@ def verify_sklearn() -> None:
 
 
 def verify_xgboost() -> None:
-    """验证 XGBoost 模型制品。"""
+    """验证 XGBoost 模型制品."""
     import xgboost as xgb
 
     dataset = xgb.DMatrix(FEATURES, label=TARGET)
@@ -76,7 +76,7 @@ def verify_xgboost() -> None:
 
 
 def verify_lightgbm() -> None:
-    """验证 LightGBM 模型制品。"""
+    """验证 LightGBM 模型制品."""
     import lightgbm as lgb
 
     dataset = lgb.Dataset(FEATURES, label=TARGET)
@@ -91,7 +91,7 @@ def verify_lightgbm() -> None:
 
 
 def verify_catboost() -> None:
-    """验证 CatBoost 模型制品。"""
+    """验证 CatBoost 模型制品."""
     from catboost import CatBoostClassifier
 
     model = CatBoostClassifier(
@@ -120,7 +120,7 @@ VERIFY = {
 
 
 def verify_imports(framework: str) -> None:
-    """验证框架及其 Datamind 集成模块可以独立导入。
+    """验证框架及其 Datamind 集成模块可以独立导入.
 
     参数：
         framework: 模型框架名称
@@ -136,9 +136,9 @@ def verify_imports(framework: str) -> None:
 
 
 def parse_arguments(
-        arguments: list[str] | None = None,
+    arguments: list[str] | None = None,
 ) -> argparse.Namespace:
-    """解析模型框架兼容性验证参数。
+    """解析命令行参数.
 
     参数：
         arguments: 待解析的命令行参数，默认读取当前进程参数
@@ -147,7 +147,7 @@ def parse_arguments(
         解析后的命令行参数
     """
     parser = argparse.ArgumentParser(
-        description="验证 Datamind 模型框架兼容性",
+        description="验证模型框架与 Datamind 的集成",
     )
     parser.add_argument(
         "framework",
@@ -158,7 +158,7 @@ def parse_arguments(
 
 
 def main() -> None:
-    """验证指定模型框架的导入、制品加载与推理能力。"""
+    """执行验证流程."""
     framework = parse_arguments().framework
     frameworks = (
         VERIFY

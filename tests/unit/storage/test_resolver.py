@@ -1,4 +1,4 @@
-"""存储路径解析器测试
+"""存储路径解析器测试.
 
 验证本地路径、MinIO URI、存储键校验和存储类型分派。
 
@@ -43,14 +43,14 @@ from datamind.storage.resolver import StorageResolver
 
 @dataclass(frozen=True)
 class LocalConfigStub:
-    """本地存储配置测试桩"""
+    """本地存储配置测试桩."""
 
     base_dir: Path
 
 
 @dataclass(frozen=True)
 class MinIOConfigStub:
-    """MinIO 存储配置测试桩"""
+    """MinIO 存储配置测试桩."""
 
     bucket: str
     base_prefix: str
@@ -58,7 +58,7 @@ class MinIOConfigStub:
 
 @dataclass(frozen=True)
 class StorageConfigStub:
-    """存储配置测试桩"""
+    """存储配置测试桩."""
 
     type: StorageType | str
     local: LocalConfigStub
@@ -73,7 +73,7 @@ def create_resolver(
     bucket: str = "datamind",
     base_prefix: str = "artifacts",
 ) -> StorageResolver:
-    """创建使用指定存储配置的路径解析器"""
+    """创建使用指定存储配置的路径解析器."""
     storage_config = StorageConfigStub(
         type=storage_type,
         local=LocalConfigStub(
@@ -98,7 +98,7 @@ def test_init_uses_current_storage_config(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试初始化时读取当前存储配置"""
+    """测试初始化时读取当前存储配置."""
     storage_config = StorageConfigStub(
         type=StorageType.LOCAL,
         local=LocalConfigStub(
@@ -125,7 +125,7 @@ def test_resolve_local_returns_absolute_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试本地存储键解析为绝对路径"""
+    """测试本地存储键解析为绝对路径."""
     base_dir = tmp_path / "data"
     storage_resolver = create_resolver(
         monkeypatch,
@@ -153,7 +153,7 @@ def test_resolve_local_normalizes_windows_separators(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试本地解析时标准化 Windows 路径分隔符"""
+    """测试本地解析时标准化 Windows 路径分隔符."""
     base_dir = tmp_path / "data"
     storage_resolver = create_resolver(
         monkeypatch,
@@ -180,7 +180,7 @@ def test_resolve_local_expands_user_directory(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试本地基础目录执行 expanduser 和 resolve"""
+    """测试本地基础目录执行 expanduser 和 resolve."""
     fake_home = tmp_path / "home"
     fake_home.mkdir()
 
@@ -217,7 +217,7 @@ def test_resolve_minio_builds_s3_uri_with_base_prefix(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试 MinIO 路径包含存储桶和基础前缀"""
+    """测试 MinIO 路径包含存储桶和基础前缀."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.MINIO,
@@ -241,7 +241,7 @@ def test_resolve_minio_normalizes_key_and_prefix_separators(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试 MinIO 路径标准化键和前缀分隔符"""
+    """测试 MinIO 路径标准化键和前缀分隔符."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.MINIO,
@@ -275,7 +275,7 @@ def test_resolve_minio_without_base_prefix(
     tmp_path: Path,
     base_prefix: str,
 ) -> None:
-    """测试基础前缀为空时直接拼接逻辑键"""
+    """测试基础前缀为空时直接拼接逻辑键."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.MINIO,
@@ -307,7 +307,7 @@ def test_resolve_minio_rejects_invalid_bucket(
     tmp_path: Path,
     bucket: str,
 ) -> None:
-    """测试拒绝空桶名和包含路径分隔符的桶名"""
+    """测试拒绝空桶名和包含路径分隔符的桶名."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.MINIO,
@@ -338,7 +338,7 @@ def test_resolve_minio_rejects_invalid_base_prefix(
     tmp_path: Path,
     base_prefix: str,
 ) -> None:
-    """测试 MinIO 基础前缀复用存储键校验规则"""
+    """测试 MinIO 基础前缀复用存储键校验逻辑."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.MINIO,
@@ -369,7 +369,7 @@ def test_resolve_rejects_invalid_string_keys(
     tmp_path: Path,
     key: str,
 ) -> None:
-    """测试公开解析入口拒绝非法字符串键"""
+    """测试公开解析入口拒绝非法字符串键."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.LOCAL,
@@ -393,7 +393,7 @@ def test_resolve_rejects_non_string_keys(
     tmp_path: Path,
     key: Any,
 ) -> None:
-    """测试公开解析入口拒绝非字符串键"""
+    """测试公开解析入口拒绝非字符串键."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type=StorageType.LOCAL,
@@ -411,7 +411,7 @@ def test_resolve_rejects_unknown_storage_type(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试拒绝未知存储类型"""
+    """测试拒绝未知存储类型."""
     storage_resolver = create_resolver(
         monkeypatch,
         storage_type="unknown",

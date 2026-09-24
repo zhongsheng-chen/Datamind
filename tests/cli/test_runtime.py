@@ -1,4 +1,4 @@
-"""运行实例查询 CLI 测试
+"""运行实例查询 CLI 测试.
 
 验证运行实例查询命令能够将业务异常转换为清晰提示。
 
@@ -39,7 +39,7 @@ show_module = importlib.import_module(
 async def fake_cli_context(
         **_kwargs: object,
 ) -> AsyncIterator[SimpleNamespace]:
-    """创建已认证的 CLI 上下文替身"""
+    """创建已认证的 CLI 上下文替身."""
     yield SimpleNamespace(
         user="alice"
     )
@@ -50,7 +50,7 @@ def configure_runtime_module(
         module: ModuleType,
         controller: MagicMock,
 ) -> MagicMock:
-    """配置运行状态命令依赖"""
+    """配置运行状态命令依赖."""
     console = MagicMock()
     monkeypatch.setitem(
         vars(module),
@@ -123,7 +123,7 @@ def test_runtime_query_reports_business_error(
         arguments: dict[str, object],
         error: Exception,
 ) -> None:
-    """测试运行状态查询命令处理业务异常"""
+    """测试运行状态查询命令处理业务异常."""
     controller = MagicMock()
     method = AsyncMock(
         side_effect=error

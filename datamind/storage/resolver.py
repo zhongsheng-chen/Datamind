@@ -1,4 +1,4 @@
-"""存储路径解析器
+"""存储路径解析器.
 
 根据存储类型将存储键解析为完整路径。
 
@@ -24,17 +24,17 @@ from datamind.storage.errors import StorageKeyError
 
 
 class StorageResolver:
-    """存储路径解析器"""
+    """存储路径解析器."""
 
     def __init__(self) -> None:
-        """初始化存储路径解析器"""
+        """初始化存储路径解析器."""
         self.config = get_storage_config()
 
     def resolve(
         self,
         key: str,
     ) -> str:
-        """解析存储键为完整路径
+        """解析存储键为完整路径.
 
         参数：
             key: 存储键
@@ -63,7 +63,7 @@ class StorageResolver:
         self,
         key: str,
     ) -> str:
-        """解析本地存储路径
+        """解析本地存储路径.
 
         参数：
             key: 已标准化的存储键
@@ -98,7 +98,7 @@ class StorageResolver:
         self,
         key: str,
     ) -> str:
-        """解析 MinIO 存储路径
+        """解析 MinIO 存储路径.
 
         参数：
             key: 已标准化的存储键
@@ -145,7 +145,7 @@ class StorageResolver:
     def _normalize_key(
         key: str,
     ) -> str:
-        """标准化并校验存储键
+        """标准化并校验存储键.
 
         参数：
             key: 原始存储键

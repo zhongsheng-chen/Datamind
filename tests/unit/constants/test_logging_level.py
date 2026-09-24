@@ -1,4 +1,4 @@
-"""日志级别枚举测试
+"""日志级别枚举测试.
 
 验证日志级别枚举值、字符串转换和支持集合。
 
@@ -33,7 +33,7 @@ def test_log_level_value(
     log_level: LogLevel,
     expected: str,
 ) -> None:
-    """测试日志级别枚举值"""
+    """测试日志级别枚举值."""
     assert log_level.value == expected
 
 
@@ -42,10 +42,10 @@ def test_log_level_value(
     list(LogLevel),
 )
 def test_log_level_string_conversion(log_level: LogLevel) -> None:
-    """测试日志级别字符串转换"""
+    """测试日志级别字符串转换."""
     assert str(log_level) == log_level.value
 
 
 def test_supported_log_levels() -> None:
-    """测试支持的日志级别集合"""
+    """测试支持的日志级别集合."""
     assert SUPPORTED_LOG_LEVELS == frozenset(LogLevel)

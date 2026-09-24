@@ -1,4 +1,4 @@
-"""存储可观测性装饰器
+"""存储可观测性装饰器.
 
 提供存储操作的统一可观测性能力，包括性能监控和错误追踪。
 
@@ -42,7 +42,7 @@ R = TypeVar("R")
 def _get_latency_ms(
         started_at: float,
 ) -> float:
-    """计算操作耗时
+    """计算操作耗时.
 
     参数：
         started_at: 操作开始时间
@@ -68,7 +68,7 @@ def _build_event_fields(
         storage_type: str,
         error: Exception | None = None,
 ) -> dict[str, Any]:
-    """构造存储操作日志字段
+    """构造存储操作日志字段.
 
     参数：
         context: 当前上下文
@@ -103,7 +103,7 @@ def _build_event_fields(
 def _get_storage_type(
         target: object,
 ) -> str:
-    """获取被装饰对象的存储类型
+    """获取被装饰对象的存储类型.
 
     参数：
         target: 被装饰方法所属对象
@@ -138,7 +138,7 @@ def observe_storage(
     [Callable[P, R]],
     Callable[P, R],
 ]:
-    """存储操作可观测性装饰器
+    """存储操作可观测性装饰器.
 
     参数：
         operation: 操作名称，例如 save / load / delete / list

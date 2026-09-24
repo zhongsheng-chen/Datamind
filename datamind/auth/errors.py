@@ -1,4 +1,4 @@
-"""认证异常定义
+"""认证异常定义.
 
 统一定义登录、令牌校验和权限检查过程中的异常类型。
 
@@ -37,7 +37,7 @@
 
 
 class AuthError(Exception):
-    """认证模块基础异常"""
+    """认证模块基础异常."""
 
     default_message = "认证失败"
 
@@ -45,7 +45,7 @@ class AuthError(Exception):
             self,
             message: str | None = None,
     ) -> None:
-        """初始化认证异常
+        """初始化认证异常.
 
         参数：
             message: 异常消息，默认使用当前异常类型的默认消息
@@ -66,7 +66,7 @@ class AuthError(Exception):
 class AuthenticationRequiredError(
     AuthError
 ):
-    """用户尚未认证"""
+    """用户尚未认证."""
 
     default_message = "用户尚未认证"
 
@@ -74,7 +74,7 @@ class AuthenticationRequiredError(
 class InvalidCredentialsError(
     AuthError
 ):
-    """用户名或密码错误"""
+    """用户名或密码错误."""
 
     default_message = "用户名或密码错误"
 
@@ -82,7 +82,7 @@ class InvalidCredentialsError(
 class UserDisabledError(
     AuthError
 ):
-    """用户已停用"""
+    """用户已停用."""
 
     default_message = "用户已停用"
 
@@ -90,7 +90,7 @@ class UserDisabledError(
 class UserLockedError(
     AuthError
 ):
-    """用户已锁定"""
+    """用户已锁定."""
 
     default_message = "用户已锁定"
 
@@ -98,7 +98,7 @@ class UserLockedError(
 class TokenError(
     AuthError
 ):
-    """令牌异常"""
+    """令牌异常."""
 
     default_message = "令牌无效"
 
@@ -106,7 +106,7 @@ class TokenError(
 class InvalidAccessTokenError(
     TokenError
 ):
-    """访问令牌无效"""
+    """访问令牌无效."""
 
     default_message = "访问令牌无效"
 
@@ -114,7 +114,7 @@ class InvalidAccessTokenError(
 class AccessTokenExpiredError(
     TokenError
 ):
-    """访问令牌已过期"""
+    """访问令牌已过期."""
 
     default_message = "访问令牌已过期"
 
@@ -122,7 +122,7 @@ class AccessTokenExpiredError(
 class InvalidRefreshTokenError(
     TokenError
 ):
-    """刷新令牌无效"""
+    """刷新令牌无效."""
 
     default_message = "刷新令牌无效"
 
@@ -130,7 +130,7 @@ class InvalidRefreshTokenError(
 class RefreshTokenExpiredError(
     TokenError
 ):
-    """刷新令牌已过期"""
+    """刷新令牌已过期."""
 
     default_message = "刷新令牌已过期"
 
@@ -138,7 +138,7 @@ class RefreshTokenExpiredError(
 class RefreshTokenRevokedError(
     TokenError
 ):
-    """刷新令牌已撤销"""
+    """刷新令牌已撤销."""
 
     default_message = "刷新令牌已撤销"
 
@@ -146,7 +146,7 @@ class RefreshTokenRevokedError(
 class PermissionDeniedError(
     AuthError
 ):
-    """用户权限不足"""
+    """用户权限不足."""
 
     default_message = "用户权限不足"
 

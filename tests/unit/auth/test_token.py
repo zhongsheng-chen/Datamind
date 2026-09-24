@@ -1,4 +1,4 @@
-"""令牌工具测试
+"""令牌工具测试.
 
 验证 JWT 访问令牌的生成、解析和校验，以及刷新令牌的生成、
 哈希和匹配能力。
@@ -69,7 +69,7 @@ def _encode_token(
         secret_key: str = SECRET_KEY,
         algorithm: str = ALGORITHM,
 ) -> str:
-    """生成指定声明的测试 JWT"""
+    """生成指定声明的测试 JWT."""
     return jwt.encode(
         claims,
         secret_key,
@@ -80,7 +80,7 @@ def _encode_token(
 def _current_claims(
         **overrides: Any,
 ) -> dict[str, Any]:
-    """创建当前有效的访问令牌声明"""
+    """创建当前有效的访问令牌声明."""
     issued_at = datetime.now(
         timezone.utc
     ) - timedelta(
@@ -105,7 +105,7 @@ def _current_claims(
 
 
 def test_create_access_token_creates_expected_claims() -> None:
-    """测试访问令牌包含标准声明和附加声明"""
+    """测试访问令牌包含标准声明和附加声明."""
     issued_at = datetime(
         2026,
         7,
@@ -181,7 +181,7 @@ def test_create_access_token_creates_expected_claims() -> None:
 
 
 def test_create_access_token_normalizes_issued_at_to_utc() -> None:
-    """测试签发时间转换为 UTC"""
+    """测试签发时间转换为 UTC."""
     local_timezone = timezone(
         timedelta(
             hours=8
@@ -280,7 +280,7 @@ def test_create_access_token_validates_parameters(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试访问令牌生成参数校验"""
+    """测试访问令牌生成参数校验."""
     with pytest.raises(
             ValueError,
             match=expected_message,
@@ -302,7 +302,7 @@ def test_create_access_token_validates_parameters(
 def test_create_access_token_rejects_reserved_claims(
         reserved_claim: str,
 ) -> None:
-    """测试附加声明不能覆盖保留声明"""
+    """测试附加声明不能覆盖保留声明."""
     with pytest.raises(
             ValueError,
             match=(
@@ -320,7 +320,7 @@ def test_create_access_token_rejects_reserved_claims(
 
 
 def test_create_access_token_reports_all_reserved_claims() -> None:
-    """测试保留声明冲突信息按名称排序"""
+    """测试保留声明冲突信息按名称排序."""
     with pytest.raises(
             ValueError,
             match=(
@@ -340,7 +340,7 @@ def test_create_access_token_reports_all_reserved_claims() -> None:
 
 
 def test_create_access_token_rejects_naive_datetime() -> None:
-    """测试拒绝不包含时区的签发时间"""
+    """测试拒绝不包含时区的签发时间."""
     with pytest.raises(
             ValueError,
             match="issued_at 必须包含时区信息",
@@ -359,7 +359,7 @@ def test_create_access_token_rejects_naive_datetime() -> None:
 
 
 def test_decode_access_token_returns_valid_claims() -> None:
-    """测试正确解析访问令牌"""
+    """测试正确解析访问令牌."""
     issued_at = datetime.now(
         timezone.utc
     ) - timedelta(
@@ -404,7 +404,7 @@ def test_decode_access_token_returns_valid_claims() -> None:
 def test_decode_access_token_rejects_empty_or_invalid_token(
         token: str,
 ) -> None:
-    """测试拒绝空令牌和格式无效令牌"""
+    """测试拒绝空令牌和格式无效令牌."""
     result = decode_access_token(
         token=token,
         secret_key=SECRET_KEY,
@@ -415,7 +415,7 @@ def test_decode_access_token_rejects_empty_or_invalid_token(
 
 
 def test_decode_access_token_rejects_wrong_signature() -> None:
-    """测试拒绝签名密钥错误的令牌"""
+    """测试拒绝签名密钥错误的令牌."""
     token = _encode_token(
         _current_claims(),
         secret_key=(
@@ -434,7 +434,7 @@ def test_decode_access_token_rejects_wrong_signature() -> None:
 
 
 def test_decode_access_token_rejects_wrong_algorithm() -> None:
-    """测试拒绝签名算法不匹配的令牌"""
+    """测试拒绝签名算法不匹配的令牌."""
     token = _encode_token(
         _current_claims(),
         algorithm="HS512",
@@ -450,7 +450,7 @@ def test_decode_access_token_rejects_wrong_algorithm() -> None:
 
 
 def test_decode_access_token_rejects_expired_token() -> None:
-    """测试拒绝已过期访问令牌"""
+    """测试拒绝已过期访问令牌."""
     issued_at = datetime.now(
         timezone.utc
     ) - timedelta(
@@ -491,7 +491,7 @@ def test_decode_access_token_rejects_expired_token() -> None:
 def test_decode_access_token_rejects_missing_claims(
         missing_claim: str,
 ) -> None:
-    """测试拒绝缺少必需声明的令牌"""
+    """测试拒绝缺少必需声明的令牌."""
     claims = _current_claims()
     claims.pop(
         missing_claim
@@ -521,7 +521,7 @@ def test_decode_access_token_rejects_missing_claims(
 def test_decode_access_token_rejects_invalid_user_id(
         user_id: Any,
 ) -> None:
-    """测试拒绝用户 ID 无效的令牌"""
+    """测试拒绝用户 ID 无效的令牌."""
     token = _encode_token(
         _current_claims(
             sub=user_id
@@ -548,7 +548,7 @@ def test_decode_access_token_rejects_invalid_user_id(
 def test_decode_access_token_rejects_invalid_token_type(
         token_type: Any,
 ) -> None:
-    """测试拒绝类型错误的令牌"""
+    """测试拒绝类型错误的令牌."""
     token = _encode_token(
         _current_claims(
             type=token_type
@@ -588,7 +588,7 @@ def test_decode_access_token_validates_parameters(
         algorithm: str,
         expected_message: str,
 ) -> None:
-    """测试访问令牌解析参数校验"""
+    """测试访问令牌解析参数校验."""
     with pytest.raises(
             ValueError,
             match=expected_message,
@@ -601,7 +601,7 @@ def test_decode_access_token_validates_parameters(
 
 
 def test_generate_refresh_token_creates_unique_urlsafe_tokens() -> None:
-    """测试生成唯一且 URL 安全的刷新令牌"""
+    """测试生成唯一且 URL 安全的刷新令牌."""
     first_token = generate_refresh_token()
     second_token = generate_refresh_token()
 
@@ -623,7 +623,7 @@ def test_generate_refresh_token_creates_unique_urlsafe_tokens() -> None:
 
 
 def test_hash_refresh_token_returns_sha256_hash() -> None:
-    """测试刷新令牌 SHA-256 哈希"""
+    """测试刷新令牌 SHA-256 哈希."""
     refresh_token = "refresh-token-value"
 
     token_hash = hash_refresh_token(
@@ -643,7 +643,7 @@ def test_hash_refresh_token_returns_sha256_hash() -> None:
 
 
 def test_hash_refresh_token_rejects_empty_token() -> None:
-    """测试拒绝空刷新令牌"""
+    """测试拒绝空刷新令牌."""
     with pytest.raises(
             ValueError,
             match="refresh_token 不能为空",
@@ -654,7 +654,7 @@ def test_hash_refresh_token_rejects_empty_token() -> None:
 
 
 def test_verify_refresh_token_accepts_matching_token() -> None:
-    """测试匹配的刷新令牌"""
+    """测试匹配的刷新令牌."""
     refresh_token = "refresh-token-value"
     token_hash = hash_refresh_token(
         refresh_token
@@ -669,7 +669,7 @@ def test_verify_refresh_token_accepts_matching_token() -> None:
 
 
 def test_verify_refresh_token_rejects_non_matching_token() -> None:
-    """测试拒绝不匹配的刷新令牌"""
+    """测试拒绝不匹配的刷新令牌."""
     token_hash = hash_refresh_token(
         "expected-refresh-token"
     )
@@ -706,7 +706,7 @@ def test_verify_refresh_token_rejects_empty_values(
         refresh_token: str,
         token_hash: str,
 ) -> None:
-    """测试刷新令牌或哈希为空时校验失败"""
+    """测试刷新令牌或哈希为空时校验失败."""
     result = verify_refresh_token(
         refresh_token=refresh_token,
         token_hash=token_hash,

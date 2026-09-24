@@ -1,4 +1,4 @@
-"""控制台事件表测试
+"""控制台事件表测试.
 
 验证控制台事件表的字段、索引、检查约束和字段注释。
 
@@ -24,7 +24,7 @@ from datamind.db.models.outbox import OutboxEvent
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -35,7 +35,7 @@ TABLE = get_model_table(
 
 
 def test_outbox_table_and_columns() -> None:
-    """测试表名和字段集合"""
+    """测试表名和字段集合."""
     assert TABLE.name == "outbox"
     assert set(TABLE.columns.keys()) == {
         "event_id",
@@ -48,7 +48,7 @@ def test_outbox_table_and_columns() -> None:
 
 
 def test_outbox_indexes() -> None:
-    """测试索引集合"""
+    """测试索引集合."""
     assert {
         index.name
         for index in TABLE.indexes
@@ -59,7 +59,7 @@ def test_outbox_indexes() -> None:
 
 
 def test_outbox_check_constraints() -> None:
-    """测试检查约束集合"""
+    """测试检查约束集合."""
     assert {
         constraint.name
         for constraint in TABLE.constraints
@@ -98,6 +98,6 @@ def test_outbox_check_constraints() -> None:
 
 
 def test_outbox_column_comments() -> None:
-    """测试字段注释"""
+    """测试字段注释."""
     for column in TABLE.columns.values():
         assert column.comment, column.name

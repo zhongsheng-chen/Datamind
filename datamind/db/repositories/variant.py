@@ -1,4 +1,4 @@
-"""实验分组仓储
+"""实验分组仓储.
 
 提供实验分组的查询、创建、更新和生命周期管理能力。
 
@@ -56,7 +56,7 @@ from datamind.models.enums import ExperimentVariantStatus
 
 @dataclass(slots=True)
 class VariantPatch:
-    """实验分组更新结构
+    """实验分组更新结构.
 
     注意：
         不允许通过 patch 修改 status，
@@ -80,13 +80,13 @@ class VariantPatch:
 
 
 class VariantRepository(BaseRepository):
-    """实验分组仓储"""
+    """实验分组仓储."""
 
     @staticmethod
     def _validate_weight(
             weight: float,
     ) -> None:
-        """校验实验分组权重"""
+        """校验实验分组权重."""
         if (
                 weight < 0
                 or weight > 1
@@ -102,7 +102,7 @@ class VariantRepository(BaseRepository):
             target_status: ExperimentVariantStatus,
             updated_by: str | None,
     ) -> Variant:
-        """设置实验分组状态"""
+        """设置实验分组状态."""
         current_status = ExperimentVariantStatus(
             variant.status
         )
@@ -133,7 +133,7 @@ class VariantRepository(BaseRepository):
             *,
             include_deleted: bool = False,
     ) -> Variant | None:
-        """获取实验分组
+        """获取实验分组.
 
         参数：
             variant_id: 实验分组 ID
@@ -166,7 +166,7 @@ class VariantRepository(BaseRepository):
             self,
             experiment_id: str,
     ) -> Variant | None:
-        """获取实验对照组
+        """获取实验对照组.
 
         参数：
             experiment_id: 实验 ID
@@ -220,7 +220,7 @@ class VariantRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Variant]:
-        """获取实验分组列表
+        """获取实验分组列表.
 
         参数：
             variant_id: 实验分组 ID（可选）
@@ -341,7 +341,7 @@ class VariantRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Variant]:
-        """获取启用的实验分组
+        """获取启用的实验分组.
 
         参数：
             experiment_id: 实验 ID
@@ -374,7 +374,7 @@ class VariantRepository(BaseRepository):
             description: str | None = None,
             created_by: str | None = None,
     ) -> Variant:
-        """创建实验分组
+        """创建实验分组.
 
         参数：
             variant_id: 实验分组 ID
@@ -432,7 +432,7 @@ class VariantRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Variant:
-        """更新实验分组
+        """更新实验分组.
 
         参数：
             variant: 实验分组对象
@@ -478,7 +478,7 @@ class VariantRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Variant:
-        """启用实验分组
+        """启用实验分组.
 
         archived 为终态，归档后不能重新启用。
         """
@@ -496,7 +496,7 @@ class VariantRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Variant:
-        """停用实验分组
+        """停用实验分组.
 
         archived 为终态，归档后不能重新停用。
         """
@@ -514,7 +514,7 @@ class VariantRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Variant:
-        """归档实验分组
+        """归档实验分组.
 
         active 和 inactive 状态均可归档；
         archived 状态重复归档保持幂等。
@@ -536,7 +536,7 @@ class VariantRepository(BaseRepository):
             deleted_by: str | None = None,
             deletion_reason: str | None = None,
     ) -> Variant:
-        """逻辑删除实验分组"""
+        """逻辑删除实验分组."""
         variant.deleted_at = (
             deleted_at
             if deleted_at is not None
@@ -557,7 +557,7 @@ class VariantRepository(BaseRepository):
             *,
             restored_by: str | None = None,
     ) -> Variant:
-        """恢复逻辑删除的实验分组"""
+        """恢复逻辑删除的实验分组."""
         variant.deleted_at = None
         variant.deleted_by = None
         variant.deletion_id = None

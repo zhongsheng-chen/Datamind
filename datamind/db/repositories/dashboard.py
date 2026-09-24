@@ -1,4 +1,4 @@
-"""管理控制台查询仓储
+"""管理控制台查询仓储.
 
 提供管理控制台记录查询、关联信息补充和调用指标统计能力。
 
@@ -83,7 +83,7 @@ from datamind.utils.sorting import parse_sort_specs
 
 
 class AttemptShardDetail(TypedDict):
-    """执行尝试分片详情"""
+    """执行尝试分片详情."""
 
     record: Shard
     total_count: int
@@ -93,7 +93,7 @@ class AttemptShardDetail(TypedDict):
 
 
 class DashboardRepository(BaseRepository):
-    """管理控制台查询仓储"""
+    """管理控制台查询仓储."""
 
     async def get_counts(
             self,
@@ -101,7 +101,7 @@ class DashboardRepository(BaseRepository):
             *,
             presence: RuntimePresence | None = None,
     ) -> dict[str, int]:
-        """获取指定控制台页面的记录总数
+        """获取指定控制台页面的记录总数.
 
         参数：
             sections: 控制台页面名称集合
@@ -192,7 +192,7 @@ class DashboardRepository(BaseRepository):
             only_deleted: bool = False,
             presence: RuntimePresence | None = None,
     ) -> int:
-        """获取指定查询条件下的记录总数
+        """获取指定查询条件下的记录总数.
 
         参数：
             section: 控制台页面名称
@@ -249,7 +249,7 @@ class DashboardRepository(BaseRepository):
             only_deleted: bool = False,
             presence: RuntimePresence | None = None,
     ) -> list[Any]:
-        """查询、排序并分页返回指定控制台页面记录
+        """查询、排序并分页返回指定控制台页面记录.
 
         参数：
             section: 控制台页面名称
@@ -340,7 +340,7 @@ class DashboardRepository(BaseRepository):
             self,
             version_ids: Iterable[str],
     ) -> dict[str, dict[str, str | None]]:
-        """获取版本关联信息
+        """获取版本关联信息.
 
         参数：
             version_ids: 版本 ID 集合
@@ -394,7 +394,7 @@ class DashboardRepository(BaseRepository):
             self,
             user_ids: Iterable[str],
     ) -> dict[str, list[str]]:
-        """获取用户的有效角色名称
+        """获取用户的有效角色名称.
 
         参数：
             user_ids: 用户 ID 集合
@@ -453,7 +453,7 @@ class DashboardRepository(BaseRepository):
             self,
             deployment_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取部署关联信息
+        """获取部署关联信息.
 
         参数：
             deployment_ids: 部署 ID 集合
@@ -532,7 +532,7 @@ class DashboardRepository(BaseRepository):
             self,
             experiment_ids: Iterable[str],
     ) -> dict[str, dict[str, str | None]]:
-        """获取实验关联信息
+        """获取实验关联信息.
 
         参数：
             experiment_ids: 实验 ID 集合
@@ -583,7 +583,7 @@ class DashboardRepository(BaseRepository):
             self,
             variant_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取实验分组关联信息
+        """获取实验分组关联信息.
 
         参数：
             variant_ids: 分组 ID 集合
@@ -674,7 +674,7 @@ class DashboardRepository(BaseRepository):
             self,
             request_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取 API 调用关联信息
+        """获取 API 调用关联信息.
 
         参数：
             request_ids: 请求 ID 集合
@@ -757,7 +757,7 @@ class DashboardRepository(BaseRepository):
             self,
             batch_ids: Iterable[str],
     ) -> dict[str, list[dict[str, Any]]]:
-        """获取批次实际命中的部署统计
+        """获取批次实际命中的部署统计.
 
         参数：
             batch_ids: 批次 ID 集合
@@ -850,7 +850,7 @@ class DashboardRepository(BaseRepository):
             self,
             attempt_ids: Iterable[str],
     ) -> dict[str, list[AttemptShardDetail]]:
-        """获取执行尝试的分片及处理进度
+        """获取执行尝试的分片及处理进度.
 
         参数：
             attempt_ids: 执行尝试 ID 集合
@@ -947,7 +947,7 @@ class DashboardRepository(BaseRepository):
             self,
             decision_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取决策关联信息
+        """获取决策关联信息.
 
         参数：
             decision_ids: 决策 ID 集合
@@ -1079,7 +1079,7 @@ class DashboardRepository(BaseRepository):
             self,
             execution_ids: Iterable[str],
     ) -> dict[str, dict[str, Any]]:
-        """获取模型执行关联信息
+        """获取模型执行关联信息.
 
         参数：
             execution_ids: 执行 ID 集合
@@ -1158,7 +1158,7 @@ class DashboardRepository(BaseRepository):
             self,
             decision_ids: Iterable[str],
     ) -> dict[str, list[dict[str, Any]]]:
-        """获取决策对应的全部主执行和影子执行
+        """获取决策对应的全部主执行和影子执行.
 
         参数：
             decision_ids: 决策 ID 集合
@@ -1246,7 +1246,7 @@ class DashboardRepository(BaseRepository):
             self,
             experiment_ids: Iterable[str],
     ) -> dict[str, int]:
-        """获取实验对应的分组数量
+        """获取实验对应的分组数量.
 
         参数：
             experiment_ids: 实验 ID 集合
@@ -1303,7 +1303,7 @@ class DashboardRepository(BaseRepository):
             sort_by: str | None = None,
             sort_order: str = "asc",
     ) -> list[Variant]:
-        """查询、排序并分页返回实验分组
+        """查询、排序并分页返回实验分组.
 
         参数：
             experiment_id: 实验 ID
@@ -1425,7 +1425,7 @@ class DashboardRepository(BaseRepository):
             interval: timedelta,
             origin: datetime,
     ) -> list[dict[str, Any]]:
-        """按指定时间间隔获取 API 调用趋势
+        """按指定时间间隔获取 API 调用趋势.
 
         参数：
             since: 统计起始时间
@@ -1507,7 +1507,7 @@ class DashboardRepository(BaseRepository):
             since: datetime,
             previous_since: datetime,
     ) -> dict[str, Any]:
-        """获取当前和上一周期的 API 调用核心指标
+        """获取当前和上一周期的 API 调用核心指标.
 
         参数：
             since: 当前统计周期起始时间
@@ -1612,7 +1612,7 @@ class DashboardRepository(BaseRepository):
             *,
             since: datetime,
     ) -> list[dict[str, Any]]:
-        """获取全部模型的最近调用表现和累计调用量
+        """获取全部模型的最近调用表现和累计调用量.
 
         参数：
             since: 最近调用统计起始时间

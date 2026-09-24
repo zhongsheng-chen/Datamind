@@ -1,4 +1,4 @@
-"""运行时服务接口组件
+"""运行时服务接口组件.
 
 提供 BentoML 推理服务、请求结构和服务接口异常。
 
@@ -89,7 +89,7 @@ __all__ = list(_EXPORTS)
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载包级公共对象"""
+    """按需加载包级公共对象."""
     export = _EXPORTS.get(name)
 
     if export is None:
@@ -104,5 +104,5 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
-    """返回包含延迟公共导出的模块属性列表"""
+    """返回包含延迟公共导出的模块属性列表."""
     return sorted({*globals(), *__all__})

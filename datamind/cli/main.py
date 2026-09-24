@@ -1,4 +1,4 @@
-"""Datamind CLI 主入口
+"""Datamind CLI 主入口.
 
 提供命令行工具的入口和子命令管理。
 
@@ -30,6 +30,7 @@ from datamind._build import BUILD_COMMIT, BUILD_DATE
 from datamind.cli.auth.login import login
 from datamind.cli.auth.logout import logout
 from datamind.cli.auth.whoami import whoami
+from datamind.cli.branding import short_commit
 from datamind.cli.console import app as console_app
 from datamind.cli.deployment import app as deployment_app
 from datamind.cli.experiment import app as experiment_app
@@ -46,7 +47,7 @@ from datamind.logging import setup_logging
 
 
 def version_callback(value: bool) -> None:
-    """显示版本信息
+    """显示版本信息.
 
     参数：
         value: 是否触发版本显示
@@ -54,10 +55,14 @@ def version_callback(value: bool) -> None:
     if not value:
         return
 
-    message = f"datamind version {version('datamind')}"
+    message = f"datamind version {version('pydatamind')}"
 
     if BUILD_COMMIT != "dev" and BUILD_DATE is not None:
-        message += f" (commit {BUILD_COMMIT}, built {BUILD_DATE})"
+        displayed_commit = short_commit(BUILD_COMMIT)
+        message += (
+            f" (commit {displayed_commit}, "
+            f"built {BUILD_DATE})"
+        )
 
     typer.echo(message)
 
@@ -80,7 +85,7 @@ def main(
         is_eager=True,
     ),
 ) -> None:
-    """Datamind CLI 主入口"""
+    """Datamind CLI 主入口."""
     setup_logging(get_logging_config())
 
 

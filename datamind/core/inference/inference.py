@@ -1,4 +1,4 @@
-"""统一推理接口
+"""统一推理接口.
 
 封装模型适配器创建、概率预测、对数几率预测、特征转换、
 特征校验、特征重要性和能力查询。
@@ -96,7 +96,7 @@ from datamind.core.inference.adapters.factory import ModelAdapterFactory
 
 
 class Inference:
-    """统一模型推理接口"""
+    """统一模型推理接口."""
 
     def __init__(
             self,
@@ -105,7 +105,7 @@ class Inference:
             data_types: dict[str, DataType] | None = None,
             positive_class: Any = 1,
     ) -> None:
-        """初始化推理实例
+        """初始化推理实例.
 
         参数：
             model: 已训练模型
@@ -126,7 +126,7 @@ class Inference:
             self,
             X: PredictionInput,
     ) -> PredictionResult:
-        """概率预测"""
+        """概率预测."""
         return self.adapter.predict(
             X
         )
@@ -135,7 +135,7 @@ class Inference:
             self,
             X: PredictionInput,
     ) -> PredictionResult:
-        """对数几率预测"""
+        """对数几率预测."""
         self.require_capability(
             ModelCapability.PREDICT_LOG_ODDS
         )
@@ -148,7 +148,7 @@ class Inference:
             self,
             X: dict[str, Any],
     ) -> np.ndarray:
-        """特征转换"""
+        """特征转换."""
         return self.adapter.to_array(
             X
         )
@@ -157,7 +157,7 @@ class Inference:
             self,
             X: list[dict[str, Any]],
     ) -> np.ndarray:
-        """批量特征转换"""
+        """批量特征转换."""
         return self.adapter.to_array_batch(
             X
         )
@@ -169,7 +169,7 @@ class Inference:
         list[str],
         list[tuple[str, str, str]],
     ]:
-        """特征校验"""
+        """特征校验."""
         return self.adapter.validate_features(
             X
         )
@@ -177,7 +177,7 @@ class Inference:
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取特征重要性"""
+        """获取特征重要性."""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
@@ -187,14 +187,14 @@ class Inference:
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取模型能力集"""
+        """获取模型能力集."""
         return self.adapter.get_capabilities()
 
     def has_capability(
             self,
             capability: ModelCapability,
     ) -> bool:
-        """检查模型能力"""
+        """检查模型能力."""
         return self.adapter.has_capability(
             capability
         )
@@ -203,7 +203,7 @@ class Inference:
             self,
             capability: ModelCapability,
     ) -> None:
-        """校验模型能力"""
+        """校验模型能力."""
         self.adapter.require_capability(
             capability
         )

@@ -1,4 +1,4 @@
-"""上下文作用域工具
+"""上下文作用域工具.
 
 提供基于 contextvars 的临时上下文作用域管理，
 适用于请求、批处理、任务和异步场景，并支持嵌套。
@@ -41,7 +41,7 @@ from datamind.context.core import (
 def context_scope(
         **kwargs: Any,
 ) -> Iterator[None]:
-    """创建临时上下文作用域
+    """创建临时上下文作用域.
 
     当前上下文与传入字段合并。
     退出作用域时恢复进入前的上下文，支持嵌套使用。

@@ -1,4 +1,4 @@
-"""模型制品表
+"""模型制品表.
 
 记录模型版本的制品修订信息，包括存储位置、
 完整性摘要、生命周期状态和永久清理结果。
@@ -49,7 +49,7 @@ class Artifact(
     TimestampMixin,
     Base,
 ):
-    """模型制品修订表"""
+    """模型制品修订表."""
 
     __tablename__ = "artifacts"
 
@@ -232,7 +232,7 @@ class Artifact(
     )
 
     def __repr__(self) -> str:
-        """返回模型制品字符串表示"""
+        """返回模型制品字符串表示."""
         return (
             "<Artifact("
             f"artifact_id='{self.artifact_id}', "

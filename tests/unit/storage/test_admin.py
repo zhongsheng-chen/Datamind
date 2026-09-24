@@ -1,4 +1,4 @@
-"""存储管理 API 测试
+"""存储管理 API 测试.
 
 验证结构化存储操作、按 key 操作、数据校验和严格删除行为。
 
@@ -63,7 +63,7 @@ from datamind.storage.errors import StorageNotFoundError
 
 
 class RecordingBackend(BaseStorageBackend):
-    """记录存储操作的测试后端"""
+    """记录存储操作的测试后端."""
 
     def __init__(self) -> None:
         self.objects: dict[str, bytes] = {}
@@ -79,7 +79,7 @@ class RecordingBackend(BaseStorageBackend):
         key: str,
         data: bytes,
     ) -> None:
-        """保存并记录对象"""
+        """保存并记录对象."""
         self.put_calls.append(
             (
                 key,
@@ -92,7 +92,7 @@ class RecordingBackend(BaseStorageBackend):
         self,
         key: str,
     ) -> bytes:
-        """读取并记录对象"""
+        """读取并记录对象."""
         self.get_calls.append(key)
         return self.objects[key]
 
@@ -100,7 +100,7 @@ class RecordingBackend(BaseStorageBackend):
         self,
         key: str,
     ) -> None:
-        """删除并记录对象"""
+        """删除并记录对象."""
         self.delete_calls.append(key)
         self.objects.pop(
             key,
@@ -111,7 +111,7 @@ class RecordingBackend(BaseStorageBackend):
         self,
         key: str,
     ) -> bool:
-        """检查并记录对象"""
+        """检查并记录对象."""
         self.exists_calls.append(key)
         return key in self.objects
 
@@ -119,7 +119,7 @@ class RecordingBackend(BaseStorageBackend):
         self,
         prefix: str,
     ) -> list[str]:
-        """列出并记录对象"""
+        """列出并记录对象."""
         self.list_calls.append(prefix)
 
         if self.list_result is not None:
@@ -137,7 +137,7 @@ def create_config(
     max_file_size: int = 1024,
     model_dir: str = "models",
 ) -> StorageConfig:
-    """创建不读取外部配置源的存储配置"""
+    """创建不读取外部配置源的存储配置."""
     local = LocalStorageConfig.model_construct(
         base_dir=Path("./data")
     )
@@ -166,7 +166,7 @@ def create_admin(
     max_file_size: int = 1024,
     model_dir: str = "models",
 ) -> tuple[StorageAdmin, RecordingBackend]:
-    """创建使用记录后端的存储管理对象"""
+    """创建使用记录后端的存储管理对象."""
     backend = RecordingBackend()
     received_configs: list[StorageConfig] = []
 
@@ -200,7 +200,7 @@ def create_admin(
 def test_init_creates_backend_and_exposes_storage_type(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试初始化后端并返回后端类型名称"""
+    """测试初始化后端并返回后端类型名称."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -213,7 +213,7 @@ def test_init_creates_backend_and_exposes_storage_type(
 def test_save_with_model_fields_builds_key_and_writes_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试根据模型字段构造存储键并保存"""
+    """测试根据模型字段构造存储键并保存."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -243,7 +243,7 @@ def test_save_with_model_fields_builds_key_and_writes_data(
 def test_save_prefers_explicit_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试显式 key 优先于模型字段"""
+    """测试显式 key 优先于模型字段."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -293,7 +293,7 @@ def test_structured_operations_require_complete_key_fields(
     monkeypatch: pytest.MonkeyPatch,
     arguments: dict[str, Any],
 ) -> None:
-    """测试结构化操作要求完整模型字段"""
+    """测试结构化操作要求完整模型字段."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -316,7 +316,7 @@ def test_structured_operations_require_complete_key_fields(
 def test_save_rejects_non_bytes_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试保存操作拒绝非 bytes 数据"""
+    """测试保存操作拒绝非 bytes 数据."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -337,7 +337,7 @@ def test_save_rejects_non_bytes_data(
 def test_save_rejects_data_exceeding_size_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试保存操作拒绝超过大小上限的数据"""
+    """测试保存操作拒绝超过大小上限的数据."""
     storage_admin, backend = create_admin(
         monkeypatch,
         max_file_size=4,
@@ -361,7 +361,7 @@ def test_save_rejects_data_exceeding_size_limit(
 def test_load_with_model_fields_returns_backend_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试根据模型字段加载对象"""
+    """测试根据模型字段加载对象."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -387,7 +387,7 @@ def test_load_with_model_fields_returns_backend_data(
 def test_exists_with_explicit_key_delegates_to_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按显式 key 检查对象"""
+    """测试按显式 key 检查对象."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -407,7 +407,7 @@ def test_exists_with_explicit_key_delegates_to_backend(
 def test_delete_non_strict_does_not_check_existence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试非严格删除直接调用后端删除"""
+    """测试非严格删除直接调用后端删除."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -428,7 +428,7 @@ def test_delete_non_strict_does_not_check_existence(
 def test_delete_strict_raises_when_object_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试严格删除不存在对象时抛出标准异常"""
+    """测试严格删除不存在对象时抛出标准异常."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -452,7 +452,7 @@ def test_delete_strict_raises_when_object_is_missing(
 def test_delete_strict_removes_existing_object(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试严格删除已存在对象"""
+    """测试严格删除已存在对象."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -477,7 +477,7 @@ def test_delete_strict_removes_existing_object(
 def test_list_returns_relative_model_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试列表结果转换为模型目录下的相对键"""
+    """测试列表结果转换为模型目录下的相对键."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -504,7 +504,7 @@ def test_list_returns_relative_model_keys(
 def test_list_rejects_invalid_model_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试列表操作通过策略校验模型 ID"""
+    """测试列表操作通过策略校验模型 ID."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -523,7 +523,7 @@ def test_list_rejects_invalid_model_id(
 def test_save_by_key_validates_and_writes_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按 key 保存时执行数据校验"""
+    """测试按 key 保存时执行数据校验."""
     storage_admin, backend = create_admin(
         monkeypatch,
         max_file_size=10,
@@ -547,7 +547,7 @@ def test_save_by_key_validates_and_writes_data(
 def test_save_by_key_rejects_oversized_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按 key 保存时拒绝超过上限的数据"""
+    """测试按 key 保存时拒绝超过上限的数据."""
     storage_admin, backend = create_admin(
         monkeypatch,
         max_file_size=3,
@@ -568,7 +568,7 @@ def test_save_by_key_rejects_oversized_data(
 def test_structured_save_uses_configured_model_dir(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试结构化保存使用配置的模型目录"""
+    """测试结构化保存使用配置的模型目录."""
     storage_admin, backend = create_admin(
         monkeypatch,
         model_dir="model_registry",
@@ -594,7 +594,7 @@ def test_structured_save_uses_configured_model_dir(
 def test_load_by_key_returns_backend_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按 key 加载对象"""
+    """测试按 key 加载对象."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -612,7 +612,7 @@ def test_load_by_key_returns_backend_data(
 def test_delete_by_key_strict_raises_when_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按 key 严格删除不存在对象"""
+    """测试按 key 严格删除不存在对象."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -636,7 +636,7 @@ def test_delete_by_key_strict_raises_when_missing(
 def test_delete_by_key_non_strict_delegates_directly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按 key 非严格删除直接调用后端"""
+    """测试按 key 非严格删除直接调用后端."""
     storage_admin, backend = create_admin(
         monkeypatch
     )
@@ -657,7 +657,7 @@ def test_delete_by_key_non_strict_delegates_directly(
 def test_exists_by_key_returns_backend_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按 key 检查对象是否存在"""
+    """测试按 key 检查对象是否存在."""
     storage_admin, backend = create_admin(
         monkeypatch
     )

@@ -1,4 +1,4 @@
-"""模型生命周期服务测试
+"""模型生命周期服务测试.
 
 验证模型和版本的激活、停用及活动部署保护。
 
@@ -55,7 +55,7 @@ from datamind.services.mutation import MutationResult
 
 
 class FakeUnitOfWork:
-    """生命周期服务测试工作单元"""
+    """生命周期服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -75,7 +75,7 @@ def configure_repositories(
         deployments: list[object] | None = None,
         active_versions: list[object] | None = None,
 ) -> tuple[MagicMock, MagicMock, MagicMock]:
-    """配置生命周期服务仓储替身"""
+    """配置生命周期服务仓储替身."""
     resolver = MagicMock()
     resolver.resolve_model = AsyncMock(
         return_value=SimpleNamespace(
@@ -164,7 +164,7 @@ def configure_repositories(
 async def test_activate_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试激活模型及其全部 inactive 版本"""
+    """测试激活模型及其全部 inactive 版本."""
     inactive_versions = [
         SimpleNamespace(
             version_id="ver_first",
@@ -232,7 +232,7 @@ async def test_activate_audit_records_only_status_changes(
         model_status: str,
         version_status: str,
 ) -> None:
-    """测试指定版本激活及重复激活的状态审计"""
+    """测试指定版本激活及重复激活的状态审计."""
     configure_repositories(
         monkeypatch,
         model_status=model_status,
@@ -259,7 +259,7 @@ async def test_activate_audit_records_only_status_changes(
 async def test_activate_model_requires_available_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试没有 inactive 或 active 版本时拒绝激活模型"""
+    """测试没有 inactive 或 active 版本时拒绝激活模型."""
     resolver, _, version_repo = configure_repositories(
         monkeypatch,
         model_status="inactive",
@@ -292,7 +292,7 @@ async def test_activate_model_requires_available_version(
 async def test_activate_model_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试激活模型元数据和指定版本"""
+    """测试激活模型元数据和指定版本."""
     resolver, _, _ = configure_repositories(
         monkeypatch,
         model_status="inactive",
@@ -319,7 +319,7 @@ async def test_activate_model_version(
 async def test_activate_model_version_by_version_id(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试仅凭版本 ID 激活模型版本"""
+    """测试仅凭版本 ID 激活模型版本."""
     resolver, _, version_repo = configure_repositories(
         monkeypatch,
         model_status="inactive",
@@ -351,7 +351,7 @@ async def test_activate_model_version_by_version_id(
 async def test_activate_rejects_archived_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试归档版本按非法状态迁移拒绝激活"""
+    """测试归档版本按非法状态迁移拒绝激活."""
     resolver, _, _ = configure_repositories(
         monkeypatch,
         model_status="active",
@@ -379,7 +379,7 @@ async def test_activate_rejects_archived_version(
 async def test_deactivate_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试停用没有活动部署的模型及其 active 版本"""
+    """测试停用没有活动部署的模型及其 active 版本."""
     other_version = SimpleNamespace(
         version_id="ver_other",
         status="active",
@@ -430,7 +430,7 @@ async def test_deactivate_model(
 async def test_deactivate_model_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试停用没有活动部署的模型版本"""
+    """测试停用没有活动部署的模型版本."""
     resolver, deployment_repo, version_repo = configure_repositories(
         monkeypatch,
         deployments=[],
@@ -463,7 +463,7 @@ async def test_deactivate_model_version(
 async def test_deactivate_version_keeps_model_with_other_active_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试停用版本后仍有激活版本时保持模型激活"""
+    """测试停用版本后仍有激活版本时保持模型激活."""
     other_version = SimpleNamespace(
         version_id="ver_other",
         status="active",
@@ -488,7 +488,7 @@ async def test_deactivate_version_keeps_model_with_other_active_version(
 async def test_deprecate_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试弃用模型及其 active、inactive 版本"""
+    """测试弃用模型及其 active、inactive 版本."""
     active_version = SimpleNamespace(
         version_id="ver_active",
         version="2.0.0",
@@ -540,7 +540,7 @@ async def test_deprecate_model(
 async def test_deprecate_model_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试弃用最后一个 active 版本时同时停用模型"""
+    """测试弃用最后一个 active 版本时同时停用模型."""
     resolver, deployment_repo, version_repo = configure_repositories(
         monkeypatch,
         deployments=[],
@@ -573,7 +573,7 @@ async def test_deprecate_model_version(
 async def test_deprecate_version_keeps_model_with_other_active_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试弃用版本后仍有 active 版本时保持模型激活"""
+    """测试弃用版本后仍有 active 版本时保持模型激活."""
     other_version = SimpleNamespace(
         version_id="ver_other",
         status="active",
@@ -598,7 +598,7 @@ async def test_deprecate_version_keeps_model_with_other_active_version(
 async def test_archive_model_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试归档未激活的模型版本"""
+    """测试归档未激活的模型版本."""
     resolver, deployment_repo, version_repo = configure_repositories(
         monkeypatch,
         version_status="inactive",
@@ -635,7 +635,7 @@ async def test_archive_model_version(
 async def test_archive_model_and_remaining_versions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试归档模型时级联归档尚未归档的版本"""
+    """测试归档模型时级联归档尚未归档的版本."""
     versions = [
         SimpleNamespace(version_id="ver_inactive", status="inactive"),
         SimpleNamespace(version_id="ver_deprecated", status="deprecated"),
@@ -691,7 +691,7 @@ async def test_archive_model_and_remaining_versions(
 async def test_deprecate_rejects_version_with_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试存在活动部署时拒绝弃用模型版本"""
+    """测试存在活动部署时拒绝弃用模型版本."""
     resolver, deployment_repo, version_repo = configure_repositories(
         monkeypatch,
     )
@@ -717,7 +717,7 @@ async def test_deprecate_rejects_version_with_active_deployment(
 async def test_deprecate_rejects_model_with_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试存在活动部署时拒绝弃用模型"""
+    """测试存在活动部署时拒绝弃用模型."""
     _, deployment_repo, version_repo = configure_repositories(
         monkeypatch,
     )
@@ -741,7 +741,7 @@ async def test_deprecate_rejects_model_with_active_deployment(
 async def test_deactivate_rejects_model_with_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试存在活动部署时拒绝停用模型"""
+    """测试存在活动部署时拒绝停用模型."""
     _, deployment_repo, _ = configure_repositories(monkeypatch)
 
     with pytest.raises(InvalidModelStateError, match="活动部署"):
@@ -756,7 +756,7 @@ async def test_deactivate_rejects_model_with_active_deployment(
 async def test_deactivate_rejects_version_with_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试存在活动部署时拒绝停用版本"""
+    """测试存在活动部署时拒绝停用版本."""
     resolver, deployment_repo, _ = configure_repositories(monkeypatch)
 
     with pytest.raises(InvalidModelStateError, match="活动部署"):
@@ -784,7 +784,7 @@ async def test_lifecycle_rejects_missing_model(
         monkeypatch: pytest.MonkeyPatch,
         operation: str,
 ) -> None:
-    """测试激活和停用不存在的模型时报错"""
+    """测试激活和停用不存在的模型时报错."""
     resolver, _, _ = configure_repositories(
         monkeypatch,
         deployments=[],
@@ -817,7 +817,7 @@ async def test_lifecycle_rejects_missing_version(
         monkeypatch: pytest.MonkeyPatch,
         operation: str,
 ) -> None:
-    """测试激活和停用不存在的模型版本时报错"""
+    """测试激活和停用不存在的模型版本时报错."""
     resolver, _, _ = configure_repositories(
         monkeypatch,
         model_status="inactive",

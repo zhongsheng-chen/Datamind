@@ -1,4 +1,4 @@
-"""日志系统初始化测试
+"""日志系统初始化测试.
 
 验证日志系统的同步、异步、静默、处理器选择、
 重复初始化和资源清理行为。
@@ -57,7 +57,7 @@ def create_config(
         tmp_path: Path,
         **overrides: object,
 ) -> LoggingConfig:
-    """创建不读取外部配置源的日志配置"""
+    """创建不读取外部配置源的日志配置."""
     config_kwargs: dict[str, object] = {
         "level": LogLevel.INFO,
         "format": LogFormat.JSON,
@@ -92,7 +92,7 @@ def create_config(
 
 
 def create_identity_processor() -> Processor:
-    """创建原样返回事件字典的测试处理器"""
+    """创建原样返回事件字典的测试处理器."""
 
     def processor(
             _logger: WrappedLogger,
@@ -110,7 +110,7 @@ def create_renderer_spies(
     Callable[[], Processor],
     Callable[[], Processor],
 ]:
-    """创建记录渲染器选择结果的测试桩"""
+    """创建记录渲染器选择结果的测试桩."""
     renderer = create_identity_processor()
 
     def fake_json_renderer() -> Processor:
@@ -131,7 +131,7 @@ def create_renderer_spies(
 
 @pytest.fixture(autouse=True)
 def reset_logging_state() -> Iterator[None]:
-    """在每个测试前后清理日志系统"""
+    """在每个测试前后清理日志系统."""
     logging_setup.shutdown_logging()
 
     yield
@@ -140,14 +140,14 @@ def reset_logging_state() -> Iterator[None]:
 
 
 def test_logger_factory_uses_default_name() -> None:
-    """测试日志工厂默认使用 datamind 名称"""
+    """测试日志工厂默认使用 datamind 名称."""
     logger = logging_setup._logger_factory()
 
     assert logger is logging.getLogger("datamind")
 
 
 def test_logger_factory_preserves_explicit_name() -> None:
-    """测试日志工厂保留指定名称"""
+    """测试日志工厂保留指定名称."""
     logger = logging_setup._logger_factory(
         "datamind.services.catalog"
     )
@@ -160,7 +160,7 @@ def test_logger_factory_preserves_explicit_name() -> None:
 def test_setup_logging_creates_sync_console_handler(
         tmp_path: Path,
 ) -> None:
-    """测试同步控制台日志初始化"""
+    """测试同步控制台日志初始化."""
     config = create_config(
         tmp_path,
         enable_console=True,
@@ -192,7 +192,7 @@ def test_setup_logging_creates_sync_console_handler(
 def test_setup_logging_creates_sync_file_handler(
         tmp_path: Path,
 ) -> None:
-    """测试同步文件日志初始化"""
+    """测试同步文件日志初始化."""
     config = create_config(
         tmp_path,
         enable_console=False,
@@ -214,7 +214,7 @@ def test_setup_logging_creates_sync_file_handler(
 def test_setup_logging_captures_foreign_exception_via_root(
         tmp_path: Path,
 ) -> None:
-    """测试第三方 logger 的原生异常记录直接写入文件"""
+    """测试第三方 logger 的原生异常记录直接写入文件."""
     config = create_config(
         tmp_path,
         format=LogFormat.TEXT,
@@ -279,7 +279,7 @@ def test_setup_logging_captures_foreign_exception_via_root(
 def test_setup_logging_creates_async_queue_handler(
         tmp_path: Path,
 ) -> None:
-    """测试异步日志初始化"""
+    """测试异步日志初始化."""
     config = create_config(
         tmp_path,
         enable_console=True,
@@ -304,7 +304,7 @@ def test_setup_logging_creates_async_queue_handler(
 def test_setup_logging_allows_silent_mode(
         tmp_path: Path,
 ) -> None:
-    """测试控制台和文件均关闭时允许静默运行"""
+    """测试控制台和文件均关闭时允许静默运行."""
     config = create_config(
         tmp_path,
         enable_console=False,
@@ -325,7 +325,7 @@ def test_setup_logging_applies_console_level(
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """测试控制台和文件分别使用各自的日志阈值"""
+    """测试控制台和文件分别使用各自的日志阈值."""
     config = create_config(
         tmp_path,
         enable_console=True,
@@ -370,10 +370,10 @@ def test_setup_logging_closes_previous_handlers(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试重复初始化时关闭旧 handler"""
+    """测试重复初始化时关闭旧 handler."""
 
     class TrackingHandler(logging.Handler):
-        """记录关闭次数的测试 handler"""
+        """记录关闭次数的测试 handler."""
 
         def __init__(self) -> None:
             super().__init__()
@@ -383,11 +383,11 @@ def test_setup_logging_closes_previous_handlers(
                 self,
                 record: logging.LogRecord,
         ) -> None:
-            """忽略日志记录"""
+            """忽略日志记录."""
             _ = record
 
         def close(self) -> None:
-            """记录关闭并执行父类清理"""
+            """记录关闭并执行父类清理."""
             self.close_count += 1
             super().close()
 
@@ -456,7 +456,7 @@ def test_setup_logging_selects_renderer(
         log_format: LogFormat,
         expected_call: str,
 ) -> None:
-    """测试根据日志格式选择对应渲染器"""
+    """测试根据日志格式选择对应渲染器."""
     renderer_calls: list[str] = []
     (
         fake_json_renderer,
@@ -494,7 +494,7 @@ def test_setup_logging_adds_sampling_and_masking_processors(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试按配置加入采样和脱敏处理器"""
+    """测试按配置加入采样和脱敏处理器."""
     captured: dict[str, Any] = {}
     sampling_rates: list[float] = []
     masking_options: list[tuple[str, int, int]] = []
@@ -581,7 +581,7 @@ def test_setup_logging_adds_sampling_and_masking_processors(
 def test_shutdown_logging_clears_global_state(
         tmp_path: Path,
 ) -> None:
-    """测试关闭日志系统后清理全局状态"""
+    """测试关闭日志系统后清理全局状态."""
     config = create_config(
         tmp_path,
         enable_console=True,

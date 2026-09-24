@@ -1,4 +1,4 @@
-"""模型类型枚举
+"""模型类型枚举.
 
 定义支持的机器学习模型类型，用于模型注册、运行时识别和 API 响应。
 
@@ -24,7 +24,7 @@ from typing import (
 
 
 class ModelType(str, Enum):
-    """机器学习模型类型字符串枚举"""
+    """机器学习模型类型字符串枚举."""
 
     # 线性模型
     LOGISTIC_REGRESSION = "logistic_regression"
@@ -41,7 +41,7 @@ class ModelType(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

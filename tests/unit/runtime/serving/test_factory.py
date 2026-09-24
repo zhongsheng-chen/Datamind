@@ -1,4 +1,4 @@
-"""运行时服务工厂测试
+"""运行时服务工厂测试.
 
 验证任务类型解析、分类阈值解析和具体服务创建行为。
 
@@ -35,7 +35,7 @@ from datamind.runtime.serving.factory import RuntimeServiceFactory
 def create_runtime_model(
         metadata: dict[str, Any] | None = None,
 ) -> RuntimeModel:
-    """创建运行时模型"""
+    """创建运行时模型."""
     return RuntimeModel(
         deployment_id="dep_test",
         model_id="mdl_test",
@@ -49,7 +49,7 @@ def create_runtime_model(
 def install_service_factories(
         monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[MagicMock, MagicMock]:
-    """安装具体运行时服务工厂替身"""
+    """安装具体运行时服务工厂替身."""
     classification_factory = MagicMock(
         return_value=MagicMock()
     )
@@ -73,7 +73,7 @@ def install_service_factories(
 def test_create_classification_service_from_explicit_task_type(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试显式任务类型创建分类服务"""
+    """测试显式任务类型创建分类服务."""
     classification_factory, _ = install_service_factories(
         monkeypatch
     )
@@ -118,7 +118,7 @@ def test_create_classification_service_resolves_metadata_threshold(
         metadata: dict[str, Any],
         expected_threshold: float,
 ) -> None:
-    """测试分类服务从元数据解析阈值"""
+    """测试分类服务从元数据解析阈值."""
     classification_factory, _ = install_service_factories(
         monkeypatch
     )
@@ -136,7 +136,7 @@ def test_create_classification_service_resolves_metadata_threshold(
 def test_create_scoring_service(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建评分服务并传递评分决策阈值"""
+    """测试创建评分服务并传递评分决策阈值."""
     _, scoring_factory = install_service_factories(
         monkeypatch
     )
@@ -160,7 +160,7 @@ def test_create_scoring_service(
 def test_create_scoring_service_uses_deployment_threshold(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试评分服务读取部署配置中的阈值"""
+    """测试评分服务读取部署配置中的阈值."""
     _, scoring_factory = install_service_factories(monkeypatch)
     runtime_model = create_runtime_model({
         "task_type": "scoring",
@@ -186,7 +186,7 @@ def test_create_rejects_invalid_task_type(
         metadata: dict[str, Any],
         message: str,
 ) -> None:
-    """测试服务工厂拒绝缺失或不受支持的任务类型"""
+    """测试服务工厂拒绝缺失或不受支持的任务类型."""
     install_service_factories(monkeypatch)
 
     with pytest.raises(
@@ -200,7 +200,7 @@ def test_create_rejects_invalid_task_type(
 
 
 def test_create_rejects_missing_runtime_model() -> None:
-    """测试服务工厂拒绝空运行时模型"""
+    """测试服务工厂拒绝空运行时模型."""
     runtime_model: Any = None
 
     with pytest.raises(
@@ -228,7 +228,7 @@ def test_create_rejects_invalid_threshold(
         threshold: Any,
         message: str,
 ) -> None:
-    """测试分类服务工厂拒绝非法阈值"""
+    """测试分类服务工厂拒绝非法阈值."""
     install_service_factories(monkeypatch)
 
     with pytest.raises(
@@ -245,7 +245,7 @@ def test_create_rejects_invalid_threshold(
 def test_explicit_threshold_takes_precedence_over_metadata(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试显式阈值优先于部署配置"""
+    """测试显式阈值优先于部署配置."""
     classification_factory, _ = install_service_factories(
         monkeypatch
     )

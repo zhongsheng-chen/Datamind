@@ -1,4 +1,4 @@
-"""停用角色命令
+"""停用角色命令.
 
 提供角色停用功能。
 
@@ -33,7 +33,7 @@ def disable_role(
             help="角色名称",
         ),
 ) -> None:
-    """停用角色"""
+    """停用角色."""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",

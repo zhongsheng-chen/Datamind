@@ -1,4 +1,4 @@
-"""运行时服务安全边界
+"""运行时服务安全边界.
 
 负责解析 Bearer 访问令牌、认证用户、校验接口权限，
 并为日志和审计建立可信请求上下文。
@@ -49,7 +49,7 @@ from datamind.runtime.server.errors import (
 
 @dataclass(frozen=True, slots=True)
 class RuntimeIdentity:
-    """运行时请求身份"""
+    """运行时请求身份."""
 
     user_id: str
     username: str
@@ -58,16 +58,16 @@ class RuntimeIdentity:
 
 
 class RuntimeRequestContext(Protocol):
-    """运行时请求上下文协议"""
+    """运行时请求上下文协议."""
 
     @property
     def request(self) -> Request:
-        """返回当前 HTTP 请求"""
+        """返回当前 HTTP 请求."""
         ...
 
 
 class RuntimeSecurity:
-    """运行时服务安全边界"""
+    """运行时服务安全边界."""
 
     @asynccontextmanager
     async def request_scope(
@@ -77,7 +77,7 @@ class RuntimeSecurity:
             permission: str,
             request_id: str,
     ) -> AsyncIterator[RuntimeIdentity]:
-        """认证请求并建立可信上下文"""
+        """认证请求并建立可信上下文."""
         identity = await self.authenticate(
             context=context,
             permission=permission,
@@ -109,7 +109,7 @@ class RuntimeSecurity:
             context: RuntimeRequestContext,
             permission: str,
     ) -> RuntimeIdentity:
-        """认证请求并校验权限"""
+        """认证请求并校验权限."""
         auth_config = get_auth_config()
         service_config = get_service_config()
 
@@ -173,7 +173,7 @@ class RuntimeSecurity:
     def _extract_bearer_token(
             authorization: str | None,
     ) -> str:
-        """解析 Authorization Bearer 令牌"""
+        """解析 Authorization Bearer 令牌."""
         if authorization is None:
             raise ServiceAuthenticationError(
                 "缺少 Authorization Bearer 访问令牌"
@@ -199,7 +199,7 @@ class RuntimeSecurity:
             scope: Mapping[str, Any],
             key: str,
     ) -> str | None:
-        """读取字符串请求作用域字段"""
+        """读取字符串请求作用域字段."""
         value = scope.get(
             key
         )

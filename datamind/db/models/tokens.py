@@ -1,4 +1,4 @@
-"""认证令牌表
+"""认证令牌表.
 
 记录刷新令牌哈希及其有效期和撤销状态，
 用于登录会话续期、退出登录和令牌失效控制。
@@ -51,7 +51,7 @@ class Token(
     TimestampMixin,
     Base,
 ):
-    """认证令牌表"""
+    """认证令牌表."""
 
     __tablename__ = "tokens"
 
@@ -210,7 +210,7 @@ class Token(
     def __repr__(
             self,
     ) -> str:
-        """返回认证令牌字符串表示"""
+        """返回认证令牌字符串表示."""
         return (
             f"<Token("
             f"token_id='{self.token_id}', "

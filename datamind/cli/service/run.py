@@ -1,4 +1,4 @@
-"""运行服务命令
+"""运行服务命令.
 
 提供模型评分服务启动功能。
 
@@ -51,7 +51,7 @@ SERVICE_TARGET = (
 
 
 class ServiceStartupResult(TypedDict):
-    """模型服务启动结果"""
+    """模型服务启动结果."""
 
     name: str
     version: str
@@ -66,7 +66,7 @@ class ServiceStartupResult(TypedDict):
 def _build_ready_dir(
         service_instance_id: str,
 ) -> Path:
-    """构建 Worker 就绪标记目录
+    """构建 Worker 就绪标记目录.
 
     参数：
         service_instance_id: 服务实例 ID
@@ -85,7 +85,7 @@ def _build_ready_dir(
 def _prepare_ready_dir(
         ready_dir: Path,
 ) -> None:
-    """准备 Worker 就绪标记目录
+    """准备 Worker 就绪标记目录.
 
     参数：
         ready_dir: Worker 就绪标记目录
@@ -104,7 +104,7 @@ def _prepare_ready_dir(
 def _cleanup_ready_dir(
         ready_dir: Path | None,
 ) -> None:
-    """清理 Worker 就绪标记目录
+    """清理 Worker 就绪标记目录.
 
     参数：
         ready_dir: Worker 就绪标记目录
@@ -123,7 +123,7 @@ def _read_worker_ready_files(
         ready_dir: Path,
         service_instance_id: str,
 ) -> set[str]:
-    """读取已就绪 Worker
+    """读取已就绪 Worker.
 
     参数：
         ready_dir: Worker 就绪标记目录
@@ -180,7 +180,7 @@ async def _wait_for_workers_ready(
         timeout_seconds: float = 60.0,
         interval_seconds: float = 0.5,
 ) -> set[str]:
-    """等待全部 Worker 就绪
+    """等待全部 Worker 就绪.
 
     参数：
         ready_dir: Worker 就绪标记目录
@@ -275,7 +275,7 @@ def run_service(
             help="显示 BentoML 警告和信息日志",
         ),
 ):
-    """启动 Datamind 模型服务"""
+    """启动 Datamind 模型服务."""
     settings = get_settings()
 
     setup_logging(
@@ -314,7 +314,7 @@ def run_service(
             run_port: int,
             reload_enabled: bool,
     ) -> ServiceStartupResult:
-        """启动服务子进程并等待 Worker 就绪"""
+        """启动服务子进程并等待 Worker 就绪."""
         nonlocal process
         nonlocal ready_dir
         nonlocal service_instance_id
@@ -522,7 +522,7 @@ def run_service(
             _signum: int,
             _frame: FrameType | None,
     ) -> None:
-        """记录用户停止请求并通知子进程停止"""
+        """记录用户停止请求并通知子进程停止."""
         nonlocal stop_requested
 
         stop_requested = True
@@ -536,7 +536,7 @@ def run_service(
             return_code: int | None,
             stop_reason: str,
     ) -> None:
-        """记录服务主动停止事件"""
+        """记录服务主动停止事件."""
         logger.info(
             "Datamind 服务已停止",
             service_name=configured_service_name,
@@ -554,7 +554,7 @@ def run_service(
             service_process: subprocess.Popen,
             return_code: int,
     ) -> None:
-        """记录服务进程自行退出事件"""
+        """记录服务进程自行退出事件."""
         logger.warning(
             "Datamind 服务进程已退出",
             service_name=configured_service_name,
@@ -569,7 +569,7 @@ def run_service(
     async def _stop_process(
             service_process: subprocess.Popen,
     ) -> int | None:
-        """停止服务子进程
+        """停止服务子进程.
 
         参数：
             service_process: 服务子进程

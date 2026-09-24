@@ -1,4 +1,4 @@
-"""模型运行时公共接口
+"""模型运行时公共接口.
 
 提供模型加载、运行时注册、路由决策、预测执行和状态协调能力。
 
@@ -62,7 +62,7 @@ __all__ = list(_EXPORTS)
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载包级公共对象"""
+    """按需加载包级公共对象."""
     export = _EXPORTS.get(name)
 
     if export is None:
@@ -77,5 +77,5 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
-    """返回包含延迟公共导出的模块属性列表"""
+    """返回包含延迟公共导出的模块属性列表."""
     return sorted({*globals(), *__all__})

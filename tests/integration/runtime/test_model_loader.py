@@ -1,4 +1,4 @@
-"""运行时模型加载集成测试
+"""运行时模型加载集成测试.
 
 验证真实模型制品从统一存储同步至隔离的 BentoML Model Store，并可在源制品删除后复用。
 
@@ -30,14 +30,14 @@ def isolated_bento_home(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """提供不污染用户 BentoML 主目录的真实模型仓库"""
+    """提供不污染用户 BentoML 主目录的真实模型仓库."""
     home = tmp_path / "bentoml"
     monkeypatch.setenv("BENTOML_HOME", str(home))
     return home
 
 
 def serialize_model(model: LogisticRegression) -> bytes:
-    """将真实 sklearn 模型序列化为制品字节"""
+    """将真实 sklearn 模型序列化为制品字节."""
     buffer = BytesIO()
     joblib.dump(model, buffer)
     return buffer.getvalue()
@@ -47,7 +47,7 @@ def test_loader_materializes_and_reuses_bento_model(
     tmp_path: Path,
     isolated_bento_home: Path,
 ) -> None:
-    """测试运行时物化模型后可脱离源制品再次加载"""
+    """测试运行时物化模型后可脱离源制品再次加载."""
     from datamind.runtime.backend import BentoBackend
     from datamind.runtime.loader import ModelLoader
 

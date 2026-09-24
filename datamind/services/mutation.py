@@ -1,4 +1,4 @@
-"""服务变更结果
+"""服务变更结果.
 
 定义携带响应数据和审计快照的服务变更结果。
 
@@ -19,7 +19,7 @@ from typing import Any
 
 
 class MutationResult(dict[str, Any]):
-    """携带响应数据和审计快照的服务变更结果"""
+    """携带响应数据和审计快照的服务变更结果."""
 
     def __init__(
             self,
@@ -28,7 +28,7 @@ class MutationResult(dict[str, Any]):
             before: dict[str, Any] | None = None,
             after: dict[str, Any] | None = None,
     ) -> None:
-        """初始化服务变更结果
+        """初始化服务变更结果.
 
         参数：
             data: 返回给调用方的响应数据
@@ -47,7 +47,7 @@ class MutationResult(dict[str, Any]):
             before: dict[str, Any],
             after: dict[str, Any],
     ) -> "MutationResult":
-        """创建仅包含实际差异的服务变更结果
+        """创建仅包含实际差异的服务变更结果.
 
         参数：
             data: 返回给调用方的响应数据

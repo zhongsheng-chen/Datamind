@@ -1,4 +1,4 @@
-"""列出用户命令
+"""列出用户命令.
 
 提供 LOCAL 用户列表查询功能。
 
@@ -62,7 +62,7 @@ def list_users(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """列出用户"""
+    """列出用户."""
     async def runner() -> None:
         parsed_status = (
             UserStatus(

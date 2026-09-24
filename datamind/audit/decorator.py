@@ -1,4 +1,4 @@
-"""审计装饰器
+"""审计装饰器.
 
 提供简单的函数级审计能力，自动记录操作成功和失败事件。
 
@@ -47,7 +47,7 @@ AuditData = dict[str, Any]
 
 
 def _normalize_target_id(value: object | None) -> str | None:
-    """将目标 ID 规范化为非空字符串"""
+    """将目标 ID 规范化为非空字符串."""
     if value is None:
         return None
 
@@ -72,7 +72,7 @@ async def _record_audit_safely(
     after: Any | None = None,
     failure_mode: AuditFailureMode | None = None,
 ) -> None:
-    """根据失败策略记录审计事件"""
+    """根据失败策略记录审计事件."""
     try:
         await recorder.record(
             action=action,
@@ -113,7 +113,7 @@ def audit(
     [Callable[P, Awaitable[R]]],
     Callable[P, Awaitable[R]],
 ]:
-    """审计装饰器
+    """审计装饰器.
 
     参数：
         action: 操作类型，格式为 resource.operation
@@ -170,7 +170,7 @@ def audit(
     def decorator(
         func: Callable[P, Awaitable[R]],
     ) -> Callable[P, Awaitable[R]]:
-        """包装异步函数"""
+        """包装异步函数."""
         if not iscoroutinefunction(func):
             raise TypeError(
                 f"装饰器仅支持 async 函数：{func.__name__}"

@@ -1,4 +1,4 @@
-"""CLI 公共模块
+"""CLI 公共模块.
 
 提供 CLI 命令的通用上下文管理。
 
@@ -77,7 +77,7 @@ def cli_command_scope(
         ip: str | None = None,
         hostname: str | None = None,
 ) -> Iterator[None]:
-    """为单次 CLI 命令绑定追踪上下文
+    """为单次 CLI 命令绑定追踪上下文.
 
     参数：
         user: 当前操作用户，认证前默认为 anonymous
@@ -98,7 +98,7 @@ def cli_command_scope(
 
 
 class CLIContext:
-    """CLI 上下文"""
+    """CLI 上下文."""
 
     def __init__(
             self,
@@ -107,7 +107,7 @@ class CLIContext:
             ip: str | None = None,
             hostname: str | None = None,
     ):
-        """初始化 CLI 上下文
+        """初始化 CLI 上下文.
 
         参数：
             required_permission: 执行命令所需权限（可选）
@@ -126,7 +126,7 @@ class CLIContext:
         self.authenticated_user: AuthenticatedUser | None = None
 
     async def __aenter__(self):
-        """进入上下文
+        """进入上下文.
 
         初始化日志系统并创建上下文作用域。
 
@@ -197,7 +197,7 @@ class CLIContext:
         return self
 
     async def _authenticate(self) -> None:
-        """认证 CLI 操作人
+        """认证 CLI 操作人.
 
         开发和测试环境允许在认证关闭时使用本地维护模式，
         预发布和生产环境必须启用认证。启用认证后，优先使用
@@ -252,7 +252,7 @@ class CLIContext:
     async def _authenticate_environment_token(
             access_token: str,
     ) -> AuthenticatedUser:
-        """认证环境变量提供的访问令牌"""
+        """认证环境变量提供的访问令牌."""
         authenticated_user: AuthenticatedUser | None = None
 
         async with UnitOfWork() as uow:
@@ -273,7 +273,7 @@ class CLIContext:
     async def _authenticate_stored_credentials(
             self,
     ) -> AuthenticatedUser:
-        """认证并按需续期本地 CLI 登录凭据"""
+        """认证并按需续期本地 CLI 登录凭据."""
         store = CredentialStore()
 
         try:
@@ -351,7 +351,7 @@ class CLIContext:
             exc: BaseException | None,
             tb: TracebackType | None,
     ) -> None:
-        """退出上下文
+        """退出上下文.
 
         恢复上下文作用域。
         """
@@ -367,7 +367,7 @@ class CLIContext:
             exc: BaseException | None,
             tb: TracebackType | None,
     ) -> None:
-        """关闭并清除当前 CLI 命令上下文"""
+        """关闭并清除当前 CLI 命令上下文."""
         if self.scope is None:
             return
 
@@ -386,7 +386,7 @@ def cli_context(
         ip: str | None = None,
         hostname: str | None = None,
 ) -> CLIContext:
-    """CLI 上下文管理器
+    """CLI 上下文管理器.
 
     参数：
         required_permission: 执行命令所需权限（可选）

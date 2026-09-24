@@ -1,4 +1,4 @@
-"""路由仓储
+"""路由仓储.
 
 提供模型流量分发策略的查询与管理能力，
 用于控制请求如何分配到不同部署实例。
@@ -66,7 +66,7 @@ from datamind.db.repositories.base import BaseRepository
 
 @dataclass(slots=True)
 class RoutingPatch:
-    """路由更新结构
+    """路由更新结构.
 
     注意：
         不允许通过 patch 修改 enabled，
@@ -96,13 +96,13 @@ class RoutingPatch:
 
 
 class RoutingRepository(BaseRepository):
-    """路由仓储"""
+    """路由仓储."""
 
     @staticmethod
     def _validate_traffic_ratio(
             traffic_ratio: float,
     ) -> None:
-        """校验流量占比"""
+        """校验流量占比."""
         if (
                 traffic_ratio < 0
                 or traffic_ratio > 1
@@ -117,7 +117,7 @@ class RoutingRepository(BaseRepository):
             *,
             include_deleted: bool = False,
     ) -> Routing | None:
-        """获取路由规则
+        """获取路由规则.
 
         参数：
             routing_id: 路由 ID
@@ -161,7 +161,7 @@ class RoutingRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Routing]:
-        """获取路由规则列表
+        """获取路由规则列表.
 
         参数：
             routing_id: 路由 ID（可选）
@@ -301,7 +301,7 @@ class RoutingRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Routing]:
-        """获取启用的路由规则
+        """获取启用的路由规则.
 
         参数：
             deployment_id: 部署 ID（可选）
@@ -337,7 +337,7 @@ class RoutingRepository(BaseRepository):
             description: str | None = None,
             created_by: str | None = None,
     ) -> Routing:
-        """创建路由规则
+        """创建路由规则.
 
         参数：
             routing_id: 路由 ID
@@ -405,7 +405,7 @@ class RoutingRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Routing:
-        """更新路由规则
+        """更新路由规则.
 
         参数：
             routing: 路由规则对象
@@ -459,7 +459,7 @@ class RoutingRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Routing:
-        """启用路由规则
+        """启用路由规则.
 
         参数：
             routing: 路由规则对象
@@ -484,7 +484,7 @@ class RoutingRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Routing:
-        """禁用路由规则
+        """禁用路由规则.
 
         参数：
             routing: 路由规则对象
@@ -511,7 +511,7 @@ class RoutingRepository(BaseRepository):
             deleted_by: str | None = None,
             deletion_reason: str | None = None,
     ) -> Routing:
-        """逻辑删除路由规则"""
+        """逻辑删除路由规则."""
         routing.deleted_at = (
             deleted_at
             if deleted_at is not None
@@ -531,7 +531,7 @@ class RoutingRepository(BaseRepository):
             *,
             restored_by: str | None = None,
     ) -> Routing:
-        """恢复逻辑删除的路由规则"""
+        """恢复逻辑删除的路由规则."""
         routing.deleted_at = None
         routing.deleted_by = None
         routing.deletion_reason = None

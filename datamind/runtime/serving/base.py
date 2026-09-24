@@ -1,4 +1,4 @@
-"""运行时服务基类
+"""运行时服务基类.
 
 定义运行时模型服务的统一接口和公共能力。
 
@@ -28,7 +28,7 @@ from datamind.runtime.registry import RuntimeModel
 
 
 class BaseRuntimeService(ABC):
-    """运行时服务基类
+    """运行时服务基类.
 
     所有具体运行时服务必须继承此类。
 
@@ -48,7 +48,7 @@ class BaseRuntimeService(ABC):
             feature_names: list[str] | None = None,
             data_types: dict[str, DataType] | None = None,
     ):
-        """初始化运行时服务
+        """初始化运行时服务.
 
         参数：
             runtime_model: 已加载的运行时模型
@@ -93,42 +93,42 @@ class BaseRuntimeService(ABC):
     def deployment_id(
             self,
     ) -> str:
-        """获取部署 ID"""
+        """获取部署 ID."""
         return self.runtime_model.deployment_id
 
     @property
     def model_id(
             self,
     ) -> str:
-        """获取模型 ID"""
+        """获取模型 ID."""
         return self.runtime_model.model_id
 
     @property
     def version_id(
             self,
     ) -> str:
-        """获取版本 ID"""
+        """获取版本 ID."""
         return self.runtime_model.version_id
 
     @property
     def framework(
             self,
     ) -> str:
-        """获取模型框架"""
+        """获取模型框架."""
         return self.runtime_model.framework
 
     @property
     def metadata(
             self,
     ) -> dict[str, Any]:
-        """获取运行时元数据"""
+        """获取运行时元数据."""
         return self.runtime_model.metadata or {}
 
     @abstractmethod
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取当前模型能力集
+        """获取当前模型能力集.
 
         返回：
             模型能力位掩码
@@ -138,7 +138,7 @@ class BaseRuntimeService(ABC):
     def get_capability_names(
             self,
     ) -> list[str]:
-        """获取当前模型能力名称列表
+        """获取当前模型能力名称列表.
 
         返回：
             能力名称列表
@@ -151,7 +151,7 @@ class BaseRuntimeService(ABC):
             self,
             capability: ModelCapability,
     ) -> bool:
-        """检查模型是否支持指定能力
+        """检查模型是否支持指定能力.
 
         参数：
             capability: 模型能力
@@ -167,7 +167,7 @@ class BaseRuntimeService(ABC):
             self,
             capability: ModelCapability,
     ) -> None:
-        """校验模型能力
+        """校验模型能力.
 
         参数：
             capability: 所需模型能力
@@ -188,7 +188,7 @@ class BaseRuntimeService(ABC):
             self,
             features: dict[str, Any],
     ) -> dict[str, Any]:
-        """单条预测
+        """单条预测.
 
         参数：
             features: 特征字典
@@ -203,7 +203,7 @@ class BaseRuntimeService(ABC):
             self,
             features_list: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """批量预测
+        """批量预测.
 
         参数：
             features_list: 特征字典列表
@@ -217,7 +217,7 @@ class BaseRuntimeService(ABC):
             self,
             result: dict[str, Any],
     ) -> dict[str, Any]:
-        """构造统一预测结果
+        """构造统一预测结果.
 
         在具体业务结果中增加模型运行信息。
 
@@ -240,7 +240,7 @@ class BaseRuntimeService(ABC):
     def touch(
             self,
     ) -> None:
-        """更新运行时模型访问状态
+        """更新运行时模型访问状态.
 
         更新：
           - last_used_at
@@ -254,7 +254,7 @@ class BaseRuntimeService(ABC):
             *,
             record_index: int | None = None,
     ) -> None:
-        """校验已配置特征的输入类型
+        """校验已配置特征的输入类型.
 
         校验非空特征值是否符合模型 Schema 声明的类型。
         缺失值由具体模型处理。
@@ -288,7 +288,7 @@ class BaseRuntimeService(ABC):
             self,
             features_list: list[dict[str, Any]],
     ) -> None:
-        """逐条校验批量输入的特征类型。"""
+        """逐条校验批量输入的特征类型."""
         for index, features in enumerate(features_list):
             self._validate_feature_types(
                 features,
@@ -299,7 +299,7 @@ class BaseRuntimeService(ABC):
     def _get_schema_feature_names(
             schema: dict[str, Any],
     ) -> list[str] | None:
-        """从模型 Schema 获取特征名称
+        """从模型 Schema 获取特征名称.
 
         参数：
             schema: 从模型提取的 Schema
@@ -317,7 +317,7 @@ class BaseRuntimeService(ABC):
     def _get_schema_data_types(
             schema: dict[str, Any],
     ) -> dict[str, DataType] | None:
-        """从模型 Schema 获取特征类型
+        """从模型 Schema 获取特征类型.
 
         参数：
             schema: 从模型提取的 Schema

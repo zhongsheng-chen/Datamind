@@ -1,4 +1,4 @@
-"""Sklearn 模型适配器测试
+"""Sklearn 模型适配器测试.
 
 验证 Sklearn 二分类模型的能力检测、概率预测、对数几率预测、
 批量推理、正类方向处理和特征重要性计算。
@@ -69,7 +69,7 @@ FEATURE_NAMES = [
 @pytest.fixture
 def binary_training_data(
 ) -> tuple[np.ndarray, np.ndarray]:
-    """提供二分类训练数据"""
+    """提供二分类训练数据."""
     X = np.array([
         [-2.0, -1.5],
         [-1.5, -0.8],
@@ -105,7 +105,7 @@ def logistic_model(
             np.ndarray,
         ],
 ) -> LogisticRegression:
-    """提供已训练逻辑回归模型"""
+    """提供已训练逻辑回归模型."""
     X, y = binary_training_data
 
     model = LogisticRegression(
@@ -125,7 +125,7 @@ def logistic_model(
 def logistic_adapter(
         logistic_model: LogisticRegression,
 ) -> SklearnAdapter:
-    """提供逻辑回归模型适配器"""
+    """提供逻辑回归模型适配器."""
     return SklearnAdapter(
         model=logistic_model,
         feature_names=FEATURE_NAMES,
@@ -136,7 +136,7 @@ def logistic_adapter(
 def test_logistic_regression_capabilities(
         logistic_adapter: SklearnAdapter,
 ) -> None:
-    """测试逻辑回归声明完整推理能力"""
+    """测试逻辑回归声明完整推理能力."""
     expected = (
         ModelCapability.PREDICT_PROBA
         | ModelCapability.PREDICT_LOG_ODDS
@@ -156,7 +156,7 @@ def test_logistic_pipeline_exposes_final_estimator_capabilities(
             np.ndarray,
         ],
 ) -> None:
-    """测试逻辑回归 Pipeline 提供完整评分能力"""
+    """测试逻辑回归 Pipeline 提供完整评分能力."""
     X, y = binary_training_data
     model = Pipeline([
         (
@@ -223,7 +223,7 @@ def test_logistic_regression_cv_supports_log_odds(
             np.ndarray,
         ],
 ) -> None:
-    """测试交叉验证逻辑回归支持对数几率预测"""
+    """测试交叉验证逻辑回归支持对数几率预测."""
     X, y = binary_training_data
 
     model = LogisticRegressionCV(
@@ -258,7 +258,7 @@ def test_predict_probability_matches_model(
         logistic_model: LogisticRegression,
         logistic_adapter: SklearnAdapter,
 ) -> None:
-    """测试概率预测与原始模型一致"""
+    """测试概率预测与原始模型一致."""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -290,7 +290,7 @@ def test_predict_probability_batch_matches_model(
         logistic_model: LogisticRegression,
         logistic_adapter: SklearnAdapter,
 ) -> None:
-    """测试批量概率预测与原始模型一致"""
+    """测试批量概率预测与原始模型一致."""
     features = [
         {
             "feature_b": 0.25,
@@ -331,7 +331,7 @@ def test_predict_logit_matches_model_decision_function(
         logistic_model: LogisticRegression,
         logistic_adapter: SklearnAdapter,
 ) -> None:
-    """测试对数几率与原始模型决策函数一致"""
+    """测试对数几率与原始模型决策函数一致."""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -363,7 +363,7 @@ def test_predict_logit_batch_matches_model(
         logistic_model: LogisticRegression,
         logistic_adapter: SklearnAdapter,
 ) -> None:
-    """测试批量对数几率与原始模型决策函数一致"""
+    """测试批量对数几率与原始模型决策函数一致."""
     features = [
         {
             "feature_b": 0.25,
@@ -401,7 +401,7 @@ def test_predict_logit_batch_matches_model(
 def test_positive_class_zero_reverses_logit_direction(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试正类为类别零时反转对数几率方向"""
+    """测试正类为类别零时反转对数几率方向."""
     adapter = SklearnAdapter(
         model=logistic_model,
         feature_names=FEATURE_NAMES,
@@ -481,7 +481,7 @@ def test_logistic_feature_importance_uses_absolute_coefficients(
         logistic_model: LogisticRegression,
         logistic_adapter: SklearnAdapter,
 ) -> None:
-    """测试逻辑回归特征重要性使用系数绝对值"""
+    """测试逻辑回归特征重要性使用系数绝对值."""
     expected_values = np.abs(
         logistic_model.coef_[0]
     )
@@ -504,7 +504,7 @@ def test_logistic_feature_importance_uses_absolute_coefficients(
 def test_feature_importance_uses_default_feature_names(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试未配置特征名称时生成默认名称"""
+    """测试未配置特征名称时生成默认名称."""
     adapter = SklearnAdapter(
         model=logistic_model,
         positive_class=1,
@@ -523,7 +523,7 @@ def test_feature_importance_uses_default_feature_names(
 def test_feature_importance_rejects_name_count_mismatch(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试特征名称数量必须与重要性数量一致"""
+    """测试特征名称数量必须与重要性数量一致."""
     adapter = SklearnAdapter(
         model=logistic_model,
         feature_names=[
@@ -545,7 +545,7 @@ def test_random_forest_does_not_support_log_odds(
             np.ndarray,
         ],
 ) -> None:
-    """测试随机森林不声明对数几率能力"""
+    """测试随机森林不声明对数几率能力."""
     X, y = binary_training_data
 
     model = RandomForestClassifier(
@@ -597,7 +597,7 @@ def test_random_forest_feature_importance_matches_model(
             np.ndarray,
         ],
 ) -> None:
-    """测试树模型特征重要性与原始模型一致"""
+    """测试树模型特征重要性与原始模型一致."""
     X, y = binary_training_data
 
     model = RandomForestClassifier(
@@ -631,7 +631,7 @@ def test_linear_svc_only_exposes_feature_importance(
             np.ndarray,
         ],
 ) -> None:
-    """测试无概率接口的线性模型只提供特征重要性"""
+    """测试无概率接口的线性模型只提供特征重要性."""
     X, y = binary_training_data
 
     model = LinearSVC(
@@ -680,7 +680,7 @@ def test_linear_svc_only_exposes_feature_importance(
 
 def test_multiclass_model_is_rejected(
 ) -> None:
-    """测试多分类模型初始化时被拒绝"""
+    """测试多分类模型初始化时被拒绝."""
     X = np.array([
         [-2.0, -1.0],
         [-1.5, -0.5],
@@ -729,7 +729,7 @@ def test_multiclass_model_is_rejected(
 def test_missing_positive_class_is_rejected(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试模型类别中必须存在指定正类"""
+    """测试模型类别中必须存在指定正类."""
     with pytest.raises(
             ValueError,
             match="模型类别中不存在指定正类",

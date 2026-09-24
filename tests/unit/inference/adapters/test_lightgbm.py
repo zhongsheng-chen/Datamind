@@ -1,4 +1,4 @@
-"""LightGBM 模型适配器测试
+"""LightGBM 模型适配器测试.
 
 验证 LightGBM 二分类模型的能力检测、概率预测、批量预测、
 正类选择、Gain 特征重要性和异常处理。
@@ -66,7 +66,7 @@ FEATURE_NAMES = [
 
 
 class FakeBooster:
-    """LightGBM Booster 测试替身"""
+    """LightGBM Booster 测试替身."""
 
     def __init__(
             self,
@@ -85,7 +85,7 @@ class FakeBooster:
             *,
             importance_type: str,
     ) -> np.ndarray:
-        """返回固定特征重要性"""
+        """返回固定特征重要性."""
         if importance_type != "gain":
             raise AssertionError(
                 "importance_type 应为 gain"
@@ -96,12 +96,12 @@ class FakeBooster:
     def feature_name(
             self,
     ) -> Any:
-        """返回固定特征名称"""
+        """返回固定特征名称."""
         return self.feature_names
 
 
 class FakeLightGBMModel:
-    """LightGBM 分类模型测试替身"""
+    """LightGBM 分类模型测试替身."""
 
     classes_ = np.array([
         0,
@@ -135,7 +135,7 @@ class FakeLightGBMModel:
             self,
             X: np.ndarray,
     ) -> Any:
-        """返回固定概率结果"""
+        """返回固定概率结果."""
         values = np.asarray(
             self.probabilities
         )
@@ -159,20 +159,20 @@ class FakeLightGBMModel:
 
 
 class NativeBooster(FakeBooster):
-    """直接加载的原生 LightGBM Booster 测试替身"""
+    """直接加载的原生 LightGBM Booster 测试替身."""
 
     def predict(
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回原生 Booster 的正类概率"""
+        """返回原生 Booster 的正类概率."""
         features = np.asarray(X).copy()
         self.predicted_features = features
         return np.full(len(features), 0.65)
 
 
 class MissingProbabilityModel:
-    """未提供概率接口的测试模型"""
+    """未提供概率接口的测试模型."""
 
     classes_ = np.array([
         0,
@@ -190,7 +190,7 @@ class MissingProbabilityModel:
 
 
 class UntrainedModel:
-    """未训练分类模型测试替身"""
+    """未训练分类模型测试替身."""
 
     classes_ = None
 
@@ -213,7 +213,7 @@ class UntrainedModel:
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回固定概率"""
+        """返回固定概率."""
         sample_count = len(
             np.asarray(X)
         )
@@ -226,7 +226,7 @@ class UntrainedModel:
 
 
 class MissingBoosterModel:
-    """缺少 Booster 的已分类模型测试替身"""
+    """缺少 Booster 的已分类模型测试替身."""
 
     classes_ = np.array([
         0,
@@ -247,7 +247,7 @@ class MissingBoosterModel:
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回固定概率"""
+        """返回固定概率."""
         sample_count = len(
             np.asarray(X)
         )
@@ -260,7 +260,7 @@ class MissingBoosterModel:
 
 
 class MulticlassModel:
-    """多分类模型测试替身"""
+    """多分类模型测试替身."""
 
     classes_ = np.array([
         0,
@@ -288,7 +288,7 @@ class MulticlassModel:
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回多分类概率"""
+        """返回多分类概率."""
         sample_count = len(
             np.asarray(X)
         )
@@ -303,7 +303,7 @@ class MulticlassModel:
 def require_scalar(
         value: float | list[float],
 ) -> float:
-    """校验预测结果为标量"""
+    """校验预测结果为标量."""
     if isinstance(
             value,
             list,
@@ -318,7 +318,7 @@ def require_scalar(
 def require_batch(
         value: float | list[float],
 ) -> list[float]:
-    """校验预测结果为列表"""
+    """校验预测结果为列表."""
     if not isinstance(
             value,
             list,
@@ -333,7 +333,7 @@ def require_batch(
 @pytest.fixture
 def binary_training_data(
 ) -> tuple[np.ndarray, np.ndarray]:
-    """提供二分类训练数据"""
+    """提供二分类训练数据."""
     X = np.array([
         [-2.0, -1.5],
         [-1.5, -0.8],
@@ -369,7 +369,7 @@ def lightgbm_model(
             np.ndarray,
         ],
 ) -> LGBMClassifier:
-    """提供已训练 LightGBM 二分类模型"""
+    """提供已训练 LightGBM 二分类模型."""
     X, y = binary_training_data
 
     model = LGBMClassifier(
@@ -396,7 +396,7 @@ def lightgbm_model(
 def lightgbm_adapter(
         lightgbm_model: LGBMClassifier,
 ) -> LightGBMAdapter:
-    """提供 LightGBM 模型适配器"""
+    """提供 LightGBM 模型适配器."""
     return LightGBMAdapter(
         model=lightgbm_model,
         feature_names=FEATURE_NAMES,
@@ -407,7 +407,7 @@ def lightgbm_adapter(
 def test_lightgbm_capabilities(
         lightgbm_adapter: LightGBMAdapter,
 ) -> None:
-    """测试 LightGBM 声明分类推理能力"""
+    """测试 LightGBM 声明分类推理能力."""
     expected = (
         ModelCapability.PREDICT_PROBA
         | ModelCapability.FEATURE_IMPORTANCE
@@ -431,7 +431,7 @@ def test_predict_probability_matches_model(
         lightgbm_model: LGBMClassifier,
         lightgbm_adapter: LightGBMAdapter,
 ) -> None:
-    """测试概率预测与原始模型一致"""
+    """测试概率预测与原始模型一致."""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -465,7 +465,7 @@ def test_predict_probability_batch_matches_model(
         lightgbm_model: LGBMClassifier,
         lightgbm_adapter: LightGBMAdapter,
 ) -> None:
-    """测试批量概率预测与原始模型一致"""
+    """测试批量概率预测与原始模型一致."""
     features = [
         {
             "feature_b": 0.25,
@@ -500,7 +500,7 @@ def test_predict_probability_batch_matches_model(
 
 
 def test_native_booster_predicts_probability() -> None:
-    """测试原生 Booster 可以直接执行概率预测"""
+    """测试原生 Booster 可以直接执行概率预测."""
     booster = NativeBooster([0.6, 0.4], FEATURE_NAMES)
     adapter = LightGBMAdapter(
         booster,
@@ -524,7 +524,7 @@ def test_native_booster_predicts_probability() -> None:
 def test_positive_class_zero_selects_first_probability_column(
         lightgbm_model: LGBMClassifier,
 ) -> None:
-    """测试正类为类别零时选择第一列概率"""
+    """测试正类为类别零时选择第一列概率."""
     adapter = LightGBMAdapter(
         model=lightgbm_model,
         feature_names=FEATURE_NAMES,
@@ -560,7 +560,7 @@ def test_positive_class_zero_selects_first_probability_column(
 def test_predict_logit_is_not_supported(
         lightgbm_adapter: LightGBMAdapter,
 ) -> None:
-    """测试 LightGBM 不提供对数几率预测"""
+    """测试 LightGBM 不提供对数几率预测."""
     with pytest.raises(
             NotImplementedError,
             match="PREDICT_LOG_ODDS",
@@ -577,7 +577,7 @@ def test_gain_feature_importance_matches_booster(
         lightgbm_model: LGBMClassifier,
         lightgbm_adapter: LightGBMAdapter,
 ) -> None:
-    """测试 Gain 特征重要性与 Booster 一致"""
+    """测试 Gain 特征重要性与 Booster 一致."""
     expected_values = (
         lightgbm_model.booster_.feature_importance(
             importance_type="gain"
@@ -601,7 +601,7 @@ def test_gain_feature_importance_matches_booster(
 
 def test_configured_feature_names_have_highest_priority(
 ) -> None:
-    """测试显式特征名称优先于模型元数据"""
+    """测试显式特征名称优先于模型元数据."""
     model = FakeLightGBMModel(
         probabilities=[
             [
@@ -642,7 +642,7 @@ def test_configured_feature_names_have_highest_priority(
 
 def test_booster_feature_names_are_used_when_not_configured(
 ) -> None:
-    """测试优先使用 Booster 特征名称"""
+    """测试优先使用 Booster 特征名称."""
     model = FakeLightGBMModel(
         probabilities=[
             [
@@ -679,7 +679,7 @@ def test_booster_feature_names_are_used_when_not_configured(
 
 def test_model_feature_names_are_used_as_fallback(
 ) -> None:
-    """测试 Booster 名称不可用时使用模型特征名称"""
+    """测试 Booster 名称不可用时使用模型特征名称."""
     model = FakeLightGBMModel(
         probabilities=[
             [
@@ -713,7 +713,7 @@ def test_model_feature_names_are_used_as_fallback(
 
 def test_default_feature_names_are_generated(
 ) -> None:
-    """测试缺少特征元数据时生成默认名称"""
+    """测试缺少特征元数据时生成默认名称."""
     model = FakeLightGBMModel(
         probabilities=[
             [
@@ -743,7 +743,7 @@ def test_default_feature_names_are_generated(
 
 def test_feature_name_count_must_match_importance_count(
 ) -> None:
-    """测试特征名称数量必须与重要性数量一致"""
+    """测试特征名称数量必须与重要性数量一致."""
     model = FakeLightGBMModel(
         probabilities=[
             [
@@ -780,7 +780,7 @@ def test_feature_name_count_must_match_importance_count(
 
 def test_missing_probability_interface_is_rejected(
 ) -> None:
-    """测试拒绝不提供概率接口的模型"""
+    """测试拒绝不提供概率接口的模型."""
     with pytest.raises(
             TypeError,
             match="仅支持 LGBMClassifier 或 Booster",
@@ -793,7 +793,7 @@ def test_missing_probability_interface_is_rejected(
 
 def test_untrained_model_is_rejected(
 ) -> None:
-    """测试拒绝未训练分类模型"""
+    """测试拒绝未训练分类模型."""
     with pytest.raises(
             ValueError,
             match="模型尚未训练或不属于分类模型",
@@ -806,7 +806,7 @@ def test_untrained_model_is_rejected(
 
 def test_missing_booster_is_rejected(
 ) -> None:
-    """测试拒绝缺少 Booster 的模型"""
+    """测试拒绝缺少 Booster 的模型."""
     with pytest.raises(
             ValueError,
             match="模型尚未训练，缺少 booster_",
@@ -819,7 +819,7 @@ def test_missing_booster_is_rejected(
 
 def test_multiclass_model_is_rejected(
 ) -> None:
-    """测试拒绝多分类模型"""
+    """测试拒绝多分类模型."""
     with pytest.raises(
             ValueError,
             match="仅支持二分类模型",
@@ -834,7 +834,7 @@ def test_multiclass_model_is_rejected(
 def test_missing_positive_class_is_rejected(
         lightgbm_model: LGBMClassifier,
 ) -> None:
-    """测试模型类别中必须存在指定正类"""
+    """测试模型类别中必须存在指定正类."""
     with pytest.raises(
             ValueError,
             match="模型类别中不存在指定正类",
@@ -899,7 +899,7 @@ def test_invalid_probability_output_is_rejected(
         error_type: type[Exception],
         message: str,
 ) -> None:
-    """测试拒绝非法概率预测结果"""
+    """测试拒绝非法概率预测结果."""
     model = FakeLightGBMModel(
         probabilities=probabilities,
     )
@@ -924,7 +924,7 @@ def test_invalid_probability_output_is_rejected(
 
 def test_invalid_probability_for_positive_class_zero_is_rejected(
 ) -> None:
-    """测试正类为类别零时校验第一列概率"""
+    """测试正类为类别零时校验第一列概率."""
     model = FakeLightGBMModel(
         probabilities=[
             [

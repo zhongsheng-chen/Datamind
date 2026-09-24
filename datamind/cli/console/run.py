@@ -1,4 +1,4 @@
-"""启动管理控制台命令
+"""启动管理控制台命令.
 
 提供管理控制台启动功能。
 
@@ -66,7 +66,7 @@ def wait_for_console_ready(
         *,
         timeout_seconds: float,
 ) -> bool:
-    """等待管理控制台通过 BentoML 就绪探测"""
+    """等待管理控制台通过 BentoML 就绪探测."""
     parsed_url = urlsplit(
         access_url
     )
@@ -141,7 +141,7 @@ def wait_for_console_ready(
 def stop_console_process(
         process: subprocess.Popen,
 ) -> bool:
-    """停止当前命令创建的进程树，并有界等待退出"""
+    """停止当前命令创建的进程树，并有界等待退出."""
     try:
         if sys.platform == "win32":
             subprocess.run(
@@ -207,7 +207,7 @@ def run_console(
             help="显示 BentoML 警告和信息日志",
         ),
 ) -> None:
-    """启动管理控制台"""
+    """启动管理控制台."""
     settings = get_settings()
     console_config = settings.console
     resolved_host = (

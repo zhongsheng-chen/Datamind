@@ -1,4 +1,4 @@
-"""Celery Worker 真实集成测试
+"""Celery Worker 真实集成测试.
 
 通过配置的 Redis broker/backend 启动真实 Worker，验证正常任务与重试任务。
 
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.integration
 
 
 def create_app(redis_url: str) -> Celery:
-    """创建使用隔离队列的 Celery 集成测试应用"""
+    """创建使用隔离队列的 Celery 集成测试应用."""
     app = Celery(
         f"datamind-integration-{uuid.uuid4().hex}", broker=redis_url, backend=redis_url
     )
@@ -32,7 +32,7 @@ def create_app(redis_url: str) -> Celery:
 
 
 def test_worker_executes_a_task(redis_url: str) -> None:
-    """测试真实 Worker 能够消费并返回任务结果"""
+    """测试真实 Worker 能够消费并返回任务结果."""
     app = create_app(redis_url)
 
     @app.task(name=f"datamind.integration.add.{uuid.uuid4().hex}")
@@ -44,7 +44,7 @@ def test_worker_executes_a_task(redis_url: str) -> None:
 
 
 def test_worker_retries_then_succeeds(redis_url: str) -> None:
-    """测试 Worker 在暂时性异常后重试并成功"""
+    """测试 Worker 在暂时性异常后重试并成功."""
     app = create_app(redis_url)
     attempts = {"count": 0}
 
@@ -61,7 +61,7 @@ def test_worker_retries_then_succeeds(redis_url: str) -> None:
 
 
 def test_worker_reports_failure_after_max_retries(redis_url: str) -> None:
-    """测试 Worker 超过最大重试次数后保留原始异常"""
+    """测试 Worker 超过最大重试次数后保留原始异常."""
     app = create_app(redis_url)
     attempts = {"count": 0}
 

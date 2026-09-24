@@ -1,4 +1,4 @@
-"""审计记录器
+"""审计记录器.
 
 统一封装审计事件记录，自动注入上下文信息并交由审计服务持久化。
 
@@ -46,14 +46,14 @@ logger = structlog.get_logger(__name__)
 
 
 class AuditRecorder:
-    """审计记录器"""
+    """审计记录器."""
 
     def __init__(
             self,
             *,
             service: AuditService | None = None,
     ) -> None:
-        """初始化审计记录器
+        """初始化审计记录器.
 
         参数：
             service: 审计服务，默认使用 AuditService
@@ -66,12 +66,12 @@ class AuditRecorder:
 
     @property
     def enabled(self) -> bool:
-        """是否启用审计组件"""
+        """是否启用审计组件."""
         return self._config.enabled
 
     @property
     def failure_mode(self) -> AuditFailureMode:
-        """获取默认审计失败策略"""
+        """获取默认审计失败策略."""
         return AuditFailureMode(
             self._config.failure_mode
         )
@@ -89,7 +89,7 @@ class AuditRecorder:
         context: dict[str, Any] | None = None,
         failure_mode: AuditFailureMode | None = None,
     ) -> AuditResult | None:
-        """记录审计事件
+        """记录审计事件.
 
         参数：
             action: 操作类型，格式为 resource.operation

@@ -1,4 +1,4 @@
-"""信用评分卡模型训练示例
+"""信用评分卡模型训练示例.
 
 使用包含类别变量、缺失值和特殊值的可复现合成信贷数据，训练信用评分卡。
 
@@ -91,7 +91,7 @@ SCORING_CONFIG = {
 
 
 def validate_n_jobs(n_jobs: int) -> int:
-    """校验并行任务数不超过本机逻辑处理器数量"""
+    """校验并行任务数不超过本机逻辑处理器数量."""
     processor_count = os.cpu_count() or 1
 
     if (
@@ -111,7 +111,7 @@ def validate_n_jobs(n_jobs: int) -> int:
 
 
 def parse_n_jobs(value: str) -> int:
-    """解析命令行并行任务数"""
+    """解析命令行并行任务数."""
     try:
         return validate_n_jobs(
             int(value)
@@ -123,7 +123,7 @@ def parse_n_jobs(value: str) -> int:
 
 
 def parse_split_size(value: str) -> int | float:
-    """按 sklearn 约定解析样本数量或比例"""
+    """按 sklearn 约定解析样本数量或比例."""
     try:
         return int(value)
     except ValueError:
@@ -141,7 +141,7 @@ def _with_missing_values(
         rate: float,
         random: np.random.Generator,
 ) -> NDArray[Any]:
-    """按指定比例注入缺失值"""
+    """按指定比例注入缺失值."""
     result = values.astype(
         object,
         copy=True,
@@ -159,7 +159,7 @@ def build_training_data(
         sample_size: int = SAMPLE_SIZE,
         random_seed: int = RANDOM_SEED,
 ) -> tuple[pd.DataFrame, NDArray[np.int64]]:
-    """构造包含类别变量、缺失值和特殊值的合成信贷数据"""
+    """构造包含类别变量、缺失值和特殊值的合成信贷数据."""
     if sample_size < 500:
         raise ValueError(
             "sample_size 不能小于 500"
@@ -395,7 +395,7 @@ def split_out_of_time(
     NDArray[np.int64],
     NDArray[np.int64],
 ]:
-    """按申请日期进行训练集和跨时间测试集切分"""
+    """按申请日期进行训练集和跨时间测试集切分."""
     order = np.argsort(
         features[
             "application_date"
@@ -424,7 +424,7 @@ def train_model(
         n_jobs: int = -1,
         random_seed: int = RANDOM_SEED,
 ) -> Scorecard:
-    """构造并训练信用评分卡"""
+    """构造并训练信用评分卡."""
     n_jobs = validate_n_jobs(n_jobs)
 
     numerical_binning_params = {
@@ -516,7 +516,7 @@ def evaluate_model(
         features: pd.DataFrame,
         labels: NDArray[np.int64],
 ) -> dict[str, float]:
-    """计算留出集 AUC、Gini 和 KS"""
+    """计算留出集 AUC、Gini 和 KS."""
     probabilities = model.predict_proba(
         features
     )[:, 1]
@@ -556,7 +556,7 @@ def save_model(
         model: Scorecard,
         output_path: Path,
 ) -> Path:
-    """保存评分卡"""
+    """保存评分卡."""
     resolved_path = output_path.resolve()
     resolved_path.parent.mkdir(
         parents=True,
@@ -573,7 +573,7 @@ def save_model(
 def print_binning_summary(
         model: Scorecard,
 ) -> None:
-    """打印分箱摘要"""
+    """打印分箱摘要."""
     print("\n分箱摘要：")
     print(
         model.binning_process_.summary().to_string(
@@ -582,8 +582,17 @@ def print_binning_summary(
     )
 
 
-def parse_arguments() -> argparse.Namespace:
-    """解析命令行参数"""
+def parse_arguments(
+    arguments: list[str] | None = None,
+) -> argparse.Namespace:
+    """解析命令行参数.
+
+    参数：
+        arguments: 待解析的命令行参数，默认读取当前进程参数
+
+    返回：
+        解析后的命令行参数
+    """
     parser = argparse.ArgumentParser(
         description="训练信用评分卡示例模型",
     )
@@ -624,11 +633,11 @@ def parse_arguments() -> argparse.Namespace:
         help="并行分箱任务数，-1 表示使用全部处理器",
     )
 
-    return parser.parse_args()
+    return parser.parse_args(arguments)
 
 
 def main() -> None:
-    """执行训练、测试和保存流程"""
+    """执行训练、测试和保存流程."""
     arguments = parse_arguments()
     features, labels = build_training_data(
         sample_size=arguments.sample_size,

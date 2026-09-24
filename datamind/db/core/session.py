@@ -1,4 +1,4 @@
-"""数据库会话管理
+"""数据库会话管理.
 
 提供异步 SessionFactory，用于 UnitOfWork 创建数据库会话。
 
@@ -28,7 +28,7 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
-    """获取会话工厂单例
+    """获取会话工厂单例.
 
     首次调用时创建会话工厂，后续调用返回同一实例。
 
@@ -52,7 +52,7 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 
 
 def reset_session_factory() -> None:
-    """重置会话工厂
+    """重置会话工厂.
 
     仅清除会话工厂单例，不会关闭已经创建的数据库会话。
     通常由 dispose_engine() 或测试清理逻辑调用。

@@ -1,4 +1,4 @@
-"""模型目录管理服务
+"""模型目录管理服务.
 
 负责维护模型及其版本的展示信息和说明。
 
@@ -18,7 +18,7 @@ from datamind.services.mutation import MutationResult
 
 
 class ModelCatalogService:
-    """模型目录管理服务"""
+    """模型目录管理服务."""
 
     async def update_model(
             self,
@@ -28,7 +28,7 @@ class ModelCatalogService:
             description: str | None = None,
             updated_by: str = "system",
     ) -> dict[str, Any]:
-        """更新模型显示名称和描述"""
+        """更新模型显示名称和描述."""
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
             model = await metadata_repo.get_model(
@@ -70,7 +70,7 @@ class ModelCatalogService:
             description: str | None = None,
             updated_by: str = "system",
     ) -> dict[str, Any]:
-        """更新模型版本说明"""
+        """更新模型版本说明."""
         async with UnitOfWork() as uow:
             version_repo = VersionRepository(uow.session)
             model_version = await version_repo.get_version(

@@ -1,4 +1,4 @@
-"""实验手动分配配置测试
+"""实验手动分配配置测试.
 
 验证客户映射更新时的字段校验和手动分配实验的启动约束。
 
@@ -29,7 +29,7 @@ from datamind.services.experiment import ExperimentLifecycleService
     ({"customer_001": "var_disabled"}, False),
 ])
 async def test_update_manual_assignments(monkeypatch, mapping, valid):
-    """测试草稿实验更新客户映射时校验客户标识和目标分组"""
+    """测试草稿实验更新客户映射时校验客户标识和目标分组."""
     experiment = SimpleNamespace(
         experiment_id="exp_test", model_id="mdl_test", environment="development",
         name="manual-test", status="draft", config={"strategy": "manual"},
@@ -38,7 +38,7 @@ async def test_update_manual_assignments(monkeypatch, mapping, valid):
     repository = MagicMock()
     repository.get_experiment = AsyncMock(return_value=experiment)
     def update(current, patch, **_kwargs):
-        """模拟仓储更新实验配置。"""
+        """模拟仓储更新实验配置."""
         current.config = patch.config
     repository.update_experiment.side_effect = update
     variants = MagicMock()
@@ -62,7 +62,7 @@ async def test_update_manual_assignments(monkeypatch, mapping, valid):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mapping", [None, {}, [], ["customer_001"], "var_enabled", 1])
 async def test_start_rejects_invalid_manual_mapping(monkeypatch, mapping):
-    """测试手动分配实验启动时拒绝缺失、为空或格式无效的客户映射"""
+    """测试手动分配实验启动时拒绝缺失、为空或格式无效的客户映射."""
     repository = MagicMock()
     repository.get_experiment = AsyncMock(return_value=SimpleNamespace(
         experiment_id="exp_test", model_id="mdl_test", environment="development",

@@ -1,4 +1,4 @@
-"""运行时服务基类测试
+"""运行时服务基类测试.
 
 验证统一结果、模型能力、访问状态以及特征元数据解析行为。
 
@@ -41,12 +41,12 @@ CAPABILITIES = (
 
 
 class RuntimeServiceStub(BaseRuntimeService):
-    """可实例化的运行时服务替身"""
+    """可实例化的运行时服务替身."""
 
     SERVICE_TYPE = "test"
 
     def get_capabilities(self) -> ModelCapability:
-        """获取测试服务能力集"""
+        """获取测试服务能力集."""
         return CAPABILITIES
 
     def predict(
@@ -70,7 +70,7 @@ def create_runtime_model(
         metadata: dict[str, Any] | None = None,
         framework: str = "sklearn",
 ) -> RuntimeModel:
-    """创建运行时模型"""
+    """创建运行时模型."""
     return RuntimeModel(
         deployment_id="dep_test",
         model_id="mdl_test",
@@ -82,7 +82,7 @@ def create_runtime_model(
 
 
 def test_service_exposes_runtime_information() -> None:
-    """测试服务公开运行时模型信息"""
+    """测试服务公开运行时模型信息."""
     runtime_model = create_runtime_model()
     service = RuntimeServiceStub(
         runtime_model=runtime_model
@@ -109,7 +109,7 @@ def test_service_exposes_runtime_information() -> None:
 
 
 def test_service_handles_capability_operations() -> None:
-    """测试服务处理模型能力操作"""
+    """测试服务处理模型能力操作."""
     service = RuntimeServiceStub(
         runtime_model=create_runtime_model()
     )
@@ -133,7 +133,7 @@ def test_service_handles_capability_operations() -> None:
 
 
 def test_service_touch_updates_runtime_access_state() -> None:
-    """测试服务记录运行时模型访问状态"""
+    """测试服务记录运行时模型访问状态."""
     runtime_model = create_runtime_model()
     service = RuntimeServiceStub(
         runtime_model=runtime_model
@@ -146,7 +146,7 @@ def test_service_touch_updates_runtime_access_state() -> None:
 
 
 def test_service_accepts_explicit_feature_schema() -> None:
-    """测试服务接受显式传入的特征名称和类型"""
+    """测试服务接受显式传入的特征名称和类型."""
     service = RuntimeServiceStub(
         runtime_model=create_runtime_model(),
         feature_names=[
@@ -174,7 +174,7 @@ def test_service_accepts_explicit_feature_schema() -> None:
 
 
 def test_service_ignores_schema_in_runtime_metadata() -> None:
-    """测试服务不再从运行时元数据读取特征 Schema"""
+    """测试服务不再从运行时元数据读取特征 Schema."""
     service = RuntimeServiceStub(
         runtime_model=create_runtime_model(metadata={
             "feature_names": ["age"],
@@ -199,7 +199,7 @@ def test_service_infers_feature_names_from_model_attribute(
         framework: str,
         attribute_name: str,
 ) -> None:
-    """测试服务从模型属性推断特征名称"""
+    """测试服务从模型属性推断特征名称."""
     model = SimpleNamespace(**{
         attribute_name: ["age", "annual_income"],
     })
@@ -217,9 +217,9 @@ def test_service_infers_feature_names_from_model_attribute(
 
 
 def test_service_infers_feature_names_from_booster() -> None:
-    """测试服务从 XGBoost Booster 推断特征名称"""
+    """测试服务从 XGBoost Booster 推断特征名称."""
     class ModelStub:
-        """提供 Booster 的模型替身"""
+        """提供 Booster 的模型替身."""
 
         @staticmethod
         def get_booster() -> SimpleNamespace:
@@ -254,7 +254,7 @@ def test_service_returns_none_when_feature_names_cannot_be_inferred(
         framework: str,
         model: Any,
 ) -> None:
-    """测试无法推断模型特征名称时返回空值"""
+    """测试无法推断模型特征名称时返回空值."""
     service = RuntimeServiceStub(
         runtime_model=create_runtime_model(
             model=model,
@@ -266,7 +266,7 @@ def test_service_returns_none_when_feature_names_cannot_be_inferred(
 
 
 def test_service_rejects_missing_runtime_model() -> None:
-    """测试服务拒绝空运行时模型"""
+    """测试服务拒绝空运行时模型."""
     runtime_model: Any = None
 
     with pytest.raises(

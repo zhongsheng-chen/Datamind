@@ -1,4 +1,4 @@
-"""上下文核心测试
+"""上下文核心测试.
 
 验证上下文的设置、获取、更新、清除和异步隔离。
 
@@ -33,7 +33,7 @@ from datamind.context.core import (
 
 
 def test_set_context() -> None:
-    """测试设置上下文"""
+    """测试设置上下文."""
     set_context(
         trace_id="0123456789abcdef0123456789abcdef",
         request_id="req_0123456789abcdef",
@@ -50,7 +50,7 @@ def test_set_context() -> None:
 
 
 def test_set_context_replaces_existing_context() -> None:
-    """测试设置上下文时替换原有内容"""
+    """测试设置上下文时替换原有内容."""
     set_context(
         trace_id="0123456789abcdef0123456789abcdef",
         user="admin",
@@ -68,7 +68,7 @@ def test_set_context_replaces_existing_context() -> None:
 
 
 def test_update_context_preserves_existing_values() -> None:
-    """测试更新上下文时保留未修改字段"""
+    """测试更新上下文时保留未修改字段."""
     set_context(
         trace_id="0123456789abcdef0123456789abcdef",
         request_id="req_0123456789abcdef",
@@ -88,7 +88,7 @@ def test_update_context_preserves_existing_values() -> None:
 
 
 def test_update_context_overwrites_existing_value() -> None:
-    """测试更新上下文时覆盖指定字段"""
+    """测试更新上下文时覆盖指定字段."""
     set_context(
         source="http",
         user="guest",
@@ -105,7 +105,7 @@ def test_update_context_overwrites_existing_value() -> None:
 
 
 def test_clear_context() -> None:
-    """测试清除上下文"""
+    """测试清除上下文."""
     set_context(
         trace_id="0123456789abcdef0123456789abcdef",
         request_id="req_0123456789abcdef",
@@ -117,7 +117,7 @@ def test_clear_context() -> None:
 
 
 def test_set_context_without_arguments_clears_context() -> None:
-    """测试无参数设置上下文时清除原有内容"""
+    """测试无参数设置上下文时清除原有内容."""
     set_context(
         user="admin",
     )
@@ -129,7 +129,7 @@ def test_set_context_without_arguments_clears_context() -> None:
 
 @pytest.mark.asyncio
 async def test_context_isolated_between_tasks() -> None:
-    """测试异步任务之间的上下文相互隔离"""
+    """测试异步任务之间的上下文相互隔离."""
 
     async def read_context(
             trace_id: str,

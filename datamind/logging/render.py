@@ -1,4 +1,4 @@
-"""日志渲染器
+"""日志渲染器.
 
 提供文本和 JSON 两种格式的日志渲染能力。
 
@@ -44,7 +44,7 @@ _PROCESSOR_META_KEYS: Final[tuple[str, ...]] = (
 
 
 def _copy_event(event_dict: EventDict) -> EventDict:
-    """复制日志事件并移除处理器内部字段
+    """复制日志事件并移除处理器内部字段.
 
     参数：
         event_dict: 原始日志事件
@@ -61,7 +61,7 @@ def _copy_event(event_dict: EventDict) -> EventDict:
 
 
 def text_renderer() -> Renderer:
-    """创建文本格式日志渲染器
+    """创建文本格式日志渲染器.
 
     格式：
         timestamp | level | context | event | fields
@@ -113,7 +113,7 @@ def text_renderer() -> Renderer:
 
 
 def json_renderer() -> Renderer:
-    """创建 JSON 格式日志渲染器
+    """创建 JSON 格式日志渲染器.
 
     返回：
         JSON 格式渲染器函数

@@ -1,4 +1,4 @@
-"""实验生命周期服务
+"""实验生命周期服务.
 
 负责实验及分组的创建、更新、状态管理、逻辑删除与恢复。
 
@@ -57,14 +57,14 @@ logger = structlog.get_logger(__name__)
 
 
 class _Unset:
-    """标记更新请求未提供的字段。"""
+    """标记更新请求未提供的字段."""
 
 
 _UNSET = _Unset()
 
 
 class ExperimentLifecycleService:
-    """实验生命周期服务"""
+    """实验生命周期服务."""
 
     async def create_experiment(
             self,
@@ -82,7 +82,7 @@ class ExperimentLifecycleService:
             effective_to: str | None = None,
             created_by: str | None = None,
     ) -> dict[str, Any]:
-        """创建草稿实验"""
+        """创建草稿实验."""
         resolved_environment = Environment(
             environment
         )
@@ -204,7 +204,7 @@ class ExperimentLifecycleService:
             *,
             created_by: str | None,
     ) -> list[Any]:
-        """在创建实验的事务内组织初始分组创建"""
+        """在创建实验的事务内组织初始分组创建."""
         if not groups:
             raise InvalidExperimentConfigError(
                 "请至少配置一个分组"
@@ -262,7 +262,7 @@ class ExperimentLifecycleService:
             effective_to: str | None = None,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """更新草稿实验的基本信息和分流配置"""
+        """更新草稿实验的基本信息和分流配置."""
         async with UnitOfWork() as uow:
             repo = ExperimentRepository(uow.session)
             experiment = await repo.get_experiment(experiment_id)
@@ -335,7 +335,7 @@ class ExperimentLifecycleService:
             description: str | None = None,
             created_by: str | None = None,
     ) -> dict[str, Any]:
-        """为草稿实验创建启用状态的分组"""
+        """为草稿实验创建启用状态的分组."""
         async with UnitOfWork() as uow:
             experiment = await ExperimentRepository(
                 uow.session
@@ -383,7 +383,7 @@ class ExperimentLifecycleService:
             description: str | None = None,
             created_by: str | None = None,
     ) -> Any:
-        """复用当前事务校验并创建分组"""
+        """复用当前事务校验并创建分组."""
         variant_repo = VariantRepository(
             uow.session
         )
@@ -508,7 +508,7 @@ class ExperimentLifecycleService:
             description: str | None = None,
             updated_by: str | None = None,
     ) -> MutationResult:
-        """更新草稿实验中的分组配置
+        """更新草稿实验中的分组配置.
 
         未提供的配置保持不变，显式传入 None 则清空。
         """
@@ -593,7 +593,7 @@ class ExperimentLifecycleService:
             action: str,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """执行实验启动、暂停、停止、完成或归档操作"""
+        """执行实验启动、暂停、停止、完成或归档操作."""
         operations = {
             "start": "start_experiment",
             "pause": "pause_experiment",
@@ -725,7 +725,7 @@ class ExperimentLifecycleService:
             assignments: dict[str, str],
             variants: list[Any],
     ) -> None:
-        """校验客户标识及其所属实验的启用分组"""
+        """校验客户标识及其所属实验的启用分组."""
         targets = {
             variant.variant_id
             for variant in variants
@@ -758,7 +758,7 @@ class ExperimentLifecycleService:
             variants: list[Any],
             now: datetime,
     ) -> None:
-        """校验启用状态分组绑定的部署可参与实验"""
+        """校验启用状态分组绑定的部署可参与实验."""
         deployment_variants: dict[str, str] = {}
 
         for variant in variants:
@@ -841,7 +841,7 @@ class ExperimentLifecycleService:
             active: bool,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """设置实验分组启用状态"""
+        """设置实验分组启用状态."""
         async with UnitOfWork() as uow:
             repo = VariantRepository(
                 uow.session
@@ -876,7 +876,7 @@ class ExperimentLifecycleService:
     def _experiment_result(
             experiment: Any,
     ) -> dict[str, Any]:
-        """转换实验结果"""
+        """转换实验结果."""
         return {
             "experiment_id": experiment.experiment_id,
             "model_id": experiment.model_id,
@@ -892,7 +892,7 @@ class ExperimentLifecycleService:
     def _variant_result(
             variant: Any,
     ) -> dict[str, Any]:
-        """转换实验分组结果"""
+        """转换实验分组结果."""
         return {
             "variant_id": variant.variant_id,
             "experiment_id": variant.experiment_id,
@@ -911,7 +911,7 @@ class ExperimentLifecycleService:
             reason: str | None = None,
             deleted_by: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除草稿或已归档实验及其分组"""
+        """逻辑删除草稿或已归档实验及其分组."""
         async with UnitOfWork() as uow:
             experiment_repo = ExperimentRepository(
                 uow.session
@@ -992,7 +992,7 @@ class ExperimentLifecycleService:
             experiment_id: str,
             restored_by: str | None = None,
     ) -> dict[str, Any]:
-        """恢复逻辑删除的实验及同批分组"""
+        """恢复逻辑删除的实验及同批分组."""
         async with UnitOfWork() as uow:
             experiment_repo = ExperimentRepository(
                 uow.session
@@ -1060,7 +1060,7 @@ class ExperimentLifecycleService:
             reason: str | None = None,
             deleted_by: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除草稿实验中的分组"""
+        """逻辑删除草稿实验中的分组."""
         async with UnitOfWork() as uow:
             experiment_repo = ExperimentRepository(
                 uow.session
@@ -1126,7 +1126,7 @@ class ExperimentLifecycleService:
             variant_id: str,
             restored_by: str | None = None,
     ) -> dict[str, Any]:
-        """恢复逻辑删除的实验分组"""
+        """恢复逻辑删除的实验分组."""
         async with UnitOfWork() as uow:
             experiment_repo = ExperimentRepository(
                 uow.session

@@ -1,4 +1,4 @@
-"""列出实验命令
+"""列出实验命令.
 
 提供实验列表查询功能。
 
@@ -74,7 +74,7 @@ def list_experiments(
             help="输出格式：text / json"
         ),
 ):
-    """列出实验"""
+    """列出实验."""
     environment = get_service_config().environment.value
 
     async def _run():
@@ -227,7 +227,7 @@ def list_experiments(
 def _get_config(
         experiment: Experiment,
 ) -> dict:
-    """获取实验配置"""
+    """获取实验配置."""
     config = experiment.config or {}
 
     if not isinstance(config, dict):
@@ -239,7 +239,7 @@ def _get_config(
 def _get_strategy(
         config: dict,
 ) -> str:
-    """获取实验分配策略"""
+    """获取实验分配策略."""
     return str(
         config.get("strategy")
         or AssignmentStrategy.HASH
@@ -252,7 +252,7 @@ def _get_config_value(
         key: str,
         default: str,
 ):
-    """获取实验配置值"""
+    """获取实验配置值."""
     value = config.get(
         key,
         default,

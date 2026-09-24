@@ -1,4 +1,4 @@
-"""运行时服务安全边界测试
+"""运行时服务安全边界测试.
 
 验证环境保护、Bearer 令牌解析、权限校验和可信请求上下文。
 
@@ -36,7 +36,7 @@ from datamind.runtime.server.security import RuntimeIdentity, RuntimeSecurity
 
 
 def test_security_documentation_lists_public_components() -> None:
-    """测试核心功能列出安全模块公共组件"""
+    """测试核心功能列出安全模块公共组件."""
     documentation = security_module.__doc__ or ""
     core_functions = documentation.partition("核心功能：")[2].partition(
         "使用示例："
@@ -53,7 +53,7 @@ def test_security_documentation_lists_public_components() -> None:
 
 
 class ContextStub:
-    """BentoML 请求上下文替身"""
+    """BentoML 请求上下文替身."""
 
     def __init__(self) -> None:
         self.request: Any = SimpleNamespace(
@@ -66,7 +66,7 @@ class ContextStub:
 
 
 class FakeUnitOfWork:
-    """运行时认证测试工作单元"""
+    """运行时认证测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -84,7 +84,7 @@ def configure_security(
         auth_enabled: bool,
         environment: Environment,
 ) -> None:
-    """配置运行时安全边界所需的独立子配置"""
+    """配置运行时安全边界所需的独立子配置."""
     monkeypatch.setitem(
         vars(security_module),
         "get_auth_config",
@@ -101,7 +101,7 @@ def configure_security(
 async def test_production_rejects_disabled_auth(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试生产环境拒绝关闭认证"""
+    """测试生产环境拒绝关闭认证."""
     configure_security(
         monkeypatch,
         auth_enabled=False,
@@ -122,7 +122,7 @@ async def test_production_rejects_disabled_auth(
 async def test_testing_allows_local_anonymous_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试测试环境允许本地匿名调试"""
+    """测试测试环境允许本地匿名调试."""
     configure_security(
         monkeypatch,
         auth_enabled=False,
@@ -150,7 +150,7 @@ async def test_testing_allows_local_anonymous_identity(
 def test_extract_bearer_token_rejects_invalid_header(
         authorization: str | None,
 ) -> None:
-    """测试拒绝非法 Authorization 头"""
+    """测试拒绝非法 Authorization 头."""
     with pytest.raises(
             ServiceAuthenticationError,
             match="Bearer",
@@ -161,7 +161,7 @@ def test_extract_bearer_token_rejects_invalid_header(
 
 
 def test_extract_bearer_token_normalizes_valid_header() -> None:
-    """测试解析 Bearer 令牌并去除两端空白"""
+    """测试解析 Bearer 令牌并去除两端空白."""
     assert RuntimeSecurity._extract_bearer_token(
         "bearer   access-token  "
     ) == "access-token"
@@ -171,7 +171,7 @@ def test_extract_bearer_token_normalizes_valid_header() -> None:
 async def test_authenticate_validates_required_permission(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已认证请求校验接口权限"""
+    """测试已认证请求校验接口权限."""
     configure_security(
         monkeypatch,
         auth_enabled=True,
@@ -224,7 +224,7 @@ async def test_authenticate_validates_required_permission(
 async def test_authenticate_accepts_administrator_permission(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试系统管理员通配权限可调用预测接口"""
+    """测试系统管理员通配权限可调用预测接口."""
     configure_security(
         monkeypatch,
         auth_enabled=True,
@@ -266,7 +266,7 @@ async def test_authenticate_accepts_administrator_permission(
 async def test_authenticate_maps_invalid_access_token(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证异常转换为服务认证错误"""
+    """测试认证异常转换为服务认证错误."""
     configure_security(
         monkeypatch,
         auth_enabled=True,
@@ -303,7 +303,7 @@ async def test_authenticate_maps_invalid_access_token(
 async def test_authenticate_maps_permission_denied(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试权限不足转换为服务授权错误"""
+    """测试权限不足转换为服务授权错误."""
     configure_security(
         monkeypatch,
         auth_enabled=True,
@@ -351,7 +351,7 @@ async def test_authenticate_maps_permission_denied(
 async def test_request_scope_establishes_trusted_context(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证请求作用域建立并恢复可信上下文"""
+    """测试认证请求作用域建立并恢复可信上下文."""
     security = RuntimeSecurity()
     identity = RuntimeIdentity(
         user_id="usr_test",
@@ -393,7 +393,7 @@ async def test_request_scope_establishes_trusted_context(
 async def test_request_scope_handles_missing_client(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试请求未提供客户端地址时上下文 IP 为空"""
+    """测试请求未提供客户端地址时上下文 IP 为空."""
     security = RuntimeSecurity()
     monkeypatch.setattr(
         security,

@@ -1,4 +1,4 @@
-"""部署详情命令
+"""部署详情命令.
 
 提供单个部署的详细信息查询功能。
 
@@ -48,7 +48,7 @@ def show_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """查看部署详情"""
+    """查看部署详情."""
 
     async def _run():
         if output not in ("text", "json"):

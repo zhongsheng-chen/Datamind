@@ -1,4 +1,4 @@
-"""批量任务发布与执行链路集成测试
+"""批量任务发布与执行链路集成测试.
 
 使用真实 Redis broker 和 Datamind Celery 应用，验证批量任务的发布、
 消费、重试以及持久化状态转换。
@@ -49,7 +49,7 @@ pytestmark = pytest.mark.integration
 
 
 class DatabaseRuntimeWorkerHarness:
-    """在真实 Celery 线程中驱动 Datamind 持久化边界"""
+    """在真实 Celery 线程中驱动 Datamind 持久化边界."""
 
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         self.loop = loop
@@ -65,7 +65,7 @@ class DatabaseRuntimeWorkerHarness:
         task_id: str,
         worker_id: str | None = None,
     ) -> int:
-        """启动批次并在真实数据库中写入一次确定性执行结果"""
+        """启动批次并在真实数据库中写入一次确定性执行结果."""
         return self._submit(
             self._prepare_batch(
                 batch_id=batch_id,
@@ -75,7 +75,7 @@ class DatabaseRuntimeWorkerHarness:
         )
 
     def mark_batch_failed(self, *, batch_id: str, error: str) -> None:
-        """持久化 Celery 入口捕获的批次失败"""
+        """持久化 Celery 入口捕获的批次失败."""
         self._submit(self._mark_batch_failed(batch_id=batch_id, error=error))
 
     def register_batch_shards(
@@ -84,7 +84,7 @@ class DatabaseRuntimeWorkerHarness:
         batch_id: str,
         shards: list[dict[str, object]],
     ) -> None:
-        """防御性拒绝本测试不应产生的分片"""
+        """防御性拒绝本测试不应产生的分片."""
         raise AssertionError(f"unexpected shards for {batch_id}: {shards}")
 
     def execute_batch_chunk(
@@ -96,7 +96,7 @@ class DatabaseRuntimeWorkerHarness:
         end_index: int,
         worker_id: str | None = None,
     ) -> None:
-        """执行确定性分片，并保留真实 Repository 状态迁移"""
+        """执行确定性分片，并保留真实 Repository 状态迁移."""
         self._submit(
             self._execute_batch_chunk(
                 batch_id=batch_id,
@@ -108,7 +108,7 @@ class DatabaseRuntimeWorkerHarness:
         )
 
     def mark_batch_chunk_retrying(self, *, shard_id: str, error: str) -> None:
-        """通过真实 ShardRepository 记录等待重试状态"""
+        """通过真实 ShardRepository 记录等待重试状态."""
         self._submit(self._mark_batch_chunk_retrying(shard_id=shard_id, error=error))
 
     def mark_batch_chunk_failed(
@@ -120,7 +120,7 @@ class DatabaseRuntimeWorkerHarness:
         end_index: int,
         error: str,
     ) -> None:
-        """通过真实 Repository 记录重试耗尽后的终态"""
+        """通过真实 Repository 记录重试耗尽后的终态."""
         del start_index, end_index
         self._submit(
             self._mark_batch_chunk_failed(
@@ -131,7 +131,7 @@ class DatabaseRuntimeWorkerHarness:
         )
 
     def _submit(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
-        """将 Worker 线程中的数据库操作提交回 pytest 事件循环"""
+        """将 Worker 线程中的数据库操作提交回 pytest 事件循环."""
         future = asyncio.run_coroutine_threadsafe(coroutine, self.loop)
         return future.result(timeout=20)
 
@@ -142,7 +142,7 @@ class DatabaseRuntimeWorkerHarness:
         task_id: str,
         worker_id: str | None,
     ) -> int:
-        """执行真实 Batch、Attempt 与 Execution 仓储状态迁移"""
+        """执行真实 Batch、Attempt 与 Execution 仓储状态迁移."""
         async with UnitOfWork() as uow:
             batch_repository = BatchRepository(uow.session)
             batch = await batch_repository.start(
@@ -209,7 +209,7 @@ class DatabaseRuntimeWorkerHarness:
         end_index: int,
         worker_id: str | None,
     ) -> None:
-        """执行会按测试配置失败或成功的持久化分片"""
+        """执行会按测试配置失败或成功的持久化分片."""
         assert (start_index, end_index) == (0, 1)
         self.chunk_calls[shard_id] = self.chunk_calls.get(shard_id, 0) + 1
 
@@ -268,7 +268,7 @@ class DatabaseRuntimeWorkerHarness:
 
     @staticmethod
     async def _mark_batch_failed(*, batch_id: str, error: str) -> None:
-        """将失败批次和当前 Attempt 一并置为终态"""
+        """将失败批次和当前 Attempt 一并置为终态."""
         async with UnitOfWork() as uow:
             await BatchRepository(uow.session).mark_failed(
                 batch_id=batch_id,
@@ -287,7 +287,7 @@ class DatabaseRuntimeWorkerHarness:
 
     @staticmethod
     async def _mark_batch_chunk_retrying(*, shard_id: str, error: str) -> None:
-        """持久化分片等待 Celery 重试状态"""
+        """持久化分片等待 Celery 重试状态."""
         async with UnitOfWork() as uow:
             await ShardRepository(uow.session).mark_retrying(
                 shard_id=shard_id,
@@ -301,7 +301,7 @@ class DatabaseRuntimeWorkerHarness:
         shard_id: str,
         error: str,
     ) -> None:
-        """持久化分片、批次和 Attempt 的失败终态"""
+        """持久化分片、批次和 Attempt 的失败终态."""
         async with UnitOfWork() as uow:
             await ShardRepository(uow.session).mark_finished(
                 shard_id=shard_id,
@@ -325,7 +325,7 @@ class DatabaseRuntimeWorkerHarness:
 
 
 def queue_settings(redis_url: str, queue: str) -> SimpleNamespace:
-    """构造只覆盖任务队列边界的隔离配置"""
+    """构造只覆盖任务队列边界的隔离配置."""
     return SimpleNamespace(
         broker_url=redis_url,
         batch_queue=queue,
@@ -338,7 +338,7 @@ def queue_settings(redis_url: str, queue: str) -> SimpleNamespace:
 
 
 async def create_batch(batch_id: str, task_id: str) -> None:
-    """通过 Datamind Repository 创建待发布批次与首次 Attempt"""
+    """通过 Datamind Repository 创建待发布批次与首次 Attempt."""
     async with UnitOfWork() as uow:
         MetadataRepository(uow.session).create_model(
             model_id=f"mdl_{batch_id[4:]}",
@@ -377,7 +377,7 @@ async def create_running_shard(
     shard_id: str,
     shard_task_id: str,
 ) -> None:
-    """启动批次、Attempt，并创建一个真实待执行分片"""
+    """启动批次、Attempt，并创建一个真实待执行分片."""
     async with UnitOfWork() as uow:
         batch = await BatchRepository(uow.session).start(
             batch_id=batch_id,
@@ -409,7 +409,7 @@ async def wait_for_batch_status(
     *,
     timeout: float = 20,
 ) -> None:
-    """轮询真实数据库直至 Worker 提交目标批次状态"""
+    """轮询真实数据库直至 Worker 提交目标批次状态."""
     deadline = asyncio.get_running_loop().time() + timeout
 
     while asyncio.get_running_loop().time() < deadline:
@@ -430,7 +430,7 @@ async def wait_for_shard_status(
     *,
     timeout: float = 20,
 ) -> None:
-    """轮询真实数据库直至分片进入目标状态"""
+    """轮询真实数据库直至分片进入目标状态."""
     deadline = asyncio.get_running_loop().time() + timeout
 
     while asyncio.get_running_loop().time() < deadline:
@@ -452,7 +452,7 @@ def configured_datamind_worker(
     redis_url: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[str, DatabaseRuntimeWorkerHarness]:
-    """配置使用真实 Redis 隔离队列的 Datamind Celery Worker"""
+    """配置使用真实 Redis 隔离队列的 Datamind Celery Worker."""
     queue = f"datamind.integration.{uuid.uuid4().hex}"
     settings = queue_settings(redis_url, queue)
     loop = asyncio.get_event_loop()
@@ -486,7 +486,7 @@ async def test_publisher_worker_persists_execution_and_ignores_duplicate_deliver
     datamind_database: AsyncEngine,
     configured_datamind_worker: tuple[str, DatabaseRuntimeWorkerHarness],
 ) -> None:
-    """测试正常发布落库且重复投递不产生第二次执行"""
+    """测试正常发布落库且重复投递不产生第二次执行."""
     del datamind_database
     queue, _worker = configured_datamind_worker
     batch_id = f"bat_{uuid.uuid4().hex}"
@@ -528,7 +528,7 @@ async def test_failed_batch_can_be_retried_through_datamind_publisher(
     datamind_database: AsyncEngine,
     configured_datamind_worker: tuple[str, DatabaseRuntimeWorkerHarness],
 ) -> None:
-    """测试失败批次经业务服务重试后产生第二次成功 Attempt"""
+    """测试失败批次经业务服务重试后产生第二次成功 Attempt."""
     del datamind_database
     queue, worker = configured_datamind_worker
     batch_id = f"bat_{uuid.uuid4().hex}"
@@ -569,7 +569,7 @@ async def test_batch_chunk_retries_then_persists_success(
     datamind_database: AsyncEngine,
     configured_datamind_worker: tuple[str, DatabaseRuntimeWorkerHarness],
 ) -> None:
-    """测试 Datamind 分片任务一次失败后自动重试并持久化成功"""
+    """测试 Datamind 分片任务一次失败后自动重试并持久化成功."""
     del datamind_database
     queue, worker = configured_datamind_worker
     batch_id = f"bat_{uuid.uuid4().hex}"
@@ -621,7 +621,7 @@ async def test_batch_chunk_persists_failure_after_max_retries(
     datamind_database: AsyncEngine,
     configured_datamind_worker: tuple[str, DatabaseRuntimeWorkerHarness],
 ) -> None:
-    """测试 Datamind 分片任务耗尽重试后持久化完整失败状态"""
+    """测试 Datamind 分片任务耗尽重试后持久化完整失败状态."""
     del datamind_database
     queue, worker = configured_datamind_worker
     batch_id = f"bat_{uuid.uuid4().hex}"

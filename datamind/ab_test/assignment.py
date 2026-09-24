@@ -1,4 +1,4 @@
-"""A/B 实验分配
+"""A/B 实验分配.
 
 提供实验曝光判断、稳定 Hash 分组和手工指定分组能力。
 
@@ -68,7 +68,7 @@ from datamind.models.enums import AssignmentStrategy
 
 @dataclass(slots=True)
 class AssignmentResult:
-    """实验分配结果
+    """实验分配结果.
 
     属性：
         variant: 命中的 Variant 对象
@@ -86,7 +86,7 @@ class AssignmentResult:
 
 
 class StableHashAssigner:
-    """稳定 Hash 分配器
+    """稳定 Hash 分配器.
 
     根据 experiment_id 和 subject_key 进行稳定实验分配。
 
@@ -112,7 +112,7 @@ class StableHashAssigner:
             traffic_ratio: float,
             variants: list[Any],
     ) -> AssignmentResult | None:
-        """执行稳定 Hash 分组
+        """执行稳定 Hash 分组.
 
         参数：
             experiment_id: 实验 ID
@@ -231,7 +231,7 @@ class StableHashAssigner:
             experiment_id: str,
             subject_key: str,
     ) -> float:
-        """计算稳定曝光分桶值
+        """计算稳定曝光分桶值.
 
         参数：
             experiment_id: 实验 ID
@@ -252,7 +252,7 @@ class StableHashAssigner:
             experiment_id: str,
             subject_key: str,
     ) -> float:
-        """计算稳定 Hash 分组位置
+        """计算稳定 Hash 分组位置.
 
         参数：
             experiment_id: 实验 ID
@@ -271,7 +271,7 @@ class StableHashAssigner:
             cls,
             bucket_value: float,
     ) -> str:
-        """生成曝光分桶标识
+        """生成曝光分桶标识.
 
         参数：
             bucket_value: 稳定曝光分桶值
@@ -290,7 +290,7 @@ class StableHashAssigner:
             experiment_id: str,
             subject_key: str,
     ) -> float:
-        """计算稳定曝光分桶值
+        """计算稳定曝光分桶值.
 
         曝光哈希仅用于判断主体是否进入实验。
 
@@ -312,7 +312,7 @@ class StableHashAssigner:
             experiment_id: str,
             subject_key: str,
     ) -> float:
-        """计算稳定 Hash 分组位置
+        """计算稳定 Hash 分组位置.
 
         Variant 哈希与曝光哈希相互独立，
         仅用于实验内部的 Variant 分配。
@@ -332,7 +332,7 @@ class StableHashAssigner:
     def _hash_value(
             raw: str,
     ) -> float:
-        """计算稳定哈希值
+        """计算稳定哈希值.
 
         参数：
             raw: 哈希输入字符串
@@ -356,7 +356,7 @@ class StableHashAssigner:
     def _bucket_label(
             bucket_value: float,
     ) -> str:
-        """生成曝光分桶标识
+        """生成曝光分桶标识.
 
         参数：
             bucket_value: 稳定曝光分桶值
@@ -372,7 +372,7 @@ class StableHashAssigner:
     def _variant_sort_key(
             variant: Any,
     ) -> tuple[str, str]:
-        """生成 Variant 稳定排序键
+        """生成 Variant 稳定排序键.
 
         优先按照 variant_id 排序，
         variant_id 相同时使用 name 辅助排序。
@@ -405,7 +405,7 @@ class StableHashAssigner:
             bucket_value: float,
             point: float,
     ) -> AssignmentResult:
-        """构建实验分配结果
+        """构建实验分配结果.
 
         参数：
             experiment_id: 实验 ID
@@ -449,7 +449,7 @@ class StableHashAssigner:
 
 
 class ManualAssigner:
-    """手工指定分配器
+    """手工指定分配器.
 
     根据调用方显式传入的 variant_id、variant_name，
     或 subject_key 到 Variant 的映射关系进行实验分配。
@@ -472,7 +472,7 @@ class ManualAssigner:
             manual_variant_name: str | None = None,
             manual_assignments: dict[str, Any] | None = None,
     ) -> AssignmentResult | None:
-        """执行手工指定分组
+        """执行手工指定分组.
 
         参数：
             experiment_id: 实验 ID
@@ -556,7 +556,7 @@ class ManualAssigner:
             manual_variant_name: str | None,
             manual_assignments: dict[str, Any] | None,
     ) -> str | None:
-        """获取手工指定 Variant 目标
+        """获取手工指定 Variant 目标.
 
         参数：
             subject_key: 分桶主体
@@ -605,7 +605,7 @@ class ManualAssigner:
             variants: list[Any],
             target: str,
     ) -> Any | None:
-        """查找手工指定 Variant
+        """查找手工指定 Variant.
 
         参数：
             variants: 实验 Variant 列表
@@ -632,7 +632,7 @@ class ManualAssigner:
 
 
 class ExperimentAssigner:
-    """实验分配器
+    """实验分配器.
 
     根据 strategy 选择稳定 Hash 分组或手工指定分组。
     """
@@ -643,7 +643,7 @@ class ExperimentAssigner:
             hash_assigner: StableHashAssigner | None = None,
             manual_assigner: ManualAssigner | None = None,
     ):
-        """初始化实验分配器
+        """初始化实验分配器.
 
         参数：
             hash_assigner: 稳定 Hash 分配器，默认使用 StableHashAssigner
@@ -664,7 +664,7 @@ class ExperimentAssigner:
             manual_variant_name: str | None = None,
             manual_assignments: dict[str, Any] | None = None,
     ) -> AssignmentResult | None:
-        """分配实验 Variant
+        """分配实验 Variant.
 
         参数：
             strategy: 分配策略，可选 hash/manual
@@ -705,14 +705,14 @@ class ExperimentAssigner:
 def _assignment_strategy_value(
         strategy: AssignmentStrategy | str,
 ) -> str:
-    """获取实验分配策略值"""
+    """获取实验分配策略值."""
     return str(strategy).lower()
 
 
 def _variant_weight(
         variant: Any,
 ) -> float:
-    """获取 Variant 权重"""
+    """获取 Variant 权重."""
     return float(
         getattr(variant, "weight", 0) or 0
     )

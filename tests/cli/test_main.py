@@ -1,4 +1,4 @@
-"""CLI 主入口测试
+"""CLI 主入口测试.
 
 验证主要命令组和新增业务入口能够被 Typer 正确加载。
 
@@ -129,7 +129,7 @@ SERVICE_ENVIRONMENT_COMMANDS = [
             "2026-09-21T02:09:32Z",
             (
                 "datamind version 0.1.0 "
-                "(commit 0123456789abcdef0123456789abcdef01234567, "
+                "(commit 01234567, "
                 "built 2026-09-21T02:09:32Z)"
             ),
         ),
@@ -141,21 +141,27 @@ def test_main_version_reports_build_identity(
         build_date: str | None,
         expected: str,
 ) -> None:
-    """测试开发构建隐藏默认值，正式构建展示完整构建身份"""
+    """测试开发构建隐藏默认值，正式构建展示短提交哈希."""
+    requested_distributions: list[str] = []
     monkeypatch.setitem(vars(main_module), "BUILD_COMMIT", commit)
     monkeypatch.setitem(vars(main_module), "BUILD_DATE", build_date)
-    monkeypatch.setitem(vars(main_module), "version", lambda _name: "0.1.0")
+    monkeypatch.setitem(
+        vars(main_module),
+        "version",
+        lambda name: requested_distributions.append(name) or "0.1.0",
+    )
 
     result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0
     assert unstyle(result.stdout).strip() == expected
+    assert requested_distributions == ["pydatamind"]
 
 
 def test_main_initializes_configured_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试主入口使用日志配置初始化日志系统"""
+    """测试主入口使用日志配置初始化日志系统."""
     logging_config = MagicMock()
     setup_logging = MagicMock()
     monkeypatch.setitem(
@@ -177,7 +183,7 @@ def test_main_initializes_configured_logging(
 
 
 def test_main_help_lists_command_groups() -> None:
-    """测试主入口列出业务命令组"""
+    """测试主入口列出业务命令组."""
     result = runner.invoke(
         app,
         ["--help"],
@@ -193,7 +199,7 @@ def test_main_help_lists_command_groups() -> None:
 
 
 def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
-    """测试服务进程与运行状态命令边界清晰"""
+    """测试服务进程与运行状态命令边界清晰."""
     service_group = typer.main.get_command(service_app)
     runtime_group = typer.main.get_command(runtime_app)
 
@@ -209,7 +215,7 @@ def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
 
 @pytest.mark.parametrize("command", SERVICE_ENVIRONMENT_COMMANDS)
 def test_cli_uses_configured_service_environment(command: str) -> None:
-    """测试单环境 CLI 不公开环境参数"""
+    """测试单环境 CLI 不公开环境参数."""
     result = runner.invoke(
         app,
         [*command.split(), "--help"],
@@ -220,7 +226,7 @@ def test_cli_uses_configured_service_environment(command: str) -> None:
 
 
 def test_init_help_does_not_list_credential_options() -> None:
-    """测试系统初始化命令不公开管理员凭据参数"""
+    """测试系统初始化命令不公开管理员凭据参数."""
     result = runner.invoke(
         app,
         [
@@ -235,7 +241,7 @@ def test_init_help_does_not_list_credential_options() -> None:
 
 
 def test_main_help_lists_session_commands() -> None:
-    """测试主入口列出顶层登录会话命令"""
+    """测试主入口列出顶层登录会话命令."""
     result = runner.invoke(
         app,
         ["--help"],
@@ -252,7 +258,7 @@ def test_main_help_lists_session_commands() -> None:
 
 
 def test_outcome_submit_help_lists_link_fields() -> None:
-    """测试结果回流命令公开决策和请求关联参数"""
+    """测试结果回流命令公开决策和请求关联参数."""
     result = runner.invoke(
         app,
         ["outcome", "submit", "--help"],
@@ -266,7 +272,7 @@ def test_outcome_submit_help_lists_link_fields() -> None:
 
 
 def test_identity_help_lists_management_commands() -> None:
-    """测试用户和角色命令列出完整管理操作"""
+    """测试用户和角色命令列出完整管理操作."""
     user_result = runner.invoke(
         app,
         ["user", "--help"],
@@ -308,7 +314,7 @@ def test_identity_help_lists_management_commands() -> None:
 def test_business_command_help_is_available(
         command_path: str,
 ) -> None:
-    """测试业务命令帮助可用且不接受外部操作人"""
+    """测试业务命令帮助可用且不接受外部操作人."""
     result = runner.invoke(
         app,
         [

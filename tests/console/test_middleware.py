@@ -1,4 +1,4 @@
-"""管理控制台中间件测试
+"""管理控制台中间件测试.
 
 验证控制台请求日志上下文隔离及浏览器安全响应头。
 
@@ -43,7 +43,7 @@ async def test_request_context_matches_audit(
     monkeypatch: pytest.MonkeyPatch,
     fail: bool,
 ) -> None:
-    """测试日志与审计使用相同上下文且异常后恢复外层上下文"""
+    """测试日志与审计使用相同上下文且异常后恢复外层上下文."""
     console = importlib.import_module("datamind.console.app")
     user = SimpleNamespace(username="admin")
     monkeypatch.setitem(
@@ -92,7 +92,7 @@ async def test_request_context_matches_audit(
 
 @pytest.mark.asyncio
 async def test_request_context_isolates_concurrent_requests() -> None:
-    """测试并发请求在等待后仍保留各自的请求标识"""
+    """测试并发请求在等待后仍保留各自的请求标识."""
     console = importlib.import_module("datamind.console.app")
     entered = 0
     ready = asyncio.Event()
@@ -129,14 +129,14 @@ async def test_request_context_isolates_concurrent_requests() -> None:
 
 
 async def app(scope, receive, send) -> None:
-    """返回安全响应头测试页面"""
+    """返回安全响应头测试页面."""
     response = PlainTextResponse("ok")
     await response(scope, receive, send)
 
 
 @pytest.mark.asyncio
 async def test_security_headers_adds_browser_protections() -> None:
-    """测试 HTTP 响应包含通用浏览器安全头"""
+    """测试 HTTP 响应包含通用浏览器安全头."""
     async with AsyncClient(
         transport=ASGITransport(app=security_headers(app)),
         base_url="http://testserver",
@@ -156,7 +156,7 @@ async def test_security_headers_adds_browser_protections() -> None:
 
 @pytest.mark.asyncio
 async def test_security_headers_adds_hsts_only_for_https() -> None:
-    """测试 HTTPS 响应启用严格传输安全策略"""
+    """测试 HTTPS 响应启用严格传输安全策略."""
     async with AsyncClient(
         transport=ASGITransport(app=security_headers(app)),
         base_url="https://testserver",
@@ -169,7 +169,7 @@ async def test_security_headers_adds_hsts_only_for_https() -> None:
 def test_http_audit_context_generates_missing_identifiers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台为缺失标识的 HTTP 审计补全上下文"""
+    """测试控制台为缺失标识的 HTTP 审计补全上下文."""
     monkeypatch.setitem(
         vars(app_module),
         "generate_random_id",

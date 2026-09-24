@@ -1,4 +1,4 @@
-"""启用路由命令
+"""启用路由命令.
 
 提供路由规则启用功能。
 
@@ -45,7 +45,7 @@ def enable_route(
             help="输出格式：text / json"
         ),
 ):
-    """启用路由规则"""
+    """启用路由规则."""
 
     @audit(
         action="route.enable",

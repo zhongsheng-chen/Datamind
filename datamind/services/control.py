@@ -1,4 +1,4 @@
-"""运行时控制服务
+"""运行时控制服务.
 
 负责模型运行控制和状态查询。
 
@@ -52,7 +52,7 @@ logger = structlog.get_logger(__name__)
 
 
 class RuntimeControlService:
-    """运行时控制服务
+    """运行时控制服务.
 
     负责管理模型部署的期望运行状态，
     并查询各 Worker 的实际运行状态。
@@ -64,7 +64,7 @@ class RuntimeControlService:
             deployment_id: str,
             operator: str = "system",
     ) -> dict[str, Any]:
-        """请求加载部署模型
+        """请求加载部署模型.
 
         设置部署的期望运行状态为 loaded。
 
@@ -168,7 +168,7 @@ class RuntimeControlService:
             deployment_id: str,
             operator: str = "system",
     ) -> dict[str, Any]:
-        """请求卸载部署模型
+        """请求卸载部署模型.
 
         设置部署的期望运行状态为 unloaded。
 
@@ -272,7 +272,7 @@ class RuntimeControlService:
             deployment_id: str,
             operator: str = "system",
     ) -> dict[str, Any]:
-        """请求重新加载部署模型
+        """请求重新加载部署模型.
 
         保持 desired_status 为 loaded，
         通过递增 generation 通知所属环境的所有 Worker
@@ -369,7 +369,7 @@ class RuntimeControlService:
             *,
             deployment_id: str,
     ) -> dict[str, Any]:
-        """查询部署运行状态
+        """查询部署运行状态.
 
         查询：
           - Deployment 基本信息
@@ -465,7 +465,7 @@ class RuntimeControlService:
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[dict[str, Any]]:
-        """查询运行服务列表
+        """查询运行服务列表.
 
         以 controls 表中的运行控制记录为主，
         汇总每个 Deployment 的 Worker 和 Runtime 状态。
@@ -654,7 +654,7 @@ class RuntimeControlService:
             deployment_id: str,
             required_status: DeploymentStatus,
     ) -> Deployment:
-        """校验并返回部署对象
+        """校验并返回部署对象.
 
         参数：
             deployment_repo:
@@ -711,7 +711,7 @@ class RuntimeControlService:
             control: Control,
             deployment: Deployment,
     ) -> None:
-        """校验 Control 与 Deployment 环境一致性
+        """校验 Control 与 Deployment 环境一致性.
 
         参数：
             control:
@@ -741,7 +741,7 @@ class RuntimeControlService:
     def _control_to_dict(
             control: Control,
     ) -> dict[str, Any]:
-        """转换 Control 为字典
+        """转换 Control 为字典.
 
         参数：
             control: 运行控制对象
@@ -779,7 +779,7 @@ class RuntimeControlService:
     def _runtime_to_dict(
             runtime: Runtime,
     ) -> dict[str, Any]:
-        """转换 Runtime 为字典
+        """转换 Runtime 为字典.
 
         参数：
             runtime: Worker 运行记录

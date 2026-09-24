@@ -1,4 +1,4 @@
-"""更新实验命令
+"""更新实验命令.
 
 提供 A/B 实验配置更新功能。
 
@@ -115,7 +115,7 @@ def update_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """更新实验
+    """更新实验.
 
     时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
     时区偏移。未提供时区偏移时，按配置时区解析。
@@ -365,7 +365,7 @@ def _get_requested_fields(
         effective_from: str | None,
         effective_to: str | None,
 ) -> set[str]:
-    """获取本次请求更新的字段"""
+    """获取本次请求更新的字段."""
     fields = set()
 
     if name is not None:
@@ -397,7 +397,7 @@ def _validate_update_allowed(
         experiment_status: str,
         requested_fields: set[str],
 ) -> None:
-    """校验实验当前状态是否允许更新"""
+    """校验实验当前状态是否允许更新."""
     if experiment_status == EXPERIMENT_STATUS_DRAFT:
         disallowed = requested_fields - DRAFT_UPDATE_FIELDS
 
@@ -427,7 +427,7 @@ def _validate_update_allowed(
 def _status_label(
         status: str,
 ) -> str:
-    """获取实验状态的终端显示名称"""
+    """获取实验状态的终端显示名称."""
     labels = {
         "draft": "草稿状态",
         "running": "运行状态",
@@ -448,7 +448,7 @@ def _get_target_strategy(
         config: dict,
         strategy: str | None,
 ) -> AssignmentStrategy:
-    """获取更新后的实验分配策略"""
+    """获取更新后的实验分配策略."""
     value = (
         strategy
         if strategy is not None
@@ -473,7 +473,7 @@ def _get_target_traffic_ratio(
         config: dict,
         traffic_ratio: float | None,
 ) -> float:
-    """获取更新后的实验流量比例"""
+    """获取更新后的实验流量比例."""
     if traffic_ratio is not None:
         return traffic_ratio
 
@@ -496,7 +496,7 @@ def _validate_traffic_ratio(
         strategy: AssignmentStrategy,
         traffic_ratio: float,
 ) -> None:
-    """校验实验流量比例"""
+    """校验实验流量比例."""
     if traffic_ratio < 0 or traffic_ratio > 1:
         raise typer.BadParameter(
             "--traffic-ratio 必须在 0 到 1 之间"
@@ -514,7 +514,7 @@ def _validate_traffic_ratio(
 def _get_config(
         experiment: Experiment,
 ) -> dict:
-    """获取实验配置"""
+    """获取实验配置."""
     config = experiment.config or {}
 
     if not isinstance(config, dict):
@@ -531,7 +531,7 @@ def _parse_optional_datetime(
         option_name: str,
         timezone_name: str,
 ):
-    """解析可选日期时间参数"""
+    """解析可选日期时间参数."""
     if value is None:
         return None
 

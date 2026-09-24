@@ -1,4 +1,4 @@
-"""模型状态守卫器
+"""模型状态守卫器.
 
 提供模型元数据、模型版本、部署与实验的状态迁移校验。
 
@@ -64,7 +64,7 @@ from datamind.models.errors import (
 
 
 class ModelGuard:
-    """模型状态守卫器"""
+    """模型状态守卫器."""
 
     _METADATA_TRANSITIONS = {
         MetadataStatus.ACTIVE: {
@@ -139,7 +139,7 @@ class ModelGuard:
             current: MetadataStatus,
             target: MetadataStatus,
     ) -> None:
-        """校验元数据状态迁移
+        """校验元数据状态迁移.
 
         参数：
             current: 当前状态
@@ -164,7 +164,7 @@ class ModelGuard:
             current: VersionStatus,
             target: VersionStatus,
     ) -> None:
-        """校验版本状态迁移
+        """校验版本状态迁移.
 
         参数：
             current: 当前状态
@@ -190,7 +190,7 @@ class ModelGuard:
             target: DeploymentStatus,
             metadata_status: MetadataStatus,
     ) -> None:
-        """校验部署状态迁移
+        """校验部署状态迁移.
 
         参数：
             current: 当前部署状态
@@ -224,7 +224,7 @@ class ModelGuard:
             current: ExperimentStatus,
             target: ExperimentStatus,
     ) -> None:
-        """校验实验状态迁移
+        """校验实验状态迁移.
 
         参数：
             current: 当前实验状态
@@ -264,7 +264,7 @@ class ModelGuard:
             cls,
             status: MetadataStatus,
     ) -> None:
-        """校验模型是否允许部署
+        """校验模型是否允许部署.
 
         参数：
             status: 模型状态
@@ -289,7 +289,7 @@ class ModelGuard:
             cls,
             status: VersionStatus,
     ) -> None:
-        """校验版本是否允许部署
+        """校验版本是否允许部署.
 
         参数：
             status: 版本状态
@@ -316,7 +316,7 @@ class ModelGuard:
             current: DeploymentStatus,
             metadata_status: MetadataStatus,
     ) -> None:
-        """校验是否允许启用部署
+        """校验是否允许启用部署.
 
         参数：
             current: 当前部署状态
@@ -347,7 +347,7 @@ class ModelGuard:
             *,
             current: DeploymentStatus,
     ) -> None:
-        """校验是否允许禁用部署
+        """校验是否允许禁用部署.
 
         参数：
             current: 当前部署状态

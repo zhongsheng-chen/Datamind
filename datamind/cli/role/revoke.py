@@ -1,4 +1,4 @@
-"""撤销角色命令
+"""撤销角色命令.
 
 提供撤销用户角色的功能。
 
@@ -37,7 +37,7 @@ def revoke_role(
             help="角色名称",
         ),
 ) -> None:
-    """撤销用户角色"""
+    """撤销用户角色."""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",

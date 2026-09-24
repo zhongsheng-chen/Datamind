@@ -1,4 +1,4 @@
-"""存储类型枚举
+"""存储类型枚举.
 
 定义存储后端类型，用于配置解析和运行时识别。
 
@@ -20,7 +20,7 @@ from typing import FrozenSet
 
 
 class StorageType(str, Enum):
-    """存储类型字符串枚举"""
+    """存储类型字符串枚举."""
 
     LOCAL = "local"
     MINIO = "minio"
@@ -28,7 +28,7 @@ class StorageType(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

@@ -1,4 +1,4 @@
-"""Celery Worker 进程入口测试
+"""Celery Worker 进程入口测试.
 
 验证 Worker 启动参数构建和进程启动行为。
 
@@ -26,7 +26,7 @@ def replace_process_dependency(
         name: str,
         replacement: object,
 ) -> None:
-    """替换进程入口依赖并在测试结束后自动恢复"""
+    """替换进程入口依赖并在测试结束后自动恢复."""
     monkeypatch.setattr(process_module, name, replacement)
 
 
@@ -35,14 +35,14 @@ def replace_celery_method(
         name: str,
         replacement: object,
 ) -> None:
-    """替换 Celery 应用接口并在测试结束后自动恢复"""
+    """替换 Celery 应用接口并在测试结束后自动恢复."""
     monkeypatch.setattr(process_module.celery_app, name, replacement)
 
 
 def test_build_worker_arguments_uses_queue_config(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Worker 启动参数来自统一任务队列配置"""
+    """测试 Worker 启动参数来自统一任务队列配置."""
     queue_config = SimpleNamespace(
         batch_queue="batch-test",
         shadow_queue="shadow-test",
@@ -82,7 +82,7 @@ def test_build_worker_arguments_uses_queue_config(
 def test_build_worker_arguments_uses_solo_pool_on_windows(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Windows Worker 使用 Celery 支持的 solo 进程池"""
+    """测试 Windows Worker 使用 Celery 支持的 solo 进程池."""
     monkeypatch.setattr(process_module.sys, "platform", "win32")
 
     arguments = process_module.build_worker_arguments()
@@ -102,7 +102,7 @@ def test_build_worker_arguments_supports_dedicated_roles(
         role: str,
         expected_queue: str,
 ) -> None:
-    """测试专用 Worker 角色仅消费对应队列"""
+    """测试专用 Worker 角色仅消费对应队列."""
     queue_config = SimpleNamespace(
         batch_queue="prediction.batch",
         shadow_queue="prediction.shadow",
@@ -131,7 +131,7 @@ def test_build_worker_arguments_supports_dedicated_roles(
 def test_main_starts_celery_worker(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试进程入口使用构建后的参数启动 Celery Worker"""
+    """测试进程入口使用构建后的参数启动 Celery Worker."""
     arguments = ["worker", "--queues", "batch"]
     build_arguments = MagicMock(return_value=arguments)
     worker_main = MagicMock()

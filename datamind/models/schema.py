@@ -1,4 +1,4 @@
-"""Schema 提取器
+"""Schema 提取器.
 
 从模型对象中提取输入 Schema。
 
@@ -54,7 +54,7 @@ def _call_method(
         *,
         default: Any = None,
 ) -> Any:
-    """调用对象的无参数方法"""
+    """调用对象的无参数方法."""
     method: object = getattr(
         value,
         method_name,
@@ -70,7 +70,7 @@ def _call_method(
 
 
 class SchemaExtractor:
-    """Schema 提取器"""
+    """Schema 提取器."""
 
     @classmethod
     def extract(
@@ -79,7 +79,7 @@ class SchemaExtractor:
             model: Any,
             framework: str,
     ) -> dict | None:
-        """提取模型输入 Schema
+        """提取模型输入 Schema.
 
         参数：
             model: 模型对象
@@ -114,7 +114,7 @@ class SchemaExtractor:
             cls,
             model: Any,
     ) -> dict | None:
-        """提取 sklearn 模型 Schema"""
+        """提取 sklearn 模型 Schema."""
         binning_process = getattr(model, "binning_process_", None)
 
         if binning_process is not None:
@@ -161,7 +161,7 @@ class SchemaExtractor:
             cls,
             model: Any,
     ) -> dict | None:
-        """提取 XGBoost 模型 Schema"""
+        """提取 XGBoost 模型 Schema."""
         schema = cls._build_first_available([
             (
                 getattr(model, "feature_names_in_", None),
@@ -190,7 +190,7 @@ class SchemaExtractor:
             cls,
             model: Any,
     ) -> dict | None:
-        """提取 LightGBM 模型 Schema"""
+        """提取 LightGBM 模型 Schema."""
         schema = cls._build_first_available([
             (
                 getattr(model, "feature_names_in_", None),
@@ -228,7 +228,7 @@ class SchemaExtractor:
             cls,
             model: Any,
     ) -> dict | None:
-        """提取 CatBoost 模型 Schema"""
+        """提取 CatBoost 模型 Schema."""
         return cls._build_schema(
             feature_names=cls._normalize_feature_names(
                 getattr(model, "feature_names_", None)
@@ -241,7 +241,7 @@ class SchemaExtractor:
             cls,
             candidates: list[tuple[Any, str]],
     ) -> dict | None:
-        """使用第一个有效的特征名称来源构造 Schema"""
+        """使用第一个有效的特征名称来源构造 Schema."""
         for value, source in candidates:
             feature_names = cls._normalize_feature_names(value)
 
@@ -261,7 +261,7 @@ class SchemaExtractor:
             source: str,
             data_types: dict[str, str] | None = None,
     ) -> dict | None:
-        """构造统一的模型 Schema"""
+        """构造统一的模型 Schema."""
         if not feature_names:
             return None
 
@@ -279,7 +279,7 @@ class SchemaExtractor:
     def _normalize_feature_names(
             feature_names: Any,
     ) -> list[str] | None:
-        """规范化模型提供的特征名称"""
+        """规范化模型提供的特征名称."""
         if feature_names is None:
             return None
 

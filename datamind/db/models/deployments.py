@@ -1,4 +1,4 @@
-"""模型部署表
+"""模型部署表.
 
 记录模型版本在不同环境中的部署信息，用于生成部署实例。
 
@@ -43,7 +43,7 @@ class Deployment(
     TimestampMixin,
     Base,
 ):
-    """模型部署表"""
+    """模型部署表."""
 
     __tablename__ = "deployments"
 
@@ -273,7 +273,7 @@ class Deployment(
     def __repr__(
             self,
     ) -> str:
-        """返回部署记录字符串表示"""
+        """返回部署记录字符串表示."""
         return (
             f"<Deployment("
             f"deployment_id='{self.deployment_id}', "

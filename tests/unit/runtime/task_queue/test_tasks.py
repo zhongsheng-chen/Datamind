@@ -1,4 +1,4 @@
-"""Celery 批量协调与分片任务测试
+"""Celery 批量协调与分片任务测试.
 
 验证批次协调任务的分片发布、失败处理和分片独立重试行为。
 
@@ -25,7 +25,7 @@ import datamind.runtime.task_queue.tasks as task_module
 def install_dependencies(
         monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[MagicMock, MagicMock]:
-    """安装不连接运行时和 Broker 的任务依赖"""
+    """安装不连接运行时和 Broker 的任务依赖."""
     worker = MagicMock()
     publisher = MagicMock()
     monkeypatch.setitem(vars(task_module), "get_runtime_task_worker", lambda: worker)
@@ -54,7 +54,7 @@ def install_dependencies(
 def test_execute_batch_dispatches_non_overlapping_chunks(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试协调任务将 45 条请求拆为三个无重叠分片"""
+    """测试协调任务将 45 条请求拆为三个无重叠分片."""
     worker, publisher = install_dependencies(monkeypatch)
     worker.prepare_batch.return_value = 45
     task_module.execute_batch.push_request(id="tsk_parent", hostname="worker-a")
@@ -86,7 +86,7 @@ def test_execute_batch_dispatches_non_overlapping_chunks(
 def test_execute_batch_marks_failed_when_dispatch_fails(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试协调或发布失败直接结束批次且不重复分片"""
+    """测试协调或发布失败直接结束批次且不重复分片."""
     worker, publisher = install_dependencies(monkeypatch)
     worker.prepare_batch.return_value = 20
     publisher.submit_batch_chunk.side_effect = RuntimeError("broker down")
@@ -106,7 +106,7 @@ def test_execute_batch_marks_failed_when_dispatch_fails(
 def test_execute_batch_chunk_retries_independently(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试分片的瞬时异常不会重跑其他分片"""
+    """测试分片的瞬时异常不会重跑其他分片."""
     worker, _publisher = install_dependencies(monkeypatch)
     worker.execute_batch_chunk.side_effect = RuntimeError("temporary")
     retry = MagicMock(side_effect=Retry())
@@ -139,7 +139,7 @@ def test_execute_batch_chunk_retries_independently(
 def test_execute_batch_chunk_marks_range_after_retry_limit(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试分片重试耗尽后只标记自己的全局下标范围"""
+    """测试分片重试耗尽后只标记自己的全局下标范围."""
     worker, _publisher = install_dependencies(monkeypatch)
     worker.execute_batch_chunk.side_effect = RuntimeError("permanent")
     task_module.execute_batch_chunk.push_request(id="tsk_chunk", retries=3)

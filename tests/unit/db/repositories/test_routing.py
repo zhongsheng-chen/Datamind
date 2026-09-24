@@ -1,4 +1,4 @@
-"""路由仓储测试
+"""路由仓储测试.
 
 验证 RoutingRepository 的路由查询、列表筛选、创建、
 普通字段更新，以及启用和禁用生命周期管理。
@@ -9,17 +9,17 @@
   - test_list_routings:
     验证环境、启用状态、排序和分页
   - test_list_enabled_routings:
-    验证获取启用的路由规则
+    验证获取启用的路由配置
   - test_routing_patch:
     验证更新结构和环境枚举
   - test_create_routing:
-    验证创建路由规则和流量比例
+    验证创建路由配置和流量比例
   - test_update_routing:
     验证普通路由字段更新
   - test_enable_routing:
-    验证启用路由规则
+    验证启用路由配置
   - test_disable_routing:
-    验证禁用路由规则
+    验证禁用路由配置
 """
 
 from dataclasses import fields
@@ -48,7 +48,7 @@ from datamind.db.repositories.routing import (
 def create_routing(
         **overrides: Any,
 ) -> Routing:
-    """创建路由规则测试对象"""
+    """创建路由配置测试对象."""
     values: dict[str, Any] = {
         "routing_id": "rtn_0123456789abcdef",
         "name": "scorecard-route",
@@ -83,7 +83,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建路由仓储及会话方法替身"""
+    """创建路由仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -131,7 +131,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -147,7 +147,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -160,7 +160,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_routing() -> None:
-    """测试按路由 ID 查询"""
+    """测试按路由 ID 查询."""
     expected = create_routing()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -188,7 +188,7 @@ async def test_get_routing() -> None:
 
 @pytest.mark.asyncio
 async def test_get_routing_returns_none_when_not_found() -> None:
-    """测试路由规则不存在时返回 None"""
+    """测试路由配置不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_routing(
@@ -201,7 +201,7 @@ async def test_get_routing_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_routings_without_filters() -> None:
-    """测试无筛选时返回全部路由并按时间倒序"""
+    """测试无筛选时返回全部路由并按时间倒序."""
     routings = [
         create_routing()
     ]
@@ -231,7 +231,7 @@ async def test_list_routings_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_routings_applies_filters_and_pagination() -> None:
-    """测试环境、启用状态、普通字段筛选和分页"""
+    """测试环境、启用状态、普通字段筛选和分页."""
     routings = [
         create_routing(
             rollout_type="canary",
@@ -302,7 +302,7 @@ async def test_list_routings_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_routings_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_routings(
@@ -352,7 +352,7 @@ async def test_list_routings_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -368,7 +368,7 @@ async def test_list_routings_rejects_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_enabled_routings() -> None:
-    """测试获取指定部署和环境中的启用路由"""
+    """测试获取指定部署和环境中的启用路由."""
     routings = [
         create_routing(
             enabled=True
@@ -408,7 +408,7 @@ async def test_list_enabled_routings() -> None:
 
 
 def test_routing_patch_fields_and_defaults() -> None:
-    """测试更新结构字段和默认值"""
+    """测试更新结构字段和默认值."""
     patch = RoutingPatch()
 
     assert [
@@ -447,7 +447,7 @@ def test_routing_patch_fields_and_defaults() -> None:
 
 
 def test_routing_patch_accepts_environment_enum() -> None:
-    """测试更新结构接受环境枚举"""
+    """测试更新结构接受环境枚举."""
     patch = RoutingPatch(
         environment=Environment.STAGING
     )
@@ -459,7 +459,7 @@ def test_routing_patch_accepts_environment_enum() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_routing() -> None:
-    """测试创建路由规则"""
+    """测试创建路由配置."""
     repository, _, add = create_repository()
 
     routing = repository.create_routing(
@@ -504,7 +504,7 @@ def test_create_routing() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_routing_uses_optional_defaults() -> None:
-    """测试创建路由规则的可选默认值"""
+    """测试创建路由配置的可选默认值."""
     repository, _, add = create_repository()
 
     routing = repository.create_routing(
@@ -537,7 +537,7 @@ def test_create_routing_uses_optional_defaults() -> None:
 def test_create_routing_accepts_boundary_ratio(
         traffic_ratio: float,
 ) -> None:
-    """测试流量比例边界值有效"""
+    """测试流量比例边界值有效."""
     repository, _, add = create_repository()
 
     routing = repository.create_routing(
@@ -566,7 +566,7 @@ def test_create_routing_accepts_boundary_ratio(
 def test_create_routing_rejects_invalid_ratio(
         traffic_ratio: float,
 ) -> None:
-    """测试创建时拒绝非法流量比例"""
+    """测试创建时拒绝非法流量比例."""
     repository, _, add = create_repository()
 
     with pytest.raises(
@@ -588,7 +588,7 @@ def test_create_routing_rejects_invalid_ratio(
 
 
 def test_update_routing() -> None:
-    """测试更新所有非空普通路由字段"""
+    """测试更新所有非空普通路由字段."""
     repository, _, _ = create_repository()
     routing = create_routing()
     original_enabled = routing.enabled
@@ -626,7 +626,7 @@ def test_update_routing() -> None:
 
 
 def test_update_routing_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     routing = create_routing()
 
@@ -646,7 +646,7 @@ def test_update_routing_ignores_none_fields() -> None:
 
 
 def test_update_routing_accepts_empty_strings() -> None:
-    """测试空字符串作为明确更新值写入对象"""
+    """测试空字符串作为明确更新值写入对象."""
     repository, _, _ = create_repository()
     routing = create_routing()
 
@@ -676,7 +676,7 @@ def test_update_routing_accepts_empty_strings() -> None:
 def test_update_routing_rejects_invalid_ratio(
         traffic_ratio: float,
 ) -> None:
-    """测试更新时拒绝非法流量比例"""
+    """测试更新时拒绝非法流量比例."""
     repository, _, _ = create_repository()
     routing = create_routing()
     original_ratio = routing.traffic_ratio
@@ -710,7 +710,7 @@ def test_update_routing_rejects_invalid_ratio(
 
 # noinspection PyUnreachableCode
 def test_enable_routing() -> None:
-    """测试启用路由规则"""
+    """测试启用路由配置."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=False
@@ -728,7 +728,7 @@ def test_enable_routing() -> None:
 
 # noinspection PyUnreachableCode
 def test_enable_routing_without_operator() -> None:
-    """测试启用时未提供操作人则保留原值"""
+    """测试启用时未提供操作人则保留原值."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=False,
@@ -747,7 +747,7 @@ def test_enable_routing_without_operator() -> None:
 
 # noinspection PyUnreachableCode
 def test_enable_routing_accepts_empty_operator() -> None:
-    """测试启用时允许写入空字符串操作人"""
+    """测试启用时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=False
@@ -764,7 +764,7 @@ def test_enable_routing_accepts_empty_operator() -> None:
 
 # noinspection PyUnreachableCode
 def test_enable_routing_is_idempotent() -> None:
-    """测试重复启用保持幂等"""
+    """测试重复启用保持幂等."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=True,
@@ -785,7 +785,7 @@ def test_enable_routing_is_idempotent() -> None:
 
 # noinspection PyUnreachableCode
 def test_disable_routing() -> None:
-    """测试禁用路由规则"""
+    """测试禁用路由配置."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=True
@@ -803,7 +803,7 @@ def test_disable_routing() -> None:
 
 # noinspection PyUnreachableCode
 def test_disable_routing_without_operator() -> None:
-    """测试禁用时未提供操作人则保留原值"""
+    """测试禁用时未提供操作人则保留原值."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=True,
@@ -822,7 +822,7 @@ def test_disable_routing_without_operator() -> None:
 
 # noinspection PyUnreachableCode
 def test_disable_routing_accepts_empty_operator() -> None:
-    """测试禁用时允许写入空字符串操作人"""
+    """测试禁用时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=True
@@ -839,7 +839,7 @@ def test_disable_routing_accepts_empty_operator() -> None:
 
 # noinspection PyUnreachableCode
 def test_disable_routing_is_idempotent() -> None:
-    """测试重复禁用保持幂等"""
+    """测试重复禁用保持幂等."""
     repository, _, _ = create_repository()
     routing = create_routing(
         enabled=False,

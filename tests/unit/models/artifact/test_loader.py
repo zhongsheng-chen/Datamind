@@ -1,4 +1,4 @@
-"""模型产物加载器测试
+"""模型产物加载器测试.
 
 验证模型产物按框架分派到已注册加载器。
 
@@ -21,7 +21,7 @@ from datamind.models.artifact.loader import ModelArtifactLoader
 def test_load_dispatches_to_registered_handler(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试将二进制产物分派给指定框架加载器"""
+    """测试将二进制产物分派给指定框架加载器."""
     expected = object()
     handler = Mock(
         return_value=expected
@@ -49,7 +49,7 @@ def test_load_dispatches_to_registered_handler(
 
 
 def test_load_rejects_unsupported_framework() -> None:
-    """测试拒绝不支持的模型框架"""
+    """测试拒绝不支持的模型框架."""
     with pytest.raises(KeyError, match="不支持的框架"):
         ModelArtifactLoader.load(
             "unsupported_framework",
@@ -60,7 +60,7 @@ def test_load_rejects_unsupported_framework() -> None:
 def test_load_reports_missing_framework_dependency(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型加载缺少可选依赖时返回明确安装建议。"""
+    """测试模型加载缺少可选依赖时返回明确安装建议."""
     def missing_dependency(_data: bytes):
         raise ModuleNotFoundError(
             "No module named 'joblib'",

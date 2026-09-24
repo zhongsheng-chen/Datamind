@@ -1,4 +1,4 @@
-"""审计存储端协议"""
+"""审计存储端协议."""
 
 from typing import Protocol
 
@@ -7,11 +7,11 @@ from datamind.db.models.audit import Audit
 
 
 class AuditSink(Protocol):
-    """审计事件持久化协议"""
+    """审计事件持久化协议."""
 
     async def write(
             self,
             event: AuditEvent,
     ) -> Audit:
-        """持久化审计事件"""
+        """持久化审计事件."""
         ...

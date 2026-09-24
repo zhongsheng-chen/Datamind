@@ -1,4 +1,4 @@
-"""路由生命周期服务
+"""路由生命周期服务.
 
 负责路由规则的创建、状态管理、逻辑删除与恢复。
 
@@ -39,7 +39,7 @@ _ALLOCATION_EPSILON = 1e-8
 
 
 class _Unset:
-    """标记更新请求未提供的字段。"""
+    """标记更新请求未提供的字段."""
 
 
 _UNSET = _Unset()
@@ -50,7 +50,7 @@ def _parse_effective_window(
         effective_from: str | None,
         effective_to: str | None,
 ) -> tuple[datetime | None, datetime | None]:
-    """解析并校验路由生效区间。"""
+    """解析并校验路由生效区间."""
     timezone_name = get_logging_config().timezone
     start = parse_datetime(
         effective_from,
@@ -68,7 +68,7 @@ def _parse_effective_window(
 
 
 def _is_shadow_deployment(deployment: Deployment) -> bool:
-    """判断部署是否为不占用主流量预算的影子部署。"""
+    """判断部署是否为不占用主流量预算的影子部署."""
     return (
         str(deployment.rollout_type).lower() == "shadow"
         or str(deployment.role).lower() == "shadow"
@@ -80,7 +80,7 @@ def validate_deployment_traffic_ratio(
         deployment: Deployment,
         traffic_ratio: float,
 ) -> None:
-    """校验部署发布类型对应的路由流量比例。"""
+    """校验部署发布类型对应的路由流量比例."""
     if (
             str(deployment.rollout_type).lower() == "full"
             and abs(float(traffic_ratio) - 1.0) > _ALLOCATION_EPSILON
@@ -98,7 +98,7 @@ async def validate_routing_allocation(
         traffic_ratio: float,
         exclude_routing_id: str | None = None,
 ) -> None:
-    """校验启用路由不会超过模型的主流量预算。"""
+    """校验启用路由不会超过模型的主流量预算."""
     if str(deployment.status).lower() != DeploymentStatus.ACTIVE.value:
         raise ValueError("只有已启用部署才能启用路由")
 
@@ -144,7 +144,7 @@ async def ensure_deployment_has_no_routing(
         routing_repo: RoutingRepository,
         deployment_id: str,
 ) -> None:
-    """确保一个部署只维护一条未删除路由。"""
+    """确保一个部署只维护一条未删除路由."""
     existing = await routing_repo.list_routings(
         deployment_id=deployment_id,
         limit=1,
@@ -158,7 +158,7 @@ async def ensure_deployment_has_no_routing(
 
 
 class RoutingLifecycleService:
-    """路由生命周期服务"""
+    """路由生命周期服务."""
 
     async def create_routing(
             self,
@@ -175,7 +175,7 @@ class RoutingLifecycleService:
             description: str | None = None,
             created_by: str | None = None,
     ) -> dict[str, Any]:
-        """为部署创建路由规则"""
+        """为部署创建路由规则."""
         resolved_name = name.strip()
         if not resolved_name:
             raise ValueError("路由名称不能为空")
@@ -264,7 +264,7 @@ class RoutingLifecycleService:
             routing_id: str,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """启用路由规则"""
+        """启用路由规则."""
         return await self._set_enabled(
             routing_id=routing_id,
             enabled=True,
@@ -284,7 +284,7 @@ class RoutingLifecycleService:
             description: str | None = None,
             updated_by: str | None = None,
     ) -> MutationResult:
-        """更新路由基本信息、流量、匹配规则和说明
+        """更新路由基本信息、流量、匹配规则和说明.
 
         未提供的规则和生效时间保持不变，显式传入 None 则清空。
         """
@@ -374,7 +374,7 @@ class RoutingLifecycleService:
             routing_id: str,
             updated_by: str | None = None,
     ) -> dict[str, Any]:
-        """禁用路由规则"""
+        """禁用路由规则."""
         return await self._set_enabled(
             routing_id=routing_id,
             enabled=False,
@@ -388,7 +388,7 @@ class RoutingLifecycleService:
             enabled: bool,
             updated_by: str | None,
     ) -> dict[str, Any]:
-        """设置路由启用状态"""
+        """设置路由启用状态."""
         async with UnitOfWork() as uow:
             repo = RoutingRepository(
                 uow.session
@@ -446,7 +446,7 @@ class RoutingLifecycleService:
             rules: dict[str, Any] | None,
             file: dict[str, Any] | None,
     ) -> dict[str, Any] | None:
-        """记录本次保存的文件信息，不推断既有规则的上传时间。"""
+        """记录本次保存的文件信息，不推断既有规则的上传时间."""
         if rules is None or file is None:
             return None
         return {
@@ -459,7 +459,7 @@ class RoutingLifecycleService:
     def _routing_result(
             routing: Any,
     ) -> dict[str, Any]:
-        """转换路由结果"""
+        """转换路由结果."""
         return {
             "routing_id": routing.routing_id,
             "name": routing.name,
@@ -487,7 +487,7 @@ class RoutingLifecycleService:
             reason: str | None = None,
             deleted_by: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除已禁用的路由规则"""
+        """逻辑删除已禁用的路由规则."""
         async with UnitOfWork() as uow:
             repo = RoutingRepository(
                 uow.session
@@ -535,7 +535,7 @@ class RoutingLifecycleService:
             routing_id: str,
             restored_by: str | None = None,
     ) -> dict[str, Any]:
-        """恢复逻辑删除的路由，恢复后保持禁用"""
+        """恢复逻辑删除的路由，恢复后保持禁用."""
         async with UnitOfWork() as uow:
             repo = RoutingRepository(
                 uow.session

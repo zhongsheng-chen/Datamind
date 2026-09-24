@@ -1,4 +1,4 @@
-"""启用用户命令
+"""启用用户命令.
 
 提供 LOCAL 用户启用功能。
 
@@ -33,7 +33,7 @@ def enable_user(
             help="登录用户名",
         ),
 ) -> None:
-    """启用用户"""
+    """启用用户."""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",

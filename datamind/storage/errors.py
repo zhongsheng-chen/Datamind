@@ -1,4 +1,4 @@
-"""存储异常定义
+"""存储异常定义.
 
 定义存储层的标准异常类型。
 
@@ -30,30 +30,30 @@
 
 
 class StorageBackendError(Exception):
-    """存储后端基础异常"""
+    """存储后端基础异常."""
 
     pass
 
 
 class StorageKeyError(StorageBackendError):
-    """存储键格式非法或存在路径安全风险"""
+    """存储键格式非法或存在路径安全风险."""
 
     pass
 
 
 class StorageNotFoundError(StorageBackendError):
-    """存储对象不存在异常"""
+    """存储对象不存在异常."""
 
     pass
 
 
 class StoragePermissionError(StorageBackendError):
-    """存储权限错误异常"""
+    """存储权限错误异常."""
 
     pass
 
 
 class StorageConnectionError(StorageBackendError):
-    """存储连接错误异常"""
+    """存储连接错误异常."""
 
     pass

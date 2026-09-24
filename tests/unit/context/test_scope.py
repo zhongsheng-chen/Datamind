@@ -1,4 +1,4 @@
-"""上下文作用域测试
+"""上下文作用域测试.
 
 验证临时上下文的合并、覆盖、嵌套和退出恢复。
 
@@ -27,7 +27,7 @@ from datamind.context.scope import context_scope
 
 
 def test_context_scope_sets_temporary_context() -> None:
-    """测试作用域内设置临时上下文"""
+    """测试作用域内设置临时上下文."""
     with context_scope(
         trace_id="0123456789abcdef0123456789abcdef",
         user="admin",
@@ -41,7 +41,7 @@ def test_context_scope_sets_temporary_context() -> None:
 
 
 def test_context_scope_merges_existing_context() -> None:
-    """测试作用域合并已有上下文"""
+    """测试作用域合并已有上下文."""
     set_context(
         trace_id="0123456789abcdef0123456789abcdef",
         request_id="req_0123456789abcdef",
@@ -65,7 +65,7 @@ def test_context_scope_merges_existing_context() -> None:
 
 
 def test_context_scope_overrides_existing_value() -> None:
-    """测试作用域覆盖已有字段"""
+    """测试作用域覆盖已有字段."""
     set_context(
         user="guest",
         source="http",
@@ -86,7 +86,7 @@ def test_context_scope_overrides_existing_value() -> None:
 
 
 def test_nested_context_scope_restores_each_level() -> None:
-    """测试嵌套作用域逐层恢复上下文"""
+    """测试嵌套作用域逐层恢复上下文."""
     with context_scope(
         user="admin",
     ):
@@ -112,7 +112,7 @@ def test_nested_context_scope_restores_each_level() -> None:
 
 
 def test_context_scope_restores_context_after_exception() -> None:
-    """测试发生异常后恢复原有上下文"""
+    """测试发生异常后恢复原有上下文."""
     set_context(
         request_id="req_0123456789abcdef",
         user="admin",
@@ -137,7 +137,7 @@ def test_context_scope_restores_context_after_exception() -> None:
 
 
 def test_context_scope_without_arguments_preserves_context() -> None:
-    """测试空作用域保持当前上下文"""
+    """测试空作用域保持当前上下文."""
     set_context(
         source="http",
         hostname="client",

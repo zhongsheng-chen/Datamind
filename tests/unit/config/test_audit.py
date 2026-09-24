@@ -1,4 +1,4 @@
-"""审计配置测试
+"""审计配置测试.
 
 验证审计开关、失败策略、重试参数、环境变量读取、
 参数校验和配置不可变行为。
@@ -32,7 +32,7 @@ from datamind.config.audit import AuditConfig
 
 
 class IsolatedAuditConfig(AuditConfig):
-    """仅使用初始化参数和字段默认值的测试审计配置"""
+    """仅使用初始化参数和字段默认值的测试审计配置."""
 
     @classmethod
     def settings_customise_sources(
@@ -43,7 +43,7 @@ class IsolatedAuditConfig(AuditConfig):
             dotenv_settings: PydanticBaseSettingsSource,
             file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -59,7 +59,7 @@ class IsolatedAuditConfig(AuditConfig):
 def clear_audit_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """清除审计配置环境变量"""
+    """清除审计配置环境变量."""
     for key in tuple(os.environ):
         if key.startswith("DATAMIND_AUDIT_"):
             monkeypatch.delenv(
@@ -71,12 +71,12 @@ def clear_audit_environment(
 def create_config(
         **overrides: Any,
 ) -> AuditConfig:
-    """创建隔离外部配置源的审计配置"""
+    """创建隔离外部配置源的审计配置."""
     return IsolatedAuditConfig(**overrides)
 
 
 def test_audit_config_defaults() -> None:
-    """测试默认配置"""
+    """测试默认配置."""
     config = create_config()
 
     assert config.enabled is True
@@ -89,7 +89,7 @@ def test_audit_config_reads_environment(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试从环境变量读取配置"""
+    """测试从环境变量读取配置."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DATAMIND_AUDIT_ENABLED", "false")
     monkeypatch.setenv("DATAMIND_AUDIT_FAILURE_MODE", "closed")
@@ -105,7 +105,7 @@ def test_audit_config_reads_environment(
 
 
 def test_audit_config_accepts_custom_values() -> None:
-    """测试接受有效自定义值"""
+    """测试接受有效自定义值."""
     config = create_config(
         enabled=False,
         failure_mode=AuditFailureMode.CLOSED,
@@ -131,13 +131,13 @@ def test_audit_config_rejects_invalid_values(
         value: int | float,
         message: str,
 ) -> None:
-    """测试拒绝无效配置"""
+    """测试拒绝无效配置."""
     with pytest.raises(ValidationError, match=message):
         create_config(**{field: value})
 
 
 def test_audit_config_is_frozen() -> None:
-    """测试配置不可修改"""
+    """测试配置不可修改."""
     config = create_config()
 
     with pytest.raises(ValidationError):

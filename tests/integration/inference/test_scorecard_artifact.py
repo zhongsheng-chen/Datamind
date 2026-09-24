@@ -1,4 +1,4 @@
-"""真实评分卡制品推理集成测试
+"""真实评分卡制品推理集成测试.
 
 验证 optbinning.Scorecard 经 joblib 序列化、统一制品加载器重载后，
 ScoringService 的总分、概率、特征分和分箱命中均保持一致。
@@ -30,7 +30,7 @@ pytestmark = pytest.mark.integration
 
 
 def fit_scorecard() -> Scorecard:
-    """拟合包含数值与类别变量的真实评分卡"""
+    """拟合包含数值与类别变量的真实评分卡."""
     records: list[dict[str, object]] = []
     labels: list[int] = []
 
@@ -88,14 +88,14 @@ def fit_scorecard() -> Scorecard:
 
 
 def serialize_scorecard(model: Scorecard) -> bytes:
-    """将评分卡序列化为 pkl 制品"""
+    """将评分卡序列化为 pkl 制品."""
     buffer = BytesIO()
     joblib.dump(model, buffer)
     return buffer.getvalue()
 
 
 def create_service(model: Scorecard) -> ScoringService:
-    """为重载后的真实评分卡创建运行服务"""
+    """为重载后的真实评分卡创建运行服务."""
     return ScoringService(
         runtime_model=RuntimeModel(
             deployment_id="dep_scorecard_integration",
@@ -109,7 +109,7 @@ def create_service(model: Scorecard) -> ScoringService:
 
 
 def test_persisted_scorecard_preserves_scoring_behavior(tmp_path: Path) -> None:
-    """测试评分卡持久化前后的分数、概率与分箱明细一致"""
+    """测试评分卡持久化前后的分数、概率与分箱明细一致."""
     model = fit_scorecard()
     features = {
         "employment_type": "contract",

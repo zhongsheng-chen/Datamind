@@ -1,4 +1,4 @@
-"""Celery Worker 进程入口
+"""Celery Worker 进程入口.
 
 读取任务队列和 Worker 配置，构建 Celery 启动参数并启动任务消费进程。
 
@@ -17,7 +17,7 @@ from datamind.runtime.task_queue.app import celery_app
 
 
 def build_worker_arguments() -> list[str]:
-    """构建 Celery Worker 启动参数
+    """构建 Celery Worker 启动参数.
 
     根据 Worker 角色选择批量预测队列、影子预测队列或全部队列，
     并在 Windows 平台使用 Celery 支持的 solo 进程池。
@@ -56,7 +56,7 @@ def build_worker_arguments() -> list[str]:
 
 
 def main() -> None:
-    """启动 Celery Worker 进程"""
+    """启动 Celery Worker 进程."""
     celery_app.worker_main(build_worker_arguments())
 
 

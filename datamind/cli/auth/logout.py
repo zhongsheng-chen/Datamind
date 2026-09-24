@@ -1,4 +1,4 @@
-"""退出登录命令
+"""退出登录命令.
 
 提供本地 CLI 会话退出功能。
 
@@ -33,7 +33,7 @@ logger = structlog.get_logger(__name__)
 
 
 def logout() -> None:
-    """退出当前登录"""
+    """退出当前登录."""
     client_ip = get_host_ip()
     hostname = get_hostname()
     actor_username = "anonymous"

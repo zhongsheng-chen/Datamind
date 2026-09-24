@@ -1,4 +1,4 @@
-"""A/B 实验执行引擎
+"""A/B 实验执行引擎.
 
 负责在请求进入模型推理前，根据运行中的实验配置、实验分组和固定分配记录，
 确定当前请求是否命中 A/B 实验，以及命中哪个实验分组。
@@ -55,7 +55,7 @@ from datamind.utils.generator import generate_random_id
 
 @dataclass(slots=True)
 class ABTestResult:
-    """A/B 实验命中结果
+    """A/B 实验命中结果.
 
     属性：
         experiment_id: 实验 ID
@@ -97,7 +97,7 @@ class ABTestResult:
 
 
 class ABTestEngine:
-    """A/B 实验执行引擎
+    """A/B 实验执行引擎.
 
     根据模型 ID 和环境查询运行中的实验，
     再根据 subject_key 判断是否进入实验，并分配到实验分组。
@@ -117,7 +117,7 @@ class ABTestEngine:
             assignment_repo: AssignmentRepository,
             assigner: ExperimentAssigner | None = None,
     ):
-        """初始化 A/B 实验执行引擎
+        """初始化 A/B 实验执行引擎.
 
         参数：
             experiment_repo: 实验仓储
@@ -144,7 +144,7 @@ class ABTestEngine:
             now: datetime | None = None,
             flush: bool = False,
     ) -> ABTestResult | None:
-        """分配 A/B 实验分组
+        """分配 A/B 实验分组.
 
         参数：
             model_id: 模型 ID
@@ -312,7 +312,7 @@ class ABTestEngine:
             assignment: Assignment,
             subject_type: str | None,
     ) -> ABTestResult | None:
-        """根据已有固定分配构造实验命中结果
+        """根据已有固定分配构造实验命中结果.
 
         参数：
             experiment: 实验对象
@@ -381,7 +381,7 @@ class ABTestEngine:
             assignment_result: AssignmentResult,
             subject_type: str | None,
     ) -> ABTestResult:
-        """根据新分配结果构造实验命中结果
+        """根据新分配结果构造实验命中结果.
 
         参数：
             experiment: 实验对象
@@ -438,7 +438,7 @@ class ABTestEngine:
 
     @classmethod
     def _get_traffic_ratio(cls, experiment: Experiment) -> float:
-        """获取实验曝光比例
+        """获取实验曝光比例.
 
         参数：
             experiment: 实验对象
@@ -469,7 +469,7 @@ class ABTestEngine:
             cls,
             experiment: Experiment,
     ) -> AssignmentStrategy:
-        """获取实验分配策略
+        """获取实验分配策略.
 
         参数：
             experiment: 实验对象
@@ -499,7 +499,7 @@ class ABTestEngine:
 
     @staticmethod
     def _get_config(experiment: Experiment) -> dict:
-        """获取实验配置
+        """获取实验配置.
 
         参数：
             experiment: 实验对象
@@ -524,7 +524,7 @@ class ABTestEngine:
             payload: dict | None,
             manual_variant_id: str | None,
     ) -> str | None:
-        """获取手工指定 Variant ID
+        """获取手工指定 Variant ID.
 
         参数：
             config: 实验配置
@@ -559,7 +559,7 @@ class ABTestEngine:
             payload: dict | None,
             manual_variant_name: str | None,
     ) -> str | None:
-        """获取手工指定 Variant 名称
+        """获取手工指定 Variant 名称.
 
         参数：
             config: 实验配置
@@ -594,7 +594,7 @@ class ABTestEngine:
             payload: dict | None,
             manual_assignments: dict[str, Any] | None,
     ) -> dict[str, Any] | None:
-        """获取手工指定分组映射关系
+        """获取手工指定分组映射关系.
 
         参数：
             config: 实验配置
@@ -629,7 +629,7 @@ class ABTestEngine:
             payload: dict | None,
             bucket_key: str | None,
     ) -> str | None:
-        """解析分桶主体标识
+        """解析分桶主体标识.
 
         参数：
             subject_key: 外部直接传入的分桶主体标识
@@ -665,7 +665,7 @@ class ABTestEngine:
     def _assignment_strategy_value(
             strategy: AssignmentStrategy | str,
     ) -> str:
-        """获取实验固定分配策略文本
+        """获取实验固定分配策略文本.
 
         参数：
             strategy: 分配策略枚举或字符串
@@ -680,7 +680,7 @@ class ABTestEngine:
             experiment: Experiment,
             now: datetime,
     ) -> bool:
-        """判断实验当前是否在生效时间内
+        """判断实验当前是否在生效时间内.
 
         参数：
             experiment: 实验对象

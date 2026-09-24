@@ -1,13 +1,13 @@
-"""Python 发布包构建命令测试
+"""Python 分发包构建命令测试.
 
-验证控制台资源检查、构建身份校验及发布产物元数据传递。
+验证控制台资源检查、构建身份校验及分发包元数据传递。
 
 核心功能：
   - test_build_requires_console_assets:
     验证构建资源检查
   - test_build_commands_validate_console_assets:
     验证打包命令调用资源检查
-  - test_release_artifacts_preserve_build_identity:
+  - test_release_distributions_preserve_build_identity:
     验证 Wheel、sdist 及 sdist 重建 Wheel 保留相同构建身份
   - test_dockerfile_installs_wheel_only:
     验证 Docker 镜像只安装 Wheel
@@ -15,25 +15,21 @@
     验证 OCI Labels 映射统一传入的项目与构建元数据
 """
 
-from email import policy
-from email.parser import BytesParser
-from email.utils import formataddr
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
-import tarfile
 import tomllib
 from typing import Any
 from unittest.mock import Mock
-import zipfile
 
 import pytest
-from packaging.specifiers import SpecifierSet
 from setuptools import Distribution
 
-from build_support import commands as build_commands
+from build_support.backend import commands as build_commands
+from build_support.distributions import verify_release_distributions
+from build_support.identity import BuildIdentity
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -42,18 +38,9 @@ BUILD_DATE = "2026-09-21T02:09:32Z"
 
 
 def clear_build_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    """清除外部构建身份输入"""
+    """清除外部构建身份输入."""
     monkeypatch.delenv("DATAMIND_BUILD_COMMIT", raising=False)
     monkeypatch.delenv("DATAMIND_BUILD_DATE", raising=False)
-
-
-def assert_release_metadata(content: str) -> None:
-    """断言构建模块包含固定测试身份"""
-    assert content == (
-        '"""Datamind build metadata."""\n\n'
-        f'BUILD_COMMIT: str = "{BUILD_COMMIT}"\n'
-        f'BUILD_DATE: str | None = "{BUILD_DATE}"\n'
-    )
 
 
 def run_package_build(
@@ -62,7 +49,7 @@ def run_package_build(
     working_directory: Path,
     environment: dict[str, str],
 ) -> None:
-    """运行发布包构建，并在失败时保留完整诊断信息。"""
+    """运行分发包构建，并在失败时保留完整诊断信息."""
     result = subprocess.run(
         command,
         cwd=working_directory,
@@ -75,7 +62,7 @@ def run_package_build(
 
     if result.returncode != 0:
         pytest.fail(
-            "发布包构建失败：\n"
+            "分发包构建失败：\n"
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}",
             pytrace=False,
@@ -83,54 +70,16 @@ def run_package_build(
 
 
 def pyproject_document() -> dict[str, Any]:
-    """读取项目元数据文档。"""
+    """读取项目元数据文档."""
     with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
         return tomllib.load(pyproject_file)
 
 
 def project_metadata() -> dict[str, Any]:
-    """读取 Python 发布元数据的正式来源。"""
+    """读取 Python 发布元数据的正式来源."""
     document = pyproject_document()
 
     return document["project"]
-
-
-def assert_package_metadata(content: bytes) -> None:
-    """断言发布包元数据与 pyproject.toml 保持一致。"""
-    configured = project_metadata()
-    metadata = BytesParser(policy=policy.default).parsebytes(content)
-    authors = configured["authors"]
-    assert isinstance(authors, list)
-
-    expected_author_emails = [
-        formataddr((author["name"], author["email"]))
-        for author in authors
-        if "email" in author
-    ]
-    expected_authors = [
-        author["name"]
-        for author in authors
-        if "email" not in author
-    ]
-
-    assert metadata["Name"] == configured["name"]
-    assert metadata["Version"] == configured["version"]
-    assert metadata["Summary"] == configured["description"]
-    assert metadata.get_all("Classifier", []) == configured["classifiers"]
-    assert metadata.get_all("Author-email", []) == expected_author_emails
-    assert metadata.get_all("Author", []) == expected_authors
-    assert metadata["License-Expression"] == configured["license"]
-    assert SpecifierSet(metadata["Requires-Python"]) == SpecifierSet(
-        configured["requires-python"]
-    )
-    assert "LICENSE" in metadata.get_all("License-File", [])
-
-
-def assert_license_content(content: str) -> None:
-    """断言发布包许可证内容一致，并忽略平台换行符差异。"""
-    source_content = (PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
-
-    assert content.splitlines() == source_content.splitlines()
 
 
 @pytest.mark.parametrize(
@@ -149,11 +98,11 @@ def test_build_requires_console_assets(
     tmp_path: Path,
     missing: str | None,
 ) -> None:
-    """测试入口页面和构建清单引用的文件必须完整存在"""
+    """测试入口页面和构建清单引用的文件必须完整存在."""
     monkeypatch.setitem(
         vars(build_commands),
         "__file__",
-        str(tmp_path / "build_support" / "commands.py"),
+        str(tmp_path / "build_support" / "backend" / "commands.py"),
     )
     directory = tmp_path / "datamind" / "console" / "dist"
     directory.mkdir(parents=True)
@@ -231,7 +180,7 @@ def test_build_commands_validate_console_assets(
     run_target: str,
     expected_events: list[str],
 ) -> None:
-    """测试构建命令先校验控制台资源再执行打包"""
+    """测试构建命令先校验控制台资源再执行打包."""
     events: list[str] = []
     monkeypatch.setitem(
         vars(build_commands),
@@ -274,21 +223,18 @@ def test_build_commands_validate_console_assets(
 def test_build_identity_defaults_to_development(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未注入发布身份时使用源码开发默认值"""
+    """测试未注入发布身份时使用源码开发默认值."""
     clear_build_environment(monkeypatch)
 
     identity = build_commands._build_identity()
 
-    assert identity == build_commands.BuildIdentity(
-        commit="dev",
-        build_date=None,
-    )
+    assert identity is None
 
 
 def test_build_identity_uses_explicit_release_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试同时注入 Commit 与 Build Date 时清理并保留完整值"""
+    """测试同时注入 Commit 与 Build Date 时清理并保留完整值."""
     monkeypatch.setenv("DATAMIND_BUILD_COMMIT", f"  {BUILD_COMMIT}  ")
     monkeypatch.setenv("DATAMIND_BUILD_DATE", f"  {BUILD_DATE}  ")
 
@@ -311,7 +257,7 @@ def test_build_identity_rejects_partial_input(
     monkeypatch: pytest.MonkeyPatch,
     configured: dict[str, str],
 ) -> None:
-    """测试构建身份只配置一项时拒绝构建"""
+    """测试构建身份只配置一项时拒绝构建."""
     clear_build_environment(monkeypatch)
     for name, value in configured.items():
         monkeypatch.setenv(name, value)
@@ -333,7 +279,7 @@ def test_build_identity_rejects_blank_input(
     build_date: str,
     message: str,
 ) -> None:
-    """测试显式空白 Commit 或 Build Date 被拒绝"""
+    """测试显式空白 Commit 或 Build Date 被拒绝."""
     monkeypatch.setenv("DATAMIND_BUILD_COMMIT", commit)
     monkeypatch.setenv("DATAMIND_BUILD_DATE", build_date)
 
@@ -354,7 +300,7 @@ def test_build_identity_rejects_invalid_build_date(
     monkeypatch: pytest.MonkeyPatch,
     build_date: str,
 ) -> None:
-    """测试非 UTC RFC 3339 或无效日历时间被拒绝"""
+    """测试非 UTC RFC 3339 或无效日历时间被拒绝."""
     monkeypatch.setenv("DATAMIND_BUILD_COMMIT", BUILD_COMMIT)
     monkeypatch.setenv("DATAMIND_BUILD_DATE", build_date)
 
@@ -365,16 +311,16 @@ def test_build_identity_rejects_invalid_build_date(
 def test_build_identity_rejects_incomplete_git_sha(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试发布 Commit 必须是完整 Git SHA"""
+    """测试发布 Commit 必须是完整 Git SHA."""
     monkeypatch.setenv("DATAMIND_BUILD_COMMIT", BUILD_COMMIT[:12])
     monkeypatch.setenv("DATAMIND_BUILD_DATE", BUILD_DATE)
 
-    with pytest.raises(RuntimeError, match="完整的 40 位 Git SHA"):
+    with pytest.raises(RuntimeError, match="完整的 40 位 Git 提交哈希"):
         build_commands._build_identity()
 
 
 def test_write_build_metadata_generates_stable_module(tmp_path: Path) -> None:
-    """测试 Build Metadata 使用稳定 UTF-8 Python 格式"""
+    """测试 Build Metadata 使用稳定 UTF-8 Python 格式."""
     target = tmp_path / "datamind" / "_build.py"
 
     build_commands._write_build_metadata(
@@ -392,12 +338,29 @@ def test_write_build_metadata_generates_stable_module(tmp_path: Path) -> None:
     )
 
 
+def test_write_build_metadata_generates_development_defaults(
+    tmp_path: Path,
+) -> None:
+    """测试未提供正式构建身份时写入开发默认值."""
+    target = tmp_path / "datamind" / "_build.py"
+
+    build_commands._write_build_metadata(target, None)
+
+    assert target.read_text(encoding="utf-8") == (
+        '"""Datamind build metadata."""\n\n'
+        'BUILD_COMMIT: str = "dev"\n'
+        "BUILD_DATE: str | None = None\n"
+    )
+
+
 def test_sdist_writes_metadata_only_to_release_tree(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试 sdist 仅覆盖临时 release tree 中的 Build Metadata"""
-    release_tree = tmp_path / f"datamind-{project_metadata()['version']}"
+    """测试 sdist 仅覆盖临时 release tree 中的 Build Metadata."""
+    release_tree = tmp_path / (
+        f"{project_metadata()['name']}-{project_metadata()['version']}"
+    )
     release_tree.mkdir()
     identity = build_commands.BuildIdentity(
         commit=BUILD_COMMIT,
@@ -421,8 +384,8 @@ def test_sdist_writes_metadata_only_to_release_tree(
     assert writes == [(release_tree / "datamind" / "_build.py", identity)]
 
 
-def test_release_artifacts_preserve_build_identity(tmp_path: Path) -> None:
-    """测试 Wheel、sdist 和 sdist 重建 Wheel 保留相同发布身份"""
+def test_release_distributions_preserve_build_identity(tmp_path: Path) -> None:
+    """测试 Wheel、sdist 和 sdist 重建 Wheel 保留相同发布身份."""
     source_metadata = PROJECT_ROOT / "datamind" / "_build.py"
     original_content = source_metadata.read_bytes()
     distribution_directory = tmp_path / "dist"
@@ -450,101 +413,19 @@ def test_release_artifacts_preserve_build_identity(tmp_path: Path) -> None:
         environment=build_environment,
     )
 
-    wheel = next(distribution_directory.glob("datamind-*.whl"))
-    assert wheel.name.endswith("-py3-none-any.whl")
-    with zipfile.ZipFile(wheel) as archive:
-        assert not any(
-            name.startswith("build_support/") for name in archive.namelist()
-        )
-        content = archive.read("datamind/_build.py").decode("utf-8")
-        metadata_name = next(
-            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
-        )
-        package_metadata = archive.read(metadata_name)
-        license_name = next(
-            name
-            for name in archive.namelist()
-            if name.endswith(".dist-info/licenses/LICENSE")
-        )
-        packaged_license = archive.read(license_name).decode("utf-8")
-    assert_release_metadata(content)
-    assert_package_metadata(package_metadata)
-    assert_license_content(packaged_license)
-
-    source_distribution = next(distribution_directory.glob("datamind-*.tar.gz"))
-    with tarfile.open(source_distribution, "r:gz") as archive:
-        identity_member = next(
-            item
-            for item in archive.getmembers()
-            if item.name.endswith("/build_support/identity.py")
-        )
-        identity_file = archive.extractfile(identity_member)
-        assert identity_file is not None
-        assert identity_file.read() == (
-            PROJECT_ROOT / "build_support" / "identity.py"
-        ).read_bytes()
-
-        package_metadata_member = next(
-            item for item in archive.getmembers() if item.name.endswith("/PKG-INFO")
-        )
-        package_metadata_file = archive.extractfile(package_metadata_member)
-        assert package_metadata_file is not None
-        assert_package_metadata(package_metadata_file.read())
-
-        license_member = next(
-            item for item in archive.getmembers() if item.name.endswith("/LICENSE")
-        )
-        license_file = archive.extractfile(license_member)
-        assert license_file is not None
-        assert_license_content(license_file.read().decode("utf-8"))
-
-        member = next(
-            item
-            for item in archive.getmembers()
-            if item.name.endswith("/datamind/_build.py")
-        )
-        extracted = archive.extractfile(member)
-        assert extracted is not None
-        assert_release_metadata(extracted.read().decode("utf-8"))
-
-        release_directory = tmp_path / "release"
-        archive.extractall(release_directory, filter="data")
-
-    extracted_source = next(release_directory.iterdir())
-    rebuilt_directory = tmp_path / "rebuilt"
-    inherited_environment = os.environ.copy()
-    inherited_environment.pop("DATAMIND_BUILD_COMMIT", None)
-    inherited_environment.pop("DATAMIND_BUILD_DATE", None)
-    run_package_build(
-        [
-            sys.executable,
-            "-m",
-            "build",
-            str(extracted_source),
-            "--wheel",
-            "--no-isolation",
-            "--outdir",
-            str(rebuilt_directory),
-        ],
-        working_directory=release_directory,
-        environment=inherited_environment,
+    wheel, sdist = verify_release_distributions(
+        distribution_directory,
+        PROJECT_ROOT,
+        BuildIdentity(commit=BUILD_COMMIT, build_date=BUILD_DATE),
     )
 
-    rebuilt_wheel = next(rebuilt_directory.glob("datamind-*.whl"))
-    assert rebuilt_wheel.name.endswith("-py3-none-any.whl")
-    with zipfile.ZipFile(rebuilt_wheel) as archive:
-        rebuilt_content = archive.read("datamind/_build.py").decode("utf-8")
-        rebuilt_metadata_name = next(
-            name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
-        )
-        rebuilt_metadata = archive.read(rebuilt_metadata_name)
-    assert_release_metadata(rebuilt_content)
-    assert_package_metadata(rebuilt_metadata)
+    assert wheel.name == "pydatamind-0.1.0-py3-none-any.whl"
+    assert sdist.name == "pydatamind-0.1.0.tar.gz"
     assert source_metadata.read_bytes() == original_content
 
 
 def test_dockerfile_installs_wheel_only() -> None:
-    """测试 Docker 镜像仅安装构建后的 Wheel。"""
+    """测试 Docker 镜像仅安装构建后的 Wheel."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
 
     assert "AS console-builder" in content
@@ -566,7 +447,7 @@ def test_dockerfile_installs_wheel_only() -> None:
 
 
 def test_dockerfile_pins_builder_and_runtime_images() -> None:
-    """测试 Node Builder 与 Python Runtime 均使用精确镜像摘要。"""
+    """测试 Node Builder 与 Python Runtime 均使用精确镜像摘要."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
 
     assert "ARG NODE_VERSION=24.21.0" in content
@@ -590,7 +471,7 @@ def test_dockerfile_pins_builder_and_runtime_images() -> None:
 
 
 def test_dockerfile_defaults_to_official_python_package_index() -> None:
-    """测试 Docker 构建默认使用官方 Python 包索引。"""
+    """测试 Docker 构建默认使用官方 Python 包索引."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(
         encoding="utf-8"
     )
@@ -599,7 +480,7 @@ def test_dockerfile_defaults_to_official_python_package_index() -> None:
 
 
 def test_dockerfile_maps_oci_metadata_arguments() -> None:
-    """测试 OCI Labels 只映射统一传入的元数据。"""
+    """测试 OCI Labels 只映射统一传入的元数据."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
 
     assert "ARG DATAMIND_BUILD_COMMIT" in content
@@ -620,7 +501,7 @@ def test_dockerfile_maps_oci_metadata_arguments() -> None:
 
 
 def test_dockerfile_does_not_hardcode_project_metadata() -> None:
-    """测试 Dockerfile 不维护第二套项目元数据。"""
+    """测试 Dockerfile 不维护第二套项目元数据."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
     document = pyproject_document()
     configured = document["project"]
@@ -641,7 +522,7 @@ def test_dockerfile_does_not_hardcode_project_metadata() -> None:
 
 
 def test_dockerfile_does_not_use_ref_name_label() -> None:
-    """测试 ref.name 不会被误用为普通 Docker LABEL。"""
+    """测试 ref.name 不会被误用为普通 Docker LABEL."""
     content = (PROJECT_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
 
     assert "org.opencontainers.image.ref.name" not in content

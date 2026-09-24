@@ -1,4 +1,4 @@
-"""存储类型枚举测试
+"""存储类型枚举测试.
 
 验证 StorageType 的成员、字符串行为和支持集合。
 
@@ -34,7 +34,7 @@ EXPECTED_STORAGE_TYPES = {
 
 
 def test_storage_type_members_and_values() -> None:
-    """测试存储类型枚举包含预期成员和值"""
+    """测试存储类型枚举包含预期成员和值."""
     assert {
         member: member.value
         for member in StorageType
@@ -52,7 +52,7 @@ def test_storage_type_string_behavior(
         member: StorageType,
         expected_value: str,
 ) -> None:
-    """测试存储类型枚举具有字符串语义"""
+    """测试存储类型枚举具有字符串语义."""
     assert isinstance(
         member,
         str,
@@ -85,19 +85,19 @@ def test_storage_type_can_be_created_from_value(
         value: str,
         expected_member: StorageType,
 ) -> None:
-    """测试可以通过字符串值反向构造存储类型"""
+    """测试可以通过字符串值反向构造存储类型."""
     assert StorageType(value) is expected_member
 
 
 def test_supported_storage_types_contains_all_members() -> None:
-    """测试支持集合包含全部存储类型"""
+    """测试支持集合包含全部存储类型."""
     assert SUPPORTED_STORAGE_TYPES == frozenset(
         StorageType
     )
 
 
 def test_supported_storage_types_matches_enum_values() -> None:
-    """测试支持集合与枚举值保持一致"""
+    """测试支持集合与枚举值保持一致."""
     assert {
         str(storage_type)
         for storage_type in SUPPORTED_STORAGE_TYPES
@@ -119,6 +119,6 @@ def test_supported_storage_types_matches_enum_values() -> None:
 def test_invalid_storage_type_raises_value_error(
         value: str,
 ) -> None:
-    """测试非法存储类型不能构造枚举"""
+    """测试非法存储类型不能构造枚举."""
     with pytest.raises(ValueError):
         StorageType(value)

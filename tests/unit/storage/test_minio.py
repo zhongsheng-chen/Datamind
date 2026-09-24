@@ -1,4 +1,4 @@
-"""MinIO 对象存储后端测试
+"""MinIO 对象存储后端测试.
 
 验证客户端初始化、基础前缀、对象操作、键校验和异常映射。
 
@@ -54,7 +54,7 @@ from datamind.storage.minio import MinIOStorageBackend
 
 
 class FakeS3Error(S3Error):
-    """仅提供测试所需字段的 S3Error"""
+    """仅提供测试所需字段的 S3Error."""
 
     def __init__(
         self,
@@ -70,16 +70,16 @@ class FakeS3Error(S3Error):
 
     @property
     def code(self) -> str:
-        """返回测试错误码"""
+        """返回测试错误码."""
         return self._test_code
 
     @property
     def message(self) -> str:
-        """返回测试错误消息"""
+        """返回测试错误消息."""
         return self._test_message
 
     def __str__(self) -> str:
-        """返回简化错误文本"""
+        """返回简化错误文本."""
         return (
             f"code={self.code}, "
             f"message={self.message}"
@@ -88,13 +88,13 @@ class FakeS3Error(S3Error):
 
 @dataclass
 class ObjectItem:
-    """模拟 MinIO 列表结果项"""
+    """模拟 MinIO 列表结果项."""
 
     object_name: str | None
 
 
 class FakeResponse:
-    """模拟 MinIO 下载响应"""
+    """模拟 MinIO 下载响应."""
 
     def __init__(
         self,
@@ -108,23 +108,23 @@ class FakeResponse:
         self.release_count = 0
 
     def read(self) -> bytes | None:
-        """读取响应内容"""
+        """读取响应内容."""
         if self.read_error is not None:
             raise self.read_error
 
         return self.data
 
     def close(self) -> None:
-        """记录关闭调用"""
+        """记录关闭调用."""
         self.close_count += 1
 
     def release_conn(self) -> None:
-        """记录连接释放调用"""
+        """记录连接释放调用."""
         self.release_count += 1
 
 
 class FakeMinioClient:
-    """模拟 MinIO 客户端"""
+    """模拟 MinIO 客户端."""
 
     def __init__(
         self,
@@ -169,7 +169,7 @@ class FakeMinioClient:
         self,
         bucket: str,
     ) -> bool:
-        """模拟检查存储桶"""
+        """模拟检查存储桶."""
         self.bucket_exists_calls.append(bucket)
 
         if self.bucket_exists_error is not None:
@@ -181,7 +181,7 @@ class FakeMinioClient:
         self,
         bucket: str,
     ) -> None:
-        """模拟创建存储桶"""
+        """模拟创建存储桶."""
         self.make_bucket_calls.append(bucket)
 
         if self.make_bucket_error is not None:
@@ -195,7 +195,7 @@ class FakeMinioClient:
         *,
         length: int,
     ) -> None:
-        """模拟上传对象"""
+        """模拟上传对象."""
         payload = data.read()
         self.put_calls.append(
             (
@@ -214,7 +214,7 @@ class FakeMinioClient:
         bucket: str,
         object_name: str,
     ) -> FakeResponse:
-        """模拟下载对象"""
+        """模拟下载对象."""
         self.get_calls.append(
             (
                 bucket,
@@ -232,7 +232,7 @@ class FakeMinioClient:
         bucket: str,
         object_name: str,
     ) -> None:
-        """模拟删除对象"""
+        """模拟删除对象."""
         self.remove_calls.append(
             (
                 bucket,
@@ -248,7 +248,7 @@ class FakeMinioClient:
         bucket: str,
         object_name: str,
     ) -> object:
-        """模拟读取对象元数据"""
+        """模拟读取对象元数据."""
         self.stat_calls.append(
             (
                 bucket,
@@ -268,7 +268,7 @@ class FakeMinioClient:
         prefix: str,
         recursive: bool,
     ) -> list[ObjectItem]:
-        """模拟列出对象"""
+        """模拟列出对象."""
         self.list_calls.append(
             (
                 bucket,
@@ -287,7 +287,7 @@ def make_s3_error(
     code: str,
     message: str = "storage error",
 ) -> S3Error:
-    """创建 MinIO S3Error 测试对象"""
+    """创建 MinIO S3Error 测试对象."""
     return FakeS3Error(
         code,
         message,
@@ -302,7 +302,7 @@ def install_client(
     list[FakeMinioClient],
     dict[str, Any],
 ]:
-    """替换 Minio 构造器并记录客户端和参数"""
+    """替换 Minio 构造器并记录客户端和参数."""
     clients: list[FakeMinioClient] = []
     options: dict[str, Any] = {}
 
@@ -352,7 +352,7 @@ def create_backend(
     MinIOStorageBackend,
     FakeMinioClient,
 ]:
-    """创建使用模拟客户端的 MinIO 后端"""
+    """创建使用模拟客户端的 MinIO 后端."""
     clients, _ = install_client(monkeypatch)
 
     backend = MinIOStorageBackend(
@@ -371,7 +371,7 @@ def create_backend(
 def test_init_passes_client_options_and_normalizes_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试初始化参数传递和名称规范化"""
+    """测试初始化参数传递和名称规范化."""
     clients, options = install_client(
         monkeypatch
     )
@@ -406,7 +406,7 @@ def test_init_passes_client_options_and_normalizes_values(
 def test_init_creates_missing_bucket(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试存储桶不存在时自动创建"""
+    """测试存储桶不存在时自动创建."""
     clients, _ = install_client(
         monkeypatch,
         bucket_exists_result=False,
@@ -438,7 +438,7 @@ def test_init_rejects_invalid_bucket(
     monkeypatch: pytest.MonkeyPatch,
     bucket: str,
 ) -> None:
-    """测试拒绝空桶名和包含分隔符的桶名"""
+    """测试拒绝空桶名和包含分隔符的桶名."""
     clients, _ = install_client(
         monkeypatch
     )
@@ -461,7 +461,7 @@ def test_init_rejects_invalid_bucket(
 def test_init_wraps_client_creation_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试客户端构造异常包装为连接异常"""
+    """测试客户端构造异常包装为连接异常."""
     original_error = RuntimeError(
         "invalid endpoint"
     )
@@ -507,7 +507,7 @@ def test_init_wraps_client_creation_error(
 def test_put_object_adds_base_prefix_and_uploads_bytes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试上传对象时加入基础前缀"""
+    """测试上传对象时加入基础前缀."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -534,7 +534,7 @@ def test_put_object_adds_base_prefix_and_uploads_bytes(
 def test_get_object_returns_data_and_closes_response(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试下载对象并释放响应连接"""
+    """测试下载对象并释放响应连接."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -564,7 +564,7 @@ def test_get_object_returns_data_and_closes_response(
 def test_get_object_rejects_empty_response_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试响应内容为 None 时抛出后端异常"""
+    """测试响应内容为 None 时抛出后端异常."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -586,7 +586,7 @@ def test_get_object_rejects_empty_response_data(
 def test_delete_object_is_idempotent_for_missing_object(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除不存在对象时保持幂等"""
+    """测试删除不存在对象时保持幂等."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -634,7 +634,7 @@ def test_object_exists_returns_expected_value(
     error_code: str | None,
     expected: bool,
 ) -> None:
-    """测试对象存在和不存在判断"""
+    """测试对象存在和不存在判断."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -654,7 +654,7 @@ def test_object_exists_returns_expected_value(
 def test_list_objects_removes_base_prefix_and_sorts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试列表结果移除基础前缀并排序"""
+    """测试列表结果移除基础前缀并排序."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -688,7 +688,7 @@ def test_list_objects_removes_base_prefix_and_sorts(
 def test_list_objects_with_empty_prefix_uses_base_prefix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试空逻辑前缀列出基础前缀下全部对象"""
+    """测试空逻辑前缀列出基础前缀下全部对象."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -724,7 +724,7 @@ def test_object_operations_reject_invalid_keys(
     monkeypatch: pytest.MonkeyPatch,
     key: str,
 ) -> None:
-    """测试对象操作拒绝空键、空字符和非法路径段"""
+    """测试对象操作拒绝空键、空字符和非法路径段."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -767,7 +767,7 @@ def test_list_objects_rejects_invalid_prefix(
     monkeypatch: pytest.MonkeyPatch,
     prefix: str,
 ) -> None:
-    """测试列表操作拒绝非法逻辑前缀"""
+    """测试列表操作拒绝非法逻辑前缀."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -823,7 +823,7 @@ def test_s3_errors_are_mapped_to_storage_errors(
     error_code: str,
     error_type: type[StorageBackendError],
 ) -> None:
-    """测试不同 S3 错误码映射为标准存储异常"""
+    """测试不同 S3 错误码映射为标准存储异常."""
     backend, client = create_backend(
         monkeypatch
     )
@@ -900,7 +900,7 @@ def test_unexpected_client_errors_are_wrapped(
     method_name: str,
     message: str,
 ) -> None:
-    """测试非 S3 客户端异常包装为连接异常"""
+    """测试非 S3 客户端异常包装为连接异常."""
     backend, client = create_backend(
         monkeypatch
     )

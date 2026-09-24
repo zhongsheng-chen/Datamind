@@ -1,4 +1,4 @@
-"""系统状态仓储测试
+"""系统状态仓储测试.
 
 验证系统状态读取、行锁定和初始化完成标记能力。
 
@@ -54,7 +54,7 @@ def create_repository(
     SystemStateRepository,
     AsyncMock,
 ]:
-    """创建系统状态仓储及异步会话替身"""
+    """创建系统状态仓储及异步会话替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = state
     execute = AsyncMock(
@@ -79,7 +79,7 @@ def create_repository(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -92,7 +92,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_state_queries_system_id() -> None:
-    """测试按系统标识查询状态"""
+    """测试按系统标识查询状态."""
     state = SystemState(
         system_id="datamind",
         initialized=False,
@@ -116,7 +116,7 @@ async def test_get_state_queries_system_id() -> None:
 
 @pytest.mark.asyncio
 async def test_get_state_supports_row_lock() -> None:
-    """测试初始化查询使用行锁"""
+    """测试初始化查询使用行锁."""
     repository, execute = create_repository()
 
     await repository.get_state(
@@ -133,7 +133,7 @@ async def test_get_state_supports_row_lock() -> None:
 
 @pytest.mark.asyncio
 async def test_get_or_create_state() -> None:
-    """测试原子创建并锁定系统状态"""
+    """测试原子创建并锁定系统状态."""
     state = SystemState(
         system_id="datamind",
         initialized=False,
@@ -174,7 +174,7 @@ async def test_get_or_create_state() -> None:
 
 
 def test_mark_initialized() -> None:
-    """测试标记系统完成初始化"""
+    """测试标记系统完成初始化."""
     state = SystemState(
         system_id="datamind",
         initialized=False,

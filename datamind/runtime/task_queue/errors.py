@@ -1,4 +1,4 @@
-"""运行时任务队列异常
+"""运行时任务队列异常.
 
 定义任务发布与批次执行过程使用的异常类型。
 
@@ -15,8 +15,8 @@
 
 
 class TaskDispatchError(RuntimeError):
-    """任务无法发布到执行队列"""
+    """任务无法发布到执行队列."""
 
 
 class BatchCancelledError(RuntimeError):
-    """批次执行收到协作式取消请求"""
+    """批次执行收到协作式取消请求."""

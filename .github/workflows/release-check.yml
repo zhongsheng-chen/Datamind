@@ -1,0 +1,56 @@
+name: Release Configuration Check
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate release configuration
+    runs-on: ubuntu-latest
+    environment: release
+
+    env:
+      TWINE_REPOSITORY_URL: ${{ vars.TWINE_REPOSITORY_URL }}
+      TWINE_USERNAME: ${{ vars.TWINE_USERNAME }}
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Twine publishing configuration
+        env:
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        run: python -m scripts.release validate-twine-config
+
+      - name: Validate Docker Hub publishing configuration
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: python -m scripts.release validate-dockerhub-config
+
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        shell: bash
+        run: >-
+          printf '%s' "${DOCKERHUB_TOKEN}"
+          | docker login docker.io
+          --username "${DOCKERHUB_USERNAME}"
+          --password-stdin
+
+      - name: Log out from Docker Hub
+        if: always()
+        run: docker logout docker.io

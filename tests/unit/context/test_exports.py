@@ -1,4 +1,4 @@
-"""上下文包公共导出测试
+"""上下文包公共导出测试.
 
 验证上下文包公开 API 的完整性和可访问性。
 
@@ -25,12 +25,12 @@ EXPECTED_EXPORTS = {
 
 
 def test_context_exports_expected_public_api() -> None:
-    """测试上下文包公开完整且准确的 API"""
+    """测试上下文包公开完整且准确的 API."""
     assert set(context.__all__) == EXPECTED_EXPORTS
     assert len(context.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     for name in context.__all__:
         assert hasattr(context, name), name

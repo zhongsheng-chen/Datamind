@@ -1,4 +1,4 @@
-"""日志输出通道处理器测试
+"""日志输出通道处理器测试.
 
 验证文件、控制台和异步日志 handler 的创建与分发行为。
 
@@ -49,7 +49,7 @@ def create_config(
         tmp_path: Path,
         **overrides: object,
 ) -> LoggingConfig:
-    """创建不读取外部配置源的日志配置"""
+    """创建不读取外部配置源的日志配置."""
     config_kwargs: dict[str, object] = {
         "dir": tmp_path / "logs",
         "filename": "datamind.log",
@@ -72,7 +72,7 @@ def create_config(
 def test_create_time_rotating_file_handler(
         tmp_path: Path,
 ) -> None:
-    """测试创建按时间轮转的文件日志 handler"""
+    """测试创建按时间轮转的文件日志 handler."""
     config = create_config(
         tmp_path,
         rotation=RotationType.TIME,
@@ -101,7 +101,7 @@ def test_create_time_rotating_file_handler(
 def test_create_size_rotating_file_handler(
         tmp_path: Path,
 ) -> None:
-    """测试创建按大小轮转的文件日志 handler"""
+    """测试创建按大小轮转的文件日志 handler."""
     config = create_config(
         tmp_path,
         rotation=RotationType.SIZE,
@@ -131,7 +131,7 @@ def test_create_size_rotating_file_handler(
 def test_file_handlers_coordinate_shared_log_rotation(
         tmp_path: Path,
 ) -> None:
-    """测试多个 handler 协调同一日志文件轮转"""
+    """测试多个 handler 协调同一日志文件轮转."""
     config = create_config(
         tmp_path,
         rotation=RotationType.SIZE,
@@ -185,7 +185,7 @@ def test_file_handlers_coordinate_shared_log_rotation(
 def test_create_file_handler_rejects_unknown_rotation(
         tmp_path: Path,
 ) -> None:
-    """测试拒绝未知日志轮转策略"""
+    """测试拒绝未知日志轮转策略."""
     config = create_config(
         tmp_path,
         rotation="unknown",
@@ -201,7 +201,7 @@ def test_create_file_handler_rejects_unknown_rotation(
 
 
 def test_create_console_handler() -> None:
-    """测试创建控制台日志 handler"""
+    """测试创建控制台日志 handler."""
     formatter = logging.Formatter(
         "%(levelname)s | %(message)s"
     )
@@ -223,7 +223,7 @@ def test_create_console_handler() -> None:
 
 
 def test_create_async_handler() -> None:
-    """测试创建异步队列日志 handler"""
+    """测试创建异步队列日志 handler."""
     output_handler = logging.NullHandler()
 
     queue_handler, listener = create_async_handler(
@@ -251,10 +251,10 @@ def test_create_async_handler() -> None:
 
 
 def test_async_handler_dispatches_log_record() -> None:
-    """测试异步日志 handler 将日志记录交给输出 handler"""
+    """测试异步日志 handler 将日志记录交给输出 handler."""
 
     class CollectingHandler(logging.Handler):
-        """收集日志记录的测试 handler"""
+        """收集日志记录的测试 handler."""
 
         def __init__(self) -> None:
             super().__init__()
@@ -264,7 +264,7 @@ def test_async_handler_dispatches_log_record() -> None:
                 self,
                 record: logging.LogRecord,
         ) -> None:
-            """保存日志记录"""
+            """保存日志记录."""
             self.records.append(
                 record
             )

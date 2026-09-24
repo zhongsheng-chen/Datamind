@@ -1,4 +1,4 @@
-"""模型制品格式
+"""模型制品格式.
 
 集中维护各模型框架允许注册的文件扩展名。
 
@@ -35,7 +35,7 @@ SUPPORTED_ARTIFACT_EXTENSIONS: Final[
 
 
 def artifact_extension_capabilities() -> dict[str, list[str]]:
-    """获取可序列化的模型制品格式能力
+    """获取可序列化的模型制品格式能力.
 
     返回：
         以框架名称为键、支持扩展名列表为值的字典
@@ -51,7 +51,7 @@ def validate_artifact_extension(
         framework: Framework,
         path: str | Path,
 ) -> None:
-    """校验模型文件扩展名
+    """校验模型文件扩展名.
 
     参数：
         framework: 模型框架

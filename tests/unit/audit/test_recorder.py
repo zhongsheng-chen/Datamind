@@ -1,4 +1,4 @@
-"""审计记录器测试
+"""审计记录器测试.
 
 验证上下文注入、敏感数据净化、失败策略传递和审计开关行为。
 
@@ -37,7 +37,7 @@ def create_recorder(
         enabled: bool = True,
         context: dict[str, Any] | None = None,
 ) -> tuple[AuditRecorder, Any]:
-    """创建记录器"""
+    """创建记录器."""
     config = AuditConfig.model_validate({
         "enabled": enabled,
     })
@@ -66,7 +66,7 @@ def create_recorder(
 async def test_record_builds_sanitized_event(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试构造并净化审计事件"""
+    """测试构造并净化审计事件."""
     recorder, service = create_recorder(
         monkeypatch,
         context={
@@ -120,7 +120,7 @@ async def test_record_builds_sanitized_event(
 async def test_record_context_overrides_current_context(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试显式上下文覆盖当前请求上下文"""
+    """测试显式上下文覆盖当前请求上下文."""
     recorder, service = create_recorder(
         monkeypatch,
         context={
@@ -157,7 +157,7 @@ async def test_record_context_overrides_current_context(
 async def test_record_uses_system_source_by_default(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试缺少上下文来源时使用 system"""
+    """测试缺少上下文来源时使用 system."""
     recorder, service = create_recorder(monkeypatch)
 
     await recorder.record(
@@ -177,7 +177,7 @@ async def test_record_uses_system_source_by_default(
 async def test_record_returns_when_disabled(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试关闭审计后不调用服务"""
+    """测试关闭审计后不调用服务."""
     recorder, service = create_recorder(
         monkeypatch,
         enabled=False,
@@ -194,7 +194,7 @@ async def test_record_returns_when_disabled(
 def test_failure_mode_returns_configured_policy(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试记录器返回配置的默认失败策略"""
+    """测试记录器返回配置的默认失败策略."""
     config = AuditConfig.model_validate({
         "failure_mode": AuditFailureMode.CLOSED,
     })
@@ -218,7 +218,7 @@ def test_failure_mode_returns_configured_policy(
 async def test_record_rejects_action_without_operation(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试记录器拒绝缺少操作名称的 action"""
+    """测试记录器拒绝缺少操作名称的 action."""
     recorder, service = create_recorder(
         monkeypatch
     )

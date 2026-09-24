@@ -14,7 +14,7 @@ from tests.console._app_support import app_module, create_user
 async def test_management_options_return_selectable_catalogs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试管理表单返回模型类型、权限和有效角色选项"""
+    """测试管理表单返回模型类型、权限和有效角色选项."""
     user = create_user().model_copy(
         update={
             "permissions": [
@@ -89,7 +89,7 @@ async def test_management_options_return_selectable_catalogs(
 async def test_overview_uses_authenticated_permissions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台概览按当前用户权限生成"""
+    """测试控制台概览按当前用户权限生成."""
     user = create_user()
     service = MagicMock()
     service.snapshot = AsyncMock(
@@ -132,7 +132,7 @@ async def test_overview_uses_authenticated_permissions(
 async def test_overview_uses_requested_trend_range(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试概览传递 API 调用趋势时间范围"""
+    """测试概览传递 API 调用趋势时间范围."""
     service = MagicMock()
     service.snapshot = AsyncMock(
         return_value={
@@ -174,7 +174,7 @@ async def test_overview_uses_requested_trend_range(
 async def test_model_versions_uses_server_pagination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本接口使用当前用户权限和分页参数"""
+    """测试模型版本接口使用当前用户权限和分页参数."""
     user = create_user()
     service = MagicMock()
     service.get_access.return_value = {"models": True}
@@ -236,7 +236,7 @@ async def test_model_versions_uses_server_pagination(
 async def test_experiment_variants_use_server_pagination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试实验分组接口使用当前用户权限和分页参数"""
+    """测试实验分组接口使用当前用户权限和分页参数."""
     service = MagicMock()
     service.get_access.return_value = {"experiments": True}
     service.get_experiment_variants = AsyncMock(
@@ -296,7 +296,7 @@ async def test_experiment_variants_use_server_pagination(
 async def test_section_uses_server_pagination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台页面接口使用当前用户权限和分页参数"""
+    """测试控制台页面接口使用当前用户权限和分页参数."""
     user = create_user()
     service = MagicMock()
     service.get_access.return_value = {"versions": True}
@@ -359,7 +359,7 @@ async def test_section_uses_server_pagination(
 async def test_runtime_section_uses_current_instances(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试运行实例接口只查询当前实例"""
+    """测试运行实例接口只查询当前实例."""
     service = MagicMock()
     service.get_access.return_value = {"runtimes": True}
     service.get_section = AsyncMock(
@@ -412,7 +412,7 @@ async def test_runtime_section_uses_current_instances(
 async def test_overview_reports_unavailable_database(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试概览在数据库异常时返回服务不可用"""
+    """测试概览在数据库异常时返回服务不可用."""
     service = MagicMock()
     service.snapshot = AsyncMock(side_effect=SQLAlchemyError("database unavailable"))
 
@@ -446,7 +446,7 @@ async def test_overview_reports_unavailable_database(
 async def test_model_versions_enforces_permission(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本接口拒绝无查看权限用户"""
+    """测试模型版本接口拒绝无查看权限用户."""
     service = MagicMock()
     service.get_access.return_value = {"models": False}
 
@@ -480,7 +480,7 @@ async def test_model_versions_enforces_permission(
 async def test_experiment_variants_enforce_permission(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试实验分组接口拒绝无实验查看权限用户"""
+    """测试实验分组接口拒绝无实验查看权限用户."""
     service = MagicMock()
     service.get_access.return_value = {"experiments": False}
 
@@ -532,7 +532,7 @@ async def test_model_versions_maps_service_errors(
     status_code: int,
     message: str,
 ) -> None:
-    """测试模型版本接口转换参数和数据库异常"""
+    """测试模型版本接口转换参数和数据库异常."""
     service = MagicMock()
     service.get_access.return_value = {"models": True}
     service.get_model_versions = AsyncMock(side_effect=error)
@@ -588,7 +588,7 @@ async def test_section_validates_access(
     status_code: int,
     message: str,
 ) -> None:
-    """测试分页接口校验页面存在性和查看权限"""
+    """测试分页接口校验页面存在性和查看权限."""
     service = MagicMock()
     service.get_access.return_value = access
 
@@ -622,7 +622,7 @@ async def test_section_validates_access(
 async def test_section_rejects_identity_reader_for_users(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试身份只读用户不能访问控制台用户列表"""
+    """测试身份只读用户不能访问控制台用户列表."""
     user = create_user().model_copy(update={"permissions": ["identity.read"]})
 
     monkeypatch.setitem(
@@ -663,7 +663,7 @@ async def test_section_maps_service_errors(
     status_code: int,
     message: str,
 ) -> None:
-    """测试分页接口转换参数和数据库异常"""
+    """测试分页接口转换参数和数据库异常."""
     service = MagicMock()
     service.get_access.return_value = {"models": True}
     service.get_section = AsyncMock(side_effect=error)

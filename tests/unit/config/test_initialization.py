@@ -1,4 +1,4 @@
-"""系统初始化配置测试
+"""系统初始化配置测试.
 
 验证管理员初始化凭据的默认值、环境变量读取和用户名校验。
 
@@ -19,7 +19,7 @@ from datamind.config.initialization import InitializationConfig
 
 
 class IsolatedInitializationConfig(InitializationConfig):
-    """不读取项目 .env 的初始化配置"""
+    """不读取项目 .env 的初始化配置."""
 
     model_config = InitializationConfig.model_config | {
         "env_file": None,
@@ -29,7 +29,7 @@ class IsolatedInitializationConfig(InitializationConfig):
 def test_initialization_config_defaults(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试默认管理员用户名和密码"""
+    """测试默认管理员用户名和密码."""
     monkeypatch.delenv(
         "DATAMIND_INIT_ADMIN_USERNAME",
         raising=False,
@@ -51,7 +51,7 @@ def test_initialization_config_defaults(
 def test_initialization_config_reads_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从环境变量读取管理员凭据"""
+    """测试从环境变量读取管理员凭据."""
     monkeypatch.setenv(
         "DATAMIND_INIT_ADMIN_USERNAME",
         "platform-admin",
@@ -71,7 +71,7 @@ def test_initialization_config_reads_environment(
 
 
 def test_initialization_config_normalizes_username() -> None:
-    """测试管理员用户名规范化"""
+    """测试管理员用户名规范化."""
     config = IsolatedInitializationConfig(
         admin_username="  admin  "
     )
@@ -80,7 +80,7 @@ def test_initialization_config_normalizes_username() -> None:
 
 
 def test_initialization_config_rejects_blank_username() -> None:
-    """测试拒绝空管理员用户名"""
+    """测试拒绝空管理员用户名."""
     with pytest.raises(
             ValueError,
             match="admin_username 不能为空",

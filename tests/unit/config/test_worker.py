@@ -1,4 +1,4 @@
-"""异步任务 Worker 配置测试
+"""异步任务 Worker 配置测试.
 
 验证 Worker 默认进程参数、参数校验和外部配置隔离行为。
 
@@ -23,7 +23,7 @@ from datamind.constants import LogLevel
 
 
 class IsolatedTaskWorkerConfig(TaskWorkerConfig):
-    """仅使用初始化参数的测试 Worker 配置"""
+    """仅使用初始化参数的测试 Worker 配置."""
 
     @classmethod
     def settings_customise_sources(
@@ -34,7 +34,7 @@ class IsolatedTaskWorkerConfig(TaskWorkerConfig):
             dotenv_settings: PydanticBaseSettingsSource,
             file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -46,12 +46,12 @@ class IsolatedTaskWorkerConfig(TaskWorkerConfig):
 
 
 def create_config(**overrides: Any) -> TaskWorkerConfig:
-    """创建隔离的 Worker 配置"""
+    """创建隔离的 Worker 配置."""
     return IsolatedTaskWorkerConfig(**overrides)
 
 
 def test_task_worker_defaults() -> None:
-    """测试 Worker 默认进程参数"""
+    """测试 Worker 默认进程参数."""
     config = create_config()
 
     assert config.name == "datamind-task-worker"
@@ -74,6 +74,6 @@ def test_task_worker_rejects_invalid_values(
         field: str,
         value: Any,
 ) -> None:
-    """测试拒绝无效 Worker 参数"""
+    """测试拒绝无效 Worker 参数."""
     with pytest.raises(ValidationError):
         create_config(**{field: value})

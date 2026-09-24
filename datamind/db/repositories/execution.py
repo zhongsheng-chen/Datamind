@@ -1,4 +1,4 @@
-"""模型执行仓储
+"""模型执行仓储.
 
 提供模型执行记录的创建、查询和状态迁移能力。
 
@@ -41,13 +41,13 @@ FAILED_EXECUTION_STATUSES = frozenset({
 
 
 class ExecutionRepository(BaseRepository):
-    """模型执行仓储"""
+    """模型执行仓储."""
 
     async def get_execution(
             self,
             execution_id: str,
     ) -> Execution | None:
-        """按照执行 ID 获取模型执行记录"""
+        """按照执行 ID 获取模型执行记录."""
         stmt = select(
             Execution
         ).where(
@@ -70,7 +70,7 @@ class ExecutionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Execution]:
-        """获取模型执行记录列表"""
+        """获取模型执行记录列表."""
         self._validate_pagination(
             limit=limit,
             offset=offset,
@@ -151,7 +151,7 @@ class ExecutionRepository(BaseRepository):
             started_at: datetime | None = None,
             finished_at: datetime | None = None,
     ) -> Execution:
-        """创建模型执行记录"""
+        """创建模型执行记录."""
         self._validate_probability(
             probability
         )
@@ -225,7 +225,7 @@ class ExecutionRepository(BaseRepository):
             *,
             started_at: datetime | None = None,
     ) -> Execution:
-        """标记模型执行开始"""
+        """标记模型执行开始."""
         current_status = ExecutionStatus(
             execution.status
         )
@@ -258,7 +258,7 @@ class ExecutionRepository(BaseRepository):
             latency_ms: float | None = None,
             finished_at: datetime | None = None,
     ) -> Execution:
-        """标记模型执行成功"""
+        """标记模型执行成功."""
         self._require_running(
             execution
         )
@@ -303,7 +303,7 @@ class ExecutionRepository(BaseRepository):
             latency_ms: float | None = None,
             finished_at: datetime | None = None,
     ) -> Execution:
-        """标记模型执行未成功"""
+        """标记模型执行未成功."""
         if status not in FAILED_EXECUTION_STATUSES:
             raise ValueError(
                 "模型执行失败状态无效"
@@ -346,7 +346,7 @@ class ExecutionRepository(BaseRepository):
 
     @staticmethod
     def reset_for_retry(execution: Execution) -> Execution:
-        """重置未成功的影子执行以便重试
+        """重置未成功的影子执行以便重试.
 
         参数：
             execution: 模型执行记录
@@ -390,7 +390,7 @@ class ExecutionRepository(BaseRepository):
     def _require_running(
             execution: Execution,
     ) -> None:
-        """校验模型执行处于 running 状态"""
+        """校验模型执行处于 running 状态."""
         if ExecutionStatus(
                 execution.status
         ) != ExecutionStatus.RUNNING:
@@ -402,7 +402,7 @@ class ExecutionRepository(BaseRepository):
     def _validate_probability(
             probability: float | None,
     ) -> None:
-        """校验预测概率"""
+        """校验预测概率."""
         if (
                 probability is not None
                 and not 0 <= probability <= 1
@@ -415,7 +415,7 @@ class ExecutionRepository(BaseRepository):
     def _validate_latency_ms(
             latency_ms: float | None,
     ) -> None:
-        """校验执行耗时"""
+        """校验执行耗时."""
         if (
                 latency_ms is not None
                 and latency_ms < 0
@@ -430,7 +430,7 @@ class ExecutionRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if limit is not None and limit < 0:
             raise ValueError(
                 "limit 不能小于 0"

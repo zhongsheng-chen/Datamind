@@ -1,12 +1,12 @@
-"""路由规则契约测试
+"""路由条件契约测试.
 
-验证规范操作符、JSON Schema、示例与运行时规则匹配器保持一致。
+验证规范操作符、JSON Schema、示例与运行时条件匹配器保持一致。
 
 核心功能：
   - test_routing_rules_schema_exposes_runtime_contract:
-    验证路由规则 Schema 与运行时契约保持一致
+    验证路由条件 Schema 与运行时契约保持一致
   - test_routing_rules_example_is_valid:
-    验证路由规则示例通过契约和运行时校验
+    验证路由条件示例通过契约和运行时校验
 """
 
 from datamind.runtime.routing.matcher import RuleMatcher
@@ -19,7 +19,7 @@ from datamind.runtime.routing.schema import (
 
 
 def test_routing_rules_schema_exposes_runtime_contract() -> None:
-    """测试 Schema 和示例使用运行时支持的规范值"""
+    """测试 Schema 和示例使用运行时支持的规范值."""
     schema = RoutingRules.model_json_schema()
     condition_schema = schema["$defs"]["RoutingCondition"]
 
@@ -42,7 +42,7 @@ def test_routing_rules_schema_exposes_runtime_contract() -> None:
 
 
 def test_routing_rules_example_is_valid() -> None:
-    """测试后端提供的示例同时通过契约和运行时校验"""
+    """测试后端提供的示例同时通过契约和运行时校验."""
     RoutingRules.model_validate(
         ROUTING_RULES_EXAMPLE
     )

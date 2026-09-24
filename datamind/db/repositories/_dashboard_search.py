@@ -1,4 +1,4 @@
-"""管理控制台记录搜索
+"""管理控制台记录搜索.
 
 负责解析控制台字段化查询，并根据页面配置构建记录查询语句。
 
@@ -62,7 +62,7 @@ from datamind.utils.datetime import get_timezone
 def _runtime_stale_predicate(
         presence: RuntimePresence,
 ) -> Any:
-    """构建活动实例心跳过期条件"""
+    """构建活动实例心跳过期条件."""
     return or_(
         and_(
             Runtime.status.in_(("starting", "stopping")),
@@ -81,7 +81,7 @@ def _runtime_stale_predicate(
 def _runtime_active_predicate(
         presence: RuntimePresence,
 ) -> Any:
-    """构建当前在线运行实例条件"""
+    """构建当前在线运行实例条件."""
     return and_(
         Runtime.status.in_(ACTIVE_RUNTIME_STATUSES),
         ~_runtime_stale_predicate(presence),
@@ -91,7 +91,7 @@ def _runtime_active_predicate(
 def _runtime_health_status_expression(
         presence: RuntimePresence,
 ) -> Any:
-    """根据最近活动时间构建运行实例健康状态"""
+    """根据最近活动时间构建运行实例健康状态."""
     stale = _runtime_stale_predicate(presence)
     return case(
         (
@@ -107,7 +107,7 @@ def _parse_search_terms(
         section: str,
         query: str,
 ) -> tuple[tuple[str | None, str], ...]:
-    """解析普通关键词和字段化查询条件"""
+    """解析普通关键词和字段化查询条件."""
     field_query = re.search(
         r"(?:^|\s)[A-Za-z_][A-Za-z0-9_-]*:",
         query,
@@ -190,7 +190,7 @@ def _parse_search_terms(
 def _parse_query_time(
         value: str,
 ) -> tuple[datetime, bool]:
-    """按控制台本地时区解析查询时间"""
+    """按控制台本地时区解析查询时间."""
     normalized_value = value.replace(
         "/",
         "-",
@@ -236,7 +236,7 @@ def _build_time_predicate(
         column: Any,
         value: str,
 ) -> Any:
-    """构建单日或起止时间范围条件"""
+    """构建单日或起止时间范围条件."""
     if ".." not in value:
         instant, date_only = _parse_query_time(
             value
@@ -333,7 +333,7 @@ def _build_search_predicates(
         section: str,
         query: str,
 ) -> tuple[Any, ...]:
-    """构建字段化查询的 SQL 匹配条件"""
+    """构建字段化查询的 SQL 匹配条件."""
     definition = _SECTION_DEFINITIONS[section]
     predicates = []
 
@@ -456,7 +456,7 @@ def _build_record_statement(
         only_deleted: bool = False,
         presence: RuntimePresence | None = None,
 ) -> Any:
-    """构建控制台记录查询语句"""
+    """构建控制台记录查询语句."""
     if section not in _SECTION_DEFINITIONS:
         raise ValueError(
             f"不支持的控制台页面: {section}"

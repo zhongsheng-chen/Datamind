@@ -1,4 +1,4 @@
-"""Datamind 开放式模型服务管理平台。"""
+"""Datamind 开放式模型服务管理平台."""
 
 from pathlib import Path
 

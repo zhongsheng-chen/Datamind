@@ -1,4 +1,4 @@
-"""模型执行表测试
+"""模型执行表测试.
 
 验证模型执行表的字段、索引、检查约束、逻辑关联和字段注释。
 
@@ -26,7 +26,7 @@ from datamind.db.models.executions import Execution
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -37,7 +37,7 @@ TABLE = get_model_table(
 
 
 def test_execution_table_and_columns() -> None:
-    """测试表名和字段集合"""
+    """测试表名和字段集合."""
     assert TABLE.name == "executions"
     assert set(TABLE.columns.keys()) == {
         "execution_id",
@@ -64,7 +64,7 @@ def test_execution_table_and_columns() -> None:
 
 
 def test_execution_indexes() -> None:
-    """测试查询索引和唯一约束索引"""
+    """测试查询索引和唯一约束索引."""
     assert {index.name for index in TABLE.indexes} == {
         "idx_executions_created_at",
         "idx_executions_decision_id",
@@ -90,7 +90,7 @@ def test_execution_indexes() -> None:
 
 
 def test_execution_check_constraints() -> None:
-    """测试执行类型、状态和结果字段约束"""
+    """测试执行类型、状态和结果字段约束."""
     assert {
         constraint.name
         for constraint in TABLE.constraints
@@ -107,12 +107,12 @@ def test_execution_check_constraints() -> None:
 
 
 def test_execution_uses_logical_decision_reference() -> None:
-    """测试决策关联不使用数据库外键"""
+    """测试决策关联不使用数据库外键."""
     assert not TABLE.foreign_key_constraints
     assert not TABLE.columns["decision_id"].foreign_keys
 
 
 def test_execution_column_comments() -> None:
-    """测试字段注释"""
+    """测试字段注释."""
     for column in TABLE.columns.values():
         assert column.comment, column.name

@@ -1,4 +1,4 @@
-"""评分卡仓储测试
+"""评分卡仓储测试.
 
 验证评分卡详情的查询、创建和更新行为。
 
@@ -21,7 +21,7 @@ from datamind.db.repositories.scorecard import ScorecardRepository
 
 @pytest.mark.asyncio
 async def test_get_scorecard() -> None:
-    """测试按模型版本查询评分卡"""
+    """测试按模型版本查询评分卡."""
     expected = Scorecard(
         scorecard_id="scr_test",
         version_id="ver_test",
@@ -40,7 +40,7 @@ async def test_get_scorecard() -> None:
 
 
 def test_create_scorecard() -> None:
-    """测试创建评分卡"""
+    """测试创建评分卡."""
     session = MagicMock()
     repository = ScorecardRepository(session)
 
@@ -57,7 +57,7 @@ def test_create_scorecard() -> None:
 
 
 def test_update_scorecard() -> None:
-    """测试更新评分卡"""
+    """测试更新评分卡."""
     scorecard = Scorecard(
         scorecard_id="scr_test",
         version_id="ver_test",

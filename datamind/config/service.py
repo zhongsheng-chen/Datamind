@@ -1,4 +1,4 @@
-"""服务配置
+"""服务配置.
 
 定义服务标识、网络、进程和 API 参数。
 
@@ -55,7 +55,7 @@ from datamind.constants import Environment
 
 
 class ServiceConfig(BaseSettings):
-    """服务配置类"""
+    """服务配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_SERVICE_",
@@ -78,7 +78,7 @@ class ServiceConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "ServiceConfig":
-        """校验服务配置参数"""
+        """校验服务配置参数."""
         if not self.name.strip():
             raise ValueError(
                 "name 不能为空"

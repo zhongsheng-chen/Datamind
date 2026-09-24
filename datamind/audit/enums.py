@@ -1,4 +1,4 @@
-"""审计枚举
+"""审计枚举.
 
 定义审计事件来源和执行状态枚举。
 
@@ -32,17 +32,17 @@ from enum import Enum
 
 
 class BaseEnum(str, Enum):
-    """字符串枚举基类"""
+    """字符串枚举基类."""
 
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 
 class AuditSource(BaseEnum):
-    """审计事件来源
+    """审计事件来源.
 
     属性：
         HTTP: HTTP 请求
@@ -60,7 +60,7 @@ class AuditSource(BaseEnum):
 
 
 class AuditStatus(BaseEnum):
-    """审计执行状态
+    """审计执行状态.
 
     属性：
         SUCCESS: 操作成功

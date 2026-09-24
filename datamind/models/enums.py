@@ -1,4 +1,4 @@
-"""模型生命周期与运行状态枚举
+"""模型生命周期与运行状态枚举.
 
 定义模型元数据、模型版本、部署、运行控制、实验与请求决策
 过程中的状态和策略枚举。
@@ -36,15 +36,15 @@ from enum import Enum
 
 
 class BaseEnum(str, Enum):
-    """字符串枚举基类"""
+    """字符串枚举基类."""
 
     def __str__(self) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 
 class MetadataStatus(BaseEnum):
-    """模型元数据生命周期状态"""
+    """模型元数据生命周期状态."""
 
     ACTIVE = "active"
     DEPRECATED = "deprecated"
@@ -53,7 +53,7 @@ class MetadataStatus(BaseEnum):
 
 
 class VersionStatus(BaseEnum):
-    """模型版本生命周期状态"""
+    """模型版本生命周期状态."""
 
     ACTIVE = "active"
     DEPRECATED = "deprecated"
@@ -62,7 +62,7 @@ class VersionStatus(BaseEnum):
 
 
 class ArtifactStatus(BaseEnum):
-    """模型制品生命周期状态"""
+    """模型制品生命周期状态."""
 
     ACTIVE = "active"
     RETIRED = "retired"
@@ -72,7 +72,7 @@ class ArtifactStatus(BaseEnum):
 
 
 class DeploymentStatus(BaseEnum):
-    """模型部署状态
+    """模型部署状态.
 
     ACTIVE:
         部署处于启用状态，可以参与路由和运行。
@@ -86,7 +86,7 @@ class DeploymentStatus(BaseEnum):
 
 
 class RolloutType(BaseEnum):
-    """模型发布类型"""
+    """模型发布类型."""
 
     FULL = "full"
     CANARY = "canary"
@@ -94,7 +94,7 @@ class RolloutType(BaseEnum):
 
 
 class DeploymentRole(BaseEnum):
-    """模型部署角色"""
+    """模型部署角色."""
 
     CHAMPION = "champion"
     CHALLENGER = "challenger"
@@ -102,7 +102,7 @@ class DeploymentRole(BaseEnum):
 
 
 class RuntimeControlStatus(BaseEnum):
-    """运行控制目标状态
+    """运行控制目标状态.
 
     表示各 Worker 对指定 Deployment
     应达到的期望运行状态。
@@ -133,7 +133,7 @@ class RuntimeControlStatus(BaseEnum):
 
 
 class ExperimentStatus(BaseEnum):
-    """实验生命周期状态"""
+    """实验生命周期状态."""
 
     DRAFT = "draft"
     RUNNING = "running"
@@ -144,7 +144,7 @@ class ExperimentStatus(BaseEnum):
 
 
 class ExperimentVariantStatus(BaseEnum):
-    """实验分组状态"""
+    """实验分组状态."""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -152,14 +152,14 @@ class ExperimentVariantStatus(BaseEnum):
 
 
 class AssignmentStrategy(BaseEnum):
-    """实验分桶策略"""
+    """实验分桶策略."""
 
     HASH = "hash"
     MANUAL = "manual"
 
 
 class DecisionStrategy(BaseEnum):
-    """请求决策策略"""
+    """请求决策策略."""
 
     EXPERIMENT = "experiment"
     ROUTING = "routing"
@@ -169,21 +169,21 @@ class DecisionStrategy(BaseEnum):
 
 
 class DecisionResult(BaseEnum):
-    """业务决策结果"""
+    """业务决策结果."""
 
     APPROVE = "approve"
     REJECT = "reject"
 
 
 class ExecutionType(BaseEnum):
-    """模型执行类型"""
+    """模型执行类型."""
 
     PRIMARY = "primary"
     SHADOW = "shadow"
 
 
 class ExecutionStatus(BaseEnum):
-    """模型执行状态"""
+    """模型执行状态."""
 
     QUEUED = "queued"
     RUNNING = "running"

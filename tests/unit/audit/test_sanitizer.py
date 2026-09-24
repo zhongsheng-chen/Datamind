@@ -1,4 +1,4 @@
-"""审计数据净化器测试
+"""审计数据净化器测试.
 
 验证审计数据的递归脱敏、类型转换、结构限界和循环引用保护。
 
@@ -38,13 +38,13 @@ from datamind.audit.sanitizer import (
 
 
 class SampleStatus(Enum):
-    """测试状态枚举"""
+    """测试状态枚举."""
 
     ACTIVE = "active"
 
 
 class AuditPayload(BaseModel):
-    """测试 Pydantic 审计负载"""
+    """测试 Pydantic 审计负载."""
 
     password: SecretStr
     count: int
@@ -52,14 +52,14 @@ class AuditPayload(BaseModel):
 
 @dataclass(frozen=True)
 class AuditChange:
-    """测试 dataclass 审计变更"""
+    """测试 dataclass 审计变更."""
 
     name: str
     token: str
 
 
 def test_sanitize_masks_sensitive_nested_values() -> None:
-    """测试敏感容器保持结构且所有叶子值均被脱敏"""
+    """测试敏感容器保持结构且所有叶子值均被脱敏."""
     original = {
         "credentials": (
             {"username": "admin", "password": "secret"},
@@ -81,7 +81,7 @@ def test_sanitize_masks_sensitive_nested_values() -> None:
 
 
 def test_sanitize_converts_non_json_values() -> None:
-    """测试日期、字节和 SecretStr 转换为安全 JSON 值"""
+    """测试日期、字节和 SecretStr 转换为安全 JSON 值."""
     result = sanitize_audit_value({
         "at": datetime(2026, 7, 27, tzinfo=timezone.utc),
         "raw": b"ab",
@@ -100,7 +100,7 @@ def test_sanitize_converts_non_json_values() -> None:
 
 
 def test_sanitize_converts_structured_values() -> None:
-    """测试枚举、Pydantic 模型和 dataclass 转换"""
+    """测试枚举、Pydantic 模型和 dataclass 转换."""
     result = sanitize_audit_value({
         "status": SampleStatus.ACTIVE,
         "payload": AuditPayload(
@@ -131,7 +131,7 @@ def test_sanitize_converts_structured_values() -> None:
 def test_sanitize_limits_untrusted_values(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试字符串、键和集合超过限制时被截断"""
+    """测试字符串、键和集合超过限制时被截断."""
     monkeypatch.setattr(sanitizer, "MAX_STRING_LENGTH", 3)
     monkeypatch.setattr(sanitizer, "MAX_ITEMS", 2)
     monkeypatch.setattr(sanitizer, "MAX_KEY_LENGTH", 3)
@@ -156,7 +156,7 @@ def test_sanitize_limits_untrusted_values(
 def test_sanitize_limits_nested_depth(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试嵌套值超过最大深度后停止递归"""
+    """测试嵌套值超过最大深度后停止递归."""
     monkeypatch.setattr(
         sanitizer,
         "MAX_DEPTH",
@@ -177,7 +177,7 @@ def test_sanitize_limits_nested_depth(
 
 
 def test_sanitize_handles_circular_values() -> None:
-    """测试循环引用不会导致无限递归"""
+    """测试循环引用不会导致无限递归."""
     value: dict[str, object] = {}
     value["self"] = value
 
@@ -185,7 +185,7 @@ def test_sanitize_handles_circular_values() -> None:
 
 
 def test_sanitize_handles_circular_sequence() -> None:
-    """测试序列循环引用不会导致无限递归"""
+    """测试序列循环引用不会导致无限递归."""
     value: list[object] = []
     value.append(value)
 
@@ -195,5 +195,5 @@ def test_sanitize_handles_circular_sequence() -> None:
 
 
 def test_sanitize_mapping_accepts_none() -> None:
-    """测试空审计映射保持为空"""
+    """测试空审计映射保持为空."""
     assert sanitize_audit_mapping(None) is None

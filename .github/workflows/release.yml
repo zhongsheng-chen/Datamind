@@ -1,0 +1,321 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      distribution: ${{ steps.metadata.outputs.distribution }}
+      version: ${{ steps.metadata.outputs.version }}
+      wheel_name: ${{ steps.metadata.outputs.wheel_name }}
+      sdist_name: ${{ steps.metadata.outputs.sdist_name }}
+      commit: ${{ steps.metadata.outputs.commit }}
+      build_date: ${{ steps.metadata.outputs.build_date }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare release metadata
+        id: metadata
+        shell: bash
+        run: |
+          tag_commit="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+          python -m scripts.release prepare \
+            --tag "${GITHUB_REF_NAME}" \
+            --commit "${tag_commit}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Reject an existing GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "GitHub Release ${GITHUB_REF_NAME} 已存在，拒绝重复发布。" >&2
+            exit 1
+          fi
+
+  tests-gate:
+    needs: prepare
+    uses: ./.github/workflows/test.yml
+
+  build-python-distributions:
+    needs:
+      - prepare
+      - tests-gate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
+        env:
+          POSTGRES_DB: release_smoke
+          POSTGRES_USER: release_smoke
+          POSTGRES_PASSWORD: release_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U release_smoke -d release_smoke"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATAMIND_BUILD_COMMIT: ${{ needs.prepare.outputs.commit }}
+      DATAMIND_BUILD_DATE: ${{ needs.prepare.outputs.build_date }}
+      DATAMIND_RUN_WHEEL_SMOKE: "1"
+      DATAMIND_SMOKE_BUILD_COMMIT: ${{ needs.prepare.outputs.commit }}
+      DATAMIND_SMOKE_BUILD_DATE: ${{ needs.prepare.outputs.build_date }}
+      DATAMIND_SMOKE_DATABASE_URL: postgresql+asyncpg://release_smoke:release_smoke@127.0.0.1:5432/release_smoke
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install release dependencies
+        run: pip install -e ".[test,release]"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Build console assets
+        run: |
+          npm ci
+          npm run build:console
+
+      - name: Build Wheel and sdist
+        run: python -m build
+
+      - name: Verify Python distributions
+        run: |
+          python -m twine check dist/*
+          python -m scripts.verify_distributions \
+            --dist dist \
+            --build-commit "${DATAMIND_BUILD_COMMIT}" \
+            --build-date "${DATAMIND_BUILD_DATE}"
+          git diff --exit-code -- datamind/_build.py
+
+      - name: Smoke test the exact release Wheel
+        env:
+          DATAMIND_SMOKE_WHEEL: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.wheel_name }}
+        run: pytest --color=no -ra tests/smoke/test_wheel.py
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-${{ needs.prepare.outputs.distribution }}-${{ needs.prepare.outputs.version }}
+          path: |
+            dist/${{ needs.prepare.outputs.wheel_name }}
+            dist/${{ needs.prepare.outputs.sdist_name }}
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-python:
+    needs:
+      - prepare
+      - build-python-distributions
+    runs-on: ubuntu-latest
+    environment: release
+
+    env:
+      TWINE_REPOSITORY_URL: ${{ vars.TWINE_REPOSITORY_URL }}
+      TWINE_USERNAME: ${{ vars.TWINE_USERNAME }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install release dependencies
+        run: pip install -e ".[release]"
+
+      - name: Download Python distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-${{ needs.prepare.outputs.distribution }}-${{ needs.prepare.outputs.version }}
+          path: dist
+
+      - name: Validate Twine publishing configuration
+        env:
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        run: python -m scripts.release validate-twine-config
+
+      - name: Publish Wheel and sdist
+        env:
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        run: >-
+          python -m twine upload
+          --non-interactive
+          dist/*
+
+  build-verify-push-docker:
+    needs:
+      - prepare
+      - tests-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: release
+
+    strategy:
+      fail-fast: false
+      matrix:
+        framework:
+          - sklearn
+          - xgboost
+          - lightgbm
+          - catboost
+          - full
+
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
+        env:
+          POSTGRES_DB: release_docker_smoke
+          POSTGRES_USER: release_docker_smoke
+          POSTGRES_PASSWORD: release_docker_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U release_docker_smoke -d release_docker_smoke"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATAMIND_RUN_DOCKER_SMOKE: "1"
+      DATAMIND_SMOKE_BUILD_COMMIT: ${{ needs.prepare.outputs.commit }}
+      DATAMIND_SMOKE_BUILD_DATE: ${{ needs.prepare.outputs.build_date }}
+      DATAMIND_SMOKE_DATABASE_URL: postgresql+asyncpg://release_docker_smoke:release_docker_smoke@host.docker.internal:5432/release_docker_smoke
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Docker smoke dependencies
+        run: pip install -e ".[test]"
+
+      - name: Validate Docker Hub publishing configuration
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: python -m scripts.release validate-dockerhub-config
+
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        shell: bash
+        run: >-
+          printf '%s' "${DOCKERHUB_TOKEN}"
+          | docker login docker.io
+          --username "${DOCKERHUB_USERNAME}"
+          --password-stdin
+
+      - name: Resolve immutable image tag
+        id: image
+        shell: bash
+        run: |
+          image_tag="$(python -m scripts.build_docker \
+            --framework "${{ matrix.framework }}" \
+            --print)"
+          if inspect_error="$(docker manifest inspect "${image_tag}" 2>&1)"; then
+            echo "Docker 镜像 ${image_tag} 已存在，拒绝覆盖正式标签。" >&2
+            exit 1
+          fi
+          if ! grep --extended-regexp --ignore-case \
+            "manifest unknown|no such manifest|not found" \
+            <<< "${inspect_error}" >/dev/null; then
+            echo "无法确认 Docker 镜像标签是否可用，拒绝继续发布。" >&2
+            echo "${inspect_error}" >&2
+            exit 1
+          fi
+          echo "tag=${image_tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build exact release image
+        run: >-
+          python -m scripts.build_docker
+          --framework "${{ matrix.framework }}"
+          --build-commit "${{ needs.prepare.outputs.commit }}"
+          --build-date "${{ needs.prepare.outputs.build_date }}"
+
+      - name: Smoke test exact release image
+        env:
+          DATAMIND_SMOKE_DOCKER_IMAGE: ${{ steps.image.outputs.tag }}
+        run: >-
+          pytest --color=no -ra tests/smoke/test_docker.py
+          --framework=${{ matrix.framework }}
+
+      - name: Push exact verified image
+        run: docker push "${{ steps.image.outputs.tag }}"
+
+      - name: Log out from Docker Hub
+        if: always()
+        run: docker logout docker.io
+
+  create-github-release:
+    needs:
+      - prepare
+      - publish-python
+      - build-verify-push-docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download exact Python distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-${{ needs.prepare.outputs.distribution }}-${{ needs.prepare.outputs.version }}
+          path: dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "${{ needs.prepare.outputs.tag }}"
+          "dist/${{ needs.prepare.outputs.wheel_name }}"
+          "dist/${{ needs.prepare.outputs.sdist_name }}"
+          --verify-tag
+          --generate-notes
+          --title "Datamind ${{ needs.prepare.outputs.version }}"

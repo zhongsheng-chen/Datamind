@@ -1,4 +1,4 @@
-"""模型删除服务测试
+"""模型删除服务测试.
 
 验证逻辑删除、恢复、永久清理和关键安全约束。
 
@@ -48,7 +48,7 @@ from datamind.services import ModelDeletionService
 
 
 class FakeUnitOfWork:
-    """删除服务测试工作单元"""
+    """删除服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -60,7 +60,7 @@ class FakeUnitOfWork:
         return False
 
     def on_commit(self, _callback: object) -> None:
-        """记录提交回调"""
+        """记录提交回调."""
 
 
 def configure_repositories(
@@ -71,7 +71,7 @@ def configure_repositories(
         versions: list[object] | None = None,
         artifact: object | None = None,
 ) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
-    """配置删除服务仓储替身"""
+    """配置删除服务仓储替身."""
     metadata_repo = MagicMock()
     version_repo = MagicMock()
     version_repo.get_version = AsyncMock(
@@ -139,7 +139,7 @@ def mark_deleted(
         record: Any,
         **values: Any,
 ) -> Any:
-    """更新测试对象的逻辑删除字段"""
+    """更新测试对象的逻辑删除字段."""
     for field, value in values.items():
         setattr(
             record,
@@ -154,7 +154,7 @@ def mark_deleted(
 async def test_delete_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试逻辑删除没有活动部署的模型版本"""
+    """测试逻辑删除没有活动部署的模型版本."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -200,7 +200,7 @@ async def test_delete_version(
 async def test_delete_last_active_version_deactivates_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除最后一个激活版本时同步停用模型"""
+    """测试删除最后一个激活版本时同步停用模型."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -249,7 +249,7 @@ async def test_delete_last_active_version_deactivates_model(
 async def test_delete_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试逻辑删除模型及其全部版本"""
+    """测试逻辑删除模型及其全部版本."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -293,7 +293,7 @@ async def test_delete_model(
 async def test_restore_version(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试恢复当前制品完整的模型版本"""
+    """测试恢复当前制品完整的模型版本."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -334,7 +334,7 @@ async def test_restore_version(
 async def test_restore_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试恢复模型及同一删除批次中的版本"""
+    """测试恢复模型及同一删除批次中的版本."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -385,7 +385,7 @@ async def test_restore_model(
 async def test_restore_model_rejects_permanently_purged_versions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试模型版本均已永久清理时拒绝恢复模型"""
+    """测试模型版本均已永久清理时拒绝恢复模型."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -429,7 +429,7 @@ async def test_restore_model_rejects_permanently_purged_versions(
 async def test_purge_records_partial_failure(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试永久清理继续处理并记录单个制品失败"""
+    """测试永久清理继续处理并记录单个制品失败."""
     storage = MagicMock()
     monkeypatch.setitem(
         vars(deleter_module),
@@ -498,7 +498,7 @@ async def test_purge_records_partial_failure(
 async def test_purge_deletes_storage_and_bento_artifacts(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试永久清理删除全部存储对象和 BentoML 模型"""
+    """测试永久清理删除全部存储对象和 BentoML 模型."""
     storage = MagicMock()
     monkeypatch.setitem(
         vars(deleter_module),
@@ -581,7 +581,7 @@ async def test_purge_deletes_storage_and_bento_artifacts(
 async def test_delete_version_rejects_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试存在活动部署时拒绝删除版本"""
+    """测试存在活动部署时拒绝删除版本."""
     storage = MagicMock()
     resolver = MagicMock()
     resolver.resolve_model = AsyncMock(
@@ -647,7 +647,7 @@ async def test_delete_version_rejects_active_deployment(
 async def test_purge_allows_missing_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试永久清理原因可以省略"""
+    """测试永久清理原因可以省略."""
     monkeypatch.setitem(
         vars(deleter_module),
         "get_storage",
@@ -688,7 +688,7 @@ async def test_purge_allows_missing_reason(
 
 @pytest.mark.asyncio
 async def test_purge_rejects_running_runtime() -> None:
-    """测试仍有已加载运行实例时拒绝永久清理"""
+    """测试仍有已加载运行实例时拒绝永久清理."""
     deployment_repo = MagicMock()
     deployment_repo.list_active_deployments = AsyncMock(return_value=[])
     runtime_repo = MagicMock()
@@ -716,7 +716,7 @@ async def test_request_purge_builds_artifact_targets(
         monkeypatch: pytest.MonkeyPatch,
         target_version: bool,
 ) -> None:
-    """测试持久化清理请求并忽略已清理制品"""
+    """测试持久化清理请求并忽略已清理制品."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -824,7 +824,7 @@ async def test_request_purge_requires_logical_deletion(
         version_deleted_at: object | None,
         message: str,
 ) -> None:
-    """测试永久清理要求目标已完成逻辑删除"""
+    """测试永久清理要求目标已完成逻辑删除."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -870,7 +870,7 @@ async def test_request_purge_requires_logical_deletion(
 async def test_request_purge_rejects_missing_artifacts(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试版本缺少制品记录时拒绝永久清理"""
+    """测试版本缺少制品记录时拒绝永久清理."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -927,7 +927,7 @@ async def test_record_purge_result_updates_artifact(
         monkeypatch: pytest.MonkeyPatch,
         error: str | None,
 ) -> None:
-    """测试记录制品清理成功或失败状态"""
+    """测试记录制品清理成功或失败状态."""
     artifact = SimpleNamespace(
         artifact_id="art_test"
     )
@@ -970,7 +970,7 @@ async def test_record_purge_result_updates_artifact(
 async def test_record_purge_result_rejects_missing_artifact(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试清理结果找不到制品记录时抛出异常"""
+    """测试清理结果找不到制品记录时抛出异常."""
     repository = MagicMock()
     repository.get_artifact = AsyncMock(
         return_value=None
@@ -1020,7 +1020,7 @@ async def test_restore_rejects_invalid_deletion_state(
         metadata_deleted_at: object | None,
         message: str,
 ) -> None:
-    """测试拒绝恢复状态不正确的模型或版本"""
+    """测试拒绝恢复状态不正确的模型或版本."""
     metadata = SimpleNamespace(
         model_id="mdl_test",
         name="scorecard",
@@ -1082,7 +1082,7 @@ async def test_restore_version_requires_restorable_artifact(
         artifact: object | None,
         message: str,
 ) -> None:
-    """测试恢复版本要求逻辑删除状态和完整当前制品"""
+    """测试恢复版本要求逻辑删除状态和完整当前制品."""
     repository = MagicMock()
     repository.get_current_artifact = AsyncMock(
         return_value=artifact
@@ -1105,7 +1105,7 @@ async def test_restore_version_requires_restorable_artifact(
 async def test_purge_ignores_absent_optional_objects(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试清理时忽略空 Schema 键和不存在的 BentoML 模型"""
+    """测试清理时忽略空 Schema 键和不存在的 BentoML 模型."""
     storage = MagicMock()
     monkeypatch.setitem(
         vars(deleter_module),

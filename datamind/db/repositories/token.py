@@ -1,4 +1,4 @@
-"""认证令牌仓储
+"""认证令牌仓储.
 
 提供刷新令牌的查询、创建、使用记录和撤销能力。
 
@@ -53,7 +53,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class TokenRepository(BaseRepository):
-    """认证令牌仓储"""
+    """认证令牌仓储."""
 
     async def get_token(
             self,
@@ -62,7 +62,7 @@ class TokenRepository(BaseRepository):
             token_hash: str | None = None,
             for_update: bool = False,
     ) -> Token | None:
-        """获取单个刷新令牌记录
+        """获取单个刷新令牌记录.
 
         参数：
             token_id: 令牌 ID（可选）
@@ -120,7 +120,7 @@ class TokenRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Token]:
-        """获取刷新令牌列表
+        """获取刷新令牌列表.
 
         参数：
             user_id: 用户 ID（可选）
@@ -189,7 +189,7 @@ class TokenRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Token]:
-        """获取有效刷新令牌列表
+        """获取有效刷新令牌列表.
 
         参数：
             user_id: 用户 ID（可选）
@@ -227,7 +227,7 @@ class TokenRepository(BaseRepository):
             hostname: str | None = None,
             user_agent: str | None = None,
     ) -> Token:
-        """创建刷新令牌记录
+        """创建刷新令牌记录.
 
         参数：
             token_id: 令牌 ID
@@ -273,7 +273,7 @@ class TokenRepository(BaseRepository):
             *,
             used_at: datetime | None = None,
     ) -> Token:
-        """记录刷新令牌使用时间
+        """记录刷新令牌使用时间.
 
         参数：
             token: 令牌对象
@@ -299,7 +299,7 @@ class TokenRepository(BaseRepository):
             revoke_reason: str | None = None,
             revoked_at: datetime | None = None,
     ) -> Token:
-        """撤销单个刷新令牌
+        """撤销单个刷新令牌.
 
         参数：
             token: 令牌对象
@@ -337,7 +337,7 @@ class TokenRepository(BaseRepository):
             revoke_reason: str | None = None,
             revoked_at: datetime | None = None,
     ) -> list[Token]:
-        """撤销用户的全部刷新令牌
+        """撤销用户的全部刷新令牌.
 
         参数：
             user_id: 用户 ID

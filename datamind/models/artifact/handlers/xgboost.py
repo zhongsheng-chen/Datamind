@@ -1,4 +1,4 @@
-"""XGBoost 模型加载器
+"""XGBoost 模型加载器.
 
 注册 XGBoost 框架的模型加载函数。
 
@@ -15,7 +15,7 @@ from datamind.models.artifact.register import ModelArtifactRegister
 
 @ModelArtifactRegister.register(Framework.XGBOOST)
 def load_xgboost(data: bytes):
-    """加载 XGBoost 模型
+    """加载 XGBoost 模型.
 
     参数：
         data: 二进制数据

@@ -1,4 +1,4 @@
-"""删除实验分组命令
+"""删除实验分组命令.
 
 提供实验分组逻辑删除功能。
 
@@ -49,7 +49,7 @@ def delete_variant(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """逻辑删除草稿实验中的分组"""
+    """逻辑删除草稿实验中的分组."""
 
     @audit(
         action="experiment.variant.delete",

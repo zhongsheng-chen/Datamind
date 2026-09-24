@@ -1,4 +1,4 @@
-"""Datamind PEP 517 构建后端。"""
+"""Datamind PEP 517 构建后端."""
 
 from setuptools.build_meta import (
     build_editable,

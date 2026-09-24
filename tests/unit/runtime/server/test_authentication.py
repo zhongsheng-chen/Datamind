@@ -1,4 +1,4 @@
-"""运行时认证接口测试
+"""运行时认证接口测试.
 
 验证认证 ASGI 应用的挂载、请求校验、令牌响应和错误处理。
 
@@ -40,7 +40,7 @@ from datamind.auth.schemas import (
 
 
 def _authentication_module() -> Any:
-    """返回运行时认证模块"""
+    """返回运行时认证模块."""
     return import_module(
         "datamind.runtime.server.authentication"
     )
@@ -51,7 +51,7 @@ def _install_auth_service(
         monkeypatch: pytest.MonkeyPatch,
         auth_service: MagicMock,
 ) -> tuple[MagicMock, MagicMock]:
-    """为认证 ASGI 应用安装服务替身"""
+    """为认证 ASGI 应用安装服务替身."""
     authentication = _authentication_module()
     audit_recorder = MagicMock()
     audit_recorder.record = AsyncMock()
@@ -93,7 +93,7 @@ def test_auth_app_is_mounted_under_auth_path(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证 ASGI 应用挂载到 /auth"""
+    """测试认证 ASGI 应用挂载到 /auth."""
     service_module = runtime_server.load_service_module(
         monkeypatch
     )
@@ -133,7 +133,7 @@ async def test_login_returns_tokens_without_cache(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地登录签发不缓存的令牌响应"""
+    """测试本地登录签发不缓存的令牌响应."""
     auth_service = MagicMock()
     auth_service.login = AsyncMock(
         return_value=TokenResponse(
@@ -207,7 +207,7 @@ async def test_login_hides_authentication_failure(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试登录失败不暴露账户状态"""
+    """测试登录失败不暴露账户状态."""
     auth_service = MagicMock()
     auth_service.login = AsyncMock(
         side_effect=InvalidCredentialsError()
@@ -255,7 +255,7 @@ async def test_refresh_rotates_tokens(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试刷新接口轮换访问令牌和刷新令牌"""
+    """测试刷新接口轮换访问令牌和刷新令牌."""
     auth_service = MagicMock()
     auth_service.refresh = AsyncMock(
         return_value=TokenResponse(
@@ -304,7 +304,7 @@ async def test_refresh_hides_invalid_token_details(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试刷新失败返回统一认证错误"""
+    """测试刷新失败返回统一认证错误."""
     auth_service = MagicMock()
     auth_service.refresh = AsyncMock(
         side_effect=InvalidRefreshTokenError()
@@ -339,7 +339,7 @@ async def test_logout_is_idempotent_and_has_no_body(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试退出接口幂等撤销令牌并返回空响应"""
+    """测试退出接口幂等撤销令牌并返回空响应."""
     auth_service = MagicMock()
     auth_service.logout = AsyncMock(
         return_value=LogoutResult(
@@ -393,7 +393,7 @@ async def test_auth_request_validation_returns_http_400(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证请求校验错误映射为 HTTP 400"""
+    """测试认证请求校验错误映射为 HTTP 400."""
     auth_service = MagicMock()
     _install_auth_service(
         runtime_server,
@@ -429,7 +429,7 @@ async def test_login_reports_unavailable_auth_service(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证配置不可用时返回 HTTP 503"""
+    """测试认证配置不可用时返回 HTTP 503."""
     authentication = _authentication_module()
     audit_recorder = MagicMock()
     audit_recorder.record = AsyncMock()

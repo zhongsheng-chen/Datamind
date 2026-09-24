@@ -1,4 +1,4 @@
-"""实验分组仓储测试
+"""实验分组仓储测试.
 
 验证 VariantRepository 的实验分组查询、列表筛选、创建、
 普通字段更新，以及启用、停用和归档生命周期管理。
@@ -48,7 +48,7 @@ from datamind.models.enums import ExperimentVariantStatus
 def create_variant(
         **overrides: Any,
 ) -> Variant:
-    """创建实验分组测试对象"""
+    """创建实验分组测试对象."""
     values: dict[str, Any] = {
         "variant_id": "var_0123456789abcdef",
         "experiment_id": "exp_0123456789abcdef",
@@ -84,7 +84,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建实验分组仓储及会话方法替身"""
+    """创建实验分组仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -132,7 +132,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -148,7 +148,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -161,7 +161,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_variant() -> None:
-    """测试按实验分组 ID 查询"""
+    """测试按实验分组 ID 查询."""
     expected = create_variant()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -189,7 +189,7 @@ async def test_get_variant() -> None:
 
 @pytest.mark.asyncio
 async def test_get_variant_returns_none_when_not_found() -> None:
-    """测试实验分组不存在时返回 None"""
+    """测试实验分组不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_variant(
@@ -202,7 +202,7 @@ async def test_get_variant_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_variants_without_filters() -> None:
-    """测试无筛选时返回全部分组并按时间倒序"""
+    """测试无筛选时返回全部分组并按时间倒序."""
     variants = [
         create_variant()
     ]
@@ -232,7 +232,7 @@ async def test_list_variants_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_variants_applies_filters_and_pagination() -> None:
-    """测试状态、对照组、普通字段筛选和分页"""
+    """测试状态、对照组、普通字段筛选和分页."""
     variants = [
         create_variant(
             name="treatment",
@@ -302,7 +302,7 @@ async def test_list_variants_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_variants_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_variants(
@@ -352,7 +352,7 @@ async def test_list_variants_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -368,7 +368,7 @@ async def test_list_variants_rejects_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_active_variants() -> None:
-    """测试获取启用的实验分组"""
+    """测试获取启用的实验分组."""
     variants = [
         create_variant(
             status=str(
@@ -406,7 +406,7 @@ async def test_list_active_variants() -> None:
 
 @pytest.mark.asyncio
 async def test_get_control_variant() -> None:
-    """测试获取最早创建的启用对照组"""
+    """测试获取最早创建的启用对照组."""
     expected = create_variant(
         is_control=True,
         status=str(
@@ -445,7 +445,7 @@ async def test_get_control_variant() -> None:
 
 @pytest.mark.asyncio
 async def test_get_control_variant_returns_none() -> None:
-    """测试没有启用对照组时返回 None"""
+    """测试没有启用对照组时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_control_variant(
@@ -457,7 +457,7 @@ async def test_get_control_variant_returns_none() -> None:
 
 
 def test_variant_patch_fields_and_defaults() -> None:
-    """测试更新结构字段和默认值"""
+    """测试更新结构字段和默认值."""
     patch = VariantPatch()
 
     assert [
@@ -491,7 +491,7 @@ def test_variant_patch_fields_and_defaults() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_variant() -> None:
-    """测试创建实验分组并保存字符串状态"""
+    """测试创建实验分组并保存字符串状态."""
     repository, _, add = create_repository()
 
     variant = repository.create_variant(
@@ -536,7 +536,7 @@ def test_create_variant() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_variant_uses_optional_defaults() -> None:
-    """测试创建实验分组的可选默认值"""
+    """测试创建实验分组的可选默认值."""
     repository, _, add = create_repository()
 
     variant = repository.create_variant(
@@ -570,7 +570,7 @@ def test_create_variant_uses_optional_defaults() -> None:
 def test_create_variant_accepts_boundary_weight(
         weight: float,
 ) -> None:
-    """测试实验分组权重边界值有效"""
+    """测试实验分组权重边界值有效."""
     repository, _, add = create_repository()
 
     variant = repository.create_variant(
@@ -597,7 +597,7 @@ def test_create_variant_accepts_boundary_weight(
 def test_create_variant_rejects_invalid_weight(
         weight: float,
 ) -> None:
-    """测试创建时拒绝非法权重"""
+    """测试创建时拒绝非法权重."""
     repository, _, add = create_repository()
 
     with pytest.raises(
@@ -620,7 +620,7 @@ def test_create_variant_rejects_invalid_weight(
 
 # noinspection PyUnreachableCode
 def test_update_variant() -> None:
-    """测试更新所有非空普通实验分组字段"""
+    """测试更新所有非空普通实验分组字段."""
     repository, _, _ = create_repository()
     variant = create_variant()
     original_status = variant.status
@@ -657,7 +657,7 @@ def test_update_variant() -> None:
 
 # noinspection PyUnreachableCode
 def test_update_variant_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     variant = create_variant()
 
@@ -678,7 +678,7 @@ def test_update_variant_ignores_none_fields() -> None:
 
 # noinspection PyUnreachableCode
 def test_update_variant_accepts_false_and_empty_strings() -> None:
-    """测试 False 和空字符串作为明确更新值写入对象"""
+    """测试 False 和空字符串作为明确更新值写入对象."""
     repository, _, _ = create_repository()
     variant = create_variant()
 
@@ -710,7 +710,7 @@ def test_update_variant_accepts_false_and_empty_strings() -> None:
 def test_update_variant_rejects_invalid_weight(
         weight: float,
 ) -> None:
-    """测试更新时拒绝非法权重且不修改其他字段"""
+    """测试更新时拒绝非法权重且不修改其他字段."""
     repository, _, _ = create_repository()
     variant = create_variant()
     original_name = variant.name
@@ -740,7 +740,7 @@ def test_update_variant_rejects_invalid_weight(
 
 
 def test_activate_variant() -> None:
-    """测试从 inactive 状态启用实验分组"""
+    """测试从 inactive 状态启用实验分组."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status=str(
@@ -761,7 +761,7 @@ def test_activate_variant() -> None:
 
 
 def test_deactivate_variant() -> None:
-    """测试从 active 状态停用实验分组"""
+    """测试从 active 状态停用实验分组."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status=str(
@@ -791,7 +791,7 @@ def test_deactivate_variant() -> None:
 def test_archive_variant(
         current_status: ExperimentVariantStatus,
 ) -> None:
-    """测试 active 和 inactive 状态可以归档"""
+    """测试 active 和 inactive 状态可以归档."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status=str(
@@ -835,7 +835,7 @@ def test_variant_lifecycle_is_idempotent(
         method_name: str,
         target_status: ExperimentVariantStatus,
 ) -> None:
-    """测试重复设置相同状态保持幂等"""
+    """测试重复设置相同状态保持幂等."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status=str(
@@ -863,7 +863,7 @@ def test_variant_lifecycle_is_idempotent(
 
 
 def test_variant_lifecycle_accepts_empty_operator() -> None:
-    """测试生命周期方法允许写入空字符串操作人"""
+    """测试生命周期方法允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status=str(
@@ -892,7 +892,7 @@ def test_variant_lifecycle_accepts_empty_operator() -> None:
 def test_archived_variant_rejects_state_change(
         method_name: str,
 ) -> None:
-    """测试归档实验分组不能重新启用或停用"""
+    """测试归档实验分组不能重新启用或停用."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status=str(
@@ -935,7 +935,7 @@ def test_archived_variant_rejects_state_change(
 def test_variant_lifecycle_rejects_unknown_status(
         method_name: str,
 ) -> None:
-    """测试未知状态不能进入生命周期管理"""
+    """测试未知状态不能进入生命周期管理."""
     repository, _, _ = create_repository()
     variant = create_variant(
         status="unknown"

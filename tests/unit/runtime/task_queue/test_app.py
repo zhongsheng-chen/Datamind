@@ -1,4 +1,4 @@
-"""运行时 Celery 应用测试
+"""运行时 Celery 应用测试.
 
 验证 Celery 应用的 Broker、消息可靠性、任务队列和路由配置。
 
@@ -36,7 +36,7 @@ from datamind.runtime.task_queue.app import (
 def test_task_queue_app_imports_without_database_configuration(
     tmp_path: Path,
 ) -> None:
-    """测试 Celery 应用模块导入不需要数据库配置"""
+    """测试 Celery 应用模块导入不需要数据库配置."""
     environment = os.environ.copy()
     environment.pop("DATAMIND_DATABASE_URL", None)
 
@@ -64,7 +64,7 @@ def test_task_queue_app_imports_without_database_configuration(
 def test_task_queue_tasks_import_without_database_configuration(
     tmp_path: Path,
 ) -> None:
-    """测试 Celery 任务入口导入不需要数据库配置"""
+    """测试 Celery 任务入口导入不需要数据库配置."""
     environment = os.environ.copy()
     environment.pop("DATAMIND_DATABASE_URL", None)
 
@@ -87,7 +87,7 @@ def test_task_queue_tasks_import_without_database_configuration(
 
 
 def test_create_celery_app_uses_explicit_task_queue_config() -> None:
-    """测试 Celery 应用工厂使用显式任务队列配置"""
+    """测试 Celery 应用工厂使用显式任务队列配置."""
     config = TaskQueueConfig(
         broker_url="redis://queue.test:6379/7",
         batch_queue="test.batch",
@@ -111,7 +111,7 @@ def test_create_celery_app_uses_explicit_task_queue_config() -> None:
 
 
 def test_celery_app_uses_task_queue_config() -> None:
-    """测试 Celery 应用使用任务队列配置"""
+    """测试 Celery 应用使用任务队列配置."""
     assert celery_app.main == "datamind_runtime"
     assert celery_app.conf.broker_url == (
         task_queue_config.broker_url
@@ -122,7 +122,7 @@ def test_celery_app_uses_task_queue_config() -> None:
 
 
 def test_celery_app_configures_reliable_json_messages() -> None:
-    """测试 Celery 应用配置可靠的 JSON 消息"""
+    """测试 Celery 应用配置可靠的 JSON 消息."""
     assert celery_app.conf.accept_content == ["json"]
     assert celery_app.conf.task_serializer == "json"
     assert celery_app.conf.result_serializer == "json"
@@ -142,7 +142,7 @@ def test_celery_app_configures_reliable_json_messages() -> None:
 
 
 def test_celery_app_isolates_runtime_task_queues() -> None:
-    """测试批量预测与影子预测使用独立队列"""
+    """测试批量预测与影子预测使用独立队列."""
     task_queues = celery_app.conf.task_queues
 
     assert task_queues is not None

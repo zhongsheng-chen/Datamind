@@ -1,4 +1,4 @@
-"""日志增强处理器测试
+"""日志增强处理器测试.
 
 验证时间戳、上下文补充、敏感信息脱敏和日志采样行为。
 
@@ -69,7 +69,7 @@ from datamind.logging.processors import (
 
 
 def test_add_timestamp_uses_iso_format() -> None:
-    """测试默认使用带时区的 ISO 8601 时间格式"""
+    """测试默认使用带时区的 ISO 8601 时间格式."""
     processor = add_timestamp("Asia/Shanghai")
     event = {
         "event": "测试日志",
@@ -95,7 +95,7 @@ def test_add_timestamp_uses_iso_format() -> None:
 
 
 def test_add_timestamp_uses_custom_format() -> None:
-    """测试使用自定义时间格式"""
+    """测试使用自定义时间格式."""
     processor = add_timestamp(
         "UTC",
         "%Y-%m-%d %H:%M:%S",
@@ -117,7 +117,7 @@ def test_add_timestamp_uses_custom_format() -> None:
 
 
 def test_add_context_adds_current_context() -> None:
-    """测试补充当前请求上下文"""
+    """测试补充当前请求上下文."""
     set_context(
         trace_id="a1b2c3d4",
         request_id="9f8e7d6c",
@@ -146,7 +146,7 @@ def test_add_context_adds_current_context() -> None:
 def test_add_context_ignores_service_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试通用处理器不从服务环境变量补充日志字段"""
+    """测试通用处理器不从服务环境变量补充日志字段."""
     monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "service-test")
     result = add_context()(None, "info", {"event": "运行时协调器启动成功"})
 
@@ -156,7 +156,7 @@ def test_add_context_ignores_service_environment(
 def test_add_context_preserves_explicit_service_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试显式记录的子进程标识不会被当前进程覆盖"""
+    """测试显式记录的子进程标识不会被当前进程覆盖."""
     monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "parent-service")
     result = add_context()(
         None,
@@ -169,7 +169,7 @@ def test_add_context_preserves_explicit_service_identity(
 
 
 def test_add_context_does_not_override_event_fields() -> None:
-    """测试日志事件字段优先于上下文字段"""
+    """测试日志事件字段优先于上下文字段."""
     set_context(
         trace_id="context-trace",
         user="context-user",
@@ -189,7 +189,7 @@ def test_add_context_does_not_override_event_fields() -> None:
 
 
 def test_add_context_ignores_none_values() -> None:
-    """测试不补充值为 None 的上下文字段"""
+    """测试不补充值为 None 的上下文字段."""
     set_context(
         trace_id="a1b2c3d4",
         user=None,
@@ -206,7 +206,7 @@ def test_add_context_ignores_none_values() -> None:
 
 
 def test_mask_sensitive_masks_top_level_string() -> None:
-    """测试脱敏顶层字符串字段"""
+    """测试脱敏顶层字符串字段."""
     result = mask_sensitive()(
         None,
         "info",
@@ -223,7 +223,7 @@ def test_mask_sensitive_masks_top_level_string() -> None:
 
 
 def test_mask_sensitive_masks_short_value_completely() -> None:
-    """测试较短敏感值被完全脱敏"""
+    """测试较短敏感值被完全脱敏."""
     result = mask_sensitive(
         prefix=2,
         suffix=2,
@@ -239,7 +239,7 @@ def test_mask_sensitive_masks_short_value_completely() -> None:
 
 
 def test_mask_sensitive_supports_zero_prefix_and_suffix() -> None:
-    """测试前后保留位数为零"""
+    """测试前后保留位数为零."""
     result = mask_sensitive(
         prefix=0,
         suffix=0,
@@ -255,7 +255,7 @@ def test_mask_sensitive_supports_zero_prefix_and_suffix() -> None:
 
 
 def test_mask_sensitive_supports_zero_suffix() -> None:
-    """测试后面保留位数为零时不会泄露原值"""
+    """测试后面保留位数为零时不会泄露原值."""
     result = mask_sensitive(
         prefix=2,
         suffix=0,
@@ -271,7 +271,7 @@ def test_mask_sensitive_supports_zero_suffix() -> None:
 
 
 def test_mask_sensitive_recursively_masks_nested_values() -> None:
-    """测试递归脱敏嵌套字典、列表和元组"""
+    """测试递归脱敏嵌套字典、列表和元组."""
     result = mask_sensitive()(
         None,
         "info",
@@ -328,7 +328,7 @@ def test_mask_sensitive_recursively_masks_nested_values() -> None:
 
 
 def test_mask_sensitive_masks_all_values_in_sensitive_container() -> None:
-    """测试敏感字段容器中的所有叶子值都会被脱敏"""
+    """测试敏感字段容器中的所有叶子值都会被脱敏."""
     result = mask_sensitive()(
         None,
         "info",
@@ -347,7 +347,7 @@ def test_mask_sensitive_masks_all_values_in_sensitive_container() -> None:
 
 
 def test_mask_sensitive_propagates_sensitive_state_through_containers() -> None:
-    """测试敏感状态会跨字典、列表和元组持续传播"""
+    """测试敏感状态会跨字典、列表和元组持续传播."""
     result = mask_sensitive()(
         None,
         "info",
@@ -383,7 +383,7 @@ def test_mask_sensitive_propagates_sensitive_state_through_containers() -> None:
 
 
 def test_mask_sensitive_handles_non_string_values() -> None:
-    """测试非字符串敏感值和 None"""
+    """测试非字符串敏感值和 None."""
     result = mask_sensitive()(
         None,
         "info",
@@ -400,7 +400,7 @@ def test_mask_sensitive_handles_non_string_values() -> None:
 
 
 def test_mask_sensitive_preserves_explicit_status_keys() -> None:
-    """测试明确的非敏感状态字段保持可读"""
+    """测试明确的非敏感状态字段保持可读."""
     result = mask_sensitive()(
         None,
         "info",
@@ -417,7 +417,7 @@ def test_mask_sensitive_preserves_explicit_status_keys() -> None:
 
 
 def test_mask_sensitive_does_not_modify_original_event() -> None:
-    """测试脱敏处理器不修改原始事件及其嵌套容器"""
+    """测试脱敏处理器不修改原始事件及其嵌套容器."""
     original = {
         "request": {
             "password": "12345678",
@@ -487,7 +487,7 @@ def test_mask_sensitive_rejects_invalid_parameters(
         kwargs: dict[str, Any],
         message: str,
 ) -> None:
-    """测试拒绝无效的脱敏参数"""
+    """测试拒绝无效的脱敏参数."""
     with pytest.raises(
             ValueError,
             match=message,
@@ -496,7 +496,7 @@ def test_mask_sensitive_rejects_invalid_parameters(
 
 
 def test_sampling_rate_one_keeps_event() -> None:
-    """测试采样率为 1 时保留日志"""
+    """测试采样率为 1 时保留日志."""
     event = {
         "level": "info",
         "event": "普通日志",
@@ -514,7 +514,7 @@ def test_sampling_rate_one_keeps_event() -> None:
 def test_sampling_keeps_sampled_event(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试命中采样时保留普通日志"""
+    """测试命中采样时保留普通日志."""
     monkeypatch.setattr(
         "datamind.logging.processors.random.random",
         lambda: 0.2,
@@ -537,7 +537,7 @@ def test_sampling_keeps_sampled_event(
 def test_sampling_drops_unsampled_event(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未命中采样时丢弃普通日志"""
+    """测试未命中采样时丢弃普通日志."""
     monkeypatch.setattr(
         "datamind.logging.processors.random.random",
         lambda: 0.8,
@@ -568,7 +568,7 @@ def test_sampling_drops_unsampled_event(
 def test_sampling_always_keeps_important_levels(
         level: str,
 ) -> None:
-    """测试重要级别日志不参与采样"""
+    """测试重要级别日志不参与采样."""
     event = {
         "level": level,
         "event": "重要日志",
@@ -593,7 +593,7 @@ def test_sampling_always_keeps_important_levels(
 def test_sampling_always_keeps_exception_logs(
         exception_field: str,
 ) -> None:
-    """测试包含异常信息的日志不参与采样"""
+    """测试包含异常信息的日志不参与采样."""
     event = {
         "level": "info",
         "event": "异常日志",
@@ -619,7 +619,7 @@ def test_sampling_always_keeps_exception_logs(
 def test_sampling_rejects_invalid_rate(
         rate: float,
 ) -> None:
-    """测试拒绝无效采样率"""
+    """测试拒绝无效采样率."""
     with pytest.raises(
             ValueError,
             match="rate 必须在 0.0 到 1.0 之间",

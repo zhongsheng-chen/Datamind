@@ -1,4 +1,4 @@
-"""管理控制台资源动作分派测试
+"""管理控制台资源动作分派测试.
 
 验证资源动作到生命周期服务的映射及参数传递。
 
@@ -25,12 +25,12 @@ from datamind.console.actions import dispatch_resource_action
 
 
 def _unused_factory(*_args: object, **_kwargs: object) -> MagicMock:
-    """返回未配置服务替身。"""
+    """返回未配置服务替身."""
     return MagicMock()
 
 
 def _arguments(**overrides: object) -> dict[str, object]:
-    """构造资源动作的公共参数。"""
+    """构造资源动作的公共参数."""
     arguments: dict[str, object] = {
         "resource": "deployments",
         "identifier": "dep_test",
@@ -66,7 +66,7 @@ async def test_dispatch_restore_actions(
         method: str,
         identifier_name: str,
 ) -> None:
-    """测试可回收资源统一调用各自的恢复方法"""
+    """测试可回收资源统一调用各自的恢复方法."""
     service = MagicMock()
     setattr(
         service,
@@ -99,7 +99,7 @@ async def test_dispatch_restore_actions(
 
 @pytest.mark.asyncio
 async def test_dispatch_version_purge_keeps_reason() -> None:
-    """测试版本永久清理交由删除服务并保留原因"""
+    """测试版本永久清理交由删除服务并保留原因."""
     service = MagicMock()
     service.purge = AsyncMock(
         return_value={"version_id": "ver_test"}
@@ -155,7 +155,7 @@ async def test_dispatch_model_deletion_actions_use_model_id(
         action: str,
         expected_arguments: dict[str, str],
 ) -> None:
-    """测试模型回收站动作按模型 ID 调用删除服务"""
+    """测试模型回收站动作按模型 ID 调用删除服务."""
     service = MagicMock()
     setattr(
         service,
@@ -185,7 +185,7 @@ async def test_dispatch_model_deletion_actions_use_model_id(
 async def test_dispatch_model_lifecycle_actions_use_model_id(
         action: str,
 ) -> None:
-    """测试模型生命周期动作按模型 ID 调用生命周期服务"""
+    """测试模型生命周期动作按模型 ID 调用生命周期服务."""
     service = MagicMock()
     setattr(
         service,
@@ -211,7 +211,7 @@ async def test_dispatch_model_lifecycle_actions_use_model_id(
 
 @pytest.mark.asyncio
 async def test_dispatch_variant_toggle_maps_active_flag() -> None:
-    """测试分组启停动作统一映射为活动状态"""
+    """测试分组启停动作统一映射为活动状态."""
     service = MagicMock()
     service.set_variant_active = AsyncMock(
         return_value={"variant_id": "var_test"}
@@ -238,7 +238,7 @@ async def test_dispatch_variant_toggle_maps_active_flag() -> None:
 async def test_dispatch_batch_actions(
         action: str,
 ) -> None:
-    """测试批次动作按批次 ID 调用生命周期服务"""
+    """测试批次动作按批次 ID 调用生命周期服务."""
     service = MagicMock()
     setattr(
         service,

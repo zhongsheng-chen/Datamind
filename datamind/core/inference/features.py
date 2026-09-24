@@ -1,4 +1,4 @@
-"""推理特征转换
+"""推理特征转换.
 
 根据模型特征顺序和数据类型，将请求特征转换为模型输入矩阵。
 
@@ -41,7 +41,7 @@ logger = structlog.get_logger(__name__)
 
 
 class FeatureTransformer:
-    """模型推理特征转换器
+    """模型推理特征转换器.
 
     根据预设的特征顺序和数据类型，将特征字典转换为模型输入矩阵。
 
@@ -58,7 +58,7 @@ class FeatureTransformer:
             feature_names: list[str] | None = None,
             data_types: dict[str, DataType] | None = None,
     ) -> None:
-        """初始化特征转换器
+        """初始化特征转换器.
 
         参数：
             feature_names: 模型特征顺序（可选）；为空时不限定特征顺序
@@ -78,7 +78,7 @@ class FeatureTransformer:
             self,
             features: dict[str, Any],
     ) -> np.ndarray:
-        """转换单条特征
+        """转换单条特征.
 
         参数：
             features: 特征名称到特征值的映射
@@ -112,7 +112,7 @@ class FeatureTransformer:
             self,
             features_list: list[dict[str, Any]],
     ) -> np.ndarray:
-        """转换批量特征
+        """转换批量特征.
 
         参数：
             features_list: 多条特征映射
@@ -151,7 +151,7 @@ class FeatureTransformer:
         list[str],
         list[tuple[str, str, str]],
     ]:
-        """验证单条特征
+        """验证单条特征.
 
         参数：
             features: 特征名称到特征值的映射
@@ -191,7 +191,7 @@ class FeatureTransformer:
     def validate_batch(
             features_list: list[Any],
     ) -> None:
-        """验证批量特征
+        """验证批量特征.
 
         参数：
             features_list: 待校验的批量输入
@@ -217,7 +217,7 @@ class FeatureTransformer:
 
     @staticmethod
     def ensure_2d(X: np.ndarray) -> np.ndarray:
-        """将一维或二维数组规范化为二维数组
+        """将一维或二维数组规范化为二维数组.
 
         参数：
             X: 一维或二维模型输入数组
@@ -246,7 +246,7 @@ class FeatureTransformer:
             value: Any,
             data_type: DataType,
     ) -> tuple[bool, str]:
-        """返回特征值是否匹配数据类型及期望类型名称"""
+        """返回特征值是否匹配数据类型及期望类型名称."""
         if data_type == DataType.NUMERIC:
             return (
                 not isinstance(value, bool)
@@ -277,7 +277,7 @@ class FeatureTransformer:
             value: Any,
             feature_name: str | None = None,
     ) -> Any:
-        """规范化单个模型输入值
+        """规范化单个模型输入值.
 
         None 转换为 np.nan，布尔值和数值转换为 float，字符串及
         其他对象保持原值。
@@ -308,7 +308,7 @@ class FeatureTransformer:
             self,
             features_list: list[dict[str, Any]],
     ) -> list[str]:
-        """解析批量转换使用的特征顺序"""
+        """解析批量转换使用的特征顺序."""
         if self.feature_names:
             return self.feature_names
 
@@ -327,7 +327,7 @@ class FeatureTransformer:
     def _normalize_names(
             feature_names: list[str] | None,
     ) -> list[str] | None:
-        """校验并复制特征名称列表"""
+        """校验并复制特征名称列表."""
         if feature_names is None:
             return None
 

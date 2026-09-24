@@ -1,4 +1,4 @@
-"""评分卡数据库模型测试
+"""评分卡数据库模型测试.
 
 验证评分卡表结构、唯一索引和数据约束。
 
@@ -17,7 +17,7 @@ from datamind.db.models.scorecards import Scorecard
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -28,7 +28,7 @@ TABLE = get_model_table(
 
 
 def test_scorecard_table_and_columns() -> None:
-    """测试评分卡表名和字段定义"""
+    """测试评分卡表名和字段定义."""
     assert TABLE.name == "scorecards"
     assert set(TABLE.columns.keys()) == {
         "id",
@@ -44,7 +44,7 @@ def test_scorecard_table_and_columns() -> None:
 
 
 def test_scorecard_indexes_and_constraints() -> None:
-    """测试评分卡唯一索引和数据约束"""
+    """测试评分卡唯一索引和数据约束."""
     indexes = {index.name: index for index in TABLE.indexes}
     assert indexes["uk_scorecards_scorecard_id"].unique is True
     assert indexes["uk_scorecards_version_id"].unique is True

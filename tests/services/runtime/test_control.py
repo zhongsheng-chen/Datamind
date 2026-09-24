@@ -1,4 +1,4 @@
-"""运行时控制服务测试
+"""运行时控制服务测试.
 
 验证部署期望状态控制、运行状态查询和参数校验。
 
@@ -48,7 +48,7 @@ from datamind.services import RuntimeControlService
 
 
 class FakeUnitOfWork:
-    """运行控制服务测试工作单元"""
+    """运行控制服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -63,7 +63,7 @@ class FakeUnitOfWork:
 
 
 def create_deployment(*, status: str = "active") -> Deployment:
-    """创建部署测试对象"""
+    """创建部署测试对象."""
     values: dict[str, Any] = {
         "deployment_id": "dep_test",
         "model_id": "mdl_test",
@@ -79,7 +79,7 @@ def create_deployment(*, status: str = "active") -> Deployment:
 
 
 def create_control(*, desired_status: str = "unloaded") -> Control:
-    """创建运行控制测试对象"""
+    """创建运行控制测试对象."""
     values: dict[str, Any] = {
         "control_id": "ctl_test",
         "deployment_id": "dep_test",
@@ -100,7 +100,7 @@ def configure_service(
         control: object | None = None,
         runtimes: list[object] | None = None,
 ) -> tuple[MagicMock, MagicMock, MagicMock]:
-    """配置运行控制服务仓储替身"""
+    """配置运行控制服务仓储替身."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=deployment
@@ -142,7 +142,7 @@ def configure_service(
 async def test_load_creates_control_and_requests_loaded(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次加载创建控制记录并设置 loaded"""
+    """测试首次加载创建控制记录并设置 loaded."""
     deployment = create_deployment()
     control = create_control()
     _, control_repo, _ = configure_service(
@@ -175,7 +175,7 @@ async def test_load_creates_control_and_requests_loaded(
 async def test_load_updates_existing_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试加载已有控制记录并校验部署环境"""
+    """测试加载已有控制记录并校验部署环境."""
     deployment = create_deployment()
     control = create_control()
     _, control_repo, _ = configure_service(
@@ -202,7 +202,7 @@ async def test_load_updates_existing_control(
 async def test_load_rejects_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试加载不存在的部署时报错"""
+    """测试加载不存在的部署时报错."""
     configure_service(
         monkeypatch
     )
@@ -220,7 +220,7 @@ async def test_load_rejects_missing_deployment(
 async def test_unload_updates_existing_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试卸载已有控制记录"""
+    """测试卸载已有控制记录."""
     control = create_control(desired_status="loaded")
     _, control_repo, _ = configure_service(
         monkeypatch,
@@ -245,7 +245,7 @@ async def test_unload_updates_existing_control(
 async def test_unload_creates_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次卸载创建 unloaded 控制记录"""
+    """测试首次卸载创建 unloaded 控制记录."""
     control = create_control()
     _, control_repo, _ = configure_service(
         monkeypatch,
@@ -272,7 +272,7 @@ async def test_unload_creates_control(
 async def test_unload_rejects_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用部署不能卸载"""
+    """测试启用部署不能卸载."""
     _, control_repo, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(status="active"),
@@ -295,7 +295,7 @@ async def test_unload_rejects_active_deployment(
 async def test_reload_requires_existing_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重载要求运行控制记录存在"""
+    """测试重载要求运行控制记录存在."""
     configure_service(
         monkeypatch,
         deployment=create_deployment(),
@@ -311,7 +311,7 @@ async def test_reload_requires_existing_control(
 async def test_reload_requests_new_generation(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重载已有 loaded 控制记录"""
+    """测试重载已有 loaded 控制记录."""
     control = create_control(desired_status="loaded")
     _, control_repo, _ = configure_service(
         monkeypatch,
@@ -337,7 +337,7 @@ async def test_reload_requests_new_generation(
 async def test_load_rejects_inactive_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试非活动部署不能加载"""
+    """测试非活动部署不能加载."""
     _, control_repo, _ = configure_service(
         monkeypatch,
         deployment=create_deployment(status="inactive"),
@@ -358,7 +358,7 @@ async def test_load_rejects_inactive_deployment(
 async def test_get_status_returns_deployment_and_runtimes(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试查询部署、控制记录和 Worker 运行状态"""
+    """测试查询部署、控制记录和 Worker 运行状态."""
     runtime = SimpleNamespace(
         runtime_id="run_test",
         deployment_id="dep_test",
@@ -393,7 +393,7 @@ async def test_get_status_returns_deployment_and_runtimes(
 async def test_get_status_rejects_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试查询不存在的部署状态时报错"""
+    """测试查询不存在的部署状态时报错."""
     configure_service(
         monkeypatch
     )
@@ -411,7 +411,7 @@ async def test_get_status_rejects_missing_deployment(
 async def test_list_services_aggregates_runtime_statuses(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试按部署汇总 Worker 运行状态"""
+    """测试按部署汇总 Worker 运行状态."""
     now = datetime.now(timezone.utc)
     control = create_control(desired_status="loaded")
     control.updated_at = now
@@ -463,7 +463,7 @@ async def test_list_services_aggregates_runtime_statuses(
 async def test_list_services_supports_empty_filters(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试不传筛选条件时查询全部运行服务"""
+    """测试不传筛选条件时查询全部运行服务."""
     _, control_repo, _ = configure_service(
         monkeypatch
     )
@@ -492,13 +492,13 @@ async def test_list_services_rejects_invalid_pagination(
         kwargs: dict[str, int],
         message: str,
 ) -> None:
-    """测试拒绝非法分页参数"""
+    """测试拒绝非法分页参数."""
     with pytest.raises(ValueError, match=message):
         await RuntimeControlService().list_services(**kwargs)
 
 
 def test_validate_control_environment_rejects_mismatch() -> None:
-    """测试拒绝控制记录与部署环境不一致"""
+    """测试拒绝控制记录与部署环境不一致."""
     control = create_control()
     control.environment = "testing"
 

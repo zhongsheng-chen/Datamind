@@ -1,4 +1,4 @@
-"""模型部署表测试
+"""模型部署表测试.
 
 验证模型部署表的字段、索引、检查约束和字段注释。
 
@@ -24,7 +24,7 @@ from datamind.db.models.deployments import Deployment
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -35,7 +35,7 @@ TABLE = get_model_table(
 
 
 def test_deployment_table_and_columns() -> None:
-    """测试表名和字段集合"""
+    """测试表名和字段集合."""
     assert TABLE.name == "deployments"
     assert set(TABLE.columns.keys()) == {
         "deployment_id",
@@ -62,7 +62,7 @@ def test_deployment_table_and_columns() -> None:
 
 
 def test_deployment_indexes() -> None:
-    """测试索引集合"""
+    """测试索引集合."""
     assert {index.name for index in TABLE.indexes} == {
         "idx_deployments_effective_time",
         "idx_deployments_deleted_at",
@@ -75,7 +75,7 @@ def test_deployment_indexes() -> None:
 
 
 def test_deployment_check_constraints() -> None:
-    """测试检查约束集合"""
+    """测试检查约束集合."""
     assert {
         constraint.name
         for constraint in TABLE.constraints
@@ -91,6 +91,6 @@ def test_deployment_check_constraints() -> None:
 
 
 def test_deployment_column_comments() -> None:
-    """测试字段注释"""
+    """测试字段注释."""
     for column in TABLE.columns.values():
         assert column.comment, column.name
