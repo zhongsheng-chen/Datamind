@@ -1,4 +1,4 @@
-"""停止实验命令
+"""停止实验命令.
 
 提供实验停止功能。
 
@@ -42,7 +42,7 @@ def stop_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """停止实验"""
+    """停止实验."""
 
     @audit(
         action="experiment.stop",

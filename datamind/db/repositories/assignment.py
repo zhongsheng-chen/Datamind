@@ -1,4 +1,4 @@
-"""实验分配仓储
+"""实验分配仓储.
 
 用于查询与写入实验主体的固定分配关系，
 保证同一个主体在同一个实验中稳定命中同一个分组。
@@ -52,7 +52,7 @@ from datamind.models.enums import AssignmentStrategy
 
 
 class AssignmentRepository(BaseRepository):
-    """实验分配仓储"""
+    """实验分配仓储."""
 
     @staticmethod
     def _validate_pagination(
@@ -60,7 +60,7 @@ class AssignmentRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if (
                 limit is not None
                 and limit < 0
@@ -81,7 +81,7 @@ class AssignmentRepository(BaseRepository):
     def _validate_weight(
             weight: float | None,
     ) -> None:
-        """校验实验分组权重"""
+        """校验实验分组权重."""
         if weight is None:
             return
 
@@ -97,7 +97,7 @@ class AssignmentRepository(BaseRepository):
             self,
             assignment_id: str,
     ) -> Assignment | None:
-        """获取实验分配记录
+        """获取实验分配记录.
 
         参数：
             assignment_id: 分配 ID
@@ -124,7 +124,7 @@ class AssignmentRepository(BaseRepository):
             experiment_id: str,
             subject_key: str,
     ) -> Assignment | None:
-        """获取主体在实验中的固定分配
+        """获取主体在实验中的固定分配.
 
         参数：
             experiment_id: 实验 ID
@@ -162,7 +162,7 @@ class AssignmentRepository(BaseRepository):
             context: dict | None = None,
             assigned_at: datetime | None = None,
     ) -> tuple[Assignment, bool]:
-        """原子获取或创建主体的固定实验分配"""
+        """原子获取或创建主体的固定实验分配."""
         self._validate_weight(weight)
 
         stmt = insert(Assignment).values(
@@ -218,7 +218,7 @@ class AssignmentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Assignment]:
-        """获取实验分配记录列表
+        """获取实验分配记录列表.
 
         参数：
             assignment_id: 分配 ID（可选）
@@ -320,7 +320,7 @@ class AssignmentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Assignment]:
-        """获取实验分配记录
+        """获取实验分配记录.
 
         参数：
             experiment_id: 实验 ID
@@ -343,7 +343,7 @@ class AssignmentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Assignment]:
-        """获取实验分组分配记录
+        """获取实验分组分配记录.
 
         参数：
             variant_id: 实验分组 ID
@@ -366,7 +366,7 @@ class AssignmentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Assignment]:
-        """获取主体参与的实验分配记录
+        """获取主体参与的实验分配记录.
 
         参数：
             subject_key: 分桶主体标识
@@ -398,7 +398,7 @@ class AssignmentRepository(BaseRepository):
             context: dict | None = None,
             assigned_at: datetime | None = None,
     ) -> Assignment:
-        """创建实验分配记录
+        """创建实验分配记录.
 
         参数：
             assignment_id: 分配 ID

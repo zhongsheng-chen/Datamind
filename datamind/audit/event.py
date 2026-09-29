@@ -1,4 +1,4 @@
-"""审计事件定义
+"""审计事件定义.
 
 定义审计日志的数据结构。
 
@@ -44,7 +44,7 @@ from datamind.utils.generator import generate_random_id
 
 @dataclass(frozen=True)
 class AuditEvent:
-    """审计事件
+    """审计事件.
 
     属性：
         action: 操作类型，格式为 resource.operation
@@ -97,7 +97,7 @@ class AuditEvent:
     )
 
     def __post_init__(self) -> None:
-        """校验并规范化审计事件"""
+        """校验并规范化审计事件."""
         required_fields = {
             "audit_id": (self.audit_id, 64),
             "action": (self.action, 64),

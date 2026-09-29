@@ -1,4 +1,4 @@
-"""数据库模型混入类
+"""数据库模型混入类.
 
 提供数据库模型通用的主键和时间戳字段。
 
@@ -41,7 +41,7 @@ from sqlalchemy.sql import func
 
 
 class IdMixin:
-    """自增主键混入类"""
+    """自增主键混入类."""
 
     id = Column(
         BigInteger,
@@ -52,7 +52,7 @@ class IdMixin:
 
 
 class TimestampMixin:
-    """时间戳混入类"""
+    """时间戳混入类."""
 
     created_at = Column(
         DateTime(

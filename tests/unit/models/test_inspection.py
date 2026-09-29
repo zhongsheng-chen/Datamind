@@ -1,4 +1,4 @@
-"""模型信息检查测试
+"""模型信息检查测试.
 
 验证评分卡刻度、变量质量和分箱明细的提取结果。
 
@@ -38,7 +38,7 @@ pytestmark = pytest.mark.framework
 
 
 def create_scorecard() -> Scorecard:
-    """创建评分卡测试对象"""
+    """创建评分卡测试对象."""
     summary = pd.DataFrame([{
         "name": "age",
         "dtype": "numerical",
@@ -71,7 +71,7 @@ def create_scorecard() -> Scorecard:
 
 
 def test_scorecard_inspector_extracts_details() -> None:
-    """测试提取评分卡刻度、质量和分箱明细"""
+    """测试提取评分卡刻度、质量和分箱明细."""
     details = ScorecardInspector.extract(create_scorecard())
 
     assert details["variable_count"] == 1
@@ -83,7 +83,7 @@ def test_scorecard_inspector_extracts_details() -> None:
 
 
 def test_scorecard_inspector_includes_intercept_in_theoretical_bounds() -> None:
-    """截距计分模式的理论边界与 Scorecard.score 计算口径一致"""
+    """截距计分模式的理论边界与 Scorecard.score 计算口径一致."""
     scorecard = create_scorecard()
     scorecard.intercept_based = True
     scorecard.intercept_ = 25.0
@@ -134,7 +134,7 @@ def test_scorecard_inspector_formats_bin_labels(
         bin_value: Any,
         expected: str | None,
 ) -> None:
-    """测试入模与未入模变量的分箱标签可读且不改变原始数据"""
+    """测试入模与未入模变量的分箱标签可读且不改变原始数据."""
     scorecard = create_scorecard()
     summary = pd.DataFrame([{
         "name": "employment_type",
@@ -174,6 +174,6 @@ def test_scorecard_inspector_formats_bin_labels(
 
 
 def test_scorecard_inspector_rejects_other_models() -> None:
-    """测试拒绝非评分卡模型"""
+    """测试拒绝非评分卡模型."""
     with pytest.raises(TypeError, match="评分任务模型类型不匹配"):
         ScorecardInspector.extract(object())

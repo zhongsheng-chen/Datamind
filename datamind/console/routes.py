@@ -1,4 +1,4 @@
-"""管理控制台路由
+"""管理控制台路由.
 
 集中定义页面、查询、管理操作、实时事件和静态资源路由。
 
@@ -31,7 +31,7 @@ RouteHandler = Callable[
 
 @dataclass(frozen=True, slots=True)
 class ConsoleHandlers:
-    """管理控制台路由处理器"""
+    """管理控制台路由处理器."""
 
     health: RouteHandler
     ready: RouteHandler
@@ -77,7 +77,7 @@ def create_routes(
         *,
         static_dir: Path,
 ) -> list[BaseRoute]:
-    """创建管理控制台路由表"""
+    """创建管理控制台路由表."""
     return [
         Route("/health", handlers.health, methods=["GET"]),
         Route("/ready", handlers.ready, methods=["GET"]),

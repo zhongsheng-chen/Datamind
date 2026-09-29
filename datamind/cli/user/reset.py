@@ -1,4 +1,4 @@
-"""重置用户密码命令
+"""重置用户密码命令.
 
 提供 LOCAL 用户密码重置和会话撤销功能。
 
@@ -34,7 +34,7 @@ def reset_password(
             help="登录用户名",
         ),
 ) -> None:
-    """重置用户密码"""
+    """重置用户密码."""
     password = typer.prompt(
         "新密码",
         hide_input=True,

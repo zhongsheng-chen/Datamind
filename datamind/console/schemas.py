@@ -1,4 +1,4 @@
-"""管理控制台写操作结构
+"""管理控制台写操作结构.
 
 定义浏览器管理操作使用的请求结构，统一完成字段校验与空白处理。
 
@@ -35,7 +35,7 @@ from datamind.constants.model_name import SUPPORTED_MODEL_NAME_PATTERN
 
 
 class _ConsoleRequest(BaseModel):
-    """控制台请求基类"""
+    """控制台请求基类."""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -44,7 +44,7 @@ class _ConsoleRequest(BaseModel):
 
 
 class ModelRegistrationMetadata(_ConsoleRequest):
-    """模型注册参数"""
+    """模型注册参数."""
 
     name: str = Field(
         min_length=1,
@@ -68,20 +68,20 @@ class ModelRegistrationMetadata(_ConsoleRequest):
 
 
 class ModelUpdateRequest(_ConsoleRequest):
-    """模型信息更新参数"""
+    """模型信息更新参数."""
 
     display_name: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=2000)
 
 
 class VersionUpdateRequest(_ConsoleRequest):
-    """模型版本信息更新参数"""
+    """模型版本信息更新参数."""
 
     description: str | None = Field(default=None, max_length=2000)
 
 
 class DeploymentCreateRequest(_ConsoleRequest):
-    """部署创建参数"""
+    """部署创建参数."""
 
     model_id: str = Field(min_length=1, max_length=64)
     version_id: str = Field(min_length=1, max_length=64)
@@ -92,7 +92,7 @@ class DeploymentCreateRequest(_ConsoleRequest):
 
 
 class DeploymentUpdateRequest(_ConsoleRequest):
-    """部署更新参数"""
+    """部署更新参数."""
 
     rollout_type: str | None = Field(default=None, min_length=1, max_length=32)
     role: str | None = Field(default=None, min_length=1, max_length=32)
@@ -101,14 +101,14 @@ class DeploymentUpdateRequest(_ConsoleRequest):
 
 
 class RulesMetadataRequest(_ConsoleRequest):
-    """规则文件信息，上传时间由服务端记录"""
+    """规则文件信息，上传时间由服务端记录."""
 
     name: str = Field(min_length=1, max_length=255)
     size: int = Field(ge=0)
 
 
 class RoutingCreateRequest(_ConsoleRequest):
-    """路由创建参数"""
+    """路由创建参数."""
 
     name: str = Field(min_length=1, max_length=128)
     deployment_id: str = Field(min_length=1, max_length=64)
@@ -122,7 +122,7 @@ class RoutingCreateRequest(_ConsoleRequest):
 
 
 class RoutingUpdateRequest(_ConsoleRequest):
-    """路由更新参数"""
+    """路由更新参数."""
 
     name: str | None = Field(default=None, min_length=1, max_length=128)
     traffic_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -134,7 +134,7 @@ class RoutingUpdateRequest(_ConsoleRequest):
 
 
 class ExperimentGroupRequest(_ConsoleRequest):
-    """分组创建参数"""
+    """分组创建参数."""
 
     key: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=128)
@@ -144,7 +144,7 @@ class ExperimentGroupRequest(_ConsoleRequest):
 
 
 class ExperimentCreateRequest(_ConsoleRequest):
-    """实验创建参数"""
+    """实验创建参数."""
 
     model_id: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=128)
@@ -163,7 +163,7 @@ class ExperimentCreateRequest(_ConsoleRequest):
 
 
 class ExperimentUpdateRequest(_ConsoleRequest):
-    """实验更新参数"""
+    """实验更新参数."""
 
     name: str | None = Field(default=None, min_length=1, max_length=128)
     strategy: str | None = Field(default=None, min_length=1, max_length=32)
@@ -176,7 +176,7 @@ class ExperimentUpdateRequest(_ConsoleRequest):
 
 
 class VariantCreateRequest(_ConsoleRequest):
-    """实验分组创建参数"""
+    """实验分组创建参数."""
 
     name: str = Field(min_length=1, max_length=128)
     deployment_id: str = Field(min_length=1, max_length=64)
@@ -187,7 +187,7 @@ class VariantCreateRequest(_ConsoleRequest):
 
 
 class VariantUpdateRequest(_ConsoleRequest):
-    """实验分组更新参数"""
+    """实验分组更新参数."""
 
     name: str | None = Field(default=None, min_length=1, max_length=128)
     weight: float | None = Field(default=None, gt=0.0, le=1.0)
@@ -197,7 +197,7 @@ class VariantUpdateRequest(_ConsoleRequest):
 
 
 class UserCreateRequest(_ConsoleRequest):
-    """用户创建参数"""
+    """用户创建参数."""
 
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=1024)
@@ -211,7 +211,7 @@ class UserCreateRequest(_ConsoleRequest):
             cls,
             roles: list[str],
     ) -> list[str]:
-        """规范化角色名称"""
+        """规范化角色名称."""
         normalized = [
             role.strip()
             for role in roles
@@ -225,7 +225,7 @@ class UserCreateRequest(_ConsoleRequest):
 
 
 class UserUpdateRequest(_ConsoleRequest):
-    """用户更新参数"""
+    """用户更新参数."""
 
     username: str = Field(min_length=1, max_length=64)
     display_name: str | None = Field(default=None, max_length=128)
@@ -238,7 +238,7 @@ class UserUpdateRequest(_ConsoleRequest):
             cls,
             roles: list[str] | None,
     ) -> list[str] | None:
-        """规范化角色名称"""
+        """规范化角色名称."""
         if roles is None:
             return None
 
@@ -255,7 +255,7 @@ class UserUpdateRequest(_ConsoleRequest):
 
 
 class RoleCreateRequest(_ConsoleRequest):
-    """角色创建参数"""
+    """角色创建参数."""
 
     name: str = Field(min_length=1, max_length=64)
     permissions: list[str] = Field(default_factory=list, max_length=200)
@@ -263,7 +263,7 @@ class RoleCreateRequest(_ConsoleRequest):
 
 
 class RoleUpdateRequest(_ConsoleRequest):
-    """角色资料与权限更新参数"""
+    """角色资料与权限更新参数."""
 
     description: str | None = Field(max_length=2000)
     permissions: list[str] = Field(min_length=1, max_length=200)
@@ -274,7 +274,7 @@ class RoleUpdateRequest(_ConsoleRequest):
             cls,
             permissions: list[str],
     ) -> list[str]:
-        """规范化权限标识"""
+        """规范化权限标识."""
         normalized = [
             permission.strip()
             for permission in permissions
@@ -288,19 +288,19 @@ class RoleUpdateRequest(_ConsoleRequest):
 
 
 class PasswordChangeRequest(_ConsoleRequest):
-    """当前用户密码修改参数"""
+    """当前用户密码修改参数."""
 
     current_password: str = Field(min_length=1, max_length=1024)
     new_password: str = Field(min_length=1, max_length=1024)
 
 
 class PasswordResetRequest(_ConsoleRequest):
-    """密码重置参数"""
+    """密码重置参数."""
 
     password: str = Field(min_length=1, max_length=1024)
 
 
 class ResourceActionRequest(_ConsoleRequest):
-    """资源操作参数"""
+    """资源操作参数."""
 
     reason: str | None = Field(default=None, max_length=2000)

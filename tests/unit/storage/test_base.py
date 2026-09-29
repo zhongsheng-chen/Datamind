@@ -1,4 +1,4 @@
-"""存储后端抽象基类测试
+"""存储后端抽象基类测试.
 
 验证抽象接口约束以及完整存储后端实现的基本行为。
 
@@ -30,7 +30,7 @@ ABSTRACT_METHOD_NAMES = (
 
 
 class MemoryStorageBackend(BaseStorageBackend):
-    """完整实现抽象接口的内存存储后端"""
+    """完整实现抽象接口的内存存储后端."""
 
     def __init__(
             self,
@@ -42,21 +42,21 @@ class MemoryStorageBackend(BaseStorageBackend):
             key: str,
             data: bytes,
     ) -> None:
-        """存储对象"""
+        """存储对象."""
         self.objects[key] = data
 
     def get_object(
             self,
             key: str,
     ) -> bytes:
-        """读取对象"""
+        """读取对象."""
         return self.objects[key]
 
     def delete_object(
             self,
             key: str,
     ) -> None:
-        """删除对象"""
+        """删除对象."""
         self.objects.pop(
             key,
             None,
@@ -66,14 +66,14 @@ class MemoryStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> bool:
-        """检查对象是否存在"""
+        """检查对象是否存在."""
         return key in self.objects
 
     def list_objects(
             self,
             prefix: str,
     ) -> list[str]:
-        """列出指定前缀下的对象"""
+        """列出指定前缀下的对象."""
         return sorted(
             key
             for key in self.objects
@@ -82,14 +82,14 @@ class MemoryStorageBackend(BaseStorageBackend):
 
 
 def test_base_storage_backend_is_abstract() -> None:
-    """测试存储后端基类是抽象类"""
+    """测试存储后端基类是抽象类."""
     assert inspect.isabstract(
         BaseStorageBackend
     )
 
 
 def test_base_storage_backend_declares_required_abstract_methods() -> None:
-    """测试五个存储接口均声明为抽象方法"""
+    """测试五个存储接口均声明为抽象方法."""
     for method_name in ABSTRACT_METHOD_NAMES:
         method = inspect.getattr_static(
             BaseStorageBackend,
@@ -104,7 +104,7 @@ def test_base_storage_backend_declares_required_abstract_methods() -> None:
 
 
 def test_complete_backend_is_concrete() -> None:
-    """测试完整实现所有接口后可以实例化"""
+    """测试完整实现所有接口后可以实例化."""
     assert not inspect.isabstract(
         MemoryStorageBackend
     )
@@ -118,7 +118,7 @@ def test_complete_backend_is_concrete() -> None:
 
 
 def test_complete_backend_supports_object_operations() -> None:
-    """测试完整后端实现支持统一对象操作"""
+    """测试完整后端实现支持统一对象操作."""
     backend = MemoryStorageBackend()
 
     backend.put_object(
@@ -157,7 +157,7 @@ def test_complete_backend_supports_object_operations() -> None:
 
 
 def test_delete_missing_object_is_idempotent() -> None:
-    """测试完整后端实现可提供幂等删除行为"""
+    """测试完整后端实现可提供幂等删除行为."""
     backend = MemoryStorageBackend()
 
     backend.delete_object(

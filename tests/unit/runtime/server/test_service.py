@@ -1,4 +1,4 @@
-"""运行时模型服务测试
+"""运行时模型服务测试.
 
 验证服务生命周期、健康检查和通用安全执行行为。
 
@@ -34,7 +34,7 @@ def test_apply_response_status_maps_request_error(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试请求参数错误映射为 HTTP 400"""
+    """测试请求参数错误映射为 HTTP 400."""
     service_module = runtime_server.load_service_module(
         monkeypatch
     )
@@ -77,7 +77,7 @@ def test_apply_response_status_maps_error_types(
         response: dict[str, Any],
         expected_status: int,
 ) -> None:
-    """测试错误类型映射为对应 HTTP 状态"""
+    """测试错误类型映射为对应 HTTP 状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     context = SimpleNamespace(
@@ -97,7 +97,7 @@ async def test_startup_reconciles_and_marks_worker_ready(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Worker 启动时首次协调并写入就绪标记"""
+    """测试 Worker 启动时首次协调并写入就绪标记."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     result = MagicMock()
@@ -128,7 +128,7 @@ async def test_startup_keeps_worker_alive_until_database_recovers(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库晚启动时 Worker 进入后台重试而不是退出"""
+    """测试数据库晚启动时 Worker 进入后台重试而不是退出."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.reconciler.reconcile_once.side_effect = SQLAlchemyError(
@@ -157,7 +157,7 @@ async def test_startup_keeps_worker_alive_on_native_connection_refusal(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 asyncpg 原生连接拒绝不会终止 Worker"""
+    """测试 asyncpg 原生连接拒绝不会终止 Worker."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.reconciler.reconcile_once.side_effect = ConnectionRefusedError(
@@ -185,7 +185,7 @@ async def test_shutdown_stops_models_and_clears_cache(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Worker 关闭时停止协调器、卸载模型并清理缓存"""
+    """测试 Worker 关闭时停止协调器、卸载模型并清理缓存."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.manager.registry.all.return_value = [
@@ -210,7 +210,7 @@ def test_health_returns_worker_state(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试健康检查返回 Worker 当前状态"""
+    """测试健康检查返回 Worker 当前状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.manager.registry.__len__.return_value = 2
@@ -237,7 +237,7 @@ async def test_ready_returns_ready_when_database_is_available(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库和协调器可用时 Worker 就绪"""
+    """测试数据库和协调器可用时 Worker 就绪."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     runtime_server.patch_server_dependency(
@@ -272,12 +272,12 @@ async def test_ready_returns_unavailable_when_database_fails(
         monkeypatch: pytest.MonkeyPatch,
         database_error: Exception,
 ) -> None:
-    """测试数据库不可用时 Worker 返回未就绪"""
+    """测试数据库不可用时 Worker 返回未就绪."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
 
     class FailingUnitOfWork(runtime_server.FakeUnitOfWork):
-        """数据库查询失败的工作单元"""
+        """数据库查询失败的工作单元."""
 
         async def __aenter__(self) -> "FailingUnitOfWork":
             self.session.execute.side_effect = database_error
@@ -315,7 +315,7 @@ async def test_execute_secured_applies_status_and_records_audit(
         expected_status: str,
         expected_error: str | None,
 ) -> None:
-    """测试认证执行包装设置状态并记录审计"""
+    """测试认证执行包装设置状态并记录审计."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.security = runtime_server.SecurityStub()

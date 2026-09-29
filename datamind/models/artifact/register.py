@@ -1,4 +1,4 @@
-"""模型产物注册器
+"""模型产物注册器.
 
 提供模型加载器的注册和获取功能。
 
@@ -25,7 +25,7 @@ _HANDLERS: Dict[str, Callable[[bytes], Any]] = {}
 
 
 def _normalize(framework: str) -> str:
-    """规范化框架名称
+    """规范化框架名称.
 
     参数：
         framework: 模型框架名称
@@ -37,11 +37,11 @@ def _normalize(framework: str) -> str:
 
 
 class ModelArtifactRegister:
-    """模型产物注册器"""
+    """模型产物注册器."""
 
     @classmethod
     def register(cls, framework: str):
-        """注册模型加载器
+        """注册模型加载器.
 
         参数：
             framework: 模型框架
@@ -55,7 +55,7 @@ class ModelArtifactRegister:
 
 
 def get_handler(framework: str) -> Callable[[bytes], Any]:
-    """获取模型加载器
+    """获取模型加载器.
 
     参数：
         framework: 模型框架

@@ -1,4 +1,4 @@
-"""批次生命周期服务
+"""批次生命周期服务.
 
 负责批量预测任务的取消和重试，并协调数据库状态与任务队列。
 
@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
 
 
 class BatchLifecycleService:
-    """批次生命周期服务
+    """批次生命周期服务.
 
     通过工作单元持久化批次状态，并在事务完成后向任务队列
     发布重试或撤销消息。
@@ -46,7 +46,7 @@ class BatchLifecycleService:
             *,
             task_publisher: TaskPublisher | None = None,
     ) -> None:
-        """初始化批次生命周期服务
+        """初始化批次生命周期服务.
 
         参数：
             task_publisher: 任务发布器，默认使用 TaskPublisher
@@ -58,7 +58,7 @@ class BatchLifecycleService:
             *,
             batch_id: str,
     ) -> dict[str, Any]:
-        """请求取消批量预测任务
+        """请求取消批量预测任务.
 
         参数：
             batch_id: 批次 ID
@@ -103,7 +103,7 @@ class BatchLifecycleService:
             *,
             batch_id: str,
     ) -> dict[str, Any]:
-        """重新提交可重试的批量预测任务
+        """重新提交可重试的批量预测任务.
 
         参数：
             batch_id: 批次 ID
@@ -156,7 +156,7 @@ class BatchLifecycleService:
 
     @staticmethod
     def _to_dict(batch: Any) -> dict[str, Any]:
-        """转换批次状态为响应字典"""
+        """转换批次状态为响应字典."""
         completed_count = int(
             getattr(batch, "completed_count", 0) or 0
         )

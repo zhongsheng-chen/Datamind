@@ -1,4 +1,4 @@
-"""审计组件
+"""审计组件.
 
 对外提供审计装饰器、记录器、服务和失败策略。
 
@@ -45,7 +45,7 @@ __all__ = list(
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载包级公共 API"""
+    """按需加载包级公共 API."""
     target = _EXPORTS.get(name)
 
     if target is None:

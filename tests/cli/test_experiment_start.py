@@ -1,4 +1,4 @@
-"""实验启动命令测试
+"""实验启动命令测试.
 
 验证实验启动前对启用分组及其部署的完整性校验。
 
@@ -61,7 +61,7 @@ LATER_TIME = datetime(
 
 
 def create_experiment() -> Experiment:
-    """创建实验测试对象"""
+    """创建实验测试对象."""
     return Experiment(
         experiment_id="exp_test",
         model_id="mdl_test",
@@ -74,7 +74,7 @@ def create_variant(
         variant_id: str,
         deployment_id: str,
 ) -> Variant:
-    """创建实验分组测试对象"""
+    """创建实验分组测试对象."""
     return Variant(
         variant_id=variant_id,
         experiment_id="exp_test",
@@ -89,7 +89,7 @@ def create_deployment(
         deployment_id: str = "dep_test",
         **overrides: Any,
 ) -> Deployment:
-    """创建部署测试对象"""
+    """创建部署测试对象."""
     values: dict[str, Any] = {
         "deployment_id": deployment_id,
         "model_id": "mdl_test",
@@ -111,7 +111,7 @@ def create_deployment(
 
 @pytest.mark.asyncio
 async def test_validate_rejects_duplicate_deployments() -> None:
-    """测试不同分组不能绑定同一部署"""
+    """测试不同分组不能绑定同一部署."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock()
     variants = [
@@ -141,7 +141,7 @@ async def test_validate_rejects_duplicate_deployments() -> None:
 
 @pytest.mark.asyncio
 async def test_validate_rejects_inactive_deployment() -> None:
-    """测试实验分组不能绑定未启用部署"""
+    """测试实验分组不能绑定未启用部署."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=create_deployment(
@@ -168,7 +168,7 @@ async def test_validate_rejects_inactive_deployment() -> None:
 
 @pytest.mark.asyncio
 async def test_validate_rejects_shadow_deployment() -> None:
-    """测试实验分组不能绑定影子部署"""
+    """测试实验分组不能绑定影子部署."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=create_deployment(
@@ -211,7 +211,7 @@ async def test_validate_rejects_shadow_deployment() -> None:
 async def test_validate_rejects_ineffective_deployment(
         overrides: dict[str, Any],
 ) -> None:
-    """测试实验分组部署必须处于生效时间窗口"""
+    """测试实验分组部署必须处于生效时间窗口."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=create_deployment(
@@ -238,7 +238,7 @@ async def test_validate_rejects_ineffective_deployment(
 
 @pytest.mark.asyncio
 async def test_validate_accepts_distinct_active_deployments() -> None:
-    """测试接受不同且可用的分组部署"""
+    """测试接受不同且可用的分组部署."""
     deployments = {
         "dep_control": create_deployment(
             deployment_id="dep_control"

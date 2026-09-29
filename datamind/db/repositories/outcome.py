@@ -1,4 +1,4 @@
-"""实验结果仓储
+"""实验结果仓储.
 
 用于查询与写入实验结果回流数据，
 支持 A/B 测试效果评估、模型表现监控和业务指标统计。
@@ -72,7 +72,7 @@ from datamind.db.repositories.base import BaseRepository
 
 @dataclass(slots=True)
 class OutcomePatch:
-    """实验结果更新结构
+    """实验结果更新结构.
 
     属性：
         experiment_id: 实验 ID
@@ -110,7 +110,7 @@ class OutcomePatch:
 
 
 class OutcomeRepository(BaseRepository):
-    """实验结果仓储"""
+    """实验结果仓储."""
 
     @staticmethod
     def _validate_pagination(
@@ -118,7 +118,7 @@ class OutcomeRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if (
                 limit is not None
                 and limit < 0
@@ -139,7 +139,7 @@ class OutcomeRepository(BaseRepository):
     def _validate_overdue_days(
             overdue_days: int | None,
     ) -> None:
-        """校验最大逾期天数"""
+        """校验最大逾期天数."""
         if (
                 overdue_days is not None
                 and overdue_days < 0
@@ -152,7 +152,7 @@ class OutcomeRepository(BaseRepository):
     def _validate_amount(
             amount: float | None,
     ) -> None:
-        """校验结果金额"""
+        """校验结果金额."""
         if (
                 amount is not None
                 and amount < 0
@@ -165,7 +165,7 @@ class OutcomeRepository(BaseRepository):
             self,
             outcome_id: str,
     ) -> Outcome | None:
-        """获取实验结果
+        """获取实验结果.
 
         参数：
             outcome_id: 结果 ID
@@ -204,7 +204,7 @@ class OutcomeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Outcome]:
-        """获取实验结果列表
+        """获取实验结果列表.
 
         参数：
             outcome_id: 结果 ID（可选）
@@ -339,7 +339,7 @@ class OutcomeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Outcome]:
-        """获取实验结果列表
+        """获取实验结果列表.
 
         参数：
             experiment_id: 实验 ID
@@ -362,7 +362,7 @@ class OutcomeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Outcome]:
-        """获取实验分组结果列表
+        """获取实验分组结果列表.
 
         参数：
             variant_id: 实验分组 ID
@@ -385,7 +385,7 @@ class OutcomeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Outcome]:
-        """获取主体结果列表
+        """获取主体结果列表.
 
         参数：
             subject_key: 结果主体标识
@@ -408,7 +408,7 @@ class OutcomeRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Outcome]:
-        """获取请求结果列表
+        """获取请求结果列表.
 
         参数：
             request_id: 请求 ID
@@ -444,7 +444,7 @@ class OutcomeRepository(BaseRepository):
             context: dict | None = None,
             outcome_time: datetime | None = None,
     ) -> Outcome:
-        """创建实验结果
+        """创建实验结果.
 
         参数：
             outcome_id: 结果 ID
@@ -537,7 +537,7 @@ class OutcomeRepository(BaseRepository):
             outcome: Outcome,
             patch: OutcomePatch,
     ) -> Outcome:
-        """更新实验结果
+        """更新实验结果.
 
         参数：
             outcome: 实验结果对象

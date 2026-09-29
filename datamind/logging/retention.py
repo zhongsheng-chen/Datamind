@@ -1,4 +1,4 @@
-"""日志保留管理
+"""日志保留管理.
 
 提供日志文件清理和后台定期清理功能。
 
@@ -51,7 +51,7 @@ def cleanup_logs(
         retention_days: int,
         timezone: str,
 ) -> None:
-    """清理过期日志文件
+    """清理过期日志文件.
 
     参数：
         log_dir: 日志目录路径
@@ -110,7 +110,7 @@ def cleanup_logs(
 def start_retention_worker(
         config: LoggingConfig,
 ) -> None:
-    """启动日志保留线程
+    """启动日志保留线程.
 
     已运行时重复调用不会创建新的线程。
 
@@ -171,7 +171,7 @@ def start_retention_worker(
 
 
 def stop_retention_worker() -> None:
-    """停止日志保留线程"""
+    """停止日志保留线程."""
     global _RETENTION_THREAD
 
     with _RETENTION_LOCK:

@@ -1,4 +1,4 @@
-"""删除部署命令
+"""删除部署命令.
 
 提供部署逻辑删除功能。
 
@@ -49,7 +49,7 @@ def delete_deployment(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """逻辑删除已停用且已卸载的部署"""
+    """逻辑删除已停用且已卸载的部署."""
 
     @audit(
         action="deployment.delete",

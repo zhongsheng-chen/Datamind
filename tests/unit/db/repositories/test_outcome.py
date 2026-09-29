@@ -1,4 +1,4 @@
-"""实验结果仓储测试
+"""实验结果仓储测试.
 
 验证 OutcomeRepository 的结果查询、列表筛选、辅助列表方法、
 结果记录创建、普通字段更新，以及逾期天数和金额校验。
@@ -86,7 +86,7 @@ LATER_TIME = datetime(
 def create_outcome(
         **overrides: Any,
 ) -> Outcome:
-    """创建实验结果测试对象"""
+    """创建实验结果测试对象."""
     values: dict[str, Any] = {
         "outcome_id": "out_0123456789abcdef",
         "experiment_id": "exp_0123456789abcdef",
@@ -125,7 +125,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建实验结果仓储及会话方法替身"""
+    """创建实验结果仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -173,7 +173,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -189,7 +189,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -202,7 +202,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_outcome() -> None:
-    """测试按结果 ID 查询"""
+    """测试按结果 ID 查询."""
     expected = create_outcome()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -230,7 +230,7 @@ async def test_get_outcome() -> None:
 
 @pytest.mark.asyncio
 async def test_get_outcome_returns_none_when_not_found() -> None:
-    """测试实验结果不存在时返回 None"""
+    """测试实验结果不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_outcome(
@@ -243,7 +243,7 @@ async def test_get_outcome_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_outcomes_without_filters() -> None:
-    """测试无筛选时返回全部结果并按时间倒序"""
+    """测试无筛选时返回全部结果并按时间倒序."""
     outcomes = [
         create_outcome()
     ]
@@ -273,7 +273,7 @@ async def test_list_outcomes_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_outcomes_applies_filters_and_pagination() -> None:
-    """测试关联字段、布尔字段、标签筛选和分页"""
+    """测试关联字段、布尔字段、标签筛选和分页."""
     outcomes = [
         create_outcome(
             approved=False,
@@ -365,7 +365,7 @@ async def test_list_outcomes_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_outcomes_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_outcomes(
@@ -444,7 +444,7 @@ async def test_list_methods_reject_negative_pagination(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试实验结果列表方法拒绝负数分页参数"""
+    """测试实验结果列表方法拒绝负数分页参数."""
     repository, execute, _ = create_repository()
     method = getattr(
         repository,
@@ -515,7 +515,7 @@ async def test_specialized_list_methods(
         argument_value: str,
         expected_condition: str,
 ) -> None:
-    """测试辅助列表方法应用对应筛选条件"""
+    """测试辅助列表方法应用对应筛选条件."""
     outcomes = [
         create_outcome()
     ]
@@ -549,7 +549,7 @@ async def test_specialized_list_methods(
 
 
 def test_outcome_patch_fields_and_defaults() -> None:
-    """测试实验结果更新结构字段和默认值"""
+    """测试实验结果更新结构字段和默认值."""
     patch = OutcomePatch()
 
     assert [
@@ -597,7 +597,7 @@ def test_outcome_patch_fields_and_defaults() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_outcome() -> None:
-    """测试创建完整实验结果"""
+    """测试创建完整实验结果."""
     repository, _, add = create_repository()
 
     outcome = repository.create_outcome(
@@ -662,7 +662,7 @@ def test_create_outcome() -> None:
 def test_create_outcome_uses_optional_defaults(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建结果时允许省略可选字段并使用当前时间"""
+    """测试创建结果时允许省略可选字段并使用当前时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -730,7 +730,7 @@ def test_create_outcome_accepts_boundary_values(
         field_name: str,
         value: int | float,
 ) -> None:
-    """测试逾期天数和金额的零值有效"""
+    """测试逾期天数和金额的零值有效."""
     repository, _, add = create_repository()
 
     arguments: dict[str, Any] = {
@@ -777,7 +777,7 @@ def test_create_outcome_rejects_invalid_values(
         value: int | float,
         expected_message: str,
 ) -> None:
-    """测试创建结果时拒绝非法数值"""
+    """测试创建结果时拒绝非法数值."""
     repository, _, add = create_repository()
 
     arguments: dict[str, Any] = {
@@ -799,7 +799,7 @@ def test_create_outcome_rejects_invalid_values(
 
 # noinspection PyUnreachableCode
 def test_update_outcome() -> None:
-    """测试更新所有非空实验结果字段"""
+    """测试更新所有非空实验结果字段."""
     repository, _, _ = create_repository()
     outcome = create_outcome()
 
@@ -848,7 +848,7 @@ def test_update_outcome() -> None:
 
 # noinspection PyUnreachableCode
 def test_update_outcome_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     outcome = create_outcome()
 
@@ -873,7 +873,7 @@ def test_update_outcome_ignores_none_fields() -> None:
 
 # noinspection PyUnreachableCode
 def test_update_outcome_accepts_false_zero_and_empty_string() -> None:
-    """测试 False、零值和空字符串会作为明确更新值写入"""
+    """测试 False、零值和空字符串会作为明确更新值写入."""
     repository, _, _ = create_repository()
     outcome = create_outcome(
         approved=True,
@@ -932,7 +932,7 @@ def test_update_outcome_rejects_invalid_values_without_mutation(
         patch: OutcomePatch,
         expected_message: str,
 ) -> None:
-    """测试更新时拒绝非法数值且不修改对象"""
+    """测试更新时拒绝非法数值且不修改对象."""
     repository, _, _ = create_repository()
     outcome = create_outcome()
     original_overdue_days = (

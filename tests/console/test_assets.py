@@ -1,4 +1,4 @@
-"""管理控制台静态资源测试
+"""管理控制台静态资源测试.
 
 验证页面缓存校验、构建资源长期缓存及静态文件访问边界。
 
@@ -26,7 +26,7 @@ from tests.console._app_support import app_module
 
 
 def create_app(directory: Path) -> Starlette:
-    """创建隔离的静态资源测试应用"""
+    """创建隔离的静态资源测试应用."""
     return Starlette(
         routes=[
             Mount("/", app=ConsoleStaticFiles(directory=directory)),
@@ -51,7 +51,7 @@ async def test_static_files_sets_cache_policy(
     filename: str,
     expected: str,
 ) -> None:
-    """测试只有带内容指纹的构建资源启用长期缓存"""
+    """测试只有带内容指纹的构建资源启用长期缓存."""
     (tmp_path / filename).write_text("test content", encoding="utf-8")
     async with AsyncClient(
         transport=ASGITransport(app=create_app(tmp_path)),
@@ -78,7 +78,7 @@ async def test_static_files_revalidates_cache(
     validator: str,
     condition: str,
 ) -> None:
-    """测试未变化资源返回 304 并保留缓存策略"""
+    """测试未变化资源返回 304 并保留缓存策略."""
     (tmp_path / filename).write_text("unchanged", encoding="utf-8")
     async with AsyncClient(
         transport=ASGITransport(app=create_app(tmp_path)),
@@ -98,7 +98,7 @@ async def test_static_files_revalidates_cache(
 
 @pytest.mark.asyncio
 async def test_static_files_returns_updated_page(tmp_path: Path) -> None:
-    """测试更新入口页面后旧校验标识不再命中缓存"""
+    """测试更新入口页面后旧校验标识不再命中缓存."""
     page = tmp_path / "index.html"
     page.write_text("first release", encoding="utf-8")
     async with AsyncClient(
@@ -136,7 +136,7 @@ async def test_static_files_preserves_access_restrictions(
     path: str,
     expected: int,
 ) -> None:
-    """测试不存在文件、非法方法和越界路径不启用长期缓存"""
+    """测试不存在文件、非法方法和越界路径不启用长期缓存."""
     directory = tmp_path / "public"
     directory.mkdir()
     (directory / "index.html").write_text("page", encoding="utf-8")
@@ -154,7 +154,7 @@ async def test_static_files_preserves_access_restrictions(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("root_path", ["", "/console"])
 async def test_console_build_serves_fingerprinted_assets(root_path: str) -> None:
-    """测试构建入口、资源及子路径部署使用正确的缓存策略"""
+    """测试构建入口、资源及子路径部署使用正确的缓存策略."""
     async with AsyncClient(
         transport=ASGITransport(
             app=app_module.console_app,
@@ -205,7 +205,7 @@ async def test_console_page_requires_build(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """测试缺少构建产物时返回明确提示而不回退到源码"""
+    """测试缺少构建产物时返回明确提示而不回退到源码."""
     monkeypatch.setitem(vars(app_module), "_STATIC_DIR", tmp_path)
     async with AsyncClient(
         transport=ASGITransport(app=app_module.console_app),

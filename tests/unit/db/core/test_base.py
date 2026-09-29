@@ -1,4 +1,4 @@
-"""数据库声明式基类测试
+"""数据库声明式基类测试.
 
 验证共享元数据和数据库对象命名约定，
 确保主键、外键、唯一约束、检查约束和索引
@@ -56,7 +56,7 @@ from datamind.db.core.base import (
 class BaseParentModel(
     Base
 ):
-    """命名约定测试父模型"""
+    """命名约定测试父模型."""
 
     __tablename__ = "test_base_parents"
 
@@ -94,7 +94,7 @@ class BaseParentModel(
 class BaseChildModel(
     Base
 ):
-    """命名约定测试子模型"""
+    """命名约定测试子模型."""
 
     __tablename__ = "test_base_children"
 
@@ -122,7 +122,7 @@ SupportedConstraint: TypeAlias = (
 def get_table(
         value: object,
 ) -> Table:
-    """获取并校验数据表对象"""
+    """获取并校验数据表对象."""
     assert isinstance(
         value,
         Table,
@@ -144,7 +144,7 @@ CHILD_TABLE = get_table(
     autouse=True,
 )
 def cleanup_test_tables() -> Iterator[None]:
-    """测试完成后移除共享元数据中的临时表"""
+    """测试完成后移除共享元数据中的临时表."""
     yield
 
     metadata.remove(
@@ -183,7 +183,7 @@ def get_constraint(
         table: Table,
         constraint_type: type[SupportedConstraint],
 ) -> SupportedConstraint:
-    """按类型获取数据表约束"""
+    """按类型获取数据表约束."""
     matching_constraints = [
         constraint
         for constraint in table.constraints
@@ -216,7 +216,7 @@ def get_constraint(
 def get_constraint_name(
         constraint: object,
 ) -> str:
-    """获取并校验数据库对象名称"""
+    """获取并校验数据库对象名称."""
     name = getattr(
         constraint,
         "name",
@@ -232,7 +232,7 @@ def get_constraint_name(
 
 
 def test_naming_convention() -> None:
-    """测试数据库对象命名约定"""
+    """测试数据库对象命名约定."""
     assert naming_convention == {
         "ix": "ix_%(column_0_label)s",
         "uq": (
@@ -253,7 +253,7 @@ def test_naming_convention() -> None:
 
 
 def test_base_uses_shared_metadata() -> None:
-    """测试声明式基类使用共享元数据"""
+    """测试声明式基类使用共享元数据."""
     assert isinstance(
         metadata,
         MetaData,
@@ -266,7 +266,7 @@ def test_base_uses_shared_metadata() -> None:
 
 
 def test_models_are_registered_in_shared_metadata() -> None:
-    """测试模型表注册到共享元数据"""
+    """测试模型表注册到共享元数据."""
     assert PARENT_TABLE.metadata is metadata
     assert CHILD_TABLE.metadata is metadata
 
@@ -285,7 +285,7 @@ def test_models_are_registered_in_shared_metadata() -> None:
 
 
 def test_primary_key_naming() -> None:
-    """测试主键名称"""
+    """测试主键名称."""
     assert get_constraint_name(
         PARENT_TABLE.primary_key
     ) == "pk_test_base_parents"
@@ -296,7 +296,7 @@ def test_primary_key_naming() -> None:
 
 
 def test_unique_constraint_naming() -> None:
-    """测试唯一约束名称"""
+    """测试唯一约束名称."""
     constraint = get_constraint(
         PARENT_TABLE,
         UniqueConstraint,
@@ -315,7 +315,7 @@ def test_unique_constraint_naming() -> None:
 
 
 def test_check_constraint_naming() -> None:
-    """测试检查约束名称"""
+    """测试检查约束名称."""
     constraint = get_constraint(
         PARENT_TABLE,
         CheckConstraint,
@@ -334,7 +334,7 @@ def test_check_constraint_naming() -> None:
 
 
 def test_foreign_key_constraint_naming() -> None:
-    """测试外键约束名称"""
+    """测试外键约束名称."""
     constraint = get_constraint(
         CHILD_TABLE,
         ForeignKeyConstraint,
@@ -366,7 +366,7 @@ def test_foreign_key_constraint_naming() -> None:
 
 
 def test_index_naming() -> None:
-    """测试索引名称"""
+    """测试索引名称."""
     indexes = list(
         PARENT_TABLE.indexes
     )
@@ -416,7 +416,7 @@ def test_index_naming() -> None:
 
 
 def test_unnamed_check_constraint_is_rejected() -> None:
-    """测试检查约束必须显式命名"""
+    """测试检查约束必须显式命名."""
     isolated_metadata = MetaData(
         naming_convention=naming_convention
     )

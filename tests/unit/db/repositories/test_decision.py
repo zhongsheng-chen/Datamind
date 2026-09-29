@@ -1,4 +1,4 @@
-"""请求决策仓储测试
+"""请求决策仓储测试.
 
 验证 DecisionRepository 的决策查询、列表筛选、辅助列表方法，
 以及决策记录创建和权重校验。
@@ -70,7 +70,7 @@ EARLIER_TIME = datetime(
 def create_decision(
         **overrides: Any,
 ) -> Decision:
-    """创建请求决策测试对象"""
+    """创建请求决策测试对象."""
     values: dict[str, Any] = {
         "decision_id": "dcs_0123456789abcdef",
         "request_id": "req_0123456789abcdef",
@@ -113,7 +113,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建请求决策仓储及会话方法替身"""
+    """创建请求决策仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -161,7 +161,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -177,7 +177,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -190,7 +190,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_decision() -> None:
-    """测试按请求 ID 查询决策结果"""
+    """测试按请求 ID 查询决策结果."""
     expected = create_decision()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -220,7 +220,7 @@ async def test_get_decision() -> None:
 
 @pytest.mark.asyncio
 async def test_get_decision_returns_none_when_not_found() -> None:
-    """测试请求没有决策结果时返回 None"""
+    """测试请求没有决策结果时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_decision(
@@ -233,7 +233,7 @@ async def test_get_decision_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_decisions_without_filters() -> None:
-    """测试无筛选时返回全部决策并按时间倒序"""
+    """测试无筛选时返回全部决策并按时间倒序."""
     decisions = [
         create_decision()
     ]
@@ -263,7 +263,7 @@ async def test_list_decisions_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_decisions_applies_filters_and_pagination() -> None:
-    """测试决策来源、主体字段、普通字段筛选和分页"""
+    """测试决策来源、主体字段、普通字段筛选和分页."""
     decisions = [
         create_decision(
             source=str(
@@ -383,7 +383,7 @@ async def test_list_decisions_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_decisions_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_decisions(
@@ -462,7 +462,7 @@ async def test_list_methods_reject_negative_pagination(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试决策列表方法拒绝负数分页参数"""
+    """测试决策列表方法拒绝负数分页参数."""
     repository, execute, _ = create_repository()
     method = getattr(
         repository,
@@ -533,7 +533,7 @@ async def test_specialized_list_methods(
         argument_value: str,
         expected_condition: str,
 ) -> None:
-    """测试辅助列表方法应用对应筛选条件"""
+    """测试辅助列表方法应用对应筛选条件."""
     decisions = [
         create_decision()
     ]
@@ -567,7 +567,7 @@ async def test_specialized_list_methods(
 
 
 def test_create_decision() -> None:
-    """测试创建完整决策记录"""
+    """测试创建完整决策记录."""
     repository, _, add = create_repository()
 
     decision = repository.create_decision(
@@ -640,7 +640,7 @@ def test_create_decision() -> None:
 def test_create_decision_uses_optional_defaults(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建决策时允许省略可选字段并使用当前时间"""
+    """测试创建决策时允许省略可选字段并使用当前时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -711,7 +711,7 @@ def test_create_decision_accepts_boundary_values(
         field_name: str,
         value: float,
 ) -> None:
-    """测试数值字段边界值有效"""
+    """测试数值字段边界值有效."""
     repository, _, add = create_repository()
 
     arguments: dict[str, Any] = {
@@ -761,7 +761,7 @@ def test_create_decision_rejects_invalid_values(
         value: float,
         expected_message: str,
 ) -> None:
-    """测试创建决策时拒绝非法数值"""
+    """测试创建决策时拒绝非法数值."""
     repository, _, add = create_repository()
 
     arguments: dict[str, Any] = {

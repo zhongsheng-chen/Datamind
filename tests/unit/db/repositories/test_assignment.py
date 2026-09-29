@@ -1,4 +1,4 @@
-"""实验分配仓储测试
+"""实验分配仓储测试.
 
 验证 AssignmentRepository 的固定分配查询、列表筛选、
 辅助列表方法，以及实验分配记录的创建和字段校验。
@@ -72,7 +72,7 @@ EARLIER_TIME = datetime(
 def create_assignment(
         **overrides: Any,
 ) -> Assignment:
-    """创建实验分配测试对象"""
+    """创建实验分配测试对象."""
     values: dict[str, Any] = {
         "assignment_id": "asn_0123456789abcdef",
         "experiment_id": "exp_0123456789abcdef",
@@ -107,7 +107,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建实验分配仓储及会话方法替身"""
+    """创建实验分配仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -155,7 +155,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -171,7 +171,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -184,7 +184,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_assignment() -> None:
-    """测试按分配 ID 查询"""
+    """测试按分配 ID 查询."""
     expected = create_assignment()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -212,7 +212,7 @@ async def test_get_assignment() -> None:
 
 @pytest.mark.asyncio
 async def test_get_assignment_returns_none_when_not_found() -> None:
-    """测试分配记录不存在时返回 None"""
+    """测试分配记录不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_assignment(
@@ -225,7 +225,7 @@ async def test_get_assignment_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_get_subject_assignment() -> None:
-    """测试获取主体在实验中的固定分配"""
+    """测试获取主体在实验中的固定分配."""
     expected = create_assignment()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -258,7 +258,7 @@ async def test_get_subject_assignment() -> None:
 
 @pytest.mark.asyncio
 async def test_get_subject_assignment_returns_none() -> None:
-    """测试主体没有固定分配时返回 None"""
+    """测试主体没有固定分配时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_subject_assignment(
@@ -272,7 +272,7 @@ async def test_get_subject_assignment_returns_none() -> None:
 
 @pytest.mark.asyncio
 async def test_list_assignments_without_filters() -> None:
-    """测试无筛选时返回全部记录并按时间倒序"""
+    """测试无筛选时返回全部记录并按时间倒序."""
     assignments = [
         create_assignment()
     ]
@@ -302,7 +302,7 @@ async def test_list_assignments_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_assignments_applies_filters_and_pagination() -> None:
-    """测试策略、主体字段、普通字段筛选和分页"""
+    """测试策略、主体字段、普通字段筛选和分页."""
     assignments = [
         create_assignment(
             strategy=str(
@@ -377,7 +377,7 @@ async def test_list_assignments_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_assignments_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_assignments(
@@ -448,7 +448,7 @@ async def test_list_methods_reject_negative_pagination(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试分配列表方法拒绝负数分页参数"""
+    """测试分配列表方法拒绝负数分页参数."""
     repository, execute, _ = create_repository()
     method = getattr(
         repository,
@@ -468,7 +468,7 @@ async def test_list_methods_reject_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_experiment_assignments() -> None:
-    """测试获取实验分配记录"""
+    """测试获取实验分配记录."""
     assignments = [
         create_assignment()
     ]
@@ -501,7 +501,7 @@ async def test_list_experiment_assignments() -> None:
 
 @pytest.mark.asyncio
 async def test_list_variant_assignments() -> None:
-    """测试获取实验分组分配记录"""
+    """测试获取实验分组分配记录."""
     assignments = [
         create_assignment()
     ]
@@ -534,7 +534,7 @@ async def test_list_variant_assignments() -> None:
 
 @pytest.mark.asyncio
 async def test_list_subject_assignments() -> None:
-    """测试获取主体参与的实验分配记录"""
+    """测试获取主体参与的实验分配记录."""
     assignments = [
         create_assignment()
     ]
@@ -566,7 +566,7 @@ async def test_list_subject_assignments() -> None:
 
 
 def test_create_assignment() -> None:
-    """测试创建完整实验分配记录"""
+    """测试创建完整实验分配记录."""
     repository, _, add = create_repository()
 
     assignment = repository.create_assignment(
@@ -613,7 +613,7 @@ def test_create_assignment() -> None:
 def test_create_assignment_uses_optional_defaults(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建分配记录的默认策略和当前时间"""
+    """测试创建分配记录的默认策略和当前时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -665,7 +665,7 @@ def test_create_assignment_uses_optional_defaults(
 def test_create_assignment_accepts_boundary_weight(
         weight: float,
 ) -> None:
-    """测试分配权重边界值有效"""
+    """测试分配权重边界值有效."""
     repository, _, add = create_repository()
 
     assignment = repository.create_assignment(
@@ -685,7 +685,7 @@ def test_create_assignment_accepts_boundary_weight(
 
 # noinspection PyUnreachableCode
 def test_create_assignment_accepts_none_weight() -> None:
-    """测试分配权重允许为空"""
+    """测试分配权重允许为空."""
     repository, _, add = create_repository()
 
     assignment = repository.create_assignment(
@@ -713,7 +713,7 @@ def test_create_assignment_accepts_none_weight() -> None:
 def test_create_assignment_rejects_invalid_weight(
         weight: float,
 ) -> None:
-    """测试创建时拒绝非法分配权重"""
+    """测试创建时拒绝非法分配权重."""
     repository, _, add = create_repository()
 
     with pytest.raises(
@@ -735,7 +735,7 @@ def test_create_assignment_rejects_invalid_weight(
 
 @pytest.mark.asyncio
 async def test_get_or_create_assignment_returns_created_record() -> None:
-    """测试原子写入成功时返回新固定分配"""
+    """测试原子写入成功时返回新固定分配."""
     expected = create_assignment()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -768,7 +768,7 @@ async def test_get_or_create_assignment_returns_created_record() -> None:
 
 @pytest.mark.asyncio
 async def test_get_or_create_assignment_returns_concurrent_record() -> None:
-    """测试并发冲突时返回数据库中的已有固定分配"""
+    """测试并发冲突时返回数据库中的已有固定分配."""
     existing = create_assignment(
         assignment_id="asn_existing",
         variant_id="var_existing",

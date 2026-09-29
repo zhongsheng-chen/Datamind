@@ -1,4 +1,4 @@
-"""控制台实时事件
+"""控制台实时事件.
 
 监听 PostgreSQL 变更通知，并向控制台 SSE 连接广播可靠事件游标。
 通知连接不可用时定期查询 Outbox，保证页面仍可恢复更新。
@@ -48,10 +48,10 @@ _CLEANUP_INTERVAL = timedelta(
 
 
 class ConsoleEventBroker:
-    """控制台事件通知代理"""
+    """控制台事件通知代理."""
 
     def __init__(self) -> None:
-        """初始化事件通知代理"""
+        """初始化事件通知代理."""
         self._subscribers: set[asyncio.Queue[int]] = set()
         self._task: asyncio.Task[None] | None = None
         self._start_lock = asyncio.Lock()
@@ -60,7 +60,7 @@ class ConsoleEventBroker:
         self._last_cleanup_at: datetime | None = None
 
     async def start(self) -> None:
-        """启动 PostgreSQL 通知监听任务"""
+        """启动 PostgreSQL 通知监听任务."""
         async with self._start_lock:
             task = self._task
 
@@ -73,7 +73,7 @@ class ConsoleEventBroker:
             )
 
     async def stop(self) -> None:
-        """停止 PostgreSQL 通知监听任务"""
+        """停止 PostgreSQL 通知监听任务."""
         async with self._start_lock:
             task = self._task
             self._task = None
@@ -95,7 +95,7 @@ class ConsoleEventBroker:
     async def subscribe(
             self,
     ) -> AsyncIterator[asyncio.Queue[int]]:
-        """订阅控制台事件游标"""
+        """订阅控制台事件游标."""
         await self.start()
         queue: asyncio.Queue[int] = asyncio.Queue(
             maxsize=1
@@ -112,7 +112,7 @@ class ConsoleEventBroker:
             )
 
     async def _run(self) -> None:
-        """持续监听通知并在异常时自动重连"""
+        """持续监听通知并在异常时自动重连."""
         dsn = self._get_notification_dsn()
 
         while True:
@@ -139,7 +139,7 @@ class ConsoleEventBroker:
             self,
             dsn: str,
     ) -> None:
-        """监听 PostgreSQL 通知频道"""
+        """监听 PostgreSQL 通知频道."""
         connection = await asyncpg.connect(
             dsn=dsn
         )
@@ -173,7 +173,7 @@ class ConsoleEventBroker:
                 await connection.close()
 
     async def _poll_forever(self) -> None:
-        """在非 PostgreSQL 环境定期读取事件"""
+        """在非 PostgreSQL 环境定期读取事件."""
         await self._initialize_cursor()
 
         while True:
@@ -183,7 +183,7 @@ class ConsoleEventBroker:
             await self._poll_once()
 
     async def _initialize_cursor(self) -> None:
-        """从当前最新事件初始化监听游标"""
+        """从当前最新事件初始化监听游标."""
         if self._last_event_id is not None:
             return
 
@@ -195,7 +195,7 @@ class ConsoleEventBroker:
         self._last_event_id = latest or 0
 
     async def _poll_once(self) -> None:
-        """读取新增事件并广播最新游标"""
+        """读取新增事件并广播最新游标."""
         if self._last_event_id is None:
             await self._initialize_cursor()
 
@@ -227,7 +227,7 @@ class ConsoleEventBroker:
         await self._cleanup_if_due()
 
     async def _poll_safely(self) -> None:
-        """在重连期间尝试查询事件且不终止监听任务"""
+        """在重连期间尝试查询事件且不终止监听任务."""
         try:
             await self._poll_once()
         except asyncio.CancelledError:
@@ -239,7 +239,7 @@ class ConsoleEventBroker:
             )
 
     async def _cleanup_if_due(self) -> None:
-        """定期清理超过保留期的事件"""
+        """定期清理超过保留期的事件."""
         now = datetime.now(
             timezone.utc
         )
@@ -267,7 +267,7 @@ class ConsoleEventBroker:
             _channel: str,
             payload: str,
     ) -> None:
-        """接收 PostgreSQL 事件通知"""
+        """接收 PostgreSQL 事件通知."""
         try:
             event_id = int(
                 payload
@@ -285,7 +285,7 @@ class ConsoleEventBroker:
             self,
             event_id: int,
     ) -> None:
-        """向所有 SSE 订阅者广播最新游标"""
+        """向所有 SSE 订阅者广播最新游标."""
         for queue in tuple(
                 self._subscribers
         ):
@@ -301,7 +301,7 @@ class ConsoleEventBroker:
 
     @staticmethod
     def _get_notification_dsn() -> str | None:
-        """获取 asyncpg 通知连接地址"""
+        """获取 asyncpg 通知连接地址."""
         url = make_url(
             get_db_url()
         )

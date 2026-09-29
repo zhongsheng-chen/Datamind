@@ -1,4 +1,4 @@
-"""模型版本仓储测试
+"""模型版本仓储测试.
 
 验证 VersionRepository 的版本查询、列表筛选、创建、
 普通字段更新，以及由 ModelGuard 控制的版本生命周期迁移。
@@ -73,7 +73,7 @@ CURRENT_TIME = datetime(
 def create_version(
         **overrides: Any,
 ) -> Version:
-    """创建模型版本测试对象"""
+    """创建模型版本测试对象."""
     values: dict[str, Any] = {
         "version_id": "ver_0123456789abcdef",
         "model_id": "mdl_0123456789abcdef",
@@ -123,7 +123,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建模型版本仓储及会话方法替身"""
+    """创建模型版本仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -171,7 +171,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -187,7 +187,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -200,7 +200,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_version() -> None:
-    """测试按版本 ID 查询"""
+    """测试按版本 ID 查询."""
     expected = create_version()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -228,7 +228,7 @@ async def test_get_version() -> None:
 
 @pytest.mark.asyncio
 async def test_get_version_returns_none_when_not_found() -> None:
-    """测试版本不存在时返回 None"""
+    """测试版本不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_version(
@@ -241,7 +241,7 @@ async def test_get_version_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_get_latest_version() -> None:
-    """测试按创建时间获取最新版本"""
+    """测试按创建时间获取最新版本."""
     expected = create_version(
         version="2.0.0"
     )
@@ -275,7 +275,7 @@ async def test_get_latest_version() -> None:
 
 @pytest.mark.asyncio
 async def test_get_latest_version_returns_none() -> None:
-    """测试模型没有版本时返回 None"""
+    """测试模型没有版本时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_latest_version(
@@ -288,7 +288,7 @@ async def test_get_latest_version_returns_none() -> None:
 
 @pytest.mark.asyncio
 async def test_list_versions_excludes_archived_by_default() -> None:
-    """测试版本列表默认排除归档版本"""
+    """测试版本列表默认排除归档版本."""
     versions = [
         create_version()
     ]
@@ -320,7 +320,7 @@ async def test_list_versions_excludes_archived_by_default() -> None:
 
 @pytest.mark.asyncio
 async def test_list_versions_includes_archived_when_requested() -> None:
-    """测试显式请求时包含归档版本"""
+    """测试显式请求时包含归档版本."""
     repository, execute, _ = create_repository()
 
     await repository.list_versions(
@@ -339,7 +339,7 @@ async def test_list_versions_includes_archived_when_requested() -> None:
 
 @pytest.mark.asyncio
 async def test_list_versions_status_overrides_archive_filter() -> None:
-    """测试显式状态过滤优先于默认归档排除"""
+    """测试显式状态过滤优先于默认归档排除."""
     repository, execute, _ = create_repository()
 
     await repository.list_versions(
@@ -361,7 +361,7 @@ async def test_list_versions_status_overrides_archive_filter() -> None:
 
 @pytest.mark.asyncio
 async def test_list_versions_applies_filters_and_pagination() -> None:
-    """测试列表筛选、状态、排序和分页"""
+    """测试列表筛选、状态、排序和分页."""
     versions = [
         create_version(
             framework="xgboost",
@@ -424,7 +424,7 @@ async def test_list_versions_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_versions_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_versions(
@@ -471,7 +471,7 @@ async def test_list_versions_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -486,7 +486,7 @@ async def test_list_versions_rejects_negative_pagination(
 
 
 def test_version_patch_fields_and_defaults() -> None:
-    """测试更新结构仅包含普通版本字段"""
+    """测试更新结构仅包含普通版本字段."""
     patch = VersionPatch()
 
     assert [
@@ -539,7 +539,7 @@ def test_version_patch_fields_and_defaults() -> None:
 
 
 def test_version_patch_accepts_framework_enum() -> None:
-    """测试更新结构接受框架枚举"""
+    """测试更新结构接受框架枚举."""
     patch = VersionPatch(
         framework=Framework.XGBOOST
     )
@@ -550,7 +550,7 @@ def test_version_patch_accepts_framework_enum() -> None:
 
 
 def test_create_version() -> None:
-    """测试创建版本并显式设置 inactive 状态"""
+    """测试创建版本并显式设置 inactive 状态."""
     repository, _, add = create_repository()
 
     version = repository.create_version(
@@ -613,7 +613,7 @@ def test_create_version() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_version_allows_optional_fields() -> None:
-    """测试创建版本时允许省略可选字段"""
+    """测试创建版本时允许省略可选字段."""
     repository, _, add = create_repository()
 
     version = repository.create_version(
@@ -642,7 +642,7 @@ def test_create_version_allows_optional_fields() -> None:
 
 
 def test_update_version() -> None:
-    """测试普通版本字段更新"""
+    """测试普通版本字段更新."""
     repository, _, _ = create_repository()
     version = create_version()
     original_status = version.status
@@ -706,7 +706,7 @@ def test_update_version() -> None:
 
 
 def test_update_version_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     version = create_version(
         description="原版本说明"
@@ -735,7 +735,7 @@ def test_archive_version(
         monkeypatch: pytest.MonkeyPatch,
         current_status: VersionStatus,
 ) -> None:
-    """测试允许的状态可以归档"""
+    """测试允许的状态可以归档."""
     class FrozenDateTime(
         datetime
     ):
@@ -779,7 +779,7 @@ def test_archive_version(
 
 
 def test_archive_version_is_idempotent() -> None:
-    """测试重复归档保持幂等"""
+    """测试重复归档保持幂等."""
     archived_at = datetime(
         2026,
         7,
@@ -811,7 +811,7 @@ def test_archive_version_is_idempotent() -> None:
 
 # noinspection PyUnreachableCode
 def test_archive_version_rejects_active_status() -> None:
-    """测试 active 状态不能直接归档"""
+    """测试 active 状态不能直接归档."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -833,7 +833,7 @@ def test_archive_version_rejects_active_status() -> None:
 
 
 def test_activate_version() -> None:
-    """测试从 inactive 状态激活版本"""
+    """测试从 inactive 状态激活版本."""
     repository, _, _ = create_repository()
     version = create_version()
 
@@ -850,7 +850,7 @@ def test_activate_version() -> None:
 
 
 def test_activate_version_is_idempotent() -> None:
-    """测试重复激活保持幂等"""
+    """测试重复激活保持幂等."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -880,7 +880,7 @@ def test_activate_version_is_idempotent() -> None:
 def test_activate_version_rejects_invalid_transition(
         current_status: VersionStatus,
 ) -> None:
-    """测试 deprecated 和 archived 状态不能激活"""
+    """测试 deprecated 和 archived 状态不能激活."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -901,7 +901,7 @@ def test_activate_version_rejects_invalid_transition(
 
 
 def test_deprecate_version() -> None:
-    """测试从 active 状态废弃版本"""
+    """测试从 active 状态废弃版本."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -922,7 +922,7 @@ def test_deprecate_version() -> None:
 
 
 def test_deprecate_inactive_version() -> None:
-    """测试从 inactive 状态废弃版本"""
+    """测试从 inactive 状态废弃版本."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -943,7 +943,7 @@ def test_deprecate_inactive_version() -> None:
 
 
 def test_deprecate_version_is_idempotent() -> None:
-    """测试重复废弃保持幂等"""
+    """测试重复废弃保持幂等."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -972,7 +972,7 @@ def test_deprecate_version_is_idempotent() -> None:
 def test_deprecate_version_rejects_invalid_transition(
         current_status: VersionStatus,
 ) -> None:
-    """测试 archived 状态不能废弃"""
+    """测试 archived 状态不能废弃."""
     repository, _, _ = create_repository()
     version = create_version(
         status=str(
@@ -1003,7 +1003,7 @@ def test_deprecate_version_rejects_invalid_transition(
 def test_version_lifecycle_rejects_unknown_status(
         method_name: str,
 ) -> None:
-    """测试未知状态不能进入版本生命周期迁移"""
+    """测试未知状态不能进入版本生命周期迁移."""
     repository, _, _ = create_repository()
     version = create_version(
         status="unknown"
@@ -1028,7 +1028,7 @@ def test_version_lifecycle_rejects_unknown_status(
 
 
 def test_mark_deleted() -> None:
-    """测试标记版本已删除并记录操作人"""
+    """测试标记版本已删除并记录操作人."""
     repository, _, _ = create_repository()
     version = create_version()
     deleted_at = datetime.now(timezone.utc)
@@ -1053,7 +1053,7 @@ def test_mark_deleted() -> None:
 
 
 def test_restore_version() -> None:
-    """测试恢复逻辑删除版本并重置为 inactive"""
+    """测试恢复逻辑删除版本并重置为 inactive."""
     repository, _, _ = create_repository()
     version: Any = create_version(
         status="archived",

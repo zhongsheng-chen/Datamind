@@ -1,4 +1,4 @@
-"""请求仓储测试
+"""请求仓储测试.
 
 验证 RequestRepository 的请求查询、列表筛选、辅助列表方法、
 请求记录创建，以及成功和失败状态更新。
@@ -47,7 +47,7 @@ from datamind.db.repositories.request import RequestRepository
 def create_request(
         **overrides: Any,
 ) -> Request:
-    """创建请求记录测试对象"""
+    """创建请求记录测试对象."""
     values: dict[str, Any] = {
         "request_id": "req_0123456789abcdef",
         "model_id": "mdl_0123456789abcdef",
@@ -82,7 +82,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建请求仓储及会话方法替身"""
+    """创建请求仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -130,7 +130,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -146,7 +146,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -159,7 +159,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_request() -> None:
-    """测试按请求 ID 查询"""
+    """测试按请求 ID 查询."""
     expected = create_request()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -187,7 +187,7 @@ async def test_get_request() -> None:
 
 @pytest.mark.asyncio
 async def test_get_request_returns_none_when_not_found() -> None:
-    """测试请求记录不存在时返回 None"""
+    """测试请求记录不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_request(
@@ -200,7 +200,7 @@ async def test_get_request_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_requests_without_filters() -> None:
-    """测试无筛选时返回全部请求并按创建时间倒序"""
+    """测试无筛选时返回全部请求并按创建时间倒序."""
     requests = [
         create_request()
     ]
@@ -229,7 +229,7 @@ async def test_list_requests_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_requests_applies_filters_and_pagination() -> None:
-    """测试请求字段筛选、排序和分页"""
+    """测试请求字段筛选、排序和分页."""
     requests = [
         create_request(
             status="success",
@@ -286,7 +286,7 @@ async def test_list_requests_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_requests_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_requests(
@@ -348,7 +348,7 @@ async def test_list_methods_reject_negative_pagination(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试请求列表方法拒绝负数分页参数"""
+    """测试请求列表方法拒绝负数分页参数."""
     repository, execute, _ = create_repository()
     method = getattr(
         repository,
@@ -368,7 +368,7 @@ async def test_list_methods_reject_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_recent_requests_uses_default_limit() -> None:
-    """测试最近请求默认返回 100 条"""
+    """测试最近请求默认返回 100 条."""
     requests = [
         create_request()
     ]
@@ -396,7 +396,7 @@ async def test_list_recent_requests_uses_default_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_recent_requests_accepts_custom_pagination() -> None:
-    """测试最近请求支持自定义分页"""
+    """测试最近请求支持自定义分页."""
     repository, execute, _ = create_repository()
 
     await repository.list_recent_requests(
@@ -416,7 +416,7 @@ async def test_list_recent_requests_accepts_custom_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_model_requests_uses_default_limit() -> None:
-    """测试模型请求默认返回 100 条"""
+    """测试模型请求默认返回 100 条."""
     requests = [
         create_request()
     ]
@@ -446,7 +446,7 @@ async def test_list_model_requests_uses_default_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_model_requests_accepts_custom_pagination() -> None:
-    """测试模型请求支持自定义分页"""
+    """测试模型请求支持自定义分页."""
     repository, execute, _ = create_repository()
 
     await repository.list_model_requests(
@@ -472,7 +472,7 @@ async def test_list_model_requests_accepts_custom_pagination() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_request() -> None:
-    """测试创建请求并显式设置 received 状态"""
+    """测试创建请求并显式设置 received 状态."""
     repository, _, add = create_repository()
 
     request = repository.create_request(
@@ -514,7 +514,7 @@ def test_create_request() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_request_allows_optional_fields() -> None:
-    """测试创建请求时允许省略可选字段"""
+    """测试创建请求时允许省略可选字段."""
     repository, _, add = create_repository()
 
     request = repository.create_request(
@@ -537,7 +537,7 @@ def test_create_request_allows_optional_fields() -> None:
 
 
 def test_create_request_allows_unresolved_model() -> None:
-    """测试模型解析前可保存原始请求"""
+    """测试模型解析前可保存原始请求."""
     repository, _, add = create_repository()
 
     request = repository.create_request(
@@ -565,7 +565,7 @@ def test_create_request_allows_unresolved_model() -> None:
 def test_create_request_accepts_non_negative_latency(
         latency_ms: float,
 ) -> None:
-    """测试创建请求接受非负耗时"""
+    """测试创建请求接受非负耗时."""
     repository, _, add = create_repository()
 
     request = repository.create_request(
@@ -581,7 +581,7 @@ def test_create_request_accepts_non_negative_latency(
 
 
 def test_create_request_rejects_negative_latency() -> None:
-    """测试创建请求拒绝负数耗时"""
+    """测试创建请求拒绝负数耗时."""
     repository, _, add = create_repository()
 
     with pytest.raises(
@@ -599,7 +599,7 @@ def test_create_request_rejects_negative_latency() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_success() -> None:
-    """测试标记请求处理成功"""
+    """测试标记请求处理成功."""
     repository, _, _ = create_repository()
     request = create_request(
         model_id=None,
@@ -633,7 +633,7 @@ def test_mark_success() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_success_preserves_latency_when_omitted() -> None:
-    """测试成功时未提供耗时则保留原值"""
+    """测试成功时未提供耗时则保留原值."""
     repository, _, _ = create_repository()
     request = create_request(
         model_id=None,
@@ -651,7 +651,7 @@ def test_mark_success_preserves_latency_when_omitted() -> None:
 
 
 def test_mark_success_accepts_zero_latency() -> None:
-    """测试成功状态允许零耗时"""
+    """测试成功状态允许零耗时."""
     repository, _, _ = create_repository()
     request = create_request(
         latency_ms=100.0
@@ -666,7 +666,7 @@ def test_mark_success_accepts_zero_latency() -> None:
 
 
 def test_mark_success_rejects_negative_latency_without_mutation() -> None:
-    """测试成功状态拒绝负数耗时且不修改对象"""
+    """测试成功状态拒绝负数耗时且不修改对象."""
     repository, _, _ = create_repository()
     request = create_request(
         status="failed",
@@ -689,7 +689,7 @@ def test_mark_success_rejects_negative_latency_without_mutation() -> None:
 
 
 def test_mark_failed() -> None:
-    """测试标记请求处理失败"""
+    """测试标记请求处理失败."""
     repository, _, _ = create_repository()
     request = create_request(
         status="received",
@@ -721,7 +721,7 @@ def test_mark_failed() -> None:
 
 
 def test_mark_failed_preserves_latency_when_omitted() -> None:
-    """测试失败时未提供耗时则保留原值"""
+    """测试失败时未提供耗时则保留原值."""
     repository, _, _ = create_repository()
     request = create_request(
         status="received",
@@ -739,7 +739,7 @@ def test_mark_failed_preserves_latency_when_omitted() -> None:
 
 
 def test_mark_failed_accepts_empty_error() -> None:
-    """测试失败状态允许明确写入空错误信息"""
+    """测试失败状态允许明确写入空错误信息."""
     repository, _, _ = create_repository()
     request = create_request()
 
@@ -756,7 +756,7 @@ def test_mark_failed_accepts_empty_error() -> None:
 
 @pytest.mark.asyncio
 async def test_list_batch_requests() -> None:
-    """测试批次请求按批次位置查询"""
+    """测试批次请求按批次位置查询."""
     requests = [
         create_request(batch_id="bat_test", batch_index=0),
         create_request(
@@ -784,7 +784,7 @@ async def test_list_batch_requests() -> None:
 
 
 def test_reset_for_retry() -> None:
-    """测试失败的批次请求重置后复用原记录"""
+    """测试失败的批次请求重置后复用原记录."""
     request = create_request(
         batch_id="bat_test",
         batch_index=0,
@@ -807,7 +807,7 @@ def test_reset_for_retry() -> None:
 
 
 def test_reset_for_retry_rejects_success() -> None:
-    """测试成功的批次请求不能进入重试流程"""
+    """测试成功的批次请求不能进入重试流程."""
     request = create_request(
         batch_id="bat_test",
         batch_index=0,
@@ -820,7 +820,7 @@ def test_reset_for_retry_rejects_success() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_failed_rejects_negative_latency_without_mutation() -> None:
-    """测试失败状态拒绝负数耗时且不修改对象"""
+    """测试失败状态拒绝负数耗时且不修改对象."""
     repository, _, _ = create_repository()
     request = create_request(
         status="success",

@@ -1,4 +1,4 @@
-"""运行实例在线状态
+"""运行实例在线状态.
 
 统一定义运行实例的心跳有效期和失联判定。
 
@@ -24,7 +24,7 @@ _HEARTBEAT_GRACE_PERIODS = 3
 
 @dataclass(frozen=True)
 class RuntimePresence:
-    """运行实例的在线状态判定"""
+    """运行实例的在线状态判定."""
 
     stale_at: datetime
 
@@ -34,7 +34,7 @@ class RuntimePresence:
             *,
             current_time: datetime | None = None,
     ) -> "RuntimePresence":
-        """根据心跳配置创建当前在线状态判定"""
+        """根据心跳配置创建当前在线状态判定."""
         heartbeat_interval = (
             get_runtime_config().heartbeat_interval
         )
@@ -58,7 +58,7 @@ class RuntimePresence:
             status: str,
             activity_at: datetime | None,
     ) -> bool:
-        """判断运行实例是否已经失联"""
+        """判断运行实例是否已经失联."""
         if status not in ACTIVE_RUNTIME_STATUSES:
             return False
 
@@ -78,7 +78,7 @@ class RuntimePresence:
             status: str,
             activity_at: datetime | None,
     ) -> RuntimeHealthStatus:
-        """根据运行状态与最近活动时间计算健康状态"""
+        """根据运行状态与最近活动时间计算健康状态."""
         if status not in ACTIVE_RUNTIME_STATUSES:
             return RuntimeHealthStatus.UNKNOWN
 

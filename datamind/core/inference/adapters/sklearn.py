@@ -1,4 +1,4 @@
-"""Sklearn 模型适配器
+"""Sklearn 模型适配器.
 
 为 Sklearn 二分类模型提供概率预测和特征重要性接口，
 逻辑回归模型额外提供对数几率预测接口。
@@ -88,7 +88,7 @@ _LOGISTIC_REGRESSION_TYPES = (
 
 
 class SklearnAdapter(BaseModelAdapter):
-    """Sklearn 二分类模型适配器"""
+    """Sklearn 二分类模型适配器."""
 
     def __init__(
             self,
@@ -97,7 +97,7 @@ class SklearnAdapter(BaseModelAdapter):
             data_types: dict[str, DataType] | None = None,
             positive_class: Any = 1,
     ) -> None:
-        """初始化 Sklearn 模型适配器
+        """初始化 Sklearn 模型适配器.
 
         参数：
             model: 已训练模型
@@ -117,7 +117,7 @@ class SklearnAdapter(BaseModelAdapter):
     def _detect_capabilities(
             self,
     ) -> ModelCapability:
-        """检测当前 Sklearn 模型能力"""
+        """检测当前 Sklearn 模型能力."""
         capabilities = ModelCapability.NONE
         estimator = (
             self._get_estimator()
@@ -190,7 +190,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """概率预测"""
+        """概率预测."""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
@@ -216,7 +216,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量概率预测"""
+        """批量概率预测."""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
@@ -246,7 +246,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """逻辑回归对数几率预测"""
+        """逻辑回归对数几率预测."""
         self.require_capability(
             ModelCapability.PREDICT_LOG_ODDS
         )
@@ -270,7 +270,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """逻辑回归批量对数几率预测"""
+        """逻辑回归批量对数几率预测."""
         self.require_capability(
             ModelCapability.PREDICT_LOG_ODDS
         )
@@ -297,7 +297,7 @@ class SklearnAdapter(BaseModelAdapter):
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取特征重要性"""
+        """获取特征重要性."""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
@@ -348,7 +348,7 @@ class SklearnAdapter(BaseModelAdapter):
     def _get_estimator(
             self,
     ) -> Any:
-        """返回提供模型参数的最终估计器"""
+        """返回提供模型参数的最终估计器."""
         if isinstance(
                 self.model,
                 Pipeline,
@@ -363,7 +363,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """执行模型预测并提取正类概率"""
+        """执行模型预测并提取正类概率."""
         model_input = self._prepare_model_input(
             X
         )
@@ -380,7 +380,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """执行逻辑回归预测并提取对数几率"""
+        """执行逻辑回归预测并提取对数几率."""
         model_input = self._prepare_model_input(
             X
         )
@@ -430,7 +430,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> Any:
-        """保留 sklearn Pipeline 的列名输入结构"""
+        """保留 sklearn Pipeline 的列名输入结构."""
         array = self.transformer.ensure_2d(
             X
         )
@@ -488,7 +488,7 @@ class SklearnAdapter(BaseModelAdapter):
             self,
             coefficients: np.ndarray,
     ) -> np.ndarray:
-        """提取正类对应的系数绝对值"""
+        """提取正类对应的系数绝对值."""
         if coefficients.ndim == 1:
             return np.abs(
                 coefficients

@@ -1,4 +1,4 @@
-"""实验结果回流服务测试
+"""实验结果回流服务测试.
 
 验证结果回流的关联补齐、幂等更新和归属校验。
 
@@ -34,7 +34,7 @@ from datamind.services import OutcomeService
 
 
 class FakeUnitOfWork:
-    """实验结果服务测试工作单元"""
+    """实验结果服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -53,7 +53,7 @@ def create_decision(
         decision_id: str = "dcs_test",
         request_id: str = "req_test",
 ) -> Decision:
-    """创建原始决策测试对象"""
+    """创建原始决策测试对象."""
     return Decision(
         decision_id=decision_id,
         request_id=request_id,
@@ -75,7 +75,7 @@ def configure_service(
         decision: Decision,
         outcome: Outcome | None = None,
 ) -> tuple[MagicMock, MagicMock]:
-    """配置结果服务仓储替身"""
+    """配置结果服务仓储替身."""
     decision_repo = MagicMock()
     decision_repo.get_by_decision_id = AsyncMock(
         return_value=decision
@@ -113,7 +113,7 @@ async def test_submit_creates_outcome_from_decision(
         monkeypatch: pytest.MonkeyPatch,
         identifier: str,
 ) -> None:
-    """测试根据原始决策创建结果并补齐实验关联"""
+    """测试根据原始决策创建结果并补齐实验关联."""
     decision = create_decision()
     decision_repo, outcome_repo = configure_service(
         monkeypatch,
@@ -165,7 +165,7 @@ async def test_submit_creates_outcome_from_decision(
 async def test_submit_updates_existing_outcome(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试相同 outcome_id 幂等更新业务结果"""
+    """测试相同 outcome_id 幂等更新业务结果."""
     decision = create_decision()
     outcome = Outcome(
         outcome_id="out_test",
@@ -197,7 +197,7 @@ async def test_submit_updates_existing_outcome(
 async def test_submit_rejects_mismatched_subject(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝主体与原始决策不一致的结果"""
+    """测试拒绝主体与原始决策不一致的结果."""
     decision = create_decision()
     configure_service(
         monkeypatch,
@@ -217,7 +217,7 @@ async def test_submit_rejects_mismatched_subject(
 
 @pytest.mark.asyncio
 async def test_submit_requires_decision_or_request() -> None:
-    """测试结果回流必须提供决策或请求标识"""
+    """测试结果回流必须提供决策或请求标识."""
     with pytest.raises(
             ValueError,
             match="至少需要提供一个",
@@ -232,7 +232,7 @@ async def test_submit_requires_decision_or_request() -> None:
 async def test_submit_rejects_missing_decision(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试原始决策不存在时拒绝结果回流"""
+    """测试原始决策不存在时拒绝结果回流."""
     decision_repo, outcome_repo = configure_service(
         monkeypatch,
         decision=create_decision(),
@@ -256,7 +256,7 @@ async def test_submit_rejects_missing_decision(
 async def test_submit_rejects_request_without_decision(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试原始请求没有决策记录时拒绝结果回流"""
+    """测试原始请求没有决策记录时拒绝结果回流."""
     decision_repo, outcome_repo = configure_service(
         monkeypatch,
         decision=create_decision(),
@@ -280,7 +280,7 @@ async def test_submit_rejects_request_without_decision(
 async def test_submit_rejects_conflicting_links(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试决策和请求指向不同记录时拒绝回流"""
+    """测试决策和请求指向不同记录时拒绝回流."""
     decision_repo, outcome_repo = configure_service(
         monkeypatch,
         decision=create_decision(),
@@ -308,7 +308,7 @@ async def test_submit_rejects_conflicting_links(
 async def test_submit_rejects_reassigned_outcome(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有结果不能重新关联其他决策"""
+    """测试已有结果不能重新关联其他决策."""
     outcome = Outcome(
         outcome_id="out_test",
         subject_key="customer_10001",
@@ -338,7 +338,7 @@ async def test_submit_rejects_reassigned_outcome(
 async def test_submit_rejects_reassigned_subject(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有结果不能重新关联其他主体"""
+    """测试已有结果不能重新关联其他主体."""
     outcome = Outcome(
         outcome_id="out_test",
         subject_key="customer_other",
@@ -390,7 +390,7 @@ async def test_submit_rejects_blank_required_fields(
         kwargs: dict[str, str],
         message: str,
 ) -> None:
-    """测试结果和主体标识不能为空"""
+    """测试结果和主体标识不能为空."""
     with pytest.raises(
             ValueError,
             match=message,

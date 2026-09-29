@@ -1,4 +1,4 @@
-"""运行状态列表命令
+"""运行状态列表命令.
 
 提供部署运行状态列表查询功能。
 
@@ -56,7 +56,7 @@ def list_runtimes(
             help="输出格式：text / json"
         ),
 ):
-    """查询部署运行状态列表"""
+    """查询部署运行状态列表."""
     environment = get_service_config().environment.value
 
     async def _run():

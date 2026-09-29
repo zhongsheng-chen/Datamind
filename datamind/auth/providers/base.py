@@ -1,4 +1,4 @@
-"""本地认证提供方基础定义
+"""本地认证提供方基础定义.
 
 定义用户名密码凭证、认证身份和本地认证提供方接口。
 
@@ -40,7 +40,7 @@ from typing import (
     frozen=True,
 )
 class PasswordCredentials:
-    """用户名密码凭证"""
+    """用户名密码凭证."""
 
     username: str
     password: str = field(
@@ -50,7 +50,7 @@ class PasswordCredentials:
     def __post_init__(
             self,
     ) -> None:
-        """校验并规范化凭证"""
+        """校验并规范化凭证."""
         username = self.username.strip()
 
         if username == "":
@@ -78,7 +78,7 @@ ProviderCredentials: TypeAlias = PasswordCredentials
     frozen=True,
 )
 class ProviderIdentity:
-    """本地认证返回的身份信息"""
+    """本地认证返回的身份信息."""
 
     subject: str
     username: str
@@ -93,7 +93,7 @@ class ProviderIdentity:
     def __post_init__(
             self,
     ) -> None:
-        """校验并规范化身份信息"""
+        """校验并规范化身份信息."""
         subject = self.subject.strip()
         username = self.username.strip()
 
@@ -152,7 +152,7 @@ class ProviderIdentity:
 class BaseAuthProvider(
     ABC
 ):
-    """本地认证提供方抽象基类"""
+    """本地认证提供方抽象基类."""
 
     @abstractmethod
     async def authenticate(
@@ -161,7 +161,7 @@ class BaseAuthProvider(
             *,
             current_time: datetime | None = None,
     ) -> ProviderIdentity:
-        """校验凭证并返回身份信息"""
+        """校验凭证并返回身份信息."""
 
 
 __all__ = [

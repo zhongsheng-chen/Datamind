@@ -1,4 +1,4 @@
-"""数据库审计存储端测试
+"""数据库审计存储端测试.
 
 验证审计事件字段映射、重复写入和并发唯一键冲突恢复行为。
 
@@ -28,7 +28,7 @@ from datamind.audit.sinks.database import DatabaseAuditSink
 
 
 class FakeUnitOfWork:
-    """异步工作单元桩"""
+    """异步工作单元桩."""
 
     session = object()
 
@@ -40,7 +40,7 @@ class FakeUnitOfWork:
 
 
 class FakeRepository:
-    """审计仓储桩"""
+    """审计仓储桩."""
 
     existing: object | None = None
     created: object = object()
@@ -58,7 +58,7 @@ class FakeRepository:
 
 
 def create_event() -> AuditEvent:
-    """创建审计事件"""
+    """创建审计事件."""
     return AuditEvent(
         action="model.register",
         resource="model",
@@ -83,7 +83,7 @@ def create_event() -> AuditEvent:
 def configure_database_sink(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """替换数据库基础设施"""
+    """替换数据库基础设施."""
     FakeRepository.existing = None
     FakeRepository.created = object()
     FakeRepository.values = None
@@ -99,7 +99,7 @@ def configure_database_sink(
 
 @pytest.mark.asyncio
 async def test_database_sink_maps_event() -> None:
-    """测试完整映射事件字段"""
+    """测试完整映射事件字段."""
     event = create_event()
 
     result = await DatabaseAuditSink().write(event)
@@ -120,7 +120,7 @@ async def test_database_sink_maps_event() -> None:
 
 @pytest.mark.asyncio
 async def test_database_sink_returns_existing_event() -> None:
-    """测试重复事件直接返回已有记录"""
+    """测试重复事件直接返回已有记录."""
     existing = object()
     FakeRepository.existing = existing
 
@@ -132,7 +132,7 @@ async def test_database_sink_returns_existing_event() -> None:
 async def test_database_sink_recovers_from_concurrent_insert(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试并发写入冲突后返回另一事务写入的记录"""
+    """测试并发写入冲突后返回另一事务写入的记录."""
     existing = object()
     FakeRepository.existing = existing
     error = IntegrityError(
@@ -164,7 +164,7 @@ async def test_database_sink_recovers_from_concurrent_insert(
 async def test_database_sink_reraises_unresolved_integrity_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试并发冲突后找不到已有记录时继续抛出原异常"""
+    """测试并发冲突后找不到已有记录时继续抛出原异常."""
     error = IntegrityError(
         None,
         {},

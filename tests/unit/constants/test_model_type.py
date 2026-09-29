@@ -1,4 +1,4 @@
-"""模型类型枚举测试
+"""模型类型枚举测试.
 
 验证 ModelType 的成员、字符串行为和支持集合。
 
@@ -39,7 +39,7 @@ EXPECTED_MODEL_TYPES = {
 
 
 def test_model_type_members_and_values() -> None:
-    """测试模型类型枚举包含预期成员和值"""
+    """测试模型类型枚举包含预期成员和值."""
     assert {
         member: member.value
         for member in ModelType
@@ -57,7 +57,7 @@ def test_model_type_string_behavior(
         member: ModelType,
         expected_value: str,
 ) -> None:
-    """测试模型类型枚举具有字符串语义"""
+    """测试模型类型枚举具有字符串语义."""
     assert isinstance(
         member,
         str,
@@ -106,19 +106,19 @@ def test_model_type_can_be_created_from_value(
         value: str,
         expected_member: ModelType,
 ) -> None:
-    """测试可以通过字符串值反向构造模型类型"""
+    """测试可以通过字符串值反向构造模型类型."""
     assert ModelType(value) is expected_member
 
 
 def test_supported_model_types_contains_all_members() -> None:
-    """测试支持集合包含全部模型类型"""
+    """测试支持集合包含全部模型类型."""
     assert SUPPORTED_MODEL_TYPES == frozenset(
         ModelType
     )
 
 
 def test_supported_model_types_matches_enum_values() -> None:
-    """测试支持集合与枚举值保持一致"""
+    """测试支持集合与枚举值保持一致."""
     assert {
         str(model_type)
         for model_type in SUPPORTED_MODEL_TYPES
@@ -128,7 +128,7 @@ def test_supported_model_types_matches_enum_values() -> None:
 
 
 def test_model_types_match_frameworks() -> None:
-    """测试框架仅接受对应的模型类型"""
+    """测试框架仅接受对应的模型类型."""
     assert SUPPORTED_MODEL_TYPES_BY_FRAMEWORK["sklearn"] == frozenset({
         "logistic_regression",
         "decision_tree",
@@ -152,6 +152,6 @@ def test_model_types_match_frameworks() -> None:
 def test_invalid_model_type_raises_value_error(
         value: str,
 ) -> None:
-    """测试非法模型类型不能构造枚举"""
+    """测试非法模型类型不能构造枚举."""
     with pytest.raises(ValueError):
         ModelType(value)

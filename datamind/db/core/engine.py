@@ -1,4 +1,4 @@
-"""数据库引擎管理
+"""数据库引擎管理.
 
 提供异步数据库引擎的创建、单例获取和资源释放能力。
 
@@ -32,7 +32,7 @@ _engine: AsyncEngine | None = None
 
 
 def create_engine() -> AsyncEngine:
-    """创建异步数据库引擎
+    """创建异步数据库引擎.
 
     返回：
         AsyncEngine 实例
@@ -54,7 +54,7 @@ def create_engine() -> AsyncEngine:
 
 
 def get_engine() -> AsyncEngine:
-    """获取数据库引擎单例
+    """获取数据库引擎单例.
 
     首次调用时创建引擎，后续调用返回同一实例。
 
@@ -73,7 +73,7 @@ def get_engine() -> AsyncEngine:
 
 
 async def dispose_engine() -> None:
-    """关闭数据库引擎并重置会话工厂
+    """关闭数据库引擎并重置会话工厂.
 
     解除全局引擎和 SessionFactory 对旧引擎的引用，
     然后释放原连接池资源。

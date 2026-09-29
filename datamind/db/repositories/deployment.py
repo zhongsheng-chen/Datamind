@@ -1,4 +1,4 @@
-"""部署仓储
+"""部署仓储.
 
 提供模型部署记录的查询与管理能力。
 
@@ -65,7 +65,7 @@ from datamind.models.enums import DeploymentStatus
 
 @dataclass(slots=True)
 class DeploymentPatch:
-    """部署更新结构
+    """部署更新结构.
 
     注意：
         不允许通过 patch 修改 status，
@@ -93,7 +93,7 @@ class DeploymentPatch:
 
 
 class DeploymentRepository(BaseRepository):
-    """部署仓储"""
+    """部署仓储."""
 
     async def get_deployment(
             self,
@@ -102,7 +102,7 @@ class DeploymentRepository(BaseRepository):
             include_deleted: bool = False,
             for_update: bool = False,
     ) -> Deployment | None:
-        """获取部署记录
+        """获取部署记录.
 
         参数：
             deployment_id: 部署 ID
@@ -150,7 +150,7 @@ class DeploymentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Deployment]:
-        """获取部署记录列表
+        """获取部署记录列表.
 
         参数：
             model_id: 模型 ID（可选）
@@ -283,7 +283,7 @@ class DeploymentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Deployment]:
-        """获取活跃部署记录列表
+        """获取活跃部署记录列表.
 
         参数：
             model_id: 模型 ID
@@ -356,7 +356,7 @@ class DeploymentRepository(BaseRepository):
             description: str | None = None,
             deployed_by: str | None = None,
     ) -> Deployment:
-        """创建部署
+        """创建部署.
 
         新建部署处于 inactive 状态。
 
@@ -424,7 +424,7 @@ class DeploymentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Deployment:
-        """更新部署
+        """更新部署.
 
         参数：
             deployment: 部署记录对象
@@ -473,7 +473,7 @@ class DeploymentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Deployment:
-        """启用部署
+        """启用部署.
 
         启用时清除旧的失效时间，避免部署状态为 active
         但有效期已经结束的矛盾状态。
@@ -513,7 +513,7 @@ class DeploymentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Deployment:
-        """停用部署
+        """停用部署.
 
         首次停用时记录失效时间；
         重复停用时保留原结束时间。
@@ -554,7 +554,7 @@ class DeploymentRepository(BaseRepository):
             deleted_by: str | None = None,
             deletion_reason: str | None = None,
     ) -> Deployment:
-        """逻辑删除部署记录"""
+        """逻辑删除部署记录."""
         deployment.deleted_at = (
             deleted_at
             if deleted_at is not None
@@ -574,7 +574,7 @@ class DeploymentRepository(BaseRepository):
             *,
             restored_by: str | None = None,
     ) -> Deployment:
-        """恢复逻辑删除的部署记录"""
+        """恢复逻辑删除的部署记录."""
         deployment.deleted_at = None
         deployment.deleted_by = None
         deployment.deletion_reason = None

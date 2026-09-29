@@ -1,4 +1,4 @@
-"""评分卡运行服务测试
+"""评分卡运行服务测试.
 
 验证单条与批量评分、特征评分明细、决策阈值和模型能力约束。
 
@@ -56,10 +56,10 @@ pytestmark = pytest.mark.framework
 
 
 class ScorecardStub:
-    """OptBinning Scorecard 替身"""
+    """OptBinning Scorecard 替身."""
 
     def __init__(self) -> None:
-        """创建具有可核对分箱明细的评分卡替身"""
+        """创建具有可核对分箱明细的评分卡替身."""
         self.estimator_ = SimpleNamespace(classes_=np.array([0, 1]))
         self._metric_special = "empirical"
         self._metric_missing = "empirical"
@@ -136,7 +136,7 @@ def create_service(
     *,
     threshold: float = 600.0,
 ) -> tuple[ScoringService, ScorecardStub]:
-    """创建评分服务"""
+    """创建评分服务."""
     monkeypatch.setattr(
         "datamind.runtime.serving.scoring_service.Scorecard",
         ScorecardStub,
@@ -165,7 +165,7 @@ def create_service(
 def test_predict_uses_scorecard_points(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条评分从实际命中的评分表条目获取分值"""
+    """测试单条评分从实际命中的评分表条目获取分值."""
     service, model = create_service(monkeypatch)
 
     result = service.predict({"age": 35})
@@ -193,7 +193,7 @@ def test_predict_rejects_invalid_feature_type(
     batch: bool,
     message: str,
 ) -> None:
-    """测试单条和批量评分在模型执行前拒绝非法特征类型"""
+    """测试单条和批量评分在模型执行前拒绝非法特征类型."""
     service, model = create_service(monkeypatch)
     features = {"age": "not-a-number"}
 
@@ -209,7 +209,7 @@ def test_predict_rejects_invalid_feature_type(
 def test_predict_batch_uses_scorecard_points(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量评分按特征名称返回明细"""
+    """测试批量评分按特征名称返回明细."""
     service, _ = create_service(monkeypatch)
 
     result = service.predict_batch(
@@ -247,7 +247,7 @@ def test_predict_batch_uses_scorecard_points(
 def test_predict_reuses_feature_frame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试概率预测和评分复用同一个特征表"""
+    """测试概率预测和评分复用同一个特征表."""
     service, model = create_service(monkeypatch)
     extract = MagicMock(wraps=service._extract_features)
     monkeypatch.setattr(service, "_extract_features", extract)
@@ -263,7 +263,7 @@ def test_predict_reuses_feature_frame(
 def test_predict_uses_probability_for_default_label(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试根据模型类别顺序提取违约概率"""
+    """测试根据模型类别顺序提取违约概率."""
     service, model = create_service(monkeypatch)
     model.estimator_.classes_ = np.array([1, 0])
     model.predict_proba.side_effect = None
@@ -296,7 +296,7 @@ def test_predict_rejects_invalid_probability_output(
     values: list[list[float]],
     message: str,
 ) -> None:
-    """测试拒绝无效概率预测结果"""
+    """测试拒绝无效概率预测结果."""
     service, model = create_service(monkeypatch)
     model.predict_proba.side_effect = None
     model.predict_proba.return_value = values
@@ -308,7 +308,7 @@ def test_predict_rejects_invalid_probability_output(
 def test_score_below_threshold_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试低于评分阈值时拒绝"""
+    """测试低于评分阈值时拒绝."""
     service, _ = create_service(
         monkeypatch,
         threshold=601.0,
@@ -322,7 +322,7 @@ def test_score_below_threshold_is_rejected(
 def test_service_exposes_scoring_capabilities(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试评分服务公开固定能力"""
+    """测试评分服务公开固定能力."""
     service, _ = create_service(monkeypatch)
 
     assert service.get_capabilities() == (
@@ -333,7 +333,7 @@ def test_service_exposes_scoring_capabilities(
 def test_rejects_model_without_score(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝非 Scorecard 模型"""
+    """测试拒绝非 Scorecard 模型."""
     monkeypatch.setattr(
         "datamind.runtime.serving.scoring_service.Scorecard",
         ScorecardStub,
@@ -367,7 +367,7 @@ def fit_scorecard(
     metric_special: str | float = "empirical",
     metric_missing: str | float = "empirical",
 ) -> Scorecard:
-    """拟合包含数值、类别、特殊值、缺失值和未入模特征的评分卡"""
+    """拟合包含数值、类别、特殊值、缺失值和未入模特征的评分卡."""
     records = []
     labels = []
     for category_index, category in enumerate(
@@ -422,13 +422,13 @@ def fit_scorecard(
 
 @pytest.fixture(scope="module", params=[(False, False), (True, False), (True, True)])
 def fitted_scorecard(request: pytest.FixtureRequest) -> Scorecard:
-    """创建覆盖评分截距和取整配置的真实评分卡"""
+    """创建覆盖评分截距和取整配置的真实评分卡."""
     intercept_based, rounding = request.param
     return fit_scorecard(intercept_based=intercept_based, rounding=rounding)
 
 
 def create_real_service(model: Scorecard) -> ScoringService:
-    """创建使用真实评分卡的运行服务"""
+    """创建使用真实评分卡的运行服务."""
     return ScoringService(
         runtime_model=RuntimeModel(
             deployment_id="dep_real",
@@ -442,7 +442,7 @@ def create_real_service(model: Scorecard) -> ScoringService:
 
 
 def test_real_scorecard_returns_features(fitted_scorecard: Scorecard) -> None:
-    """测试真实评分明细覆盖边界、类别组、缺失和特殊值且可严格序列化"""
+    """测试真实评分明细覆盖边界、类别组、缺失和特殊值且可严格序列化."""
     service = create_real_service(fitted_scorecard)
     records = [
         {"age": 30, "employment_type": "salaried", "unused": 1},
@@ -501,7 +501,7 @@ def test_unknown_category_uses_woe_fallback(
     fitted_scorecard: Scorecard,
     cat_unknown: float | None,
 ) -> None:
-    """测试未知类别按 WoE 回退评分，不读取最后一个分箱"""
+    """测试未知类别按 WoE 回退评分，不读取最后一个分箱."""
     model = deepcopy(fitted_scorecard)
     model.binning_process_.get_binned_variable("employment_type").set_params(
         cat_unknown=cat_unknown
@@ -534,7 +534,7 @@ def test_rejects_non_woe_transform(
     fitted_scorecard: Scorecard,
     metric: str,
 ) -> None:
-    """测试非 WoE 转换不会被误报为 WoE 明细"""
+    """测试非 WoE 转换不会被误报为 WoE 明细."""
     model = deepcopy(fitted_scorecard)
     model.binning_process_.binning_transform_params = {"age": {"metric": metric}}
     with pytest.raises(ValueError, match="必须使用 WoE 转换"):
@@ -546,7 +546,7 @@ def test_rejects_invalid_score_intercept(
     fitted_scorecard: Scorecard,
     value: float,
 ) -> None:
-    """测试拒绝非有限评分截距"""
+    """测试拒绝非有限评分截距."""
     model = deepcopy(fitted_scorecard)
     model.intercept_ = value
     with pytest.raises(ValueError, match="评分截距必须是有限数值"):
@@ -573,7 +573,7 @@ def test_rejects_invalid_woe(
     error: type[Exception],
     message: str,
 ) -> None:
-    """测试无效 WoE 不能进入评分明细或关联到错误样本"""
+    """测试无效 WoE 不能进入评分明细或关联到错误样本."""
     service, model = create_service(monkeypatch)
     model.binning_process_.transform.side_effect = None
     model.binning_process_.transform.return_value = values
@@ -594,7 +594,7 @@ def test_rejects_invalid_scorecard_points(
     points: float,
     message: str,
 ) -> None:
-    """测试加载时拒绝无效或与模型刻度不一致的评分表"""
+    """测试加载时拒绝无效或与模型刻度不一致的评分表."""
     service, model = create_service(monkeypatch)
     model.table.return_value.loc[1, "Points"] = points
     with pytest.raises(ValueError, match=message):
@@ -602,7 +602,7 @@ def test_rejects_invalid_scorecard_points(
 
 
 def test_empty_batch_does_not_run_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    """测试空批次不调用模型预测和分箱转换"""
+    """测试空批次不调用模型预测和分箱转换."""
     service, model = create_service(monkeypatch)
     result = service.predict_batch([])
     assert result["predictions"] == []
@@ -614,7 +614,7 @@ def test_empty_batch_does_not_run_model(monkeypatch: pytest.MonkeyPatch) -> None
 
 @pytest.mark.parametrize("metric", [None, "woe"])
 def test_woe_configuration_does_not_override_bin_matching(metric: str | None) -> None:
-    """测试显式 WoE 配置不影响分箱命中且不改写原模型"""
+    """测试显式 WoE 配置不影响分箱命中且不改写原模型."""
     params = {
         name: {
             "metric": metric,
@@ -656,7 +656,7 @@ def test_custom_missing_and_special_woe(
     metric_special: float,
     metric_missing: float,
 ) -> None:
-    """测试全局及变量级缺失值、特殊值 WoE 与概率预测保持一致"""
+    """测试全局及变量级缺失值、特殊值 WoE 与概率预测保持一致."""
     params = (
         {
             "age": {"metric": "woe", "metric_missing": 0.25, "metric_special": -0.5},
@@ -691,7 +691,7 @@ def test_custom_missing_and_special_woe(
 
 
 def test_partial_variable_transform_params_override_global_metrics() -> None:
-    """测试变量级缺失和特殊值配置在未显式设置 metric 时仍覆盖全局配置"""
+    """测试变量级缺失和特殊值配置在未显式设置 metric 时仍覆盖全局配置."""
     model = fit_scorecard(
         transform_params={
             "age": {
@@ -743,7 +743,7 @@ def test_scaling_preserves_fitted_bin_points(
     rounding: bool,
     reverse: bool,
 ) -> None:
-    """测试各种刻度、方向、评分截距及取整配置沿用已拟合分箱的分值"""
+    """测试各种刻度、方向、评分截距及取整配置沿用已拟合分箱的分值."""
     model = fit_scorecard(
         scaling_method=method,
         intercept_based=intercept_based,
@@ -767,7 +767,7 @@ def test_scaling_preserves_fitted_bin_points(
 
 
 def test_min_max_rounding_rejects_undefined_fallback() -> None:
-    """测试联合整数刻度不会为训练时不存在的分箱猜测分值"""
+    """测试联合整数刻度不会为训练时不存在的分箱猜测分值."""
     model = fit_scorecard(scaling_method="min_max", rounding=True)
     service = create_real_service(model)
     with pytest.raises(ValueError, match="min_max 整数评分卡无法确定回退分值"):
@@ -788,7 +788,7 @@ def test_feature_values_are_json_scalars(
     value: Any,
     expected: int | float | None,
 ) -> None:
-    """测试原始标量类型得到保留，缺失值可严格序列化为 null"""
+    """测试原始标量类型得到保留，缺失值可严格序列化为 null."""
     service, _ = create_service(monkeypatch)
     result = service.predict({"age": value})
     actual = result["features"]["age"]["value"]
@@ -799,6 +799,6 @@ def test_feature_values_are_json_scalars(
 
 @pytest.mark.parametrize("value", [float("inf"), -float("inf"), [35]])
 def test_rejects_non_json_feature_values(value: Any) -> None:
-    """测试不会将无穷值或非标量输入伪装为有效特征值"""
+    """测试不会将无穷值或非标量输入伪装为有效特征值."""
     with pytest.raises(ValueError):
         ScoringService._convert_feature_value(value)

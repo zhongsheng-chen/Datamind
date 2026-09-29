@@ -1,4 +1,4 @@
-"""存储后端工厂
+"""存储后端工厂.
 
 根据配置创建对应的存储后端实例。
 
@@ -24,7 +24,7 @@ from datamind.storage.minio import MinIOStorageBackend
 def get_backend(
     config: StorageConfig,
 ) -> BaseStorageBackend:
-    """创建存储后端实例
+    """创建存储后端实例.
 
     参数：
         config: 存储配置对象

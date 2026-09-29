@@ -1,4 +1,4 @@
-"""实验仓储测试
+"""实验仓储测试.
 
 验证 ExperimentRepository 的实验查询、列表筛选、创建、
 普通字段更新，以及由 ModelGuard 控制的实验生命周期迁移。
@@ -85,7 +85,7 @@ LATER_TIME = datetime(
 def create_experiment(
         **overrides: Any,
 ) -> Experiment:
-    """创建实验测试对象"""
+    """创建实验测试对象."""
     values: dict[str, Any] = {
         "experiment_id": "exp_0123456789abcdef",
         "model_id": "mdl_0123456789abcdef",
@@ -124,7 +124,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建实验仓储及会话方法替身"""
+    """创建实验仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -175,7 +175,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -191,7 +191,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -204,7 +204,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_experiment() -> None:
-    """测试按实验 ID 查询"""
+    """测试按实验 ID 查询."""
     expected = create_experiment()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -232,7 +232,7 @@ async def test_get_experiment() -> None:
 
 @pytest.mark.asyncio
 async def test_get_experiment_returns_none_when_not_found() -> None:
-    """测试实验不存在时返回 None"""
+    """测试实验不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_experiment(
@@ -245,7 +245,7 @@ async def test_get_experiment_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_get_running_experiment() -> None:
-    """测试查询指定模型和环境下的运行中实验"""
+    """测试查询指定模型和环境下的运行中实验."""
     expected = create_experiment(
         status=str(
             ExperimentStatus.RUNNING
@@ -315,7 +315,7 @@ async def test_get_running_experiment() -> None:
 
 @pytest.mark.asyncio
 async def test_get_running_experiment_applies_exclusion_and_window() -> None:
-    """测试运行中实验查询应用排除条件和生效时间窗口"""
+    """测试运行中实验查询应用排除条件和生效时间窗口."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_running_experiment(
@@ -364,7 +364,7 @@ async def test_get_running_experiment_applies_exclusion_and_window() -> None:
 
 @pytest.mark.asyncio
 async def test_list_experiments_without_filters() -> None:
-    """测试无筛选时返回全部实验并按创建时间倒序"""
+    """测试无筛选时返回全部实验并按创建时间倒序."""
     experiments = [
         create_experiment()
     ]
@@ -393,7 +393,7 @@ async def test_list_experiments_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_experiments_applies_filters_and_pagination() -> None:
-    """测试环境、状态、普通字段筛选和分页"""
+    """测试环境、状态、普通字段筛选和分页."""
     experiments = [
         create_experiment(
             environment="production",
@@ -461,7 +461,7 @@ async def test_list_experiments_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_experiments_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_experiments(
@@ -481,7 +481,7 @@ async def test_list_experiments_applies_zero_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_running_experiments() -> None:
-    """测试运行中实验列表和生效时间窗口"""
+    """测试运行中实验列表和生效时间窗口."""
     experiments = [
         create_experiment(
             environment="testing",
@@ -588,7 +588,7 @@ async def test_list_methods_reject_negative_pagination(
         arguments: dict[str, Any],
         expected_message: str,
 ) -> None:
-    """测试实验列表方法拒绝负数分页参数"""
+    """测试实验列表方法拒绝负数分页参数."""
     repository, execute, _ = create_repository()
     method = getattr(
         repository,
@@ -607,7 +607,7 @@ async def test_list_methods_reject_negative_pagination(
 
 
 def test_experiment_patch_fields_and_defaults() -> None:
-    """测试更新结构字段和默认值"""
+    """测试更新结构字段和默认值."""
     patch = ExperimentPatch()
 
     assert [
@@ -640,7 +640,7 @@ def test_experiment_patch_fields_and_defaults() -> None:
 
 
 def test_experiment_patch_accepts_environment_enum() -> None:
-    """测试更新结构接受环境枚举"""
+    """测试更新结构接受环境枚举."""
     patch = ExperimentPatch(
         environment=Environment.PRODUCTION
     )
@@ -651,7 +651,7 @@ def test_experiment_patch_accepts_environment_enum() -> None:
 
 
 def test_create_experiment() -> None:
-    """测试创建实验并显式设置 draft 状态"""
+    """测试创建实验并显式设置 draft 状态."""
     repository, _, add = create_repository()
 
     experiment = repository.create_experiment(
@@ -705,7 +705,7 @@ def test_create_experiment() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_experiment_allows_optional_fields() -> None:
-    """测试创建实验时允许省略可选字段"""
+    """测试创建实验时允许省略可选字段."""
     repository, _, add = create_repository()
 
     experiment = repository.create_experiment(
@@ -732,7 +732,7 @@ def test_create_experiment_allows_optional_fields() -> None:
 
 
 def test_update_experiment() -> None:
-    """测试更新所有非空普通实验字段"""
+    """测试更新所有非空普通实验字段."""
     repository, _, _ = create_repository()
     experiment = create_experiment()
     original_status = experiment.status
@@ -776,7 +776,7 @@ def test_update_experiment() -> None:
 
 
 def test_update_experiment_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     experiment = create_experiment()
 
@@ -796,7 +796,7 @@ def test_update_experiment_ignores_none_fields() -> None:
 
 
 def test_update_experiment_accepts_empty_strings() -> None:
-    """测试空字符串作为明确更新值写入对象"""
+    """测试空字符串作为明确更新值写入对象."""
     repository, _, _ = create_repository()
     experiment = create_experiment()
 
@@ -854,7 +854,7 @@ def test_experiment_lifecycle_transition(
         current_status: ExperimentStatus,
         target_status: ExperimentStatus,
 ) -> None:
-    """测试生命周期方法调用守卫并写入字符串状态"""
+    """测试生命周期方法调用守卫并写入字符串状态."""
     validator = MagicMock()
     monkeypatch.setattr(
         ModelGuard,
@@ -892,7 +892,7 @@ def test_experiment_lifecycle_transition(
 def test_start_experiment_sets_missing_effective_from(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启动时使用当前时间补全生效时间"""
+    """测试启动时使用当前时间补全生效时间."""
     clock = MagicMock()
     clock.now.return_value = CURRENT_TIME
     monkeypatch.setitem(
@@ -917,7 +917,7 @@ def test_start_experiment_sets_missing_effective_from(
 
 
 def test_start_experiment_preserves_configured_effective_from() -> None:
-    """测试启动时保留显式配置的生效时间"""
+    """测试启动时保留显式配置的生效时间."""
     repository, _, _ = create_repository()
     experiment = create_experiment(
         effective_from=LATER_TIME
@@ -964,7 +964,7 @@ def test_experiment_lifecycle_is_idempotent(
         method_name: str,
         target_status: ExperimentStatus,
 ) -> None:
-    """测试目标状态相同时保持幂等"""
+    """测试目标状态相同时保持幂等."""
     validator = MagicMock()
     monkeypatch.setattr(
         ModelGuard,
@@ -1002,7 +1002,7 @@ def test_experiment_lifecycle_is_idempotent(
 def test_experiment_lifecycle_accepts_empty_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试生命周期方法允许写入空字符串操作人"""
+    """测试生命周期方法允许写入空字符串操作人."""
     monkeypatch.setattr(
         ModelGuard,
         "validate_experiment_transition",
@@ -1030,7 +1030,7 @@ def test_experiment_lifecycle_accepts_empty_operator(
 def test_experiment_lifecycle_propagates_guard_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试守卫拒绝迁移时不修改实验"""
+    """测试守卫拒绝迁移时不修改实验."""
     validator = MagicMock(
         side_effect=RuntimeError(
             "transition blocked"
@@ -1080,7 +1080,7 @@ def test_experiment_lifecycle_propagates_guard_error(
 def test_experiment_lifecycle_rejects_unknown_status(
         method_name: str,
 ) -> None:
-    """测试未知状态不能进入实验生命周期迁移"""
+    """测试未知状态不能进入实验生命周期迁移."""
     repository, _, _ = create_repository()
     experiment = create_experiment(
         status="unknown"

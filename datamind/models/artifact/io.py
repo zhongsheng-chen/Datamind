@@ -1,4 +1,4 @@
-"""临时文件工具
+"""临时文件工具.
 
 提供临时文件的创建和自动清理功能。
 
@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 
 @contextmanager
 def temp_file(data: bytes, suffix: str) -> Iterator[str]:
-    """创建临时文件并写入数据，退出时自动删除
+    """创建临时文件并写入数据，退出时自动删除.
 
     参数：
         data: 二进制数据

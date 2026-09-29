@@ -1,4 +1,4 @@
-"""控制台事件表
+"""控制台事件表.
 
 保存控制台实时更新所需的轻量级变更事件，支持断线恢复和事件回放。
 
@@ -31,7 +31,7 @@ from datamind.db.core import Base
 
 
 class OutboxEvent(Base):
-    """控制台变更事件表"""
+    """控制台变更事件表."""
 
     __tablename__ = "outbox"
 
@@ -117,7 +117,7 @@ class OutboxEvent(Base):
     def __repr__(
             self,
     ) -> str:
-        """返回控制台变更事件字符串表示"""
+        """返回控制台变更事件字符串表示."""
         return (
             f"<OutboxEvent("
             f"event_id={self.event_id}, "

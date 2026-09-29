@@ -1,4 +1,4 @@
-"""认证枚举测试
+"""认证枚举测试.
 
 验证认证状态枚举的成员、字符串语义和序列化行为。
 
@@ -68,7 +68,7 @@ def test_enum_members(
         enum_class: type[BaseEnum],
         expected_members: dict[str, str],
 ) -> None:
-    """测试枚举成员和值"""
+    """测试枚举成员和值."""
     assert {
         name: member.value
         for name, member in enum_class.__members__.items()
@@ -87,7 +87,7 @@ def test_enum_members(
 def test_enum_uses_string_semantics(
         enum_member: BaseEnum,
 ) -> None:
-    """测试枚举具有一致的字符串语义"""
+    """测试枚举具有一致的字符串语义."""
     assert isinstance(enum_member, str)
     assert str(enum_member) == enum_member.value
     assert enum_member == enum_member.value
@@ -109,7 +109,7 @@ def test_enum_can_be_created_from_string(
         enum_class: type[BaseEnum],
         value: str,
 ) -> None:
-    """测试可通过字符串值创建枚举"""
+    """测试可通过字符串值创建枚举."""
     assert enum_class(value).value == value
 
 
@@ -125,13 +125,13 @@ def test_enum_can_be_created_from_string(
 def test_enum_rejects_invalid_value(
         enum_class: type[BaseEnum],
 ) -> None:
-    """测试枚举拒绝非法字符串"""
+    """测试枚举拒绝非法字符串."""
     with pytest.raises(ValueError):
         enum_class("unknown")
 
 
 def test_enum_works_as_dictionary_key() -> None:
-    """测试枚举与字符串具有相同的字典键语义"""
+    """测试枚举与字符串具有相同的字典键语义."""
     values: dict[str, str] = {
         UserStatus.ACTIVE: "matched",
     }

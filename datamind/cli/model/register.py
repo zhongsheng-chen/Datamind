@@ -1,4 +1,4 @@
-"""注册模型命令
+"""注册模型命令.
 
 提供模型注册功能。
 
@@ -95,7 +95,7 @@ def register_model(
             help="输出格式：text / json"
         ),
 ):
-    """注册模型"""
+    """注册模型."""
 
     @audit(
         action="model.register",

@@ -1,4 +1,4 @@
-"""列出路由命令
+"""列出路由命令.
 
 提供路由规则列表查询功能，支持过滤、分页和多种输出格式。
 
@@ -91,7 +91,7 @@ def list_routes(
             help="输出格式：text / json"
         ),
 ):
-    """列出路由规则"""
+    """列出路由规则."""
     environment = get_service_config().environment
 
     async def _run():

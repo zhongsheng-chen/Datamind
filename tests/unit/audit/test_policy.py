@@ -1,4 +1,4 @@
-"""审计失败策略测试
+"""审计失败策略测试.
 
 验证审计失败处理策略枚举的取值与字符串转换行为。
 
@@ -11,6 +11,6 @@ from datamind.audit.policy import AuditFailureMode
 
 
 def test_failure_mode_values() -> None:
-    """测试失败策略枚举值"""
+    """测试失败策略枚举值."""
     assert str(AuditFailureMode.OPEN) == "open"
     assert str(AuditFailureMode.CLOSED) == "closed"

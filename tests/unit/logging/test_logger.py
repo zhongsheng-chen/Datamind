@@ -1,4 +1,4 @@
-"""日志获取接口测试
+"""日志获取接口测试.
 
 验证 get_logger 对日志名称、默认参数和上下文绑定的处理。
 
@@ -22,7 +22,7 @@ from datamind.logging.logger import get_logger
 def test_get_logger_passes_name(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试传递指定日志名称"""
+    """测试传递指定日志名称."""
     captured: dict[
         str,
         str | None,
@@ -55,7 +55,7 @@ def test_get_logger_passes_name(
 def test_get_logger_passes_none_by_default(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未指定名称时传递 None"""
+    """测试未指定名称时传递 None."""
     captured: dict[
         str,
         str | None,
@@ -86,16 +86,16 @@ def test_get_logger_passes_none_by_default(
 def test_get_logger_does_not_bind_context(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 get_logger 不额外绑定上下文"""
+    """测试 get_logger 不额外绑定上下文."""
 
     class DummyLogger:
-        """测试日志实例"""
+        """测试日志实例."""
 
         def bind(
                 self,
                 **_kwargs: Any,
         ) -> None:
-            """禁止调用 bind"""
+            """禁止调用 bind."""
             raise AssertionError(
                 "get_logger 不应调用 bind()"
             )

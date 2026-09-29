@@ -1,4 +1,4 @@
-"""模型产物加载器实现包公共导出测试
+"""模型产物加载器实现包公共导出测试.
 
 验证各框架加载器模块均已公开并完成注册。
 
@@ -28,13 +28,13 @@ EXPECTED_EXPORTS = {
 
 
 def test_handler_exports_expected_public_api() -> None:
-    """测试加载器实现包公开完整且准确的 API"""
+    """测试加载器实现包公开完整且准确的 API."""
     assert set(handlers.__all__) == EXPECTED_EXPORTS
     assert len(handlers.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的模块均可从包级访问"""
+    """测试 __all__ 中声明的模块均可从包级访问."""
     for name in handlers.__all__:
         assert hasattr(handlers, name), name
 
@@ -52,7 +52,7 @@ def test_handler_modules_are_registered(
         framework: Framework,
         handler: Callable[[bytes], Any],
 ) -> None:
-    """测试各框架加载器均已完成注册"""
+    """测试各框架加载器均已完成注册."""
     assert get_handler(
         str(framework)
     ) is handler

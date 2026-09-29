@@ -1,4 +1,4 @@
-"""数据库会话工厂测试
+"""数据库会话工厂测试.
 
 验证异步会话工厂的创建参数、单例缓存和重置行为。
 
@@ -35,7 +35,7 @@ import datamind.db.core.session as session_module
     autouse=True
 )
 def reset_session_state() -> Iterator[None]:
-    """隔离数据库会话工厂全局状态"""
+    """隔离数据库会话工厂全局状态."""
     session_module._session_factory = None
 
     yield
@@ -44,7 +44,7 @@ def reset_session_state() -> Iterator[None]:
 
 
 def create_engine_mock() -> AsyncEngine:
-    """创建异步数据库引擎测试替身"""
+    """创建异步数据库引擎测试替身."""
     return cast(
         AsyncEngine,
         MagicMock(
@@ -55,7 +55,7 @@ def create_engine_mock() -> AsyncEngine:
 
 def create_session_factory_mock(
 ) -> async_sessionmaker[AsyncSession]:
-    """创建异步会话工厂测试替身"""
+    """创建异步会话工厂测试替身."""
     return cast(
         async_sessionmaker[AsyncSession],
         MagicMock(
@@ -67,7 +67,7 @@ def create_session_factory_mock(
 def test_get_session_factory_creates_factory(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次调用创建会话工厂"""
+    """测试首次调用创建会话工厂."""
     engine = create_engine_mock()
     session_factory = (
         create_session_factory_mock()
@@ -109,7 +109,7 @@ def test_get_session_factory_creates_factory(
 def test_get_session_factory_returns_cached_factory(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试后续调用返回同一会话工厂"""
+    """测试后续调用返回同一会话工厂."""
     engine = create_engine_mock()
     session_factory = (
         create_session_factory_mock()
@@ -145,7 +145,7 @@ def test_get_session_factory_returns_cached_factory(
 def test_get_session_factory_uses_existing_factory(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有会话工厂时不再获取数据库引擎"""
+    """测试已有会话工厂时不再获取数据库引擎."""
     session_factory = (
         create_session_factory_mock()
     )
@@ -175,7 +175,7 @@ def test_get_session_factory_uses_existing_factory(
 
 
 def test_reset_session_factory() -> None:
-    """测试重置会话工厂"""
+    """测试重置会话工厂."""
     session_factory = (
         create_session_factory_mock()
     )
@@ -189,7 +189,7 @@ def test_reset_session_factory() -> None:
 
 
 def test_reset_session_factory_is_idempotent() -> None:
-    """测试重复重置保持幂等"""
+    """测试重复重置保持幂等."""
     session_module.reset_session_factory()
     session_module.reset_session_factory()
 
@@ -199,7 +199,7 @@ def test_reset_session_factory_is_idempotent() -> None:
 def test_get_session_factory_recreates_after_reset(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重置后重新创建会话工厂"""
+    """测试重置后重新创建会话工厂."""
     engine = create_engine_mock()
     first_factory = (
         create_session_factory_mock()

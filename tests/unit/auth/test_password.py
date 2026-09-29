@@ -1,4 +1,4 @@
-"""密码工具测试
+"""密码工具测试.
 
 验证 Argon2id 密码哈希、密码校验和密码重哈希判断能力。
 
@@ -41,7 +41,7 @@ PASSWORD = "Datamind@123"
 
 
 def test_hash_password_creates_argon2id_hash() -> None:
-    """测试生成 Argon2id 密码哈希"""
+    """测试生成 Argon2id 密码哈希."""
     password_hash = hash_password(
         PASSWORD
     )
@@ -53,7 +53,7 @@ def test_hash_password_creates_argon2id_hash() -> None:
 
 
 def test_hash_password_uses_random_salt() -> None:
-    """测试相同密码生成不同哈希"""
+    """测试相同密码生成不同哈希."""
     first_hash = hash_password(
         PASSWORD
     )
@@ -73,7 +73,7 @@ def test_hash_password_uses_random_salt() -> None:
 
 
 def test_hash_password_rejects_empty_password() -> None:
-    """测试拒绝空密码"""
+    """测试拒绝空密码."""
     with pytest.raises(
             ValueError,
             match="password 不能为空",
@@ -84,7 +84,7 @@ def test_hash_password_rejects_empty_password() -> None:
 
 
 def test_verify_password_accepts_matching_password() -> None:
-    """测试正确密码校验成功"""
+    """测试正确密码校验成功."""
     password_hash = hash_password(
         PASSWORD
     )
@@ -98,7 +98,7 @@ def test_verify_password_accepts_matching_password() -> None:
 
 
 def test_verify_password_rejects_incorrect_password() -> None:
-    """测试错误密码校验失败"""
+    """测试错误密码校验失败."""
     password_hash = hash_password(
         PASSWORD
     )
@@ -135,7 +135,7 @@ def test_verify_password_rejects_empty_values(
         password: str,
         password_hash: str,
 ) -> None:
-    """测试空密码或空哈希校验失败"""
+    """测试空密码或空哈希校验失败."""
     result = verify_password(
         password=password,
         password_hash=password_hash,
@@ -155,7 +155,7 @@ def test_verify_password_rejects_empty_values(
 def test_verify_password_rejects_invalid_hash(
         password_hash: str,
 ) -> None:
-    """测试无效哈希校验失败"""
+    """测试无效哈希校验失败."""
     result = verify_password(
         password=PASSWORD,
         password_hash=password_hash,
@@ -165,7 +165,7 @@ def test_verify_password_rejects_invalid_hash(
 
 
 def test_needs_rehash_accepts_current_parameters() -> None:
-    """测试当前 Argon2 参数不需要重新哈希"""
+    """测试当前 Argon2 参数不需要重新哈希."""
     password_hash = hash_password(
         PASSWORD
     )
@@ -178,7 +178,7 @@ def test_needs_rehash_accepts_current_parameters() -> None:
 
 
 def test_needs_rehash_detects_outdated_parameters() -> None:
-    """测试旧 Argon2 参数需要重新哈希"""
+    """测试旧 Argon2 参数需要重新哈希."""
     outdated_hasher = PasswordHasher(
         time_cost=1,
         memory_cost=8,
@@ -198,7 +198,7 @@ def test_needs_rehash_detects_outdated_parameters() -> None:
 
 
 def test_needs_rehash_rejects_empty_hash() -> None:
-    """测试拒绝空密码哈希"""
+    """测试拒绝空密码哈希."""
     with pytest.raises(
             ValueError,
             match="password_hash 不能为空",
@@ -219,7 +219,7 @@ def test_needs_rehash_rejects_empty_hash() -> None:
 def test_needs_rehash_rejects_invalid_hash(
         password_hash: str,
 ) -> None:
-    """测试拒绝格式无效的密码哈希"""
+    """测试拒绝格式无效的密码哈希."""
     with pytest.raises(
             ValueError,
             match="password_hash 格式无效",

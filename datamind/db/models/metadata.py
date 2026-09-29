@@ -1,4 +1,4 @@
-"""模型元数据表
+"""模型元数据表.
 
 存储模型的基础元数据信息，包括模型标识、模型类型、
 任务类型、框架、状态和生命周期记录。
@@ -41,7 +41,7 @@ class Metadata(
     TimestampMixin,
     Base,
 ):
-    """模型元数据表"""
+    """模型元数据表."""
 
     __tablename__ = "metadata"
 
@@ -248,7 +248,7 @@ class Metadata(
     def __repr__(
             self,
     ) -> str:
-        """返回模型元数据字符串表示"""
+        """返回模型元数据字符串表示."""
         return (
             f"<Metadata("
             f"model_id='{self.model_id}', "

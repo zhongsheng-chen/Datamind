@@ -1,4 +1,4 @@
-"""Celery Worker 健康检查测试
+"""Celery Worker 健康检查测试.
 
 验证健康检查对节点身份、消费队列和 Broker 异常的判断行为。
 
@@ -25,7 +25,7 @@ def replace_control_method(
         name: str,
         replacement: object,
 ) -> None:
-    """替换 Celery 控制接口并在测试结束后自动恢复"""
+    """替换 Celery 控制接口并在测试结束后自动恢复."""
     monkeypatch.setattr(
         healthcheck_module.celery_app.control,
         name,
@@ -36,7 +36,7 @@ def replace_control_method(
 def test_healthcheck_targets_current_container_and_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试当前容器内消费必需队列的 Worker 通过健康检查"""
+    """测试当前容器内消费必需队列的 Worker 通过健康检查."""
     monkeypatch.setattr(
         healthcheck_module,
         "get_worker_node_pattern",
@@ -70,7 +70,7 @@ def test_healthcheck_targets_current_container_and_role(
 def test_healthcheck_rejects_other_worker_reply(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试其他容器的 Worker 响应不会通过健康检查"""
+    """测试其他容器的 Worker 响应不会通过健康检查."""
     monkeypatch.setattr(
         healthcheck_module,
         "get_worker_node_pattern",
@@ -100,7 +100,7 @@ def test_healthcheck_rejects_other_worker_reply(
 def test_healthcheck_rejects_worker_with_wrong_role_queue(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试消费错误角色队列的 Worker 不会通过健康检查"""
+    """测试消费错误角色队列的 Worker 不会通过健康检查."""
     monkeypatch.setattr(
         healthcheck_module,
         "get_worker_node_pattern",
@@ -130,7 +130,7 @@ def test_healthcheck_rejects_worker_with_wrong_role_queue(
 def test_healthcheck_handles_broker_failure(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Broker 异常转换为健康检查失败结果"""
+    """测试 Broker 异常转换为健康检查失败结果."""
     monkeypatch.setattr(
         healthcheck_module,
         "get_worker_node_pattern",

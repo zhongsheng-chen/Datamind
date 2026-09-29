@@ -1,4 +1,4 @@
-"""评分任务运行时服务
+"""评分任务运行时服务.
 
 提供评分卡模型的在线评分能力。
 
@@ -39,7 +39,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 
 
 class ScoringService(BaseRuntimeService):
-    """评分任务运行时服务
+    """评分任务运行时服务.
 
     基于评分卡模型和评分阈值生成评分结果。
 
@@ -58,7 +58,7 @@ class ScoringService(BaseRuntimeService):
             data_types: dict[str, DataType] | None = None,
             threshold: float = 600.0,
     ) -> None:
-        """初始化评分任务运行时服务
+        """初始化评分任务运行时服务.
 
         参数：
             runtime_model: 已加载的运行时模型
@@ -95,7 +95,7 @@ class ScoringService(BaseRuntimeService):
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取服务能力集"""
+        """获取服务能力集."""
         return (
             ModelCapability.PREDICT_PROBA
             | ModelCapability.BATCH_PREDICT
@@ -105,7 +105,7 @@ class ScoringService(BaseRuntimeService):
             self,
             features: dict[str, Any],
     ) -> dict[str, Any]:
-        """单条评分
+        """单条评分.
 
         参数：
             features: 特征字典
@@ -133,7 +133,7 @@ class ScoringService(BaseRuntimeService):
             self,
             features_list: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """批量评分
+        """批量评分.
 
         参数：
             features_list: 特征字典列表
@@ -172,7 +172,7 @@ class ScoringService(BaseRuntimeService):
             self,
             features_list: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """计算评分结果
+        """计算评分结果.
 
         参数：
             features_list: 特征字典列表
@@ -229,7 +229,7 @@ class ScoringService(BaseRuntimeService):
     def _prepare_scorecard(
             self,
     ) -> None:
-        """准备评分卡数据
+        """准备评分卡数据.
 
         读取评分截距、分箱数据和 WoE 转换配置，校验分箱规则，
         并准备特征分转换参数。
@@ -338,7 +338,7 @@ class ScoringService(BaseRuntimeService):
     def _prepare_point_conversion(
             self,
     ) -> None:
-        """准备 WoE 到特征分的转换参数
+        """准备 WoE 到特征分的转换参数.
 
         根据模型系数和评分刻度计算转换参数，并校验评分表分值。
 
@@ -483,7 +483,7 @@ class ScoringService(BaseRuntimeService):
             name: str,
             column: pd.Series,
     ) -> np.ndarray:
-        """获取特征分箱索引
+        """获取特征分箱索引.
 
         根据已拟合规则匹配普通箱、特殊箱和缺失箱。
 
@@ -540,7 +540,7 @@ class ScoringService(BaseRuntimeService):
             name: str,
             woe: float,
     ) -> float:
-        """将 WoE 转换为特征分
+        """将 WoE 转换为特征分.
 
         用于无法直接采用评分表分值的情况。
 
@@ -581,7 +581,7 @@ class ScoringService(BaseRuntimeService):
             frame: pd.DataFrame,
             features_list: list[dict[str, Any]],
     ) -> list[dict[str, dict[str, Any]]]:
-        """提取各样本的特征评分明细
+        """提取各样本的特征评分明细.
 
         按已拟合规则匹配分箱，并使用与概率预测相同的配置计算 WoE。
         命中分箱且 WoE 与评分表对应值一致时使用表中分值，否则按评分刻度计算。
@@ -671,7 +671,7 @@ class ScoringService(BaseRuntimeService):
     def _convert_feature_value(
             value: Any,
     ) -> str | bool | int | float | None:
-        """转换响应中的特征值
+        """转换响应中的特征值.
 
         将 NumPy 标量转为 Python 标量，缺失值统一转为 None。
 
@@ -712,7 +712,7 @@ class ScoringService(BaseRuntimeService):
             *,
             expected_count: int,
     ) -> list[float]:
-        """提取评分卡违约概率
+        """提取评分卡违约概率.
 
         参数：
             values: 模型概率预测结果
@@ -776,7 +776,7 @@ class ScoringService(BaseRuntimeService):
             self,
             score: float,
     ) -> str:
-        """根据评分阈值生成业务决策
+        """根据评分阈值生成业务决策.
 
         参数：
             score: 信用分

@@ -1,4 +1,4 @@
-"""身份管理常量测试
+"""身份管理常量测试.
 
 验证内置角色名称和固定权限定义。
 
@@ -19,7 +19,7 @@ from datamind.constants.identity import (
 
 
 def test_administrator_role_definition() -> None:
-    """测试系统管理员角色具有全部权限"""
+    """测试系统管理员角色具有全部权限."""
     assert ADMINISTRATOR_ROLE_NAME == "administrator"
     assert ADMINISTRATOR_DISPLAY_NAME == "Administrator"
     assert ADMINISTRATOR_PERMISSIONS == (
@@ -29,7 +29,7 @@ def test_administrator_role_definition() -> None:
 
 
 def test_builtin_role_names_contains_only_administrator() -> None:
-    """测试内置角色仅包含系统管理员角色"""
+    """测试内置角色仅包含系统管理员角色."""
     assert BUILTIN_ROLE_NAMES == frozenset({
         ADMINISTRATOR_ROLE_NAME,
     })

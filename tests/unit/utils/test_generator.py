@@ -1,4 +1,4 @@
-"""ID 生成工具测试
+"""ID 生成工具测试.
 
 验证确定性 ID、随机 ID、格式长度、键值编码和参数校验。
 
@@ -42,12 +42,12 @@ import datamind.utils.generator as generator_utils
 
 
 def test_id_length_constant() -> None:
-    """测试 ID 主体长度常量"""
+    """测试 ID 主体长度常量."""
     assert generator_utils.ID_LENGTH == 16
 
 
 def test_generate_id_returns_stable_result() -> None:
-    """测试相同输入始终生成相同 ID"""
+    """测试相同输入始终生成相同 ID."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -67,7 +67,7 @@ def test_generate_id_returns_stable_result() -> None:
 
 
 def test_generate_id_uses_expected_format() -> None:
-    """测试确定性 ID 的前缀和哈希格式"""
+    """测试确定性 ID 的前缀和哈希格式."""
     result = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -83,7 +83,7 @@ def test_generate_id_uses_expected_format() -> None:
 
 
 def test_generate_id_changes_when_prefix_changes() -> None:
-    """测试前缀变化会生成不同 ID"""
+    """测试前缀变化会生成不同 ID."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -109,7 +109,7 @@ def test_generate_id_changes_when_prefix_changes() -> None:
 
 
 def test_generate_id_changes_when_key_changes() -> None:
-    """测试任一键值变化会生成不同 ID"""
+    """测试任一键值变化会生成不同 ID."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -129,7 +129,7 @@ def test_generate_id_changes_when_key_changes() -> None:
 
 
 def test_generate_id_preserves_key_order() -> None:
-    """测试键值顺序参与 ID 计算"""
+    """测试键值顺序参与 ID 计算."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -149,7 +149,7 @@ def test_generate_id_preserves_key_order() -> None:
 
 
 def test_generate_id_avoids_delimiter_ambiguity() -> None:
-    """测试不同键值组合不会因分隔符产生歧义"""
+    """测试不同键值组合不会因分隔符产生歧义."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -169,7 +169,7 @@ def test_generate_id_avoids_delimiter_ambiguity() -> None:
 
 
 def test_generate_id_distinguishes_single_and_multiple_keys() -> None:
-    """测试单个组合键与多个独立键生成不同 ID"""
+    """测试单个组合键与多个独立键生成不同 ID."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -188,7 +188,7 @@ def test_generate_id_distinguishes_single_and_multiple_keys() -> None:
 
 
 def test_generate_id_supports_unicode_keys() -> None:
-    """测试支持中文及其他 Unicode 键值"""
+    """测试支持中文及其他 Unicode 键值."""
     first = generator_utils.generate_id(
         prefix="ent",
         keys=(
@@ -224,7 +224,7 @@ def test_generate_id_supports_unicode_keys() -> None:
 def test_generate_id_rejects_blank_prefix(
         prefix: str,
 ) -> None:
-    """测试确定性 ID 拒绝空白前缀"""
+    """测试确定性 ID 拒绝空白前缀."""
     with pytest.raises(
         ValueError,
         match="prefix 不能为空",
@@ -238,7 +238,7 @@ def test_generate_id_rejects_blank_prefix(
 
 
 def test_generate_id_rejects_empty_keys() -> None:
-    """测试确定性 ID 拒绝空键值元组"""
+    """测试确定性 ID 拒绝空键值元组."""
     with pytest.raises(
         ValueError,
         match="keys 不能为空",
@@ -252,7 +252,7 @@ def test_generate_id_rejects_empty_keys() -> None:
 def test_generate_random_id_uses_expected_format(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试随机 ID 的前缀和 UUID 格式"""
+    """测试随机 ID 的前缀和 UUID 格式."""
     fixed_uuid = uuid.UUID(
         "12345678-90ab-cdef-1234-567890abcdef"
     )
@@ -272,7 +272,7 @@ def test_generate_random_id_uses_expected_format(
 def test_generate_random_id_uses_uuid4_each_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试每次生成随机 ID 都调用 UUID4"""
+    """测试每次生成随机 ID 都调用 UUID4."""
     generated = iter(
         (
             uuid.UUID(
@@ -325,7 +325,7 @@ def test_generate_random_id_uses_uuid4_each_time(
 def test_generate_random_id_rejects_blank_prefix(
         prefix: str,
 ) -> None:
-    """测试随机 ID 拒绝空白前缀"""
+    """测试随机 ID 拒绝空白前缀."""
     with pytest.raises(
         ValueError,
         match="prefix 不能为空",

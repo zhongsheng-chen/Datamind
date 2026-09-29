@@ -1,4 +1,4 @@
-"""存储模块
+"""存储模块.
 
 提供统一的存储抽象层，支持本地文件系统和 MinIO 对象存储。
 
@@ -37,7 +37,7 @@ from datamind.storage.admin import StorageAdmin
 
 
 class Storage:
-    """存储门面类
+    """存储门面类.
 
     对外提供统一的存储 API，内部委托给 StorageAdmin。
     """
@@ -46,7 +46,7 @@ class Storage:
             self,
             storage_admin: StorageAdmin,
     ) -> None:
-        """初始化存储实例
+        """初始化存储实例.
 
         参数：
             storage_admin: 存储管理 API 实例
@@ -61,7 +61,7 @@ class Storage:
             filename: str,
             data: bytes,
     ) -> str:
-        """保存模型文件
+        """保存模型文件.
 
         参数：
             model_name: 模型名称
@@ -88,7 +88,7 @@ class Storage:
             artifact_id: str,
             filename: str,
     ) -> bytes:
-        """加载模型文件
+        """加载模型文件.
 
         参数：
             model_name: 模型名称
@@ -113,7 +113,7 @@ class Storage:
             artifact_id: str,
             filename: str,
     ) -> bool:
-        """删除模型文件
+        """删除模型文件.
 
         参数：
             model_name: 模型名称
@@ -138,7 +138,7 @@ class Storage:
             artifact_id: str,
             filename: str,
     ) -> bool:
-        """检查模型文件是否存在
+        """检查模型文件是否存在.
 
         参数：
             model_name: 模型名称
@@ -160,7 +160,7 @@ class Storage:
             self,
             model_name: str,
     ) -> list[str]:
-        """列出模型的所有文件
+        """列出模型的所有文件.
 
         参数：
             model_name: 模型名称
@@ -177,7 +177,7 @@ class Storage:
             key: str,
             data: bytes,
     ) -> str:
-        """通过存储键保存文件
+        """通过存储键保存文件.
 
         参数：
             key: 存储键
@@ -195,7 +195,7 @@ class Storage:
             self,
             key: str,
     ) -> bytes:
-        """通过存储键加载文件
+        """通过存储键加载文件.
 
         参数：
             key: 存储键
@@ -212,7 +212,7 @@ class Storage:
             key: str,
             strict: bool = False,
     ) -> bool:
-        """通过存储键删除文件
+        """通过存储键删除文件.
 
         参数：
             key: 存储键
@@ -230,7 +230,7 @@ class Storage:
             self,
             key: str,
     ) -> bool:
-        """通过存储键检查文件是否存在
+        """通过存储键检查文件是否存在.
 
         参数：
             key: 存储键
@@ -245,7 +245,7 @@ class Storage:
 
 @lru_cache
 def get_storage() -> Storage:
-    """获取全局存储实例（单例）
+    """获取全局存储实例（单例）.
 
     返回：
         全局唯一的 Storage 实例

@@ -1,4 +1,4 @@
-"""存储后端抽象基类
+"""存储后端抽象基类.
 
 定义统一的存储接口，支持多种存储后端实现。
 
@@ -25,7 +25,7 @@ from abc import ABC, abstractmethod
 
 
 class BaseStorageBackend(ABC):
-    """存储后端抽象类
+    """存储后端抽象类.
 
     仅定义底层 I/O 操作，不包含业务语义。
     """
@@ -36,7 +36,7 @@ class BaseStorageBackend(ABC):
             key: str,
             data: bytes,
     ) -> None:
-        """存储对象
+        """存储对象.
 
         参数：
             key: 存储键
@@ -49,7 +49,7 @@ class BaseStorageBackend(ABC):
             self,
             key: str,
     ) -> bytes:
-        """读取对象
+        """读取对象.
 
         参数：
             key: 存储键
@@ -64,7 +64,7 @@ class BaseStorageBackend(ABC):
             self,
             key: str,
     ) -> None:
-        """删除对象
+        """删除对象.
 
         参数：
             key: 存储键
@@ -76,7 +76,7 @@ class BaseStorageBackend(ABC):
             self,
             key: str,
     ) -> bool:
-        """检查对象是否存在
+        """检查对象是否存在.
 
         参数：
             key: 存储键
@@ -91,7 +91,7 @@ class BaseStorageBackend(ABC):
             self,
             prefix: str,
     ) -> list[str]:
-        """列出指定前缀下的所有对象
+        """列出指定前缀下的所有对象.
 
         参数：
             prefix: 存储键前缀

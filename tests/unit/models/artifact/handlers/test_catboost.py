@@ -1,4 +1,4 @@
-"""CatBoost 模型加载器测试
+"""CatBoost 模型加载器测试.
 
 验证 CatBoost 模型通过临时文件加载。
 
@@ -22,7 +22,7 @@ from datamind.models.artifact.handlers.catboost import load_catboost
 def test_load_catboost_loads_temporary_model_file(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试通过临时文件加载 CatBoost 模型"""
+    """测试通过临时文件加载 CatBoost 模型."""
     model = SimpleNamespace(
         load_model=Mock()
     )

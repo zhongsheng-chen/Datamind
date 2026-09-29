@@ -1,4 +1,4 @@
-"""审计数据净化器
+"""审计数据净化器.
 
 将任意 Python 值转换为可安全写入 JSON 的有限结构，
 并递归脱敏敏感字段。
@@ -71,7 +71,7 @@ _SENSITIVE_KEYS: Final[frozenset[str]] = frozenset(
 def _is_sensitive_key(
         key: str,
 ) -> bool:
-    """判断字段名是否包含敏感语义"""
+    """判断字段名是否包含敏感语义."""
     normalized = (
         key.strip()
         .lower()
@@ -90,7 +90,7 @@ def _is_sensitive_key(
 def _truncate(
         value: str,
 ) -> str:
-    """限制审计字符串长度"""
+    """限制审计字符串长度."""
     if len(value) <= MAX_STRING_LENGTH:
         return value
 
@@ -107,7 +107,7 @@ def sanitize_audit_value(
         _force_redact: bool = False,
         _seen: set[int] | None = None,
 ) -> Any:
-    """转换、限界并脱敏审计值，且不修改输入对象"""
+    """转换、限界并脱敏审计值，且不修改输入对象."""
     if _depth >= MAX_DEPTH:
         return "[MAX_DEPTH]"
 
@@ -235,7 +235,7 @@ def sanitize_audit_value(
 def sanitize_audit_mapping(
         value: Mapping[str, Any] | None,
 ) -> dict[str, Any] | None:
-    """净化审计映射并确保结果仍为字典"""
+    """净化审计映射并确保结果仍为字典."""
     if value is None:
         return None
 

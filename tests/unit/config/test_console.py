@@ -1,4 +1,4 @@
-"""管理控制台配置测试
+"""管理控制台配置测试.
 
 验证默认网络参数、环境变量读取、外部配置隔离、参数校验、
 额外字段处理和配置不可变行为。
@@ -38,7 +38,7 @@ from datamind.config.console import ConsoleConfig
 
 
 class IsolatedConsoleConfig(ConsoleConfig):
-    """仅使用初始化参数的测试控制台配置"""
+    """仅使用初始化参数的测试控制台配置."""
 
     @classmethod
     def settings_customise_sources(
@@ -49,7 +49,7 @@ class IsolatedConsoleConfig(ConsoleConfig):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -66,7 +66,7 @@ def isolate_console_config(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """隔离控制台配置环境变量和 .env 文件"""
+    """隔离控制台配置环境变量和 .env 文件."""
     for key in tuple(os.environ):
         if key.startswith("DATAMIND_CONSOLE_"):
             monkeypatch.delenv(
@@ -78,7 +78,7 @@ def isolate_console_config(
 
 
 def test_console_config_default_values() -> None:
-    """测试管理控制台默认网络参数"""
+    """测试管理控制台默认网络参数."""
     config = IsolatedConsoleConfig()
 
     assert config.host == "127.0.0.1"
@@ -89,7 +89,7 @@ def test_console_config_default_values() -> None:
 def test_console_config_ignores_external_sources(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试隔离配置不读取外部配置源"""
+    """测试隔离配置不读取外部配置源."""
     monkeypatch.setenv(
         "DATAMIND_CONSOLE_HOST",
         "0.0.0.0",
@@ -108,7 +108,7 @@ def test_console_config_ignores_external_sources(
 def test_console_config_reads_environment_variables(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从环境变量读取控制台网络参数"""
+    """测试从环境变量读取控制台网络参数."""
     monkeypatch.setenv(
         "DATAMIND_CONSOLE_HOST",
         "0.0.0.0",
@@ -127,7 +127,7 @@ def test_console_config_reads_environment_variables(
 
 
 def test_console_config_accepts_custom_values() -> None:
-    """测试接受有效的自定义网络参数"""
+    """测试接受有效的自定义网络参数."""
     config = IsolatedConsoleConfig(
         host="0.0.0.0",
         port=8801,
@@ -147,7 +147,7 @@ def test_console_config_accepts_custom_values() -> None:
 def test_console_config_rejects_blank_host(
         host: str,
 ) -> None:
-    """测试拒绝空监听地址"""
+    """测试拒绝空监听地址."""
     with pytest.raises(
             ValidationError,
             match="host 不能为空",
@@ -167,7 +167,7 @@ def test_console_config_rejects_blank_host(
 def test_console_config_rejects_invalid_port(
         port: int,
 ) -> None:
-    """测试拒绝超出范围的监听端口"""
+    """测试拒绝超出范围的监听端口."""
     with pytest.raises(
             ValidationError,
             match="port 必须在 1 到 65535 之间",
@@ -179,13 +179,13 @@ def test_console_config_rejects_invalid_port(
 
 @pytest.mark.parametrize("startup_timeout", [0, -1, 601])
 def test_console_config_rejects_invalid_startup_timeout(startup_timeout: int) -> None:
-    """测试启动超时与命令行采用相同的有效范围"""
+    """测试启动超时与命令行采用相同的有效范围."""
     with pytest.raises(ValidationError, match="startup_timeout 必须在 1 到 600 之间"):
         IsolatedConsoleConfig(startup_timeout=startup_timeout)
 
 
 def test_console_config_ignores_extra_fields() -> None:
-    """测试忽略未声明的额外配置字段"""
+    """测试忽略未声明的额外配置字段."""
     config = IsolatedConsoleConfig.model_validate(
         {
             "unknown": "value",
@@ -199,7 +199,7 @@ def test_console_config_ignores_extra_fields() -> None:
 
 
 def test_console_config_is_frozen() -> None:
-    """测试控制台配置创建后不可修改"""
+    """测试控制台配置创建后不可修改."""
     config = IsolatedConsoleConfig()
 
     with pytest.raises(

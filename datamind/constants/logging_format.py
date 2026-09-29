@@ -1,4 +1,4 @@
-"""日志格式枚举
+"""日志格式枚举.
 
 定义日志输出格式类型，用于结构化日志和文本日志。
 
@@ -20,7 +20,7 @@ from typing import FrozenSet
 
 
 class LogFormat(str, Enum):
-    """日志格式字符串枚举"""
+    """日志格式字符串枚举."""
 
     TEXT = "text"
     JSON = "json"
@@ -28,7 +28,7 @@ class LogFormat(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

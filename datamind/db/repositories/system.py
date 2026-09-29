@@ -1,4 +1,4 @@
-"""系统状态仓储
+"""系统状态仓储.
 
 提供系统初始化状态的读取、行锁定和完成标记能力。
 
@@ -32,7 +32,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class SystemStateRepository(BaseRepository):
-    """系统状态仓储"""
+    """系统状态仓储."""
 
     async def get_state(
             self,
@@ -40,7 +40,7 @@ class SystemStateRepository(BaseRepository):
             system_id: str = "datamind",
             for_update: bool = False,
     ) -> SystemState | None:
-        """获取系统状态
+        """获取系统状态.
 
         参数：
             system_id: 系统标识
@@ -69,7 +69,7 @@ class SystemStateRepository(BaseRepository):
             *,
             system_id: str = "datamind",
     ) -> SystemState:
-        """原子获取或创建系统状态
+        """原子获取或创建系统状态.
 
         使用唯一索引避免并发初始化创建重复状态，并在读取时锁定状态记录。
 
@@ -115,7 +115,7 @@ class SystemStateRepository(BaseRepository):
             initialized_at: datetime,
             initialized_by: str,
     ) -> SystemState:
-        """标记系统已初始化
+        """标记系统已初始化.
 
         参数：
             state: 系统状态

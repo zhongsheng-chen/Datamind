@@ -1,4 +1,4 @@
-"""CLI 模型命令测试
+"""CLI 模型命令测试.
 
 验证模型命令使用认证上下文中的操作人和对应权限。
 
@@ -82,7 +82,7 @@ DELETION_COMMAND_CASES = (
 
 
 class FakeCLIContext:
-    """CLI 认证上下文替身"""
+    """CLI 认证上下文替身."""
 
     async def __aenter__(self) -> SimpleNamespace:
         return SimpleNamespace(
@@ -94,7 +94,7 @@ class FakeCLIContext:
 
 
 class FakeUnitOfWork:
-    """模型命令测试工作单元"""
+    """模型命令测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -122,7 +122,7 @@ def test_deletion_commands_render_clean_business_error(
         arguments: list[str],
         message_prefix: str,
 ) -> None:
-    """测试模型删除相关命令使用简洁的业务错误提示"""
+    """测试模型删除相关命令使用简洁的业务错误提示."""
     error_message = (
         "模型或版本存在活动部署，请先禁用相关部署"
     )
@@ -170,7 +170,7 @@ def test_deletion_commands_render_clean_business_error(
 def test_activate_model_versions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未指定版本时批量激活模型版本"""
+    """测试未指定版本时批量激活模型版本."""
     lifecycle = MagicMock()
     lifecycle.activate = AsyncMock(
         return_value={
@@ -224,7 +224,7 @@ def test_activate_model_versions(
 def test_activate_uses_authenticated_actor(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试激活模型使用认证用户作为实际操作人"""
+    """测试激活模型使用认证用户作为实际操作人."""
     lifecycle = MagicMock()
     lifecycle.activate = AsyncMock(
         return_value={
@@ -287,7 +287,7 @@ def test_activate_uses_authenticated_actor(
 def test_deprecate_uses_authenticated_actor(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试弃用模型使用认证用户作为实际操作人"""
+    """测试弃用模型使用认证用户作为实际操作人."""
     lifecycle = MagicMock()
     lifecycle.deprecate = AsyncMock(
         return_value={
@@ -351,7 +351,7 @@ def test_deprecate_uses_authenticated_actor(
 def test_activate_renders_clean_business_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试激活模型使用简洁的业务错误提示"""
+    """测试激活模型使用简洁的业务错误提示."""
     lifecycle = MagicMock()
     lifecycle.activate = AsyncMock(
         side_effect=InvalidModelStateError(
@@ -399,7 +399,7 @@ def test_activate_renders_clean_business_error(
 def test_deactivate_renders_clean_business_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试停用模型使用简洁的业务错误提示"""
+    """测试停用模型使用简洁的业务错误提示."""
     lifecycle = MagicMock()
     lifecycle.deactivate = AsyncMock(
         side_effect=InvalidModelStateError(
@@ -449,7 +449,7 @@ def test_deactivate_renders_clean_business_error(
 def test_show_rejects_foreign_version_without_traceback(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试查看模型拒绝不属于当前模型的版本"""
+    """测试查看模型拒绝不属于当前模型的版本."""
     resolver = MagicMock()
     resolver.resolve_model = AsyncMock(
         return_value=SimpleNamespace(
@@ -510,7 +510,7 @@ def test_show_rejects_foreign_version_without_traceback(
 def test_register_renders_clean_business_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试注册模型使用简洁的业务错误提示"""
+    """测试注册模型使用简洁的业务错误提示."""
     service = MagicMock()
     service.register = AsyncMock(
         side_effect=ValueError(

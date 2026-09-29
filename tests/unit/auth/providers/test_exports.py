@@ -1,4 +1,4 @@
-"""认证提供方包公共导出测试
+"""认证提供方包公共导出测试.
 
 验证认证提供方包公开 API 的完整性和可访问性。
 
@@ -23,12 +23,12 @@ EXPECTED_EXPORTS = {
 
 
 def test_provider_exports_expected_public_api() -> None:
-    """测试认证提供方包公开完整且准确的 API"""
+    """测试认证提供方包公开完整且准确的 API."""
     assert set(providers.__all__) == EXPECTED_EXPORTS
     assert len(providers.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的认证提供方对象均可访问"""
+    """测试 __all__ 中声明的认证提供方对象均可访问."""
     for name in providers.__all__:
         assert hasattr(providers, name), name

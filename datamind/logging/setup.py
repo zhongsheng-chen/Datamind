@@ -1,4 +1,4 @@
-"""日志系统初始化
+"""日志系统初始化.
 
 配置 structlog 处理器链，支持 JSON、文本输出以及同步、异步日志。
 
@@ -53,7 +53,7 @@ _ROOT_HANDLERS: list[logging.Handler] = []
 def _logger_factory(
         name: str | None = None,
 ) -> logging.Logger:
-    """创建标准库日志实例
+    """创建标准库日志实例.
 
     参数：
         name: 日志名称，未提供时使用 datamind
@@ -67,7 +67,7 @@ def _logger_factory(
 def _safe_flush_and_close(
         handler: logging.Handler,
 ) -> None:
-    """安全刷新并关闭日志 handler
+    """安全刷新并关闭日志 handler.
 
     参数：
         handler: 待刷新和关闭的日志 handler
@@ -88,7 +88,7 @@ def _safe_flush_and_close(
 
 
 def shutdown_logging() -> None:
-    """关闭日志系统
+    """关闭日志系统.
 
     停止异步日志监听器，刷新并关闭已创建的 handler，
     同时清空 datamind logger，避免重复初始化时重复输出。
@@ -128,7 +128,7 @@ def shutdown_logging() -> None:
 def setup_logging(
         config: LoggingConfig,
 ) -> None:
-    """初始化日志系统
+    """初始化日志系统.
 
     参数：
         config: 日志配置对象

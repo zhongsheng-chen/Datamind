@@ -1,6 +1,6 @@
-"""A/B 实验指标评估测试
+"""A/B 实验指标评估测试.
 
-验证分组指标、坏样本规则、金额聚合和基准组 lift 对比。
+验证分组指标、坏样本识别、金额聚合和基准组 lift 对比。
 
 核心功能：
   - test_metrics_ignore_non_finite_amounts:
@@ -31,7 +31,7 @@ def create_outcome(
         amount: object = None,
         **overrides: Any,
 ) -> SimpleNamespace:
-    """创建实验结果测试对象"""
+    """创建实验结果测试对象."""
     values = {
         "experiment_id": experiment_id,
         "variant_id": variant_id,
@@ -48,7 +48,7 @@ def create_outcome(
 
 
 def test_metrics_ignore_non_finite_amounts() -> None:
-    """测试非有限金额不会污染汇总指标"""
+    """测试非有限金额不会污染汇总指标."""
     outcomes = [
         SimpleNamespace(
             experiment_id="exp_test",
@@ -75,7 +75,7 @@ def test_metrics_ignore_non_finite_amounts() -> None:
 
 
 def test_metrics_calculate_counts_and_rates() -> None:
-    """测试计算分组数量、比例和金额指标"""
+    """测试计算分组数量、比例和金额指标."""
     outcomes = [
         create_outcome(
             approved=True,
@@ -118,7 +118,7 @@ def test_metrics_calculate_counts_and_rates() -> None:
 def test_metrics_identify_bad_outcomes(
         outcome: SimpleNamespace,
 ) -> None:
-    """测试通过违约、标签和逾期天数识别坏样本"""
+    """测试通过违约、标签和逾期天数识别坏样本."""
     metrics = ABTestMetricEvaluator().calculate_variant_metrics(
         outcomes=[outcome]
     )["var_control"]
@@ -128,7 +128,7 @@ def test_metrics_identify_bad_outcomes(
 
 
 def test_metrics_ignore_invalid_variant_ids() -> None:
-    """测试忽略缺少有效分组 ID 的结果记录"""
+    """测试忽略缺少有效分组 ID 的结果记录."""
     metrics = ABTestMetricEvaluator().calculate_variant_metrics(
         outcomes=[
             create_outcome(variant_id=None),
@@ -145,7 +145,7 @@ def test_metrics_ignore_invalid_variant_ids() -> None:
 
 
 def test_metrics_compare_variants() -> None:
-    """测试计算实验分组相对基准组的提升"""
+    """测试计算实验分组相对基准组的提升."""
     outcomes = [
         create_outcome(
             variant_id="var_control",
@@ -200,7 +200,7 @@ def test_metrics_compare_variants() -> None:
 
 
 def test_metrics_return_none_relative_lift_for_zero_baseline() -> None:
-    """测试基准值为零时不计算相对提升"""
+    """测试基准值为零时不计算相对提升."""
     result = ABTestMetricEvaluator().calculate_experiment_metrics(
         experiment_id="exp_test",
         outcomes=[
@@ -235,7 +235,7 @@ def test_metrics_reject_invalid_experiment_query(
         baseline_variant_id: str | None,
         message: str,
 ) -> None:
-    """测试拒绝空实验 ID 或不存在的基准分组"""
+    """测试拒绝空实验 ID 或不存在的基准分组."""
     with pytest.raises(ValueError, match=message):
         ABTestMetricEvaluator().calculate_experiment_metrics(
             experiment_id=experiment_id,
@@ -247,7 +247,7 @@ def test_metrics_reject_invalid_experiment_query(
 
 
 def test_metrics_support_custom_bad_sample_rules() -> None:
-    """测试自定义坏样本标签和逾期阈值"""
+    """测试自定义坏样本标签和逾期阈值."""
     evaluator = ABTestMetricEvaluator(
         bad_label="reject",
         overdue_bad_threshold=10,

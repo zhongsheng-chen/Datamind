@@ -1,4 +1,4 @@
-"""完成实验命令
+"""完成实验命令.
 
 提供实验完成标记功能。
 
@@ -42,7 +42,7 @@ def complete_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """完成实验"""
+    """完成实验."""
 
     @audit(
         action="experiment.complete",

@@ -1,4 +1,4 @@
-"""权限校验工具
+"""权限校验工具.
 
 提供权限标识规范化、单项权限匹配和批量权限检查能力。
 
@@ -64,7 +64,7 @@ from datamind.auth.errors import PermissionDeniedError
 def normalize_permission(
         permission: str,
 ) -> str:
-    """规范化权限标识
+    """规范化权限标识.
 
     参数：
         permission: 权限标识
@@ -90,7 +90,7 @@ def permission_implies(
         granted_permission: str,
         required_permission: str,
 ) -> bool:
-    """判断已授予权限是否包含目标权限
+    """判断已授予权限是否包含目标权限.
 
     参数：
         granted_permission: 已授予权限
@@ -129,7 +129,7 @@ def has_permission(
         granted_permissions: Iterable[str],
         required_permission: str,
 ) -> bool:
-    """检查是否拥有指定权限
+    """检查是否拥有指定权限.
 
     参数：
         granted_permissions: 已授予权限集合
@@ -156,7 +156,7 @@ def has_any_permission(
         granted_permissions: Iterable[str],
         required_permissions: Iterable[str],
 ) -> bool:
-    """检查是否拥有任一指定权限
+    """检查是否拥有任一指定权限.
 
     参数：
         granted_permissions: 已授予权限集合
@@ -183,7 +183,7 @@ def has_all_permissions(
         granted_permissions: Iterable[str],
         required_permissions: Iterable[str],
 ) -> bool:
-    """检查是否拥有全部指定权限
+    """检查是否拥有全部指定权限.
 
     参数：
         granted_permissions: 已授予权限集合
@@ -213,7 +213,7 @@ def require_permission(
         granted_permissions: Iterable[str],
         required_permission: str,
 ) -> None:
-    """要求拥有指定权限
+    """要求拥有指定权限.
 
     参数：
         granted_permissions: 已授予权限集合
@@ -242,7 +242,7 @@ def require_any_permission(
         granted_permissions: Iterable[str],
         required_permissions: Iterable[str],
 ) -> None:
-    """要求拥有任一指定权限
+    """要求拥有任一指定权限.
 
     参数：
         granted_permissions: 已授予权限集合
@@ -280,7 +280,7 @@ def require_all_permissions(
         granted_permissions: Iterable[str],
         required_permissions: Iterable[str],
 ) -> None:
-    """要求拥有全部指定权限
+    """要求拥有全部指定权限.
 
     参数：
         granted_permissions: 已授予权限集合
@@ -322,7 +322,7 @@ def require_all_permissions(
 def _normalize_permissions(
         permissions: Iterable[str],
 ) -> tuple[str, ...]:
-    """规范化权限集合"""
+    """规范化权限集合."""
     return tuple(
         dict.fromkeys(
             normalize_permission(

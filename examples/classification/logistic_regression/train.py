@@ -1,4 +1,4 @@
-"""逻辑回归分类模型训练示例
+"""逻辑回归分类模型训练示例.
 
 使用可复现的合成数据训练带标准化步骤的 sklearn 逻辑回归二分类模型，
 并保存 joblib 制品。
@@ -46,7 +46,7 @@ def build_training_data(
         sample_size: int = SAMPLE_SIZE,
         random_seed: int = RANDOM_SEED,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    """构造可复现的交易风险二分类数据。"""
+    """构造可复现的交易风险二分类数据."""
     if sample_size < 100:
         raise ValueError("sample_size 不能小于 100")
 
@@ -84,7 +84,7 @@ def split_training_data(
     pd.Series,
     pd.Series,
 ]:
-    """按标签分层划分训练集和测试集。"""
+    """按标签分层划分训练集和测试集."""
     return train_test_split(
         features,
         labels,
@@ -100,7 +100,7 @@ def train_model(
         *,
         random_seed: int = RANDOM_SEED,
 ) -> Pipeline:
-    """训练包含标准化步骤的逻辑回归流水线。"""
+    """训练包含标准化步骤的逻辑回归流水线."""
     model = Pipeline([
         ("scaler", StandardScaler()),
         (
@@ -121,7 +121,7 @@ def evaluate_model(
         features: pd.DataFrame,
         labels: pd.Series,
 ) -> dict[str, float]:
-    """计算测试集准确率和 ROC AUC。"""
+    """计算测试集准确率和 ROC AUC."""
     predictions = model.predict(features)
     probabilities = model.predict_proba(features)[:, 1]
 
@@ -135,7 +135,7 @@ def evaluate_model(
 
 
 def save_model(model: Pipeline, output_path: Path) -> Path:
-    """保存 sklearn 模型制品。"""
+    """保存 sklearn 模型制品."""
     resolved_path = output_path.resolve()
     resolved_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, resolved_path)
@@ -143,8 +143,17 @@ def save_model(model: Pipeline, output_path: Path) -> Path:
     return resolved_path
 
 
-def parse_arguments() -> argparse.Namespace:
-    """解析命令行参数。"""
+def parse_arguments(
+    arguments: list[str] | None = None,
+) -> argparse.Namespace:
+    """解析命令行参数.
+
+    参数：
+        arguments: 待解析的命令行参数，默认读取当前进程参数
+
+    返回：
+        解析后的命令行参数
+    """
     parser = argparse.ArgumentParser(
         description="训练 Logistic Regression 风险分类示例模型",
     )
@@ -168,11 +177,11 @@ def parse_arguments() -> argparse.Namespace:
         help="随机种子",
     )
 
-    return parser.parse_args()
+    return parser.parse_args(arguments)
 
 
 def main() -> None:
-    """执行数据生成、划分、训练、评估和保存流程。"""
+    """执行数据生成、划分、训练、评估和保存流程."""
     arguments = parse_arguments()
     features, labels = build_training_data(
         sample_size=arguments.sample_size,

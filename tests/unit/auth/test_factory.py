@@ -1,4 +1,4 @@
-"""认证工厂测试
+"""认证工厂测试.
 
 验证认证工厂仅创建 LOCAL 认证服务，并执行生产网络安全校验。
 
@@ -31,7 +31,7 @@ def create_settings(
         allowed_networks: tuple[str, ...] = (),
         break_glass_only: bool = False,
 ) -> SimpleNamespace:
-    """创建认证工厂测试配置"""
+    """创建认证工厂测试配置."""
     local = SimpleNamespace(
         max_failed_login_attempts=7,
         lock_minutes=45,
@@ -61,7 +61,7 @@ def install_settings(
         monkeypatch: pytest.MonkeyPatch,
         settings: SimpleNamespace,
 ) -> None:
-    """替换认证工厂使用的独立子配置"""
+    """替换认证工厂使用的独立子配置."""
     monkeypatch.setitem(
         vars(factory_module),
         "get_auth_config",
@@ -77,7 +77,7 @@ def install_settings(
 def test_create_auth_service_rejects_disabled_auth(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证功能停用时拒绝创建服务"""
+    """测试认证功能停用时拒绝创建服务."""
     install_settings(
         monkeypatch,
         create_settings(
@@ -105,7 +105,7 @@ def test_protected_environment_requires_allowed_networks(
         monkeypatch: pytest.MonkeyPatch,
         environment: Environment,
 ) -> None:
-    """测试预发布和生产环境必须配置允许网段"""
+    """测试预发布和生产环境必须配置允许网段."""
     install_settings(
         monkeypatch,
         create_settings(
@@ -125,7 +125,7 @@ def test_protected_environment_requires_allowed_networks(
 def test_create_auth_service_builds_local_dependencies(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证工厂创建并配置本地认证服务"""
+    """测试认证工厂创建并配置本地认证服务."""
     settings = create_settings(
         environment=Environment.PRODUCTION,
         allowed_networks=(
@@ -201,7 +201,7 @@ def test_create_auth_service_builds_local_dependencies(
 def test_production_does_not_force_break_glass_mode(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试生产环境允许配置普通本地用户登录"""
+    """测试生产环境允许配置普通本地用户登录."""
     settings = create_settings(
         environment=Environment.PRODUCTION,
         allowed_networks=(

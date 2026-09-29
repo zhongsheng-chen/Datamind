@@ -1,4 +1,4 @@
-"""管理控制台路由表测试
+"""管理控制台路由表测试.
 
 验证页面、接口和静态资源路由集中注册且方法约束准确。
 
@@ -25,12 +25,12 @@ from datamind.console.assets import ConsoleStaticFiles
 
 
 async def handler(_request: Request) -> Response:
-    """返回路由测试响应"""
+    """返回路由测试响应."""
     return Response()
 
 
 def test_create_routes_registers_expected_endpoints() -> None:
-    """测试路由表包含预期端点、方法和静态资源"""
+    """测试路由表包含预期端点、方法和静态资源."""
     static_dir = (
         Path(__file__).parents[2]
         / "datamind"

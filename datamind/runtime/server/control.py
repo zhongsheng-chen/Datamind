@@ -1,4 +1,4 @@
-"""运行时部署控制接口
+"""运行时部署控制接口.
 
 提供部署加载、卸载、重载和 Worker 运行状态查询接口。
 
@@ -36,7 +36,7 @@ service_config = get_service_config()
 
 
 class RuntimeControlMixin:
-    """运行时部署控制接口能力"""
+    """运行时部署控制接口能力."""
 
     controller: RuntimeControlService
     manager: RuntimeManager
@@ -57,7 +57,7 @@ class RuntimeControlMixin:
             request: ControlRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """提交已认证的部署加载请求"""
+        """提交已认证的部署加载请求."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -83,7 +83,7 @@ class RuntimeControlMixin:
             request_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """设置部署期望状态为 loaded
+        """设置部署期望状态为 loaded.
 
         只允许操作当前 Service environment
         对应的 Deployment。
@@ -165,7 +165,7 @@ class RuntimeControlMixin:
             request: ControlRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """提交已认证的部署卸载请求"""
+        """提交已认证的部署卸载请求."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -191,7 +191,7 @@ class RuntimeControlMixin:
             request_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """设置部署期望状态为 unloaded
+        """设置部署期望状态为 unloaded.
 
         只允许操作当前 Service environment
         对应的 Deployment。
@@ -267,7 +267,7 @@ class RuntimeControlMixin:
             request: ControlRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """提交已认证的部署重载请求"""
+        """提交已认证的部署重载请求."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -293,7 +293,7 @@ class RuntimeControlMixin:
             request_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """请求重新加载部署模型
+        """请求重新加载部署模型.
 
         只允许操作当前 Service environment
         对应的 Deployment。
@@ -372,7 +372,7 @@ class RuntimeControlMixin:
             request: DeploymentRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """查询已认证的部署运行状态"""
+        """查询已认证的部署运行状态."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -393,7 +393,7 @@ class RuntimeControlMixin:
             request: DeploymentRequest,
             request_id: str,
     ) -> dict[str, Any]:
-        """查询部署运行状态
+        """查询部署运行状态.
 
         返回：
           - controls 期望状态
@@ -485,7 +485,7 @@ class RuntimeControlMixin:
             self,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """查询当前 Worker 的已认证服务列表"""
+        """查询当前 Worker 的已认证服务列表."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -500,7 +500,7 @@ class RuntimeControlMixin:
     async def _services(
             self,
     ) -> dict[str, Any]:
-        """查询当前 Worker 服务状态
+        """查询当前 Worker 服务状态.
 
         返回：
             当前 Worker 运行时状态

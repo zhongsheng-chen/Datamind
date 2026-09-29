@@ -1,4 +1,4 @@
-"""Datamind Repository 与 UnitOfWork 的 PostgreSQL 集成测试
+"""Datamind Repository 与 UnitOfWork 的 PostgreSQL 集成测试.
 
 验证业务仓储通过真实 PostgreSQL 完成提交、跨会话读取、回滚、唯一约束，
 并确认 ORM 事件与业务记录在同一事务中持久化至 Outbox。
@@ -38,7 +38,7 @@ pytestmark = pytest.mark.integration
 
 
 def resource_ids() -> dict[str, str]:
-    """生成单个测试使用的稳定前缀业务标识"""
+    """生成单个测试使用的稳定前缀业务标识."""
     suffix = uuid.uuid4().hex
     return {
         "model": f"mdl_{suffix}",
@@ -57,7 +57,7 @@ def resource_ids() -> dict[str, str]:
 async def test_repository_graph_commits_and_is_visible_to_a_new_session(
     datamind_database: AsyncEngine,
 ) -> None:
-    """测试主要 Repository 写入提交后可由新 UnitOfWork 查询"""
+    """测试主要 Repository 写入提交后可由新 UnitOfWork 查询."""
     del datamind_database
     identifiers = resource_ids()
     model_name = f"integration-{identifiers['model']}"
@@ -158,7 +158,7 @@ async def test_repository_graph_commits_and_is_visible_to_a_new_session(
 async def test_unit_of_work_rolls_back_after_exception(
     datamind_database: AsyncEngine,
 ) -> None:
-    """测试异常退出 UnitOfWork 后业务记录与 Outbox 均不落库"""
+    """测试异常退出 UnitOfWork 后业务记录与 Outbox 均不落库."""
     del datamind_database
     identifiers = resource_ids()
 
@@ -187,7 +187,7 @@ async def test_unit_of_work_rolls_back_after_exception(
 async def test_repository_commit_enforces_unique_constraint(
     datamind_database: AsyncEngine,
 ) -> None:
-    """测试重复模型名称在 UnitOfWork 提交阶段触发唯一约束"""
+    """测试重复模型名称在 UnitOfWork 提交阶段触发唯一约束."""
     del datamind_database
     identifiers = resource_ids()
     duplicate_name = f"duplicate-{identifiers['model']}"

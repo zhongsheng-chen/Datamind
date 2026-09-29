@@ -1,4 +1,4 @@
-"""运行时状态协调器测试
+"""运行时状态协调器测试.
 
 验证控制状态加载、模型状态收敛、失败隔离、心跳和后台循环生命周期。
 
@@ -61,7 +61,7 @@ from datamind.runtime.reconciler import (
 
 
 class FakeUnitOfWork:
-    """运行时协调器测试工作单元"""
+    """运行时协调器测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -81,7 +81,7 @@ def create_control(
         generation: int = 1,
         updated_by: str | None = "operator",
 ) -> SimpleNamespace:
-    """创建运行控制记录"""
+    """创建运行控制记录."""
     return SimpleNamespace(
         deployment_id=deployment_id,
         environment=environment,
@@ -97,7 +97,7 @@ def configure_reconciler(
         controls: list[SimpleNamespace] | None = None,
         local_loaded: bool = False,
 ) -> tuple[RuntimeReconciler, Any, MagicMock, MagicMock]:
-    """配置运行时协调器及仓储替身"""
+    """配置运行时协调器及仓储替身."""
     manager: Any = MagicMock()
     manager.worker_id = "worker_test"
     manager.registry.__contains__.return_value = (
@@ -147,7 +147,7 @@ def configure_reconciler(
 def test_reconciler_binds_service_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试协调器日志绑定调用方传入的实例标识"""
+    """测试协调器日志绑定调用方传入的实例标识."""
     manager = MagicMock()
     manager.worker_id = "worker_test"
     monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "unrelated-instance")
@@ -164,7 +164,7 @@ def test_reconciler_binds_service_identity(
 
 
 def test_reconcile_result_records_actions() -> None:
-    """测试协调结果记录各类动作"""
+    """测试协调结果记录各类动作."""
     result = ReconcileResult(
         checked=4
     )
@@ -188,7 +188,7 @@ def test_reconcile_result_records_actions() -> None:
 
 
 def test_reconcile_result_rejects_unknown_action() -> None:
-    """测试协调结果拒绝未知动作"""
+    """测试协调结果拒绝未知动作."""
     with pytest.raises(
             ValueError,
             match="未知协调动作",
@@ -212,7 +212,7 @@ def test_reconciler_rejects_invalid_configuration(
         kwargs: dict[str, Any],
         message: str,
 ) -> None:
-    """测试协调器拒绝非法配置"""
+    """测试协调器拒绝非法配置."""
     manager: Any = MagicMock(worker_id="worker_test")
     values: dict[str, Any] = {
         "manager": manager,
@@ -231,7 +231,7 @@ def test_reconciler_rejects_invalid_configuration(
 async def test_reconcile_loads_missing_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试协调器加载本地缺失的部署"""
+    """测试协调器加载本地缺失的部署."""
     reconciler, manager, control_repo, runtime_repo = configure_reconciler(
         monkeypatch,
         controls=[create_control()],
@@ -266,7 +266,7 @@ async def test_reconcile_loads_missing_deployment(
 async def test_reconcile_uses_default_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制记录未提供更新人时使用默认操作人"""
+    """测试控制记录未提供更新人时使用默认操作人."""
     reconciler, manager, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control(updated_by=None)],
@@ -284,7 +284,7 @@ async def test_reconcile_uses_default_operator(
 async def test_reconcile_initializes_loaded_generation(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已加载部署初始化本地控制版本"""
+    """测试已加载部署初始化本地控制版本."""
     reconciler, manager, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control(generation=2)],
@@ -302,7 +302,7 @@ async def test_reconcile_initializes_loaded_generation(
 async def test_reconcile_restarts_changed_generation(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制版本变化时重新加载部署"""
+    """测试控制版本变化时重新加载部署."""
     control = create_control(generation=1)
     reconciler, manager, control_repo, _ = configure_reconciler(
         monkeypatch,
@@ -327,7 +327,7 @@ async def test_reconcile_restarts_changed_generation(
 async def test_reconcile_keeps_same_generation(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制版本未变化时不执行运行操作"""
+    """测试控制版本未变化时不执行运行操作."""
     reconciler, manager, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control()],
@@ -347,7 +347,7 @@ async def test_reconcile_keeps_same_generation(
 async def test_reconcile_unloads_loaded_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试协调器卸载本地已加载部署"""
+    """测试协调器卸载本地已加载部署."""
     reconciler, manager, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control(desired_status="unloaded")],
@@ -368,7 +368,7 @@ async def test_reconcile_unloads_loaded_deployment(
 async def test_reconcile_keeps_unloaded_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地未加载部署保持卸载状态"""
+    """测试本地未加载部署保持卸载状态."""
     reconciler, manager, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control(desired_status="unloaded")],
@@ -387,7 +387,7 @@ async def test_reconcile_keeps_unloaded_deployment(
 async def test_reconcile_isolates_control_failure(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单个部署加载失败计入失败结果"""
+    """测试单个部署加载失败计入失败结果."""
     reconciler, manager, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control()],
@@ -404,7 +404,7 @@ async def test_reconcile_isolates_control_failure(
 async def test_reconcile_rejects_control_from_other_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试其他环境控制记录被计入失败结果"""
+    """测试其他环境控制记录被计入失败结果."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control(environment="staging")],
@@ -420,7 +420,7 @@ async def test_reconcile_rejects_control_from_other_environment(
 async def test_reconcile_rejects_invalid_control_status(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试读取控制记录时拒绝非法状态"""
+    """测试读取控制记录时拒绝非法状态."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
         controls=[create_control(desired_status="invalid")],
@@ -434,7 +434,7 @@ async def test_reconcile_rejects_invalid_control_status(
 async def test_reconcile_heartbeats_loaded_runtime(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试到达心跳间隔后更新已加载运行记录"""
+    """测试到达心跳间隔后更新已加载运行记录."""
     reconciler, _, _, runtime_repo = configure_reconciler(
         monkeypatch,
         controls=[create_control(
@@ -472,7 +472,7 @@ async def test_reconcile_heartbeats_loaded_runtime(
 async def test_heartbeat_skips_missing_and_unloaded_runtime(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试心跳跳过缺失和非加载状态的运行记录"""
+    """测试心跳跳过缺失和非加载状态的运行记录."""
     controls = [
         create_control(deployment_id="dep_missing"),
         create_control(deployment_id="dep_unloaded"),
@@ -497,7 +497,7 @@ async def test_heartbeat_skips_missing_and_unloaded_runtime(
 async def test_heartbeat_failure_does_not_fail_reconciliation(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试心跳数据库错误不影响状态协调结果"""
+    """测试心跳数据库错误不影响状态协调结果."""
     reconciler, _, _, runtime_repo = configure_reconciler(
         monkeypatch,
         controls=[create_control()],
@@ -517,7 +517,7 @@ async def test_heartbeat_failure_does_not_fail_reconciliation(
 async def test_reconciler_start_and_stop_are_idempotent(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试后台协调循环可幂等启动和停止"""
+    """测试后台协调循环可幂等启动和停止."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch
     )

@@ -1,4 +1,4 @@
-"""权限校验工具测试
+"""权限校验工具测试.
 
 验证权限标识规范化、精确权限匹配、通配符匹配、
 批量权限检查和权限不足异常处理。
@@ -51,7 +51,7 @@ from datamind.auth.permissions import (
 
 
 def test_normalize_permission_strips_whitespace() -> None:
-    """测试去除权限标识首尾空白"""
+    """测试去除权限标识首尾空白."""
     result = normalize_permission(
         "  model.read  "
     )
@@ -72,7 +72,7 @@ def test_normalize_permission_strips_whitespace() -> None:
 def test_normalize_permission_rejects_empty_permission(
         permission: str,
 ) -> None:
-    """测试拒绝空权限标识"""
+    """测试拒绝空权限标识."""
     with pytest.raises(
             ValueError,
             match="permission 不能为空",
@@ -122,7 +122,7 @@ def test_permission_implies_matches_permissions(
         granted_permission: str,
         required_permission: str,
 ) -> None:
-    """测试全局、精确和命名空间权限匹配"""
+    """测试全局、精确和命名空间权限匹配."""
     result = permission_implies(
         granted_permission=granted_permission,
         required_permission=required_permission,
@@ -167,7 +167,7 @@ def test_permission_implies_rejects_unmatched_permissions(
         granted_permission: str,
         required_permission: str,
 ) -> None:
-    """测试不同命名空间和大小写不匹配"""
+    """测试不同命名空间和大小写不匹配."""
     result = permission_implies(
         granted_permission=granted_permission,
         required_permission=required_permission,
@@ -225,7 +225,7 @@ def test_has_permission_checks_granted_permissions(
         required_permission: str,
         expected: bool,
 ) -> None:
-    """测试单项权限检查"""
+    """测试单项权限检查."""
     result = has_permission(
         granted_permissions=granted_permissions,
         required_permission=required_permission,
@@ -235,7 +235,7 @@ def test_has_permission_checks_granted_permissions(
 
 
 def test_has_permission_accepts_generator() -> None:
-    """测试单项权限检查支持生成器"""
+    """测试单项权限检查支持生成器."""
     granted_permissions = (
         permission
         for permission in [
@@ -311,7 +311,7 @@ def test_has_any_permission_checks_required_permissions(
         required_permissions: list[str],
         expected: bool,
 ) -> None:
-    """测试任一权限检查"""
+    """测试任一权限检查."""
     result = has_any_permission(
         granted_permissions=granted_permissions,
         required_permissions=required_permissions,
@@ -321,7 +321,7 @@ def test_has_any_permission_checks_required_permissions(
 
 
 def test_has_any_permission_accepts_generators() -> None:
-    """测试任一权限检查支持生成器"""
+    """测试任一权限检查支持生成器."""
     granted_permissions = (
         permission
         for permission in [
@@ -412,7 +412,7 @@ def test_has_all_permissions_checks_required_permissions(
         required_permissions: list[str],
         expected: bool,
 ) -> None:
-    """测试全部权限检查"""
+    """测试全部权限检查."""
     result = has_all_permissions(
         granted_permissions=granted_permissions,
         required_permissions=required_permissions,
@@ -422,7 +422,7 @@ def test_has_all_permissions_checks_required_permissions(
 
 
 def test_has_all_permissions_accepts_generators() -> None:
-    """测试全部权限检查支持生成器"""
+    """测试全部权限检查支持生成器."""
     granted_permissions = (
         permission
         for permission in [
@@ -477,7 +477,7 @@ def test_require_permission_allows_matching_permission(
         granted_permissions: list[str],
         required_permission: str,
 ) -> None:
-    """测试单项权限满足时不抛出异常"""
+    """测试单项权限满足时不抛出异常."""
     require_permission(
         granted_permissions=granted_permissions,
         required_permission=required_permission,
@@ -485,7 +485,7 @@ def test_require_permission_allows_matching_permission(
 
 
 def test_require_permission_rejects_missing_permission() -> None:
-    """测试缺少单项权限时抛出异常"""
+    """测试缺少单项权限时抛出异常."""
     with pytest.raises(
             PermissionDeniedError,
             match="缺少权限: model.delete",
@@ -499,7 +499,7 @@ def test_require_permission_rejects_missing_permission() -> None:
 
 
 def test_require_permission_rejects_empty_required_permission() -> None:
-    """测试拒绝空的单项目标权限"""
+    """测试拒绝空的单项目标权限."""
     with pytest.raises(
             ValueError,
             match="permission 不能为空",
@@ -513,7 +513,7 @@ def test_require_permission_rejects_empty_required_permission() -> None:
 
 
 def test_require_any_permission_allows_matching_permission() -> None:
-    """测试拥有任一目标权限时不抛出异常"""
+    """测试拥有任一目标权限时不抛出异常."""
     require_any_permission(
         granted_permissions=[
             "model.*",
@@ -527,7 +527,7 @@ def test_require_any_permission_allows_matching_permission() -> None:
 
 
 def test_require_any_permission_rejects_missing_permissions() -> None:
-    """测试缺少全部候选权限时抛出异常"""
+    """测试缺少全部候选权限时抛出异常."""
     with pytest.raises(
             PermissionDeniedError,
             match=(
@@ -556,7 +556,7 @@ def test_require_any_permission_rejects_missing_permissions() -> None:
 def test_require_any_permission_rejects_empty_permissions(
         required_permissions: Iterable[str],
 ) -> None:
-    """测试任一权限要求拒绝空集合"""
+    """测试任一权限要求拒绝空集合."""
     with pytest.raises(
             ValueError,
             match="required_permissions 不能为空",
@@ -570,7 +570,7 @@ def test_require_any_permission_rejects_empty_permissions(
 
 
 def test_require_all_permissions_allows_matching_permissions() -> None:
-    """测试拥有全部目标权限时不抛出异常"""
+    """测试拥有全部目标权限时不抛出异常."""
     require_all_permissions(
         granted_permissions=[
             "model.*",
@@ -585,7 +585,7 @@ def test_require_all_permissions_allows_matching_permissions() -> None:
 
 
 def test_require_all_permissions_reports_only_missing_permissions() -> None:
-    """测试仅报告缺失的目标权限"""
+    """测试仅报告缺失的目标权限."""
     with pytest.raises(
             PermissionDeniedError,
             match=(
@@ -617,7 +617,7 @@ def test_require_all_permissions_reports_only_missing_permissions() -> None:
 def test_require_all_permissions_rejects_empty_permissions(
         required_permissions: Iterable[str],
 ) -> None:
-    """测试全部权限要求拒绝空集合"""
+    """测试全部权限要求拒绝空集合."""
     with pytest.raises(
             ValueError,
             match="required_permissions 不能为空",
@@ -631,7 +631,7 @@ def test_require_all_permissions_rejects_empty_permissions(
 
 
 def test_required_permissions_are_normalized_and_deduplicated() -> None:
-    """测试批量目标权限规范化和去重"""
+    """测试批量目标权限规范化和去重."""
     with pytest.raises(
             PermissionDeniedError,
             match=(
@@ -662,7 +662,7 @@ def test_required_permissions_are_normalized_and_deduplicated() -> None:
 def test_batch_require_rejects_blank_permission(
         require_function: Callable[..., None],
 ) -> None:
-    """测试批量权限要求拒绝空白权限标识"""
+    """测试批量权限要求拒绝空白权限标识."""
     with pytest.raises(
             ValueError,
             match="permission 不能为空",

@@ -1,19 +1,17 @@
-"""Datamind 发布构建身份
+"""Datamind 发布构建身份.
 
 确保 Wheel、sdist 与 Docker 镜像使用一致且有效的构建身份。
 
 核心功能：
-  - BuildIdentity: 记录发布产物的 Commit 与 Build Date
-  - release_build_identity: 校验完整 Git SHA 和 UTC RFC 3339 构建时间
+  - BuildIdentity: 记录构建所对应的源码提交与构建时间
+  - release_build_identity: 校验正式发布使用的构建身份
 
 使用示例：
-  import os
-
   from build_support.identity import release_build_identity
 
   identity = release_build_identity(
-      os.environ["DATAMIND_BUILD_COMMIT"],
-      os.environ["DATAMIND_BUILD_DATE"],
+      commit,
+      build_date,
   )
 """
 
@@ -31,19 +29,19 @@ _UTC_RFC3339 = re.compile(
 
 @dataclass(frozen=True)
 class BuildIdentity:
-    """记录发布产物的构建身份。
+    """记录构建所对应的源码提交与构建时间.
 
     属性：
-        commit: 完整的 Git Commit SHA；开发构建使用 ``dev``
-        build_date: UTC RFC 3339 构建时间；开发构建使用 ``None``
+        commit: 完整的 40 位 Git 提交哈希
+        build_date: UTC RFC 3339 格式的构建时间
     """
 
     commit: str
-    build_date: str | None
+    build_date: str
 
 
 def _required_value(name: str, value: str) -> str:
-    """规范化必填构建变量。
+    """规范化必填构建变量.
 
     参数：
         name: 环境变量名称
@@ -64,23 +62,25 @@ def _required_value(name: str, value: str) -> str:
 
 
 def release_build_identity(commit: str, build_date: str) -> BuildIdentity:
-    """校验正式发布使用的构建身份。
+    """校验正式发布使用的构建身份.
 
     参数：
-        commit: 完整的 40 位 Git Commit SHA
-        build_date: UTC RFC 3339 格式的构建时间，时区必须为 UTC
+        commit: 完整的 40 位 Git 提交哈希
+        build_date: UTC RFC 3339 格式的构建时间
 
     返回：
         经过规范化和校验的构建身份
 
     异常：
-        RuntimeError: Commit 或 Build Date 为空或格式不符合要求
+        RuntimeError: 构建身份为空或格式无效
     """
     normalized_commit = _required_value("DATAMIND_BUILD_COMMIT", commit)
     normalized_date = _required_value("DATAMIND_BUILD_DATE", build_date)
 
     if _FULL_GIT_SHA.fullmatch(normalized_commit) is None:
-        raise RuntimeError("DATAMIND_BUILD_COMMIT 必须是完整的 40 位 Git SHA")
+        raise RuntimeError(
+            "DATAMIND_BUILD_COMMIT 必须为完整的 40 位 Git 提交哈希"
+        )
 
     if _UTC_RFC3339.fullmatch(normalized_date) is None:
         raise RuntimeError("DATAMIND_BUILD_DATE 必须使用 UTC RFC 3339 格式")
