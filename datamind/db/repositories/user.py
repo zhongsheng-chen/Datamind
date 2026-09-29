@@ -1,4 +1,4 @@
-"""用户仓储
+"""用户仓储.
 
 提供用户的查询、创建、更新和状态管理能力。
 
@@ -54,7 +54,7 @@ from datamind.db.repositories.base import BaseRepository
 
 @dataclass(slots=True)
 class UserPatch:
-    """用户更新结构
+    """用户更新结构.
 
     注意：
         不允许通过 patch 修改 password_hash 和 status，
@@ -72,7 +72,7 @@ class UserPatch:
 
 
 class UserRepository(BaseRepository):
-    """用户仓储"""
+    """用户仓储."""
 
     async def get_user(
             self,
@@ -81,7 +81,7 @@ class UserRepository(BaseRepository):
             username: str | None = None,
             email: str | None = None,
     ) -> User | None:
-        """获取单个用户
+        """获取单个用户.
 
         参数：
             user_id: 用户 ID（可选）
@@ -140,7 +140,7 @@ class UserRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[User]:
-        """获取用户列表
+        """获取用户列表.
 
         参数：
             status: 用户状态（可选）
@@ -189,7 +189,7 @@ class UserRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[User]:
-        """获取活跃用户列表
+        """获取活跃用户列表.
 
         参数：
             limit: 返回数量限制（可选）
@@ -216,7 +216,7 @@ class UserRepository(BaseRepository):
             is_break_glass: bool = False,
             created_by: str | None = None,
     ) -> User:
-        """创建用户
+        """创建用户.
 
         参数：
             user_id: 用户 ID
@@ -263,7 +263,7 @@ class UserRepository(BaseRepository):
             patch: UserPatch,
             updated_by: str | None = None,
     ) -> User:
-        """更新用户
+        """更新用户.
 
         参数：
             user: 用户对象
@@ -304,7 +304,7 @@ class UserRepository(BaseRepository):
             email: str | None,
             updated_by: str | None = None,
     ) -> User:
-        """替换用户资料
+        """替换用户资料.
 
         参数：
             user: 用户对象
@@ -333,7 +333,7 @@ class UserRepository(BaseRepository):
             changed_at: datetime | None = None,
             updated_by: str | None = None,
     ) -> User:
-        """更新密码哈希
+        """更新密码哈希.
 
         参数：
             user: 用户对象
@@ -363,7 +363,7 @@ class UserRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> User:
-        """启用用户
+        """启用用户.
 
         参数：
             user: 用户对象
@@ -389,7 +389,7 @@ class UserRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> User:
-        """停用用户
+        """停用用户.
 
         参数：
             user: 用户对象
@@ -416,7 +416,7 @@ class UserRepository(BaseRepository):
             deletion_reason: str | None = None,
             deleted_at: datetime | None = None,
     ) -> User:
-        """逻辑删除用户
+        """逻辑删除用户.
 
         删除后用户保持 disabled 状态，保留身份和审计关联信息。
 
@@ -461,7 +461,7 @@ class UserRepository(BaseRepository):
             restored_at: datetime | None = None,
             restored_by: str | None = None,
     ) -> User:
-        """恢复已逻辑删除的用户
+        """恢复已逻辑删除的用户.
 
         恢复后用户重新处于 active 状态，更新创建时间，
         并清除原删除和锁定信息。
@@ -502,7 +502,7 @@ class UserRepository(BaseRepository):
             locked_until: datetime | None = None,
             updated_by: str | None = None,
     ) -> User:
-        """锁定用户
+        """锁定用户.
 
         参数：
             user: 用户对象
@@ -528,7 +528,7 @@ class UserRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> User:
-        """解锁用户
+        """解锁用户.
 
         参数：
             user: 用户对象
@@ -554,7 +554,7 @@ class UserRepository(BaseRepository):
             *,
             logged_in_at: datetime | None = None,
     ) -> User:
-        """记录登录成功
+        """记录登录成功.
 
         参数：
             user: 用户对象
@@ -577,7 +577,7 @@ class UserRepository(BaseRepository):
             self,
             user: User,
     ) -> User:
-        """记录登录失败
+        """记录登录失败.
 
         参数：
             user: 用户对象

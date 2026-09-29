@@ -1,4 +1,4 @@
-"""模型路由表
+"""模型路由表.
 
 记录部署实例的流量路由规则，
 用于在请求未命中实验时选择目标部署。
@@ -65,7 +65,7 @@ class Routing(
     TimestampMixin,
     Base,
 ):
-    """模型路由表"""
+    """模型路由表."""
 
     __tablename__ = "routing"
 
@@ -305,7 +305,7 @@ class Routing(
     def __repr__(
             self,
     ) -> str:
-        """返回模型路由字符串表示"""
+        """返回模型路由字符串表示."""
         return (
             f"<Routing("
             f"routing_id='{self.routing_id}', "

@@ -1,4 +1,4 @@
-"""CLI 凭据存储
+"""CLI 凭据存储.
 
 提供用户登录凭据的读写能力。
 
@@ -37,14 +37,14 @@ _CREDENTIALS_VERSION = 1
     slots=True,
 )
 class CLICredentials:
-    """CLI 登录凭据"""
+    """CLI 登录凭据."""
 
     access_token: str
     refresh_token: str | None
 
 
 def get_credentials_path() -> Path:
-    """获取当前用户的 CLI 凭据文件路径"""
+    """获取当前用户的 CLI 凭据文件路径."""
     configured_path = os.environ.get(
         "DATAMIND_CREDENTIALS_FILE",
         "",
@@ -88,13 +88,13 @@ def get_credentials_path() -> Path:
 
 
 class CredentialStore:
-    """CLI 凭据存储"""
+    """CLI 凭据存储."""
 
     def __init__(
             self,
             path: Path | None = None,
     ) -> None:
-        """初始化凭据存储
+        """初始化凭据存储.
 
         参数：
             path: 凭据文件路径，默认自动获取用户配置目录
@@ -108,7 +108,7 @@ class CredentialStore:
     def load(
             self,
     ) -> CLICredentials | None:
-        """读取本地登录凭据"""
+        """读取本地登录凭据."""
         if not self.path.exists():
             return None
 
@@ -197,7 +197,7 @@ class CredentialStore:
             self,
             tokens: TokenResponse,
     ) -> CLICredentials:
-        """原子保存登录凭据"""
+        """原子保存登录凭据."""
         credentials = CLICredentials(
             access_token=tokens.access_token,
             refresh_token=tokens.refresh_token,
@@ -244,7 +244,7 @@ class CredentialStore:
     def clear(
             self,
     ) -> bool:
-        """删除本地登录凭据"""
+        """删除本地登录凭据."""
         if not self.path.exists():
             return False
 
@@ -266,7 +266,7 @@ class CredentialStore:
             self,
             payload: dict[str, object],
     ) -> Path:
-        """将凭据写入同目录临时文件"""
+        """将凭据写入同目录临时文件."""
         temporary_file = NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -310,7 +310,7 @@ class CredentialStore:
     def _validate_permissions(
             self,
     ) -> None:
-        """校验 POSIX 凭据文件权限"""
+        """校验 POSIX 凭据文件权限."""
         if os.name == "nt":
             return
 
@@ -327,7 +327,7 @@ class CredentialStore:
     def _protect_directory(
             self,
     ) -> None:
-        """保护 POSIX 凭据目录"""
+        """保护 POSIX 凭据目录."""
         if os.name != "nt":
             self.path.parent.chmod(
                 0o700
@@ -337,7 +337,7 @@ class CredentialStore:
     def _protect_file(
             path: Path,
     ) -> None:
-        """保护 POSIX 凭据文件"""
+        """保护 POSIX 凭据文件."""
         if os.name != "nt":
             path.chmod(
                 0o600

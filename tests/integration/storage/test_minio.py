@@ -1,4 +1,4 @@
-"""MinIO 真实集成测试
+"""MinIO 真实集成测试.
 
 验证 Datamind MinIO 后端的上传、下载、哈希、删除、不存在对象和路径约束。
 
@@ -24,7 +24,7 @@ pytestmark = pytest.mark.integration
 def test_upload_download_hash_delete_and_missing_object(
     minio_settings: MinIOStorageConfig,
 ) -> None:
-    """测试真实 MinIO 对象可上传、校验、删除并报告缺失"""
+    """测试真实 MinIO 对象可上传、校验、删除并报告缺失."""
     storage = MinIOStorageBackend(
         minio_settings.endpoint,
         access_key=minio_settings.access_key,

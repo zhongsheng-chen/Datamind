@@ -1,4 +1,4 @@
-"""管理控制台运行服务测试
+"""管理控制台运行服务测试.
 
 验证独立 BentoML 控制台服务的初始化行为。
 
@@ -21,7 +21,7 @@ service_module = importlib.import_module(
 def test_console_service_initializes_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台服务使用统一配置初始化日志"""
+    """测试控制台服务使用统一配置初始化日志."""
     logging_config = MagicMock()
     monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "console-test")
     worker_logger = MagicMock()

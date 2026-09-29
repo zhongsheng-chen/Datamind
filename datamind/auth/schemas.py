@@ -1,4 +1,4 @@
-"""认证数据结构
+"""认证数据结构.
 
 提供认证流程使用的请求、响应和令牌声明数据结构。
 
@@ -87,7 +87,7 @@ from datamind.auth.enums import UserStatus
 class AuthSchema(
     BaseModel
 ):
-    """认证数据结构基类"""
+    """认证数据结构基类."""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -98,7 +98,7 @@ class AuthSchema(
 class LoginRequest(
     AuthSchema
 ):
-    """登录请求"""
+    """登录请求."""
 
     username: str = Field(
         ...,
@@ -118,7 +118,7 @@ class LoginRequest(
 class RefreshTokenRequest(
     AuthSchema
 ):
-    """刷新访问令牌请求"""
+    """刷新访问令牌请求."""
 
     refresh_token: SecretStr = Field(
         ...,
@@ -131,7 +131,7 @@ class RefreshTokenRequest(
 class LogoutRequest(
     AuthSchema
 ):
-    """退出登录请求"""
+    """退出登录请求."""
 
     refresh_token: SecretStr = Field(
         ...,
@@ -144,7 +144,7 @@ class LogoutRequest(
 class LogoutResult(
     AuthSchema
 ):
-    """退出登录结果"""
+    """退出登录结果."""
 
     revoked: bool = Field(
         ...,
@@ -169,7 +169,7 @@ class LogoutResult(
 class TokenResponse(
     AuthSchema
 ):
-    """令牌响应"""
+    """令牌响应."""
 
     access_token: str = Field(
         ...,
@@ -198,7 +198,7 @@ class TokenResponse(
 class AccessTokenClaims(
     AuthSchema
 ):
-    """访问令牌声明"""
+    """访问令牌声明."""
 
     sub: str = Field(
         ...,
@@ -245,7 +245,7 @@ class AccessTokenClaims(
 class AuthenticatedUser(
     AuthSchema
 ):
-    """已认证用户信息"""
+    """已认证用户信息."""
 
     user_id: str = Field(
         ...,

@@ -1,4 +1,4 @@
-"""工作单元
+"""工作单元.
 
 统一事务管理器，确保一个请求中的所有数据库操作
 在同一个事务中完成。
@@ -39,7 +39,7 @@ from datamind.db.core.session import get_session_factory
 
 
 class UnitOfWork:
-    """工作单元
+    """工作单元.
 
     属性：
         session: 当前数据库会话
@@ -48,7 +48,7 @@ class UnitOfWork:
     def __init__(
             self,
     ) -> None:
-        """初始化工作单元"""
+        """初始化工作单元."""
         self._session: AsyncSession | None = None
         self._rollback_only = False
         self._after_commit: list[Callable[[], Any]] = []
@@ -56,7 +56,7 @@ class UnitOfWork:
 
     @property
     def session(self) -> AsyncSession:
-        """获取当前数据库会话
+        """获取当前数据库会话.
 
         异常：
             RuntimeError: 工作单元未进入上下文或已经关闭
@@ -72,21 +72,21 @@ class UnitOfWork:
     def mark_rollback(
             self,
     ) -> None:
-        """标记当前事务必须回滚"""
+        """标记当前事务必须回滚."""
         self._rollback_only = True
 
     def on_commit(self, callback: Callable[[], Any]) -> None:
-        """注册数据库提交成功后执行的回调"""
+        """注册数据库提交成功后执行的回调."""
         self._after_commit.append(callback)
 
     def on_rollback(self, callback: Callable[[], Any]) -> None:
-        """注册数据库回滚后执行的补偿回调"""
+        """注册数据库回滚后执行的补偿回调."""
         self._after_rollback.append(callback)
 
     async def __aenter__(
             self,
     ) -> "UnitOfWork":
-        """进入事务上下文"""
+        """进入事务上下文."""
         if self._session is not None:
             raise RuntimeError(
                 "工作单元已经初始化"
@@ -105,7 +105,7 @@ class UnitOfWork:
             _exc_value: BaseException | None,
             _traceback: TracebackType | None,
     ) -> Literal[False]:
-        """退出事务上下文
+        """退出事务上下文.
 
         正常退出时提交事务；
         发生异常或已标记回滚时回滚事务。
@@ -138,7 +138,7 @@ class UnitOfWork:
             self,
             exc_type: type[BaseException] | None,
     ) -> None:
-        """完成事务并关闭会话"""
+        """完成事务并关闭会话."""
         session = self.session
 
         try:
@@ -175,7 +175,7 @@ class UnitOfWork:
             *,
             suppress_errors: bool,
     ) -> None:
-        """依次执行事务完成回调"""
+        """依次执行事务完成回调."""
         first_error: Exception | None = None
 
         for callback in callbacks:
@@ -194,7 +194,7 @@ class UnitOfWork:
     async def close(
             self,
     ) -> None:
-        """关闭当前数据库会话
+        """关闭当前数据库会话.
 
         该方法支持重复调用。关闭后不再允许通过
         session 属性访问原会话。

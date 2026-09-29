@@ -1,4 +1,4 @@
-"""统一推理接口测试
+"""统一推理接口测试.
 
 验证统一推理入口的适配器创建、概率预测、对数几率预测、
 特征转换、特征校验、特征重要性和能力查询。
@@ -73,7 +73,7 @@ DATA_TYPES = {
 def require_scalar(
         value: float | list[float],
 ) -> float:
-    """校验推理结果为标量"""
+    """校验推理结果为标量."""
     if isinstance(
             value,
             list,
@@ -88,7 +88,7 @@ def require_scalar(
 def require_batch(
         value: float | list[float],
 ) -> list[float]:
-    """校验推理结果为列表"""
+    """校验推理结果为列表."""
     if not isinstance(
             value,
             list,
@@ -103,7 +103,7 @@ def require_batch(
 @pytest.fixture
 def binary_training_data(
 ) -> tuple[np.ndarray, np.ndarray]:
-    """提供二分类训练数据"""
+    """提供二分类训练数据."""
     X = np.array([
         [-2.0, -1.5],
         [-1.5, -0.8],
@@ -139,7 +139,7 @@ def logistic_model(
             np.ndarray,
         ],
 ) -> LogisticRegression:
-    """提供已训练逻辑回归模型"""
+    """提供已训练逻辑回归模型."""
     X, y = binary_training_data
 
     model = LogisticRegression(
@@ -159,7 +159,7 @@ def logistic_model(
 def inference(
         logistic_model: LogisticRegression,
 ) -> Inference:
-    """提供统一推理实例"""
+    """提供统一推理实例."""
     return Inference(
         model=logistic_model,
         feature_names=FEATURE_NAMES,
@@ -171,7 +171,7 @@ def inference(
 def test_init_creates_sklearn_adapter(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试初始化时创建 Sklearn 适配器"""
+    """测试初始化时创建 Sklearn 适配器."""
     inference = Inference(
         model=logistic_model,
         feature_names=FEATURE_NAMES,
@@ -194,7 +194,7 @@ def test_predict_matches_model(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试概率预测与原始模型一致"""
+    """测试概率预测与原始模型一致."""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -225,7 +225,7 @@ def test_predict_batch_matches_model(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试批量概率预测与原始模型一致"""
+    """测试批量概率预测与原始模型一致."""
     features = [
         {
             "feature_b": 0.25,
@@ -263,7 +263,7 @@ def test_predict_logit_matches_model(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试对数几率预测与原始模型一致"""
+    """测试对数几率预测与原始模型一致."""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -294,7 +294,7 @@ def test_predict_logit_batch_matches_model(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试批量对数几率预测与原始模型一致"""
+    """测试批量对数几率预测与原始模型一致."""
     features = [
         {
             "feature_b": 0.25,
@@ -329,7 +329,7 @@ def test_predict_logit_batch_matches_model(
 def test_positive_class_zero_reverses_logit_direction(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试正类为类别零时反转对数几率方向"""
+    """测试正类为类别零时反转对数几率方向."""
     inference = Inference(
         model=logistic_model,
         feature_names=FEATURE_NAMES,
@@ -382,7 +382,7 @@ def test_positive_class_zero_reverses_logit_direction(
 def test_transform_uses_configured_feature_order(
         inference: Inference,
 ) -> None:
-    """测试特征转换使用配置顺序"""
+    """测试特征转换使用配置顺序."""
     result = inference.transform({
         "feature_b": 2,
         "feature_a": 1,
@@ -403,7 +403,7 @@ def test_transform_uses_configured_feature_order(
 def test_transform_fills_missing_feature_with_nan(
         inference: Inference,
 ) -> None:
-    """测试特征转换填充缺失值"""
+    """测试特征转换填充缺失值."""
     result = inference.transform({
         "feature_a": 1,
     })
@@ -418,7 +418,7 @@ def test_transform_fills_missing_feature_with_nan(
 def test_transform_batch_uses_configured_feature_order(
         inference: Inference,
 ) -> None:
-    """测试批量特征转换使用配置顺序"""
+    """测试批量特征转换使用配置顺序."""
     result = inference.transform_batch([
         {
             "feature_b": 2,
@@ -449,7 +449,7 @@ def test_transform_batch_uses_configured_feature_order(
 def test_transform_requires_feature_names(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试特征转换必须配置特征名称"""
+    """测试特征转换必须配置特征名称."""
     inference = Inference(
         model=logistic_model,
         positive_class=1,
@@ -467,7 +467,7 @@ def test_transform_requires_feature_names(
 def test_validate_features_delegates_to_adapter(
         logistic_model: LogisticRegression,
 ) -> None:
-    """测试特征校验结果"""
+    """测试特征校验结果."""
     inference = Inference(
         model=logistic_model,
         feature_names=[
@@ -520,7 +520,7 @@ def test_get_feature_importance_matches_coefficients(
         logistic_model: LogisticRegression,
         inference: Inference,
 ) -> None:
-    """测试特征重要性与逻辑回归系数一致"""
+    """测试特征重要性与逻辑回归系数一致."""
     expected = np.abs(
         logistic_model.coef_[0]
     )
@@ -541,7 +541,7 @@ def test_get_feature_importance_matches_coefficients(
 def test_capability_query_and_requirement(
         inference: Inference,
 ) -> None:
-    """测试能力查询和能力校验"""
+    """测试能力查询和能力校验."""
     expected = (
         ModelCapability.PREDICT_PROBA
         | ModelCapability.PREDICT_LOG_ODDS
@@ -573,7 +573,7 @@ def test_random_forest_does_not_support_logit(
             np.ndarray,
         ],
 ) -> None:
-    """测试非逻辑回归模型不提供对数几率能力"""
+    """测试非逻辑回归模型不提供对数几率能力."""
     X, y = binary_training_data
 
     model = RandomForestClassifier(
@@ -610,7 +610,7 @@ def test_random_forest_does_not_support_logit(
 def test_invalid_prediction_input_is_delegated(
         inference: Inference,
 ) -> None:
-    """测试非法推理输入由适配器校验"""
+    """测试非法推理输入由适配器校验."""
     none_input: Any = None
     string_input: Any = "invalid"
 
@@ -633,10 +633,10 @@ def test_invalid_prediction_input_is_delegated(
 
 def test_unsupported_model_is_rejected(
 ) -> None:
-    """测试拒绝未支持的模型框架"""
+    """测试拒绝未支持的模型框架."""
 
     class UnsupportedModel:
-        """未支持模型测试类"""
+        """未支持模型测试类."""
 
     with pytest.raises(
             ValueError,

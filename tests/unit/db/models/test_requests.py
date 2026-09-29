@@ -1,4 +1,4 @@
-"""评分请求表测试
+"""评分请求表测试.
 
 验证评分请求表的字段、索引、检查约束和字段注释。
 
@@ -24,7 +24,7 @@ from datamind.db.models.requests import Request
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -35,7 +35,7 @@ TABLE = get_model_table(
 
 
 def test_request_table_and_columns() -> None:
-    """测试表名和字段集合"""
+    """测试表名和字段集合."""
     assert TABLE.name == "requests"
     assert set(TABLE.columns.keys()) == {
         "request_id",
@@ -59,13 +59,13 @@ def test_request_table_and_columns() -> None:
 
 
 def test_request_allows_unresolved_model() -> None:
-    """测试请求可在模型解析前持久化"""
+    """测试请求可在模型解析前持久化."""
     assert TABLE.columns["model_id"].nullable is True
     assert TABLE.columns["model_name"].nullable is True
 
 
 def test_request_indexes() -> None:
-    """测试索引集合"""
+    """测试索引集合."""
     assert {index.name for index in TABLE.indexes} == {
         "idx_requests_created_at",
         "idx_requests_batch_id",
@@ -80,7 +80,7 @@ def test_request_indexes() -> None:
 
 
 def test_request_check_constraints() -> None:
-    """测试检查约束集合"""
+    """测试检查约束集合."""
     assert {
         constraint.name
         for constraint in TABLE.constraints
@@ -96,6 +96,6 @@ def test_request_check_constraints() -> None:
 
 
 def test_request_column_comments() -> None:
-    """测试字段注释"""
+    """测试字段注释."""
     for column in TABLE.columns.values():
         assert column.comment, column.name

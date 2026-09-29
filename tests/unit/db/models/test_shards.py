@@ -1,4 +1,4 @@
-"""批次执行分片表测试
+"""批次执行分片表测试.
 
 验证批次执行分片表的字段、索引、检查约束和字段注释。
 
@@ -17,7 +17,7 @@ from datamind.db.models.shards import Shard
 
 
 def get_model_table(value: object) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -26,7 +26,7 @@ TABLE = get_model_table(Shard.__table__)
 
 
 def test_shard_table_and_columns() -> None:
-    """测试表名和字段集合"""
+    """测试表名和字段集合."""
     assert TABLE.name == "shards"
     assert set(TABLE.columns.keys()) == {
         "shard_id", "attempt_id", "batch_id", "task_id",
@@ -37,7 +37,7 @@ def test_shard_table_and_columns() -> None:
 
 
 def test_shard_indexes_and_constraints() -> None:
-    """测试索引和检查约束集合"""
+    """测试索引和检查约束集合."""
     assert {index.name for index in TABLE.indexes} == {
         "uk_shards_shard_id",
         "uk_shards_range",
@@ -52,6 +52,6 @@ def test_shard_indexes_and_constraints() -> None:
 
 
 def test_shard_column_comments() -> None:
-    """测试字段注释"""
+    """测试字段注释."""
     for column in TABLE.columns.values():
         assert column.comment, column.name

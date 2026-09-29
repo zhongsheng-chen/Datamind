@@ -1,4 +1,4 @@
-"""运行时 Celery 任务
+"""运行时 Celery 任务.
 
 定义批量预测和影子预测的 Celery 任务入口，将执行工作交给
 进程内运行时执行器，并按指数退避策略重试瞬时异常。
@@ -31,7 +31,7 @@ from datamind.utils.generator import generate_random_id
 
 
 def _retry_countdown(retries: int) -> int:
-    """计算下一次任务重试的等待时间
+    """计算下一次任务重试的等待时间.
 
     参数：
         retries: 当前已重试次数
@@ -51,7 +51,7 @@ def _retry_countdown(retries: int) -> int:
     name="datamind.prediction.batch.execute",
 )
 def execute_batch(self, *, batch_id: str) -> None:
-    """准备持久化批次并发布可并行消费的分片任务。
+    """准备持久化批次并发布可并行消费的分片任务.
 
     参数：
         batch_id: 批次 ID
@@ -113,7 +113,7 @@ def execute_batch_chunk(
         start_index: int,
         end_index: int,
 ) -> None:
-    """执行批量预测分片任务
+    """执行批量预测分片任务.
 
     执行异常未超过重试上限时独立重试当前分片；
     重试耗尽后记录分片失败并继续抛出异常。
@@ -162,7 +162,7 @@ def execute_batch_chunk(
     name="datamind.prediction.shadow.execute",
 )
 def execute_shadow(self, *, execution_id: str) -> None:
-    """执行持久化影子预测任务
+    """执行持久化影子预测任务.
 
     执行异常未超过重试上限时恢复影子执行等待状态并交由
     Celery 延迟重试；重试耗尽后继续抛出异常。
@@ -188,5 +188,5 @@ def execute_shadow(self, *, execution_id: str) -> None:
 
 @worker_process_shutdown.connect
 def _shutdown_worker(**_kwargs: object) -> None:
-    """在 Celery 子进程退出前关闭运行时执行器"""
+    """在 Celery 子进程退出前关闭运行时执行器."""
     shutdown_runtime_task_worker()

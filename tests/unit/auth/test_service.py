@@ -1,4 +1,4 @@
-"""认证服务测试
+"""认证服务测试.
 
 验证 LOCAL 登录、网络限制、令牌生命周期和应急账户行为。
 
@@ -79,7 +79,7 @@ CURRENT_TIME = datetime(
 
 
 class FakeAuthProvider(BaseAuthProvider):
-    """记录调用的本地认证提供方"""
+    """记录调用的本地认证提供方."""
 
     def __init__(
             self,
@@ -109,7 +109,7 @@ class FakeAuthProvider(BaseAuthProvider):
             *,
             current_time: datetime | None = None,
     ) -> ProviderIdentity:
-        """记录调用并返回测试身份"""
+        """记录调用并返回测试身份."""
         self.calls.append(
             (
                 credentials,
@@ -126,7 +126,7 @@ class FakeAuthProvider(BaseAuthProvider):
 def create_user(
         **overrides: Any,
 ) -> SimpleNamespace:
-    """创建测试用户"""
+    """创建测试用户."""
     values: dict[str, Any] = {
         "user_id": "usr_test",
         "username": "alice",
@@ -151,7 +151,7 @@ def create_user(
 def create_token_record(
         **overrides: Any,
 ) -> SimpleNamespace:
-    """创建测试刷新令牌记录"""
+    """创建测试刷新令牌记录."""
     values: dict[str, Any] = {
         "token_id": "tok_old",
         "user_id": "usr_test",
@@ -185,7 +185,7 @@ def create_service(
     MagicMock,
     MagicMock,
 ]:
-    """创建认证服务及仓储替身"""
+    """创建认证服务及仓储替身."""
     user_repo = MagicMock()
     user_repo.get_user = AsyncMock()
     role_repo = MagicMock()
@@ -222,7 +222,7 @@ def create_service(
 def install_token_functions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """替换令牌函数"""
+    """替换令牌函数."""
     monkeypatch.setitem(
         vars(service_module),
         "create_access_token",
@@ -249,7 +249,7 @@ def install_token_functions(
 async def test_login_issues_tokens(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地登录签发访问令牌和刷新令牌"""
+    """测试本地登录签发访问令牌和刷新令牌."""
     user = create_user()
     provider = FakeAuthProvider()
     service, user_repo, _, _, token_repo = create_service(
@@ -296,7 +296,7 @@ async def test_login_enforces_allowed_networks(
         ip: str | None,
         message: str,
 ) -> None:
-    """测试本地登录限制客户端网段"""
+    """测试本地登录限制客户端网段."""
     provider = FakeAuthProvider()
     service, *_ = create_service(
         provider=provider,
@@ -325,7 +325,7 @@ async def test_login_enforces_allowed_networks(
 async def test_login_matches_user_by_email(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试用户名未匹配时使用邮箱匹配本地用户"""
+    """测试用户名未匹配时使用邮箱匹配本地用户."""
     user = create_user()
     provider = FakeAuthProvider(
         identity=ProviderIdentity(
@@ -367,7 +367,7 @@ async def test_login_matches_user_by_email(
 async def test_break_glass_login_issues_access_token_only(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试应急账户只签发短期访问令牌"""
+    """测试应急账户只签发短期访问令牌."""
     user = create_user(
         is_break_glass=True
     )
@@ -395,7 +395,7 @@ async def test_break_glass_login_issues_access_token_only(
 
 @pytest.mark.asyncio
 async def test_login_validates_user_status() -> None:
-    """测试登录拒绝已停用用户"""
+    """测试登录拒绝已停用用户."""
     service, user_repo, *_ = create_service(
         provider=FakeAuthProvider()
     )
@@ -419,7 +419,7 @@ async def test_login_validates_user_status() -> None:
 async def test_refresh_rotates_refresh_token(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试刷新令牌成功轮换"""
+    """测试刷新令牌成功轮换."""
     token = create_token_record()
     user = create_user()
     service, user_repo, _, _, token_repo = create_service()
@@ -480,7 +480,7 @@ async def test_refresh_rejects_invalid_token_state(
         token: SimpleNamespace | None,
         error_type: type[Exception],
 ) -> None:
-    """测试刷新令牌拒绝无效状态"""
+    """测试刷新令牌拒绝无效状态."""
     service, _, _, _, token_repo = create_service()
     token_repo.get_token.return_value = token
     monkeypatch.setitem(
@@ -507,7 +507,7 @@ async def test_refresh_rejects_invalid_token_state(
 async def test_refresh_rejects_break_glass_user(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试应急账户不能使用刷新令牌"""
+    """测试应急账户不能使用刷新令牌."""
     token = create_token_record()
     service, user_repo, _, _, token_repo = create_service()
     token_repo.get_token.return_value = token
@@ -543,7 +543,7 @@ async def test_refresh_rejects_break_glass_user(
 async def test_logout_is_idempotent(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试退出登录撤销令牌且重复调用保持幂等"""
+    """测试退出登录撤销令牌且重复调用保持幂等."""
     token = create_token_record()
     service, user_repo, _, _, token_repo = create_service()
     user_repo.get_user.return_value = create_user()
@@ -584,7 +584,7 @@ async def test_logout_is_idempotent(
 async def test_authenticate_access_token_returns_user(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试访问令牌认证返回本地用户"""
+    """测试访问令牌认证返回本地用户."""
     user = create_user()
     service, user_repo, *_ = create_service()
     user_repo.get_user.return_value = user
@@ -618,7 +618,7 @@ async def test_authenticate_access_token_returns_user(
 async def test_authenticate_access_token_rejects_invalid_token(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试访问令牌认证拒绝无效令牌"""
+    """测试访问令牌认证拒绝无效令牌."""
     service, *_ = create_service()
     monkeypatch.setitem(
         vars(service_module),

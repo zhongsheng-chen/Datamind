@@ -1,4 +1,4 @@
-"""创建部署命令
+"""创建部署命令.
 
 提供模型部署创建功能。
 
@@ -39,7 +39,7 @@ def _resolve_release_options(
         rollout: str,
         role: str | None,
 ) -> tuple[str, str]:
-    """规范化发布方式，并推导或校验部署角色。"""
+    """规范化发布方式，并推导或校验部署角色."""
     normalized_rollout = rollout.strip().lower()
 
     if normalized_rollout == "full":
@@ -138,7 +138,7 @@ def create_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """创建部署
+    """创建部署.
 
     全量发布自动使用 champion，影子发布自动使用 shadow；
     金丝雀发布需要通过 --role 指定 champion 或 challenger。

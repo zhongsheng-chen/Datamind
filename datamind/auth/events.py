@@ -1,4 +1,4 @@
-"""认证安全事件记录
+"""认证安全事件记录.
 
 统一记录认证边界产生的结构化日志和持久化审计事件。
 
@@ -29,7 +29,7 @@ async def record_authentication_event(
         error: str | None = None,
         details: Mapping[str, object] | None = None,
 ) -> None:
-    """记录不包含密码或令牌的认证事件"""
+    """记录不包含密码或令牌的认证事件."""
     status = (
         AuditStatus.SUCCESS
         if successful

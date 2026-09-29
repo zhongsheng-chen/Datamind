@@ -1,4 +1,4 @@
-"""管理控制台 CLI 测试
+"""管理控制台 CLI 测试.
 
 验证控制台启动参数、BentoML 子进程和退出状态处理。
 
@@ -53,7 +53,7 @@ STOP_CONSOLE_PROCESS = run_module.stop_console_process
 
 @pytest.fixture(autouse=True)
 def mock_console_stop(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """隔离进程树清理，避免测试停止真实进程"""
+    """隔离进程树清理，避免测试停止真实进程."""
     stop = MagicMock(return_value=True)
     monkeypatch.setitem(vars(run_module), "stop_console_process", stop)
     return stop
@@ -63,7 +63,7 @@ def mock_console_stop(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 def mock_console_settings(
         monkeypatch: pytest.MonkeyPatch,
 ) -> SimpleNamespace:
-    """替换管理控制台和服务配置"""
+    """替换管理控制台和服务配置."""
     settings = SimpleNamespace(
         console=SimpleNamespace(
             host="127.0.0.1",
@@ -87,7 +87,7 @@ def mock_console_settings(
 def mock_console_readiness(
         monkeypatch: pytest.MonkeyPatch,
 ) -> MagicMock:
-    """替换管理控制台服务就绪检查"""
+    """替换管理控制台服务就绪检查."""
     wait_until_ready = MagicMock(
         return_value=True
     )
@@ -103,7 +103,7 @@ def mock_console_readiness(
 def test_wait_for_console_ready_uses_direct_http_connection(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试就绪检查直接连接管理控制台"""
+    """测试就绪检查直接连接管理控制台."""
     process = MagicMock()
     process.poll.return_value = None
     response = MagicMock(
@@ -149,7 +149,7 @@ def test_wait_for_console_ready_uses_direct_http_connection(
 def test_wait_for_console_ready_rejects_non_ready_response(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试服务异常响应不会被判定为就绪"""
+    """测试服务异常响应不会被判定为就绪."""
     process = MagicMock()
     process.poll.side_effect = [
         None,
@@ -184,7 +184,7 @@ def test_wait_for_console_ready_rejects_non_ready_response(
 def test_wait_for_console_ready_reports_last_failure(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试就绪探测超时日志保留最后一次失败原因"""
+    """测试就绪探测超时日志保留最后一次失败原因."""
     process = MagicMock()
     process.poll.return_value = None
     connection = MagicMock()
@@ -229,7 +229,7 @@ def test_console_run_starts_bentoml_service(
         monkeypatch: pytest.MonkeyPatch,
         mock_console_readiness: MagicMock,
 ) -> None:
-    """测试控制台命令启动独立 BentoML 服务"""
+    """测试控制台命令启动独立 BentoML 服务."""
     process = MagicMock()
     process.pid = 4321
     process.wait.return_value = 0
@@ -339,7 +339,7 @@ def test_console_run_uses_configured_network(
         mock_console_readiness: MagicMock,
         timeout_override: int | None,
 ) -> None:
-    """测试未传网络参数时读取控制台配置"""
+    """测试未传网络参数时读取控制台配置."""
     mock_console_settings.console.host = "0.0.0.0"
     mock_console_settings.console.port = 8801
     mock_console_settings.console.startup_timeout = 240
@@ -399,7 +399,7 @@ def test_console_run_uses_configured_network(
 def test_console_run_verbose_preserves_bentoml_logs(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试详细模式不抑制 BentoML 日志"""
+    """测试详细模式不抑制 BentoML 日志."""
     process = MagicMock()
     process.wait.return_value = 0
     popen = MagicMock(
@@ -427,14 +427,14 @@ def test_console_run_verbose_preserves_bentoml_logs(
 
 @pytest.mark.parametrize("timeout", ["0", "601"])
 def test_console_run_rejects_invalid_timeout(timeout: str) -> None:
-    """测试启动等待时间必须在支持范围内"""
+    """测试启动等待时间必须在支持范围内."""
     result = runner.invoke(app, ["console", "run", "--startup-timeout", timeout])
     assert result.exit_code == 2
     assert "--startup-timeout" in unstyle(result.output)
 
 
 def test_stop_console_process_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
-    """测试只清理本次启动的 PID 及其后代进程"""
+    """测试只清理本次启动的 PID 及其后代进程."""
     process = MagicMock(pid=4321)
     terminate_tree = MagicMock()
     monkeypatch.setitem(vars(run_module.sys), "platform", "win32")
@@ -453,7 +453,7 @@ def test_stop_console_process_on_windows(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_stop_console_process_reports_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """测试进程树清理失败时不报告停止成功"""
+    """测试进程树清理失败时不报告停止成功."""
     process = MagicMock(pid=4321)
     terminate_tree = MagicMock(side_effect=OSError("access denied"))
     monkeypatch.setitem(vars(run_module.sys), "platform", "win32")
@@ -465,7 +465,7 @@ def test_stop_console_process_reports_failure(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_stop_console_process_on_posix(monkeypatch: pytest.MonkeyPatch) -> None:
-    """测试停止独立进程组并清理仍存活的后代"""
+    """测试停止独立进程组并清理仍存活的后代."""
     process = MagicMock(pid=4321)
     kill_group = MagicMock()
     monkeypatch.setitem(vars(run_module.sys), "platform", "linux")
@@ -479,7 +479,7 @@ def test_stop_console_process_on_posix(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_console_run_rejects_invalid_port() -> None:
-    """测试控制台命令拒绝非法端口"""
+    """测试控制台命令拒绝非法端口."""
     result = runner.invoke(
         app,
         [
@@ -498,7 +498,7 @@ def test_console_run_rejects_startup_timeout(
         monkeypatch: pytest.MonkeyPatch,
         mock_console_stop: MagicMock,
 ) -> None:
-    """测试服务未就绪时不显示就绪状态"""
+    """测试服务未就绪时不显示就绪状态."""
     process = MagicMock()
     process.poll.return_value = None
     process.wait.return_value = 0
@@ -540,7 +540,7 @@ def test_console_run_rejects_startup_timeout(
 def test_console_run_propagates_process_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试控制台命令返回子进程异常退出码"""
+    """测试控制台命令返回子进程异常退出码."""
     process = MagicMock()
     process.wait.return_value = 7
     monkeypatch.setitem(
@@ -566,7 +566,7 @@ def test_console_run_stops_process_on_interrupt(
         monkeypatch: pytest.MonkeyPatch,
         mock_console_stop: MagicMock,
 ) -> None:
-    """测试控制台命令收到中断时终止子进程"""
+    """测试控制台命令收到中断时终止子进程."""
     process = MagicMock()
     process.wait.side_effect = [
         KeyboardInterrupt,

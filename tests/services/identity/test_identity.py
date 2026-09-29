@@ -1,6 +1,6 @@
-"""身份管理服务测试
+"""身份管理服务测试.
 
-验证用户、角色、角色授予、令牌撤销和安全保护规则。
+验证用户、角色、角色授予、令牌撤销和安全保护行为。
 
 核心功能：
   - test_creation_logs_after_commit:
@@ -93,7 +93,7 @@ CURRENT_TIME = datetime(
 
 
 class FakeUnitOfWork:
-    """身份服务测试工作单元"""
+    """身份服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -108,7 +108,7 @@ class FakeUnitOfWork:
 def create_user(
         **overrides: object,
 ) -> User:
-    """创建用户测试对象"""
+    """创建用户测试对象."""
     values: dict[str, object] = {
         "user_id": "usr_analyst",
         "username": "analyst",
@@ -139,7 +139,7 @@ def create_user(
 def create_role(
         **overrides: object,
 ) -> Role:
-    """创建角色测试对象"""
+    """创建角色测试对象."""
     values: dict[str, object] = {
         "role_id": "rol_reader",
         "name": "model-reader",
@@ -166,7 +166,7 @@ def create_role(
 def create_grant(
         **overrides: object,
 ) -> Grant:
-    """创建角色授予测试对象"""
+    """创建角色授予测试对象."""
     values: dict[str, object] = {
         "grant_id": "grt_test",
         "user_id": "usr_analyst",
@@ -191,7 +191,7 @@ def configure_service(
     MagicMock,
     MagicMock,
 ]:
-    """配置身份服务仓储替身"""
+    """配置身份服务仓储替身."""
     user_repo = MagicMock()
     role_repo = MagicMock()
     grant_repo = MagicMock()
@@ -235,7 +235,7 @@ async def test_creation_logs_after_commit(
         resource: str,
         commit_fails: bool,
 ) -> None:
-    """测试创建日志关联请求且仅在事务提交成功后报告完成"""
+    """测试创建日志关联请求且仅在事务提交成功后报告完成."""
     user_repo, role_repo, _, _, audit_repo = configure_service(monkeypatch)
     user_repo.get_user = AsyncMock(return_value=None)
     user_repo.create_user.return_value = create_user()
@@ -307,7 +307,7 @@ async def test_identity_list_logs_at_debug(
         monkeypatch: pytest.MonkeyPatch,
         resource: str,
 ) -> None:
-    """测试用户和角色列表查询只记录调试日志"""
+    """测试用户和角色列表查询只记录调试日志."""
     user_repo, role_repo, *_ = configure_service(monkeypatch)
     user_repo.list_users = AsyncMock(return_value=[])
     role_repo.list_roles = AsyncMock(return_value=[])
@@ -328,7 +328,7 @@ async def test_identity_list_logs_at_debug(
 async def test_create_user_creates_identity_and_initial_grants(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建用户及初始角色授予"""
+    """测试创建用户及初始角色授予."""
     (
         user_repo,
         role_repo,
@@ -380,7 +380,7 @@ async def test_create_user_creates_identity_and_initial_grants(
 async def test_create_user_restores_deleted_user(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重新创建已删除用户时恢复原记录"""
+    """测试重新创建已删除用户时恢复原记录."""
     (
         user_repo,
         role_repo,
@@ -447,7 +447,7 @@ async def test_create_user_restores_deleted_user(
 
 @pytest.mark.asyncio
 async def test_create_role_rejects_builtin_role() -> None:
-    """测试 administrator 只能由系统初始化创建"""
+    """测试 administrator 只能由系统初始化创建."""
     with pytest.raises(
             IdentityConflictError,
             match="只能由 datamind init 创建",
@@ -463,7 +463,7 @@ async def test_create_role_rejects_builtin_role() -> None:
 
 
 def test_role_result_marks_builtin_role() -> None:
-    """测试角色结果标识内置管理员角色"""
+    """测试角色结果标识内置管理员角色."""
     builtin = IdentityService._role_result(
         create_role(
             name="administrator"
@@ -483,7 +483,7 @@ def test_role_result_marks_builtin_role() -> None:
 async def test_create_role_restores_deleted_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重新创建已删除角色时恢复原记录"""
+    """测试重新创建已删除角色时恢复原记录."""
     _, role_repo, _, _, audit_repo = configure_service(
         monkeypatch
     )
@@ -537,7 +537,7 @@ async def test_create_role_restores_deleted_role(
 async def test_create_role_rejects_unsupported_permission(
         permission: str,
 ) -> None:
-    """测试创建角色拒绝未注册权限"""
+    """测试创建角色拒绝未注册权限."""
     with pytest.raises(
             ValueError,
             match="不支持的权限",
@@ -556,7 +556,7 @@ async def test_create_role_rejects_unsupported_permission(
 async def test_enable_role_activates_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用角色并记录审计"""
+    """测试启用角色并记录审计."""
     _, role_repo, _, _, audit_repo = configure_service(
         monkeypatch
     )
@@ -586,7 +586,7 @@ async def test_enable_role_activates_role(
 async def test_disable_role_deactivates_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试停用角色但保留角色授予"""
+    """测试停用角色但保留角色授予."""
     _, role_repo, grant_repo, _, audit_repo = configure_service(
         monkeypatch
     )
@@ -614,7 +614,7 @@ async def test_disable_role_deactivates_role(
 
 @pytest.mark.asyncio
 async def test_disable_role_rejects_builtin_role() -> None:
-    """测试不能停用系统保留角色"""
+    """测试不能停用系统保留角色."""
     with pytest.raises(
             IdentityConflictError,
             match="系统保留角色",
@@ -630,7 +630,7 @@ async def test_disable_role_rejects_builtin_role() -> None:
 async def test_reset_password_revokes_existing_sessions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重置密码并撤销已有会话"""
+    """测试重置密码并撤销已有会话."""
     (
         user_repo,
         _,
@@ -673,7 +673,7 @@ async def test_reset_password_revokes_existing_sessions(
 async def test_disable_user_rejects_current_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试不能停用当前登录用户"""
+    """测试不能停用当前登录用户."""
     user_repo, _, _, _, _ = configure_service(
         monkeypatch
     )
@@ -696,7 +696,7 @@ async def test_disable_user_rejects_current_operator(
 async def test_enable_user_rejects_deleted_user(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用命令提示重新创建已删除用户"""
+    """测试启用命令提示重新创建已删除用户."""
     user_repo, _, _, _, _ = configure_service(
         monkeypatch
     )
@@ -724,7 +724,7 @@ async def test_enable_user_rejects_deleted_user(
 async def test_delete_user_revokes_grants_and_sessions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试逻辑删除用户并撤销授权和会话"""
+    """测试逻辑删除用户并撤销授权和会话."""
     (
         user_repo,
         role_repo,
@@ -784,7 +784,7 @@ async def test_delete_user_revokes_grants_and_sessions(
 async def test_delete_user_accepts_missing_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试逻辑删除用户允许省略删除原因"""
+    """测试逻辑删除用户允许省略删除原因."""
     (
         user_repo,
         role_repo,
@@ -828,7 +828,7 @@ async def test_delete_user_accepts_missing_reason(
 async def test_delete_user_rejects_builtin_administrator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试不能删除系统初始化创建的管理员账户"""
+    """测试不能删除系统初始化创建的管理员账户."""
     user_repo, _, _, token_repo, _ = configure_service(
         monkeypatch
     )
@@ -858,7 +858,7 @@ async def test_delete_user_rejects_builtin_administrator(
 async def test_disable_user_rejects_builtin_administrator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试不能停用系统初始化创建的管理员账户"""
+    """测试不能停用系统初始化创建的管理员账户."""
     user_repo, _, _, token_repo, _ = configure_service(
         monkeypatch
     )
@@ -888,7 +888,7 @@ async def test_disable_user_rejects_builtin_administrator(
 async def test_disable_user_preserves_last_administrator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试保护最后一个系统管理员"""
+    """测试保护最后一个系统管理员."""
     user_repo, role_repo, grant_repo, _, _ = configure_service(
         monkeypatch
     )
@@ -937,7 +937,7 @@ async def test_disable_user_preserves_last_administrator(
 async def test_grant_role_reactivates_existing_grant(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重新激活已撤销角色授予"""
+    """测试重新激活已撤销角色授予."""
     user_repo, role_repo, grant_repo, _, _ = configure_service(
         monkeypatch
     )
@@ -974,7 +974,7 @@ async def test_grant_role_reactivates_existing_grant(
 async def test_grant_role_allows_administrator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试管理员角色可以授予其他受信任用户"""
+    """测试管理员角色可以授予其他受信任用户."""
     user_repo, role_repo, grant_repo, _, _ = configure_service(
         monkeypatch
     )
@@ -1015,7 +1015,7 @@ async def test_grant_role_allows_administrator(
 async def test_revoke_role_preserves_last_administrator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试不能撤销最后一个有效管理员的角色"""
+    """测试不能撤销最后一个有效管理员的角色."""
     user_repo, role_repo, grant_repo, _, _ = configure_service(
         monkeypatch
     )
@@ -1067,7 +1067,7 @@ async def test_revoke_role_preserves_last_administrator(
 async def test_delete_role_rejects_reserved_or_assigned_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试系统角色和仍被授予的角色不能删除"""
+    """测试系统角色和仍被授予的角色不能删除."""
     with pytest.raises(
             IdentityConflictError,
             match="系统保留角色",
@@ -1107,7 +1107,7 @@ async def test_delete_role_rejects_reserved_or_assigned_role(
 async def test_delete_role_accepts_missing_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试逻辑删除角色允许省略删除原因"""
+    """测试逻辑删除角色允许省略删除原因."""
     _, role_repo, grant_repo, _, _ = configure_service(
         monkeypatch
     )
@@ -1136,7 +1136,7 @@ async def test_delete_role_accepts_missing_reason(
 async def test_update_user_replaces_profile(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试更新用户名、显示名称和邮箱"""
+    """测试更新用户名、显示名称和邮箱."""
     (
         user_repo,
         _,
@@ -1211,7 +1211,7 @@ async def test_update_user_replaces_profile(
 async def test_update_user_replaces_roles(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试编辑用户时替换角色授予"""
+    """测试编辑用户时替换角色授予."""
     (
         user_repo,
         role_repo,
@@ -1321,7 +1321,7 @@ async def test_update_builtin_user_rejects_identity_changes(
         display_name: str,
         message: str,
 ) -> None:
-    """测试内置管理员账户的用户名和显示名称保持不变"""
+    """测试内置管理员账户的用户名和显示名称保持不变."""
     user_repo, _, _, _, _ = configure_service(
         monkeypatch
     )
@@ -1355,7 +1355,7 @@ async def test_update_builtin_user_rejects_identity_changes(
 async def test_update_builtin_user_requires_administrator_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试内置管理员账户不能取消 administrator 角色"""
+    """测试内置管理员账户不能取消 administrator 角色."""
     user_repo, _, grant_repo, _, _ = configure_service(
         monkeypatch
     )
@@ -1393,7 +1393,7 @@ async def test_update_builtin_user_requires_administrator_role(
 async def test_change_password_verifies_current_password(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试当前用户修改密码并撤销登录会话"""
+    """测试当前用户修改密码并撤销登录会话."""
     (
         user_repo,
         _,
@@ -1445,7 +1445,7 @@ async def test_change_password_verifies_current_password(
 async def test_update_role_replaces_description_and_permissions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试更新普通角色描述与权限"""
+    """测试更新普通角色描述与权限."""
     _, role_repo, _, _, audit_repo = configure_service(
         monkeypatch
     )

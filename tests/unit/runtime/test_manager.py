@@ -1,4 +1,4 @@
-"""运行时管理器测试
+"""运行时管理器测试.
 
 验证模型加载、卸载、查询、错误处理、并发单飞和重载失败回退能力。
 
@@ -51,7 +51,7 @@ from datamind.runtime.registry import RuntimeRegistry
 
 
 class FakeUnitOfWork:
-    """运行时管理器测试工作单元"""
+    """运行时管理器测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -74,7 +74,7 @@ def configure_manager(
     MagicMock,
     MagicMock,
 ]:
-    """配置运行时管理器及仓储替身"""
+    """配置运行时管理器及仓储替身."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=SimpleNamespace(
@@ -151,7 +151,7 @@ def configure_manager(
 async def test_concurrent_load_requests_load_model_once(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试并发请求只加载一次模型"""
+    """测试并发请求只加载一次模型."""
     loader = MagicMock()
     loader.load.return_value = object()
     manager, runtime_repo, _, _, _ = configure_manager(
@@ -177,7 +177,7 @@ async def test_concurrent_load_requests_load_model_once(
 async def test_failed_reload_preserves_previous_runtime(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重载失败时继续保留旧模型"""
+    """测试重载失败时继续保留旧模型."""
     loader = MagicMock()
     loader.load.side_effect = RuntimeError("invalid new model")
     manager, runtime_repo, _, _, _ = configure_manager(
@@ -204,7 +204,7 @@ async def test_failed_reload_preserves_previous_runtime(
 async def test_load_returns_loaded_runtime_without_reloading(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已加载部署直接返回内存运行时模型"""
+    """测试已加载部署直接返回内存运行时模型."""
     loader = MagicMock()
     manager, _, deployment_repo, _, _ = configure_manager(
         monkeypatch,
@@ -249,7 +249,7 @@ async def test_load_validates_deployment_artifact(
         error_type: type[Exception],
         message: str,
 ) -> None:
-    """测试加载前校验部署、模型和版本制品"""
+    """测试加载前校验部署、模型和版本制品."""
     loader = MagicMock()
     manager, _, deployment_repo, metadata_repo, version_repo = (
         configure_manager(
@@ -284,7 +284,7 @@ async def test_load_validates_deployment_artifact(
 async def test_failed_initial_load_marks_runtime_failed(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次加载失败时标记运行记录失败"""
+    """测试首次加载失败时标记运行记录失败."""
     loader = MagicMock()
     loader.load.side_effect = RuntimeError("invalid model")
     manager, runtime_repo, _, _, _ = configure_manager(
@@ -307,7 +307,7 @@ async def test_failed_initial_load_marks_runtime_failed(
 async def test_load_creates_missing_runtime_record(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试加载时创建缺失的运行记录"""
+    """测试加载时创建缺失的运行记录."""
     loader = MagicMock()
     loader.load.return_value = object()
     manager, runtime_repo, _, _, _ = configure_manager(
@@ -353,7 +353,7 @@ async def test_load_creates_missing_runtime_record(
 async def test_unload_unregisters_model_and_marks_runtime_unloaded(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试卸载模型并更新运行记录"""
+    """测试卸载模型并更新运行记录."""
     manager, runtime_repo, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),
@@ -386,7 +386,7 @@ async def test_unload_unregisters_model_and_marks_runtime_unloaded(
 async def test_unload_ignores_missing_runtime_record(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库运行记录不存在时仍可完成卸载"""
+    """测试数据库运行记录不存在时仍可完成卸载."""
     manager, runtime_repo, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),
@@ -401,7 +401,7 @@ async def test_unload_ignores_missing_runtime_record(
 async def test_reload_forces_model_reload(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重新加载使用强制加载流程"""
+    """测试重新加载使用强制加载流程."""
     manager, _, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),
@@ -431,7 +431,7 @@ async def test_reload_forces_model_reload(
 async def test_get_status_combines_memory_and_database_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试运行状态合并内存和数据库信息"""
+    """测试运行状态合并内存和数据库信息."""
     manager, runtime_repo, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),
@@ -483,7 +483,7 @@ async def test_get_status_combines_memory_and_database_state(
 async def test_get_status_returns_empty_runtime_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未知部署返回空运行状态"""
+    """测试未知部署返回空运行状态."""
     manager, runtime_repo, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),
@@ -511,7 +511,7 @@ async def test_manager_rejects_empty_deployment_id(
         monkeypatch: pytest.MonkeyPatch,
         operation: str,
 ) -> None:
-    """测试运行时操作拒绝空部署标识"""
+    """测试运行时操作拒绝空部署标识."""
     manager, _, _, _, _ = configure_manager(
         monkeypatch,
         loader=MagicMock(),

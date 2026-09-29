@@ -1,4 +1,4 @@
-"""存储键策略
+"""存储键策略.
 
 统一 key 规则定义层，是唯一 key 规则来源。
 
@@ -42,7 +42,7 @@ from datamind.constants.model_name import (
 
 
 class StorageKeyStrategy:
-    """统一 key 规则定义层（唯一 key 规则来源）"""
+    """统一 key 规则定义层（唯一 key 规则来源）."""
 
     # 合法的模型目录名和模型 ID：字母、数字、下划线、连字符
     _VALID_IDENTIFIER_PATTERN = re.compile(
@@ -59,7 +59,7 @@ class StorageKeyStrategy:
             self,
             model_dir: str,
     ) -> None:
-        """初始化 key 策略
+        """初始化 key 策略.
 
         参数：
             model_dir: 模型目录名
@@ -72,7 +72,7 @@ class StorageKeyStrategy:
             cls,
             model_dir: str,
     ) -> None:
-        """校验模型目录名合法性
+        """校验模型目录名合法性.
 
         参数：
             model_dir: 模型目录名
@@ -94,7 +94,7 @@ class StorageKeyStrategy:
             cls,
             model_name: str,
     ) -> None:
-        """校验模型名称合法性"""
+        """校验模型名称合法性."""
         if (
                 not isinstance(model_name, str)
                 or re.fullmatch(
@@ -111,7 +111,7 @@ class StorageKeyStrategy:
             cls,
             artifact_id: str,
     ) -> None:
-        """校验模型制品 ID 合法性"""
+        """校验模型制品 ID 合法性."""
         if (
                 not isinstance(artifact_id, str)
                 or cls._VALID_IDENTIFIER_PATTERN.fullmatch(artifact_id) is None
@@ -125,7 +125,7 @@ class StorageKeyStrategy:
             cls,
             version: str,
     ) -> None:
-        """校验模型版本号合法性
+        """校验模型版本号合法性.
 
         参数：
             version: 模型版本号
@@ -147,7 +147,7 @@ class StorageKeyStrategy:
     def validate_filename(
             filename: str,
     ) -> None:
-        """校验文件名合法性
+        """校验文件名合法性.
 
         参数：
             filename: 文件名
@@ -176,7 +176,7 @@ class StorageKeyStrategy:
             artifact_id: str,
             filename: str,
     ) -> str:
-        """构造模型文件的完整 key
+        """构造模型文件的完整 key.
 
         参数：
             model_name: 模型名称
@@ -209,7 +209,7 @@ class StorageKeyStrategy:
             self,
             model_name: str,
     ) -> str:
-        """构造模型目录的 key 前缀
+        """构造模型目录的 key 前缀.
 
         参数：
             model_name: 模型名称
@@ -227,7 +227,7 @@ class StorageKeyStrategy:
             cls,
             key: str,
     ) -> str:
-        """从 key 中提取文件名
+        """从 key 中提取文件名.
 
         参数：
             key: 完整存储键

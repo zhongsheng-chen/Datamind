@@ -1,4 +1,4 @@
-"""数据库配置
+"""数据库配置.
 
 定义数据库连接 URL 和连接池参数。
 
@@ -45,7 +45,7 @@ from pydantic_settings import (
 
 
 class DatabaseConfig(BaseSettings):
-    """数据库配置类"""
+    """数据库配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_DATABASE_",
@@ -64,7 +64,7 @@ class DatabaseConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "DatabaseConfig":
-        """校验数据库配置参数"""
+        """校验数据库配置参数."""
         if not self.url.strip():
             raise ValueError(
                 "url 不能为空"

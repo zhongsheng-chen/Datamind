@@ -1,4 +1,4 @@
-"""评分任务配置
+"""评分任务配置.
 
 定义评分任务的默认决策阈值。
 
@@ -30,7 +30,7 @@ from pydantic_settings import (
 
 
 class ScoringConfig(BaseSettings):
-    """评分任务配置类"""
+    """评分任务配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_SCORING_",
@@ -43,7 +43,7 @@ class ScoringConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "ScoringConfig":
-        """校验评分任务配置参数"""
+        """校验评分任务配置参数."""
         if not math.isfinite(self.threshold):
             raise ValueError(
                 "threshold 必须是有限数值，"

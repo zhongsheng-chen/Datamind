@@ -1,4 +1,4 @@
-"""管理控制台浏览器会话 Cookie
+"""管理控制台浏览器会话 Cookie.
 
 负责写入、补发和清除访问令牌、刷新令牌与 CSRF Cookie。
 
@@ -28,7 +28,7 @@ def set_session_cookies(
         request: Request,
         tokens: TokenResponse,
 ) -> None:
-    """写入浏览器会话 Cookie"""
+    """写入浏览器会话 Cookie."""
     secure = request.url.scheme == "https"
     refresh_seconds = _refresh_cookie_seconds()
     response.set_cookie(
@@ -73,7 +73,7 @@ def ensure_csrf_cookie(
         response: Response,
         request: Request,
 ) -> None:
-    """为有效浏览器会话补发缺失的 CSRF Cookie"""
+    """为有效浏览器会话补发缺失的 CSRF Cookie."""
     if request.cookies.get(
             CSRF_COOKIE
     ) is not None:
@@ -93,7 +93,7 @@ def ensure_csrf_cookie(
 def clear_session_cookies(
         response: Response,
 ) -> None:
-    """清除浏览器会话 Cookie"""
+    """清除浏览器会话 Cookie."""
     for name in (
             ACCESS_COOKIE,
             REFRESH_COOKIE,
@@ -106,7 +106,7 @@ def clear_session_cookies(
 
 
 def _refresh_cookie_seconds() -> int:
-    """返回刷新会话 Cookie 的有效秒数"""
+    """返回刷新会话 Cookie 的有效秒数."""
     return (
         get_auth_config().refresh_token_expires_days
         * 24

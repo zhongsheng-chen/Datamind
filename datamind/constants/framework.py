@@ -1,4 +1,4 @@
-"""框架枚举
+"""框架枚举.
 
 定义支持的机器学习框架类型，用于模型注册和运行时识别。
 
@@ -20,7 +20,7 @@ from typing import FrozenSet
 
 
 class Framework(str, Enum):
-    """机器学习框架字符串枚举"""
+    """机器学习框架字符串枚举."""
 
     SKLEARN = "sklearn"
     XGBOOST = "xgboost"
@@ -30,7 +30,7 @@ class Framework(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

@@ -1,4 +1,4 @@
-"""审计异常测试
+"""审计异常测试.
 
 验证审计异常的继承关系、默认消息和自定义消息。
 
@@ -48,7 +48,7 @@ def test_audit_errors_use_default_message(
     error_type: type[AuditError],
     default_message: str,
 ) -> None:
-    """测试各审计异常的默认错误消息"""
+    """测试各审计异常的默认错误消息."""
     error = error_type()
 
     assert str(error) == default_message
@@ -71,7 +71,7 @@ def test_audit_errors_use_default_message(
 def test_audit_errors_accept_custom_message(
     error_type: type[AuditError],
 ) -> None:
-    """测试各审计异常接受自定义错误消息"""
+    """测试各审计异常接受自定义错误消息."""
     error = error_type(
         "自定义审计错误"
     )
@@ -96,7 +96,7 @@ def test_audit_errors_accept_custom_message(
 def test_audit_errors_inherit_from_audit_error(
     error_type: type[AuditError],
 ) -> None:
-    """测试具体审计异常继承自 AuditError"""
+    """测试具体审计异常继承自 AuditError."""
     error = error_type()
 
     assert isinstance(
@@ -123,7 +123,7 @@ def test_audit_errors_inherit_from_audit_error(
 def test_audit_errors_can_be_caught_by_base_type(
     error: AuditError,
 ) -> None:
-    """测试具体异常可以通过 AuditError 统一捕获"""
+    """测试具体异常可以通过 AuditError 统一捕获."""
     with pytest.raises(
         AuditError,
     ) as exc_info:
@@ -133,7 +133,7 @@ def test_audit_errors_can_be_caught_by_base_type(
 
 
 def test_audit_error_accepts_message() -> None:
-    """测试基础审计异常保留错误消息"""
+    """测试基础审计异常保留错误消息."""
     error = AuditError(
         "审计模块异常"
     )
@@ -145,7 +145,7 @@ def test_audit_error_accepts_message() -> None:
 
 
 def test_audit_error_preserves_exception_cause() -> None:
-    """测试审计异常支持保留原始异常链"""
+    """测试审计异常支持保留原始异常链."""
     original_error = RuntimeError(
         "database unavailable"
     )

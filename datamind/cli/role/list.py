@@ -1,4 +1,4 @@
-"""列出角色命令
+"""列出角色命令.
 
 提供角色列表查询功能。
 
@@ -62,7 +62,7 @@ def list_roles(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """列出角色"""
+    """列出角色."""
     async def runner() -> None:
         parsed_status = (
             RoleStatus(

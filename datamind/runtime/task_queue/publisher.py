@@ -1,4 +1,4 @@
-"""运行时任务发布器
+"""运行时任务发布器.
 
 将持久化批次和执行记录的标识发布到对应的 Celery 队列，
 并将任务发布与撤销异常转换为统一的任务队列异常。
@@ -30,7 +30,7 @@ SHADOW_TASK_NAME = "datamind.prediction.shadow.execute"
 
 
 class TaskPublisher:
-    """Celery 运行时任务发布器
+    """Celery 运行时任务发布器.
 
     根据任务类型选择目标队列，仅发送持久化记录标识，
     并将 Celery 和 Broker 异常转换为统一的任务队列异常。
@@ -42,7 +42,7 @@ class TaskPublisher:
             batch_id: str,
             task_id: str,
     ) -> None:
-        """发布批量预测任务
+        """发布批量预测任务.
 
         参数：
             batch_id: 批次 ID
@@ -76,7 +76,7 @@ class TaskPublisher:
             execution_id: str,
             task_id: str,
     ) -> None:
-        """发布影子预测任务
+        """发布影子预测任务.
 
         参数：
             execution_id: 影子执行 ID
@@ -113,7 +113,7 @@ class TaskPublisher:
             start_index: int,
             end_index: int,
     ) -> None:
-        """发布批量预测分片任务
+        """发布批量预测分片任务.
 
         参数：
             batch_id: 批次 ID
@@ -151,7 +151,7 @@ class TaskPublisher:
 
     @staticmethod
     def revoke(task_id: str) -> None:
-        """撤销尚未开始执行的任务
+        """撤销尚未开始执行的任务.
 
         参数：
             task_id: Celery 任务 ID

@@ -1,4 +1,4 @@
-"""角色仓储
+"""角色仓储.
 
 提供角色的查询、创建、更新、权限配置和状态管理能力。
 
@@ -55,7 +55,7 @@ from datamind.db.repositories.base import BaseRepository
 
 @dataclass(slots=True)
 class RolePatch:
-    """角色更新结构
+    """角色更新结构.
 
     注意：
         不允许通过 patch 修改 permissions 和 status，
@@ -71,7 +71,7 @@ class RolePatch:
 
 
 class RoleRepository(BaseRepository):
-    """角色仓储"""
+    """角色仓储."""
 
     async def get_role(
             self,
@@ -79,7 +79,7 @@ class RoleRepository(BaseRepository):
             role_id: str | None = None,
             name: str | None = None,
     ) -> Role | None:
-        """获取单个角色
+        """获取单个角色.
 
         参数：
             role_id: 角色 ID（可选）
@@ -130,7 +130,7 @@ class RoleRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Role]:
-        """获取角色列表
+        """获取角色列表.
 
         参数：
             status: 角色状态（可选）
@@ -179,7 +179,7 @@ class RoleRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Role]:
-        """获取活跃角色列表
+        """获取活跃角色列表.
 
         参数：
             limit: 返回数量限制（可选）
@@ -204,7 +204,7 @@ class RoleRepository(BaseRepository):
             status: RoleStatus = RoleStatus.ACTIVE,
             created_by: str | None = None,
     ) -> Role:
-        """创建角色
+        """创建角色.
 
         参数：
             role_id: 角色 ID
@@ -245,7 +245,7 @@ class RoleRepository(BaseRepository):
             patch: RolePatch,
             updated_by: str | None = None,
     ) -> Role:
-        """更新角色基础信息
+        """更新角色基础信息.
 
         参数：
             role: 角色对象
@@ -284,7 +284,7 @@ class RoleRepository(BaseRepository):
             permissions: list[str] | None,
             updated_by: str | None = None,
     ) -> Role:
-        """替换角色权限
+        """替换角色权限.
 
         参数：
             role: 角色对象
@@ -307,7 +307,7 @@ class RoleRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Role:
-        """启用角色
+        """启用角色.
 
         参数：
             role: 角色对象
@@ -331,7 +331,7 @@ class RoleRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Role:
-        """停用角色
+        """停用角色.
 
         参数：
             role: 角色对象
@@ -356,7 +356,7 @@ class RoleRepository(BaseRepository):
             description: str | None,
             updated_by: str | None = None,
     ) -> Role:
-        """替换角色描述，允许清空现有描述"""
+        """替换角色描述，允许清空现有描述."""
         role.description = description
 
         if updated_by is not None:
@@ -372,7 +372,7 @@ class RoleRepository(BaseRepository):
             deletion_reason: str | None = None,
             deleted_at: datetime | None = None,
     ) -> Role:
-        """逻辑删除角色
+        """逻辑删除角色.
 
         删除后角色保持 inactive 状态，保留授权和审计关联信息。
 
@@ -415,7 +415,7 @@ class RoleRepository(BaseRepository):
             restored_at: datetime | None = None,
             restored_by: str | None = None,
     ) -> Role:
-        """恢复已逻辑删除的角色
+        """恢复已逻辑删除的角色.
 
         恢复后角色重新处于 active 状态，
         将创建时间更新为本次恢复时间，

@@ -1,4 +1,4 @@
-"""路由规则契约
+"""路由规则契约.
 
 集中定义路由规则的规范操作符、JSON Schema 和示例，供运行时校验器与
 管理控制台共同使用。
@@ -57,7 +57,7 @@ ROUTING_RULES_EXAMPLE: dict[str, Any] = {
 
 
 class RoutingCondition(BaseModel):
-    """规范的单条路由条件"""
+    """规范的单条路由条件."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -68,7 +68,7 @@ class RoutingCondition(BaseModel):
 
 
 class RoutingRules(BaseModel):
-    """规范的多条件路由规则"""
+    """规范的多条件路由规则."""
 
     model_config = ConfigDict(
         extra="forbid",

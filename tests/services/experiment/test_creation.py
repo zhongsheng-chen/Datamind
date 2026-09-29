@@ -1,4 +1,4 @@
-"""实验统一创建流程测试
+"""实验统一创建流程测试.
 
 验证实验、初始分组和客户映射在同一事务内保存及回滚。
 
@@ -36,7 +36,7 @@ from datamind.services.experiment import ExperimentLifecycleService
 
 @pytest.fixture
 def creation_context(monkeypatch):
-    """配置统一创建流程的仓储和数据库会话替身"""
+    """配置统一创建流程的仓储和数据库会话替身."""
     session = MagicMock()
     session.flush = AsyncMock()
     session.commit = AsyncMock()
@@ -104,7 +104,7 @@ def creation_context(monkeypatch):
 
 
 def create_payload() -> dict[str, Any]:
-    """构造包含两个初始分组的实验参数"""
+    """构造包含两个初始分组的实验参数."""
     return {
         "model_id": "mdl_test",
         "environment": "development",
@@ -132,7 +132,7 @@ def create_payload() -> dict[str, Any]:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("strategy", ["hash", "manual"])
 async def test_create_experiment_with_groups(creation_context, strategy):
-    """测试分组与实验一并创建并转换客户映射中的临时分组标识"""
+    """测试分组与实验一并创建并转换客户映射中的临时分组标识."""
     payload = create_payload()
     payload["strategy"] = strategy
 
@@ -174,7 +174,7 @@ async def test_create_experiment_rejects_invalid_groups(
         field,
         value,
 ):
-    """测试无效分组配置不能留下部分实验数据"""
+    """测试无效分组配置不能留下部分实验数据."""
     payload = create_payload()
     payload["groups"][1][field] = value
 
@@ -202,7 +202,7 @@ async def test_create_experiment_rejects_invalid_deployment(
         field,
         value,
 ):
-    """测试初始分组不能绑定其他模型、环境、影子或停用部署"""
+    """测试初始分组不能绑定其他模型、环境、影子或停用部署."""
     setattr(creation_context.deployment, field, value)
 
     with pytest.raises(InvalidExperimentConfigError):
@@ -226,7 +226,7 @@ async def test_create_experiment_rolls_back_invalid_mapping(
         strategy,
         mapping,
 ):
-    """测试客户映射校验失败时回滚已创建的实验和分组"""
+    """测试客户映射校验失败时回滚已创建的实验和分组."""
     payload = create_payload()
     payload["strategy"] = strategy
     payload["manual_assignments"] = mapping
@@ -241,7 +241,7 @@ async def test_create_experiment_rolls_back_invalid_mapping(
 
 @pytest.mark.asyncio
 async def test_create_experiment_rolls_back_commit_failure(creation_context):
-    """测试事务提交失败时回滚实验及其分组"""
+    """测试事务提交失败时回滚实验及其分组."""
     creation_context.session.commit.side_effect = RuntimeError("commit failed")
 
     with pytest.raises(RuntimeError, match="commit failed"):
@@ -252,7 +252,7 @@ async def test_create_experiment_rolls_back_commit_failure(creation_context):
 
 @pytest.mark.asyncio
 async def test_create_experiment_without_groups(creation_context):
-    """测试未传入初始分组时兼容原有创建流程"""
+    """测试未传入初始分组时兼容原有创建流程."""
     payload = create_payload()
     payload.pop("groups")
     result = await ExperimentLifecycleService().create_experiment(**payload)
@@ -277,7 +277,7 @@ async def test_create_experiment_without_groups(creation_context):
     ],
 )
 async def test_create_variant_uses_shared_validation(creation_context, scenario):
-    """测试单独添加分组复用相同校验且仅提交一次事务"""
+    """测试单独添加分组复用相同校验且仅提交一次事务."""
     existing = SimpleNamespace(
         variant_id="var_existing",
         name="existing",

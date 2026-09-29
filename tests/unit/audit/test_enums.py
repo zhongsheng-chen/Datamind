@@ -1,4 +1,4 @@
-"""审计枚举测试
+"""审计枚举测试.
 
 验证审计字符串枚举基类、审计来源和审计状态。
 
@@ -27,7 +27,7 @@ from datamind.audit.enums import (
 
 
 def test_base_enum_inheritance() -> None:
-    """测试字符串枚举基类继承关系"""
+    """测试字符串枚举基类继承关系."""
     assert issubclass(
         BaseEnum,
         str,
@@ -47,7 +47,7 @@ def test_base_enum_inheritance() -> None:
 
 
 def test_audit_source_values() -> None:
-    """测试审计来源枚举值"""
+    """测试审计来源枚举值."""
     assert [
         source.value
         for source in AuditSource
@@ -61,7 +61,7 @@ def test_audit_source_values() -> None:
 
 
 def test_audit_status_values() -> None:
-    """测试审计状态枚举值"""
+    """测试审计状态枚举值."""
     assert [
         status.value
         for status in AuditStatus
@@ -111,7 +111,7 @@ def test_audit_enum_string(
         member: BaseEnum,
         expected: str,
 ) -> None:
-    """测试枚举字符串转换"""
+    """测试枚举字符串转换."""
     assert str(
         member
     ) == expected
@@ -141,7 +141,7 @@ def test_audit_enum_rejects_invalid_value(
         value: str,
         expected_message: str,
 ) -> None:
-    """测试拒绝非法枚举值"""
+    """测试拒绝非法枚举值."""
     with pytest.raises(
             ValueError,
             match=expected_message,

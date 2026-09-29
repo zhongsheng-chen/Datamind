@@ -1,4 +1,4 @@
-"""批次执行分片仓储
+"""批次执行分片仓储.
 
 提供批次执行分片的创建、查询和状态迁移能力。
 
@@ -17,7 +17,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class ShardRepository(BaseRepository):
-    """批次执行分片仓储"""
+    """批次执行分片仓储."""
 
     def create_shard(
             self,
@@ -29,7 +29,7 @@ class ShardRepository(BaseRepository):
             start_index: int,
             end_index: int,
     ) -> Shard:
-        """创建等待执行的批次分片
+        """创建等待执行的批次分片.
 
         参数：
             shard_id: 分片 ID
@@ -60,7 +60,7 @@ class ShardRepository(BaseRepository):
             shard_id: str,
             worker_id: str | None,
     ) -> Shard | None:
-        """标记执行分片开始
+        """标记执行分片开始.
 
         已进入终态的分片保持不变。
 
@@ -93,7 +93,7 @@ class ShardRepository(BaseRepository):
             shard_id: str,
             error: str,
     ) -> Shard | None:
-        """标记执行分片等待重试
+        """标记执行分片等待重试.
 
         参数：
             shard_id: 分片 ID
@@ -118,7 +118,7 @@ class ShardRepository(BaseRepository):
             status: str,
             error: str | None = None,
     ) -> Shard | None:
-        """写入执行分片终态
+        """写入执行分片终态.
 
         参数：
             shard_id: 分片 ID
@@ -154,7 +154,7 @@ class ShardRepository(BaseRepository):
             batch_id: str,
             error: str,
     ) -> None:
-        """标记批次中未结束的执行分片失败
+        """标记批次中未结束的执行分片失败.
 
         参数：
             batch_id: 批次 ID
@@ -180,7 +180,7 @@ class ShardRepository(BaseRepository):
             shard.finished_at = func.statement_timestamp()
 
     async def _get_for_update(self, shard_id: str) -> Shard | None:
-        """锁定并获取执行分片
+        """锁定并获取执行分片.
 
         参数：
             shard_id: 分片 ID

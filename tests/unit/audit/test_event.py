@@ -1,4 +1,4 @@
-"""审计事件测试
+"""审计事件测试.
 
 验证审计事件字段、随机 ID 和 UTC 时间生成行为。
 
@@ -32,7 +32,7 @@ from datamind.audit.event import AuditEvent
 
 
 def create_event(**overrides: Any) -> AuditEvent:
-    """创建审计事件测试对象"""
+    """创建审计事件测试对象."""
     values: dict[str, Any] = {
         "action": "model.register",
         "resource": "model",
@@ -62,7 +62,7 @@ def create_event(**overrides: Any) -> AuditEvent:
 
 
 def test_audit_event_preserves_fields() -> None:
-    """测试审计事件保留全部业务字段"""
+    """测试审计事件保留全部业务字段."""
     event = create_event()
 
     assert event.action == "model.register"
@@ -91,7 +91,7 @@ def test_audit_event_preserves_fields() -> None:
 def test_audit_event_generates_random_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试审计事件使用 aud 前缀生成随机 ID"""
+    """测试审计事件使用 aud 前缀生成随机 ID."""
     prefixes: list[str] = []
 
     def fake_generate_random_id(
@@ -118,7 +118,7 @@ def test_audit_event_generates_random_id(
 def test_each_audit_event_generates_independent_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试每个审计事件独立生成 ID"""
+    """测试每个审计事件独立生成 ID."""
     generated_ids = iter(
         [
             "aud_111111111111",
@@ -148,7 +148,7 @@ def test_each_audit_event_generates_independent_id(
 
 
 def test_audit_event_occurred_at_defaults_to_current_utc() -> None:
-    """测试事件发生时间默认为当前 UTC 时间"""
+    """测试事件发生时间默认为当前 UTC 时间."""
     before = datetime.now(timezone.utc)
 
     event = create_event()
@@ -160,7 +160,7 @@ def test_audit_event_occurred_at_defaults_to_current_utc() -> None:
 
 
 def test_audit_event_accepts_explicit_identity_and_time() -> None:
-    """测试允许显式指定审计 ID 和发生时间"""
+    """测试允许显式指定审计 ID 和发生时间."""
     occurred_at = datetime(
         2026,
         7,
@@ -180,7 +180,7 @@ def test_audit_event_accepts_explicit_identity_and_time() -> None:
 
 
 def test_audit_event_accepts_optional_fields_as_none() -> None:
-    """测试可选字段允许为空"""
+    """测试可选字段允许为空."""
     event = create_event(
         error=None,
         trace_id=None,
@@ -207,7 +207,7 @@ def test_audit_event_accepts_optional_fields_as_none() -> None:
 
 
 def test_audit_event_accepts_failure_information() -> None:
-    """测试失败事件保存错误和变更前数据"""
+    """测试失败事件保存错误和变更前数据."""
     event = create_event(
         status="failed",
         error="模型文件不存在",
@@ -244,7 +244,7 @@ def test_audit_event_rejects_invalid_fields(
         value: str,
         message: str,
 ) -> None:
-    """测试事件在写数据库前拒绝非法字段"""
+    """测试事件在写数据库前拒绝非法字段."""
     with pytest.raises(
         AuditValidationError,
         match=message,
@@ -266,7 +266,7 @@ def test_audit_event_rejects_invalid_fields(
 def test_audit_event_rejects_blank_required_fields(
         field: str,
 ) -> None:
-    """测试必填字段拒绝空白值"""
+    """测试必填字段拒绝空白值."""
     with pytest.raises(
             AuditValidationError,
             match=rf"{field} 不能为空",
@@ -288,7 +288,7 @@ def test_audit_event_rejects_oversized_optional_fields(
         field: str,
         max_length: int,
 ) -> None:
-    """测试可选字段拒绝超过长度限制的值"""
+    """测试可选字段拒绝超过长度限制的值."""
     with pytest.raises(
             AuditValidationError,
             match=rf"{field} 长度不能超过 {max_length}",
@@ -299,7 +299,7 @@ def test_audit_event_rejects_oversized_optional_fields(
 
 
 def test_audit_event_rejects_inconsistent_action() -> None:
-    """测试 action 必须与资源和操作名称一致"""
+    """测试 action 必须与资源和操作名称一致."""
     with pytest.raises(
             AuditValidationError,
             match="action 必须与 resource 和 operation 一致",
@@ -310,7 +310,7 @@ def test_audit_event_rejects_inconsistent_action() -> None:
 
 
 def test_audit_event_rejects_naive_occurred_at() -> None:
-    """测试事件发生时间必须包含时区"""
+    """测试事件发生时间必须包含时区."""
     with pytest.raises(
         AuditValidationError,
         match="occurred_at 必须包含时区",

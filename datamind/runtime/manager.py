@@ -1,4 +1,4 @@
-"""运行时管理器
+"""运行时管理器.
 
 负责协调部署模型的加载、卸载与重载。
 
@@ -56,7 +56,7 @@ DEFAULT_WORKER_ID = "default"
 
 
 class RuntimeManager:
-    """运行时管理器"""
+    """运行时管理器."""
 
     def __init__(
             self,
@@ -65,7 +65,7 @@ class RuntimeManager:
             registry: RuntimeRegistry | None = None,
             worker_id: str = DEFAULT_WORKER_ID,
     ):
-        """初始化运行时管理器
+        """初始化运行时管理器.
 
         参数：
             loader: 模型加载器，默认使用 ModelLoader
@@ -84,7 +84,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """串行加载指定部署模型"""
+        """串行加载指定部署模型."""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
@@ -101,7 +101,7 @@ class RuntimeManager:
             operator: str = "system",
             force: bool = False,
     ) -> RuntimeModel:
-        """加载指定部署对应的模型
+        """加载指定部署对应的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -368,7 +368,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel | None:
-        """串行卸载指定部署模型"""
+        """串行卸载指定部署模型."""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
@@ -383,7 +383,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel | None:
-        """卸载指定部署对应的模型
+        """卸载指定部署对应的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -452,7 +452,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """重新加载指定部署对应的模型
+        """重新加载指定部署对应的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -474,7 +474,7 @@ class RuntimeManager:
             self,
             deployment_id: str,
     ) -> dict:
-        """查看指定部署的运行状态
+        """查看指定部署的运行状态.
 
         参数：
             deployment_id: 部署 ID
@@ -540,7 +540,7 @@ class RuntimeManager:
             framework: str,
             operator: str,
     ):
-        """获取或创建运行记录"""
+        """获取或创建运行记录."""
         runtime = await runtime_repo.get_deployment_runtime(
             deployment_id=deployment_id,
             worker_id=self.worker_id,
@@ -575,7 +575,7 @@ class RuntimeManager:
             self,
             deployment_id: str,
     ) -> asyncio.Lock:
-        """获取指定部署的异步操作锁"""
+        """获取指定部署的异步操作锁."""
         async with self._operation_locks_guard:
             return self._operation_locks.setdefault(
                 deployment_id,
@@ -587,7 +587,7 @@ class RuntimeManager:
             name: str,
             value: str,
     ) -> None:
-        """校验必填字符串参数
+        """校验必填字符串参数.
 
         参数：
             name: 参数名称

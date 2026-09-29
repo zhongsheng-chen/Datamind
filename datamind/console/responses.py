@@ -1,4 +1,4 @@
-"""管理控制台 HTTP 响应
+"""管理控制台 HTTP 响应.
 
 负责构造通用错误响应并读取请求端信息。
 
@@ -14,7 +14,7 @@ from starlette.responses import JSONResponse
 def client_ip(
         request: Request,
 ) -> str | None:
-    """读取客户端 IP"""
+    """读取客户端 IP."""
     client = request.client
 
     if client is None:
@@ -28,7 +28,7 @@ def error_response(
         *,
         status_code: int,
 ) -> JSONResponse:
-    """创建统一错误响应"""
+    """创建统一错误响应."""
     return JSONResponse(
         {
             "error": message

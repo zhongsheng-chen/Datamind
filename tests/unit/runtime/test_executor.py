@@ -1,4 +1,4 @@
-"""模型预测执行器测试
+"""模型预测执行器测试.
 
 验证统一执行器的服务加载、模型调用、结果封装和超时控制。
 
@@ -26,7 +26,7 @@ def create_plan(
         *,
         timeout: float | None = None,
 ) -> ExecutionPlan:
-    """创建模型执行计划"""
+    """创建模型执行计划."""
     return ExecutionPlan(
         route=RouteResult(
             model_id="mdl_test",
@@ -44,7 +44,7 @@ def create_plan(
 
 @pytest.mark.asyncio
 async def test_execute_loads_service_and_returns_prediction() -> None:
-    """测试执行计划加载服务并返回预测结果"""
+    """测试执行计划加载服务并返回预测结果."""
     service = MagicMock()
     service.predict.return_value = {
         "score": 720.0,
@@ -78,7 +78,7 @@ async def test_execute_loads_service_and_returns_prediction() -> None:
 
 @pytest.mark.asyncio
 async def test_execute_applies_plan_timeout() -> None:
-    """测试执行计划应用超时限制"""
+    """测试执行计划应用超时限制."""
     service = MagicMock()
 
     def predict(_features: dict[str, object]) -> dict[str, object]:

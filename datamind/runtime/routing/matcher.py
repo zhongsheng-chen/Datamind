@@ -1,4 +1,4 @@
-"""规则匹配器
+"""规则匹配器.
 
 提供规则配置的校验与匹配能力，
 用于判断请求 payload 是否满足指定 rules。
@@ -73,14 +73,14 @@ from datamind.runtime.routing.schema import (
 
 
 class _Missing:
-    """缺失值标记"""
+    """缺失值标记."""
 
 
 MISSING = _Missing()
 
 
 class RuleMatcher:
-    """规则匹配器"""
+    """规则匹配器."""
 
     MATCH_ALL = "all"
     MATCH_ANY = "any"
@@ -175,7 +175,7 @@ class RuleMatcher:
             payload: Mapping[str, Any] | None,
             rules: Mapping[str, Any] | None,
     ) -> bool:
-        """判断 payload 是否匹配 rules
+        """判断 payload 是否匹配 rules.
 
         参数：
             payload: 请求数据，可以是完整请求对象，也可以直接是 features 字典
@@ -229,7 +229,7 @@ class RuleMatcher:
             self,
             rules: Mapping[str, Any] | None,
     ) -> None:
-        """校验 rules 结构是否合法
+        """校验 rules 结构是否合法.
 
         参数：
             rules: 规则配置
@@ -266,7 +266,7 @@ class RuleMatcher:
             self,
             rules: Mapping[str, Any],
     ) -> list[Mapping[str, Any]]:
-        """从 rules 中提取条件列表"""
+        """从 rules 中提取条件列表."""
         if "conditions" in rules:
             raw_conditions = rules.get("conditions")
 
@@ -311,7 +311,7 @@ class RuleMatcher:
             self,
             condition: Mapping[str, Any],
     ) -> None:
-        """校验单个条件结构"""
+        """校验单个条件结构."""
         field = condition.get(
             "field",
             condition.get("path"),
@@ -371,7 +371,7 @@ class RuleMatcher:
             payload: Mapping[str, Any],
             condition: Mapping[str, Any],
     ) -> bool:
-        """判断单个条件是否匹配"""
+        """判断单个条件是否匹配."""
         self._validate_condition(
             condition
         )
@@ -411,7 +411,7 @@ class RuleMatcher:
             payload: Mapping[str, Any],
             field: str,
     ) -> Any:
-        """从 payload 中按字段路径取值"""
+        """从 payload 中按字段路径取值."""
         candidate_paths = self._candidate_paths(
             field
         )
@@ -431,7 +431,7 @@ class RuleMatcher:
             self,
             field: str,
     ) -> list[str]:
-        """生成兼容不同 payload 结构的候选字段路径"""
+        """生成兼容不同 payload 结构的候选字段路径."""
         paths = [
             field,
         ]
@@ -474,7 +474,7 @@ class RuleMatcher:
             obj: Any,
             path: str,
     ) -> Any:
-        """按点号路径从 dict/list 中取值"""
+        """按点号路径从 dict/list 中取值."""
         current = obj
 
         for part in path.split("."):
@@ -511,7 +511,7 @@ class RuleMatcher:
             operator: Any,
             expected: Any,
     ) -> bool:
-        """按操作符比较实际值和期望值"""
+        """按操作符比较实际值和期望值."""
         op = self._normalize_operator(
             operator
         )
@@ -643,7 +643,7 @@ class RuleMatcher:
             self,
             operator: Any,
     ) -> str:
-        """归一化操作符"""
+        """归一化操作符."""
         key = str(operator).strip().lower()
 
         if key not in self.OPERATOR_ALIASES:
@@ -656,7 +656,7 @@ class RuleMatcher:
             actual: Any,
             expected: Any,
     ) -> bool:
-        """宽松等值比较"""
+        """宽松等值比较."""
         actual_number = self._to_number(
             actual
         )
@@ -673,7 +673,7 @@ class RuleMatcher:
     def _to_number(
             value: Any,
     ) -> float | None:
-        """尝试转换为数字"""
+        """尝试转换为数字."""
         if isinstance(value, bool):
             return None
 
@@ -699,7 +699,7 @@ class RuleMatcher:
             actual: Any,
             expected: Sequence[Any],
     ) -> bool:
-        """判断 actual 是否在 expected 中"""
+        """判断 actual 是否在 expected 中."""
         if self._is_non_string_sequence(actual):
             return any(
                 self._loose_equal(item, option)
@@ -718,7 +718,7 @@ class RuleMatcher:
             actual: Any,
             expected: Any,
     ) -> bool:
-        """判断 actual 是否包含 expected"""
+        """判断 actual 是否包含 expected."""
         if isinstance(actual, str):
             return str(expected) in actual
 
@@ -737,7 +737,7 @@ class RuleMatcher:
     def _is_non_string_sequence(
             value: Any,
     ) -> TypeGuard[Sequence[Any]]:
-        """判断是否是非字符串序列"""
+        """判断是否是非字符串序列."""
         return isinstance(value, Sequence) and not isinstance(
             value,
             (str, bytes, bytearray),
@@ -747,7 +747,7 @@ class RuleMatcher:
     def _deduplicate(
             values: Sequence[str],
     ) -> list[str]:
-        """按顺序去重"""
+        """按顺序去重."""
         result = []
         seen = set()
 

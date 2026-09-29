@@ -1,4 +1,4 @@
-"""资源逻辑删除服务测试
+"""资源逻辑删除服务测试.
 
 验证部署、路由、实验和实验分组的删除边界与恢复行为。
 
@@ -40,7 +40,7 @@ from datamind.services import (
 
 
 class FakeUnitOfWork:
-    """服务测试工作单元"""
+    """服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -61,7 +61,7 @@ def install_deployment_repositories(
         routings: list[object] | None = None,
         variants: list[object] | None = None,
 ) -> MagicMock:
-    """安装部署删除服务仓储替身"""
+    """安装部署删除服务仓储替身."""
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=deployment
@@ -116,7 +116,7 @@ def create_deployment(
         status: str = "inactive",
         deleted_at: object | None = None,
 ) -> SimpleNamespace:
-    """创建部署测试对象"""
+    """创建部署测试对象."""
     return SimpleNamespace(
         deployment_id="dep_test",
         model_id="mdl_test",
@@ -130,7 +130,7 @@ def create_deployment(
 async def test_delete_deployment_marks_safe_deployment_deleted(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除已停用且已卸载的部署"""
+    """测试删除已停用且已卸载的部署."""
     deployment = create_deployment()
     repository = install_deployment_repositories(
         monkeypatch,
@@ -155,7 +155,7 @@ async def test_delete_deployment_marks_safe_deployment_deleted(
 async def test_delete_deployment_rejects_active_deployment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝删除启用状态的部署"""
+    """测试拒绝删除启用状态的部署."""
     repository = install_deployment_repositories(
         monkeypatch,
         deployment=create_deployment(
@@ -178,7 +178,7 @@ async def test_delete_deployment_rejects_active_deployment(
 async def test_delete_deployment_rejects_loaded_control(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试加载期望状态阻止删除部署"""
+    """测试加载期望状态阻止删除部署."""
     repository = install_deployment_repositories(
         monkeypatch,
         deployment=create_deployment(),
@@ -202,7 +202,7 @@ async def test_delete_deployment_rejects_loaded_control(
 async def test_delete_deployment_rejects_live_running_runtime(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试仍有近期心跳的运行实例时拒绝删除部署"""
+    """测试仍有近期心跳的运行实例时拒绝删除部署."""
     runtime = SimpleNamespace(
         runtime_id="rtm_live",
         status="running",
@@ -233,7 +233,7 @@ async def test_delete_deployment_rejects_live_running_runtime(
 async def test_delete_deployment_finalizes_stale_runtime_after_unload(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试卸载请求后的失联实例不会永久阻塞部署删除"""
+    """测试卸载请求后的失联实例不会永久阻塞部署删除."""
     runtime = SimpleNamespace(
         runtime_id="rtm_stale",
         status="running",
@@ -272,7 +272,7 @@ async def test_delete_deployment_finalizes_stale_runtime_after_unload(
 async def test_restore_deployment_keeps_deployment_inactive(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试恢复部署时调用停用恢复逻辑"""
+    """测试恢复部署时调用停用恢复逻辑."""
     deployment = create_deployment(
         deleted_at=object()
     )
@@ -304,7 +304,7 @@ def install_routing_repository(
         monkeypatch: pytest.MonkeyPatch,
         routing: object,
 ) -> MagicMock:
-    """安装路由服务仓储替身"""
+    """安装路由服务仓储替身."""
     repository = MagicMock()
     repository.get_routing = AsyncMock(
         return_value=routing
@@ -330,7 +330,7 @@ def install_routing_repository(
 async def test_delete_routing_requires_disabled_route(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试启用路由不能删除"""
+    """测试启用路由不能删除."""
     repository = install_routing_repository(
         monkeypatch,
         SimpleNamespace(
@@ -355,7 +355,7 @@ async def test_delete_routing_requires_disabled_route(
 async def test_restore_routing_reads_deleted_record(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试恢复路由包含逻辑删除记录"""
+    """测试恢复路由包含逻辑删除记录."""
     routing = SimpleNamespace(
         routing_id="rtn_test",
         deployment_id="dep_test",
@@ -388,7 +388,7 @@ def install_experiment_repositories(
         experiment: object,
         variants: list[object],
 ) -> tuple[MagicMock, MagicMock]:
-    """安装实验服务仓储替身"""
+    """安装实验服务仓储替身."""
     experiment_repo = MagicMock()
     experiment_repo.get_experiment = AsyncMock(
         return_value=experiment
@@ -436,7 +436,7 @@ def create_experiment(
         deleted_at: object | None = None,
         deletion_id: str | None = None,
 ) -> SimpleNamespace:
-    """创建实验测试对象"""
+    """创建实验测试对象."""
     return SimpleNamespace(
         experiment_id="exp_test",
         name="scorecard_test",
@@ -451,7 +451,7 @@ def create_variant(
         deleted_at: object | None = None,
         deletion_id: str | None = None,
 ) -> SimpleNamespace:
-    """创建实验分组测试对象"""
+    """创建实验分组测试对象."""
     return SimpleNamespace(
         variant_id="var_test",
         experiment_id="exp_test",
@@ -467,7 +467,7 @@ def create_variant(
 async def test_delete_experiment_cascades_same_deletion_batch(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除实验时同批删除分组"""
+    """测试删除实验时同批删除分组."""
     experiment = create_experiment()
     variant = create_variant()
     experiment_repo, variant_repo = install_experiment_repositories(
@@ -494,7 +494,7 @@ async def test_delete_experiment_cascades_same_deletion_batch(
 async def test_delete_experiment_rejects_running_experiment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试运行中实验不能删除"""
+    """测试运行中实验不能删除."""
     experiment_repo, _ = install_experiment_repositories(
         monkeypatch,
         experiment=create_experiment(
@@ -518,7 +518,7 @@ async def test_delete_experiment_rejects_running_experiment(
 async def test_restore_experiment_restores_same_batch_variants(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试恢复实验时只恢复同批删除分组"""
+    """测试恢复实验时只恢复同批删除分组."""
     current = create_variant(
         deleted_at=object(),
         deletion_id="del_test",
@@ -553,7 +553,7 @@ async def test_restore_experiment_restores_same_batch_variants(
 async def test_delete_variant_requires_draft_experiment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试非草稿实验不能单独删除分组"""
+    """测试非草稿实验不能单独删除分组."""
     _, variant_repo = install_experiment_repositories(
         monkeypatch,
         experiment=create_experiment(

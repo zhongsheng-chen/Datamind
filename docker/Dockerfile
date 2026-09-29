@@ -98,7 +98,7 @@ COPY --from=package-builder /dist/ /tmp/dist/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     wheel_path="$(find /tmp/dist -maxdepth 1 -type f \
-        -name 'datamind-*.whl' -print -quit)" \
+        -name '*.whl' -print -quit)" \
     && test -n "${wheel_path}" \
     && python -m pip install --index-url "${PIP_INDEX_URL}" \
         "${wheel_path}[${DATAMIND_PYTHON_EXTRA}]" \

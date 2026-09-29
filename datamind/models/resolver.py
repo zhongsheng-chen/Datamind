@@ -1,4 +1,4 @@
-"""模型解析器
+"""模型解析器.
 
 提供模型和版本的解析能力，支持通过 ID 或名称查找。
 
@@ -36,10 +36,10 @@ from datamind.models.errors import ModelNotFoundError, VersionNotFoundError
 
 
 class ModelResolver:
-    """模型解析器"""
+    """模型解析器."""
 
     def __init__(self, metadata_repo: MetadataRepository, version_repo: VersionRepository):
-        """初始化模型解析器
+        """初始化模型解析器.
 
         参数：
             metadata_repo: 模型元数据仓储
@@ -54,7 +54,7 @@ class ModelResolver:
             model_id: str | None = None,
             name: str | None = None,
     ) -> Metadata:
-        """解析模型
+        """解析模型.
 
         优先按 model_id 查询模型。未找到且提供 name 时，
         再按模型名称查询。
@@ -96,7 +96,7 @@ class ModelResolver:
             version_id: str | None = None,
             version: str | None = None,
     ) -> Version:
-        """解析版本
+        """解析版本.
 
         提供 version_id 时优先按版本 ID 查询，并校验版本是否
         属于指定模型。未提供 version_id 时，再按 model_id 和

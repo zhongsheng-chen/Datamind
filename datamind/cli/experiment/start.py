@@ -1,4 +1,4 @@
-"""启动实验命令
+"""启动实验命令.
 
 提供实验启动功能。
 
@@ -66,7 +66,7 @@ def start_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """启动实验"""
+    """启动实验."""
 
     @audit(
         action="experiment.start",
@@ -312,7 +312,7 @@ async def _validate_active_variant_deployments(
         active_variants: list[Variant],
         now: datetime,
 ) -> None:
-    """校验启用状态实验分组绑定的部署"""
+    """校验启用状态实验分组绑定的部署."""
     deployment_variants: dict[str, str] = {}
 
     for variant in active_variants:
@@ -398,7 +398,7 @@ def _is_effective_deployment(
         *,
         now: datetime,
 ) -> bool:
-    """判断部署是否处于生效时间窗口"""
+    """判断部署是否处于生效时间窗口."""
     current_time = to_utc(
         now
     )
@@ -428,7 +428,7 @@ def _is_effective_deployment(
 def _get_experiment_strategy(
         experiment: Experiment,
 ) -> AssignmentStrategy:
-    """获取实验分配策略"""
+    """获取实验分配策略."""
     config = _get_config(experiment)
 
     value = config.get(
@@ -452,7 +452,7 @@ def _get_experiment_strategy(
 def _get_config(
         experiment: Experiment,
 ) -> dict:
-    """获取实验配置"""
+    """获取实验配置."""
     config = experiment.config or {}
 
     if not isinstance(config, dict):
@@ -466,7 +466,7 @@ def _get_config(
 def _is_active_variant(
         variant: Variant,
 ) -> bool:
-    """判断实验分组是否为启用状态"""
+    """判断实验分组是否为启用状态."""
     return (
         str(variant.status).lower()
         == str(ExperimentVariantStatus.ACTIVE)
@@ -476,12 +476,12 @@ def _is_active_variant(
 def _is_control_variant(
         variant: Variant,
 ) -> bool:
-    """判断实验分组是否为对照组"""
+    """判断实验分组是否为对照组."""
     return bool(variant.is_control)
 
 
 def _variant_weight(
         variant: Variant,
 ) -> float:
-    """获取实验分组权重"""
+    """获取实验分组权重."""
     return float(variant.weight or 0)

@@ -1,4 +1,4 @@
-"""XGBoost 模型加载器测试
+"""XGBoost 模型加载器测试.
 
 验证 XGBoost Booster 的创建和二进制模型加载。
 
@@ -19,7 +19,7 @@ from datamind.models.artifact.handlers.xgboost import load_xgboost
 def test_load_xgboost_loads_booster_bytes(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试将二进制数据加载到 XGBoost Booster"""
+    """测试将二进制数据加载到 XGBoost Booster."""
     booster = SimpleNamespace(
         load_model=Mock()
     )

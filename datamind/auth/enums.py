@@ -1,4 +1,4 @@
-"""认证枚举常量
+"""认证枚举常量.
 
 统一定义认证模块使用的用户状态、角色状态、
 角色授予状态和刷新令牌状态枚举。
@@ -45,19 +45,19 @@ class BaseEnum(
     str,
     Enum,
 ):
-    """字符串枚举基类"""
+    """字符串枚举基类."""
 
     def __str__(
             self,
     ) -> str:
-        """返回枚举字符串值"""
+        """返回枚举字符串值."""
         return self.value
 
 
 class UserStatus(
     BaseEnum
 ):
-    """用户状态"""
+    """用户状态."""
 
     ACTIVE = "active"
     DISABLED = "disabled"
@@ -67,7 +67,7 @@ class UserStatus(
 class RoleStatus(
     BaseEnum
 ):
-    """角色状态"""
+    """角色状态."""
 
     ACTIVE = "active"
     INACTIVE = "inactive"
@@ -76,7 +76,7 @@ class RoleStatus(
 class GrantStatus(
     BaseEnum
 ):
-    """角色授予状态"""
+    """角色授予状态."""
 
     ACTIVE = "active"
     REVOKED = "revoked"
@@ -85,7 +85,7 @@ class GrantStatus(
 class TokenStatus(
     BaseEnum
 ):
-    """刷新令牌状态"""
+    """刷新令牌状态."""
 
     ACTIVE = "active"
     REVOKED = "revoked"

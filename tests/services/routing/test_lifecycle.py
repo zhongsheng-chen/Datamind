@@ -1,4 +1,4 @@
-"""路由生命周期与流量约束测试
+"""路由生命周期与流量约束测试.
 
 验证部署路由唯一性、流量分配和启用状态约束。
 
@@ -35,7 +35,7 @@ def create_deployment(
         rollout_type: str = "canary",
         role: str = "challenger",
 ) -> Deployment:
-    """创建部署测试对象。"""
+    """创建部署测试对象."""
     return Deployment(
         deployment_id=deployment_id,
         model_id=model_id,
@@ -53,7 +53,7 @@ def create_routing(
         deployment_id: str,
         traffic_ratio: float,
 ) -> Routing:
-    """创建路由测试对象。"""
+    """创建路由测试对象."""
     return Routing(
         routing_id=routing_id,
         name=f"{routing_id}-name",
@@ -68,7 +68,7 @@ def create_routing(
 
 @pytest.mark.asyncio
 async def test_duplicate_deployment_routing_is_rejected() -> None:
-    """测试一个部署只能维护一条未删除路由"""
+    """测试一个部署只能维护一条未删除路由."""
     routing_repo = MagicMock()
     routing_repo.list_routings = AsyncMock(
         return_value=[create_routing("rtn_existing", "dep_test", 0.5)]
@@ -84,7 +84,7 @@ async def test_duplicate_deployment_routing_is_rejected() -> None:
 @pytest.mark.asyncio
 async def test_primary_routing_allocation_over_100_percent_is_rejected(
 ) -> None:
-    """测试同一模型的启用主路由总流量不能超过百分之百"""
+    """测试同一模型的启用主路由总流量不能超过百分之百."""
     existing_deployment = create_deployment("dep_existing")
     target_deployment = create_deployment("dep_target")
     routing_repo = MagicMock()
@@ -108,7 +108,7 @@ async def test_primary_routing_allocation_over_100_percent_is_rejected(
 
 
 def test_full_deployment_requires_100_percent_traffic() -> None:
-    """测试全量发布的路由比例固定为百分之百"""
+    """测试全量发布的路由比例固定为百分之百."""
     deployment = create_deployment(
         "dep_full",
         rollout_type="full",
@@ -132,7 +132,7 @@ def test_full_deployment_requires_100_percent_traffic() -> None:
 
 @pytest.mark.asyncio
 async def test_shadow_routing_does_not_use_primary_traffic_budget() -> None:
-    """测试影子路由比例不计入主流量总和"""
+    """测试影子路由比例不计入主流量总和."""
     routing_repo = MagicMock()
     routing_repo.list_enabled_routings = AsyncMock()
     deployment_repo = MagicMock()
@@ -154,7 +154,7 @@ async def test_shadow_routing_does_not_use_primary_traffic_budget() -> None:
 
 @pytest.mark.asyncio
 async def test_inactive_deployment_routing_cannot_be_enabled() -> None:
-    """测试停用部署不能启用路由"""
+    """测试停用部署不能启用路由."""
     deployment = create_deployment("dep_inactive")
     deployment.status = "inactive"
 

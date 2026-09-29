@@ -1,4 +1,4 @@
-"""管理控制台查询仓储测试
+"""管理控制台查询仓储测试.
 
 验证控制台页面记录总数、关键词与字段化查询和参数校验。
 
@@ -60,7 +60,10 @@ from datetime import (
     timedelta,
     timezone,
 )
-from typing import cast
+from typing import (
+    Any,
+    cast,
+)
 from unittest.mock import (
     AsyncMock,
     MagicMock,
@@ -69,6 +72,10 @@ from unittest.mock import (
 import pytest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import (
+    operators,
+    visitors,
+)
 
 from datamind.db.models import Shard
 from datamind.runtime.presence import RuntimePresence
@@ -76,8 +83,26 @@ from datamind.runtime.presence import RuntimePresence
 from datamind.db.repositories.dashboard import DashboardRepository
 
 
+def get_ilike_predicates(statement: Any) -> list[Any]:
+    """返回查询中的所有 ILIKE 谓词."""
+    predicates: list[Any] = []
+
+    def collect_predicate(expression: Any) -> None:
+        if expression.operator is operators.ilike_op:
+            predicates.append(expression)
+
+    visitors.traverse(
+        statement,
+        {},
+        {
+            "binary": collect_predicate,
+        },
+    )
+    return predicates
+
+
 def create_repository() -> tuple[DashboardRepository, AsyncMock]:
-    """创建控制台统计仓储及会话替身"""
+    """创建控制台统计仓储及会话替身."""
     result = MagicMock()
     result.mappings.return_value.one.return_value = {
         "models": 4,
@@ -104,7 +129,7 @@ def create_repository() -> tuple[DashboardRepository, AsyncMock]:
 
 @pytest.mark.asyncio
 async def test_get_counts() -> None:
-    """测试使用单条语句查询指定页面记录总数"""
+    """测试使用单条语句查询指定页面记录总数."""
     repository, execute = create_repository()
 
     counts = await repository.get_counts([
@@ -135,7 +160,7 @@ async def test_get_counts() -> None:
 
 @pytest.mark.asyncio
 async def test_get_counts_rejects_unknown_section() -> None:
-    """测试拒绝未知控制台页面"""
+    """测试拒绝未知控制台页面."""
     repository, execute = create_repository()
 
     with pytest.raises(
@@ -151,7 +176,7 @@ async def test_get_counts_rejects_unknown_section() -> None:
 
 @pytest.mark.asyncio
 async def test_get_counts_returns_empty_without_sections() -> None:
-    """测试空页面集合不查询数据库"""
+    """测试空页面集合不查询数据库."""
     repository, execute = create_repository()
 
     counts = await repository.get_counts([])
@@ -162,7 +187,7 @@ async def test_get_counts_returns_empty_without_sections() -> None:
 
 @pytest.mark.asyncio
 async def test_count_records() -> None:
-    """测试查询指定条件下的精确记录总数"""
+    """测试查询指定条件下的精确记录总数."""
     repository, execute = create_repository()
 
     count = await repository.count_records(
@@ -192,7 +217,7 @@ async def test_count_records() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records() -> None:
-    """测试模型页面使用关键词查询并分页"""
+    """测试模型页面使用关键词查询并分页."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -223,7 +248,7 @@ async def test_search_records() -> None:
 
 @pytest.mark.asyncio
 async def test_search_routings_supports_version_id() -> None:
-    """测试路由关键词查询包含关联部署的版本 ID"""
+    """测试路由关键词查询包含关联部署的版本 ID."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -252,7 +277,7 @@ async def test_search_routings_supports_version_id() -> None:
 
 @pytest.mark.asyncio
 async def test_search_routings_supports_route_name() -> None:
-    """测试路由关键词查询包含路由名称"""
+    """测试路由关键词查询包含路由名称."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -280,7 +305,7 @@ async def test_search_routings_supports_route_name() -> None:
 
 @pytest.mark.asyncio
 async def test_search_deleted_versions() -> None:
-    """测试回收站仅查询已逻辑删除版本"""
+    """测试回收站仅查询已逻辑删除版本."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -305,7 +330,7 @@ async def test_search_deleted_versions() -> None:
 
 @pytest.mark.asyncio
 async def test_search_deleted_models() -> None:
-    """测试模型回收站仅查询整体逻辑删除的模型"""
+    """测试模型回收站仅查询整体逻辑删除的模型."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -329,7 +354,7 @@ async def test_search_deleted_models() -> None:
 
 @pytest.mark.asyncio
 async def test_search_runtimes_returns_current_instances() -> None:
-    """测试运行实例分页只返回状态活动且心跳有效的实例"""
+    """测试运行实例分页只返回状态活动且心跳有效的实例."""
     repository, execute = create_repository()
     presence = RuntimePresence(
         stale_at=datetime(
@@ -365,7 +390,7 @@ async def test_search_runtimes_returns_current_instances() -> None:
 
 @pytest.mark.asyncio
 async def test_search_runtimes_sorts_by_stored_status() -> None:
-    """测试运行实例按数据库中的运行状态排序"""
+    """测试运行实例按数据库中的运行状态排序."""
     repository, execute = create_repository()
     presence = RuntimePresence(
         stale_at=datetime(
@@ -401,7 +426,7 @@ async def test_search_runtimes_sorts_by_stored_status() -> None:
 
 @pytest.mark.asyncio
 async def test_search_runtimes_sorts_by_health_status() -> None:
-    """测试运行实例按派生的健康状态排序"""
+    """测试运行实例按派生的健康状态排序."""
     repository, execute = create_repository()
     presence = RuntimePresence(
         stale_at=datetime(
@@ -438,7 +463,7 @@ async def test_search_runtimes_sorts_by_health_status() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_supports_field_queries() -> None:
-    """测试字段条件按字段匹配并使用 AND 组合"""
+    """测试字段条件按字段匹配并使用 AND 组合."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -475,7 +500,7 @@ async def test_decision_queries_support_experiment_id(
         count_only: bool,
         field: str,
 ) -> None:
-    """测试决策列表和计数支持实验 ID 及其别名与策略组合查询"""
+    """测试决策列表和计数支持实验 ID 及其别名与策略组合查询."""
     repository, execute = create_repository()
     query = f"{field}:exp_test strategy:manual"
 
@@ -515,7 +540,7 @@ async def test_decision_queries_support_experiment_id(
 
 @pytest.mark.asyncio
 async def test_search_records_supports_time_ranges() -> None:
-    """测试日期范围包含结束日期并按本地时区转换"""
+    """测试日期范围包含结束日期并按本地时区转换."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -544,7 +569,7 @@ async def test_search_records_supports_time_ranges() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_supports_display_time_ranges() -> None:
-    """测试时间范围兼容页面展示的日期时间格式"""
+    """测试时间范围兼容页面展示的日期时间格式."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -576,7 +601,7 @@ async def test_search_records_supports_display_time_ranges() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_supports_open_time_ranges() -> None:
-    """测试时间范围支持省略起点或终点"""
+    """测试时间范围支持省略起点或终点."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -667,7 +692,7 @@ async def test_search_records_supports_lifecycle_times(
         field: str,
         expected_column: str,
 ) -> None:
-    """测试控制台页面支持附加生命周期时间字段"""
+    """测试控制台页面支持附加生命周期时间字段."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -694,7 +719,7 @@ async def test_search_records_supports_lifecycle_times(
 
 @pytest.mark.asyncio
 async def test_search_records_rejects_invalid_time_range() -> None:
-    """测试拒绝起止顺序错误的时间范围"""
+    """测试拒绝起止顺序错误的时间范围."""
     repository, execute = create_repository()
 
     with pytest.raises(
@@ -713,7 +738,7 @@ async def test_search_records_rejects_invalid_time_range() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_combines_keyword_and_field_query() -> None:
-    """测试普通关键词可以和字段条件组合"""
+    """测试普通关键词可以和字段条件组合."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -752,7 +777,7 @@ async def test_search_records_combines_keyword_and_field_query() -> None:
 async def test_search_requests_supports_task_type(
         query: str,
 ) -> None:
-    """测试 API 调用记录支持按任务类型查询"""
+    """测试 API 调用记录支持按任务类型查询."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -783,7 +808,7 @@ async def test_search_requests_supports_task_type(
 async def test_request_queries_support_batch_index(
         count_only: bool,
 ) -> None:
-    """测试 API 调用列表和计数支持按批次位置精确查询"""
+    """测试 API 调用列表和计数支持按批次位置精确查询."""
     repository, execute = create_repository()
 
     if count_only:
@@ -812,7 +837,7 @@ async def test_request_queries_support_batch_index(
 
 @pytest.mark.asyncio
 async def test_request_queries_reject_invalid_batch_index() -> None:
-    """测试批次位置拒绝非整数查询值"""
+    """测试批次位置拒绝非整数查询值."""
     repository, execute = create_repository()
 
     with pytest.raises(
@@ -831,7 +856,7 @@ async def test_request_queries_reject_invalid_batch_index() -> None:
 
 @pytest.mark.asyncio
 async def test_request_queries_support_batch_index_range() -> None:
-    """测试 API 调用列表支持按批次位置范围查询"""
+    """测试 API 调用列表支持按批次位置范围查询."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -856,7 +881,7 @@ async def test_request_queries_support_batch_index_range() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_rejects_unknown_search_field() -> None:
-    """测试拒绝当前页面不支持的查询字段"""
+    """测试拒绝当前页面不支持的查询字段."""
     repository, execute = create_repository()
 
     with pytest.raises(
@@ -875,7 +900,7 @@ async def test_search_records_rejects_unknown_search_field() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_rejects_empty_field_value() -> None:
-    """测试字段化查询拒绝空值"""
+    """测试字段化查询拒绝空值."""
     repository, execute = create_repository()
 
     with pytest.raises(
@@ -894,7 +919,7 @@ async def test_search_records_rejects_empty_field_value() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_preserves_plain_query_punctuation() -> None:
-    """测试普通关键词保留引号类标点并继续模糊匹配"""
+    """测试普通关键词保留引号类标点并继续模糊匹配."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -920,7 +945,7 @@ async def test_search_records_preserves_plain_query_punctuation() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_filters_selected_identifiers() -> None:
-    """测试查询记录可限定为用户选择的主键集合"""
+    """测试查询记录可限定为用户选择的主键集合."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -1006,7 +1031,7 @@ async def test_search_records_sorts_related_fields(
         sort_by: str,
         expected_sql: str,
 ) -> None:
-    """测试部署和 API 调用支持关联字段排序"""
+    """测试部署和 API 调用支持关联字段排序."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -1035,7 +1060,7 @@ async def test_search_records_sorts_related_fields(
 
 @pytest.mark.asyncio
 async def test_search_records_supports_multiple_sort_fields() -> None:
-    """测试按优先级应用多字段排序并追加稳定 ID"""
+    """测试按优先级应用多字段排序并追加稳定 ID."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -1067,7 +1092,7 @@ async def test_search_records_supports_multiple_sort_fields() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_sorts_batch_requests_by_position() -> None:
-    """测试批次请求按照批次位置排序"""
+    """测试批次请求按照批次位置排序."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -1098,12 +1123,12 @@ async def test_search_records_sorts_batch_requests_by_position() -> None:
 
 @pytest.mark.asyncio
 async def test_search_records_filters_batch_attempts() -> None:
-    """测试按照批次筛选并排序执行尝试"""
+    """测试按照批次筛选并排序执行尝试."""
     repository, execute = create_repository()
 
     await repository.search_records(
         section="attempts",
-        query="batch_id:bat_test",
+        query="batch_id:bat_test%archive",
         limit=20,
         offset=0,
         sort_by="attempt_number",
@@ -1113,17 +1138,17 @@ async def test_search_records_filters_batch_attempts() -> None:
     awaited_call = execute.await_args
     assert awaited_call is not None
     statement = awaited_call.args[0]
-    sql = str(
-        statement.compile(
-            dialect=postgresql.dialect(),
-            compile_kwargs={
-                "literal_binds": True
-            },
-        )
+    compiled = statement.compile(
+        dialect=postgresql.dialect(),
     )
+    sql = str(compiled)
+    ilike_predicates = get_ilike_predicates(statement)
     assert "FROM attempts" in sql
     assert "attempts.batch_id ILIKE" in sql
-    assert "bat\\\\_test" in sql
+    assert r"bat\_test\%archive" in compiled.params.values()
+    assert len(ilike_predicates) == 1
+    assert ilike_predicates[0].modifiers["escape"] == "\\"
+    assert sql.count(" ESCAPE ") == len(ilike_predicates)
     assert (
         "ORDER BY attempts.attempt_number ASC NULLS LAST, "
         "attempts.attempt_id ASC"
@@ -1132,16 +1157,26 @@ async def test_search_records_filters_batch_attempts() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "query",
+    (
+        "query",
+        "expected_pattern",
+    ),
     [
-        "task_id:tsk_shard_test",
-        "tsk_shard_test",
+        (
+            "task_id:tsk_shard_test",
+            r"tsk\_shard\_test",
+        ),
+        (
+            "tsk_shard_test",
+            r"%tsk\_shard\_test%",
+        ),
     ],
 )
 async def test_search_attempts_matches_shard_task_id(
         query: str,
+        expected_pattern: str,
 ) -> None:
-    """测试通过分片任务 ID 查询所属执行尝试"""
+    """测试通过分片任务 ID 查询所属执行尝试."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -1154,18 +1189,22 @@ async def test_search_attempts_matches_shard_task_id(
     awaited_call = execute.await_args
     assert awaited_call is not None
     statement = awaited_call.args[0]
-    sql = str(
-        statement.compile(
-            dialect=postgresql.dialect(),
-            compile_kwargs={
-                "literal_binds": True
-            },
-        )
+    compiled = statement.compile(
+        dialect=postgresql.dialect(),
     )
+    sql = str(compiled)
+    ilike_predicates = get_ilike_predicates(statement)
     assert "EXISTS (SELECT shards.shard_id" in sql
     assert "shards.attempt_id = attempts.attempt_id" in sql
+    assert "attempts.task_id ILIKE" in sql
     assert "shards.task_id ILIKE" in sql
-    assert "tsk\\\\_shard\\\\_test" in sql
+    assert list(compiled.params.values()).count(expected_pattern) >= 2
+    assert len(ilike_predicates) >= 2
+    assert all(
+        predicate.modifiers["escape"] == "\\"
+        for predicate in ilike_predicates
+    )
+    assert sql.count(" ESCAPE ") == len(ilike_predicates)
 
 
 @pytest.mark.asyncio
@@ -1189,7 +1228,7 @@ async def test_search_records_defaults_to_updated_time(
         section: str,
         expected_sql: str,
 ) -> None:
-    """测试资源列表默认按照更新时间倒序排列"""
+    """测试资源列表默认按照更新时间倒序排列."""
     repository, execute = create_repository()
 
     await repository.search_records(
@@ -1215,7 +1254,7 @@ async def test_search_records_defaults_to_updated_time(
 
 @pytest.mark.asyncio
 async def test_search_records_rejects_unknown_sort_field() -> None:
-    """测试拒绝未列入白名单的排序字段"""
+    """测试拒绝未列入白名单的排序字段."""
     repository, execute = create_repository()
 
     with pytest.raises(
@@ -1235,7 +1274,7 @@ async def test_search_records_rejects_unknown_sort_field() -> None:
 
 @pytest.mark.asyncio
 async def test_get_version_labels() -> None:
-    """测试批量获取版本对应的模型名称"""
+    """测试批量获取版本对应的模型名称."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1272,7 +1311,7 @@ async def test_get_version_labels() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_labels() -> None:
-    """测试批量获取部署关联的模型、版本和发布信息"""
+    """测试批量获取部署关联的模型、版本和发布信息."""
     repository, execute = create_repository()
     effective_from = datetime(
         2026,
@@ -1319,7 +1358,7 @@ async def test_get_deployment_labels() -> None:
 
 @pytest.mark.asyncio
 async def test_get_request_details() -> None:
-    """测试批量获取 API 调用的模型和决策详情"""
+    """测试批量获取 API 调用的模型和决策详情."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1378,7 +1417,7 @@ async def test_get_request_details() -> None:
 
 @pytest.mark.asyncio
 async def test_get_experiment_labels() -> None:
-    """测试批量获取实验模型名称"""
+    """测试批量获取实验模型名称."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1415,7 +1454,7 @@ async def test_get_experiment_labels() -> None:
 
 @pytest.mark.asyncio
 async def test_get_variant_labels() -> None:
-    """测试批量获取分组对应的实验和模型信息"""
+    """测试批量获取分组对应的实验和模型信息."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1467,7 +1506,7 @@ async def test_get_variant_labels() -> None:
 
 @pytest.mark.asyncio
 async def test_get_batch_deployment_stats() -> None:
-    """测试批量获取批次实际命中的主执行和影子执行部署统计"""
+    """测试批量获取批次实际命中的主执行和影子执行部署统计."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1536,7 +1575,7 @@ async def test_get_batch_deployment_stats() -> None:
 
 @pytest.mark.asyncio
 async def test_get_attempt_shard_details() -> None:
-    """测试使用单条语句聚合执行尝试的分片进度"""
+    """测试使用单条语句聚合执行尝试的分片进度."""
     repository, execute = create_repository()
     shard = Shard(
         shard_id="shd_test",
@@ -1592,7 +1631,7 @@ async def test_get_attempt_shard_details() -> None:
 
 @pytest.mark.asyncio
 async def test_get_decision_details() -> None:
-    """测试批量获取决策对应的模型和主执行详情"""
+    """测试批量获取决策对应的模型和主执行详情."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1665,7 +1704,7 @@ async def test_get_decision_details() -> None:
 
 @pytest.mark.asyncio
 async def test_get_execution_details() -> None:
-    """测试批量获取执行对应的请求和模型信息"""
+    """测试批量获取执行对应的请求和模型信息."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1711,7 +1750,7 @@ async def test_get_execution_details() -> None:
 
 @pytest.mark.asyncio
 async def test_get_decision_executions() -> None:
-    """测试批量获取决策对应的主执行和影子执行"""
+    """测试批量获取决策对应的主执行和影子执行."""
     repository, execute = create_repository()
     primary = MagicMock(
         decision_id="dcs_test"
@@ -1774,7 +1813,7 @@ async def test_get_decision_executions() -> None:
 
 @pytest.mark.asyncio
 async def test_get_variant_counts() -> None:
-    """测试批量统计实验分组数量"""
+    """测试批量统计实验分组数量."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {
@@ -1807,7 +1846,7 @@ async def test_get_variant_counts() -> None:
 
 @pytest.mark.asyncio
 async def test_search_variants() -> None:
-    """测试查询、排序并分页返回实验分组"""
+    """测试查询、排序并分页返回实验分组."""
     repository, execute = create_repository()
 
     await repository.search_variants(
@@ -1841,7 +1880,7 @@ async def test_search_variants() -> None:
 
 @pytest.mark.asyncio
 async def test_get_request_trend() -> None:
-    """测试使用 date_bin 按指定粒度查询 API 调用趋势"""
+    """测试使用 date_bin 按指定粒度查询 API 调用趋势."""
     repository, execute = create_repository()
 
     await repository.get_request_trend(
@@ -1885,7 +1924,7 @@ async def test_get_request_trend() -> None:
 
 @pytest.mark.asyncio
 async def test_get_request_metrics() -> None:
-    """测试查询当前和上一周期的 API 调用核心指标"""
+    """测试查询当前和上一周期的 API 调用核心指标."""
     repository, execute = create_repository()
     result = execute.return_value
     result.mappings.return_value.one.return_value = {
@@ -1940,7 +1979,7 @@ async def test_get_request_metrics() -> None:
 
 @pytest.mark.asyncio
 async def test_get_model_request_stats() -> None:
-    """测试查询模型最近表现和累计调用量"""
+    """测试查询模型最近表现和累计调用量."""
     repository, execute = create_repository()
     result = execute.return_value
     result.mappings.return_value.all.return_value = [

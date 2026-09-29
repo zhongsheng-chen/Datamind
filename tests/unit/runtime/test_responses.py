@@ -1,4 +1,4 @@
-"""推理响应构造测试
+"""推理响应构造测试.
 
 验证公开字段筛选、响应结构和原始数据保留行为。
 
@@ -20,7 +20,7 @@ from datamind.runtime.responses import build_prediction_response
 
 
 def test_build_prediction_response_selects_public_fields() -> None:
-    """测试公开响应只包含业务结果与当前请求 ID，内部结果保持完整"""
+    """测试公开响应只包含业务结果与当前请求 ID，内部结果保持完整."""
     prediction = {
         "score": 120,
         "probability": 0.2,
@@ -89,7 +89,7 @@ def test_build_prediction_response_handles_classification_and_errors(
         prediction: dict[str, Any],
         expected: dict[str, Any],
 ) -> None:
-    """测试分类响应和错误响应均不返回内部标识"""
+    """测试分类响应和错误响应均不返回内部标识."""
     response = build_prediction_response(prediction, request_id="req")
 
     assert response == expected
@@ -104,7 +104,7 @@ def test_build_prediction_response_handles_classification_and_errors(
 def test_build_prediction_response_preserves_present_values(
         prediction: dict[str, Any],
 ) -> None:
-    """测试保留零值和空值，不补充未提供的业务字段"""
+    """测试保留零值和空值，不补充未提供的业务字段."""
     response = build_prediction_response(prediction, request_id="req")
 
     assert response == {"success": True, **prediction, "request_id": "req"}

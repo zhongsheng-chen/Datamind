@@ -1,4 +1,4 @@
-"""数据库健康检查测试
+"""数据库健康检查测试.
 
 验证数据库健康检查在执行成功、引擎获取失败、
 连接失败和 SQL 执行失败时的返回结果与日志行为。
@@ -40,7 +40,7 @@ def create_health_resources() -> tuple[
     AsyncMock,
     AsyncMock,
 ]:
-    """创建健康检查所需的引擎和连接替身"""
+    """创建健康检查所需的引擎和连接替身."""
     execute = AsyncMock()
     connection = MagicMock(
         spec=AsyncConnection
@@ -93,7 +93,7 @@ def create_health_resources() -> tuple[
 async def test_health_check_success(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库健康检查成功"""
+    """测试数据库健康检查成功."""
     (
         engine,
         connection,
@@ -189,7 +189,7 @@ async def test_health_check_success(
 async def test_health_check_engine_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试获取数据库引擎失败"""
+    """测试获取数据库引擎失败."""
     get_engine = MagicMock(
         side_effect=RuntimeError(
             "database configuration invalid"
@@ -248,7 +248,7 @@ async def test_health_check_engine_error(
 async def test_health_check_connection_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试建立数据库连接失败"""
+    """测试建立数据库连接失败."""
     (
         engine,
         _,
@@ -315,7 +315,7 @@ async def test_health_check_connection_error(
 async def test_health_check_execute_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试健康检查 SQL 执行失败"""
+    """测试健康检查 SQL 执行失败."""
     (
         engine,
         _,
@@ -395,7 +395,7 @@ async def test_health_check_execute_error(
 async def test_health_check_rounds_latency(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试检查耗时保留两位小数"""
+    """测试检查耗时保留两位小数."""
     (
         engine,
         _,

@@ -1,4 +1,4 @@
-"""运行时路由流量策略
+"""运行时路由流量策略.
 
 提供启用路由流量占比的校验能力。
 
@@ -14,7 +14,7 @@ from typing import Any
 def validate_traffic_allocation(
         routings: Iterable[Any],
 ) -> float:
-    """校验并返回启用路由的总流量占比"""
+    """校验并返回启用路由的总流量占比."""
     total_ratio = 0.0
 
     for routing in routings:

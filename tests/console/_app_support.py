@@ -1,4 +1,4 @@
-"""Console HTTP 契约测试公共支持
+"""Console HTTP 契约测试公共支持.
 
 集中提供拆分后的 Console 测试共用替身对象和请求构造器，避免各测试模块重复维护
 同一套测试基础设施。
@@ -27,7 +27,7 @@ app_module = importlib.import_module("datamind.console.app")
 
 
 class FakeUnitOfWork:
-    """提供 Console 应用测试使用的最小工作单元"""
+    """提供 Console 应用测试使用的最小工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -40,7 +40,7 @@ class FakeUnitOfWork:
 
 
 def create_user() -> AuthenticatedUser:
-    """创建标准的 Console 已认证测试用户"""
+    """创建标准的 Console 已认证测试用户."""
     return AuthenticatedUser(
         user_id="usr_alice",
         username="alice",
@@ -53,7 +53,7 @@ def create_user() -> AuthenticatedUser:
 
 
 class FakeEventBroker:
-    """提供 Console SSE 契约测试使用的最小事件代理"""
+    """提供 Console SSE 契约测试使用的最小事件代理."""
 
     @asynccontextmanager
     async def subscribe(self) -> AsyncIterator[asyncio.Queue[int]]:
@@ -61,7 +61,7 @@ class FakeEventBroker:
 
 
 def create_event_request(last_event_id: str | None = None) -> Request:
-    """创建用于执行 SSE 生成器的请求对象"""
+    """创建用于执行 SSE 生成器的请求对象."""
     headers: list[tuple[bytes, bytes]] = []
     if last_event_id is not None:
         headers.append((b"last-event-id", last_event_id.encode("ascii")))
@@ -85,7 +85,7 @@ async def timeout_wait_for(
     *,
     timeout: float,
 ) -> None:
-    """关闭待处理协程并模拟 SSE 心跳超时"""
+    """关闭待处理协程并模拟 SSE 心跳超时."""
     assert timeout > 0
     awaitable.close()
     raise TimeoutError

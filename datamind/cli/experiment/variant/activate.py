@@ -1,4 +1,4 @@
-"""启用实验分组命令
+"""启用实验分组命令.
 
 提供实验分组启用功能。
 
@@ -47,7 +47,7 @@ def activate_variant(
             help="输出格式：text / json"
         ),
 ):
-    """启用实验分组"""
+    """启用实验分组."""
 
     @audit(
         action="experiment.variant.activate",
@@ -156,7 +156,7 @@ def _has_other_active_variant(
         variants: list[Variant],
         current_variant_id: str,
 ) -> bool:
-    """判断查询结果中是否包含其他启用状态分组"""
+    """判断查询结果中是否包含其他启用状态分组."""
     return any(
         item.variant_id != current_variant_id
         for item in variants

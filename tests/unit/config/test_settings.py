@@ -1,4 +1,4 @@
-"""配置总入口测试
+"""配置总入口测试.
 
 验证 Settings 对全部子配置的聚合，以及 get_settings 的
 单例缓存、缓存清理和环境变量重新加载行为。
@@ -82,7 +82,7 @@ def isolate_settings(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> Iterator[None]:
-    """隔离配置环境变量、.env 文件和全局缓存"""
+    """隔离配置环境变量、.env 文件和全局缓存."""
     get_settings.cache_clear()
 
     for key in tuple(os.environ):
@@ -108,7 +108,7 @@ def isolate_settings(
 
 
 def test_settings_contains_all_child_configs() -> None:
-    """测试配置总入口聚合全部子配置"""
+    """测试配置总入口聚合全部子配置."""
     settings = Settings()
 
     assert isinstance(
@@ -166,7 +166,7 @@ def test_settings_contains_all_child_configs() -> None:
 
 
 def test_settings_annotations_match_child_configs() -> None:
-    """测试配置总入口类型标注完整且准确"""
+    """测试配置总入口类型标注完整且准确."""
     assert get_type_hints(Settings) == {
         "database": DatabaseConfig,
         "initialization": InitializationConfig,
@@ -185,7 +185,7 @@ def test_settings_annotations_match_child_configs() -> None:
 
 
 def test_direct_settings_creation_returns_independent_instances() -> None:
-    """测试直接创建的 Settings 实例相互独立"""
+    """测试直接创建的 Settings 实例相互独立."""
     first = Settings()
     second = Settings()
 
@@ -207,7 +207,7 @@ def test_direct_settings_creation_returns_independent_instances() -> None:
 
 
 def test_get_settings_returns_cached_singleton() -> None:
-    """测试 get_settings 返回缓存单例"""
+    """测试 get_settings 返回缓存单例."""
     first = get_settings()
     second = get_settings()
 
@@ -216,7 +216,7 @@ def test_get_settings_returns_cached_singleton() -> None:
 
 
 def test_get_settings_cache_clear_creates_new_instance() -> None:
-    """测试清理缓存后创建新实例"""
+    """测试清理缓存后创建新实例."""
     first = get_settings()
 
     get_settings.cache_clear()
@@ -233,7 +233,7 @@ def test_get_settings_cache_clear_creates_new_instance() -> None:
 def test_get_settings_reads_environment_on_first_call(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次调用读取各子配置环境变量"""
+    """测试首次调用读取各子配置环境变量."""
     monkeypatch.setenv(
         "DATAMIND_DATABASE_POOL_SIZE",
         "25",
@@ -283,7 +283,7 @@ def test_get_settings_reads_environment_on_first_call(
 def test_get_settings_keeps_cached_values_after_environment_changes(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试缓存后环境变量变化不影响现有实例"""
+    """测试缓存后环境变量变化不影响现有实例."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_PORT",
         "3100",
@@ -312,7 +312,7 @@ def test_get_settings_keeps_cached_values_after_environment_changes(
 def test_get_settings_reloads_environment_after_cache_clear(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试清理缓存后重新读取环境变量"""
+    """测试清理缓存后重新读取环境变量."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_PORT",
         "3100",
@@ -345,7 +345,7 @@ def test_get_settings_reloads_environment_after_cache_clear(
 def test_get_settings_reloads_database_url_after_cache_clear(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试清理缓存后重新读取数据库地址"""
+    """测试清理缓存后重新读取数据库地址."""
     first = get_settings()
     changed_url = (
         "postgresql+asyncpg://"
@@ -365,7 +365,7 @@ def test_get_settings_reloads_database_url_after_cache_clear(
 
 
 def test_get_settings_cache_statistics() -> None:
-    """测试 get_settings 缓存统计"""
+    """测试 get_settings 缓存统计."""
     get_settings()
     get_settings()
 

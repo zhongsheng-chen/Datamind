@@ -1,4 +1,4 @@
-"""控制台事件仓储
+"""控制台事件仓储.
 
 提供控制台变更事件的游标查询、断线回放和过期清理能力。
 
@@ -33,10 +33,10 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class OutboxRepository(BaseRepository):
-    """控制台事件仓储"""
+    """控制台事件仓储."""
 
     async def get_latest_event_id(self) -> int | None:
-        """获取最新事件游标"""
+        """获取最新事件游标."""
         stmt = select(
             func.max(
                 OutboxEvent.event_id
@@ -49,7 +49,7 @@ class OutboxRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def get_oldest_event_id(self) -> int | None:
-        """获取最早事件游标"""
+        """获取最早事件游标."""
         stmt = select(
             func.min(
                 OutboxEvent.event_id
@@ -67,7 +67,7 @@ class OutboxRepository(BaseRepository):
             after_event_id: int,
             limit: int = 200,
     ) -> list[OutboxEvent]:
-        """查询指定游标之后的事件"""
+        """查询指定游标之后的事件."""
         if after_event_id < 0:
             raise ValueError(
                 "after_event_id 必须大于等于 0"
@@ -105,7 +105,7 @@ class OutboxRepository(BaseRepository):
             self,
             occurred_before: datetime,
     ) -> None:
-        """删除指定时间之前的事件"""
+        """删除指定时间之前的事件."""
         stmt = delete(
             OutboxEvent
         ).where(

@@ -1,4 +1,4 @@
-"""管理控制台运行服务
+"""管理控制台运行服务.
 
 通过 BentoML 独立承载内网管理控制台，不占用评分服务 Worker。
 
@@ -32,10 +32,10 @@ from datamind.logging import setup_logging
     workers=1,
 )
 class DatamindConsoleService:
-    """独立管理控制台服务"""
+    """独立管理控制台服务."""
 
     def __init__(self) -> None:
-        """初始化控制台日志"""
+        """初始化控制台日志."""
         setup_logging(
             get_logging_config()
         )

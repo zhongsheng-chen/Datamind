@@ -1,4 +1,4 @@
-"""Canary 后端完整业务链路 E2E
+"""Canary 后端完整业务链路 E2E.
 
 验证同一模型的 champion 与 challenger 版本完成注册、激活、部署后，
 真实运行时路由能够按稳定哈希执行灰度分流，并持久化正确的决策和执行记录。
@@ -40,7 +40,7 @@ pytestmark = pytest.mark.e2e
 
 
 def train_classifier(*, inverted: bool) -> LogisticRegression:
-    """训练具有相反分类结果的两个真实模型版本"""
+    """训练具有相反分类结果的两个真实模型版本."""
     features = pd.DataFrame(
         [
             [-2.0, -1.0],
@@ -65,7 +65,7 @@ async def create_canary_deployments(
     *,
     tmp_path: Path,
 ) -> dict[str, str]:
-    """通过真实业务 Service 创建 champion 与 challenger 部署"""
+    """通过真实业务 Service 创建 champion 与 challenger 部署."""
     name = f"e2e-canary-{uuid.uuid4().hex[:12]}"
     registration_service = ModelRegistrationService()
     lifecycle_service = ModelLifecycleService()
@@ -155,7 +155,7 @@ async def find_canary_subject(
     model_id: str,
     challenger_deployment_id: str,
 ) -> str:
-    """从真实哈希路由中寻找一个命中 challenger 的稳定主体"""
+    """从真实哈希路由中寻找一个命中 challenger 的稳定主体."""
     router = RuntimeRouter()
 
     for index in range(100):
@@ -180,7 +180,7 @@ async def test_canary_backend_flow(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试灰度路由对同一主体稳定命中 challenger 版本"""
+    """测试灰度路由对同一主体稳定命中 challenger 版本."""
     del datamind_database
     configure_isolated_runtime(tmp_path=tmp_path, monkeypatch=monkeypatch)
 

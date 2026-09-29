@@ -1,4 +1,4 @@
-"""密码工具
+"""密码工具.
 
 提供密码哈希、密码校验和密码重哈希判断能力。
 
@@ -44,7 +44,7 @@ _PASSWORD_HASHER = PasswordHasher()
 def hash_password(
         password: str,
 ) -> str:
-    """生成密码哈希
+    """生成密码哈希.
 
     参数：
         password: 明文密码
@@ -70,7 +70,7 @@ def verify_password(
         password: str,
         password_hash: str,
 ) -> bool:
-    """校验密码
+    """校验密码.
 
     参数：
         password: 明文密码
@@ -98,7 +98,7 @@ def verify_password(
 def needs_rehash(
         password_hash: str,
 ) -> bool:
-    """判断密码哈希是否需要更新
+    """判断密码哈希是否需要更新.
 
     参数：
         password_hash: 密码哈希

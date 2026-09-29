@@ -1,4 +1,4 @@
-"""数据库健康检查
+"""数据库健康检查.
 
 提供数据库连接状态检查能力。
 
@@ -28,7 +28,7 @@ logger = structlog.get_logger(__name__)
 
 async def health_check(
 ) -> dict[str, str | float | None]:
-    """检查数据库健康状态
+    """检查数据库健康状态.
 
     检查范围包括数据库配置、引擎创建和连接执行。
 

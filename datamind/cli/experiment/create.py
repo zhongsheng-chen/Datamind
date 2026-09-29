@@ -1,4 +1,4 @@
-"""创建实验命令
+"""创建实验命令.
 
 提供 A/B 实验创建功能。
 
@@ -88,7 +88,7 @@ def create_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """创建实验
+    """创建实验.
 
     时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
     时区偏移。未提供时区偏移时，按配置时区解析。
@@ -278,7 +278,7 @@ def create_experiment(
 def _parse_strategy(
         strategy: AssignmentStrategy | str,
 ) -> AssignmentStrategy:
-    """解析实验分配策略"""
+    """解析实验分配策略."""
     value = str(
         strategy or AssignmentStrategy.HASH
     ).lower()
@@ -297,7 +297,7 @@ def _validate_traffic_ratio(
         strategy: AssignmentStrategy,
         traffic_ratio: float,
 ) -> None:
-    """校验实验流量比例"""
+    """校验实验流量比例."""
     if traffic_ratio < 0 or traffic_ratio > 1:
         raise typer.BadParameter(
             "--traffic-ratio 必须在 0 到 1 之间"
@@ -318,7 +318,7 @@ def _build_experiment_config(
         traffic_ratio: float,
         bucket_key: str,
 ) -> dict:
-    """构建实验配置"""
+    """构建实验配置."""
     return {
         "strategy": str(strategy),
         "traffic_ratio": traffic_ratio,

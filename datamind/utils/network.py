@@ -1,4 +1,4 @@
-"""网络工具
+"""网络工具.
 
 提供当前主机 IP 地址和主机名获取能力。
 
@@ -31,7 +31,7 @@ _LOOPBACK_ADDRESS: Final[str] = "127.0.0.1"
 
 
 def get_host_ip() -> str:
-    """获取当前主机 IP
+    """获取当前主机 IP.
 
     通过 UDP Socket 判断当前主机用于对外通信的 IP 地址。
     该操作不会实际向探测地址发送数据。
@@ -59,7 +59,7 @@ def get_host_ip() -> str:
 
 
 def get_hostname() -> str:
-    """获取当前主机名
+    """获取当前主机名.
 
     返回：
         当前主机名

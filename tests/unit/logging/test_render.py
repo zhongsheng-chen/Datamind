@@ -1,4 +1,4 @@
-"""日志渲染器测试
+"""日志渲染器测试.
 
 验证文本和 JSON 日志的字段输出、内部字段清理和原始事件保护行为。
 
@@ -33,7 +33,7 @@ from datamind.logging.render import (
 
 
 def test_text_renderer_outputs_expected_fields() -> None:
-    """测试文本渲染器输出主要字段"""
+    """测试文本渲染器输出主要字段."""
     event: dict[str, Any] = {
         "timestamp": "2026-07-22T15:00:00+08:00",
         "level": "info",
@@ -67,7 +67,7 @@ def test_text_renderer_outputs_expected_fields() -> None:
 
 
 def test_text_renderer_uses_placeholder_for_missing_timestamp() -> None:
-    """测试时间戳缺失时使用占位符"""
+    """测试时间戳缺失时使用占位符."""
     result = text_renderer()(
         None,
         "warning",
@@ -82,7 +82,7 @@ def test_text_renderer_uses_placeholder_for_missing_timestamp() -> None:
 
 
 def test_text_renderer_ignores_empty_context_values() -> None:
-    """测试忽略空上下文字段"""
+    """测试忽略空上下文字段."""
     result = text_renderer()(
         None,
         "info",
@@ -102,7 +102,7 @@ def test_text_renderer_ignores_empty_context_values() -> None:
 
 
 def test_text_renderer_preserves_false_and_zero_values() -> None:
-    """测试保留 False 和 0 等有效值"""
+    """测试保留 False 和 0 等有效值."""
     result = text_renderer()(
         None,
         "info",
@@ -120,7 +120,7 @@ def test_text_renderer_preserves_false_and_zero_values() -> None:
 
 
 def test_text_renderer_removes_processor_meta_fields() -> None:
-    """测试文本渲染器移除处理器内部字段"""
+    """测试文本渲染器移除处理器内部字段."""
     result = text_renderer()(
         None,
         "info",
@@ -138,7 +138,7 @@ def test_text_renderer_removes_processor_meta_fields() -> None:
 
 
 def test_text_renderer_does_not_modify_original_event() -> None:
-    """测试文本渲染器不修改原始事件"""
+    """测试文本渲染器不修改原始事件."""
     event: dict[str, Any] = {
         "timestamp": "2026-07-22T15:00:00+08:00",
         "level": "info",
@@ -158,7 +158,7 @@ def test_text_renderer_does_not_modify_original_event() -> None:
 
 
 def test_json_renderer_outputs_valid_json() -> None:
-    """测试 JSON 渲染器输出有效 JSON"""
+    """测试 JSON 渲染器输出有效 JSON."""
     result = json_renderer()(
         None,
         "info",
@@ -183,7 +183,7 @@ def test_json_renderer_outputs_valid_json() -> None:
 
 
 def test_json_renderer_removes_processor_meta_fields() -> None:
-    """测试 JSON 渲染器移除处理器内部字段"""
+    """测试 JSON 渲染器移除处理器内部字段."""
     result = json_renderer()(
         None,
         "info",
@@ -202,7 +202,7 @@ def test_json_renderer_removes_processor_meta_fields() -> None:
 
 
 def test_json_renderer_does_not_modify_original_event() -> None:
-    """测试 JSON 渲染器不修改原始事件"""
+    """测试 JSON 渲染器不修改原始事件."""
     event: dict[str, Any] = {
         "event": "测试日志",
         "model_id": "mdl_a1b2c3d4",

@@ -1,4 +1,4 @@
-"""用户表模型测试
+"""用户表模型测试.
 
 验证仅支持 LOCAL 认证后的用户表字段、索引、约束和对象行为。
 
@@ -35,7 +35,7 @@ from datamind.db.models.users import User
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -46,12 +46,12 @@ TABLE = get_model_table(
 
 
 def test_user_table_name() -> None:
-    """测试用户表名称"""
+    """测试用户表名称."""
     assert TABLE.name == "users"
 
 
 def test_user_business_columns() -> None:
-    """测试用户表业务字段完整"""
+    """测试用户表业务字段完整."""
     assert set(TABLE.columns.keys()) >= {
         "user_id",
         "username",
@@ -73,7 +73,7 @@ def test_user_business_columns() -> None:
 
 
 def test_password_hash_is_required() -> None:
-    """测试所有用户必须保存密码哈希"""
+    """测试所有用户必须保存密码哈希."""
     column = TABLE.columns[
         "password_hash"
     ]
@@ -88,7 +88,7 @@ def test_password_hash_is_required() -> None:
 
 
 def test_user_status_defaults_to_active() -> None:
-    """测试用户状态默认值"""
+    """测试用户状态默认值."""
     column = TABLE.columns[
         "status"
     ]
@@ -98,7 +98,7 @@ def test_user_status_defaults_to_active() -> None:
 
 
 def test_break_glass_defaults_to_false() -> None:
-    """测试应急账户标识默认值"""
+    """测试应急账户标识默认值."""
     column = TABLE.columns[
         "is_break_glass"
     ]
@@ -108,7 +108,7 @@ def test_break_glass_defaults_to_false() -> None:
 
 
 def test_user_indexes() -> None:
-    """测试用户表索引"""
+    """测试用户表索引."""
     indexes: dict[str, Index] = {
         index.name: index
         for index in TABLE.indexes
@@ -129,7 +129,7 @@ def test_user_indexes() -> None:
 
 
 def test_user_check_constraints() -> None:
-    """测试用户表检查约束"""
+    """测试用户表检查约束."""
     constraints = {
         constraint.name: str(
             constraint.sqltext
@@ -152,7 +152,7 @@ def test_user_check_constraints() -> None:
 
 
 def test_user_constructor() -> None:
-    """测试用户对象构造"""
+    """测试用户对象构造."""
     user = User(
         user_id="usr_test",
         username="admin",
@@ -169,7 +169,7 @@ def test_user_constructor() -> None:
 
 
 def test_user_repr() -> None:
-    """测试用户字符串表示不泄露密码"""
+    """测试用户字符串表示不泄露密码."""
     user = User(
         user_id="usr_test",
         username="admin",

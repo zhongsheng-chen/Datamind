@@ -1,4 +1,4 @@
-"""数据库模型混入类测试
+"""数据库模型混入类测试.
 
 通过临时声明式模型验证 IdMixin 和 TimestampMixin
 映射后的主键、时间戳、默认值和自动更新时间配置。
@@ -48,7 +48,7 @@ class MixinTestModel(
     TimestampMixin,
     Base,
 ):
-    """混入类映射测试模型"""
+    """混入类映射测试模型."""
 
     __tablename__ = "test_mixin_models"
 
@@ -61,7 +61,7 @@ class MixinTestModel(
 def get_table(
         value: object,
 ) -> Table:
-    """获取并校验数据表对象"""
+    """获取并校验数据表对象."""
     assert isinstance(
         value,
         Table,
@@ -80,7 +80,7 @@ MIXIN_TABLE = get_table(
     autouse=True,
 )
 def cleanup_test_table() -> Iterator[None]:
-    """测试完成后移除共享元数据中的临时表"""
+    """测试完成后移除共享元数据中的临时表."""
     yield
 
     Base.metadata.remove(
@@ -91,7 +91,7 @@ def cleanup_test_table() -> Iterator[None]:
 def normalize_default(
         value: Any,
 ) -> str:
-    """规范化 SQL 默认值文本"""
+    """规范化 SQL 默认值文本."""
     return " ".join(
         str(
             value
@@ -103,7 +103,7 @@ def normalize_default(
 
 
 def test_mixin_columns_are_mapped() -> None:
-    """测试混入字段已映射到数据表"""
+    """测试混入字段已映射到数据表."""
     assert set(
         MIXIN_TABLE.columns.keys()
     ) == {
@@ -115,7 +115,7 @@ def test_mixin_columns_are_mapped() -> None:
 
 
 def test_id_mixin_column() -> None:
-    """测试自增主键字段"""
+    """测试自增主键字段."""
     column = MIXIN_TABLE.columns[
         "id"
     ]
@@ -131,7 +131,7 @@ def test_id_mixin_column() -> None:
 
 
 def test_created_at_column() -> None:
-    """测试创建时间字段"""
+    """测试创建时间字段."""
     column = MIXIN_TABLE.columns[
         "created_at"
     ]
@@ -148,7 +148,7 @@ def test_created_at_column() -> None:
 
 
 def test_updated_at_column() -> None:
-    """测试更新时间字段"""
+    """测试更新时间字段."""
     column = MIXIN_TABLE.columns[
         "updated_at"
     ]
@@ -165,7 +165,7 @@ def test_updated_at_column() -> None:
 
 
 def test_timestamp_defaults_use_database_time() -> None:
-    """测试时间戳默认值使用数据库当前时间"""
+    """测试时间戳默认值使用数据库当前时间."""
     created_at = MIXIN_TABLE.columns[
         "created_at"
     ]
@@ -187,7 +187,7 @@ def test_timestamp_defaults_use_database_time() -> None:
 
 
 def test_updated_at_uses_onupdate() -> None:
-    """测试更新时间配置自动更新"""
+    """测试更新时间配置自动更新."""
     updated_at = MIXIN_TABLE.columns[
         "updated_at"
     ]
@@ -200,7 +200,7 @@ def test_updated_at_uses_onupdate() -> None:
 
 
 def test_mixin_model_primary_key_name() -> None:
-    """测试主键名称遵循元数据命名约定"""
+    """测试主键名称遵循元数据命名约定."""
     primary_key = MIXIN_TABLE.primary_key
 
     assert primary_key.name == (
@@ -215,7 +215,7 @@ def test_mixin_model_primary_key_name() -> None:
 
 
 def test_mixin_model_uses_base_metadata() -> None:
-    """测试临时模型使用共享元数据"""
+    """测试临时模型使用共享元数据."""
     assert MIXIN_TABLE.metadata is Base.metadata
     assert (
         Base.metadata.tables[
@@ -227,7 +227,7 @@ def test_mixin_model_uses_base_metadata() -> None:
 
 # noinspection PyUnreachableCode
 def test_mixin_model_constructor() -> None:
-    """测试混入模型可以正常构造"""
+    """测试混入模型可以正常构造."""
     model = MixinTestModel(
         name="example"
     )

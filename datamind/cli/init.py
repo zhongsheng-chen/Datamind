@@ -1,4 +1,4 @@
-"""系统初始化命令
+"""系统初始化命令.
 
 提供首次部署时的一次性系统初始化功能。
 
@@ -38,7 +38,7 @@ logger = structlog.get_logger(__name__)
 
 
 def initialize() -> None:
-    """一次性系统初始化"""
+    """一次性系统初始化."""
     log_context = {
         "trace_id": generate_trace_id(),
         "request_id": generate_random_id(prefix="req"),

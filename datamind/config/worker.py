@@ -1,4 +1,4 @@
-"""异步任务 Worker 配置
+"""异步任务 Worker 配置.
 
 定义异步任务 Worker 的进程运行参数。
 
@@ -39,7 +39,7 @@ from datamind.constants import LogLevel
 
 
 class TaskWorkerConfig(BaseSettings):
-    """异步任务 Worker 进程配置"""
+    """异步任务 Worker 进程配置."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_TASK_WORKER_",
@@ -55,7 +55,7 @@ class TaskWorkerConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "TaskWorkerConfig":
-        """校验 Worker 进程参数"""
+        """校验 Worker 进程参数."""
         if not self.name.strip():
             raise ValueError("name 不能为空")
 

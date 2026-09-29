@@ -1,4 +1,4 @@
-"""认证包公共导出测试
+"""认证包公共导出测试.
 
 验证认证包应用层公共 API 的完整性、可访问性和延迟加载行为。
 
@@ -51,20 +51,20 @@ EXPECTED_EXPORTS = {
 
 
 def test_auth_exports_expected_public_api() -> None:
-    """测试认证包公开完整且准确的应用层 API"""
+    """测试认证包公开完整且准确的应用层 API."""
     assert set(auth.__all__) == EXPECTED_EXPORTS
     assert len(auth.__all__) == len(EXPECTED_EXPORTS)
     assert EXPECTED_EXPORTS <= set(dir(auth))
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     for name in auth.__all__:
         assert hasattr(auth, name), name
 
 
 def test_unknown_export_raises_attribute_error() -> None:
-    """测试未知包级属性抛出 AttributeError"""
+    """测试未知包级属性抛出 AttributeError."""
     with pytest.raises(AttributeError):
         getattr(
             auth,

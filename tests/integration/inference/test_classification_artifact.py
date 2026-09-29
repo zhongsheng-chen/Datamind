@@ -1,4 +1,4 @@
-"""分类模型制品推理集成测试
+"""分类模型制品推理集成测试.
 
 验证多种真实分类模型经过原生序列化、持久化和重新加载后，
 仍可通过框架适配器与统一推理接口产生一致的类别和概率结果。
@@ -67,7 +67,7 @@ PREDICTION_RECORD = {
 
 
 def supported_classification_models() -> list[tuple[str, str]]:
-    """返回测试覆盖的框架与模型类型组合"""
+    """返回测试覆盖的框架与模型类型组合."""
     return [
         (framework, model_type)
         for framework, model_types in SUPPORTED_MODEL_TYPES_BY_FRAMEWORK.items()
@@ -79,7 +79,7 @@ def fit_model(
     framework: str,
     model_type: str,
 ) -> Any:
-    """按框架和模型类型训练确定性的真实二分类模型"""
+    """按框架和模型类型训练确定性的真实二分类模型."""
     if framework == "sklearn":
         estimators = {
             "logistic_regression": LogisticRegression(random_state=0),
@@ -144,7 +144,7 @@ def serialize_model(
     model: Any,
     tmp_path: Path,
 ) -> bytes:
-    """使用生产加载器对应的原生格式序列化模型"""
+    """使用生产加载器对应的原生格式序列化模型."""
     if framework == "sklearn":
         buffer = BytesIO()
         joblib.dump(model, buffer)
@@ -168,7 +168,7 @@ def restored_predictions(
     framework: str,
     model: Any,
 ) -> tuple[int, float]:
-    """统一读取重载模型的预测类别与正类概率"""
+    """统一读取重载模型的预测类别与正类概率."""
     if framework == "xgboost":
         from xgboost import DMatrix
 
@@ -205,7 +205,7 @@ def test_classification_artifact_preserves_predictions(
     framework: str,
     model_type: str,
 ) -> None:
-    """测试受支持分类模型持久化前后的类别和概率结果一致"""
+    """测试受支持分类模型持久化前后的类别和概率结果一致."""
     model = fit_model(framework, model_type)
     expected_class = int(model.predict(PREDICTION_FEATURES)[0])
     expected_probability = float(

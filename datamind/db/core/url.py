@@ -1,4 +1,4 @@
-"""数据库 URL 获取模块
+"""数据库 URL 获取模块.
 
 负责从全局配置中读取数据库连接 URL。
 
@@ -15,7 +15,7 @@ from datamind.config import get_database_config
 
 
 def get_db_url() -> str:
-    """获取数据库连接 URL
+    """获取数据库连接 URL.
 
     数据库 URL 已由 DatabaseConfig 校验为必填且非空。
 

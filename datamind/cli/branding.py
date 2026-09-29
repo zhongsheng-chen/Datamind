@@ -1,8 +1,9 @@
-"""CLI 品牌展示
+"""CLI 品牌展示.
 
 提供长期运行命令共用的 Logo、版本信息和启动摘要。
 
 核心功能：
+  - short_commit: 生成短 Git 提交哈希
   - get_app_version: 获取应用版本
   - build_bind_address: 构建服务监听地址
   - build_http_url: 构建本地访问地址
@@ -30,20 +31,26 @@ LOGO = r"""
 """.strip("\n")
 
 
+def short_commit(commit: str, length: int = 8) -> str:
+    """生成短 Git 提交哈希."""
+    if commit == "dev":
+        return commit
+
+    return commit[:length]
+
+
 def get_app_version() -> str:
-    """获取应用版本号"""
+    """获取应用版本号."""
     try:
         app_version = version(
-            "datamind"
+            "pydatamind"
         )
     except PackageNotFoundError:
         app_version = "unknown"
 
     if BUILD_COMMIT != "dev":
-        app_version = (
-            f"{app_version} "
-            f"({BUILD_COMMIT})"
-        )
+        displayed_commit = short_commit(BUILD_COMMIT)
+        app_version = f"{app_version} ({displayed_commit})"
 
     return app_version
 
@@ -54,7 +61,7 @@ def build_http_url(
         port: int,
         path: str = "",
 ) -> str:
-    """构建适合本机访问的 HTTP 地址"""
+    """构建适合本机访问的 HTTP 地址."""
     display_host = (
         "127.0.0.1"
         if host in {
@@ -84,7 +91,7 @@ def build_bind_address(
         host: str,
         port: int,
 ) -> str:
-    """构建包含端口的服务监听地址"""
+    """构建包含端口的服务监听地址."""
     displayed_host = (
         f"[{host}]"
         if ":" in host
@@ -104,7 +111,7 @@ def print_startup_summary(
         *,
         app_version: str | None = None,
 ) -> None:
-    """打印长期运行命令的启动摘要"""
+    """打印长期运行命令的启动摘要."""
     displayed_version = (
         app_version
         if app_version is not None
@@ -143,7 +150,7 @@ def print_http_server_summary(
         pid: int,
         workers: int | None = None,
 ) -> None:
-    """打印 Datamind HTTP 服务的统一启动摘要"""
+    """打印 Datamind HTTP 服务的统一启动摘要."""
     details: dict[
         str,
         str | int | float | bool,

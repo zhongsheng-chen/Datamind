@@ -1,4 +1,4 @@
-"""分类模型配置
+"""分类模型配置.
 
 定义通用分类模型的默认分类阈值。
 
@@ -28,7 +28,7 @@ from pydantic_settings import (
 
 
 class ClassificationConfig(BaseSettings):
-    """分类模型配置类"""
+    """分类模型配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_CLASSIFICATION_",
@@ -41,7 +41,7 @@ class ClassificationConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "ClassificationConfig":
-        """校验分类模型配置参数"""
+        """校验分类模型配置参数."""
         if not 0 <= self.threshold <= 1:
             raise ValueError(
                 "threshold 必须在 0 到 1 之间，"

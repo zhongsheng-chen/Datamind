@@ -1,4 +1,4 @@
-"""实验仓储
+"""实验仓储.
 
 提供 A/B 实验与灰度策略的查询、创建、更新和生命周期管理能力。
 
@@ -70,7 +70,7 @@ from datamind.models.guard import ModelGuard
 
 @dataclass(slots=True)
 class ExperimentPatch:
-    """实验更新结构
+    """实验更新结构.
 
     注意：
         不允许通过 patch 修改 status，
@@ -94,7 +94,7 @@ class ExperimentPatch:
 
 
 class ExperimentRepository(BaseRepository):
-    """实验仓储"""
+    """实验仓储."""
 
     @staticmethod
     def _validate_pagination(
@@ -102,7 +102,7 @@ class ExperimentRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if (
                 limit is not None
                 and limit < 0
@@ -125,7 +125,7 @@ class ExperimentRepository(BaseRepository):
             *,
             now: datetime | None,
     ) -> Select[Any]:
-        """应用实验生效时间窗口条件"""
+        """应用实验生效时间窗口条件."""
         if now is None:
             return stmt
 
@@ -153,7 +153,7 @@ class ExperimentRepository(BaseRepository):
             target_status: ExperimentStatus,
             updated_by: str | None,
     ) -> Experiment:
-        """执行实验状态迁移"""
+        """执行实验状态迁移."""
         current_status = ExperimentStatus(
             experiment.status
         )
@@ -181,7 +181,7 @@ class ExperimentRepository(BaseRepository):
             *,
             include_deleted: bool = False,
     ) -> Experiment | None:
-        """获取实验
+        """获取实验.
 
         参数：
             experiment_id: 实验 ID
@@ -218,7 +218,7 @@ class ExperimentRepository(BaseRepository):
             exclude_experiment_id: str | None = None,
             now: datetime | None = None,
     ) -> Experiment | None:
-        """获取指定模型和环境下的运行中实验
+        """获取指定模型和环境下的运行中实验.
 
         参数：
             model_id: 模型 ID
@@ -283,7 +283,7 @@ class ExperimentRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Experiment]:
-        """获取实验列表
+        """获取实验列表.
 
         参数：
             experiment_id: 实验 ID（可选）
@@ -389,7 +389,7 @@ class ExperimentRepository(BaseRepository):
             offset: int | None = None,
             now: datetime | None = None,
     ) -> list[Experiment]:
-        """获取运行中的实验
+        """获取运行中的实验.
 
         参数：
             model_id: 模型 ID
@@ -469,7 +469,7 @@ class ExperimentRepository(BaseRepository):
             effective_to: datetime | None = None,
             created_by: str | None = None,
     ) -> Experiment:
-        """创建实验
+        """创建实验.
 
         新建的实验处于 draft 状态。
 
@@ -527,7 +527,7 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """更新实验
+        """更新实验.
 
         参数：
             experiment: 实验对象
@@ -573,7 +573,7 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """启动实验
+        """启动实验.
 
         未配置生效时间时，使用实验启动时间。
         """
@@ -610,7 +610,7 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """停止实验"""
+        """停止实验."""
         return self._transition_experiment(
             experiment,
             target_status=(
@@ -625,7 +625,7 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """暂停实验"""
+        """暂停实验."""
         return self._transition_experiment(
             experiment,
             target_status=(
@@ -640,7 +640,7 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """完成实验"""
+        """完成实验."""
         return self._transition_experiment(
             experiment,
             target_status=(
@@ -655,7 +655,7 @@ class ExperimentRepository(BaseRepository):
             *,
             updated_by: str | None = None,
     ) -> Experiment:
-        """归档实验"""
+        """归档实验."""
         return self._transition_experiment(
             experiment,
             target_status=(
@@ -673,7 +673,7 @@ class ExperimentRepository(BaseRepository):
             deleted_by: str | None = None,
             deletion_reason: str | None = None,
     ) -> Experiment:
-        """逻辑删除实验"""
+        """逻辑删除实验."""
         experiment.deleted_at = (
             deleted_at
             if deleted_at is not None
@@ -694,7 +694,7 @@ class ExperimentRepository(BaseRepository):
             *,
             restored_by: str | None = None,
     ) -> Experiment:
-        """恢复逻辑删除的实验"""
+        """恢复逻辑删除的实验."""
         experiment.deleted_at = None
         experiment.deleted_by = None
         experiment.deletion_id = None

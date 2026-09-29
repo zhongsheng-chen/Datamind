@@ -1,4 +1,4 @@
-"""角色模型测试
+"""角色模型测试.
 
 验证角色表名称、字段定义、服务端默认值、索引、
 检查约束、字段注释和字符串表示。
@@ -52,7 +52,7 @@ from datamind.db.models.roles import Role
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -65,7 +65,7 @@ ROLE_TABLE = get_model_table(
 def normalize_sql(
         value: Any,
 ) -> str:
-    """规范化 SQL 文本，便于断言"""
+    """规范化 SQL 文本，便于断言."""
     return " ".join(
         str(
             value
@@ -79,7 +79,7 @@ def normalize_sql(
 def get_server_default(
         column_name: str,
 ) -> str | None:
-    """获取字段的服务端默认值"""
+    """获取字段的服务端默认值."""
     column = ROLE_TABLE.columns[
         column_name
     ]
@@ -96,7 +96,7 @@ def get_server_default(
 def get_index(
         index_name: str,
 ) -> Index:
-    """按名称获取角色表索引"""
+    """按名称获取角色表索引."""
     for index in ROLE_TABLE.indexes:
         if index.name == index_name:
             return index
@@ -109,7 +109,7 @@ def get_index(
 def get_index_column_names(
         index: Index,
 ) -> list[str]:
-    """获取索引字段名称"""
+    """获取索引字段名称."""
     actual_columns: list[str] = []
 
     for expression in index.expressions:
@@ -143,7 +143,7 @@ def get_index_column_names(
 def get_constraint(
         constraint_name: str,
 ) -> CheckConstraint:
-    """按基础名称获取角色表检查约束"""
+    """按基础名称获取角色表检查约束."""
     expected_name = (
         f"ck_{Role.__tablename__}_"
         f"{constraint_name}"
@@ -189,13 +189,13 @@ def get_constraint(
 
 
 def test_role_table_name() -> None:
-    """测试角色表名称"""
+    """测试角色表名称."""
     assert Role.__tablename__ == "roles"
     assert ROLE_TABLE.name == "roles"
 
 
 def test_role_contains_mixin_columns() -> None:
-    """测试主键和时间戳混入字段"""
+    """测试主键和时间戳混入字段."""
     column_names = set(
         ROLE_TABLE.columns.keys()
     )
@@ -219,7 +219,7 @@ def test_role_contains_mixin_columns() -> None:
 
 
 def test_role_business_columns() -> None:
-    """测试角色业务字段集合"""
+    """测试角色业务字段集合."""
     column_names = set(
         ROLE_TABLE.columns.keys()
     )
@@ -279,7 +279,7 @@ def test_role_string_columns(
         expected_length: int,
         expected_nullable: bool,
 ) -> None:
-    """测试字符串字段长度和可空性"""
+    """测试字符串字段长度和可空性."""
     column = ROLE_TABLE.columns[
         column_name
     ]
@@ -293,7 +293,7 @@ def test_role_string_columns(
 
 
 def test_role_description_column() -> None:
-    """测试角色说明字段"""
+    """测试角色说明字段."""
     column = ROLE_TABLE.columns[
         "description"
     ]
@@ -306,7 +306,7 @@ def test_role_description_column() -> None:
 
 
 def test_role_permissions_column() -> None:
-    """测试权限 JSON 字段"""
+    """测试权限 JSON 字段."""
     column = ROLE_TABLE.columns[
         "permissions"
     ]
@@ -319,7 +319,7 @@ def test_role_permissions_column() -> None:
 
 
 def test_role_status_default() -> None:
-    """测试角色状态服务端默认值"""
+    """测试角色状态服务端默认值."""
     assert get_server_default(
         "status"
     ) == "'active'"
@@ -374,7 +374,7 @@ def test_role_indexes(
         expected_columns: list[str],
         expected_unique: bool,
 ) -> None:
-    """测试普通索引和唯一索引"""
+    """测试普通索引和唯一索引."""
     index = get_index(
         index_name
     )
@@ -426,7 +426,7 @@ def test_role_check_constraints(
         constraint_name: str,
         expected_fragments: list[str],
 ) -> None:
-    """测试角色数据完整性约束"""
+    """测试角色数据完整性约束."""
     constraint = get_constraint(
         constraint_name
     )
@@ -477,7 +477,7 @@ def test_role_column_comments(
         column_name: str,
         expected_comment: str,
 ) -> None:
-    """测试关键字段注释"""
+    """测试关键字段注释."""
     column = ROLE_TABLE.columns[
         column_name
     ]
@@ -486,7 +486,7 @@ def test_role_column_comments(
 
 
 def test_role_constructor() -> None:
-    """测试角色模型构造"""
+    """测试角色模型构造."""
     permissions = [
         "model.*",
         "deploy.*",
@@ -516,7 +516,7 @@ def test_role_constructor() -> None:
 
 # noinspection PyUnreachableCode
 def test_role_allows_empty_optional_fields() -> None:
-    """测试可选字段允许省略"""
+    """测试可选字段允许省略."""
     role = Role(
         role_id="rol_reader",
         name="reader",
@@ -530,7 +530,7 @@ def test_role_allows_empty_optional_fields() -> None:
 
 
 def test_role_repr() -> None:
-    """测试角色字符串表示"""
+    """测试角色字符串表示."""
     permissions = [
         "model.*",
         "deploy.*",

@@ -1,4 +1,4 @@
-"""创建角色命令
+"""创建角色命令.
 
 提供角色和权限集合创建功能。
 
@@ -56,7 +56,7 @@ def create_role(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """创建角色"""
+    """创建角色."""
     if all_permissions and permissions:
         raise typer.BadParameter(
             "--all-permissions 与 --permission 不能同时指定"

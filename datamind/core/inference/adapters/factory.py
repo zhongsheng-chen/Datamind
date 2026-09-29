@@ -1,4 +1,4 @@
-"""模型适配器工厂
+"""模型适配器工厂.
 
 根据模型类所属模块识别机器学习框架，并创建对应适配器。
 
@@ -57,7 +57,7 @@ from datamind.core.inference.errors import FrameworkDependencyError
 
 
 class ModelAdapterFactory:
-    """模型适配器工厂"""
+    """模型适配器工厂."""
 
     _BUILTIN_ADAPTERS: ClassVar[
         dict[Framework, tuple[str, str, str]]
@@ -99,7 +99,7 @@ class ModelAdapterFactory:
             data_types: dict[str, DataType] | None = None,
             positive_class: Any = 1,
     ) -> BaseModelAdapter:
-        """创建模型适配器"""
+        """创建模型适配器."""
         framework = cls.get_framework(
             model
         )
@@ -119,7 +119,7 @@ class ModelAdapterFactory:
     def get_framework(
             model: Any,
     ) -> Framework:
-        """获取模型所属框架"""
+        """获取模型所属框架."""
         if model is None:
             raise ValueError(
                 "model 不能为空"
@@ -169,7 +169,7 @@ class ModelAdapterFactory:
             *,
             override: bool = False,
     ) -> None:
-        """注册模型适配器
+        """注册模型适配器.
 
         参数：
             framework: 机器学习框架
@@ -228,7 +228,7 @@ class ModelAdapterFactory:
             cls,
             framework: Framework,
     ) -> type[BaseModelAdapter]:
-        """获取已注册的适配器类"""
+        """获取已注册的适配器类."""
         adapter_class = cls._ADAPTERS.get(
             framework
         )

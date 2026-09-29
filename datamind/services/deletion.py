@@ -1,4 +1,4 @@
-"""模型删除服务
+"""模型删除服务.
 
 将可恢复的逻辑删除、恢复和不可逆制品清理分成三个明确操作。
 
@@ -66,7 +66,7 @@ logger = structlog.get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class _ArtifactTarget:
-    """一次物理清理所需的制品快照"""
+    """一次物理清理所需的制品快照."""
 
     artifact_id: str
     model_key: str
@@ -74,10 +74,10 @@ class _ArtifactTarget:
 
 
 class ModelDeletionService:
-    """模型删除、恢复和制品清理服务"""
+    """模型删除、恢复和制品清理服务."""
 
     def __init__(self) -> None:
-        """初始化模型删除服务"""
+        """初始化模型删除服务."""
         self.storage = get_storage()
 
     @staticmethod
@@ -90,7 +90,7 @@ class ModelDeletionService:
             version: str | None,
             version_id: str | None,
     ) -> tuple[Metadata, Version | None]:
-        """解析删除操作的模型及可选版本"""
+        """解析删除操作的模型及可选版本."""
         if version_id is not None and model_id is None and name is None:
             version_record = await version_repo.get_version(version_id)
 
@@ -131,7 +131,7 @@ class ModelDeletionService:
             reason: str | None = None,
             operator: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除模型或版本
+        """逻辑删除模型或版本.
 
         删除会保留数据库记录和物理制品，且拒绝删除仍有活动部署的对象。
         删除整个模型时，同一删除批次中的版本会使用相同 deletion_id。
@@ -257,7 +257,7 @@ class ModelDeletionService:
             version_id: str | None = None,
             operator: str | None = None,
     ) -> dict[str, Any]:
-        """恢复尚未永久清理的逻辑删除模型或版本"""
+        """恢复尚未永久清理的逻辑删除模型或版本."""
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
             version_repo = VersionRepository(uow.session)
@@ -385,7 +385,7 @@ class ModelDeletionService:
             reason: str | None = None,
             operator: str | None = None,
     ) -> dict[str, Any]:
-        """永久清理已逻辑删除对象的全部物理制品
+        """永久清理已逻辑删除对象的全部物理制品.
 
         清理前先将数据库状态持久化为 purge_pending。每个制品的成功或
         失败结果随后独立写回，因此进程异常退出后可再次调用本方法重试。
@@ -467,7 +467,7 @@ class ModelDeletionService:
             reason: str | None,
             operator: str | None,
     ) -> tuple[dict[str, Any], list[_ArtifactTarget]]:
-        """持久化清理请求并返回待清理制品快照"""
+        """持久化清理请求并返回待清理制品快照."""
         async with UnitOfWork() as uow:
             metadata_repo = MetadataRepository(uow.session)
             version_repo = VersionRepository(uow.session)
@@ -578,7 +578,7 @@ class ModelDeletionService:
             error: str | None,
             operator: str | None,
     ) -> None:
-        """持久化单个制品的清理结果"""
+        """持久化单个制品的清理结果."""
         async with UnitOfWork() as uow:
             repository = ArtifactRepository(uow.session)
             artifact = await repository.get_artifact(
@@ -606,7 +606,7 @@ class ModelDeletionService:
             self,
             target: _ArtifactTarget,
     ) -> None:
-        """幂等清理单个物理制品"""
+        """幂等清理单个物理制品."""
         self.storage.delete_by_key(
             key=target.model_key,
             strict=False,
@@ -624,7 +624,7 @@ class ModelDeletionService:
             model_id: str,
             version_id: str | None = None,
     ) -> None:
-        """确认对象不存在活动部署"""
+        """确认对象不存在活动部署."""
         deployments = await repository.list_active_deployments(
             model_id=model_id,
             version_id=version_id,
@@ -644,7 +644,7 @@ class ModelDeletionService:
             model_id: str,
             version_id: str | None = None,
     ) -> None:
-        """确认对象不存在活动部署或加载中的运行实例"""
+        """确认对象不存在活动部署或加载中的运行实例."""
         await cls._ensure_no_active_deployments(
             deployment_repo,
             model_id=model_id,
@@ -668,7 +668,7 @@ class ModelDeletionService:
             repository: ArtifactRepository,
             version_record: Version,
     ) -> None:
-        """确认版本已删除且当前制品仍完整"""
+        """确认版本已删除且当前制品仍完整."""
         if getattr(version_record, "deleted_at", None) is None:
             raise InvalidModelStateError(
                 "模型版本未被逻辑删除"

@@ -1,4 +1,4 @@
-"""实验结果提交命令
+"""实验结果提交命令.
 
 提供延迟业务结果的幂等回流功能。
 
@@ -36,7 +36,7 @@ logger = structlog.get_logger(__name__)
 def _parse_context(
         value: str | None,
 ) -> dict[str, Any] | None:
-    """解析结果上下文 JSON"""
+    """解析结果上下文 JSON."""
     if value is None:
         return None
 
@@ -125,7 +125,7 @@ def submit_outcome(
             help="输出格式：text / json"
         ),
 ) -> None:
-    """提交或更新实验结果"""
+    """提交或更新实验结果."""
     target_outcome_id = (
         outcome_id
         or generate_random_id(

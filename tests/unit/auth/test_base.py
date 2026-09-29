@@ -1,4 +1,4 @@
-"""认证提供方基础结构测试
+"""认证提供方基础结构测试.
 
 验证本地认证凭证、身份对象和提供方抽象接口。
 
@@ -41,7 +41,7 @@ from datamind.auth.providers import (
 
 
 def test_password_credentials_normalizes_username() -> None:
-    """测试凭证规范化用户名"""
+    """测试凭证规范化用户名."""
     credentials = PasswordCredentials(
         username="  alice  ",
         password="P@ssw1rd",
@@ -52,7 +52,7 @@ def test_password_credentials_normalizes_username() -> None:
 
 
 def test_password_credentials_hides_password() -> None:
-    """测试凭证字符串表示隐藏密码"""
+    """测试凭证字符串表示隐藏密码."""
     credentials = PasswordCredentials(
         username="alice",
         password="P@ssw1rd",
@@ -76,7 +76,7 @@ def test_password_credentials_validates_fields(
         password: str,
         message: str,
 ) -> None:
-    """测试凭证拒绝空必填字段"""
+    """测试凭证拒绝空必填字段."""
     with pytest.raises(
             ValueError,
             match=message,
@@ -88,7 +88,7 @@ def test_password_credentials_validates_fields(
 
 
 def test_password_credentials_is_frozen() -> None:
-    """测试凭证不可修改"""
+    """测试凭证不可修改."""
     credentials = PasswordCredentials(
         username="alice",
         password="password",
@@ -103,7 +103,7 @@ def test_password_credentials_is_frozen() -> None:
 
 
 def test_provider_credentials_aliases_password_credentials() -> None:
-    """测试提供方凭证仅接受密码凭证"""
+    """测试提供方凭证仅接受密码凭证."""
     credentials: ProviderCredentials = PasswordCredentials(
         username="alice",
         password="password",
@@ -116,7 +116,7 @@ def test_provider_credentials_aliases_password_credentials() -> None:
 
 
 def test_provider_identity_normalizes_fields() -> None:
-    """测试认证身份规范化文本字段"""
+    """测试认证身份规范化文本字段."""
     identity = ProviderIdentity(
         subject=" usr_test ",
         username=" alice ",
@@ -137,7 +137,7 @@ def test_provider_identity_normalizes_fields() -> None:
 
 
 def test_provider_identity_normalizes_empty_optional_fields() -> None:
-    """测试认证身份将空可选字段规范化为 None"""
+    """测试认证身份将空可选字段规范化为 None."""
     identity = ProviderIdentity(
         subject="usr_test",
         username="alice",
@@ -161,7 +161,7 @@ def test_provider_identity_validates_required_fields(
         username: str,
         message: str,
 ) -> None:
-    """测试认证身份拒绝空必填字段"""
+    """测试认证身份拒绝空必填字段."""
     with pytest.raises(
             ValueError,
             match=message,
@@ -173,7 +173,7 @@ def test_provider_identity_validates_required_fields(
 
 
 def test_provider_identity_copies_and_protects_claims() -> None:
-    """测试认证声明为只读快照"""
+    """测试认证声明为只读快照."""
     claims = {
         "status": "active",
     }
@@ -191,13 +191,13 @@ def test_provider_identity_copies_and_protects_claims() -> None:
 
 
 def test_base_auth_provider_is_abstract() -> None:
-    """测试认证提供方基类不能直接实例化"""
+    """测试认证提供方基类不能直接实例化."""
     assert inspect.isabstract(BaseAuthProvider)
 
 
 @pytest.mark.asyncio
 async def test_base_auth_provider_contract() -> None:
-    """测试实现类遵循认证接口"""
+    """测试实现类遵循认证接口."""
     expected = ProviderIdentity(
         subject="usr_test",
         username="alice",

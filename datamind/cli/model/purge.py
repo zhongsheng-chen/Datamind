@@ -1,4 +1,4 @@
-"""永久清理模型命令
+"""永久清理模型命令.
 
 仅清理已经逻辑删除的模型或模型版本。
 
@@ -35,7 +35,7 @@ def _validate_target(
         version_id: str | None,
         output: str,
 ) -> None:
-    """校验模型清理目标和输出格式"""
+    """校验模型清理目标和输出格式."""
     if not (name or model_id):
         raise typer.BadParameter(
             "必须提供 <name> 或 --model-id"
@@ -94,7 +94,7 @@ def purge_model(
             help="输出格式：text / json"
         ),
 ) -> None:
-    """永久清理已逻辑删除的模型或模型版本"""
+    """永久清理已逻辑删除的模型或模型版本."""
 
     @audit(
         action="model.purge",

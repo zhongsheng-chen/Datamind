@@ -1,4 +1,4 @@
-"""模型产物临时文件测试
+"""模型产物临时文件测试.
 
 验证临时模型文件的写入、清理和清理异常处理。
 
@@ -21,7 +21,7 @@ from datamind.models.artifact.io import temp_file
 
 
 def test_temp_file_writes_and_removes_data() -> None:
-    """测试写入并自动删除临时文件"""
+    """测试写入并自动删除临时文件."""
     data = b"model data"
 
     with temp_file(data, ".bin") as value:
@@ -36,7 +36,7 @@ def test_temp_file_writes_and_removes_data() -> None:
 def test_temp_file_handles_missing_file(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试容忍临时文件在退出前已被删除"""
+    """测试容忍临时文件在退出前已被删除."""
     logger = Mock()
     monkeypatch.setitem(
         vars(io_module),
@@ -72,7 +72,7 @@ def test_temp_file_logs_cleanup_error(
         error: OSError,
         message: str,
 ) -> None:
-    """测试记录临时文件清理异常"""
+    """测试记录临时文件清理异常."""
     logger = Mock()
 
     with monkeypatch.context() as context:

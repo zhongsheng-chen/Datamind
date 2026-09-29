@@ -1,4 +1,4 @@
-"""模型运行控制表
+"""模型运行控制表.
 
 记录模型部署的期望运行状态和控制版本，
 用于协调多个 Worker 的模型加载、卸载和重新加载。
@@ -40,7 +40,7 @@ class Control(
     TimestampMixin,
     Base,
 ):
-    """模型运行控制表"""
+    """模型运行控制表."""
 
     __tablename__ = "controls"
 
@@ -153,7 +153,7 @@ class Control(
     def __repr__(
             self,
     ) -> str:
-        """返回模型运行控制字符串表示"""
+        """返回模型运行控制字符串表示."""
         return (
             f"<Control("
             f"control_id='{self.control_id}', "

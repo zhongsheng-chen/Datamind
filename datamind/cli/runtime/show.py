@@ -1,4 +1,4 @@
-"""查看运行状态命令
+"""查看运行状态命令.
 
 提供指定部署的运行状态查询功能。
 
@@ -46,7 +46,7 @@ def show_runtime(
             help="输出格式：text / json"
         ),
 ):
-    """查看部署运行状态"""
+    """查看部署运行状态."""
 
     async def _run():
         if output not in ("text", "json"):

@@ -1,4 +1,4 @@
-"""上下文类型定义
+"""上下文类型定义.
 
 定义请求上下文字典的类型结构，提供静态类型提示支持。
 
@@ -22,7 +22,7 @@ from typing import TypedDict
 
 
 class Context(TypedDict, total=False):
-    """请求上下文字典类型
+    """请求上下文字典类型.
 
     属性：
         trace_id: 链路追踪 ID

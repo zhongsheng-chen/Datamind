@@ -1,4 +1,4 @@
-"""实验配置表
+"""实验配置表.
 
 记录模型在指定环境中的对比实验配置，
 用于定义实验生命周期、生效时间和实验参数。
@@ -48,7 +48,7 @@ class Experiment(
     TimestampMixin,
     Base,
 ):
-    """实验配置表"""
+    """实验配置表."""
 
     __tablename__ = "experiments"
 
@@ -269,7 +269,7 @@ class Experiment(
     def __repr__(
             self,
     ) -> str:
-        """返回实验配置字符串表示"""
+        """返回实验配置字符串表示."""
         return (
             f"<Experiment("
             f"experiment_id='{self.experiment_id}', "

@@ -1,4 +1,4 @@
-"""基础模型适配器
+"""基础模型适配器.
 
 提供统一的模型输入转换、推理调度、能力检查和结果校验能力。
 
@@ -52,7 +52,7 @@ PredictionResult: TypeAlias = Union[
 
 
 class BaseModelAdapter(ABC):
-    """统一模型适配器基类"""
+    """统一模型适配器基类."""
 
     SUPPORTED_CAPABILITIES = ModelCapability.NONE
 
@@ -63,7 +63,7 @@ class BaseModelAdapter(ABC):
             data_types: dict[str, DataType] | None = None,
             positive_class: Any = 1,
     ) -> None:
-        """初始化适配器
+        """初始化适配器.
 
         参数：
             model: 已训练模型
@@ -116,7 +116,7 @@ class BaseModelAdapter(ABC):
     def _detect_capabilities(
             self,
     ) -> ModelCapability:
-        """检测当前模型实例能力"""
+        """检测当前模型实例能力."""
         return self.SUPPORTED_CAPABILITIES
 
     @abstractmethod
@@ -124,7 +124,7 @@ class BaseModelAdapter(ABC):
             self,
             X: np.ndarray,
     ) -> float:
-        """预测单条样本的概率
+        """预测单条样本的概率.
 
         由具体模型适配器实现。
         """
@@ -134,7 +134,7 @@ class BaseModelAdapter(ABC):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """预测批量样本的概率
+        """预测批量样本的概率.
 
         默认逐条调用单条概率预测接口，具体模型适配器可重写此方法。
         """
@@ -158,7 +158,7 @@ class BaseModelAdapter(ABC):
             self,
             X: np.ndarray,
     ) -> float:
-        """预测单条样本的对数几率
+        """预测单条样本的对数几率.
 
         支持对数几率预测的模型适配器应重写此方法。
         """
@@ -175,7 +175,7 @@ class BaseModelAdapter(ABC):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """预测批量样本的对数几率
+        """预测批量样本的对数几率.
 
         默认逐条调用单条对数几率预测接口，具体模型适配器可重写此方法。
         """
@@ -199,7 +199,7 @@ class BaseModelAdapter(ABC):
             self,
             X: PredictionInput,
     ) -> PredictionResult:
-        """概率预测统一入口"""
+        """概率预测统一入口."""
         if X is None:
             raise ValueError(
                 "输入不能为 None"
@@ -278,7 +278,7 @@ class BaseModelAdapter(ABC):
             self,
             X: PredictionInput,
     ) -> PredictionResult:
-        """对数几率预测统一入口"""
+        """对数几率预测统一入口."""
         if X is None:
             raise ValueError(
                 "输入不能为 None"
@@ -357,14 +357,14 @@ class BaseModelAdapter(ABC):
             self,
             features: dict[str, Any],
     ) -> np.ndarray:
-        """将单条特征字典转换为二维数组"""
+        """将单条特征字典转换为二维数组."""
         return self.transformer.transform(features)
 
     def to_array_batch(
             self,
             features_list: list[dict[str, Any]],
     ) -> np.ndarray:
-        """将批量特征字典转换为二维数组"""
+        """将批量特征字典转换为二维数组."""
         return self.transformer.transform_batch(features_list)
 
     def validate_features(
@@ -374,20 +374,20 @@ class BaseModelAdapter(ABC):
         list[str],
         list[tuple[str, str, str]],
     ]:
-        """验证特征完整性和类型"""
+        """验证特征完整性和类型."""
         return self.transformer.validate(features)
 
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取模型能力集"""
+        """获取模型能力集."""
         return self.capabilities
 
     def has_capability(
             self,
             capability: ModelCapability,
     ) -> bool:
-        """检查模型能力"""
+        """检查模型能力."""
         return (
             self.capabilities & capability
         ) == capability
@@ -396,7 +396,7 @@ class BaseModelAdapter(ABC):
             self,
             capability: ModelCapability,
     ) -> None:
-        """校验模型能力"""
+        """校验模型能力."""
         if not self.has_capability(
                 capability
         ):
@@ -412,7 +412,7 @@ class BaseModelAdapter(ABC):
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取特征重要性"""
+        """获取特征重要性."""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
@@ -425,7 +425,7 @@ class BaseModelAdapter(ABC):
     def _validate_binary_model(
             self,
     ) -> None:
-        """校验模型为二分类模型并解析正类标签"""
+        """校验模型为二分类模型并解析正类标签."""
         classes = getattr(
             self.model,
             "classes_",
@@ -472,7 +472,7 @@ class BaseModelAdapter(ABC):
     def _get_positive_class_index(
             self,
     ) -> int:
-        """获取正类在概率矩阵中的列位置"""
+        """获取正类在概率矩阵中的列位置."""
         classes = getattr(
             self.model,
             "classes_",
@@ -511,7 +511,7 @@ class BaseModelAdapter(ABC):
             self,
             values: Any,
     ) -> np.ndarray:
-        """提取并校验正类概率"""
+        """提取并校验正类概率."""
         probabilities = np.asarray(
             values,
             dtype=float,
@@ -559,7 +559,7 @@ class BaseModelAdapter(ABC):
             self,
             values: Any,
     ) -> np.ndarray:
-        """提取并统一对数几率方向"""
+        """提取并统一对数几率方向."""
         logits = np.asarray(
             values,
             dtype=float,
@@ -608,7 +608,7 @@ class BaseModelAdapter(ABC):
             *,
             names: Iterable[Any] | None = None,
     ) -> dict[str, float]:
-        """构造特征重要性字典并校验数量"""
+        """构造特征重要性字典并校验数量."""
         importance = np.asarray(
             values,
             dtype=float,

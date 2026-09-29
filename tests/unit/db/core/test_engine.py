@@ -1,4 +1,4 @@
-"""数据库引擎管理测试
+"""数据库引擎管理测试.
 
 验证异步数据库引擎的创建参数、单例缓存和资源释放行为。
 
@@ -42,7 +42,7 @@ DATABASE_URL = (
     autouse=True
 )
 def reset_engine_state() -> Iterator[None]:
-    """隔离数据库引擎全局状态"""
+    """隔离数据库引擎全局状态."""
     engine_module._engine = None
 
     yield
@@ -54,7 +54,7 @@ def create_engine_mock() -> tuple[
     AsyncEngine,
     AsyncMock,
 ]:
-    """创建异步引擎测试替身"""
+    """创建异步引擎测试替身."""
     dispose = AsyncMock()
     engine = MagicMock(
         spec=AsyncEngine
@@ -73,7 +73,7 @@ def create_engine_mock() -> tuple[
 def test_create_engine_uses_database_config(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建引擎时使用数据库配置"""
+    """测试创建引擎时使用数据库配置."""
     engine, _ = create_engine_mock()
     database_config = SimpleNamespace(
         url=DATABASE_URL,
@@ -122,7 +122,7 @@ def test_create_engine_uses_database_config(
 def test_get_engine_creates_singleton(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次获取时创建引擎并缓存"""
+    """测试首次获取时创建引擎并缓存."""
     engine, _ = create_engine_mock()
     create_engine = MagicMock(
         return_value=engine
@@ -147,7 +147,7 @@ def test_get_engine_creates_singleton(
 def test_get_engine_returns_existing_engine(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有引擎时直接返回"""
+    """测试已有引擎时直接返回."""
     engine, _ = create_engine_mock()
     create_engine = MagicMock()
 
@@ -169,7 +169,7 @@ def test_get_engine_returns_existing_engine(
 async def test_dispose_engine_disposes_existing_engine(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试关闭引擎并重置会话工厂"""
+    """测试关闭引擎并重置会话工厂."""
     engine, dispose = create_engine_mock()
     reset_session_factory = MagicMock()
 
@@ -192,7 +192,7 @@ async def test_dispose_engine_disposes_existing_engine(
 async def test_dispose_engine_without_existing_engine(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试无引擎时仍重置会话工厂"""
+    """测试无引擎时仍重置会话工厂."""
     reset_session_factory = MagicMock()
 
     monkeypatch.setattr(
@@ -211,7 +211,7 @@ async def test_dispose_engine_without_existing_engine(
 async def test_dispose_engine_clears_state_before_dispose(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试引擎释放失败时全局状态仍已清理"""
+    """测试引擎释放失败时全局状态仍已清理."""
     engine, dispose = create_engine_mock()
     reset_session_factory = MagicMock()
 

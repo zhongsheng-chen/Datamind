@@ -1,4 +1,4 @@
-"""管理控制台页面查询配置
+"""管理控制台页面查询配置.
 
 定义各控制台页面的模型、查询字段、字段别名和排序规则，
 避免仓储与搜索构建逻辑重复维护页面元数据。
@@ -105,7 +105,7 @@ _SECTION_ID_COLUMNS: dict[str, Any] = {
 
 
 class _QueryFieldType(str, Enum):
-    """控制台查询字段类型"""
+    """控制台查询字段类型."""
 
     TEXT = "text"
     INTEGER = "integer"
@@ -117,28 +117,28 @@ class _QueryFieldType(str, Enum):
     slots=True,
 )
 class _QueryField:
-    """控制台查询字段定义"""
+    """控制台查询字段定义."""
 
     column: Any
     type: _QueryFieldType
 
 
 class _NullableColumn(Protocol):
-    """支持 SQL 空值判断的字段"""
+    """支持 SQL 空值判断的字段."""
 
     def is_(self, other: object) -> Any:
-        """构建 IS 条件"""
+        """构建 IS 条件."""
         ...
 
     def is_not(self, other: object) -> Any:
-        """构建 IS NOT 条件"""
+        """构建 IS NOT 条件."""
         ...
 
 
 def _text_field(
         column: Any,
 ) -> _QueryField:
-    """定义文本查询字段"""
+    """定义文本查询字段."""
     return _QueryField(
         column=column,
         type=_QueryFieldType.TEXT,
@@ -148,7 +148,7 @@ def _text_field(
 def _time_field(
         column: Any,
 ) -> _QueryField:
-    """定义时间查询字段"""
+    """定义时间查询字段."""
     return _QueryField(
         column=column,
         type=_QueryFieldType.DATETIME,
@@ -158,7 +158,7 @@ def _time_field(
 def _integer_field(
         column: Any,
 ) -> _QueryField:
-    """定义整数查询字段"""
+    """定义整数查询字段."""
     return _QueryField(
         column=column,
         type=_QueryFieldType.INTEGER,
@@ -389,7 +389,7 @@ def _attempt_shard_task_predicate(
         field: str | None,
         pattern: str,
 ) -> Any | None:
-    """构建执行尝试的分片任务 ID 匹配条件"""
+    """构建执行尝试的分片任务 ID 匹配条件."""
     if field is not None and field != "task_id":
         return None
 
@@ -839,7 +839,7 @@ _SECTION_ORDER_COLUMNS: dict[str, tuple[Any, ...]] = {
     slots=True,
 )
 class _SectionDefinition:
-    """控制台页面查询定义"""
+    """控制台页面查询定义."""
 
     model: type[Any]
     id_column: Any

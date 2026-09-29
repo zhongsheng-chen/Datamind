@@ -1,4 +1,4 @@
-"""A/B 实验指标评估
+"""A/B 实验指标评估.
 
 根据实验结果记录计算 A/B 测试指标，用于实验效果评估和模型表现对比。
 
@@ -29,7 +29,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class VariantMetrics:
-    """实验分组指标
+    """实验分组指标.
 
     属性：
         experiment_id: 实验 ID
@@ -64,13 +64,13 @@ class VariantMetrics:
     bad_rate: float = 0.0
 
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """转换为字典."""
         return asdict(self)
 
 
 @dataclass(slots=True)
 class MetricComparison:
-    """指标对比结果
+    """指标对比结果.
 
     属性：
         metric: 指标名称
@@ -91,13 +91,13 @@ class MetricComparison:
     relative_lift: float | None
 
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """转换为字典."""
         return asdict(self)
 
 
 @dataclass(slots=True)
 class ExperimentMetrics:
-    """实验整体指标
+    """实验整体指标.
 
     属性：
         experiment_id: 实验 ID
@@ -114,7 +114,7 @@ class ExperimentMetrics:
     comparisons: dict[str, dict[str, MetricComparison]] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """转换为字典."""
         return {
             "experiment_id": self.experiment_id,
             "total_count": self.total_count,
@@ -134,7 +134,7 @@ class ExperimentMetrics:
 
 
 class ABTestMetricEvaluator:
-    """A/B 实验指标评估器
+    """A/B 实验指标评估器.
 
     提供 A/B 实验分组指标、整体指标和 lift 对比的评估能力。
 
@@ -153,7 +153,7 @@ class ABTestMetricEvaluator:
         bad_label: str = "bad",
         overdue_bad_threshold: int = 30,
     ):
-        """初始化 A/B 实验指标评估器
+        """初始化 A/B 实验指标评估器.
 
         参数：
             bad_label: 坏样本标签，默认值为 bad
@@ -169,7 +169,7 @@ class ABTestMetricEvaluator:
         outcomes: list[Any],
         baseline_variant_id: str | None = None,
     ) -> ExperimentMetrics:
-        """计算实验整体指标
+        """计算实验整体指标.
 
         参数：
             experiment_id: 实验 ID
@@ -221,7 +221,7 @@ class ABTestMetricEvaluator:
         *,
         outcomes: list[Any],
     ) -> dict[str, VariantMetrics]:
-        """计算实验分组指标
+        """计算实验分组指标.
 
         参数：
             outcomes: 实验结果记录列表
@@ -255,7 +255,7 @@ class ABTestMetricEvaluator:
         variant_id: str,
         outcomes: list[Any],
     ) -> VariantMetrics:
-        """计算单个实验分组指标
+        """计算单个实验分组指标.
 
         参数：
             variant_id: 实验分组 ID
@@ -316,7 +316,7 @@ class ABTestMetricEvaluator:
         variants: dict[str, VariantMetrics],
         baseline_variant_id: str | None,
     ) -> dict[str, dict[str, MetricComparison]]:
-        """计算各分组相对基准组的指标提升
+        """计算各分组相对基准组的指标提升.
 
         参数：
             variants: 分组指标
@@ -384,7 +384,7 @@ class ABTestMetricEvaluator:
         baseline_value: float,
         variant_value: float,
     ) -> MetricComparison:
-        """计算单个指标对比结果
+        """计算单个指标对比结果.
 
         参数：
             metric: 指标名称
@@ -414,7 +414,7 @@ class ABTestMetricEvaluator:
         )
 
     def _is_bad_outcome(self, outcome: Any) -> bool:
-        """判断是否为坏样本
+        """判断是否为坏样本.
 
         参数：
             outcome: 实验结果记录
@@ -439,7 +439,7 @@ class ABTestMetricEvaluator:
 
     @staticmethod
     def _first_experiment_id(outcomes: list[Any]) -> str | None:
-        """获取第一条结果记录的实验 ID
+        """获取第一条结果记录的实验 ID.
 
         参数：
             outcomes: 实验结果记录列表
@@ -462,7 +462,7 @@ class ABTestMetricEvaluator:
         numerator: float | int,
         denominator: float | int,
     ) -> float:
-        """安全除法
+        """安全除法.
 
         参数：
             numerator: 分子
@@ -478,7 +478,7 @@ class ABTestMetricEvaluator:
 
     @staticmethod
     def _to_float(value: Any) -> float | None:
-        """转换为浮点数
+        """转换为浮点数.
 
         参数：
             value: 原始值
@@ -507,7 +507,7 @@ class ABTestMetricEvaluator:
 
     @staticmethod
     def _to_int(value: Any) -> int | None:
-        """转换为整数
+        """转换为整数.
 
         参数：
             value: 原始值

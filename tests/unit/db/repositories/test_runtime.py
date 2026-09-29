@@ -1,4 +1,4 @@
-"""模型运行仓储测试
+"""模型运行仓储测试.
 
 验证 RuntimeRepository 的运行记录查询、列表筛选、创建、
 普通字段更新，以及加载、卸载、失败和心跳状态管理。
@@ -95,7 +95,7 @@ LATER_TIME = datetime(
 def create_runtime(
         **overrides: Any,
 ) -> Runtime:
-    """创建运行记录测试对象"""
+    """创建运行记录测试对象."""
     values: dict[str, Any] = {
         "runtime_id": "rtm_0123456789abcdef",
         "deployment_id": "dep_0123456789abcdef",
@@ -133,7 +133,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建运行仓储及会话方法替身"""
+    """创建运行仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -181,7 +181,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -197,7 +197,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -210,7 +210,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_runtime() -> None:
-    """测试按运行 ID 查询"""
+    """测试按运行 ID 查询."""
     expected = create_runtime()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -238,7 +238,7 @@ async def test_get_runtime() -> None:
 
 @pytest.mark.asyncio
 async def test_get_runtime_returns_none_when_not_found() -> None:
-    """测试运行记录不存在时返回 None"""
+    """测试运行记录不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_runtime(
@@ -251,7 +251,7 @@ async def test_get_runtime_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_runtime_uses_default_worker() -> None:
-    """测试按部署 ID 和默认 Worker 查询"""
+    """测试按部署 ID 和默认 Worker 查询."""
     expected = create_runtime(
         worker_id="default"
     )
@@ -284,7 +284,7 @@ async def test_get_deployment_runtime_uses_default_worker() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_runtime_uses_custom_worker() -> None:
-    """测试按部署 ID 和指定 Worker 查询"""
+    """测试按部署 ID 和指定 Worker 查询."""
     expected = create_runtime(
         worker_id="worker-2"
     )
@@ -313,7 +313,7 @@ async def test_get_deployment_runtime_uses_custom_worker() -> None:
 
 @pytest.mark.asyncio
 async def test_list_runtimes_without_filters() -> None:
-    """测试无筛选时返回全部记录并按时间倒序"""
+    """测试无筛选时返回全部记录并按时间倒序."""
     runtimes = [
         create_runtime()
     ]
@@ -343,7 +343,7 @@ async def test_list_runtimes_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_runtimes_applies_filters_and_pagination() -> None:
-    """测试框架、状态、操作人筛选和分页"""
+    """测试框架、状态、操作人筛选和分页."""
     runtimes = [
         create_runtime(
             framework="xgboost",
@@ -425,7 +425,7 @@ async def test_list_runtimes_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_runtimes_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_runtimes(
@@ -475,7 +475,7 @@ async def test_list_runtimes_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -491,7 +491,7 @@ async def test_list_runtimes_rejects_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_running_runtimes() -> None:
-    """测试获取已加载运行记录"""
+    """测试获取已加载运行记录."""
     runtimes = [
         create_runtime(
             framework="sklearn",
@@ -544,7 +544,7 @@ async def test_list_running_runtimes() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_stale_runtimes_failed() -> None:
-    """测试按环境和心跳期限收敛失联活动实例"""
+    """测试按环境和心跳期限收敛失联活动实例."""
     stale_runtime = create_runtime(
         status="running",
         worker_id="worker-stale",
@@ -577,7 +577,7 @@ async def test_mark_stale_runtimes_failed() -> None:
     assert stale_runtime.error == "运行实例心跳超时，Worker 已失联"
 
 def test_runtime_patch_fields_and_defaults() -> None:
-    """测试更新结构字段和默认值"""
+    """测试更新结构字段和默认值."""
     patch = RuntimePatch()
 
     assert [
@@ -616,7 +616,7 @@ def test_runtime_patch_fields_and_defaults() -> None:
 
 
 def test_runtime_patch_accepts_framework_enum() -> None:
-    """测试更新结构接受框架枚举"""
+    """测试更新结构接受框架枚举."""
     patch = RuntimePatch(
         framework=Framework.XGBOOST
     )
@@ -628,7 +628,7 @@ def test_runtime_patch_accepts_framework_enum() -> None:
 
 @pytest.mark.asyncio
 async def test_set_applied_generation() -> None:
-    """测试按部署和 Worker 持久化已应用控制版本号"""
+    """测试按部署和 Worker 持久化已应用控制版本号."""
     runtime = create_runtime()
     repository, execute, _ = create_repository(
         scalar_result=runtime
@@ -663,7 +663,7 @@ async def test_set_applied_generation() -> None:
 
 
 def test_create_runtime() -> None:
-    """测试创建运行记录并显式设置 unloaded 状态"""
+    """测试创建运行记录并显式设置 unloaded 状态."""
     repository, _, add = create_repository()
 
     runtime = repository.create_runtime(
@@ -720,7 +720,7 @@ def test_create_runtime() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_runtime_uses_optional_defaults() -> None:
-    """测试创建运行记录的可选默认值"""
+    """测试创建运行记录的可选默认值."""
     repository, _, add = create_repository()
 
     runtime = repository.create_runtime(
@@ -748,7 +748,7 @@ def test_create_runtime_uses_optional_defaults() -> None:
 
 
 def test_update_runtime() -> None:
-    """测试更新所有非空普通运行字段"""
+    """测试更新所有非空普通运行字段."""
     repository, _, _ = create_repository()
     runtime = create_runtime()
     original_status = runtime.status
@@ -785,7 +785,7 @@ def test_update_runtime() -> None:
 
 
 def test_update_runtime_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         applied_generation=3,
@@ -806,7 +806,7 @@ def test_update_runtime_ignores_none_fields() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_starting() -> None:
-    """测试标记加载中并清理旧错误和卸载时间"""
+    """测试标记加载中并清理旧错误和卸载时间."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="failed",
@@ -833,7 +833,7 @@ def test_mark_starting() -> None:
 
 
 def test_mark_starting_accepts_empty_operator() -> None:
-    """测试加载中状态允许写入空字符串操作人"""
+    """测试加载中状态允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     runtime = create_runtime()
 
@@ -847,7 +847,7 @@ def test_mark_starting_accepts_empty_operator() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_running_with_explicit_time() -> None:
-    """测试标记已加载并同步首次心跳时间"""
+    """测试标记已加载并同步首次心跳时间."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="starting",
@@ -884,7 +884,7 @@ def test_mark_running_with_explicit_time() -> None:
 def test_mark_running_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未提供时间时使用同一个当前时间"""
+    """测试未提供时间时使用同一个当前时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -921,7 +921,7 @@ def test_mark_running_uses_current_time(
         == CURRENT_TIME
     )
 def test_mark_running_accepts_empty_operator() -> None:
-    """测试已加载状态允许写入空字符串操作人"""
+    """测试已加载状态允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="starting"
@@ -937,7 +937,7 @@ def test_mark_running_accepts_empty_operator() -> None:
 
 
 def test_mark_stopped_with_explicit_time() -> None:
-    """测试标记已卸载并记录控制版本"""
+    """测试标记已卸载并记录控制版本."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="running",
@@ -968,7 +968,7 @@ def test_mark_stopped_with_explicit_time() -> None:
 def test_mark_stopped_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未提供卸载时间时使用当前时间"""
+    """测试未提供卸载时间时使用当前时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -1003,7 +1003,7 @@ def test_mark_stopped_uses_current_time(
 
 
 def test_mark_stopped_accepts_empty_operator() -> None:
-    """测试卸载状态允许写入空字符串操作人"""
+    """测试卸载状态允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="running"
@@ -1019,7 +1019,7 @@ def test_mark_stopped_accepts_empty_operator() -> None:
 
 
 def test_mark_failed() -> None:
-    """测试标记加载失败"""
+    """测试标记加载失败."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="starting"
@@ -1046,7 +1046,7 @@ def test_mark_failed() -> None:
 
 
 def test_mark_failed_accepts_empty_operator() -> None:
-    """测试失败状态允许写入空字符串操作人"""
+    """测试失败状态允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="starting"
@@ -1062,7 +1062,7 @@ def test_mark_failed_accepts_empty_operator() -> None:
 
 
 def test_heartbeat_with_explicit_time() -> None:
-    """测试使用指定时间更新运行心跳"""
+    """测试使用指定时间更新运行心跳."""
     repository, _, _ = create_repository()
     runtime = create_runtime(
         status="running"
@@ -1082,7 +1082,7 @@ def test_heartbeat_with_explicit_time() -> None:
 def test_heartbeat_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未提供时间时使用当前 UTC 时间"""
+    """测试未提供时间时使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):

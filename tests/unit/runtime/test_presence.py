@@ -1,4 +1,4 @@
-"""运行实例在线状态测试
+"""运行实例在线状态测试.
 
 验证运行实例使用统一的心跳判定边界。
 
@@ -31,7 +31,7 @@ CURRENT_TIME = datetime(
 
 
 def test_runtime_presence_detects_stale_active_instance() -> None:
-    """测试根据最近活动时间识别失联实例"""
+    """测试根据最近活动时间识别失联实例."""
     presence = RuntimePresence(
         stale_at=CURRENT_TIME,
     )
@@ -51,7 +51,7 @@ def test_runtime_presence_detects_stale_active_instance() -> None:
 
 
 def test_runtime_presence_uses_heartbeat_grace_period() -> None:
-    """测试按心跳间隔生成统一的失联判定时间"""
+    """测试按心跳间隔生成统一的失联判定时间."""
     presence = RuntimePresence.current(
         current_time=CURRENT_TIME,
     )
@@ -63,7 +63,7 @@ def test_runtime_presence_uses_heartbeat_grace_period() -> None:
 
 
 def test_runtime_presence_returns_derived_health_status() -> None:
-    """测试在线状态判定返回统一的健康状态枚举"""
+    """测试在线状态判定返回统一的健康状态枚举."""
     presence = RuntimePresence(
         stale_at=CURRENT_TIME,
     )

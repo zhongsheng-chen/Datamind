@@ -1,4 +1,4 @@
-"""数据类型枚举
+"""数据类型枚举.
 
 定义特征数据的基本类型，用于数据验证和预处理。
 
@@ -24,7 +24,7 @@ from typing import FrozenSet
 
 
 class DataType(str, Enum):
-    """数据类型字符串枚举
+    """数据类型字符串枚举.
 
     属性：
         NUMERIC: 数值类型（整数、浮点数）
@@ -41,7 +41,7 @@ class DataType(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

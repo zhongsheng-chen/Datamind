@@ -1,4 +1,4 @@
-"""LightGBM 模型加载器测试
+"""LightGBM 模型加载器测试.
 
 验证 LightGBM Booster 通过文本模型数据创建。
 
@@ -19,7 +19,7 @@ from datamind.models.artifact.handlers.lightgbm import load_lightgbm
 def test_load_lightgbm_decodes_model_text(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试解码模型文本并创建 LightGBM Booster"""
+    """测试解码模型文本并创建 LightGBM Booster."""
     expected = object()
     booster_factory = Mock(
         return_value=expected

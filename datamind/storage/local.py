@@ -1,4 +1,4 @@
-"""本地文件系统存储后端
+"""本地文件系统存储后端.
 
 将数据存储在本地文件系统中，使用文件路径作为 key。
 
@@ -50,7 +50,7 @@ _IS_WINDOWS = os.name == "nt"
 
 
 class LocalStorageBackend(BaseStorageBackend):
-    """本地文件系统存储后端"""
+    """本地文件系统存储后端."""
 
     _WINDOWS_REPLACE_ATTEMPTS = 5
     _WINDOWS_REPLACE_RETRY_SECONDS = 0.01
@@ -59,7 +59,7 @@ class LocalStorageBackend(BaseStorageBackend):
             self,
             base_dir: Path,
     ) -> None:
-        """初始化本地存储后端
+        """初始化本地存储后端.
 
         参数：
             base_dir: 基础目录，所有文件存储在此目录下
@@ -72,7 +72,7 @@ class LocalStorageBackend(BaseStorageBackend):
             *,
             allow_base_dir: bool = False,
     ) -> Path:
-        """构造安全的完整文件路径
+        """构造安全的完整文件路径.
 
         参数：
             key: 存储键
@@ -153,7 +153,7 @@ class LocalStorageBackend(BaseStorageBackend):
             key: str,
             data: bytes,
     ) -> None:
-        """存储数据到文件
+        """存储数据到文件.
 
         参数：
             key: 存储键
@@ -200,7 +200,7 @@ class LocalStorageBackend(BaseStorageBackend):
             source: Path,
             target: Path,
     ) -> None:
-        """原子替换文件，并重试 Windows 短暂占用错误"""
+        """原子替换文件，并重试 Windows 短暂占用错误."""
         for attempt in range(
                 cls._WINDOWS_REPLACE_ATTEMPTS
         ):
@@ -229,7 +229,7 @@ class LocalStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> bytes:
-        """读取文件内容
+        """读取文件内容.
 
         参数：
             key: 存储键
@@ -253,7 +253,7 @@ class LocalStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> None:
-        """删除文件
+        """删除文件.
 
         文件不存在时保持幂等，不抛出异常。
 
@@ -269,7 +269,7 @@ class LocalStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> bool:
-        """检查文件是否存在
+        """检查文件是否存在.
 
         参数：
             key: 存储键
@@ -288,7 +288,7 @@ class LocalStorageBackend(BaseStorageBackend):
             self,
             prefix: str,
     ) -> list[str]:
-        """列出目录下所有文件
+        """列出目录下所有文件.
 
         参数：
             prefix: 目录前缀；空字符串表示基础目录

@@ -1,4 +1,4 @@
-"""Console 应用入口测试
+"""Console 应用入口测试.
 
 验证控制台首页、健康检查、安全响应头和应用生命周期。
 
@@ -22,7 +22,7 @@ from tests.console._app_support import app_module
 
 @pytest.mark.asyncio
 async def test_console_page_is_available() -> None:
-    """测试控制台页面、健康检查和安全响应头"""
+    """测试控制台页面、健康检查和安全响应头."""
     async with AsyncClient(
         transport=ASGITransport(app=app_module.console_app),
         base_url="http://testserver",
@@ -43,7 +43,7 @@ def replace_unit_of_work(
         *,
         execute_error: Exception | None = None,
 ) -> None:
-    """替换控制台工作单元并配置数据库探测结果"""
+    """替换控制台工作单元并配置数据库探测结果."""
     unit_of_work = MagicMock()
     unit_of_work.__aenter__ = AsyncMock(return_value=unit_of_work)
     unit_of_work.__aexit__ = AsyncMock(return_value=False)
@@ -61,7 +61,7 @@ def replace_unit_of_work(
 async def test_console_is_ready_when_database_is_available(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库可用时控制台进入就绪状态"""
+    """测试数据库可用时控制台进入就绪状态."""
     replace_unit_of_work(monkeypatch)
 
     async with AsyncClient(
@@ -81,7 +81,7 @@ async def test_console_is_ready_when_database_is_available(
 async def test_console_is_not_ready_when_database_is_unavailable(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库不可用时控制台返回未就绪状态"""
+    """测试数据库不可用时控制台返回未就绪状态."""
     replace_unit_of_work(
         monkeypatch,
         execute_error=SQLAlchemyError("database unavailable"),
@@ -104,7 +104,7 @@ async def test_console_is_not_ready_when_database_is_unavailable(
 async def test_lifespan_starts_and_stops_event_broker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试应用生命周期管理事件代理"""
+    """测试应用生命周期管理事件代理."""
     broker = MagicMock()
     broker.start = AsyncMock()
     broker.stop = AsyncMock()

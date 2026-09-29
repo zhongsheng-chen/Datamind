@@ -1,4 +1,4 @@
-"""推理特征工具测试
+"""推理特征工具测试.
 
 验证特征名称规范化、模型矩阵构造、类型校验和数组维度处理。
 
@@ -33,7 +33,7 @@ from datamind.core.inference.features import FeatureTransformer
 
 
 def test_feature_transformer_normalizes_names() -> None:
-    """测试规范化并复制特征名称"""
+    """测试规范化并复制特征名称."""
     names = ["age", "employment_type"]
 
     result = FeatureTransformer(names).feature_names
@@ -55,13 +55,13 @@ def test_feature_transformer_normalizes_names() -> None:
 def test_feature_transformer_rejects_invalid_names(
         feature_names: list[str],
 ) -> None:
-    """测试拒绝空白或重复特征名称"""
+    """测试拒绝空白或重复特征名称."""
     with pytest.raises(ValueError):
         FeatureTransformer(feature_names)
 
 
 def test_to_feature_array_uses_configured_order() -> None:
-    """测试按照配置顺序构造单条特征矩阵"""
+    """测试按照配置顺序构造单条特征矩阵."""
     result = FeatureTransformer([
         "age",
         "employment_type",
@@ -78,7 +78,7 @@ def test_to_feature_array_uses_configured_order() -> None:
 
 
 def test_to_feature_array_batch_uses_configured_order() -> None:
-    """测试按照配置顺序构造批量特征矩阵"""
+    """测试按照配置顺序构造批量特征矩阵."""
     result = FeatureTransformer([
         "amount",
         "category",
@@ -96,7 +96,7 @@ def test_to_feature_array_batch_uses_configured_order() -> None:
 
 
 def test_to_feature_array_batch_infers_sorted_names() -> None:
-    """测试未配置特征名称时使用稳定顺序"""
+    """测试未配置特征名称时使用稳定顺序."""
     result = FeatureTransformer().transform_batch(
         [
             {"b": 2, "a": 1},
@@ -137,13 +137,13 @@ def test_feature_array_rejects_invalid_input(
         operation: Callable[[], object],
         message: str,
 ) -> None:
-    """测试拒绝无效特征输入"""
+    """测试拒绝无效特征输入."""
     with pytest.raises((TypeError, ValueError), match=message):
         operation()
 
 
 def test_validate_features_reports_missing_and_type_errors() -> None:
-    """测试报告缺失特征和类型错误"""
+    """测试报告缺失特征和类型错误."""
     transformer = FeatureTransformer(
         [
             "age",
@@ -175,7 +175,7 @@ def test_validate_features_reports_missing_and_type_errors() -> None:
 
 
 def test_ensure_2d_normalizes_array_shape() -> None:
-    """测试规范化一维和二维数组"""
+    """测试规范化一维和二维数组."""
     one_dimensional = FeatureTransformer.ensure_2d(
         np.asarray([1, 2])
     )
@@ -189,6 +189,6 @@ def test_ensure_2d_normalizes_array_shape() -> None:
 
 
 def test_ensure_2d_rejects_unsupported_dimensions() -> None:
-    """测试拒绝不支持的数组维度"""
+    """测试拒绝不支持的数组维度."""
     with pytest.raises(ValueError, match="仅支持 1D / 2D"):
         FeatureTransformer.ensure_2d(np.zeros((1, 1, 1)))

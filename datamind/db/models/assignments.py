@@ -1,4 +1,4 @@
-"""实验分配表
+"""实验分配表.
 
 记录实验主体与实验分组之间的固定分配关系，
 用于保证同一个主体在同一个实验中稳定命中同一个分组。
@@ -49,7 +49,7 @@ class Assignment(
     TimestampMixin,
     Base,
 ):
-    """实验分配表"""
+    """实验分配表."""
 
     __tablename__ = "assignments"
 
@@ -184,7 +184,7 @@ class Assignment(
     def __repr__(
             self,
     ) -> str:
-        """返回实验分配字符串表示"""
+        """返回实验分配字符串表示."""
         return (
             f"<Assignment("
             f"assignment_id='{self.assignment_id}', "

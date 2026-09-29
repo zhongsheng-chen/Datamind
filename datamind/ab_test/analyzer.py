@@ -1,4 +1,4 @@
-"""A/B 实验分析器
+"""A/B 实验分析器.
 
 负责读取实验、实验分组和实验结果，并调用指标评估器生成实验分析结果。
 
@@ -46,7 +46,7 @@ from datamind.models.enums import AssignmentStrategy, ExperimentVariantStatus
 
 @dataclass(slots=True)
 class VariantInfo:
-    """实验分组信息
+    """实验分组信息.
 
     属性：
         variant_id: 实验分组 ID
@@ -71,13 +71,13 @@ class VariantInfo:
     description: str | None = None
 
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """转换为字典."""
         return asdict(self)
 
 
 @dataclass(slots=True)
 class ABTestAnalysis:
-    """A/B 实验分析结果
+    """A/B 实验分析结果.
 
     属性：
         experiment_id: 实验 ID
@@ -106,7 +106,7 @@ class ABTestAnalysis:
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """转换为字典."""
         return {
             "experiment_id": self.experiment_id,
             "model_id": self.model_id,
@@ -126,7 +126,7 @@ class ABTestAnalysis:
 
 
 class ABTestAnalyzer:
-    """A/B 实验分析器
+    """A/B 实验分析器.
 
     读取实验配置、实验分组和实验结果，
     并调用 ABTestMetricEvaluator 生成实验分析结果。
@@ -140,7 +140,7 @@ class ABTestAnalyzer:
             outcome_repo: OutcomeRepository,
             metric_evaluator: ABTestMetricEvaluator | None = None,
     ):
-        """初始化 A/B 实验分析器
+        """初始化 A/B 实验分析器.
 
         参数：
             experiment_repo: 实验仓储
@@ -159,7 +159,7 @@ class ABTestAnalyzer:
             experiment_id: str,
             baseline_variant_id: str | None = None,
     ) -> ABTestAnalysis:
-        """分析指定实验
+        """分析指定实验.
 
         参数：
             experiment_id: 实验 ID
@@ -245,7 +245,7 @@ class ABTestAnalyzer:
             *,
             variant_id: str,
     ) -> dict:
-        """分析单个实验分组
+        """分析单个实验分组.
 
         参数：
             variant_id: 实验分组 ID
@@ -292,7 +292,7 @@ class ABTestAnalyzer:
             variants: list[Variant],
             baseline_variant_id: str | None,
     ) -> str | None:
-        """解析基准分组 ID
+        """解析基准分组 ID.
 
         参数：
             experiment_id: 实验 ID
@@ -330,7 +330,7 @@ class ABTestAnalyzer:
             *,
             experiment_id: str,
     ) -> list[Outcome]:
-        """获取实验全部结果记录
+        """获取实验全部结果记录.
 
         参数：
             experiment_id: 实验 ID
@@ -347,7 +347,7 @@ class ABTestAnalyzer:
             *,
             variant_id: str,
     ) -> list[Outcome]:
-        """获取实验分组全部结果记录
+        """获取实验分组全部结果记录.
 
         参数：
             variant_id: 实验分组 ID
@@ -364,7 +364,7 @@ class ABTestAnalyzer:
             cls,
             variants: list[Variant],
     ) -> dict[str, VariantInfo]:
-        """构造实验分组信息字典
+        """构造实验分组信息字典.
 
         参数：
             variants: 实验分组列表
@@ -382,7 +382,7 @@ class ABTestAnalyzer:
             cls,
             variant: Variant,
     ) -> VariantInfo:
-        """构造实验分组信息
+        """构造实验分组信息.
 
         参数：
             variant: 实验分组对象
@@ -412,7 +412,7 @@ class ABTestAnalyzer:
             baseline_variant_id: str | None,
             metrics: ExperimentMetrics,
     ) -> list[str]:
-        """构造分析提示信息
+        """构造分析提示信息.
 
         参数：
             strategy: 实验分配策略
@@ -501,7 +501,7 @@ class ABTestAnalyzer:
             cls,
             experiment,
     ) -> AssignmentStrategy:
-        """获取实验分配策略
+        """获取实验分配策略.
 
         参数：
             experiment: 实验对象
@@ -533,7 +533,7 @@ class ABTestAnalyzer:
     def _get_config(
             experiment,
     ) -> dict:
-        """获取实验配置
+        """获取实验配置.
 
         参数：
             experiment: 实验对象
@@ -559,7 +559,7 @@ class ABTestAnalyzer:
     def _is_active_variant(
             variant: Variant,
     ) -> bool:
-        """判断实验分组是否为 active 状态
+        """判断实验分组是否为 active 状态.
 
         参数：
             variant: 实验分组对象
@@ -586,7 +586,7 @@ class ABTestAnalyzer:
             cls,
             outcomes: list[Outcome],
     ) -> set[str]:
-        """获取实验结果中的有效分组 ID
+        """获取实验结果中的有效分组 ID.
 
         参数：
             outcomes: 实验结果记录列表
@@ -614,7 +614,7 @@ class ABTestAnalyzer:
     def _is_valid_variant_id(
             value: Any,
     ) -> bool:
-        """判断实验分组 ID 是否有效
+        """判断实验分组 ID 是否有效.
 
         参数：
             value: 原始值
@@ -628,7 +628,7 @@ class ABTestAnalyzer:
     def _get_variant_environment(
             variant: Variant,
     ) -> str | None:
-        """获取实验分组环境"""
+        """获取实验分组环境."""
         config = getattr(
             variant,
             "config",
@@ -649,7 +649,7 @@ class ABTestAnalyzer:
 
     @staticmethod
     def _as_str(value: Any) -> str:
-        """转换为字符串
+        """转换为字符串.
 
         参数：
             value: 原始值
@@ -664,7 +664,7 @@ class ABTestAnalyzer:
 
     @staticmethod
     def _as_optional_str(value: Any) -> str | None:
-        """转换为可选字符串
+        """转换为可选字符串.
 
         参数：
             value: 原始值
@@ -679,7 +679,7 @@ class ABTestAnalyzer:
 
     @staticmethod
     def _as_float(value: Any) -> float:
-        """转换为浮点数
+        """转换为浮点数.
 
         参数：
             value: 原始值
@@ -700,7 +700,7 @@ class ABTestAnalyzer:
 
     @staticmethod
     def _as_bool(value: Any) -> bool:
-        """转换为布尔值
+        """转换为布尔值.
 
         参数：
             value: 原始值

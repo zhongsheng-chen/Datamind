@@ -1,4 +1,4 @@
-"""数据库 URL 获取测试
+"""数据库 URL 获取测试.
 
 验证 get_db_url 从数据库配置 Provider 中读取并原样返回
 数据库连接 URL。
@@ -29,7 +29,7 @@ DATABASE_URL = (
 def test_get_db_url(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试返回数据库配置中的 URL"""
+    """测试返回数据库配置中的 URL."""
     database_config = SimpleNamespace(
         url=DATABASE_URL
     )
@@ -52,7 +52,7 @@ def test_get_db_url(
 def test_get_db_url_reads_settings_each_time(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试每次调用都从全局配置获取当前 URL"""
+    """测试每次调用都从全局配置获取当前 URL."""
     first_url = (
         "postgresql+asyncpg://"
         "datamind:first@localhost:5432/datamind"
@@ -91,7 +91,7 @@ def test_get_db_url_reads_settings_each_time(
 def test_get_db_url_does_not_modify_value(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 URL 不会被裁剪或转换"""
+    """测试 URL 不会被裁剪或转换."""
     configured_url = (
         " postgresql+asyncpg://"
         "datamind:password@localhost:5432/datamind "

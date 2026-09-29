@@ -1,4 +1,4 @@
-"""恢复实验分组命令
+"""恢复实验分组命令.
 
 提供逻辑删除实验分组的恢复功能。
 
@@ -39,7 +39,7 @@ def restore_variant(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """恢复逻辑删除的实验分组"""
+    """恢复逻辑删除的实验分组."""
 
     @audit(
         action="experiment.variant.restore",

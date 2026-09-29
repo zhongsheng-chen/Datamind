@@ -1,4 +1,4 @@
-"""日志配置测试
+"""日志配置测试.
 
 验证日志默认值、环境变量读取、静默模式、参数校验和配置不可变行为。
 
@@ -45,7 +45,7 @@ from datamind.constants import (
 
 
 class IsolatedLoggingConfig(LoggingConfig):
-    """仅使用初始化参数和字段默认值的日志配置"""
+    """仅使用初始化参数和字段默认值的日志配置."""
 
     @classmethod
     def settings_customise_sources(
@@ -56,7 +56,7 @@ class IsolatedLoggingConfig(LoggingConfig):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -72,7 +72,7 @@ class IsolatedLoggingConfig(LoggingConfig):
 def clear_logging_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """清除日志配置相关环境变量"""
+    """清除日志配置相关环境变量."""
     for key in tuple(os.environ):
         if key.startswith("DATAMIND_LOG_"):
             monkeypatch.delenv(
@@ -84,12 +84,12 @@ def clear_logging_environment(
 def create_config(
         **overrides: Any,
 ) -> LoggingConfig:
-    """创建隔离外部配置源的日志配置"""
+    """创建隔离外部配置源的日志配置."""
     return IsolatedLoggingConfig(**overrides)
 
 
 def test_logging_config_defaults() -> None:
-    """测试日志配置默认值"""
+    """测试日志配置默认值."""
     config = create_config()
 
     assert config.level == LogLevel.INFO
@@ -120,7 +120,7 @@ def test_logging_config_ignores_external_sources(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试隔离配置不读取环境变量和 .env 文件"""
+    """测试隔离配置不读取环境变量和 .env 文件."""
     monkeypatch.setenv(
         "DATAMIND_LOG_FORMAT",
         "text",
@@ -150,7 +150,7 @@ def test_logging_config_reads_environment_variables(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试从环境变量读取并转换日志配置"""
+    """测试从环境变量读取并转换日志配置."""
     monkeypatch.chdir(tmp_path)
 
     environment = {
@@ -211,7 +211,7 @@ def test_logging_config_reads_environment_variables(
 
 
 def test_logging_config_allows_silent_mode() -> None:
-    """测试允许同时关闭控制台和文件输出"""
+    """测试允许同时关闭控制台和文件输出."""
     config = create_config(
         enable_console=False,
         console_level=LogLevel.ERROR,
@@ -224,7 +224,7 @@ def test_logging_config_allows_silent_mode() -> None:
 
 
 def test_logging_config_accepts_valid_values() -> None:
-    """测试接受有效的自定义日志配置"""
+    """测试接受有效的自定义日志配置."""
     config = create_config(
         level=LogLevel.DEBUG,
         format=LogFormat.TEXT,
@@ -366,7 +366,7 @@ def test_logging_config_rejects_invalid_values(
         value: object,
         error_message: str,
 ) -> None:
-    """测试拒绝无效日志配置参数"""
+    """测试拒绝无效日志配置参数."""
     with pytest.raises(
             ValidationError,
             match=error_message,
@@ -389,14 +389,14 @@ def test_logging_config_rejects_invalid_values(
 def test_logging_config_accepts_valid_sample_rate(
         sample_rate: float,
 ) -> None:
-    """测试接受有效采样率边界"""
+    """测试接受有效采样率边界."""
     config = create_config(sample_rate=sample_rate)
 
     assert config.sample_rate == sample_rate
 
 
 def test_logging_config_ignores_extra_fields() -> None:
-    """测试忽略未声明的额外配置字段"""
+    """测试忽略未声明的额外配置字段."""
     config = create_config(
         unknown_option="ignored",
     )
@@ -405,7 +405,7 @@ def test_logging_config_ignores_extra_fields() -> None:
 
 
 def test_logging_config_is_frozen() -> None:
-    """测试日志配置创建后不可修改"""
+    """测试日志配置创建后不可修改."""
     config = create_config()
 
     with pytest.raises(ValidationError):

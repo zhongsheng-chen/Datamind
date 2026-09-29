@@ -1,4 +1,4 @@
-"""Alembic 迁移环境配置
+"""Alembic 迁移环境配置.
 
 支持异步数据库迁移，使用项目统一配置组件管理数据库连接。
 
@@ -39,7 +39,7 @@ target_metadata = database_models.Metadata.metadata
 
 
 def get_url() -> str:
-    """获取迁移使用的数据库连接 URL"""
+    """获取迁移使用的数据库连接 URL."""
     return DatabaseConfig().url
 
 
@@ -50,7 +50,7 @@ config.set_main_option(
 
 
 def run_migrations_offline() -> None:
-    """离线模式
+    """离线模式.
 
     不连接数据库，仅生成 SQL 脚本。
     """
@@ -68,7 +68,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    """执行迁移核心逻辑
+    """执行迁移核心逻辑.
 
     参数：
         connection: 数据库同步连接
@@ -85,7 +85,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    """在线模式
+    """在线模式.
 
     异步连接数据库并执行迁移。
     """

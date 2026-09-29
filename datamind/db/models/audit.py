@@ -1,4 +1,4 @@
-"""审计日志表
+"""审计日志表.
 
 记录系统控制平面的变更行为，
 用于操作追溯、问题排查和审计分析。
@@ -62,7 +62,7 @@ class Audit(
     TimestampMixin,
     Base,
 ):
-    """审计日志表"""
+    """审计日志表."""
 
     __tablename__ = "audit"
 
@@ -291,7 +291,7 @@ class Audit(
     def __repr__(
             self,
     ) -> str:
-        """返回审计日志字符串表示"""
+        """返回审计日志字符串表示."""
         return (
             f"<Audit("
             f"audit_id='{self.audit_id}', "

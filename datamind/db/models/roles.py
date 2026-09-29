@@ -1,4 +1,4 @@
-"""角色表
+"""角色表.
 
 记录角色及其权限配置，
 用于基于角色的访问控制。
@@ -49,7 +49,7 @@ class Role(
     TimestampMixin,
     Base,
 ):
-    """角色表"""
+    """角色表."""
 
     __tablename__ = "roles"
 
@@ -174,7 +174,7 @@ class Role(
     def __repr__(
             self,
     ) -> str:
-        """返回角色字符串表示"""
+        """返回角色字符串表示."""
         return (
             f"<Role("
             f"role_id='{self.role_id}', "

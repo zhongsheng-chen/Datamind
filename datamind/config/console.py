@@ -1,4 +1,4 @@
-"""管理控制台配置
+"""管理控制台配置.
 
 定义管理控制台的网络监听及启动等待参数。
 
@@ -35,7 +35,7 @@ from pydantic_settings import (
 
 
 class ConsoleConfig(BaseSettings):
-    """管理控制台配置类"""
+    """管理控制台配置类."""
 
     model_config = SettingsConfigDict(
         env_prefix="DATAMIND_CONSOLE_",
@@ -50,7 +50,7 @@ class ConsoleConfig(BaseSettings):
 
     @model_validator(mode="after")
     def validate_config(self) -> "ConsoleConfig":
-        """校验管理控制台配置参数"""
+        """校验管理控制台配置参数."""
         if not self.host.strip():
             raise ValueError(
                 "host 不能为空"

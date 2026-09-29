@@ -1,4 +1,4 @@
-"""批次执行尝试仓储
+"""批次执行尝试仓储.
 
 提供批次执行尝试的创建、查询和状态迁移能力。
 
@@ -21,7 +21,7 @@ from datamind.utils.generator import generate_random_id
 
 
 class AttemptRepository(BaseRepository):
-    """批次执行尝试仓储"""
+    """批次执行尝试仓储."""
 
     def create_attempt(
             self,
@@ -30,7 +30,7 @@ class AttemptRepository(BaseRepository):
             task_id: str,
             attempt_number: int,
     ) -> Attempt:
-        """创建等待执行的批次尝试"""
+        """创建等待执行的批次尝试."""
         if attempt_number < 1:
             raise ValueError("attempt_number 必须大于 0")
 
@@ -50,7 +50,7 @@ class AttemptRepository(BaseRepository):
             batch_id: str,
             task_id: str,
     ) -> Attempt:
-        """按照已有历史创建下一次等待执行的批次尝试"""
+        """按照已有历史创建下一次等待执行的批次尝试."""
         stmt = select(
             func.coalesce(func.max(Attempt.attempt_number), 0)
         ).where(
@@ -68,7 +68,7 @@ class AttemptRepository(BaseRepository):
             self,
             batch_id: str,
     ) -> Attempt | None:
-        """返回批次最近一次执行尝试。"""
+        """返回批次最近一次执行尝试."""
         stmt = (
             select(Attempt)
             .where(Attempt.batch_id == batch_id)
@@ -86,7 +86,7 @@ class AttemptRepository(BaseRepository):
             attempt_number: int,
             worker_id: str | None,
     ) -> Attempt:
-        """创建或启动当前任务对应的批次执行尝试"""
+        """创建或启动当前任务对应的批次执行尝试."""
         stmt = (
             select(Attempt)
             .where(
@@ -124,7 +124,7 @@ class AttemptRepository(BaseRepository):
             status: str,
             error: str | None = None,
     ) -> Attempt | None:
-        """结束批次当前正在运行的执行尝试"""
+        """结束批次当前正在运行的执行尝试."""
         if status not in {
             "succeeded",
             "partially_succeeded",
@@ -152,7 +152,7 @@ class AttemptRepository(BaseRepository):
             error: str,
             retry_in_seconds: int,
     ) -> Attempt | None:
-        """记录本次失败和下一次自动重试时间"""
+        """记录本次失败和下一次自动重试时间."""
         attempt = await self._latest(
             batch_id=batch_id,
             statuses={"running"},
@@ -175,7 +175,7 @@ class AttemptRepository(BaseRepository):
             batch_id: str,
             statuses: set[str],
     ) -> Attempt | None:
-        """锁定并返回批次最新的指定状态尝试"""
+        """锁定并返回批次最新的指定状态尝试."""
         stmt = (
             select(Attempt)
             .where(

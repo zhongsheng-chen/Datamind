@@ -1,4 +1,4 @@
-"""日志 API
+"""日志 API.
 
 提供统一的日志获取接口。
 
@@ -25,7 +25,7 @@ import structlog
 def get_logger(
         name: str | None = None,
 ) -> structlog.stdlib.BoundLogger:
-    """获取日志实例
+    """获取日志实例.
 
     参数：
         name: 日志名称，通常传入 __name__

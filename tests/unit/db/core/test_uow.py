@@ -1,4 +1,4 @@
-"""数据库工作单元测试
+"""数据库工作单元测试.
 
 验证 UnitOfWork 对异步数据库会话和事务生命周期的管理。
 
@@ -62,7 +62,7 @@ def session_resources() -> tuple[
     AsyncMock,
     AsyncMock,
 ]:
-    """创建异步会话及事务方法替身"""
+    """创建异步会话及事务方法替身."""
     commit = AsyncMock()
     rollback = AsyncMock()
     close = AsyncMock()
@@ -97,7 +97,7 @@ def session_factory_resources(
     async_sessionmaker[AsyncSession],
     MagicMock,
 ]:
-    """创建异步会话工厂替身"""
+    """创建异步会话工厂替身."""
     session = session_resources[
         0
     ]
@@ -123,7 +123,7 @@ def patch_session_factory(
             MagicMock,
         ],
 ) -> Iterator[MagicMock]:
-    """替换工作单元使用的会话工厂"""
+    """替换工作单元使用的会话工厂."""
     session_factory, factory_mock = (
         session_factory_resources
     )
@@ -144,7 +144,7 @@ def patch_session_factory(
 
 
 def test_session_is_unavailable_before_enter() -> None:
-    """测试进入上下文前不能访问会话"""
+    """测试进入上下文前不能访问会话."""
     uow = UnitOfWork()
 
     with pytest.raises(
@@ -168,7 +168,7 @@ async def test_enter_creates_session(
             AsyncMock,
         ],
 ) -> None:
-    """测试进入上下文时创建并暴露会话"""
+    """测试进入上下文时创建并暴露会话."""
     _, factory_mock = session_factory_resources
     session = session_resources[
         0
@@ -193,7 +193,7 @@ async def test_enter_rejects_repeated_initialization(
             MagicMock,
         ],
 ) -> None:
-    """测试同一工作单元不能重复进入"""
+    """测试同一工作单元不能重复进入."""
     _, factory_mock = session_factory_resources
     uow = UnitOfWork()
 
@@ -221,7 +221,7 @@ async def test_normal_exit_commits_and_closes(
             AsyncMock,
         ],
 ) -> None:
-    """测试正常退出时提交并关闭会话"""
+    """测试正常退出时提交并关闭会话."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -257,7 +257,7 @@ async def test_exception_exit_rolls_back_and_closes(
             AsyncMock,
         ],
 ) -> None:
-    """测试发生异常时回滚并关闭会话"""
+    """测试发生异常时回滚并关闭会话."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -290,7 +290,7 @@ async def test_context_manager_propagates_exception(
             AsyncMock,
         ],
 ) -> None:
-    """测试工作单元不吞掉上下文中的异常"""
+    """测试工作单元不吞掉上下文中的异常."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -319,7 +319,7 @@ async def test_mark_rollback_forces_rollback(
             AsyncMock,
         ],
 ) -> None:
-    """测试显式回滚标记"""
+    """测试显式回滚标记."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -350,7 +350,7 @@ async def test_enter_resets_previous_rollback_mark(
             AsyncMock,
         ],
 ) -> None:
-    """测试进入上下文时重置旧回滚标记"""
+    """测试进入上下文时重置旧回滚标记."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -380,7 +380,7 @@ async def test_commit_failure_rolls_back_and_closes(
             AsyncMock,
         ],
 ) -> None:
-    """测试提交失败时回滚并关闭会话"""
+    """测试提交失败时回滚并关闭会话."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -416,7 +416,7 @@ async def test_commit_failure_rolls_back_and_closes(
 async def test_commit_runs_only_commit_callbacks(
         patch_session_factory: MagicMock,
 ) -> None:
-    """测试提交成功后只执行提交回调"""
+    """测试提交成功后只执行提交回调."""
     committed = MagicMock()
     rolled_back = MagicMock()
     uow = UnitOfWork()
@@ -434,7 +434,7 @@ async def test_commit_runs_only_commit_callbacks(
 async def test_rollback_runs_only_rollback_callbacks(
         patch_session_factory: MagicMock,
 ) -> None:
-    """测试事务异常后只执行回滚补偿回调"""
+    """测试事务异常后只执行回滚补偿回调."""
     committed = MagicMock()
     rolled_back = MagicMock()
     uow = UnitOfWork()
@@ -458,7 +458,7 @@ async def test_rollback_failure_still_closes_session(
             AsyncMock,
         ],
 ) -> None:
-    """测试回滚失败时仍关闭会话"""
+    """测试回滚失败时仍关闭会话."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -495,7 +495,7 @@ async def test_cancellation_waits_for_session_close(
             AsyncMock,
         ],
 ) -> None:
-    """测试任务取消时仍等待会话关闭"""
+    """测试任务取消时仍等待会话关闭."""
     _, commit, rollback, close = (
         session_resources
     )
@@ -548,7 +548,7 @@ async def test_close_is_idempotent(
             AsyncMock,
         ],
 ) -> None:
-    """测试重复关闭保持幂等"""
+    """测试重复关闭保持幂等."""
     _, _, _, close = session_resources
     uow = UnitOfWork()
 
@@ -575,7 +575,7 @@ async def test_close_clears_state_before_session_close(
             AsyncMock,
         ],
 ) -> None:
-    """测试会话关闭失败时内部状态仍被清理"""
+    """测试会话关闭失败时内部状态仍被清理."""
     _, _, _, close = session_resources
     close.side_effect = RuntimeError(
         "close failed"
@@ -614,7 +614,7 @@ async def test_uow_can_be_reused_after_close(
             AsyncMock,
         ],
 ) -> None:
-    """测试关闭后可以重新进入同一工作单元"""
+    """测试关闭后可以重新进入同一工作单元."""
     _, factory_mock = session_factory_resources
     _, commit, rollback, close = (
         session_resources

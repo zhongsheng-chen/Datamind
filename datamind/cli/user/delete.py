@@ -1,4 +1,4 @@
-"""删除用户命令
+"""删除用户命令.
 
 提供 LOCAL 用户逻辑删除功能。
 
@@ -43,7 +43,7 @@ def delete_user(
             help="跳过确认",
         ),
 ) -> None:
-    """逻辑删除用户"""
+    """逻辑删除用户."""
     if not yes:
         typer.confirm(
             f"确认删除用户 {username}？",

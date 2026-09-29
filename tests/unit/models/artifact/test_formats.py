@@ -1,4 +1,4 @@
-"""模型制品格式测试
+"""模型制品格式测试.
 
 验证框架格式映射、客户端能力声明和模型文件扩展名校验。
 
@@ -27,7 +27,7 @@ from datamind.models.errors import ArtifactError
 
 
 def test_artifact_extension_capabilities_cover_supported_frameworks() -> None:
-    """测试客户端能力与后端格式规则来自同一映射"""
+    """测试客户端能力与后端格式支持来自同一映射."""
     assert artifact_extension_capabilities() == {
         "sklearn": [".pkl", ".pickle", ".joblib"],
         "xgboost": [".json", ".ubj", ".model"],
@@ -50,7 +50,7 @@ def test_validate_artifact_extension_accepts_supported_formats(
         framework: Framework,
         filename: str,
 ) -> None:
-    """测试格式校验接受各框架支持的后缀且忽略大小写"""
+    """测试格式校验接受各框架支持的后缀且忽略大小写."""
     validate_artifact_extension(
         framework=framework,
         path=Path(filename),
@@ -58,7 +58,7 @@ def test_validate_artifact_extension_accepts_supported_formats(
 
 
 def test_validate_artifact_extension_rejects_unsupported_format() -> None:
-    """测试格式校验返回所选框架的支持格式"""
+    """测试格式校验返回所选框架的支持格式."""
     with pytest.raises(
             ArtifactError,
             match=(
@@ -73,7 +73,7 @@ def test_validate_artifact_extension_rejects_unsupported_format() -> None:
 
 
 def test_validate_artifact_extension_rejects_missing_extension() -> None:
-    """测试格式校验清晰提示模型文件缺少扩展名"""
+    """测试格式校验清晰提示模型文件缺少扩展名."""
     with pytest.raises(
             ArtifactError,
             match=(

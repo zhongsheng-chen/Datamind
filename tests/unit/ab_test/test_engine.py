@@ -1,4 +1,4 @@
-"""A/B 实验执行引擎测试
+"""A/B 实验执行引擎测试.
 
 验证实验分流参数、配置解析、固定分配和并发写入处理。
 
@@ -37,7 +37,7 @@ CURRENT_TIME = datetime(
 
 
 def create_experiment(**config: object) -> Experiment:
-    """创建实验测试对象"""
+    """创建实验测试对象."""
     return Experiment(
         experiment_id="exp_test",
         model_id="mdl_test",
@@ -51,7 +51,7 @@ def create_experiment(**config: object) -> Experiment:
 
 
 def create_variant(variant_id: str) -> Variant:
-    """创建实验分组测试对象"""
+    """创建实验分组测试对象."""
     return Variant(
         variant_id=variant_id,
         experiment_id="exp_test",
@@ -64,7 +64,7 @@ def create_variant(variant_id: str) -> Variant:
 
 
 def create_engine() -> tuple[ABTestEngine, AsyncMock, AsyncMock, MagicMock]:
-    """创建实验引擎及仓储替身"""
+    """创建实验引擎及仓储替身."""
     experiment_repo = AsyncMock()
     variant_repo = AsyncMock()
     assignment_repo = MagicMock()
@@ -86,7 +86,7 @@ def create_engine() -> tuple[ABTestEngine, AsyncMock, AsyncMock, MagicMock]:
 
 @pytest.mark.asyncio
 async def test_engine_rejects_non_finite_traffic_ratio() -> None:
-    """测试拒绝非有限实验曝光比例"""
+    """测试拒绝非有限实验曝光比例."""
     engine, experiment_repo, variant_repo, _ = create_engine()
     experiment_repo.list_running_experiments.return_value = [
         create_experiment(traffic_ratio=float("nan"))
@@ -105,7 +105,7 @@ async def test_engine_rejects_non_finite_traffic_ratio() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_uses_existing_assignment_after_concurrent_insert() -> None:
-    """测试并发写入冲突后返回数据库中的固定分组"""
+    """测试并发写入冲突后返回数据库中的固定分组."""
     engine, experiment_repo, variant_repo, assignment_repo = create_engine()
     experiment = create_experiment(traffic_ratio=1.0)
     proposed_variant = create_variant("var_new")
@@ -143,7 +143,7 @@ async def test_engine_uses_existing_assignment_after_concurrent_insert() -> None
 
 @pytest.mark.asyncio
 async def test_engine_returns_existing_assignment() -> None:
-    """测试优先返回已经存在且有效的固定分配"""
+    """测试优先返回已经存在且有效的固定分配."""
     engine, experiment_repo, variant_repo, assignment_repo = create_engine()
     assignment = Assignment(
         assignment_id="asn_existing",
@@ -211,7 +211,7 @@ async def test_engine_rejects_missing_arguments(
         payload: dict | None,
         message: str,
 ) -> None:
-    """测试拒绝缺少必要参数"""
+    """测试拒绝缺少必要参数."""
     engine, _, _, _ = create_engine()
 
     with pytest.raises(ValueError, match=message):
@@ -225,7 +225,7 @@ async def test_engine_rejects_missing_arguments(
 
 @pytest.mark.asyncio
 async def test_engine_rejects_invalid_environment() -> None:
-    """测试拒绝不支持的实验环境"""
+    """测试拒绝不支持的实验环境."""
     engine, _, _, _ = create_engine()
 
     with pytest.raises(ValueError, match="invalid"):
@@ -238,7 +238,7 @@ async def test_engine_rejects_invalid_environment() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_queries_running_experiments_with_environment_enum() -> None:
-    """测试使用环境枚举查询运行中的实验"""
+    """测试使用环境枚举查询运行中的实验."""
     engine, experiment_repo, _, _ = create_engine()
     experiment_repo.list_running_experiments.return_value = []
 
@@ -259,7 +259,7 @@ async def test_engine_queries_running_experiments_with_environment_enum() -> Non
 
 @pytest.mark.asyncio
 async def test_engine_rejects_multiple_running_experiments() -> None:
-    """测试拒绝同一模型环境存在多个运行实验"""
+    """测试拒绝同一模型环境存在多个运行实验."""
     engine, experiment_repo, _, _ = create_engine()
     experiment_repo.list_running_experiments.return_value = [
         create_experiment(),
@@ -276,7 +276,7 @@ async def test_engine_rejects_multiple_running_experiments() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_skips_ineffective_experiment() -> None:
-    """测试跳过尚未生效的实验"""
+    """测试跳过尚未生效的实验."""
     engine, experiment_repo, _, assignment_repo = create_engine()
     experiment = create_experiment()
     experiment.effective_from = CURRENT_TIME + timedelta(minutes=1)
@@ -295,7 +295,7 @@ async def test_engine_skips_ineffective_experiment() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_skips_expired_experiment() -> None:
-    """测试跳过已经失效的实验"""
+    """测试跳过已经失效的实验."""
     engine, experiment_repo, _, assignment_repo = create_engine()
     experiment = create_experiment()
     experiment.effective_to = CURRENT_TIME
@@ -314,7 +314,7 @@ async def test_engine_skips_expired_experiment() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_skips_unresolved_payload_subject() -> None:
-    """测试请求负载中不存在有效分桶主体时跳过实验"""
+    """测试请求负载中不存在有效分桶主体时跳过实验."""
     engine, experiment_repo, _, assignment_repo = create_engine()
     experiment_repo.list_running_experiments.return_value = [
         create_experiment(bucket_key="customer_id")
@@ -334,7 +334,7 @@ async def test_engine_skips_unresolved_payload_subject() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_returns_none_when_assigner_has_no_result() -> None:
-    """测试分配器未命中实验曝光时返回 None"""
+    """测试分配器未命中实验曝光时返回 None."""
     engine, experiment_repo, variant_repo, _ = create_engine()
     experiment_repo.list_running_experiments.return_value = [
         create_experiment()
@@ -368,7 +368,7 @@ async def test_engine_rejects_invalid_experiment_config(
         config: dict[str, object],
         message: str,
 ) -> None:
-    """测试拒绝非法曝光比例或分配策略"""
+    """测试拒绝非法曝光比例或分配策略."""
     engine, experiment_repo, _, _ = create_engine()
     experiment_repo.list_running_experiments.return_value = [
         create_experiment(**config)
@@ -384,7 +384,7 @@ async def test_engine_rejects_invalid_experiment_config(
 
 @pytest.mark.asyncio
 async def test_engine_rejects_non_mapping_config() -> None:
-    """测试拒绝非 JSON 对象的实验配置"""
+    """测试拒绝非 JSON 对象的实验配置."""
     engine, experiment_repo, _, _ = create_engine()
     experiment = create_experiment()
     experiment.config = [
@@ -402,7 +402,7 @@ async def test_engine_rejects_non_mapping_config() -> None:
 
 @pytest.mark.asyncio
 async def test_engine_creates_new_assignment() -> None:
-    """测试命中新分组后创建并返回固定分配"""
+    """测试命中新分组后创建并返回固定分配."""
     engine, experiment_repo, variant_repo, assignment_repo = create_engine()
     experiment = create_experiment(traffic_ratio=1.0)
     variant = create_variant("var_new")
@@ -449,7 +449,7 @@ async def test_engine_creates_new_assignment() -> None:
 async def test_engine_ignores_unavailable_existing_assignment(
         resolved_variant: Variant | None,
 ) -> None:
-    """测试已有分配对应分组不存在或未启用时不返回结果"""
+    """测试已有分配对应分组不存在或未启用时不返回结果."""
     engine, experiment_repo, variant_repo, assignment_repo = create_engine()
     experiment_repo.list_running_experiments.return_value = [
         create_experiment()
@@ -495,7 +495,7 @@ def test_resolve_subject_key(
         bucket_key: str | None,
         expected: str | None,
 ) -> None:
-    """测试解析直接传入或请求负载中的分桶主体"""
+    """测试解析直接传入或请求负载中的分桶主体."""
     assert ABTestEngine._resolve_subject_key(
         subject_key=subject_key,
         payload=payload,
@@ -544,7 +544,7 @@ def test_get_manual_variant_target(
         expected_id: str | None,
         expected_name: str | None,
 ) -> None:
-    """测试按配置和请求负载优先级读取手工分组目标"""
+    """测试按配置和请求负载优先级读取手工分组目标."""
     assert ABTestEngine._get_manual_variant_id(
         config=config,
         payload=payload,

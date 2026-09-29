@@ -1,4 +1,4 @@
-"""模型信息提取器
+"""模型信息提取器.
 
 提取注册模型中适合持久化展示的解释与诊断信息。
 
@@ -52,7 +52,7 @@ import numpy as np
 
 
 def _scorecard_class() -> type[Any]:
-    """按需加载评分卡类型，并允许测试替换类型边界"""
+    """按需加载评分卡类型，并允许测试替换类型边界."""
     overridden = globals().get("Scorecard")
     if overridden is not None:
         return cast(type[Any], overridden)
@@ -63,18 +63,18 @@ def _scorecard_class() -> type[Any]:
 
 
 def __getattr__(name: str) -> Any:
-    """兼容按模块属性替换 Scorecard，同时避免基础 CLI 提前加载可选依赖"""
+    """兼容按模块属性替换 Scorecard，同时避免基础 CLI 提前加载可选依赖."""
     if name == "Scorecard":
         return _scorecard_class()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class ScorecardInspector:
-    """评分卡信息提取器"""
+    """评分卡信息提取器."""
 
     @classmethod
     def extract(cls, model: Any) -> dict[str, Any]:
-        """提取已拟合评分卡信息
+        """提取已拟合评分卡信息.
 
         参数：
             model: 已拟合的评分卡模型
@@ -184,7 +184,7 @@ class ScorecardInspector:
 
     @staticmethod
     def _convert_value(value: Any) -> Any:
-        """将值转换为 JSON 兼容类型
+        """将值转换为 JSON 兼容类型.
 
         参数：
             value: 原始值
@@ -205,7 +205,7 @@ class ScorecardInspector:
 
     @classmethod
     def _convert_records(cls, frame: Any) -> list[dict[str, Any]]:
-        """将 DataFrame 转换为记录列表
+        """将 DataFrame 转换为记录列表.
 
         参数：
             frame: pandas DataFrame 对象
@@ -227,7 +227,7 @@ class ScorecardInspector:
 
     @classmethod
     def _format_bin_label(cls, value: Any) -> Any:
-        """格式化分箱标签
+        """格式化分箱标签.
 
         参数：
             value: 类别集合、数值区间或特殊分箱标签

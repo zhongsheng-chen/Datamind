@@ -1,4 +1,4 @@
-"""模型预测执行器
+"""模型预测执行器.
 
 统一执行主预测和影子预测，负责加载目标运行时服务、
 调用模型并统计执行耗时。
@@ -20,7 +20,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 
 @dataclass(frozen=True, slots=True)
 class ExecutionPlan:
-    """单次模型执行计划"""
+    """单次模型执行计划."""
 
     route: RouteResult
     execution_type: ExecutionType
@@ -29,7 +29,7 @@ class ExecutionPlan:
 
 @dataclass(frozen=True, slots=True)
 class ExecutionResult:
-    """单次模型执行结果"""
+    """单次模型执行结果."""
 
     plan: ExecutionPlan
     prediction: dict[str, Any]
@@ -37,12 +37,12 @@ class ExecutionResult:
 
     @property
     def route(self) -> RouteResult:
-        """返回本次执行使用的路由"""
+        """返回本次执行使用的路由."""
         return self.plan.route
 
 
 class PredictionExecutor:
-    """统一模型预测执行器"""
+    """统一模型预测执行器."""
 
     def __init__(
             self,
@@ -52,7 +52,7 @@ class PredictionExecutor:
                 Awaitable[BaseRuntimeService],
             ],
     ) -> None:
-        """初始化模型预测执行器
+        """初始化模型预测执行器.
 
         参数：
             service_loader: 根据部署 ID 加载运行时服务的异步函数
@@ -65,7 +65,7 @@ class PredictionExecutor:
             plan: ExecutionPlan,
             features: dict[str, Any],
     ) -> ExecutionResult:
-        """执行单次模型预测计划"""
+        """执行单次模型预测计划."""
         started_at = time.perf_counter()
         prediction = await self._predict_with_timeout(
             plan=plan,
@@ -89,7 +89,7 @@ class PredictionExecutor:
             plan: ExecutionPlan,
             features: dict[str, Any],
     ) -> dict[str, Any]:
-        """根据执行计划应用超时并执行预测"""
+        """根据执行计划应用超时并执行预测."""
         if plan.timeout is None:
             return await self._predict(
                 plan=plan,
@@ -110,7 +110,7 @@ class PredictionExecutor:
             plan: ExecutionPlan,
             features: dict[str, Any],
     ) -> dict[str, Any]:
-        """加载运行时服务并执行模型预测"""
+        """加载运行时服务并执行模型预测."""
         service = await self._service_loader(
             plan.route.deployment_id
         )

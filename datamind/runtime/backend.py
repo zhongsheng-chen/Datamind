@@ -1,4 +1,4 @@
-"""BentoML 模型后端
+"""BentoML 模型后端.
 
 负责模型的保存与加载，仅封装 BentoML 框架差异。
 
@@ -36,11 +36,11 @@ FRAMEWORK_TO_BENTOML = {
 
 
 class BentoBackend:
-    """BentoML 模型后端"""
+    """BentoML 模型后端."""
 
     @staticmethod
     def _get_backend(framework: str):
-        """获取框架对应的 BentoML 后端
+        """获取框架对应的 BentoML 后端.
 
         参数：
             framework: 模型框架
@@ -59,7 +59,7 @@ class BentoBackend:
             )
 
     def save(self, *, name: str, framework: str, model: Any, **kwargs) -> Any:
-        """保存模型到 BentoML Model Store
+        """保存模型到 BentoML Model Store.
 
         参数：
             name: 模型名称
@@ -73,7 +73,7 @@ class BentoBackend:
         return backend.save_model(name=name, model=model, **kwargs)
 
     def load(self, *, framework: str, tag: str) -> Any:
-        """从 BentoML Model Store 加载模型
+        """从 BentoML Model Store 加载模型.
 
         参数：
             framework: 模型框架

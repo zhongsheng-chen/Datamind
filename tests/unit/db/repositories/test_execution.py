@@ -1,4 +1,4 @@
-"""模型执行仓储测试
+"""模型执行仓储测试.
 
 验证 ExecutionRepository 的执行查询、列表筛选、创建和状态迁移。
 
@@ -58,7 +58,7 @@ CURRENT_TIME = datetime(
 def create_execution(
         **overrides: Any,
 ) -> Execution:
-    """创建模型执行测试对象"""
+    """创建模型执行测试对象."""
     values: dict[str, Any] = {
         "execution_id": "exe_0123456789abcdef",
         "decision_id": "dcs_0123456789abcdef",
@@ -81,7 +81,7 @@ def create_repository(
         scalar_result: Execution | None = None,
         list_result: list[Execution] | None = None,
 ) -> tuple[ExecutionRepository, AsyncMock, MagicMock]:
-    """创建模型执行仓储及会话方法替身"""
+    """创建模型执行仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = scalar_result
     scalar_collection = MagicMock()
@@ -117,7 +117,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
     assert awaited_call is not None
     return cast(
@@ -129,7 +129,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -142,7 +142,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_execution() -> None:
-    """测试按执行 ID 查询"""
+    """测试按执行 ID 查询."""
     expected = create_execution()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -159,7 +159,7 @@ async def test_get_execution() -> None:
 
 @pytest.mark.asyncio
 async def test_list_executions() -> None:
-    """测试执行筛选、排序和分页"""
+    """测试执行筛选、排序和分页."""
     expected = [
         create_execution()
     ]
@@ -187,7 +187,7 @@ async def test_list_executions() -> None:
 
 
 def test_create_execution() -> None:
-    """测试创建主执行和自动补充结束时间"""
+    """测试创建主执行和自动补充结束时间."""
     repository, _, add = create_repository()
     execution = repository.create_execution(
         execution_id="exe_primary",
@@ -213,7 +213,7 @@ def test_create_execution() -> None:
 
 
 def test_execution_status_transitions() -> None:
-    """测试执行状态迁移和结果写入"""
+    """测试执行状态迁移和结果写入."""
     repository, _, _ = create_repository()
     execution = create_execution()
     repository.mark_running(
@@ -249,7 +249,7 @@ def test_execution_status_transitions() -> None:
 def test_mark_failed_supports_terminal_statuses(
         status: ExecutionStatus,
 ) -> None:
-    """测试未成功执行可以进入各类终态"""
+    """测试未成功执行可以进入各类终态."""
     repository, _, _ = create_repository()
     execution = create_execution()
     repository.mark_failed(
@@ -273,7 +273,7 @@ def test_mark_failed_supports_terminal_statuses(
 def test_reset_for_retry(
         status: ExecutionStatus,
 ) -> None:
-    """测试未成功的影子执行恢复为等待状态"""
+    """测试未成功的影子执行恢复为等待状态."""
     repository, _, _ = create_repository()
     execution = create_execution(
         status=str(status),
@@ -328,7 +328,7 @@ def test_reset_for_retry_validation(
         execution: Execution,
         error: str,
 ) -> None:
-    """测试影子执行重试条件"""
+    """测试影子执行重试条件."""
     repository, _, _ = create_repository()
 
     with pytest.raises(
@@ -339,7 +339,7 @@ def test_reset_for_retry_validation(
 
 
 def test_execution_validation() -> None:
-    """测试执行参数和状态迁移约束"""
+    """测试执行参数和状态迁移约束."""
     repository, _, _ = create_repository()
     with pytest.raises(
             ValueError,

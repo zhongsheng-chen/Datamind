@@ -1,4 +1,4 @@
-"""数据库诊断工具
+"""数据库诊断工具.
 
 提供数据库连接配置和连接池运行状态的诊断信息。
 
@@ -27,7 +27,7 @@ logger = structlog.get_logger(__name__)
 
 
 def _get_queue_pool() -> QueuePool:
-    """获取队列连接池
+    """获取队列连接池.
 
     返回：
         QueuePool 实例
@@ -51,7 +51,7 @@ def _get_queue_pool() -> QueuePool:
 
 def get_db_url_diagnostics(
 ) -> dict[str, str | int | None]:
-    """获取数据库 URL 诊断信息
+    """获取数据库 URL 诊断信息.
 
     不返回数据库密码。
 
@@ -73,7 +73,7 @@ def get_db_url_diagnostics(
 
 def get_db_pool_diagnostics(
 ) -> dict[str, int]:
-    """获取数据库连接池诊断信息
+    """获取数据库连接池诊断信息.
 
     返回：
         包含连接池配置和运行状态的字典
@@ -99,7 +99,7 @@ def get_db_pool_diagnostics(
 
 def get_db_diagnostics(
 ) -> dict[str, str | int | None]:
-    """获取完整数据库诊断信息
+    """获取完整数据库诊断信息.
 
     返回：
         合并数据库 URL 和连接池诊断信息的字典
@@ -112,7 +112,7 @@ def get_db_diagnostics(
 
 def log_db_diagnostics(
 ) -> None:
-    """记录数据库诊断信息
+    """记录数据库诊断信息.
 
     获取失败时继续向上抛出异常，
     避免掩盖数据库配置或引擎初始化问题。

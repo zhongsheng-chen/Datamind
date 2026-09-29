@@ -1,4 +1,4 @@
-"""认证服务
+"""认证服务.
 
 整合本地认证、用户、角色、角色授予和刷新令牌仓储，
 提供登录、令牌续期、退出登录和访问令牌认证能力。
@@ -108,7 +108,7 @@ logger = structlog.get_logger(__name__)
 
 
 class AuthService:
-    """认证服务"""
+    """认证服务."""
 
     def __init__(
             self,
@@ -127,7 +127,7 @@ class AuthService:
             local_allowed_networks: Iterable[str] = (),
             break_glass_access_token_expires_minutes: int = 15,
     ) -> None:
-        """初始化认证服务
+        """初始化认证服务.
 
         参数：
             user_repo: 用户仓储
@@ -232,7 +232,7 @@ class AuthService:
             user_agent: str | None = None,
             current_time: datetime | None = None,
     ) -> TokenResponse:
-        """使用本地用户名和密码登录
+        """使用本地用户名和密码登录.
 
         参数：
             request: 登录请求
@@ -297,7 +297,7 @@ class AuthService:
             user_agent: str | None = None,
             current_time: datetime | None = None,
     ) -> TokenResponse:
-        """续期并轮换刷新令牌
+        """续期并轮换刷新令牌.
 
         参数：
             request: 刷新令牌请求
@@ -427,7 +427,7 @@ class AuthService:
             revoked_by: str | None = None,
             current_time: datetime | None = None,
     ) -> LogoutResult:
-        """退出登录并撤销刷新令牌
+        """退出登录并撤销刷新令牌.
 
         参数：
             request: 退出登录请求
@@ -502,7 +502,7 @@ class AuthService:
             *,
             current_time: datetime | None = None,
     ) -> AuthenticatedUser:
-        """认证访问令牌
+        """认证访问令牌.
 
         参数：
             access_token: JWT 访问令牌
@@ -559,7 +559,7 @@ class AuthService:
             *,
             current_time: datetime | None = None,
     ) -> AuthenticatedUser:
-        """获取已认证用户信息
+        """获取已认证用户信息.
 
         参数：
             user_id: 用户 ID
@@ -597,7 +597,7 @@ class AuthService:
             self,
             identity: ProviderIdentity,
     ) -> User:
-        """根据认证身份匹配本地用户"""
+        """根据认证身份匹配本地用户."""
         user = await self.user_repo.get_user(
             username=identity.username
         )
@@ -626,7 +626,7 @@ class AuthService:
             hostname: str | None,
             user_agent: str | None,
     ) -> TokenResponse:
-        """签发访问令牌和刷新令牌"""
+        """签发访问令牌和刷新令牌."""
         roles, permissions = (
             await self._load_roles_and_permissions(
                 user.user_id
@@ -703,7 +703,7 @@ class AuthService:
             self,
             ip: str | None,
     ) -> None:
-        """校验 LOCAL 认证来源网段"""
+        """校验 LOCAL 认证来源网段."""
         if not self.local_allowed_networks:
             return
 
@@ -733,7 +733,7 @@ class AuthService:
             self,
             user: User,
     ) -> AuthenticatedUser:
-        """构造已认证用户信息"""
+        """构造已认证用户信息."""
         roles, permissions = (
             await self._load_roles_and_permissions(
                 user.user_id
@@ -759,7 +759,7 @@ class AuthService:
         list[str],
         list[str],
     ]:
-        """加载用户的有效角色和权限"""
+        """加载用户的有效角色和权限."""
         grants = await self.grant_repo.list_active_grants(
             user_id=user_id,
             limit=None,
@@ -808,7 +808,7 @@ class AuthService:
             *,
             current_time: datetime,
     ) -> None:
-        """校验用户状态"""
+        """校验用户状态."""
         if user.status == str(
                 UserStatus.DISABLED
         ):
@@ -841,7 +841,7 @@ class AuthService:
     def _normalize_current_time(
             value: datetime | None,
     ) -> datetime:
-        """获取 UTC 当前时间"""
+        """获取 UTC 当前时间."""
         if value is None:
             return datetime.now(
                 timezone.utc
@@ -855,7 +855,7 @@ class AuthService:
     def _to_utc(
             value: datetime,
     ) -> datetime:
-        """转换为 UTC 时间"""
+        """转换为 UTC 时间."""
         if (
                 value.tzinfo is None
                 or value.utcoffset() is None

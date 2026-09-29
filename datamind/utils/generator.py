@@ -1,4 +1,4 @@
-"""ID 生成工具
+"""ID 生成工具.
 
 提供统一的 ID 生成能力，
 支持确定性 ID 和随机 ID 两种模式。
@@ -42,7 +42,7 @@ def generate_id(
         prefix: str,
         keys: tuple[str, ...],
 ) -> str:
-    """生成确定性 ID
+    """生成确定性 ID.
 
     对 prefix 和 keys 进行无歧义序列化，
     并计算 SHA-256 哈希。
@@ -101,7 +101,7 @@ def generate_random_id(
         *,
         prefix: str,
 ) -> str:
-    """生成随机 ID
+    """生成随机 ID.
 
     使用 UUID4 生成随机唯一 ID。
 

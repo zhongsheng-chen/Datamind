@@ -1,4 +1,4 @@
-"""XGBoost 模型适配器测试
+"""XGBoost 模型适配器测试.
 
 验证 XGBoost 二分类模型的能力检测、概率预测、批量预测、
 正类选择、Gain 特征重要性和异常处理。
@@ -66,7 +66,7 @@ FEATURE_NAMES = [
 
 
 class FakeBooster:
-    """XGBoost Booster 测试替身"""
+    """XGBoost Booster 测试替身."""
 
     def __init__(
             self,
@@ -84,7 +84,7 @@ class FakeBooster:
             *,
             importance_type: str,
     ) -> dict[str, float]:
-        """返回固定特征重要性"""
+        """返回固定特征重要性."""
         if importance_type != "gain":
             raise AssertionError(
                 "importance_type 应为 gain"
@@ -96,7 +96,7 @@ class FakeBooster:
 
 
 class FakeXGBoostModel:
-    """XGBoost 分类模型测试替身"""
+    """XGBoost 分类模型测试替身."""
 
     classes_ = np.array([
         0,
@@ -124,7 +124,7 @@ class FakeXGBoostModel:
             self,
             X: np.ndarray,
     ) -> Any:
-        """返回固定概率结果"""
+        """返回固定概率结果."""
         values = np.asarray(
             self._probabilities
         )
@@ -149,30 +149,30 @@ class FakeXGBoostModel:
     def get_booster(
             self,
     ) -> FakeBooster:
-        """返回 Booster 测试替身"""
+        """返回 Booster 测试替身."""
         return self._booster
 
 
 class NativeBooster(FakeBooster):
-    """直接加载的原生 XGBoost Booster 测试替身"""
+    """直接加载的原生 XGBoost Booster 测试替身."""
 
     def inplace_predict(
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回原生 Booster 的正类概率"""
+        """返回原生 Booster 的正类概率."""
         features = np.asarray(X).copy()
         self.predicted_features = features
         return np.full(len(features), 0.7)
 
     @staticmethod
     def num_features() -> int:
-        """返回特征数量"""
+        """返回特征数量."""
         return 2
 
 
 class ProbabilityOnlyModel:
-    """不提供 Booster 的分类模型测试替身"""
+    """不提供 Booster 的分类模型测试替身."""
 
     classes_ = np.array([
         0,
@@ -193,7 +193,7 @@ class ProbabilityOnlyModel:
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回固定概率"""
+        """返回固定概率."""
         sample_count = len(
             np.asarray(X)
         )
@@ -206,7 +206,7 @@ class ProbabilityOnlyModel:
 
 
 class MissingProbabilityModel:
-    """未提供概率接口的测试模型"""
+    """未提供概率接口的测试模型."""
 
     classes_ = np.array([
         0,
@@ -215,7 +215,7 @@ class MissingProbabilityModel:
 
 
 class UntrainedModel:
-    """未训练分类模型测试替身"""
+    """未训练分类模型测试替身."""
 
     classes_ = None
 
@@ -233,7 +233,7 @@ class UntrainedModel:
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回固定概率"""
+        """返回固定概率."""
         sample_count = len(
             np.asarray(X)
         )
@@ -246,7 +246,7 @@ class UntrainedModel:
 
 
 class MulticlassModel:
-    """多分类模型测试替身"""
+    """多分类模型测试替身."""
 
     classes_ = np.array([
         0,
@@ -269,7 +269,7 @@ class MulticlassModel:
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """返回多分类概率"""
+        """返回多分类概率."""
         sample_count = len(
             np.asarray(X)
         )
@@ -284,7 +284,7 @@ class MulticlassModel:
 def require_importance_value(
         value: float | list[float],
 ) -> float:
-    """校验特征重要性为标量"""
+    """校验特征重要性为标量."""
     if isinstance(
             value,
             list,
@@ -299,7 +299,7 @@ def require_importance_value(
 def require_scalar(
         value: float | list[float],
 ) -> float:
-    """校验预测结果为标量"""
+    """校验预测结果为标量."""
     if isinstance(
             value,
             list,
@@ -314,7 +314,7 @@ def require_scalar(
 def require_batch(
         value: float | list[float],
 ) -> list[float]:
-    """校验预测结果为列表"""
+    """校验预测结果为列表."""
     if not isinstance(
             value,
             list,
@@ -329,7 +329,7 @@ def require_batch(
 @pytest.fixture
 def binary_training_data(
 ) -> tuple[np.ndarray, np.ndarray]:
-    """提供二分类训练数据"""
+    """提供二分类训练数据."""
     X = np.array([
         [-2.0, -1.5],
         [-1.5, -0.8],
@@ -365,7 +365,7 @@ def xgboost_model(
             np.ndarray,
         ],
 ) -> XGBClassifier:
-    """提供已训练 XGBoost 二分类模型"""
+    """提供已训练 XGBoost 二分类模型."""
     X, y = binary_training_data
 
     model = XGBClassifier(
@@ -391,7 +391,7 @@ def xgboost_model(
 def xgboost_adapter(
         xgboost_model: XGBClassifier,
 ) -> XGBoostAdapter:
-    """提供 XGBoost 模型适配器"""
+    """提供 XGBoost 模型适配器."""
     return XGBoostAdapter(
         model=xgboost_model,
         feature_names=FEATURE_NAMES,
@@ -402,7 +402,7 @@ def xgboost_adapter(
 def test_xgboost_capabilities(
         xgboost_adapter: XGBoostAdapter,
 ) -> None:
-    """测试 XGBoost 声明分类推理能力"""
+    """测试 XGBoost 声明分类推理能力."""
     expected = (
         ModelCapability.PREDICT_PROBA
         | ModelCapability.FEATURE_IMPORTANCE
@@ -423,7 +423,7 @@ def test_predict_probability_matches_model(
         xgboost_model: XGBClassifier,
         xgboost_adapter: XGBoostAdapter,
 ) -> None:
-    """测试概率预测与原始模型一致"""
+    """测试概率预测与原始模型一致."""
     features = {
         "feature_b": 0.25,
         "feature_a": -0.75,
@@ -454,7 +454,7 @@ def test_predict_probability_batch_matches_model(
         xgboost_model: XGBClassifier,
         xgboost_adapter: XGBoostAdapter,
 ) -> None:
-    """测试批量概率预测与原始模型一致"""
+    """测试批量概率预测与原始模型一致."""
     features = [
         {
             "feature_b": 0.25,
@@ -489,7 +489,7 @@ def test_predict_probability_batch_matches_model(
 
 
 def test_native_booster_predicts_probability() -> None:
-    """测试原生 Booster 可以直接执行概率预测"""
+    """测试原生 Booster 可以直接执行概率预测."""
     booster = NativeBooster({}, FEATURE_NAMES)
     adapter = XGBoostAdapter(
         booster,
@@ -510,7 +510,7 @@ def test_native_booster_predicts_probability() -> None:
 def test_positive_class_zero_selects_first_probability_column(
         xgboost_model: XGBClassifier,
 ) -> None:
-    """测试正类为类别零时选择第一列概率"""
+    """测试正类为类别零时选择第一列概率."""
     adapter = XGBoostAdapter(
         model=xgboost_model,
         feature_names=FEATURE_NAMES,
@@ -546,7 +546,7 @@ def test_positive_class_zero_selects_first_probability_column(
 def test_predict_logit_is_not_supported(
         xgboost_adapter: XGBoostAdapter,
 ) -> None:
-    """测试 XGBoost 不提供对数几率预测"""
+    """测试 XGBoost 不提供对数几率预测."""
     with pytest.raises(
             NotImplementedError,
             match="PREDICT_LOG_ODDS",
@@ -563,7 +563,7 @@ def test_gain_feature_importance_matches_booster(
         xgboost_model: XGBClassifier,
         xgboost_adapter: XGBoostAdapter,
 ) -> None:
-    """测试 Gain 特征重要性与 Booster 一致"""
+    """测试 Gain 特征重要性与 Booster 一致."""
     raw_score = (
         xgboost_model.get_booster().get_score(
             importance_type="gain"
@@ -597,7 +597,7 @@ def test_gain_feature_importance_matches_booster(
 
 def test_feature_importance_fills_unused_feature_with_zero(
 ) -> None:
-    """测试未参与分裂的特征重要性补零"""
+    """测试未参与分裂的特征重要性补零."""
     model = FakeXGBoostModel(
         probabilities=[
             [
@@ -628,7 +628,7 @@ def test_feature_importance_fills_unused_feature_with_zero(
 
 def test_feature_importance_uses_booster_feature_names(
 ) -> None:
-    """测试 Booster 特征名与展示特征名映射"""
+    """测试 Booster 特征名与展示特征名映射."""
     model = FakeXGBoostModel(
         probabilities=[
             [
@@ -666,7 +666,7 @@ def test_feature_importance_uses_booster_feature_names(
 
 def test_feature_importance_uses_sorted_score_names_as_fallback(
 ) -> None:
-    """测试缺少特征元数据时按名称排序"""
+    """测试缺少特征元数据时按名称排序."""
     model = FakeXGBoostModel(
         probabilities=[
             [
@@ -706,7 +706,7 @@ def test_feature_importance_uses_sorted_score_names_as_fallback(
 
 def test_feature_name_count_must_match_model(
 ) -> None:
-    """测试展示特征数量必须与模型一致"""
+    """测试展示特征数量必须与模型一致."""
     model = FakeXGBoostModel(
         probabilities=[
             [
@@ -746,7 +746,7 @@ def test_feature_name_count_must_match_model(
 def test_invalid_model_feature_count_is_rejected(
         feature_count: Any,
 ) -> None:
-    """测试拒绝非整数模型特征数量"""
+    """测试拒绝非整数模型特征数量."""
     model = FakeXGBoostModel(
         probabilities=[
             [
@@ -770,7 +770,7 @@ def test_invalid_model_feature_count_is_rejected(
 
 def test_probability_only_model_does_not_support_importance(
 ) -> None:
-    """测试无 Booster 模型不声明特征重要性"""
+    """测试无 Booster 模型不声明特征重要性."""
     adapter = XGBoostAdapter(
         model=ProbabilityOnlyModel(),
         feature_names=FEATURE_NAMES,
@@ -796,7 +796,7 @@ def test_probability_only_model_does_not_support_importance(
 
 def test_missing_probability_interface_is_rejected(
 ) -> None:
-    """测试拒绝不提供概率接口的模型"""
+    """测试拒绝不提供概率接口的模型."""
     with pytest.raises(
             TypeError,
             match="仅支持 XGBClassifier 或 Booster",
@@ -809,7 +809,7 @@ def test_missing_probability_interface_is_rejected(
 
 def test_untrained_model_is_rejected(
 ) -> None:
-    """测试拒绝未训练模型"""
+    """测试拒绝未训练模型."""
     with pytest.raises(
             ValueError,
             match="模型尚未训练或不属于分类模型",
@@ -822,7 +822,7 @@ def test_untrained_model_is_rejected(
 
 def test_multiclass_model_is_rejected(
 ) -> None:
-    """测试拒绝多分类模型"""
+    """测试拒绝多分类模型."""
     with pytest.raises(
             ValueError,
             match="仅支持二分类模型",
@@ -837,7 +837,7 @@ def test_multiclass_model_is_rejected(
 def test_missing_positive_class_is_rejected(
         xgboost_model: XGBClassifier,
 ) -> None:
-    """测试模型类别中必须存在指定正类"""
+    """测试模型类别中必须存在指定正类."""
     with pytest.raises(
             ValueError,
             match="模型类别中不存在指定正类",
@@ -902,7 +902,7 @@ def test_invalid_probability_output_is_rejected(
         error_type: type[Exception],
         message: str,
 ) -> None:
-    """测试拒绝非法概率预测结果"""
+    """测试拒绝非法概率预测结果."""
     model = FakeXGBoostModel(
         probabilities=probabilities,
     )
@@ -927,7 +927,7 @@ def test_invalid_probability_output_is_rejected(
 
 def test_invalid_probability_for_positive_class_zero_is_rejected(
 ) -> None:
-    """测试正类为类别零时校验第一列概率"""
+    """测试正类为类别零时校验第一列概率."""
     model = FakeXGBoostModel(
         probabilities=[
             [

@@ -1,4 +1,4 @@
-"""系统状态表
+"""系统状态表.
 
 记录一次性系统初始化状态，
 防止系统通过删除用户重新开放初始化入口。
@@ -37,7 +37,7 @@ class SystemState(
     TimestampMixin,
     Base,
 ):
-    """系统状态表"""
+    """系统状态表."""
 
     __tablename__ = "systems"
 
@@ -97,7 +97,7 @@ class SystemState(
     def __repr__(
             self,
     ) -> str:
-        """返回系统状态字符串表示"""
+        """返回系统状态字符串表示."""
         return (
             f"<SystemState("
             f"system_id='{self.system_id}', "

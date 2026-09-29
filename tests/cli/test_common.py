@@ -1,4 +1,4 @@
-"""CLI 公共上下文测试
+"""CLI 公共上下文测试.
 
 验证生产环境认证保护和访问令牌身份绑定。
 
@@ -46,7 +46,7 @@ from datamind.context import (
 
 
 class FakeUnitOfWork:
-    """CLI 认证测试工作单元"""
+    """CLI 认证测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -63,7 +63,7 @@ def create_settings(
         auth_enabled: bool,
         environment: Environment,
 ) -> SimpleNamespace:
-    """创建 CLI 测试配置"""
+    """创建 CLI 测试配置."""
     logging_config = MagicMock()
     logging_config.model_copy.return_value = logging_config
 
@@ -82,7 +82,7 @@ def patch_common_module(
         monkeypatch: pytest.MonkeyPatch,
         **replacements: object,
 ) -> None:
-    """替换 CLI 公共模块依赖"""
+    """替换 CLI 公共模块依赖."""
     replacements.setdefault(
         "setup_logging",
         lambda _config: None,
@@ -97,7 +97,7 @@ def patch_common_module(
 
 
 def test_cli_command_scope_uses_standard_context() -> None:
-    """测试 CLI 命令作用域生成标准追踪上下文"""
+    """测试 CLI 命令作用域生成标准追踪上下文."""
     with cli_command_scope(
             ip="127.0.0.1",
             hostname="datamind-host",
@@ -121,7 +121,7 @@ def test_cli_command_scope_uses_standard_context() -> None:
 async def test_cli_context_uses_configured_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 CLI 上下文使用原始日志配置"""
+    """测试 CLI 上下文使用原始日志配置."""
     settings = create_settings(
         auth_enabled=False,
         environment=Environment.DEVELOPMENT,
@@ -149,7 +149,7 @@ async def test_cli_context_uses_configured_logging(
 async def test_cli_context_requires_auth_in_production(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试生产环境不能关闭认证"""
+    """测试生产环境不能关闭认证."""
     patch_common_module(
         monkeypatch,
         get_settings=lambda: create_settings(
@@ -172,7 +172,7 @@ async def test_cli_context_requires_auth_in_production(
 async def test_cli_context_uses_authenticated_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试访问令牌身份写入 CLI 上下文"""
+    """测试访问令牌身份写入 CLI 上下文."""
     store_factory = MagicMock()
     service = MagicMock()
     service.authenticate_access_token = AsyncMock(
@@ -223,7 +223,7 @@ async def test_cli_context_uses_authenticated_identity(
 async def test_cli_context_uses_stored_credentials(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证上下文读取本地 CLI 登录凭据"""
+    """测试认证上下文读取本地 CLI 登录凭据."""
     authenticated_user = SimpleNamespace(
         username="alice",
         permissions=[
@@ -272,7 +272,7 @@ async def test_cli_context_uses_stored_credentials(
 async def test_cli_context_refreshes_expired_access_token(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试访问令牌失效后自动轮换并保存登录凭据"""
+    """测试访问令牌失效后自动轮换并保存登录凭据."""
     authenticated_user = SimpleNamespace(
         username="alice",
         permissions=[
@@ -351,7 +351,7 @@ async def test_cli_context_reports_database_connection_failure(
         capsys: pytest.CaptureFixture[str],
         error: Exception,
 ) -> None:
-    """测试数据库不可用时返回清晰提示并保留登录凭据"""
+    """测试数据库不可用时返回清晰提示并保留登录凭据."""
     service = MagicMock()
     service.authenticate_access_token = AsyncMock(
         side_effect=error
@@ -395,7 +395,7 @@ async def test_cli_context_reports_database_connection_failure(
 async def test_cli_context_requires_login_without_credentials(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试认证开启且没有本地凭据时要求登录"""
+    """测试认证开启且没有本地凭据时要求登录."""
     log_contexts: list[dict[str, object]] = []
     context_logger = MagicMock()
     context_logger.warning.side_effect = (
@@ -447,7 +447,7 @@ async def test_cli_context_requires_login_without_credentials(
 async def test_cli_context_rejects_missing_permission(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝缺少命令权限的认证用户"""
+    """测试拒绝缺少命令权限的认证用户."""
     service = MagicMock()
     service.authenticate_access_token = AsyncMock(
         return_value=SimpleNamespace(
@@ -486,7 +486,7 @@ async def test_cli_context_rejects_missing_permission(
 async def test_cli_context_allows_development_maintenance_mode(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试开发环境关闭认证时允许本地维护"""
+    """测试开发环境关闭认证时允许本地维护."""
     patch_common_module(
         monkeypatch,
         get_settings=lambda: create_settings(

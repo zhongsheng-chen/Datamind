@@ -1,4 +1,4 @@
-"""数据库变更事件
+"""数据库变更事件.
 
 负责在业务数据发生变化时写入控制台事件，
 并在事务提交后通知实时事件监听器。
@@ -55,7 +55,7 @@ def _write_event(
         resource_id: str | None,
         action: str,
 ) -> None:
-    """在当前事务中写入控制台变更事件并发送通知"""
+    """在当前事务中写入控制台变更事件并发送通知."""
     stmt = insert(
         OutboxEvent
     ).values(
@@ -89,7 +89,7 @@ def _create_listener(
         identifier: str,
         action: str,
 ) -> EventListener:
-    """创建业务模型变更监听器"""
+    """创建业务模型变更监听器."""
     def listener(
             _mapper: Mapper[Any],
             connection: Connection,
@@ -118,7 +118,7 @@ def _create_listener(
 
 
 def register_events() -> None:
-    """注册业务模型变更监听器"""
+    """注册业务模型变更监听器."""
     global _REGISTERED
 
     if _REGISTERED:

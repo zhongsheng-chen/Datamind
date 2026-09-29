@@ -1,4 +1,4 @@
-"""登录身份查询命令
+"""登录身份查询命令.
 
 提供当前 CLI 登录会话的身份查询功能。
 
@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 
 
 def whoami() -> None:
-    """查看当前登录用户"""
+    """查看当前登录用户."""
     async def runner() -> None:
         async with cli_context() as context:
             user = context.authenticated_user

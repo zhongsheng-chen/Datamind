@@ -1,4 +1,4 @@
-"""多字段排序工具
+"""多字段排序工具.
 
 提供排序字段与方向的解析、校验和编码能力，
 用于在接口参数和有序排序规则之间转换。
@@ -36,7 +36,7 @@ def parse_sort_specs(
         sort_by: str | None,
         sort_order: str = "asc",
 ) -> tuple[SortSpec, ...]:
-    """解析逗号分隔的排序字段和方向。"""
+    """解析逗号分隔的排序字段和方向."""
     if sort_by is None or not sort_by.strip():
         return ()
 
@@ -84,7 +84,7 @@ def parse_sort_specs(
 def encode_sort_specs(
         specs: tuple[SortSpec, ...],
 ) -> tuple[str | None, str]:
-    """将规范化的排序规则转换为接口参数。"""
+    """将规范化的排序规则转换为接口参数."""
     if not specs:
         return None, "asc"
 

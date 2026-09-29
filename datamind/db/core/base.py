@@ -1,4 +1,4 @@
-"""数据库基类
+"""数据库基类.
 
 定义 SQLAlchemy 声明式基类和数据库对象命名约定。
 
@@ -52,6 +52,6 @@ metadata = MetaData(
 
 
 class Base(DeclarativeBase):
-    """SQLAlchemy 声明式基类"""
+    """SQLAlchemy 声明式基类."""
 
     metadata = metadata

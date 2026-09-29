@@ -1,4 +1,4 @@
-"""更新实验分组命令
+"""更新实验分组命令.
 
 提供 A/B 实验分组更新功能。
 
@@ -111,7 +111,7 @@ def update_variant(
             help="输出格式：text / json"
         ),
 ):
-    """更新实验分组"""
+    """更新实验分组."""
 
     @audit(
         action="experiment.variant.update",
@@ -382,7 +382,7 @@ def _get_requested_fields(
         treatment: bool,
         description: str | None,
 ) -> set[str]:
-    """获取本次请求更新的字段"""
+    """获取本次请求更新的字段."""
     fields = set()
 
     if name is not None:
@@ -409,7 +409,7 @@ def _validate_update_allowed(
         variant_status: str,
         requested_fields: set[str],
 ) -> None:
-    """校验实验状态和分组状态是否允许更新"""
+    """校验实验状态和分组状态是否允许更新."""
     if variant_status == VARIANT_STATUS_ARCHIVED:
         raise InvalidExperimentStateError("归档状态下不允许修改分组")
 
@@ -451,7 +451,7 @@ def _validate_update_allowed(
 def _experiment_status_label(
         status: str,
 ) -> str:
-    """获取实验状态的终端显示名称"""
+    """获取实验状态的终端显示名称."""
     labels = {
         "draft": "草稿状态",
         "running": "运行状态",
@@ -470,7 +470,7 @@ def _experiment_status_label(
 def _variant_status_label(
         status: str,
 ) -> str:
-    """获取分组状态的终端显示名称"""
+    """获取分组状态的终端显示名称."""
     labels = {
         "active": "启用状态",
         "inactive": "停用状态",
@@ -489,7 +489,7 @@ def _get_target_is_control(
         control: bool,
         treatment: bool,
 ) -> bool:
-    """获取更新后的对照组标记"""
+    """获取更新后的对照组标记."""
     if control:
         return True
 
@@ -504,7 +504,7 @@ def _has_other_active_control_variant(
         variants: list[Variant],
         current_variant_id: str,
 ) -> bool:
-    """判断是否存在其他启用状态的对照组"""
+    """判断是否存在其他启用状态的对照组."""
     return any(
         _status_value(item.status) == VARIANT_STATUS_ACTIVE
         and bool(item.is_control)
@@ -519,7 +519,7 @@ def _has_other_active_variant_name(
         current_variant_id: str,
         name: str,
 ) -> bool:
-    """判断是否存在其他启用状态的同名分组"""
+    """判断是否存在其他启用状态的同名分组."""
     target_name = name.strip().lower()
 
     return any(
@@ -536,7 +536,7 @@ def _find_other_variant_by_deployment(
         current_variant_id: str,
         deployment_id: str,
 ) -> Variant | None:
-    """查找绑定指定部署的其他分组"""
+    """查找绑定指定部署的其他分组."""
     return next(
         (
             item
@@ -559,7 +559,7 @@ def _build_variant_config(
         weight: float,
         is_control: bool,
 ) -> dict:
-    """构建实验分组配置"""
+    """构建实验分组配置."""
     config = (
         dict(existing_config)
         if isinstance(existing_config, dict)
@@ -581,5 +581,5 @@ def _build_variant_config(
 def _status_value(
         status: Any,
 ) -> str:
-    """获取状态字符串"""
+    """获取状态字符串."""
     return str(status).lower()

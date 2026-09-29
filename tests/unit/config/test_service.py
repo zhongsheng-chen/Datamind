@@ -1,4 +1,4 @@
-"""服务配置测试
+"""服务配置测试.
 
 验证运行环境必填、可选参数默认值、环境变量读取、
 外部配置隔离、参数校验、额外字段处理和配置不可变行为。
@@ -47,7 +47,7 @@ from datamind.constants import Environment
 
 
 class IsolatedServiceConfig(ServiceConfig):
-    """仅使用初始化参数的测试服务配置"""
+    """仅使用初始化参数的测试服务配置."""
 
     @classmethod
     def settings_customise_sources(
@@ -58,7 +58,7 @@ class IsolatedServiceConfig(ServiceConfig):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -75,7 +75,7 @@ def isolate_service_config(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """隔离服务配置的环境变量和 .env 文件"""
+    """隔离服务配置的环境变量和 .env 文件."""
     for key in tuple(os.environ):
         if key.startswith("DATAMIND_SERVICE_"):
             monkeypatch.delenv(
@@ -89,7 +89,7 @@ def isolate_service_config(
 def create_config(
         **overrides: Any,
 ) -> ServiceConfig:
-    """创建包含必填运行环境的隔离服务配置"""
+    """创建包含必填运行环境的隔离服务配置."""
     config_kwargs: dict[str, Any] = {
         "environment": Environment.DEVELOPMENT,
     }
@@ -99,7 +99,7 @@ def create_config(
 
 
 def test_service_config_requires_environment() -> None:
-    """测试运行环境必须显式提供"""
+    """测试运行环境必须显式提供."""
     with pytest.raises(ValidationError) as exc_info:
         IsolatedServiceConfig.model_validate({})
 
@@ -110,7 +110,7 @@ def test_service_config_requires_environment() -> None:
 
 
 def test_service_config_default_optional_values() -> None:
-    """测试服务可选参数默认值"""
+    """测试服务可选参数默认值."""
     config = create_config()
 
     assert config.name == "datamind"
@@ -127,7 +127,7 @@ def test_service_config_default_optional_values() -> None:
 def test_service_config_ignores_external_sources(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试隔离配置不读取外部配置源"""
+    """测试隔离配置不读取外部配置源."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_ENVIRONMENT",
         "production",
@@ -151,7 +151,7 @@ def test_service_config_ignores_external_sources(
 def test_service_config_reads_environment_variables(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从环境变量读取并转换服务配置"""
+    """测试从环境变量读取并转换服务配置."""
     environment = {
         "DATAMIND_SERVICE_NAME": "datamind-runtime",
         "DATAMIND_SERVICE_VERSION": "2.0.0",
@@ -184,7 +184,7 @@ def test_service_config_reads_environment_variables(
 
 
 def test_service_config_accepts_custom_values() -> None:
-    """测试接受有效的自定义配置"""
+    """测试接受有效的自定义配置."""
     config = create_config(
         name="datamind-runtime",
         version="2.0.0",
@@ -252,7 +252,7 @@ def test_service_config_rejects_blank_strings(
         value: str,
         error_message: str,
 ) -> None:
-    """测试拒绝空字符串和纯空白字符串"""
+    """测试拒绝空字符串和纯空白字符串."""
     with pytest.raises(
             ValidationError,
             match=error_message,
@@ -274,7 +274,7 @@ def test_service_config_rejects_blank_strings(
 def test_service_config_rejects_invalid_port(
         port: int,
 ) -> None:
-    """测试拒绝超出范围的监听端口"""
+    """测试拒绝超出范围的监听端口."""
     with pytest.raises(
             ValidationError,
             match="port 必须在 1 到 65535 之间",
@@ -306,7 +306,7 @@ def test_service_config_rejects_invalid_numeric_values(
         value: int | float,
         error_message: str,
 ) -> None:
-    """测试拒绝无效的数值参数"""
+    """测试拒绝无效的数值参数."""
     with pytest.raises(
             ValidationError,
             match=error_message,
@@ -319,20 +319,20 @@ def test_service_config_rejects_invalid_numeric_values(
 
 
 def test_service_config_parses_environment_string() -> None:
-    """测试将字符串解析为运行环境枚举"""
+    """测试将字符串解析为运行环境枚举."""
     config = create_config(environment="production")
 
     assert config.environment == Environment.PRODUCTION
 
 
 def test_service_config_rejects_unknown_environment() -> None:
-    """测试拒绝未知运行环境"""
+    """测试拒绝未知运行环境."""
     with pytest.raises(ValidationError):
         create_config(environment="unknown")
 
 
 def test_service_config_ignores_extra_fields() -> None:
-    """测试忽略未声明的额外配置字段"""
+    """测试忽略未声明的额外配置字段."""
     config = IsolatedServiceConfig.model_validate(
         {
             "environment": Environment.DEVELOPMENT,
@@ -344,7 +344,7 @@ def test_service_config_ignores_extra_fields() -> None:
 
 
 def test_service_config_is_frozen() -> None:
-    """测试服务配置创建后不可修改"""
+    """测试服务配置创建后不可修改."""
     config = create_config()
 
     with pytest.raises(ValidationError):

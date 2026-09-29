@@ -1,4 +1,4 @@
-"""归档实验命令
+"""归档实验命令.
 
 提供实验归档功能。
 
@@ -42,7 +42,7 @@ def archive_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """归档实验"""
+    """归档实验."""
 
     @audit(
         action="experiment.archive",

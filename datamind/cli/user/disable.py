@@ -1,4 +1,4 @@
-"""停用用户命令
+"""停用用户命令.
 
 提供 LOCAL 用户停用和会话撤销功能。
 
@@ -33,7 +33,7 @@ def disable_user(
             help="登录用户名",
         ),
 ) -> None:
-    """停用用户"""
+    """停用用户."""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",

@@ -1,4 +1,4 @@
-"""模型元数据仓储测试
+"""模型元数据仓储测试.
 
 验证 MetadataRepository 的模型查询、列表筛选、创建、
 普通字段更新，以及由 ModelGuard 控制的激活和归档状态迁移。
@@ -83,7 +83,7 @@ CURRENT_TIME = datetime(
 def create_metadata(
         **overrides: Any,
 ) -> Metadata:
-    """创建模型元数据测试对象"""
+    """创建模型元数据测试对象."""
     values: dict[str, Any] = {
         "model_id": "mdl_0123456789abcdef",
         "name": "scorecard",
@@ -117,7 +117,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建模型元数据仓储及会话方法替身"""
+    """创建模型元数据仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -165,7 +165,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -181,7 +181,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -194,7 +194,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_model_by_model_id() -> None:
-    """测试按模型 ID 查询并去除首尾空格"""
+    """测试按模型 ID 查询并去除首尾空格."""
     expected = create_metadata()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -224,7 +224,7 @@ async def test_get_model_by_model_id() -> None:
 
 @pytest.mark.asyncio
 async def test_get_model_by_name() -> None:
-    """测试按模型名称查询并去除首尾空格"""
+    """测试按模型名称查询并去除首尾空格."""
     expected = create_metadata()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -251,7 +251,7 @@ async def test_get_model_by_name() -> None:
 
 @pytest.mark.asyncio
 async def test_get_model_returns_none_when_not_found() -> None:
-    """测试模型不存在时返回 None"""
+    """测试模型不存在时返回 None."""
     repository, execute, _ = create_repository(
         scalar_result=None
     )
@@ -296,7 +296,7 @@ async def test_get_model_returns_none_when_not_found() -> None:
 async def test_get_model_rejects_invalid_conditions(
         arguments: dict[str, str],
 ) -> None:
-    """测试查询条件必须且只能提供一个"""
+    """测试查询条件必须且只能提供一个."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -315,7 +315,7 @@ async def test_get_model_rejects_invalid_conditions(
 
 @pytest.mark.asyncio
 async def test_list_models_excludes_archived_by_default() -> None:
-    """测试模型列表默认排除归档模型"""
+    """测试模型列表默认排除归档模型."""
     models = [
         create_metadata()
     ]
@@ -349,7 +349,7 @@ async def test_list_models_excludes_archived_by_default() -> None:
 
 @pytest.mark.asyncio
 async def test_list_models_includes_archived_when_requested() -> None:
-    """测试显式请求时包含归档模型"""
+    """测试显式请求时包含归档模型."""
     repository, execute, _ = create_repository()
 
     await repository.list_models(
@@ -368,7 +368,7 @@ async def test_list_models_includes_archived_when_requested() -> None:
 
 @pytest.mark.asyncio
 async def test_list_models_status_overrides_archive_filter() -> None:
-    """测试显式状态过滤优先于默认归档排除"""
+    """测试显式状态过滤优先于默认归档排除."""
     repository, execute, _ = create_repository()
 
     await repository.list_models(
@@ -390,7 +390,7 @@ async def test_list_models_status_overrides_archive_filter() -> None:
 
 @pytest.mark.asyncio
 async def test_list_models_applies_filters_and_pagination() -> None:
-    """测试列表筛选、状态、排序和分页"""
+    """测试列表筛选、状态、排序和分页."""
     models = [
         create_metadata(
             model_type=ModelType.XGBOOST,
@@ -458,7 +458,7 @@ async def test_list_models_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_models_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_models(
@@ -509,7 +509,7 @@ async def test_list_models_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -525,7 +525,7 @@ async def test_list_models_rejects_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_active_models() -> None:
-    """测试活跃模型列表使用字符串状态和分页"""
+    """测试活跃模型列表使用字符串状态和分页."""
     models = [
         create_metadata(
             status=str(
@@ -559,7 +559,7 @@ async def test_list_active_models() -> None:
 
 
 def test_metadata_patch_fields_and_defaults() -> None:
-    """测试更新结构仅包含普通元数据字段"""
+    """测试更新结构仅包含普通元数据字段."""
     patch = MetadataPatch()
 
     assert [
@@ -608,7 +608,7 @@ def test_metadata_patch_fields_and_defaults() -> None:
 
 
 def test_metadata_patch_accepts_constant_enums() -> None:
-    """测试更新结构接受模型相关常量枚举"""
+    """测试更新结构接受模型相关常量枚举."""
     patch = MetadataPatch(
         model_type=ModelType.XGBOOST,
         task_type=TaskType.CLASSIFICATION,
@@ -627,7 +627,7 @@ def test_metadata_patch_accepts_constant_enums() -> None:
 
 
 def test_create_model() -> None:
-    """测试创建模型并显式设置 inactive 状态"""
+    """测试创建模型并显式设置 inactive 状态."""
     repository, _, add = create_repository()
 
     metadata = repository.create_model(
@@ -665,7 +665,7 @@ def test_create_model() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_model_allows_optional_fields() -> None:
-    """测试创建模型时允许省略可选字段"""
+    """测试创建模型时允许省略可选字段."""
     repository, _, add = create_repository()
 
     metadata = repository.create_model(
@@ -688,7 +688,7 @@ def test_create_model_allows_optional_fields() -> None:
 
 
 def test_update_model_updates_non_none_fields() -> None:
-    """测试更新所有非空普通元数据字段"""
+    """测试更新所有非空普通元数据字段."""
     repository, _, _ = create_repository()
     metadata = create_metadata()
     original_status = metadata.status
@@ -734,7 +734,7 @@ def test_update_model_updates_non_none_fields() -> None:
 
 
 def test_update_model_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         description="原模型说明",
@@ -768,7 +768,7 @@ def test_update_model_ignores_none_fields() -> None:
 
 
 def test_update_model_accepts_empty_strings() -> None:
-    """测试空字符串作为明确更新值写入对象"""
+    """测试空字符串作为明确更新值写入对象."""
     repository, _, _ = create_repository()
     metadata = create_metadata()
 
@@ -797,7 +797,7 @@ def test_archive_model(
         monkeypatch: pytest.MonkeyPatch,
         current_status: MetadataStatus,
 ) -> None:
-    """测试从 inactive 或 deprecated 状态归档模型"""
+    """测试从 inactive 或 deprecated 状态归档模型."""
     class FrozenDateTime(
         datetime
     ):
@@ -844,7 +844,7 @@ def test_archive_model(
 def test_archive_model_without_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未提供操作人时不覆盖审计字段"""
+    """测试未提供操作人时不覆盖审计字段."""
     class FrozenDateTime(
         datetime
     ):
@@ -892,7 +892,7 @@ def test_archive_model_without_operator(
 def test_archive_model_accepts_empty_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试空字符串操作人会写入归档审计字段"""
+    """测试空字符串操作人会写入归档审计字段."""
     class FrozenDateTime(
         datetime
     ):
@@ -931,7 +931,7 @@ def test_archive_model_accepts_empty_operator(
 
 
 def test_archive_model_is_idempotent() -> None:
-    """测试重复归档不会修改时间和审计信息"""
+    """测试重复归档不会修改时间和审计信息."""
     original_time = datetime(
         2026,
         7,
@@ -970,7 +970,7 @@ def test_archive_model_is_idempotent() -> None:
 
 # noinspection PyUnreachableCode
 def test_archive_model_rejects_active_status() -> None:
-    """测试 active 状态不能直接归档"""
+    """测试 active 状态不能直接归档."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status=str(
@@ -1001,7 +1001,7 @@ def test_archive_model_rejects_active_status() -> None:
 
 
 def test_activate_model() -> None:
-    """测试从 inactive 状态激活模型"""
+    """测试从 inactive 状态激活模型."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status=str(
@@ -1022,7 +1022,7 @@ def test_activate_model() -> None:
 
 
 def test_activate_model_without_operator() -> None:
-    """测试激活时未提供操作人则保留原值"""
+    """测试激活时未提供操作人则保留原值."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status=str(
@@ -1044,7 +1044,7 @@ def test_activate_model_without_operator() -> None:
 
 
 def test_activate_model_accepts_empty_operator() -> None:
-    """测试空字符串操作人会写入更新字段"""
+    """测试空字符串操作人会写入更新字段."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status=str(
@@ -1064,7 +1064,7 @@ def test_activate_model_accepts_empty_operator() -> None:
 
 
 def test_activate_model_is_idempotent() -> None:
-    """测试重复激活不会修改更新人"""
+    """测试重复激活不会修改更新人."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status=str(
@@ -1097,7 +1097,7 @@ def test_activate_model_is_idempotent() -> None:
 def test_activate_model_rejects_invalid_transition(
         current_status: MetadataStatus,
 ) -> None:
-    """测试 deprecated 和 archived 状态不能激活"""
+    """测试 deprecated 和 archived 状态不能激活."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status=str(
@@ -1135,7 +1135,7 @@ def test_activate_model_rejects_invalid_transition(
 def test_lifecycle_methods_reject_unknown_status(
         method_name: str,
 ) -> None:
-    """测试未知状态字符串不能进入生命周期迁移"""
+    """测试未知状态字符串不能进入生命周期迁移."""
     repository, _, _ = create_repository()
     metadata = create_metadata(
         status="unknown"
@@ -1161,7 +1161,7 @@ def test_lifecycle_methods_reject_unknown_status(
 
 
 def test_mark_deleted() -> None:
-    """测试标记模型已删除并记录操作人"""
+    """测试标记模型已删除并记录操作人."""
     repository, _, _ = create_repository()
     metadata = create_metadata()
     deleted_at = datetime.now(timezone.utc)
@@ -1186,7 +1186,7 @@ def test_mark_deleted() -> None:
 
 
 def test_restore_model() -> None:
-    """测试恢复逻辑删除模型并重置为 inactive"""
+    """测试恢复逻辑删除模型并重置为 inactive."""
     repository, _, _ = create_repository()
     metadata: Any = create_metadata(
         status="archived",

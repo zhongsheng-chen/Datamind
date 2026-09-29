@@ -1,4 +1,4 @@
-"""角色授予仓储测试
+"""角色授予仓储测试.
 
 验证角色授予查询、列表筛选、创建、重新激活和撤销能力。
 
@@ -62,7 +62,7 @@ CURRENT_TIME = datetime(
 def create_grant(
         **overrides: Any,
 ) -> Grant:
-    """创建角色授予测试对象"""
+    """创建角色授予测试对象."""
     values: dict[str, Any] = {
         "grant_id": "grt_0123456789abcdef",
         "user_id": "usr_0123456789abcdef",
@@ -90,7 +90,7 @@ def create_repository(
     MagicMock,
     AsyncMock,
 ]:
-    """创建角色授予仓储及异步会话替身"""
+    """创建角色授予仓储及异步会话替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -131,7 +131,7 @@ def create_repository(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -145,7 +145,7 @@ def compile_statement(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话最近执行的查询语句"""
+    """获取异步会话最近执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -160,7 +160,7 @@ def get_executed_statement(
 
 @pytest.mark.asyncio
 async def test_get_grant_queries_by_grant_id() -> None:
-    """测试按授予 ID 查询"""
+    """测试按授予 ID 查询."""
     expected_grant = create_grant()
     repository, _, execute = create_repository(
         scalar_result=expected_grant
@@ -188,7 +188,7 @@ async def test_get_grant_queries_by_grant_id() -> None:
 
 @pytest.mark.asyncio
 async def test_get_grant_queries_by_user_and_role() -> None:
-    """测试按用户和角色查询"""
+    """测试按用户和角色查询."""
     expected_grant = create_grant()
     repository, _, execute = create_repository(
         scalar_result=expected_grant
@@ -240,7 +240,7 @@ async def test_get_grant_queries_by_user_and_role() -> None:
 async def test_get_grant_rejects_invalid_conditions(
         arguments: dict[str, str],
 ) -> None:
-    """测试查询条件组合"""
+    """测试查询条件组合."""
     repository, _, execute = create_repository()
 
     with pytest.raises(
@@ -259,7 +259,7 @@ async def test_get_grant_rejects_invalid_conditions(
 
 @pytest.mark.asyncio
 async def test_get_grant_returns_none_when_not_found() -> None:
-    """测试角色授予不存在时返回 None"""
+    """测试角色授予不存在时返回 None."""
     repository, _, _ = create_repository(
         scalar_result=None
     )
@@ -273,7 +273,7 @@ async def test_get_grant_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_grants_uses_default_order_and_limit() -> None:
-    """测试角色授予列表默认排序和数量限制"""
+    """测试角色授予列表默认排序和数量限制."""
     grants = [
         create_grant()
     ]
@@ -302,7 +302,7 @@ async def test_list_grants_uses_default_order_and_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_grants_builds_filtered_query() -> None:
-    """测试授予列表筛选、排序和分页"""
+    """测试授予列表筛选、排序和分页."""
     grants = [
         create_grant(
             status=str(
@@ -354,7 +354,7 @@ async def test_list_grants_builds_filtered_query() -> None:
 
 @pytest.mark.asyncio
 async def test_list_grants_allows_unlimited_query() -> None:
-    """测试授予列表允许不设置分页"""
+    """测试授予列表允许不设置分页."""
     repository, _, execute = create_repository()
 
     await repository.list_grants(
@@ -376,7 +376,7 @@ async def test_list_grants_allows_unlimited_query() -> None:
 async def test_list_active_grants_delegates_to_list_grants(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试有效授予列表复用通用查询"""
+    """测试有效授予列表复用通用查询."""
     grants = [
         create_grant()
     ]
@@ -410,7 +410,7 @@ async def test_list_active_grants_delegates_to_list_grants(
 
 # noinspection PyUnreachableCode
 def test_create_grant_uses_defaults() -> None:
-    """测试创建默认有效角色授予"""
+    """测试创建默认有效角色授予."""
     repository, session, _ = create_repository()
 
     grant = repository.create_grant(
@@ -436,7 +436,7 @@ def test_create_grant_uses_defaults() -> None:
 
 
 def test_create_grant_with_explicit_values() -> None:
-    """测试创建指定状态和授予时间的记录"""
+    """测试创建指定状态和授予时间的记录."""
     repository, session, _ = create_repository()
 
     grant = repository.create_grant(
@@ -458,7 +458,7 @@ def test_create_grant_with_explicit_values() -> None:
 
 # noinspection PyUnreachableCode
 def test_activate_grant_with_explicit_time() -> None:
-    """测试使用指定时间重新激活角色授予"""
+    """测试使用指定时间重新激活角色授予."""
     repository, _, _ = create_repository()
     grant = create_grant(
         status=str(
@@ -485,7 +485,7 @@ def test_activate_grant_with_explicit_time() -> None:
 
 # noinspection PyUnreachableCode
 def test_activate_grant_allows_empty_granted_by() -> None:
-    """测试重新激活时允许不记录授予用户"""
+    """测试重新激活时允许不记录授予用户."""
     repository, _, _ = create_repository()
     grant = create_grant(
         status=str(
@@ -505,7 +505,7 @@ def test_activate_grant_allows_empty_granted_by() -> None:
 
 
 def test_revoke_grant_with_explicit_time() -> None:
-    """测试使用指定时间撤销角色授予"""
+    """测试使用指定时间撤销角色授予."""
     repository, _, _ = create_repository()
     grant = create_grant()
     original_granted_by = grant.granted_by
@@ -535,7 +535,7 @@ def test_grant_status_operations_use_current_utc_time(
         monkeypatch: pytest.MonkeyPatch,
         operation_name: str,
 ) -> None:
-    """测试状态操作默认使用当前 UTC 时间"""
+    """测试状态操作默认使用当前 UTC 时间."""
     class FrozenDateTime(
         datetime
     ):

@@ -1,4 +1,4 @@
-"""存储门面测试
+"""存储门面测试.
 
 验证 Storage 的核心参数委托以及 get_storage() 的单例缓存行为。
 
@@ -28,7 +28,7 @@ from datamind.storage.admin import StorageAdmin
 
 @pytest.fixture(autouse=True)
 def clear_storage_cache() -> Iterator[None]:
-    """测试前后清理全局存储缓存"""
+    """测试前后清理全局存储缓存."""
     get_storage.cache_clear()
 
     yield
@@ -37,7 +37,7 @@ def clear_storage_cache() -> Iterator[None]:
 
 
 def create_storage_admin_mock() -> Any:
-    """创建符合 StorageAdmin 接口的测试替身"""
+    """创建符合 StorageAdmin 接口的测试替身."""
     return create_autospec(
         StorageAdmin,
         instance=True,
@@ -45,7 +45,7 @@ def create_storage_admin_mock() -> Any:
 
 
 def test_save_delegates_structured_arguments() -> None:
-    """测试保存方法正确委托结构化参数"""
+    """测试保存方法正确委托结构化参数."""
     storage_admin = create_storage_admin_mock()
     storage_admin.save.return_value = (
         "models/mdl_001/1.0.0/artifacts/art_001/model.pkl"
@@ -75,7 +75,7 @@ def test_save_delegates_structured_arguments() -> None:
 
 
 def test_load_by_key_delegates_storage_key() -> None:
-    """测试按存储键加载方法正确委托参数"""
+    """测试按存储键加载方法正确委托参数."""
     storage_admin = create_storage_admin_mock()
     storage_admin.load_by_key.return_value = (
         b"model data"
@@ -96,7 +96,7 @@ def test_load_by_key_delegates_storage_key() -> None:
 
 
 def test_delete_by_key_delegates_strict_mode() -> None:
-    """测试按存储键删除方法正确传递严格模式"""
+    """测试按存储键删除方法正确传递严格模式."""
     storage_admin = create_storage_admin_mock()
     storage_admin.delete_by_key.return_value = True
     storage = Storage(
@@ -119,7 +119,7 @@ def test_delete_by_key_delegates_strict_mode() -> None:
 def test_get_storage_returns_cached_singleton(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试多次调用返回同一个存储实例"""
+    """测试多次调用返回同一个存储实例."""
     storage_config = StorageConfig.model_construct()
     created_configs: list[StorageConfig] = []
     config_calls = 0
@@ -161,7 +161,7 @@ def test_get_storage_returns_cached_singleton(
 def test_cache_clear_creates_new_storage_instance(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试清理缓存后重新创建存储实例"""
+    """测试清理缓存后重新创建存储实例."""
     storage_config = StorageConfig.model_construct()
     created_configs: list[StorageConfig] = []
 

@@ -1,4 +1,4 @@
-"""PostgreSQL 真实集成测试
+"""PostgreSQL 真实集成测试.
 
 验证真实数据库的事务回滚、唯一约束、外键约束和 Outbox JSONB 载荷。
 
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.integration
 
 
 def _asyncpg_url(database_url: str) -> str:
-    """返回 asyncpg 原生连接可接受的测试数据库地址"""
+    """返回 asyncpg 原生连接可接受的测试数据库地址."""
     return database_url.replace(
         "postgresql+asyncpg://",
         "postgresql://",
@@ -34,7 +34,7 @@ def _asyncpg_url(database_url: str) -> str:
 async def test_transaction_rollback_is_visible_to_a_new_transaction(
     database_url: str,
 ) -> None:
-    """测试回滚后事务写入不可见"""
+    """测试回滚后事务写入不可见."""
     connection = await asyncpg.connect(_asyncpg_url(database_url))
     table = f"dm_it_rollback_{uuid.uuid4().hex}"
     try:
@@ -54,7 +54,7 @@ async def test_transaction_rollback_is_visible_to_a_new_transaction(
 async def test_committed_lifecycle_state_is_visible_to_a_new_connection(
     database_url: str,
 ) -> None:
-    """测试提交后的生命周期状态可被新连接读取"""
+    """测试提交后的生命周期状态可被新连接读取."""
     table = f"dm_it_lifecycle_{uuid.uuid4().hex}"
     native_url = _asyncpg_url(database_url)
     writer = await asyncpg.connect(native_url)
@@ -93,7 +93,7 @@ async def test_committed_lifecycle_state_is_visible_to_a_new_connection(
 async def test_unique_and_foreign_key_constraints_are_enforced(
     database_url: str,
 ) -> None:
-    """测试真实 PostgreSQL 强制执行唯一约束和外键约束"""
+    """测试真实 PostgreSQL 强制执行唯一约束和外键约束."""
     connection = await asyncpg.connect(_asyncpg_url(database_url))
     suffix = uuid.uuid4().hex
     parent = f"dm_it_parent_{suffix}"
@@ -117,7 +117,7 @@ async def test_unique_and_foreign_key_constraints_are_enforced(
 
 @pytest.mark.asyncio
 async def test_outbox_payload_round_trips_as_jsonb(database_url: str) -> None:
-    """测试 Outbox JSONB 载荷可无损写入和读取"""
+    """测试 Outbox JSONB 载荷可无损写入和读取."""
     connection = await asyncpg.connect(_asyncpg_url(database_url))
     table = f"dm_it_outbox_{uuid.uuid4().hex}"
     payload = {"model_id": "mdl_integration", "status": "active"}

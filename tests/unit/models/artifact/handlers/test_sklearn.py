@@ -1,4 +1,4 @@
-"""Sklearn 模型加载器测试
+"""Sklearn 模型加载器测试.
 
 验证 Sklearn 模型二进制数据的反序列化调用。
 
@@ -20,7 +20,7 @@ from datamind.models.artifact.handlers.sklearn import load_sklearn
 def test_load_sklearn_deserializes_bytes(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试通过 joblib 反序列化二进制模型数据"""
+    """测试通过 joblib 反序列化二进制模型数据."""
     expected = object()
     load = Mock(
         return_value=expected

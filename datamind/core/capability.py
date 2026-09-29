@@ -1,4 +1,4 @@
-"""模型能力
+"""模型能力.
 
 定义统一模型接口的能力标记，并提供组合、查询和摘要生成工具。
 
@@ -28,7 +28,7 @@ from typing import Any
 
 
 class ModelCapability(IntFlag):
-    """统一模型接口提供的能力
+    """统一模型接口提供的能力.
 
     属性：
         NONE: 不提供模型能力
@@ -57,7 +57,7 @@ def has_model_capability(
         capabilities: ModelCapability,
         capability: ModelCapability,
 ) -> bool:
-    """检查模型是否包含指定能力
+    """检查模型是否包含指定能力.
 
     参数：
         capabilities: 模型能力集
@@ -73,7 +73,7 @@ def has_all_model_capabilities(
         capabilities: ModelCapability,
         required: ModelCapability,
 ) -> bool:
-    """检查模型是否包含全部指定能力
+    """检查模型是否包含全部指定能力.
 
     参数：
         capabilities: 模型能力集
@@ -89,7 +89,7 @@ def has_any_model_capability(
         capabilities: ModelCapability,
         candidates: ModelCapability,
 ) -> bool:
-    """检查模型是否包含任意指定能力
+    """检查模型是否包含任意指定能力.
 
     参数：
         capabilities: 模型能力集
@@ -104,7 +104,7 @@ def has_any_model_capability(
 def combine_model_capabilities(
         capabilities: list[ModelCapability],
 ) -> ModelCapability:
-    """组合模型能力
+    """组合模型能力.
 
     参数：
         capabilities: 待组合的模型能力列表
@@ -123,7 +123,7 @@ def combine_model_capabilities(
 def get_model_capability_list(
         capabilities: ModelCapability,
 ) -> list[str]:
-    """获取已启用的模型能力名称
+    """获取已启用的模型能力名称.
 
     参数：
         capabilities: 模型能力集
@@ -144,7 +144,7 @@ def get_model_capability_list(
 def get_model_capability_descriptions(
         capabilities: ModelCapability,
 ) -> list[dict[str, str]]:
-    """获取已启用模型能力的名称和说明
+    """获取已启用模型能力的名称和说明.
 
     参数：
         capabilities: 模型能力集
@@ -171,7 +171,7 @@ def get_model_capability_descriptions(
 def get_model_capability_summary(
         capabilities: ModelCapability,
 ) -> dict[str, Any]:
-    """获取模型能力摘要
+    """获取模型能力摘要.
 
     参数：
         capabilities: 模型能力集

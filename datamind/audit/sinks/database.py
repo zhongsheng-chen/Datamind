@@ -1,4 +1,4 @@
-"""数据库审计存储端
+"""数据库审计存储端.
 
 核心功能：
   - DatabaseAuditSink: 使用数据库工作单元幂等写入审计事件
@@ -16,13 +16,13 @@ from datamind.db.models.audit import Audit
 
 
 class DatabaseAuditSink:
-    """数据库审计存储端"""
+    """数据库审计存储端."""
 
     async def write(
             self,
             event: AuditEvent,
     ) -> Audit:
-        """幂等写入审计事件"""
+        """幂等写入审计事件."""
         try:
             return await self._write_once(
                 event
@@ -41,7 +41,7 @@ class DatabaseAuditSink:
     async def _find_existing(
             audit_id: str,
     ) -> Audit | None:
-        """查找已写入的审计事件"""
+        """查找已写入的审计事件."""
         from datamind.db.repositories.audit import AuditRepository
 
         async with UnitOfWork() as uow:
@@ -57,7 +57,7 @@ class DatabaseAuditSink:
     async def _write_once(
             event: AuditEvent,
     ) -> Audit:
-        """写入单个审计事件"""
+        """写入单个审计事件."""
         from datamind.db.repositories.audit import AuditRepository
 
         async with UnitOfWork() as uow:

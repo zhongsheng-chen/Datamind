@@ -1,4 +1,4 @@
-"""服务环境枚举
+"""服务环境枚举.
 
 定义服务的运行环境类型。
 
@@ -18,7 +18,7 @@ from typing import FrozenSet
 
 
 class Environment(str, Enum):
-    """服务环境字符串枚举"""
+    """服务环境字符串枚举."""
 
     DEVELOPMENT = "development"
     TESTING = "testing"
@@ -28,7 +28,7 @@ class Environment(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

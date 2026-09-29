@@ -1,4 +1,4 @@
-"""模型产物包公共导出测试
+"""模型产物包公共导出测试.
 
 验证模型产物包公开 API 的完整性和可访问性。
 
@@ -19,12 +19,12 @@ EXPECTED_EXPORTS = {
 
 
 def test_artifact_exports_expected_public_api() -> None:
-    """测试模型产物包公开完整且准确的 API"""
+    """测试模型产物包公开完整且准确的 API."""
     assert set(artifact.__all__) == EXPECTED_EXPORTS
     assert len(artifact.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     for name in artifact.__all__:
         assert hasattr(artifact, name), name

@@ -1,4 +1,4 @@
-"""CLI 身份管理命令测试
+"""CLI 身份管理命令测试.
 
 验证用户和角色命令使用当前认证身份执行高风险操作。
 
@@ -61,7 +61,7 @@ runner = CliRunner()
 
 
 class FakeCLIContext:
-    """身份命令测试 CLI 上下文"""
+    """身份命令测试 CLI 上下文."""
 
     def __init__(self) -> None:
         self.user = "admin"
@@ -82,7 +82,7 @@ def install_command(
         command_module: object,
         service: MagicMock,
 ) -> None:
-    """安装身份命令服务和上下文替身"""
+    """安装身份命令服务和上下文替身."""
     namespace = vars(
         command_module
     )
@@ -101,7 +101,7 @@ def install_command(
 def test_create_user_uses_authenticated_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建用户使用当前认证操作人"""
+    """测试创建用户使用当前认证操作人."""
     service = MagicMock()
     service.create_user = AsyncMock(
         return_value={
@@ -151,7 +151,7 @@ def test_create_user_uses_authenticated_operator(
 def test_create_user_renders_restore_result(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试恢复已删除用户时显示恢复结果"""
+    """测试恢复已删除用户时显示恢复结果."""
     service = MagicMock()
     service.create_user = AsyncMock(
         return_value={
@@ -184,7 +184,7 @@ def test_create_user_renders_restore_result(
 def test_reset_current_user_password_clears_session(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试重置当前用户密码后清理会话"""
+    """测试重置当前用户密码后清理会话."""
     service = MagicMock()
     service.reset_password = AsyncMock(
         return_value={
@@ -221,7 +221,7 @@ def test_reset_current_user_password_clears_session(
 def test_delete_user_accepts_optional_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除用户允许省略删除原因"""
+    """测试删除用户允许省略删除原因."""
     service = MagicMock()
     service.delete_user = AsyncMock(
         return_value={
@@ -256,7 +256,7 @@ def test_delete_user_accepts_optional_reason(
 def test_delete_role_accepts_optional_reason(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试删除角色允许省略删除原因"""
+    """测试删除角色允许省略删除原因."""
     service = MagicMock()
     service.delete_role = AsyncMock(
         return_value={
@@ -309,7 +309,7 @@ def test_role_status_command_uses_authenticated_operator(
         command_module: object,
         service_method: str,
 ) -> None:
-    """测试角色状态命令使用当前认证操作人"""
+    """测试角色状态命令使用当前认证操作人."""
     service = MagicMock()
     method = AsyncMock(
         return_value={
@@ -347,7 +347,7 @@ def test_role_status_command_uses_authenticated_operator(
 def test_grant_role_uses_authenticated_operator(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试角色授予使用当前认证操作人"""
+    """测试角色授予使用当前认证操作人."""
     service = MagicMock()
     service.grant_role = AsyncMock(
         return_value={
@@ -383,7 +383,7 @@ def test_grant_role_uses_authenticated_operator(
 def test_create_role_renders_colored_result_fields(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建角色使用标准结果字段布局"""
+    """测试创建角色使用标准结果字段布局."""
     service = MagicMock()
     service.create_role = AsyncMock(
         return_value={
@@ -424,7 +424,7 @@ def test_create_role_renders_colored_result_fields(
 def test_create_role_supports_all_permissions(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建角色可以显式授予全部权限"""
+    """测试创建角色可以显式授予全部权限."""
     service = MagicMock()
     service.create_role = AsyncMock(
         return_value={
@@ -463,7 +463,7 @@ def test_create_role_supports_all_permissions(
 
 
 def test_create_role_rejects_mixed_permission_options() -> None:
-    """测试全部权限选项不能与单项权限混用"""
+    """测试全部权限选项不能与单项权限混用."""
     result = runner.invoke(
         app,
         [
@@ -486,7 +486,7 @@ def test_create_role_rejects_mixed_permission_options() -> None:
 def test_user_list_renders_count_and_updated_at(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试用户列表显示总数和更新时间"""
+    """测试用户列表显示总数和更新时间."""
     service = MagicMock()
     service.list_users = AsyncMock(
         return_value=[
@@ -536,7 +536,7 @@ def test_user_list_renders_count_and_updated_at(
 def test_role_list_renders_count_and_updated_at(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试角色列表显示总数和更新时间"""
+    """测试角色列表显示总数和更新时间."""
     service = MagicMock()
     service.list_roles = AsyncMock(
         return_value=[
@@ -585,7 +585,7 @@ def test_role_list_renders_count_and_updated_at(
 def test_show_user_renders_standard_detail_layout(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试用户详情使用标准文本布局"""
+    """测试用户详情使用标准文本布局."""
     service = MagicMock()
     service.get_user = AsyncMock(
         return_value={
@@ -639,7 +639,7 @@ def test_show_user_renders_standard_detail_layout(
 def test_show_role_renders_standard_detail_layout(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试角色详情使用标准文本布局"""
+    """测试角色详情使用标准文本布局."""
     service = MagicMock()
     service.get_role = AsyncMock(
         return_value={

@@ -1,4 +1,4 @@
-"""批量协调、分片执行和终态汇总测试
+"""批量协调、分片执行和终态汇总测试.
 
 验证运行时任务执行器准备批次、执行分片及汇总批次终态的行为。
 
@@ -23,7 +23,7 @@ import datamind.runtime.task_queue.worker as worker_module
 
 
 class FakeUnitOfWork:
-    """提供不访问数据库的异步工作单元"""
+    """提供不访问数据库的异步工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -41,7 +41,7 @@ class FakeUnitOfWork:
 
 
 def create_batch(**overrides: Any) -> SimpleNamespace:
-    """创建可由请求 Schema 还原的批次记录"""
+    """创建可由请求 Schema 还原的批次记录."""
     values = {
         "batch_id": "bat_test",
         "task_id": "tsk_test",
@@ -67,7 +67,7 @@ def create_batch(**overrides: Any) -> SimpleNamespace:
 
 
 def create_worker(service: MagicMock) -> worker_module.RuntimeTaskWorker:
-    """跳过线程启动并注入受控运行时服务"""
+    """跳过线程启动并注入受控运行时服务."""
     worker = object.__new__(worker_module.RuntimeTaskWorker)
     worker._service = service
     return worker
@@ -78,7 +78,7 @@ def replace_worker_dependency(
         name: str,
         replacement: object,
 ) -> None:
-    """替换执行器模块依赖并在测试结束后自动恢复"""
+    """替换执行器模块依赖并在测试结束后自动恢复."""
     monkeypatch.setattr(worker_module, name, replacement)
 
 
@@ -86,7 +86,7 @@ def replace_worker_dependency(
 async def test_prepare_batch_creates_records_before_dispatch(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试协调阶段先启动尝试再一次性准备全部请求记录"""
+    """测试协调阶段先启动尝试再一次性准备全部请求记录."""
     repository = MagicMock()
     repository.start = AsyncMock(return_value=create_batch())
     attempt_repository = MagicMock()
@@ -125,7 +125,7 @@ async def test_prepare_batch_creates_records_before_dispatch(
 async def test_execute_batch_chunk_uses_global_indices(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试分片执行传递半开区间的全局 batch_index"""
+    """测试分片执行传递半开区间的全局 batch_index."""
     batch = create_batch()
     repository = MagicMock()
     repository.get_batch = AsyncMock(return_value=batch)
@@ -182,7 +182,7 @@ async def test_execute_batch_chunk_uses_global_indices(
 async def test_finalize_batch_updates_progress_before_terminal_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未完成全部分片时只更新进度且不提前结束批次"""
+    """测试未完成全部分片时只更新进度且不提前结束批次."""
     batch = create_batch(total_count=4)
     repository = MagicMock()
     repository.get_batch = AsyncMock(return_value=batch)
@@ -209,7 +209,7 @@ async def test_finalize_batch_updates_progress_before_terminal_state(
 async def test_last_chunk_finalizes_partial_success_once(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试最后一个分片在批次锁内写入部分成功终态"""
+    """测试最后一个分片在批次锁内写入部分成功终态."""
     batch = create_batch(total_count=2)
     repository = MagicMock()
     repository.get_batch = AsyncMock(return_value=batch)

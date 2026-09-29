@@ -1,4 +1,4 @@
-"""运行时管理器生命周期集成测试
+"""运行时管理器生命周期集成测试.
 
 通过真实 PostgreSQL、模型制品、BentoML Model Store 与运行时注册表，
 验证部署加载、幂等加载、卸载以及关键异常分支的完整边界。
@@ -44,7 +44,7 @@ async def isolated_runtime_environment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[Path]:
-    """配置当前测试独享的制品目录与 BentoML Model Store"""
+    """配置当前测试独享的制品目录与 BentoML Model Store."""
     assert datamind_database is not None
 
     monkeypatch.setenv("DATAMIND_STORAGE_TYPE", "local")
@@ -62,7 +62,7 @@ async def isolated_runtime_environment(
 
 
 def write_classification_model(path: Path) -> Path:
-    """训练并写入可由注册服务加载的真实分类模型"""
+    """训练并写入可由注册服务加载的真实分类模型."""
     features = np.asarray(
         [
             [-2.0, -1.0],
@@ -84,7 +84,7 @@ async def create_deployment(
     *,
     enabled: bool,
 ) -> dict[str, str]:
-    """通过真实业务服务注册模型并创建部署"""
+    """通过真实业务服务注册模型并创建部署."""
     from datamind.services import (
         DeploymentLifecycleService,
         ModelLifecycleService,
@@ -134,7 +134,7 @@ async def create_deployment(
 async def test_runtime_manager_loads_reuses_and_unloads_deployment(
     isolated_runtime_environment: Path,
 ) -> None:
-    """测试真实部署可加载、重复加载并从注册表卸载"""
+    """测试真实部署可加载、重复加载并从注册表卸载."""
     deployment = await create_deployment(
         isolated_runtime_environment,
         enabled=True,
@@ -178,7 +178,7 @@ async def test_runtime_manager_loads_reuses_and_unloads_deployment(
 async def test_runtime_manager_rejects_unknown_deployment(
     isolated_runtime_environment: Path,
 ) -> None:
-    """测试运行时管理器拒绝不存在的部署"""
+    """测试运行时管理器拒绝不存在的部署."""
     manager = RuntimeManager(worker_id="integration-worker")
 
     with pytest.raises(
@@ -192,7 +192,7 @@ async def test_runtime_manager_rejects_unknown_deployment(
 async def test_runtime_manager_rejects_inactive_deployment(
     isolated_runtime_environment: Path,
 ) -> None:
-    """测试运行时管理器拒绝未启用的部署"""
+    """测试运行时管理器拒绝未启用的部署."""
     deployment = await create_deployment(
         isolated_runtime_environment,
         enabled=False,
@@ -212,7 +212,7 @@ async def test_runtime_manager_reports_missing_or_invalid_artifact(
     isolated_runtime_environment: Path,
     artifact_state: str,
 ) -> None:
-    """测试运行时管理器将制品读取或解析失败包装为后端错误"""
+    """测试运行时管理器将制品读取或解析失败包装为后端错误."""
     deployment = await create_deployment(
         isolated_runtime_environment,
         enabled=True,

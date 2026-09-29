@@ -1,4 +1,4 @@
-"""启用角色命令
+"""启用角色命令.
 
 提供角色启用功能。
 
@@ -33,7 +33,7 @@ def enable_role(
             help="角色名称",
         ),
 ) -> None:
-    """启用角色"""
+    """启用角色."""
     async def runner() -> None:
         async with cli_context(
                 required_permission="identity.manage",

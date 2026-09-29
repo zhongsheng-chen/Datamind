@@ -1,4 +1,4 @@
-"""存储异常测试
+"""存储异常测试.
 
 验证存储异常的继承关系、消息透传、统一捕获和异常链。
 
@@ -52,7 +52,7 @@ STORAGE_ERROR_TYPES: tuple[
 def test_storage_errors_inherit_from_backend_error(
     error_type: type[StorageBackendError],
 ) -> None:
-    """测试具体存储异常继承自基础异常"""
+    """测试具体存储异常继承自基础异常."""
     error = error_type(
         "存储操作失败"
     )
@@ -80,7 +80,7 @@ def test_storage_errors_inherit_from_backend_error(
 def test_storage_errors_preserve_message(
     error_type: type[StorageBackendError],
 ) -> None:
-    """测试具体存储异常保留错误消息"""
+    """测试具体存储异常保留错误消息."""
     error = error_type(
         "自定义存储错误"
     )
@@ -104,7 +104,7 @@ def test_storage_errors_preserve_message(
 def test_storage_errors_support_empty_message(
     error_type: type[StorageBackendError],
 ) -> None:
-    """测试具体存储异常允许不传错误消息"""
+    """测试具体存储异常允许不传错误消息."""
     error = error_type()
 
     assert str(error) == ""
@@ -137,7 +137,7 @@ def test_storage_errors_support_empty_message(
 def test_storage_errors_can_be_caught_by_base_type(
     error: StorageBackendError,
 ) -> None:
-    """测试具体异常可以通过基础类型统一捕获"""
+    """测试具体异常可以通过基础类型统一捕获."""
     with pytest.raises(
         StorageBackendError,
     ) as exc_info:
@@ -147,7 +147,7 @@ def test_storage_errors_can_be_caught_by_base_type(
 
 
 def test_storage_backend_error_preserves_message() -> None:
-    """测试基础存储异常保留错误消息"""
+    """测试基础存储异常保留错误消息."""
     error = StorageBackendError(
         "存储后端异常"
     )
@@ -159,7 +159,7 @@ def test_storage_backend_error_preserves_message() -> None:
 
 
 def test_storage_error_preserves_exception_cause() -> None:
-    """测试存储异常支持保留原始异常链"""
+    """测试存储异常支持保留原始异常链."""
     original_error = RuntimeError(
         "connection reset"
     )

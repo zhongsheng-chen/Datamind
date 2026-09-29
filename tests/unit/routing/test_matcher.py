@@ -1,12 +1,12 @@
-"""路由规则匹配器测试
+"""路由条件匹配器测试.
 
-验证规则结构校验、字段解析、组合条件和操作符匹配行为。
+验证条件结构校验、字段解析、组合条件和操作符匹配行为。
 
 核心功能：
   - test_empty_rules_match:
-    验证空规则能够匹配
+    验证空条件能够匹配
   - test_validate_rejects_invalid_rules:
-    验证拒绝无效规则
+    验证拒绝无效条件
   - test_match_supports_all_any_and_negate:
     验证组合与取反条件
   - test_match_resolves_compatible_feature_paths:
@@ -29,7 +29,7 @@ def match(
         expected: Any = None,
         include_value: bool = True,
 ) -> bool:
-    """执行单条件规则匹配"""
+    """执行单项条件匹配."""
     condition: dict[str, Any] = {
         "field": "value",
         "op": operator,
@@ -45,7 +45,7 @@ def match(
 
 
 def test_empty_rules_match() -> None:
-    """测试空规则默认命中"""
+    """测试空条件默认命中."""
     matcher = RuleMatcher()
 
     assert matcher.match(
@@ -59,7 +59,7 @@ def test_empty_rules_match() -> None:
 
 
 def test_match_rejects_unknown_rule_shape() -> None:
-    """测试未知规则结构不会默认命中"""
+    """测试未知条件结构不会默认命中."""
     matcher = RuleMatcher()
     rules = {
         "conditons": [
@@ -75,7 +75,7 @@ def test_match_rejects_unknown_rule_shape() -> None:
 
 
 def test_metadata_only_rules_match() -> None:
-    """测试受支持的路由元信息不作为过滤条件"""
+    """测试受支持的路由元信息不作为过滤条件."""
     assert RuleMatcher().match(
         payload={},
         rules={"bucket_key": "customer_id", "salt": "stable"},
@@ -104,7 +104,7 @@ def test_validate_rejects_invalid_rules(
         rules: dict[str, Any],
         message: str,
 ) -> None:
-    """测试规则校验拒绝非法结构"""
+    """测试条件校验拒绝非法结构."""
     with pytest.raises(
             ValueError,
             match=message,
@@ -113,7 +113,7 @@ def test_validate_rejects_invalid_rules(
 
 
 def test_validate_accepts_empty_conditions() -> None:
-    """测试空条件数组是合法的无过滤规则"""
+    """测试空条件数组表示不进行过滤."""
     matcher = RuleMatcher()
 
     matcher.validate(None)
@@ -126,7 +126,7 @@ def test_validate_accepts_empty_conditions() -> None:
 
 
 def test_match_supports_all_any_and_negate() -> None:
-    """测试组合模式和条件取反"""
+    """测试组合模式和条件取反."""
     payload = {
         "age": 35,
         "annual_income": 120000,
@@ -169,7 +169,7 @@ def test_match_supports_all_any_and_negate() -> None:
 def test_match_resolves_compatible_feature_paths(
         field: str,
 ) -> None:
-    """测试兼容不同层级的特征字段路径"""
+    """测试兼容不同层级的特征字段路径."""
     assert RuleMatcher().match(
         payload={
             "request": {
@@ -183,7 +183,7 @@ def test_match_resolves_compatible_feature_paths(
 
 
 def test_match_resolves_array_index_and_missing_path() -> None:
-    """测试数组索引和缺失字段路径"""
+    """测试数组索引和缺失字段路径."""
     matcher = RuleMatcher()
     payload = {
         "values": [10, 20],
@@ -236,7 +236,7 @@ def test_match_supports_value_operators(
         expected: Any,
         matched: bool,
 ) -> None:
-    """测试值比较操作符"""
+    """测试值比较操作符."""
     assert match(
         value=value,
         operator=operator,
@@ -245,7 +245,7 @@ def test_match_supports_value_operators(
 
 
 def test_match_supports_existence_operators() -> None:
-    """测试字段存在性和空值操作符"""
+    """测试字段存在性和空值操作符."""
     matcher = RuleMatcher()
     payload = {
         "value": None,

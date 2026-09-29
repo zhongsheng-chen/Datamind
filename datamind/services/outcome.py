@@ -1,4 +1,4 @@
-"""实验结果回流服务
+"""实验结果回流服务.
 
 负责接收业务系统延迟回流的审批、转化和表现结果，
 并按照原始请求决策补齐实验关联信息。
@@ -32,7 +32,7 @@ from datamind.db.repositories import (
 
 
 class OutcomeService:
-    """实验结果回流服务"""
+    """实验结果回流服务."""
 
     async def submit(
             self,
@@ -51,7 +51,7 @@ class OutcomeService:
             context: dict[str, Any] | None = None,
             outcome_time: datetime | None = None,
     ) -> dict[str, Any]:
-        """幂等提交实验结果
+        """幂等提交实验结果.
 
         必须提供 decision_id 或 request_id，服务会从原始决策中
         补齐实验、分组、分配和请求关联信息。相同 outcome_id
@@ -181,7 +181,7 @@ class OutcomeService:
             decision_id: str | None,
             request_id: str | None,
     ) -> Decision:
-        """查找并校验原始决策"""
+        """查找并校验原始决策."""
         by_decision = (
             await repository.get_by_decision_id(
                 decision_id
@@ -233,7 +233,7 @@ class OutcomeService:
             decision: Decision,
             subject_key: str,
     ) -> None:
-        """校验回流主体与原始决策一致"""
+        """校验回流主体与原始决策一致."""
         if (
                 decision.subject_key is not None
                 and decision.subject_key != subject_key
@@ -249,7 +249,7 @@ class OutcomeService:
             decision: Decision,
             subject_key: str,
     ) -> None:
-        """校验幂等更新没有改变结果归属"""
+        """校验幂等更新没有改变结果归属."""
         if outcome.decision_id != decision.decision_id:
             raise ValueError(
                 "outcome_id 已关联其他决策"
@@ -265,7 +265,7 @@ class OutcomeService:
             field_name: str,
             value: str,
     ) -> str:
-        """校验必填字符串"""
+        """校验必填字符串."""
         normalized = value.strip()
 
         if normalized == "":
@@ -279,7 +279,7 @@ class OutcomeService:
     def _to_dict(
             outcome: Outcome,
     ) -> dict[str, Any]:
-        """转换结果记录为字典"""
+        """转换结果记录为字典."""
         return {
             "outcome_id": outcome.outcome_id,
             "experiment_id": outcome.experiment_id,

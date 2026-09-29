@@ -1,4 +1,4 @@
-"""运行时模型注册表
+"""运行时模型注册表.
 
 负责维护当前进程中已加载的运行时模型。
 
@@ -48,7 +48,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class RuntimeModel:
-    """运行时模型对象
+    """运行时模型对象.
 
     属性：
         deployment_id: 部署 ID
@@ -73,12 +73,12 @@ class RuntimeModel:
     access_count: int = 0
 
     def touch(self) -> None:
-        """记录一次访问"""
+        """记录一次访问."""
         self.last_used_at = datetime.now(timezone.utc)
         self.access_count += 1
 
     def to_dict(self) -> dict:
-        """转换为字典
+        """转换为字典.
 
         说明：
           - 不返回 model 对象本身
@@ -97,13 +97,13 @@ class RuntimeModel:
 
 
 class RuntimeRegistry:
-    """运行时模型注册表
+    """运行时模型注册表.
 
     在进程内保存 deployment_id 到 RuntimeModel 的映射关系。
     """
 
     def __init__(self):
-        """初始化运行时模型注册表"""
+        """初始化运行时模型注册表."""
         self._models: dict[str, RuntimeModel] = {}
         self._lock = RLock()
 
@@ -117,7 +117,7 @@ class RuntimeRegistry:
             model: Any,
             metadata: dict[str, Any] | None = None,
     ) -> RuntimeModel:
-        """注册已加载模型
+        """注册已加载模型.
 
         参数：
             deployment_id: 部署 ID
@@ -161,7 +161,7 @@ class RuntimeRegistry:
             *,
             touch: bool = True,
     ) -> RuntimeModel | None:
-        """获取运行时模型
+        """获取运行时模型.
 
         参数：
             deployment_id: 部署 ID
@@ -185,7 +185,7 @@ class RuntimeRegistry:
             self,
             deployment_id: object,
     ) -> bool:
-        """判断部署是否已加载
+        """判断部署是否已加载.
 
         参数：
             deployment_id: 部署 ID
@@ -206,7 +206,7 @@ class RuntimeRegistry:
             self,
             deployment_id: str,
     ) -> RuntimeModel | None:
-        """卸载运行时模型
+        """卸载运行时模型.
 
         参数：
             deployment_id: 部署 ID
@@ -221,14 +221,14 @@ class RuntimeRegistry:
             return self._models.pop(deployment_id, None)
 
     def restore(self, runtime_model: RuntimeModel) -> None:
-        """恢复先前可用的运行时模型对象"""
+        """恢复先前可用的运行时模型对象."""
         with self._lock:
             self._models[runtime_model.deployment_id] = runtime_model
 
     def all(
             self,
     ) -> list[RuntimeModel]:
-        """获取全部运行时模型
+        """获取全部运行时模型.
 
         返回：
             运行时模型对象列表
@@ -239,7 +239,7 @@ class RuntimeRegistry:
     def snapshot(
             self,
     ) -> list[dict]:
-        """获取注册表状态快照
+        """获取注册表状态快照.
 
         返回：
             运行时模型字典列表
@@ -251,12 +251,12 @@ class RuntimeRegistry:
             ]
 
     def __len__(self) -> int:
-        """获取运行时模型数量"""
+        """获取运行时模型数量."""
         with self._lock:
             return len(self._models)
 
     def clear(self) -> None:
-        """清空注册表"""
+        """清空注册表."""
         with self._lock:
             self._models.clear()
 
@@ -265,7 +265,7 @@ class RuntimeRegistry:
             name: str,
             value: str,
     ) -> None:
-        """校验必填字符串参数
+        """校验必填字符串参数.
 
         参数：
             name: 参数名称

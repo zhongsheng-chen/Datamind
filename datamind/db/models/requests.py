@@ -1,4 +1,4 @@
-"""请求表
+"""请求表.
 
 记录进入系统的请求及其处理结果，
 用于调用追踪、异常排查和性能分析。
@@ -66,7 +66,7 @@ class Request(
     TimestampMixin,
     Base,
 ):
-    """请求表"""
+    """请求表."""
 
     __tablename__ = "requests"
 
@@ -264,7 +264,7 @@ class Request(
     def __repr__(
             self,
     ) -> str:
-        """返回请求记录字符串表示"""
+        """返回请求记录字符串表示."""
         return (
             f"<Request("
             f"request_id='{self.request_id}', "

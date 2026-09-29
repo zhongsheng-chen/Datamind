@@ -1,4 +1,4 @@
-"""推理错误定义
+"""推理错误定义.
 
 统一定义模型推理过程中的异常类型。
 
@@ -10,14 +10,14 @@ from datamind.constants import Framework
 
 
 class FrameworkDependencyError(RuntimeError):
-    """模型框架运行依赖缺失。"""
+    """模型框架运行依赖缺失."""
 
     def __init__(
             self,
             framework: Framework | str,
             dependency: str,
     ) -> None:
-        """初始化模型框架依赖异常
+        """初始化模型框架依赖异常.
 
         参数：
             framework: 模型框架

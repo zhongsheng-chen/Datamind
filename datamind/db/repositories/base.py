@@ -1,4 +1,4 @@
-"""数据库仓储基类
+"""数据库仓储基类.
 
 提供统一的数据仓储能力，由 UnitOfWork 统一管理事务。
 
@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class BaseRepository:
-    """数据库仓储基类
+    """数据库仓储基类.
 
     属性：
         session: 数据库会话对象
@@ -42,7 +42,7 @@ class BaseRepository:
             self,
             session: AsyncSession,
     ) -> None:
-        """初始化数据库仓储基类
+        """初始化数据库仓储基类.
 
         参数：
             session: 异步数据库会话对象
@@ -51,14 +51,14 @@ class BaseRepository:
 
     @property
     def session(self) -> AsyncSession:
-        """获取数据库会话"""
+        """获取数据库会话."""
         return self._session
 
     def add(
             self,
             obj: Any,
     ) -> None:
-        """添加单个对象"""
+        """添加单个对象."""
         self._session.add(
             obj
         )
@@ -67,7 +67,7 @@ class BaseRepository:
             self,
             objs: Iterable[Any],
     ) -> None:
-        """添加多个对象"""
+        """添加多个对象."""
         self._session.add_all(
             objs
         )
@@ -76,20 +76,20 @@ class BaseRepository:
             self,
             obj: Any,
     ) -> None:
-        """删除对象"""
+        """删除对象."""
         await self._session.delete(
             obj
         )
 
     async def flush(self) -> None:
-        """刷新会话，将待处理操作发送到数据库"""
+        """刷新会话，将待处理操作发送到数据库."""
         await self._session.flush()
 
     async def refresh(
             self,
             obj: Any,
     ) -> None:
-        """刷新对象状态"""
+        """刷新对象状态."""
         await self._session.refresh(
             obj
         )

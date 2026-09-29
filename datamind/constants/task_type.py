@@ -1,4 +1,4 @@
-"""模型任务类型枚举
+"""模型任务类型枚举.
 
 定义模型支持的任务类型，用于模型注册、查询和运行时识别。
 
@@ -21,7 +21,7 @@ from typing import FrozenSet
 
 
 class TaskType(str, Enum):
-    """模型任务类型字符串枚举"""
+    """模型任务类型字符串枚举."""
 
     SCORING = "scoring"
     CLASSIFICATION = "classification"
@@ -29,7 +29,7 @@ class TaskType(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

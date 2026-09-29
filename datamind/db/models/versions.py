@@ -1,4 +1,4 @@
-"""模型版本表
+"""模型版本表.
 
 存储模型版本信息，包括模型文件、参数、指标、运行框架和生命周期状态。
 
@@ -55,7 +55,7 @@ class Version(
     TimestampMixin,
     Base,
 ):
-    """模型版本表"""
+    """模型版本表."""
 
     __tablename__ = "versions"
 
@@ -303,7 +303,7 @@ class Version(
     def __repr__(
             self,
     ) -> str:
-        """返回模型版本字符串表示"""
+        """返回模型版本字符串表示."""
         return (
             f"<Version("
             f"version_id='{self.version_id}', "

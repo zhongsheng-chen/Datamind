@@ -1,4 +1,4 @@
-"""运行时预测处理
+"""运行时预测处理.
 
 负责业务结果回流、单条与批量预测、记录持久化、
 影子预测调度以及 Worker 本地服务缓存。
@@ -99,7 +99,7 @@ runtime_config = get_runtime_config()
 
 
 class PredictionMixin:
-    """运行时预测处理能力"""
+    """运行时预测处理能力."""
 
     executor: PredictionExecutor
     manager: RuntimeManager
@@ -120,7 +120,7 @@ class PredictionMixin:
             request: OutcomeFeedbackRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """提交已认证的延迟业务结果"""
+        """提交已认证的延迟业务结果."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -144,7 +144,7 @@ class PredictionMixin:
             request: OutcomeFeedbackRequest,
             request_id: str,
     ) -> dict[str, Any]:
-        """提交延迟业务结果"""
+        """提交延迟业务结果."""
         result = await OutcomeService().submit(
             outcome_id=request.outcome_id,
             subject_key=request.subject_key,
@@ -185,7 +185,7 @@ class PredictionMixin:
             request: PredictRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """执行已认证的单条模型预测"""
+        """执行已认证的单条模型预测."""
         request_id = generate_random_id(
             prefix="req"
         )
@@ -209,7 +209,7 @@ class PredictionMixin:
             request: PredictRequest,
             request_id: str,
     ) -> dict[str, Any]:
-        """执行单条模型预测
+        """执行单条模型预测.
 
         处理流程：
           - 创建请求记录
@@ -401,7 +401,7 @@ class PredictionMixin:
             request: BatchPredictRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """执行已认证的批量模型预测"""
+        """执行已认证的批量模型预测."""
         batch_id = generate_random_id(
             prefix="bat"
         )
@@ -427,7 +427,7 @@ class PredictionMixin:
             request: BatchPredictRequest,
             batch_id: str,
     ) -> dict[str, Any]:
-        """持久化批量预测请求并提交异步任务"""
+        """持久化批量预测请求并提交异步任务."""
         try:
             model_id = await self._resolve_model_id(
                 model_name=request.model_name,
@@ -510,7 +510,7 @@ class PredictionMixin:
             request: BatchReferenceRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """查询已认证的批量预测任务状态"""
+        """查询已认证的批量预测任务状态."""
         request_id = generate_random_id(prefix="req")
         return await self._execute_secured(
             ctx=ctx,
@@ -523,7 +523,7 @@ class PredictionMixin:
 
     @staticmethod
     async def _get_batch_status(batch_id: str) -> dict[str, Any]:
-        """查询批次状态和可用结果"""
+        """查询批次状态和可用结果."""
         async with UnitOfWork() as uow:
             batch = await BatchRepository(uow.session).get_batch(batch_id)
 
@@ -543,7 +543,7 @@ class PredictionMixin:
             request: BatchReferenceRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """取消已认证的批量预测任务"""
+        """取消已认证的批量预测任务."""
         request_id = generate_random_id(prefix="req")
         return await self._execute_secured(
             ctx=ctx,
@@ -555,7 +555,7 @@ class PredictionMixin:
         )
 
     async def _cancel_batch(self, batch_id: str) -> dict[str, Any]:
-        """记录取消请求并撤销尚未执行的 Celery 任务"""
+        """记录取消请求并撤销尚未执行的 Celery 任务."""
         try:
             async with UnitOfWork() as uow:
                 repository = BatchRepository(uow.session)
@@ -604,7 +604,7 @@ class PredictionMixin:
             request: BatchReferenceRequest,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """重新提交已认证的失败或已取消批次"""
+        """重新提交已认证的失败或已取消批次."""
         request_id = generate_random_id(prefix="req")
         response = await self._execute_secured(
             ctx=ctx,
@@ -621,7 +621,7 @@ class PredictionMixin:
         return response
 
     async def _retry_batch(self, batch_id: str) -> dict[str, Any]:
-        """为批次创建新的 Celery 任务并重新排队"""
+        """为批次创建新的 Celery 任务并重新排队."""
         task_id = generate_random_id(prefix="tsk")
 
         try:
@@ -684,7 +684,7 @@ class PredictionMixin:
 
     @staticmethod
     def _build_batch_status_response(batch: Any) -> dict[str, Any]:
-        """构造稳定的批次状态响应"""
+        """构造稳定的批次状态响应."""
         response = {
             "success": True,
             "batch_id": batch.batch_id,
@@ -717,7 +717,7 @@ class PredictionMixin:
             cancel_check: Callable[[], Awaitable[bool]] | None = None,
             raise_errors: bool = False,
     ) -> dict[str, Any]:
-        """执行并持久化批量模型预测分片
+        """执行并持久化批量模型预测分片.
 
         每条预测使用独立请求预算，批次准备、结果持久化和影子任务
         发布不共享单条 HTTP 预测的总超时。
@@ -1047,7 +1047,7 @@ class PredictionMixin:
             request: BatchPredictRequest,
             batch_id: str,
     ) -> int:
-        """在发布分片任务前创建完整的幂等请求记录。"""
+        """在发布分片任务前创建完整的幂等请求记录."""
         model_id = await self._resolve_model_id(
             model_name=request.model_name,
         )
@@ -1067,7 +1067,7 @@ class PredictionMixin:
             instances: list[PredictionInstance],
             cancel_check: Callable[[], Awaitable[bool]] | None = None,
     ) -> tuple[list[ExecutionResult], str | None]:
-        """按主部署分组执行批量预测并恢复请求顺序。"""
+        """按主部署分组执行批量预测并恢复请求顺序."""
         indices_by_deployment: dict[str, list[int]] = {}
 
         for index, routing_plan in enumerate(routing_plans):
@@ -1163,7 +1163,7 @@ class PredictionMixin:
             deployment_id: str | None,
             instances: list[PredictionInstance],
     ) -> list[str]:
-        """创建批次请求记录，重试时复用原请求 ID"""
+        """创建批次请求记录，重试时复用原请求 ID."""
         request_context = get_context()
 
         async with UnitOfWork() as uow:
@@ -1232,7 +1232,7 @@ class PredictionMixin:
     async def _load_batch_success_responses(
             batch_id: str,
     ) -> dict[int, dict[str, Any]]:
-        """加载重试时需要跳过的成功条目响应"""
+        """加载重试时需要跳过的成功条目响应."""
         async with UnitOfWork() as uow:
             records = await RequestRepository(
                 uow.session
@@ -1252,7 +1252,7 @@ class PredictionMixin:
             batch_id: str,
             expected_count: int,
     ) -> list[str]:
-        """按批次位置加载分片共享的请求 ID。"""
+        """按批次位置加载分片共享的请求 ID."""
         async with UnitOfWork() as uow:
             records = await RequestRepository(
                 uow.session
@@ -1283,7 +1283,7 @@ class PredictionMixin:
             latency_ms: float,
             batch_indices: list[int] | None = None,
     ) -> tuple[ShadowTask, ...]:
-        """在同一事务中记录批量请求和决策结果"""
+        """在同一事务中记录批量请求和决策结果."""
         shadow_tasks: list[ShadowTask] = []
 
         async with UnitOfWork() as uow:
@@ -1461,7 +1461,7 @@ class PredictionMixin:
             response: dict[str, Any] | None = None,
             latency_ms: float,
     ) -> None:
-        """标记已经创建的批量请求为失败"""
+        """标记已经创建的批量请求为失败."""
         if not records_created:
             return
 
@@ -1504,7 +1504,7 @@ class PredictionMixin:
             request_id: str,
             error: Exception,
     ) -> dict[str, Any]:
-        """构造接口错误响应
+        """构造接口错误响应.
 
         参数：
             request_id: 请求追踪 ID
@@ -1532,7 +1532,7 @@ class PredictionMixin:
             response: dict[str, Any],
             latency_ms: float,
     ) -> None:
-        """标记预测请求失败
+        """标记预测请求失败.
 
         参数：
             request_id: 请求 ID
@@ -1568,7 +1568,7 @@ class PredictionMixin:
             *,
             model_name: str,
     ) -> str:
-        """将公开模型名称解析为内部模型 ID
+        """将公开模型名称解析为内部模型 ID.
 
         参数：
             model_name: 全局唯一模型名称
@@ -1598,7 +1598,7 @@ class PredictionMixin:
     def _build_request_payload(
             request: PredictRequest,
     ) -> dict[str, Any]:
-        """构造请求负载
+        """构造请求负载.
 
         参数：
             request: 单条预测请求
@@ -1623,7 +1623,7 @@ class PredictionMixin:
             model_name: str | None,
             payload: dict[str, Any],
     ) -> None:
-        """创建原始请求记录
+        """创建原始请求记录.
 
         参数：
             request_id: 请求 ID
@@ -1663,7 +1663,7 @@ class PredictionMixin:
             response: dict[str, Any],
             latency_ms: float,
     ) -> tuple[ShadowTask, ...]:
-        """记录成功请求、最终决策和模型执行
+        """记录成功请求、最终决策和模型执行.
 
         Request 状态更新、Decision 创建和 Execution 创建
         在同一个事务中完成。
@@ -1836,7 +1836,7 @@ class PredictionMixin:
             response: dict[str, Any],
             latency_ms: float,
     ) -> None:
-        """记录批次条目的失败结果
+        """记录批次条目的失败结果.
 
         路由尚未完成时只更新请求记录；确定执行目标后，额外记录
         本次路由决策和主模型执行，保留批次重试前的执行轨迹。
@@ -1923,7 +1923,7 @@ class PredictionMixin:
     def _failure_execution_status(
             error: Exception,
     ) -> ExecutionStatus:
-        """根据异常语义确定模型执行失败状态"""
+        """根据异常语义确定模型执行失败状态."""
         if isinstance(error, RequestTimeoutError):
             return ExecutionStatus.TIMEOUT
 
@@ -1933,7 +1933,7 @@ class PredictionMixin:
             self,
             tasks: tuple[ShadowTask, ...],
     ) -> None:
-        """提交本次请求命中的影子预测"""
+        """提交本次请求命中的影子预测."""
         for task in tasks:
             task_id = generate_random_id(prefix="tsk")
             try:
@@ -1970,7 +1970,7 @@ class PredictionMixin:
             *,
             raise_errors: bool = False,
     ) -> None:
-        """执行并记录单个影子预测"""
+        """执行并记录单个影子预测."""
         started_at = time.perf_counter()
 
         try:
@@ -2085,7 +2085,7 @@ class PredictionMixin:
 
     @staticmethod
     async def load_shadow_task(execution_id: str) -> ShadowTask | None:
-        """从持久化执行记录还原影子预测任务"""
+        """从持久化执行记录还原影子预测任务."""
         async with UnitOfWork() as uow:
             execution_repo = ExecutionRepository(uow.session)
             decision_repo = DecisionRepository(uow.session)
@@ -2181,7 +2181,7 @@ class PredictionMixin:
 
     @staticmethod
     async def reset_shadow_for_retry(execution_id: str) -> None:
-        """将瞬时失败的影子执行重新置为等待状态"""
+        """将瞬时失败的影子执行重新置为等待状态."""
         async with UnitOfWork() as uow:
             repository = ExecutionRepository(uow.session)
             execution = await repository.get_execution(execution_id)
@@ -2199,7 +2199,7 @@ class PredictionMixin:
             task: ShadowTask,
             result: ExecutionResult,
     ) -> None:
-        """记录成功的影子模型执行"""
+        """记录成功的影子模型执行."""
         async with UnitOfWork() as uow:
             repo = ExecutionRepository(
                 uow.session
@@ -2238,7 +2238,7 @@ class PredictionMixin:
     async def _record_shadow_running(
             task: ShadowTask,
     ) -> None:
-        """标记影子模型执行开始"""
+        """标记影子模型执行开始."""
         async with UnitOfWork() as uow:
             repo = ExecutionRepository(
                 uow.session
@@ -2266,7 +2266,7 @@ class PredictionMixin:
             error_type: str,
             latency_ms: float,
     ) -> None:
-        """记录未成功的影子模型执行"""
+        """记录未成功的影子模型执行."""
         try:
             async with UnitOfWork() as uow:
                 repo = ExecutionRepository(
@@ -2308,7 +2308,7 @@ class PredictionMixin:
             response: dict[str, Any],
             latency_ms: float,
     ) -> None:
-        """标记请求处理失败
+        """标记请求处理失败.
 
         参数：
             request_id: 请求 ID
@@ -2351,7 +2351,7 @@ class PredictionMixin:
             batch_id: str | None = None,
             batch_index: int | None = None,
     ) -> dict[str, Any]:
-        """构造不重复结构化决策字段的诊断上下文"""
+        """构造不重复结构化决策字段的诊断上下文."""
         duplicate_fields = {
             "assignment_id",
             "bucket",
@@ -2408,7 +2408,7 @@ class PredictionMixin:
     def _build_prediction_payload(
             result: dict[str, Any],
     ) -> dict[str, Any]:
-        """构造执行表中的模型预测结果
+        """构造执行表中的模型预测结果.
 
         去除模型和部署标识字段，
         保留服务类型和实际预测输出。
@@ -2436,7 +2436,7 @@ class PredictionMixin:
     def _optional_float(
             value: Any,
     ) -> float | None:
-        """安全转换可选浮点数"""
+        """安全转换可选浮点数."""
         if (
                 value is None
                 or isinstance(
@@ -2461,7 +2461,7 @@ class PredictionMixin:
     def _optional_string(
             value: Any,
     ) -> str | None:
-        """安全转换可选字符串"""
+        """安全转换可选字符串."""
         if value is None:
             return None
 
@@ -2477,7 +2477,7 @@ class PredictionMixin:
             self,
             deployment_id: str,
     ) -> BaseRuntimeService:
-        """获取当前 Worker 的 RuntimeService
+        """获取当前 Worker 的 RuntimeService.
 
         当本地模型尚未加载时，
         主动执行一次 reconcile_once，
@@ -2584,7 +2584,7 @@ class PredictionMixin:
             *,
             deployment_id: str,
     ) -> None:
-        """校验 Deployment 是否属于当前 Service 环境
+        """校验 Deployment 是否属于当前 Service 环境.
 
         参数：
             deployment_id:
@@ -2636,7 +2636,7 @@ class PredictionMixin:
     def _build_service_info(
             service: BaseRuntimeService,
     ) -> dict[str, Any]:
-        """构造 RuntimeService 信息
+        """构造 RuntimeService 信息.
 
         参数：
             service: RuntimeService

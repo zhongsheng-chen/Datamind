@@ -1,4 +1,4 @@
-"""用户表
+"""用户表.
 
 记录用户身份、密码和登录状态，用于用户认证和权限控制。
 
@@ -43,7 +43,7 @@ class User(
     TimestampMixin,
     Base,
 ):
-    """用户表"""
+    """用户表."""
 
     __tablename__ = "users"
 
@@ -230,7 +230,7 @@ class User(
     def __repr__(
             self,
     ) -> str:
-        """返回用户字符串表示"""
+        """返回用户字符串表示."""
         return (
             f"<User("
             f"user_id='{self.user_id}', "

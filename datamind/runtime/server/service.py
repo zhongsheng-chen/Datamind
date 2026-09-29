@@ -1,4 +1,4 @@
-"""运行时模型服务
+"""运行时模型服务.
 
 基于 BentoML 提供多 Worker 模型推理服务。
 
@@ -80,7 +80,7 @@ runtime_config = get_runtime_config()
 
 
 def _get_service_instance_id() -> str | None:
-    """获取当前服务实例 ID"""
+    """获取当前服务实例 ID."""
     service_instance_id = os.environ.get(
         "DATAMIND_SERVICE_INSTANCE_ID"
     )
@@ -92,7 +92,7 @@ def _get_service_instance_id() -> str | None:
 
 
 def _get_ready_dir() -> Path | None:
-    """获取 Worker 就绪标记目录"""
+    """获取 Worker 就绪标记目录."""
     ready_dir = os.environ.get(
         "DATAMIND_SERVICE_READY_DIR"
     )
@@ -110,7 +110,7 @@ def _write_worker_ready_marker(
         worker_id: str,
         environment: str,
 ) -> None:
-    """写入 Worker 就绪标记
+    """写入 Worker 就绪标记.
 
     参数：
         worker_id: Worker ID
@@ -163,7 +163,7 @@ def _write_worker_ready_marker(
 
 
 def _build_worker_id() -> str:
-    """生成当前 Worker 标识
+    """生成当前 Worker 标识.
 
     使用主机名和进程 ID 组合，
     保证同一服务实例中的 Worker 标识不同。
@@ -198,12 +198,12 @@ class DatamindRuntimeService(
     RuntimeControlMixin,
     PredictionMixin,
 ):
-    """Datamind 多 Worker 运行时模型服务"""
+    """Datamind 多 Worker 运行时模型服务."""
 
     def __init__(
             self,
     ):
-        """初始化当前 Worker 服务状态"""
+        """初始化当前 Worker 服务状态."""
         setup_logging(get_logging_config())
 
         worker_id = _build_worker_id()
@@ -277,7 +277,7 @@ class DatamindRuntimeService(
     async def startup(
             self,
     ) -> None:
-        """启动当前 Worker
+        """启动当前 Worker.
 
         启动流程：
           - 执行当前环境首次状态协调
@@ -325,7 +325,7 @@ class DatamindRuntimeService(
     async def shutdown(
             self,
     ) -> None:
-        """关闭当前 Worker
+        """关闭当前 Worker.
 
         关闭流程：
           - 停止 Reconciler
@@ -378,7 +378,7 @@ class DatamindRuntimeService(
     def health(
             self,
     ) -> dict[str, Any]:
-        """服务健康检查
+        """服务健康检查.
 
         返回：
             当前 Worker 健康状态
@@ -410,7 +410,7 @@ class DatamindRuntimeService(
             self,
             ctx: bentoml.Context,
     ) -> dict[str, Any]:
-        """检查 Worker 是否可以接收请求"""
+        """检查 Worker 是否可以接收请求."""
         database_ready = False
 
         try:
@@ -464,7 +464,7 @@ class DatamindRuntimeService(
             target_type: str | None = None,
             target_id: str | None = None,
     ) -> dict[str, Any]:
-        """在认证请求作用域内执行接口处理函数"""
+        """在认证请求作用域内执行接口处理函数."""
         async with self.security.request_scope(
                 context=ctx,
                 permission=permission,
@@ -518,7 +518,7 @@ class DatamindRuntimeService(
             ctx: Any,
             response: dict[str, Any],
     ) -> None:
-        """根据错误类型设置 HTTP 响应状态"""
+        """根据错误类型设置 HTTP 响应状态."""
         if response.get("success", True):
             return
 

@@ -1,4 +1,4 @@
-"""随机森林分类模型训练示例
+"""随机森林分类模型训练示例.
 
 使用可复现的合成数据训练 sklearn 随机森林二分类模型，并保存 joblib 制品。
 
@@ -43,7 +43,7 @@ def build_training_data(
         sample_count: int = SAMPLE_COUNT,
         random_seed: int = RANDOM_SEED,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    """构造可复现的交易风险二分类数据。"""
+    """构造可复现的交易风险二分类数据."""
     if sample_count < 100:
         raise ValueError("sample_count 不能小于 100")
 
@@ -81,7 +81,7 @@ def split_training_data(
     pd.Series,
     pd.Series,
 ]:
-    """按标签分层划分训练集和测试集。"""
+    """按标签分层划分训练集和测试集."""
     return train_test_split(
         features,
         labels,
@@ -97,7 +97,7 @@ def train_model(
         *,
         random_seed: int = RANDOM_SEED,
 ) -> RandomForestClassifier:
-    """训练随机森林分类模型。"""
+    """训练随机森林分类模型."""
     model = RandomForestClassifier(
         n_estimators=100,
         max_depth=8,
@@ -115,7 +115,7 @@ def evaluate_model(
         features: pd.DataFrame,
         labels: pd.Series,
 ) -> dict[str, float]:
-    """计算测试集准确率和 ROC AUC。"""
+    """计算测试集准确率和 ROC AUC."""
     predictions = model.predict(features)
     probabilities = model.predict_proba(features)[:, 1]
 
@@ -132,7 +132,7 @@ def save_model(
         model: RandomForestClassifier,
         output_path: Path,
 ) -> Path:
-    """保存 sklearn 模型制品。"""
+    """保存 sklearn 模型制品."""
     resolved_path = output_path.resolve()
     resolved_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, resolved_path)
@@ -140,8 +140,17 @@ def save_model(
     return resolved_path
 
 
-def parse_arguments() -> argparse.Namespace:
-    """解析命令行参数。"""
+def parse_arguments(
+    arguments: list[str] | None = None,
+) -> argparse.Namespace:
+    """解析命令行参数.
+
+    参数：
+        arguments: 待解析的命令行参数，默认读取当前进程参数
+
+    返回：
+        解析后的命令行参数
+    """
     parser = argparse.ArgumentParser(
         description="训练 Random Forest 风险分类示例模型",
     )
@@ -149,11 +158,11 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--sample-count", type=int, default=SAMPLE_COUNT)
     parser.add_argument("--random-seed", type=int, default=RANDOM_SEED)
 
-    return parser.parse_args()
+    return parser.parse_args(arguments)
 
 
 def main() -> None:
-    """执行数据生成、划分、训练、评估和保存流程。"""
+    """执行数据生成、划分、训练、评估和保存流程."""
     arguments = parse_arguments()
     features, labels = build_training_data(
         sample_count=arguments.sample_count,

@@ -1,4 +1,4 @@
-"""列出部署命令
+"""列出部署命令.
 
 提供部署的列表查询功能，支持过滤、分页和多种输出格式。
 
@@ -92,7 +92,7 @@ def list_deployments(
             help="输出格式：text / json"
         ),
 ):
-    """列出部署"""
+    """列出部署."""
     environment = get_service_config().environment.value
 
     async def _run():

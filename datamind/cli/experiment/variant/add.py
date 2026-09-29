@@ -1,4 +1,4 @@
-"""添加实验分组命令
+"""添加实验分组命令.
 
 提供 A/B 实验分组添加功能。
 
@@ -86,7 +86,7 @@ def add_variant(
             help="输出格式：text / json"
         ),
 ):
-    """添加实验分组"""
+    """添加实验分组."""
 
     @audit(
         action="experiment.variant.add",
@@ -291,7 +291,7 @@ def add_variant(
 def _validate_experiment_can_add_variant(
         experiment: Experiment,
 ) -> None:
-    """校验实验是否允许添加分组"""
+    """校验实验是否允许添加分组."""
     status = str(experiment.status).lower()
 
     if status != str(ExperimentStatus.DRAFT):
@@ -306,7 +306,7 @@ def _validate_active_weight_sum(
         variants: list[Variant],
         added_weight: float,
 ) -> None:
-    """校验新增后的启用分组权重总和"""
+    """校验新增后的启用分组权重总和."""
     if _get_assignment_strategy(
             experiment
     ) != AssignmentStrategy.HASH:
@@ -330,7 +330,7 @@ def _validate_active_weight_sum(
 def _get_assignment_strategy(
         experiment: Experiment,
 ) -> AssignmentStrategy:
-    """获取实验分配策略"""
+    """获取实验分配策略."""
     config = experiment.config or {}
 
     if not isinstance(
@@ -367,7 +367,7 @@ def _build_variant_config(
         weight: float,
         is_control: bool,
 ) -> dict:
-    """构建实验分组配置"""
+    """构建实验分组配置."""
     return {
         "name": name,
         "deployment_id": deployment_id,
@@ -381,7 +381,7 @@ def _build_variant_config(
 def _has_active_control_variant(
         variants: list[Variant],
 ) -> bool:
-    """判断是否已存在启用状态的对照组"""
+    """判断是否已存在启用状态的对照组."""
     return any(
         _is_active_variant(item) and _is_control_variant(item)
         for item in variants
@@ -393,7 +393,7 @@ def _has_active_variant_name(
         variants: list[Variant],
         name: str,
 ) -> bool:
-    """判断是否已存在启用状态的同名分组"""
+    """判断是否已存在启用状态的同名分组."""
     target_name = name.strip().lower()
 
     return any(
@@ -408,7 +408,7 @@ def _find_variant_by_deployment(
         variants: list[Variant],
         deployment_id: str,
 ) -> Variant | None:
-    """查找绑定指定部署的分组"""
+    """查找绑定指定部署的分组."""
     return next(
         (
             item
@@ -422,7 +422,7 @@ def _find_variant_by_deployment(
 def _is_active_variant(
         variant: Variant,
 ) -> bool:
-    """判断实验分组是否为启用状态"""
+    """判断实验分组是否为启用状态."""
     return (
         str(variant.status).lower()
         == str(ExperimentVariantStatus.ACTIVE)
@@ -432,5 +432,5 @@ def _is_active_variant(
 def _is_control_variant(
         variant: Variant,
 ) -> bool:
-    """判断实验分组是否为对照组"""
+    """判断实验分组是否为对照组."""
     return bool(variant.is_control)

@@ -1,4 +1,4 @@
-"""运行时配置测试
+"""运行时配置测试.
 
 验证默认值、环境变量读取、参数校验、外部配置隔离和配置不可变行为。
 
@@ -30,7 +30,7 @@ from datamind.config.runtime import RuntimeConfig
 
 
 class IsolatedRuntimeConfig(RuntimeConfig):
-    """仅使用初始化参数的测试运行时配置"""
+    """仅使用初始化参数的测试运行时配置."""
 
     @classmethod
     def settings_customise_sources(
@@ -41,7 +41,7 @@ class IsolatedRuntimeConfig(RuntimeConfig):
             dotenv_settings: PydanticBaseSettingsSource,
             file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -58,7 +58,7 @@ def isolate_runtime_config(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """隔离运行时环境变量和 .env 文件"""
+    """隔离运行时环境变量和 .env 文件."""
     for key in tuple(os.environ):
         if key.startswith("DATAMIND_RUNTIME_"):
             monkeypatch.delenv(
@@ -72,14 +72,14 @@ def isolate_runtime_config(
 def create_config(
         **overrides: Any,
 ) -> RuntimeConfig:
-    """创建隔离的运行时配置"""
+    """创建隔离的运行时配置."""
     return IsolatedRuntimeConfig(
         **overrides
     )
 
 
 def test_runtime_config_default_values() -> None:
-    """测试运行时配置默认值"""
+    """测试运行时配置默认值."""
     config = create_config()
 
     assert config.reconcile_interval == 2.0
@@ -91,7 +91,7 @@ def test_runtime_config_default_values() -> None:
 def test_runtime_config_reads_environment_variables(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从环境变量读取运行时配置"""
+    """测试从环境变量读取运行时配置."""
     environment = {
         "DATAMIND_RUNTIME_RECONCILE_INTERVAL": "1.5",
         "DATAMIND_RUNTIME_HEARTBEAT_INTERVAL": "15.0",
@@ -114,7 +114,7 @@ def test_runtime_config_reads_environment_variables(
 
 
 def test_runtime_config_accepts_custom_values() -> None:
-    """测试接受有效的自定义配置"""
+    """测试接受有效的自定义配置."""
     config = create_config(
         reconcile_interval=1.5,
         heartbeat_interval=15.0,
@@ -157,7 +157,7 @@ def test_runtime_config_rejects_invalid_values(
         value: int | float,
         message: str,
 ) -> None:
-    """测试拒绝无效的运行时参数"""
+    """测试拒绝无效的运行时参数."""
     with pytest.raises(
             ValidationError,
             match=message,
@@ -170,7 +170,7 @@ def test_runtime_config_rejects_invalid_values(
 
 
 def test_runtime_config_ignores_extra_fields() -> None:
-    """测试忽略未声明的额外字段"""
+    """测试忽略未声明的额外字段."""
     config = IsolatedRuntimeConfig.model_validate({
         "unknown_option": "ignored",
     })
@@ -182,7 +182,7 @@ def test_runtime_config_ignores_extra_fields() -> None:
 
 
 def test_runtime_config_is_frozen() -> None:
-    """测试运行时配置不可修改"""
+    """测试运行时配置不可修改."""
     config = create_config()
 
     with pytest.raises(ValidationError):
