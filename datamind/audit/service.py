@@ -1,4 +1,4 @@
-"""审计服务
+"""审计服务.
 
 统一执行审计持久化、瞬时故障重试和失败策略。
 
@@ -38,7 +38,7 @@ _TRANSIENT_ERRORS = (
 
 @dataclass(frozen=True)
 class AuditResult:
-    """审计记录结果"""
+    """审计记录结果."""
 
     audit_id: str
     recorded: bool
@@ -46,7 +46,7 @@ class AuditResult:
 
 
 class AuditService:
-    """审计事件服务"""
+    """审计事件服务."""
 
     def __init__(
             self,
@@ -54,7 +54,7 @@ class AuditService:
             sink: AuditSink | None = None,
             config: AuditConfig | None = None,
     ) -> None:
-        """初始化审计服务
+        """初始化审计服务.
 
         参数：
             sink: 审计写入端，默认使用 DatabaseAuditSink
@@ -69,7 +69,7 @@ class AuditService:
             *,
             failure_mode: AuditFailureMode | None = None,
     ) -> AuditResult:
-        """记录审计事件"""
+        """记录审计事件."""
         if not self._config.enabled:
             return AuditResult(
                 audit_id=event.audit_id,

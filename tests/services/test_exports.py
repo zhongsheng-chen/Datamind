@@ -1,4 +1,4 @@
-"""业务服务包公共导出测试
+"""业务服务包公共导出测试.
 
 验证业务服务包公开 API 的完整性和可访问性。
 
@@ -40,18 +40,18 @@ EXPECTED_ERROR_EXPORTS = {
 
 
 def test_service_exports_expected_public_api() -> None:
-    """测试业务服务包按约定顺序公开完整且准确的 API"""
+    """测试业务服务包按约定顺序公开完整且准确的 API."""
     assert services.__all__ == EXPECTED_EXPORTS
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     for name in services.__all__:
         assert hasattr(services, name), name
 
 
 def test_service_error_exports_expected_public_api() -> None:
-    """测试服务异常模块公开完整且准确的 API"""
+    """测试服务异常模块公开完整且准确的 API."""
     assert set(service_errors.__all__) == EXPECTED_ERROR_EXPORTS
     assert len(service_errors.__all__) == len(
         EXPECTED_ERROR_EXPORTS
@@ -59,7 +59,7 @@ def test_service_error_exports_expected_public_api() -> None:
 
 
 def test_all_declared_error_exports_are_available() -> None:
-    """测试异常模块声明的对象均可访问"""
+    """测试异常模块声明的对象均可访问."""
     for name in service_errors.__all__:
         assert hasattr(
             service_errors,

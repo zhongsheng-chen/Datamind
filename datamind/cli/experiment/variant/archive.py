@@ -1,4 +1,4 @@
-"""归档实验分组命令
+"""归档实验分组命令.
 
 提供实验分组归档功能。
 
@@ -42,7 +42,7 @@ def archive_variant(
             help="输出格式：text / json"
         ),
 ):
-    """归档实验分组"""
+    """归档实验分组."""
 
     @audit(
         action="experiment.variant.archive",

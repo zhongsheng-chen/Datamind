@@ -1,4 +1,4 @@
-"""请求决策仓储
+"""请求决策仓储.
 
 用于查询与写入请求决策结果，
 支持在线推理、A/B 测试、灰度发布和决策审计。
@@ -60,13 +60,13 @@ from datamind.models.enums import DecisionStrategy
 
 
 class DecisionRepository(BaseRepository):
-    """请求决策仓储"""
+    """请求决策仓储."""
 
     async def get_by_decision_id(
             self,
             decision_id: str,
     ) -> Decision | None:
-        """按照决策 ID 获取请求决策
+        """按照决策 ID 获取请求决策.
 
         参数：
             decision_id: 决策 ID
@@ -93,7 +93,7 @@ class DecisionRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if (
                 limit is not None
                 and limit < 0
@@ -116,7 +116,7 @@ class DecisionRepository(BaseRepository):
             *,
             field_name: str,
     ) -> None:
-        """校验取值范围为 0 到 1 的字段"""
+        """校验取值范围为 0 到 1 的字段."""
         if value is None:
             return
 
@@ -132,7 +132,7 @@ class DecisionRepository(BaseRepository):
             self,
             request_id: str,
     ) -> Decision | None:
-        """获取请求最近一次决策结果
+        """获取请求最近一次决策结果.
 
         参数：
             request_id: 请求 ID
@@ -181,7 +181,7 @@ class DecisionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Decision]:
-        """获取请求决策记录列表
+        """获取请求决策记录列表.
 
         参数：
             decision_id: 决策 ID（可选）
@@ -339,7 +339,7 @@ class DecisionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Decision]:
-        """获取模型决策记录"""
+        """获取模型决策记录."""
         return await self.list_decisions(
             model_id=model_id,
             limit=limit,
@@ -353,7 +353,7 @@ class DecisionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Decision]:
-        """获取部署决策记录"""
+        """获取部署决策记录."""
         return await self.list_decisions(
             deployment_id=deployment_id,
             limit=limit,
@@ -367,7 +367,7 @@ class DecisionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Decision]:
-        """获取实验决策记录"""
+        """获取实验决策记录."""
         return await self.list_decisions(
             experiment_id=experiment_id,
             limit=limit,
@@ -381,7 +381,7 @@ class DecisionRepository(BaseRepository):
             limit: int | None = None,
             offset: int | None = None,
     ) -> list[Decision]:
-        """获取实验分组决策记录"""
+        """获取实验分组决策记录."""
         return await self.list_decisions(
             variant_id=variant_id,
             limit=limit,
@@ -410,7 +410,7 @@ class DecisionRepository(BaseRepository):
             context: dict | None = None,
             decided_at: datetime | None = None,
     ) -> Decision:
-        """创建决策记录
+        """创建决策记录.
 
         参数：
             decision_id: 决策记录 ID

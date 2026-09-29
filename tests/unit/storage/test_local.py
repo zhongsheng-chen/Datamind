@@ -1,4 +1,4 @@
-"""本地文件存储后端测试
+"""本地文件存储后端测试.
 
 验证本地对象的写入、读取、删除、存在判断、列表和路径安全。
 
@@ -63,7 +63,7 @@ from datamind.storage.local import LocalStorageBackend
 def create_backend(
     tmp_path: Path,
 ) -> LocalStorageBackend:
-    """创建使用临时目录的本地存储后端"""
+    """创建使用临时目录的本地存储后端."""
     return LocalStorageBackend(
         base_dir=tmp_path / "storage"
     )
@@ -72,7 +72,7 @@ def create_backend(
 def test_init_resolves_base_directory(
     tmp_path: Path,
 ) -> None:
-    """测试初始化时将基础目录转换为绝对路径"""
+    """测试初始化时将基础目录转换为绝对路径."""
     base_dir = tmp_path / "data" / ".." / "storage"
 
     backend = LocalStorageBackend(
@@ -86,7 +86,7 @@ def test_init_resolves_base_directory(
 def test_put_object_creates_parent_directories_and_writes_data(
     tmp_path: Path,
 ) -> None:
-    """测试写入对象时自动创建父目录"""
+    """测试写入对象时自动创建父目录."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
     data = b"model data"
@@ -105,7 +105,7 @@ def test_put_object_creates_parent_directories_and_writes_data(
 def test_put_object_overwrites_existing_file(
     tmp_path: Path,
 ) -> None:
-    """测试重复写入时覆盖已有文件"""
+    """测试重复写入时覆盖已有文件."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
 
@@ -125,7 +125,7 @@ def test_put_object_preserves_existing_file_when_replace_fails(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试原子替换失败时保留旧文件并清理临时文件"""
+    """测试原子替换失败时保留旧文件并清理临时文件."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
 
@@ -171,7 +171,7 @@ def test_put_object_retries_transient_windows_replace_error(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试 Windows 短暂占用后重试原子替换"""
+    """测试 Windows 短暂占用后重试原子替换."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
     replace = local_module.os.replace
@@ -222,7 +222,7 @@ def test_put_object_retries_transient_windows_replace_error(
 def test_put_object_normalizes_windows_separator(
     tmp_path: Path,
 ) -> None:
-    """测试将 Windows 路径分隔符标准化"""
+    """测试将 Windows 路径分隔符标准化."""
     backend = create_backend(tmp_path)
     key = r"models\mdl_0123456789abcdef\1.0.0\model.pkl"
 
@@ -246,7 +246,7 @@ def test_put_object_normalizes_windows_separator(
 def test_get_object_returns_file_data(
     tmp_path: Path,
 ) -> None:
-    """测试读取已存在对象"""
+    """测试读取已存在对象."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
     data = b"model data"
@@ -262,7 +262,7 @@ def test_get_object_returns_file_data(
 def test_get_object_raises_when_file_does_not_exist(
     tmp_path: Path,
 ) -> None:
-    """测试读取不存在对象时抛出标准异常"""
+    """测试读取不存在对象时抛出标准异常."""
     backend = create_backend(tmp_path)
     key = "models/mdl_missing/1.0.0/model.pkl"
 
@@ -276,7 +276,7 @@ def test_get_object_raises_when_file_does_not_exist(
 def test_get_object_rejects_directory(
     tmp_path: Path,
 ) -> None:
-    """测试目录不能作为文件对象读取"""
+    """测试目录不能作为文件对象读取."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef"
     directory = backend.base_dir / key
@@ -294,7 +294,7 @@ def test_get_object_rejects_directory(
 def test_delete_object_removes_existing_file(
     tmp_path: Path,
 ) -> None:
-    """测试删除已存在对象"""
+    """测试删除已存在对象."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
 
@@ -311,7 +311,7 @@ def test_delete_object_removes_existing_file(
 def test_delete_object_is_idempotent_for_missing_file(
     tmp_path: Path,
 ) -> None:
-    """测试删除不存在对象时保持幂等"""
+    """测试删除不存在对象时保持幂等."""
     backend = create_backend(tmp_path)
     key = "models/mdl_missing/1.0.0/model.pkl"
 
@@ -323,7 +323,7 @@ def test_delete_object_is_idempotent_for_missing_file(
 def test_object_exists_returns_expected_values(
     tmp_path: Path,
 ) -> None:
-    """测试对象存在判断"""
+    """测试对象存在判断."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
 
@@ -344,7 +344,7 @@ def test_object_exists_returns_expected_values(
 def test_object_exists_returns_false_for_directory(
     tmp_path: Path,
 ) -> None:
-    """测试目录不被视为文件对象"""
+    """测试目录不被视为文件对象."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef"
     directory = backend.base_dir / key
@@ -358,7 +358,7 @@ def test_object_exists_returns_false_for_directory(
 def test_list_objects_returns_sorted_recursive_keys(
     tmp_path: Path,
 ) -> None:
-    """测试递归列出指定前缀下的对象并排序"""
+    """测试递归列出指定前缀下的对象并排序."""
     backend = create_backend(tmp_path)
 
     backend.put_object(
@@ -392,7 +392,7 @@ def test_list_objects_returns_sorted_recursive_keys(
 def test_list_objects_with_empty_prefix_lists_all_files(
     tmp_path: Path,
 ) -> None:
-    """测试空前缀列出基础目录下全部对象"""
+    """测试空前缀列出基础目录下全部对象."""
     backend = create_backend(tmp_path)
 
     backend.put_object(
@@ -415,7 +415,7 @@ def test_list_objects_with_empty_prefix_lists_all_files(
 def test_list_objects_returns_empty_for_missing_prefix(
     tmp_path: Path,
 ) -> None:
-    """测试不存在的目录前缀返回空列表"""
+    """测试不存在的目录前缀返回空列表."""
     backend = create_backend(tmp_path)
 
     assert backend.list_objects(
@@ -426,7 +426,7 @@ def test_list_objects_returns_empty_for_missing_prefix(
 def test_list_objects_returns_empty_when_prefix_is_file(
     tmp_path: Path,
 ) -> None:
-    """测试前缀指向文件时返回空列表"""
+    """测试前缀指向文件时返回空列表."""
     backend = create_backend(tmp_path)
     key = "models/mdl_0123456789abcdef/1.0.0/model.pkl"
 
@@ -459,7 +459,7 @@ def test_public_operations_reject_unsafe_keys(
     tmp_path: Path,
     key: str,
 ) -> None:
-    """测试公开对象操作拒绝空键、基础目录和路径越界"""
+    """测试公开对象操作拒绝空键、基础目录和路径越界."""
     backend = create_backend(tmp_path)
 
     operations = [
@@ -489,7 +489,7 @@ def test_public_operations_reject_non_string_keys(
     tmp_path: Path,
     key: Any,
 ) -> None:
-    """测试公开对象操作拒绝非字符串键"""
+    """测试公开对象操作拒绝非字符串键."""
     backend = create_backend(tmp_path)
 
     operations = [
@@ -514,7 +514,7 @@ def test_public_operations_reject_non_string_keys(
 def test_public_operations_reject_null_character(
     tmp_path: Path,
 ) -> None:
-    """测试公开对象操作拒绝空字符"""
+    """测试公开对象操作拒绝空字符."""
     backend = create_backend(tmp_path)
     key = "models/model\x00.pkl"
 
@@ -553,7 +553,7 @@ def test_list_objects_rejects_unsafe_prefix(
     tmp_path: Path,
     prefix: str,
 ) -> None:
-    """测试列表操作拒绝越界目录前缀"""
+    """测试列表操作拒绝越界目录前缀."""
     backend = create_backend(tmp_path)
 
     with pytest.raises(StorageKeyError):

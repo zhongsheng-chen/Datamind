@@ -1,4 +1,4 @@
-"""令牌工具
+"""令牌工具.
 
 提供访问令牌生成与解析、刷新令牌生成、哈希和校验能力。
 
@@ -86,7 +86,7 @@ def create_access_token(
         extra_claims: dict[str, Any] | None = None,
         issued_at: datetime | None = None,
 ) -> str:
-    """生成 JWT 访问令牌
+    """生成 JWT 访问令牌.
 
     参数：
         user_id: 用户 ID
@@ -178,7 +178,7 @@ def decode_access_token(
         secret_key: str,
         algorithm: str = "HS256",
 ) -> dict[str, Any] | None:
-    """解析并校验 JWT 访问令牌
+    """解析并校验 JWT 访问令牌.
 
     参数：
         token: JWT 访问令牌
@@ -247,7 +247,7 @@ def decode_access_token(
 
 
 def generate_refresh_token() -> str:
-    """生成刷新令牌
+    """生成刷新令牌.
 
     返回：
         使用安全随机源生成的 URL 安全刷新令牌
@@ -260,7 +260,7 @@ def generate_refresh_token() -> str:
 def hash_refresh_token(
         refresh_token: str,
 ) -> str:
-    """计算刷新令牌哈希
+    """计算刷新令牌哈希.
 
     参数：
         refresh_token: 原始刷新令牌
@@ -288,7 +288,7 @@ def verify_refresh_token(
         refresh_token: str,
         token_hash: str,
 ) -> bool:
-    """校验刷新令牌
+    """校验刷新令牌.
 
     参数：
         refresh_token: 原始刷新令牌
@@ -318,7 +318,7 @@ def _normalize_utc_datetime(
         *,
         field_name: str,
 ) -> datetime:
-    """转换为 UTC 时间
+    """转换为 UTC 时间.
 
     参数：
         value: 待转换时间

@@ -1,4 +1,4 @@
-"""管理控制台 ASGI 应用
+"""管理控制台 ASGI 应用.
 
 提供浏览器登录、会话续期、实时变更通知、数据查询和资源管理功能。
 
@@ -198,7 +198,7 @@ _security_headers_middleware = security_headers
 async def _health(
         _request: Request,
 ) -> JSONResponse:
-    """返回管理控制台健康状态"""
+    """返回管理控制台健康状态."""
     return JSONResponse({
         "status": "ok",
     })
@@ -207,7 +207,7 @@ async def _health(
 async def _ready(
         _request: Request,
 ) -> JSONResponse:
-    """返回管理控制台就绪状态"""
+    """返回管理控制台就绪状态."""
     try:
         async with UnitOfWork() as uow:
             await uow.session.execute(
@@ -231,7 +231,7 @@ async def _ready(
 async def _page(
         request: Request,
 ) -> Response:
-    """返回管理控制台页面"""
+    """返回管理控制台页面."""
     static_files = ConsoleStaticFiles(
         directory=_STATIC_DIR,
         check_dir=False,
@@ -251,7 +251,7 @@ async def _page(
 async def _login(
         request: Request,
 ) -> JSONResponse:
-    """使用本地账户创建浏览器会话"""
+    """使用本地账户创建浏览器会话."""
     attempted_username = await _requested_login_username(
         request
     )
@@ -308,7 +308,7 @@ async def _login(
 async def _refresh(
         request: Request,
 ) -> Response:
-    """轮换浏览器登录凭据"""
+    """轮换浏览器登录凭据."""
     response = await browser_auth.refresh(
         request,
         refresh_cookie=browser_cookies.REFRESH_COOKIE,
@@ -349,7 +349,7 @@ async def _refresh(
 async def _logout(
         request: Request,
 ) -> Response:
-    """撤销浏览器会话"""
+    """撤销浏览器会话."""
     user = await _authenticate(
         request
     )
@@ -423,7 +423,7 @@ async def _logout(
 async def _session(
         request: Request,
 ) -> JSONResponse:
-    """返回当前浏览器登录用户"""
+    """返回当前浏览器登录用户."""
     user = await _authenticate(
         request
     )
@@ -447,7 +447,7 @@ async def _session(
 async def _overview(
         request: Request,
 ) -> JSONResponse:
-    """返回按权限裁剪的控制台快照"""
+    """返回按权限裁剪的控制台快照."""
     user = await _authenticate(
         request
     )
@@ -487,7 +487,7 @@ async def _overview(
 async def _management_options(
         request: Request,
 ) -> JSONResponse:
-    """返回资源管理表单使用的可选项"""
+    """返回资源管理表单使用的可选项."""
     user = await _authenticate(
         request
     )
@@ -563,7 +563,7 @@ async def _management_options(
 async def _model_registration_target(
         request: Request,
 ) -> JSONResponse:
-    """查询模型及指定版本是否已存在"""
+    """查询模型及指定版本是否已存在."""
     user = await _authenticate(
         request
     )
@@ -638,7 +638,7 @@ async def _model_registration_target(
 async def _model_detail(
         request: Request,
 ) -> JSONResponse:
-    """返回模型详情"""
+    """返回模型详情."""
     user = await _authenticate(request)
 
     if user is None:
@@ -686,7 +686,7 @@ async def _model_detail(
 async def _version_detail(
         request: Request,
 ) -> JSONResponse:
-    """返回模型版本详情"""
+    """返回模型版本详情."""
     user = await _authenticate(request)
 
     if user is None:
@@ -734,7 +734,7 @@ async def _version_detail(
 async def _model_versions(
         request: Request,
 ) -> JSONResponse:
-    """返回模型版本分页数据"""
+    """返回模型版本分页数据."""
     user = await _authenticate(
         request
     )
@@ -815,7 +815,7 @@ async def _model_versions(
 async def _section(
         request: Request,
 ) -> JSONResponse:
-    """返回控制台页面分页数据"""
+    """返回控制台页面分页数据."""
     user = await _authenticate(
         request
     )
@@ -904,7 +904,7 @@ async def _section(
 async def _experiment_variants(
         request: Request,
 ) -> JSONResponse:
-    """返回实验分组分页数据"""
+    """返回实验分组分页数据."""
     user = await _authenticate(
         request
     )
@@ -985,7 +985,7 @@ async def _experiment_variants(
 async def _section_export(
         request: Request,
 ) -> Response:
-    """导出控制台页面查询结果"""
+    """导出控制台页面查询结果."""
     return await _export_records(
         request=request,
         section=request.path_params[
@@ -997,7 +997,7 @@ async def _section_export(
 async def _model_versions_export(
         request: Request,
 ) -> Response:
-    """导出指定模型的版本查询结果"""
+    """导出指定模型的版本查询结果."""
     return await _export_records(
         request=request,
         section="versions",
@@ -1010,7 +1010,7 @@ async def _model_versions_export(
 async def _experiment_variants_export(
         request: Request,
 ) -> Response:
-    """导出指定实验的分组查询结果"""
+    """导出指定实验的分组查询结果."""
     return await _export_records(
         request=request,
         section="variants",
@@ -1027,7 +1027,7 @@ async def _export_records(
         model_id: str | None = None,
         experiment_id: str | None = None,
 ) -> Response:
-    """校验权限并流式导出当前查询结果"""
+    """校验权限并流式导出当前查询结果."""
     user = await _authenticate(
         request
     )
@@ -1215,7 +1215,7 @@ async def _export_records(
 async def _get_export_record_ids(
         request: Request,
 ) -> tuple[str, ...] | None:
-    """读取导出请求中选择的记录 ID"""
+    """读取导出请求中选择的记录 ID."""
     if request.method != "POST":
         return None
 
@@ -1261,7 +1261,7 @@ async def _stream_csv_export(
             Awaitable[dict[str, Any]],
         ],
 ) -> AsyncIterator[str]:
-    """按页生成 UTF-8 CSV 内容"""
+    """按页生成 UTF-8 CSV 内容."""
     yield "\ufeff"
     page_data = first_page
     fieldnames = list(
@@ -1298,7 +1298,7 @@ async def _stream_csv_export(
 async def _events(
         request: Request,
 ) -> Response:
-    """建立控制台实时事件流"""
+    """建立控制台实时事件流."""
     user = await _authenticate(
         request
     )
@@ -1336,7 +1336,7 @@ async def _stream_events(
         request: Request,
         allowed_topics: set[str],
 ) -> AsyncIterator[str]:
-    """推送当前用户有权接收的控制台事件"""
+    """推送当前用户有权接收的控制台事件."""
     cursor = _parse_event_cursor(
         request.headers.get(
             "last-event-id"
@@ -1439,14 +1439,14 @@ async def _stream_events(
 
 
 async def _get_event_window() -> tuple[int | None, int]:
-    """获取当前可回放事件游标范围"""
+    """获取当前可回放事件游标范围."""
     return await _complete_event_query(
         _query_event_window()
     )
 
 
 async def _query_event_window() -> tuple[int | None, int]:
-    """查询当前可回放事件游标范围"""
+    """查询当前可回放事件游标范围."""
     async with UnitOfWork() as uow:
         repository = OutboxRepository(
             uow.session
@@ -1460,7 +1460,7 @@ async def _query_event_window() -> tuple[int | None, int]:
 async def _get_events_after(
         event_id: int,
 ) -> list[OutboxEvent]:
-    """读取指定游标之后的一批事件"""
+    """读取指定游标之后的一批事件."""
     return await _complete_event_query(
         _query_events_after(
             event_id
@@ -1471,7 +1471,7 @@ async def _get_events_after(
 async def _query_events_after(
         event_id: int,
 ) -> list[OutboxEvent]:
-    """查询指定游标之后的一批事件"""
+    """查询指定游标之后的一批事件."""
     async with UnitOfWork() as uow:
         return await OutboxRepository(
             uow.session
@@ -1488,7 +1488,7 @@ async def _complete_event_query(
             _EventQueryResult,
         ],
 ) -> _EventQueryResult:
-    """在请求取消时等待事件查询完成数据库清理"""
+    """在请求取消时等待事件查询完成数据库清理."""
     query_task = asyncio.create_task(
         query
     )
@@ -1513,7 +1513,7 @@ async def _complete_event_query(
 def _parse_event_cursor(
         value: str | None,
 ) -> int | None:
-    """解析 SSE 断线恢复游标"""
+    """解析 SSE 断线恢复游标."""
     if value is None:
         return None
 
@@ -1538,7 +1538,7 @@ def _encode_sse(
         event_id: int | None = None,
         retry: int | None = None,
 ) -> str:
-    """编码单条 SSE 消息"""
+    """编码单条 SSE 消息."""
     fields: list[str] = []
 
     if retry is not None:
@@ -1572,7 +1572,7 @@ async def _authorize_write(
         *,
         permission: str | None = None,
 ) -> tuple[AuthenticatedUser | None, JSONResponse | None]:
-    """校验控制台写操作的身份、可选权限与 CSRF 令牌"""
+    """校验控制台写操作的身份、可选权限与 CSRF 令牌."""
     user = await _authenticate(
         request
     )
@@ -1634,7 +1634,7 @@ async def _authorize_write(
 async def _requested_login_username(
         request: Request,
 ) -> str:
-    """读取登录用户名，不保留请求中的认证秘密"""
+    """读取登录用户名，不保留请求中的认证秘密."""
     try:
         payload = await request.json()
     except (
@@ -1660,7 +1660,7 @@ def _http_actor_context(
         *,
         username: str = "unknown",
 ) -> dict[str, object]:
-    """构建可信的控制台 HTTP 操作人上下文"""
+    """构建可信的控制台 HTTP 操作人上下文."""
     return {
         USER: username,
         SOURCE: AuditSource.HTTP,
@@ -1676,7 +1676,7 @@ def _http_audit_context(
         *,
         user: AuthenticatedUser,
 ) -> dict[str, object]:
-    """构建已认证用户的控制台 HTTP 审计上下文"""
+    """构建已认证用户的控制台 HTTP 审计上下文."""
     return _http_actor_context(
         request,
         username=user.username,
@@ -1686,7 +1686,7 @@ def _http_audit_context(
 def _http_request_id(
         request: Request,
 ) -> str:
-    """读取可信长度的请求 ID，缺失时生成新 ID"""
+    """读取可信长度的请求 ID，缺失时生成新 ID."""
     cached = getattr(
         request.state,
         "audit_request_id",
@@ -1713,7 +1713,7 @@ def _http_request_id(
 def _http_trace_id(
         request: Request,
 ) -> str:
-    """读取 W3C 追踪 ID，缺失或无效时生成新 ID"""
+    """读取 W3C 追踪 ID，缺失或无效时生成新 ID."""
     cached = getattr(
         request.state,
         "audit_trace_id",
@@ -1754,7 +1754,7 @@ async def _record_write_audit(
         target_id: str,
         result: dict[str, Any],
 ) -> None:
-    """记录控制台写操作审计"""
+    """记录控制台写操作审计."""
     before = None
     after = result
     if isinstance(result, MutationResult):
@@ -1779,7 +1779,7 @@ def _identity_service_for_request(
         *,
         user: AuthenticatedUser,
 ) -> IdentityService:
-    """创建携带可信 HTTP 审计上下文的身份服务"""
+    """创建携带可信 HTTP 审计上下文的身份服务."""
     return IdentityService(
         audit_source=AuditSource.HTTP,
         audit_context=_http_audit_context(
@@ -1801,7 +1801,7 @@ async def _record_authentication_event(
         error: str | None,
         details: dict[str, object] | None = None,
 ) -> None:
-    """记录不包含认证秘密的控制台认证事件"""
+    """记录不包含认证秘密的控制台认证事件."""
     context = _http_actor_context(
         request,
         username=actor_username,
@@ -1825,7 +1825,7 @@ async def _record_authentication_event(
 def _write_error_response(
         error: Exception,
 ) -> JSONResponse:
-    """转换控制台写操作异常"""
+    """转换控制台写操作异常."""
     if isinstance(
             error,
             ValidationError,
@@ -1887,7 +1887,7 @@ def _write_error_response(
 
 def _service_environment(
 ) -> str:
-    """返回当前控制台实例管理的唯一环境。"""
+    """返回当前控制台实例管理的唯一环境."""
     return str(
         get_service_config().environment.value
     )
@@ -1899,7 +1899,7 @@ def _service_environment(
 async def _create_model(
         request: Request,
 ) -> JSONResponse:
-    """上传模型文件并注册模型版本"""
+    """上传模型文件并注册模型版本."""
     user, denied = await _authorize_write(
         request,
         permission="model.write",
@@ -2003,7 +2003,7 @@ async def _create_model(
 async def _create_deployment(
         request: Request,
 ) -> JSONResponse:
-    """创建模型部署"""
+    """创建模型部署."""
     user, denied = await _authorize_write(
         request,
         permission="deployment.write",
@@ -2042,7 +2042,7 @@ async def _create_deployment(
 async def _create_routing(
         request: Request,
 ) -> JSONResponse:
-    """创建路由规则"""
+    """创建路由规则."""
     user, denied = await _authorize_write(
         request,
         permission="routing.write",
@@ -2080,7 +2080,7 @@ async def _create_routing(
 async def _create_experiment(
         request: Request,
 ) -> JSONResponse:
-    """创建实验"""
+    """创建实验."""
     user, denied = await _authorize_write(
         request,
         permission="experiment.write",
@@ -2119,7 +2119,7 @@ async def _create_experiment(
 async def _create_variant(
         request: Request,
 ) -> JSONResponse:
-    """创建实验分组"""
+    """创建实验分组."""
     user, denied = await _authorize_write(
         request,
         permission="experiment.write",
@@ -2158,7 +2158,7 @@ async def _create_variant(
 async def _create_user(
         request: Request,
 ) -> JSONResponse:
-    """创建本地用户"""
+    """创建本地用户."""
     user, denied = await _authorize_write(
         request,
         permission="identity.manage",
@@ -2196,7 +2196,7 @@ async def _create_user(
 async def _create_role(
         request: Request,
 ) -> JSONResponse:
-    """创建角色"""
+    """创建角色."""
     user, denied = await _authorize_write(
         request,
         permission="identity.manage",
@@ -2234,7 +2234,7 @@ async def _create_role(
 async def _update_model(
         request: Request,
 ) -> JSONResponse:
-    """更新模型显示名称和描述"""
+    """更新模型显示名称和描述."""
     user, denied = await _authorize_write(
         request,
         permission="model.write",
@@ -2282,7 +2282,7 @@ async def _update_model(
 async def _update_version(
         request: Request,
 ) -> JSONResponse:
-    """更新模型版本说明"""
+    """更新模型版本说明."""
     user, denied = await _authorize_write(
         request,
         permission="model.write",
@@ -2327,7 +2327,7 @@ async def _update_version(
 
 
 async def _update_deployment(request: Request) -> JSONResponse:
-    """更新模型部署"""
+    """更新模型部署."""
     user, denied = await _authorize_write(
         request,
         permission="deployment.write",
@@ -2358,7 +2358,7 @@ async def _update_deployment(request: Request) -> JSONResponse:
 
 
 async def _update_routing(request: Request) -> JSONResponse:
-    """更新路由规则"""
+    """更新路由规则."""
     user, denied = await _authorize_write(
         request,
         permission="routing.write",
@@ -2387,7 +2387,7 @@ async def _update_routing(request: Request) -> JSONResponse:
 
 
 async def _update_experiment(request: Request) -> JSONResponse:
-    """更新草稿实验"""
+    """更新草稿实验."""
     user, denied = await _authorize_write(
         request,
         permission="experiment.write",
@@ -2421,7 +2421,7 @@ async def _update_experiment(request: Request) -> JSONResponse:
 
 
 async def _update_variant(request: Request) -> JSONResponse:
-    """更新实验分组"""
+    """更新实验分组."""
     user, denied = await _authorize_write(
         request,
         permission="experiment.write",
@@ -2457,7 +2457,7 @@ async def _update_variant(request: Request) -> JSONResponse:
 async def _update_user(
         request: Request,
 ) -> JSONResponse:
-    """更新用户资料"""
+    """更新用户资料."""
     user, denied = await _authorize_write(
         request,
         permission="identity.manage",
@@ -2496,7 +2496,7 @@ async def _update_user(
 async def _update_role(
         request: Request,
 ) -> JSONResponse:
-    """更新角色权限"""
+    """更新角色权限."""
     user, denied = await _authorize_write(
         request,
         permission="identity.manage",
@@ -2532,7 +2532,7 @@ async def _update_role(
 async def _change_password(
         request: Request,
 ) -> JSONResponse:
-    """修改当前用户密码并结束浏览器会话"""
+    """修改当前用户密码并结束浏览器会话."""
     user, denied = await _authorize_write(
         request
     )
@@ -2572,7 +2572,7 @@ async def _change_password(
 async def _reset_user_password(
         request: Request,
 ) -> JSONResponse:
-    """重置用户密码"""
+    """重置用户密码."""
     user, denied = await _authorize_write(
         request,
         permission="identity.manage",
@@ -2608,7 +2608,7 @@ async def _reset_user_password(
 async def _resource_action(
         request: Request,
 ) -> JSONResponse:
-    """执行批次及管理资源操作"""
+    """执行批次及管理资源操作."""
     resource = request.path_params["resource"]
     identifier = request.path_params["identifier"]
     action = request.path_params["action"]
@@ -2715,7 +2715,7 @@ async def _resource_action(
 def _user_payload(
         user: AuthenticatedUser,
 ) -> dict[str, object]:
-    """转换当前用户信息"""
+    """转换当前用户信息."""
     payload = user.model_dump(
         mode="json"
     )
@@ -2736,7 +2736,7 @@ def _user_payload(
 async def _authenticate(
         request: Request,
 ) -> AuthenticatedUser | None:
-    """认证浏览器访问令牌"""
+    """认证浏览器访问令牌."""
     user = await browser_auth.authenticate(
         request,
         access_cookie=browser_cookies.ACCESS_COOKIE,
@@ -2754,7 +2754,7 @@ async def _authenticate(
 async def _lifespan(
         _app: Starlette,
 ) -> AsyncIterator[None]:
-    """管理控制台实时事件监听生命周期"""
+    """管理控制台实时事件监听生命周期."""
     await event_broker.start()
 
     try:
@@ -2767,7 +2767,7 @@ def _request_context_middleware(
         app: ASGIApp,
         /,
 ) -> ASGIApp:
-    """创建控制台请求日志上下文中间件"""
+    """创建控制台请求日志上下文中间件."""
     return RequestContextMiddleware(
         app,
         context_factory=_http_actor_context,

@@ -1,4 +1,4 @@
-"""查看实验分组命令
+"""查看实验分组命令.
 
 提供实验分组详情查看功能。
 
@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
 def _get_variant_environment(
         config: dict | None,
 ) -> str | None:
-    """获取实验分组环境"""
+    """获取实验分组环境."""
     if not isinstance(
             config,
             dict,
@@ -72,7 +72,7 @@ def show_variant(
             help="输出格式：text / json"
         ),
 ):
-    """查看实验分组详情"""
+    """查看实验分组详情."""
 
     async def _run():
         if output not in ("text", "json"):

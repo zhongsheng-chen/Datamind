@@ -1,4 +1,4 @@
-"""运行时服务缓存测试
+"""运行时服务缓存测试.
 
 验证 Worker 服务缓存的查询、创建及失效行为。
 
@@ -25,7 +25,7 @@ async def test_services_returns_cached_service_information(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试服务列表返回运行时和缓存信息"""
+    """测试服务列表返回运行时和缓存信息."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     runtime_service = MagicMock()
@@ -71,7 +71,7 @@ async def test_get_service_reconciles_and_caches_runtime_service(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试本地模型收敛后创建并缓存运行时服务"""
+    """测试本地模型收敛后创建并缓存运行时服务."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     runtime_model = object()
@@ -107,7 +107,7 @@ async def test_get_service_rejects_unloaded_runtime(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试状态收敛后仍未加载模型时拒绝服务"""
+    """测试状态收敛后仍未加载模型时拒绝服务."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service.manager.registry.get.return_value = None

@@ -1,4 +1,4 @@
-"""常量包公共导出测试
+"""常量包公共导出测试.
 
 验证常量包公开 API 的完整性和可访问性。
 
@@ -48,12 +48,12 @@ EXPECTED_EXPORTS = {
 
 
 def test_constants_exports_expected_public_api() -> None:
-    """测试常量包公开完整且准确的 API"""
+    """测试常量包公开完整且准确的 API."""
     assert set(constants.__all__) == EXPECTED_EXPORTS
     assert len(constants.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     for name in constants.__all__:
         assert hasattr(constants, name), name

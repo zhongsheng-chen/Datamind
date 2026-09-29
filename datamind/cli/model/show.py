@@ -1,4 +1,4 @@
-"""查看模型命令
+"""查看模型命令.
 
 提供模型和模型版本详情查看功能。
 
@@ -65,7 +65,7 @@ def show_model(
             help="输出格式：text / json"
         ),
 ):
-    """查看模型详情"""
+    """查看模型详情."""
 
     async def _run():
         if not (name or model_id):
@@ -185,7 +185,7 @@ def show_model(
 
 
 def _model_to_dict(model: Any) -> dict[str, Any]:
-    """模型元数据转字典
+    """模型元数据转字典.
 
     参数：
         model: 模型元数据对象
@@ -218,7 +218,7 @@ def _model_to_dict(model: Any) -> dict[str, Any]:
 
 
 def _version_to_dict(ver: Any) -> dict[str, Any]:
-    """模型版本转字典
+    """模型版本转字典.
 
     参数：
         ver: 模型版本对象
@@ -250,7 +250,7 @@ def _version_to_dict(ver: Any) -> dict[str, Any]:
 
 
 def _version_summary_to_dict(ver: Any) -> dict[str, Any]:
-    """模型版本摘要转字典
+    """模型版本摘要转字典.
 
     参数：
         ver: 模型版本对象
@@ -272,7 +272,7 @@ def _version_summary_to_dict(ver: Any) -> dict[str, Any]:
 
 
 def _print_model_detail(model: dict[str, Any]) -> None:
-    """打印模型详情
+    """打印模型详情.
 
     参数：
         model: 模型元数据字典
@@ -303,7 +303,7 @@ def _print_model_detail(model: dict[str, Any]) -> None:
 
 
 def _print_version_detail(ver: dict[str, Any]) -> None:
-    """打印模型版本详情
+    """打印模型版本详情.
 
     参数：
         ver: 模型版本字典
@@ -331,7 +331,7 @@ def _print_version_detail(ver: dict[str, Any]) -> None:
 
 
 def _print_version_list(versions: list[dict[str, Any]]) -> None:
-    """打印模型版本列表
+    """打印模型版本列表.
 
     参数：
         versions: 模型版本摘要字典列表

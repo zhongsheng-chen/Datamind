@@ -1,4 +1,4 @@
-"""日期时间工具
+"""日期时间工具.
 
 提供时区获取、UTC 转换、日期时间解析、
 本地时间转换和格式化能力。
@@ -61,7 +61,7 @@ from zoneinfo import ZoneInfo
 def get_timezone(
         timezone_name: str | None = None,
 ) -> ZoneInfo:
-    """获取当前配置时区
+    """获取当前配置时区.
 
     优先使用显式传入的 IANA 时区名称，否则从环境变量 TZ 读取，
     两者均未配置时使用 UTC。
@@ -90,7 +90,7 @@ def parse_datetime(
         *,
         timezone_name: str | None = None,
 ) -> datetime | None:
-    """解析日期时间并转换为 UTC
+    """解析日期时间并转换为 UTC.
 
     支持使用空格或 T 分隔日期与时间，以及 Z 或
     数值时区偏移。输入不含时区信息时使用 timezone_name，
@@ -157,7 +157,7 @@ def to_utc(
 def to_utc(
         dt: datetime | None,
 ) -> datetime | None:
-    """将日期时间转换为 UTC
+    """将日期时间转换为 UTC.
 
     不带时区的日期时间按 UTC 处理。
 
@@ -185,7 +185,7 @@ def to_local(
         *,
         timezone_name: str | None = None,
 ) -> datetime | None:
-    """将日期时间转换为本地时区
+    """将日期时间转换为本地时区.
 
     不带时区的日期时间按 UTC 处理。
 
@@ -223,7 +223,7 @@ def format_datetime(
         *,
         timezone_name: str | None = None,
 ) -> str:
-    """格式化本地日期时间
+    """格式化本地日期时间.
 
     参数：
         dt: 待格式化的日期时间
@@ -249,7 +249,7 @@ def format_datetime(
 def format_iso_utc(
         dt: datetime | None,
 ) -> str | None:
-    """格式化为 ISO 8601 UTC 字符串
+    """格式化为 ISO 8601 UTC 字符串.
 
     输出固定为毫秒精度，并使用 Z 表示 UTC。
 

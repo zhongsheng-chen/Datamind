@@ -1,4 +1,4 @@
-"""批次执行分片仓储测试
+"""批次执行分片仓储测试.
 
 验证批次执行分片的创建、启动和结束状态迁移。
 
@@ -24,7 +24,7 @@ from datamind.db.repositories.shard import ShardRepository
 
 
 def create_repository(scalar: object = None) -> tuple[ShardRepository, MagicMock]:
-    """创建使用会话替身的分片仓储"""
+    """创建使用会话替身的分片仓储."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = scalar
     session = MagicMock(spec=AsyncSession)
@@ -37,7 +37,7 @@ def create_repository(scalar: object = None) -> tuple[ShardRepository, MagicMock
 
 
 def create_shard(**overrides: object) -> Shard:
-    """创建分片测试对象"""
+    """创建分片测试对象."""
     values: dict[str, object] = {
         "shard_id": "shd_test",
         "attempt_id": "att_test",
@@ -52,7 +52,7 @@ def create_shard(**overrides: object) -> Shard:
 
 
 def test_create_shard() -> None:
-    """测试创建等待执行的批次分片"""
+    """测试创建等待执行的批次分片."""
     repository, session = create_repository()
     new_shard = repository.create_shard(
         shard_id="shd_test",
@@ -69,7 +69,7 @@ def test_create_shard() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_started_records_worker() -> None:
-    """测试分片进入运行状态并记录 Worker"""
+    """测试分片进入运行状态并记录 Worker."""
     shard = create_shard()
     repository, _ = create_repository(shard)
     result = await repository.mark_started(
@@ -84,7 +84,7 @@ async def test_mark_started_records_worker() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_finished_records_terminal_state() -> None:
-    """测试分片进入最终状态并记录完成时间"""
+    """测试分片进入最终状态并记录完成时间."""
     shard = create_shard(status="running")
     repository, _ = create_repository(shard)
     result = await repository.mark_finished(
@@ -98,7 +98,7 @@ async def test_mark_finished_records_terminal_state() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_open_shards_failed() -> None:
-    """测试批次中未结束的分片统一进入失败状态"""
+    """测试批次中未结束的分片统一进入失败状态."""
     shards = [
         create_shard(shard_id="shd_queued"),
         create_shard(shard_id="shd_running", status="running"),

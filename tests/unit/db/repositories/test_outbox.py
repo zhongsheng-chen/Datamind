@@ -1,4 +1,4 @@
-"""控制台事件仓储测试
+"""控制台事件仓储测试.
 
 验证事件游标查询、顺序回放、参数校验和过期事件清理。
 
@@ -46,7 +46,7 @@ CURRENT_TIME = datetime(
 def create_repository(
         result: MagicMock,
 ) -> tuple[OutboxRepository, AsyncMock]:
-    """创建控制台事件仓储及会话替身"""
+    """创建控制台事件仓储及会话替身."""
     execute = AsyncMock(
         return_value=result
     )
@@ -67,7 +67,7 @@ def create_repository(
 
 @pytest.mark.asyncio
 async def test_get_latest_event_id() -> None:
-    """测试获取最新事件游标"""
+    """测试获取最新事件游标."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = 42
     repository, _ = create_repository(
@@ -81,7 +81,7 @@ async def test_get_latest_event_id() -> None:
 
 @pytest.mark.asyncio
 async def test_list_events() -> None:
-    """测试按游标顺序查询事件"""
+    """测试按游标顺序查询事件."""
     events = [
         OutboxEvent(
             event_id=11,
@@ -132,7 +132,7 @@ async def test_list_events_rejects_invalid_arguments(
         limit: int,
         message: str,
 ) -> None:
-    """测试查询参数校验"""
+    """测试查询参数校验."""
     repository, execute = create_repository(
         MagicMock()
     )
@@ -151,7 +151,7 @@ async def test_list_events_rejects_invalid_arguments(
 
 @pytest.mark.asyncio
 async def test_delete_events_before() -> None:
-    """测试清理过期事件"""
+    """测试清理过期事件."""
     result = MagicMock()
     repository, execute = create_repository(
         result

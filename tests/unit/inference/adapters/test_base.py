@@ -1,4 +1,4 @@
-"""基础模型适配器测试
+"""基础模型适配器测试.
 
 验证模型适配器基类的输入转换、推理调度、特征校验、
 正类解析、能力检查和默认回退行为。
@@ -67,7 +67,7 @@ from datamind.core.inference.adapters.base import BaseModelAdapter
 
 
 class BinaryModel:
-    """二分类测试模型"""
+    """二分类测试模型."""
 
     classes_ = np.array([
         0,
@@ -76,11 +76,11 @@ class BinaryModel:
 
 
 class NoClassesModel:
-    """未提供类别信息的测试模型"""
+    """未提供类别信息的测试模型."""
 
 
 class MulticlassModel:
-    """多分类测试模型"""
+    """多分类测试模型."""
 
     classes_ = np.array([
         0,
@@ -90,7 +90,7 @@ class MulticlassModel:
 
 
 class ProbabilityAdapter(BaseModelAdapter):
-    """概率预测测试适配器"""
+    """概率预测测试适配器."""
 
     SUPPORTED_CAPABILITIES = (
         ModelCapability.PREDICT_PROBA
@@ -101,7 +101,7 @@ class ProbabilityAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """返回首行特征之和"""
+        """返回首行特征之和."""
         array = np.asarray(
             X,
             dtype=float,
@@ -113,7 +113,7 @@ class ProbabilityAdapter(BaseModelAdapter):
 
 
 class NoBatchAdapter(BaseModelAdapter):
-    """不支持批量推理的测试适配器"""
+    """不支持批量推理的测试适配器."""
 
     SUPPORTED_CAPABILITIES = (
         ModelCapability.PREDICT_PROBA
@@ -123,7 +123,7 @@ class NoBatchAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """返回首行特征之和"""
+        """返回首行特征之和."""
         array = np.asarray(
             X,
             dtype=float,
@@ -135,7 +135,7 @@ class NoBatchAdapter(BaseModelAdapter):
 
 
 class LogitAdapter(ProbabilityAdapter):
-    """对数几率预测测试适配器"""
+    """对数几率预测测试适配器."""
 
     SUPPORTED_CAPABILITIES = (
         ModelCapability.PREDICT_PROBA
@@ -147,7 +147,7 @@ class LogitAdapter(ProbabilityAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """返回首行特征之和作为对数几率"""
+        """返回首行特征之和作为对数几率."""
         array = np.asarray(
             X,
             dtype=float,
@@ -159,7 +159,7 @@ class LogitAdapter(ProbabilityAdapter):
 
 
 class DeclaredLogitAdapter(ProbabilityAdapter):
-    """声明但未实现对数几率接口的测试适配器"""
+    """声明但未实现对数几率接口的测试适配器."""
 
     SUPPORTED_CAPABILITIES = (
         ModelCapability.PREDICT_PROBA
@@ -169,7 +169,7 @@ class DeclaredLogitAdapter(ProbabilityAdapter):
 
 
 class DeclaredImportanceAdapter(ProbabilityAdapter):
-    """声明但未实现特征重要性接口的测试适配器"""
+    """声明但未实现特征重要性接口的测试适配器."""
 
     SUPPORTED_CAPABILITIES = (
         ModelCapability.PREDICT_PROBA
@@ -179,7 +179,7 @@ class DeclaredImportanceAdapter(ProbabilityAdapter):
 
 
 class ImportanceAdapter(ProbabilityAdapter):
-    """特征重要性测试适配器"""
+    """特征重要性测试适配器."""
 
     SUPPORTED_CAPABILITIES = (
         ModelCapability.PREDICT_PROBA
@@ -190,7 +190,7 @@ class ImportanceAdapter(ProbabilityAdapter):
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """构造特征重要性结果"""
+        """构造特征重要性结果."""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
@@ -207,7 +207,7 @@ class ImportanceAdapter(ProbabilityAdapter):
 def require_scalar(
         value: float | list[float],
 ) -> float:
-    """校验预测结果为标量"""
+    """校验预测结果为标量."""
     if isinstance(
             value,
             list,
@@ -222,7 +222,7 @@ def require_scalar(
 def require_batch(
         value: float | list[float],
 ) -> list[float]:
-    """校验预测结果为列表"""
+    """校验预测结果为列表."""
     if not isinstance(
             value,
             list,
@@ -236,7 +236,7 @@ def require_batch(
 
 def test_init_rejects_none_model(
 ) -> None:
-    """测试模型不能为空"""
+    """测试模型不能为空."""
     with pytest.raises(
             ValueError,
             match="model 不能为空",
@@ -248,7 +248,7 @@ def test_init_rejects_none_model(
 
 def test_feature_names_are_copied_and_empty_list_becomes_none(
 ) -> None:
-    """测试特征名称复制和空列表标准化"""
+    """测试特征名称复制和空列表标准化."""
     feature_names = [
         "feature_a",
         "feature_b",
@@ -300,7 +300,7 @@ def test_feature_names_are_copied_and_empty_list_becomes_none(
 def test_invalid_feature_names_are_rejected(
         feature_names: list[Any],
 ) -> None:
-    """测试拒绝非法特征名称"""
+    """测试拒绝非法特征名称."""
     with pytest.raises(
             ValueError,
             match="feature_names",
@@ -313,7 +313,7 @@ def test_invalid_feature_names_are_rejected(
 
 def test_capability_query_and_requirement(
 ) -> None:
-    """测试能力查询和能力校验"""
+    """测试能力查询和能力校验."""
     adapter = ProbabilityAdapter(
         model=BinaryModel()
     )
@@ -351,7 +351,7 @@ def test_capability_query_and_requirement(
 
 def test_combined_capability_requires_all_requested_capabilities(
 ) -> None:
-    """测试组合能力必须全部满足"""
+    """测试组合能力必须全部满足."""
     adapter = ProbabilityAdapter(
         model=BinaryModel()
     )
@@ -375,7 +375,7 @@ def test_combined_capability_requires_all_requested_capabilities(
 
 def test_to_array_uses_configured_feature_order_and_converts_values(
 ) -> None:
-    """测试特征转换顺序和值标准化"""
+    """测试特征转换顺序和值标准化."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -405,7 +405,7 @@ def test_to_array_uses_configured_feature_order_and_converts_values(
 
 def test_to_array_ignores_extra_features_and_fills_missing_with_nan(
 ) -> None:
-    """测试忽略额外字段并填充缺失值"""
+    """测试忽略额外字段并填充缺失值."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -427,7 +427,7 @@ def test_to_array_ignores_extra_features_and_fills_missing_with_nan(
 
 def test_to_array_requires_features_and_feature_names(
 ) -> None:
-    """测试特征转换前置条件"""
+    """测试特征转换前置条件."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -456,7 +456,7 @@ def test_to_array_requires_features_and_feature_names(
 
 def test_to_array_batch_uses_configured_feature_order(
 ) -> None:
-    """测试批量特征转换使用固定顺序"""
+    """测试批量特征转换使用固定顺序."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -493,7 +493,7 @@ def test_to_array_batch_uses_configured_feature_order(
 
 def test_to_array_batch_without_feature_names_uses_sorted_union(
 ) -> None:
-    """测试未配置特征名称时按字段名排序"""
+    """测试未配置特征名称时按字段名排序."""
     adapter = ProbabilityAdapter(
         model=BinaryModel()
     )
@@ -525,7 +525,7 @@ def test_to_array_batch_without_feature_names_uses_sorted_union(
 
 def test_to_array_batch_rejects_invalid_input(
 ) -> None:
-    """测试拒绝非法批量特征输入"""
+    """测试拒绝非法批量特征输入."""
     adapter = ProbabilityAdapter(
         model=BinaryModel()
     )
@@ -562,7 +562,7 @@ def test_to_array_batch_rejects_invalid_input(
 
 def test_validate_features_reports_missing_and_type_errors(
 ) -> None:
-    """测试特征完整性和类型校验"""
+    """测试特征完整性和类型校验."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -615,7 +615,7 @@ def test_validate_features_reports_missing_and_type_errors(
 
 def test_validate_features_accepts_supported_values(
 ) -> None:
-    """测试接受有效特征值"""
+    """测试接受有效特征值."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -646,7 +646,7 @@ def test_validate_features_accepts_supported_values(
 
 def test_predict_routes_scalar_and_batch_inputs(
 ) -> None:
-    """测试概率预测统一入口"""
+    """测试概率预测统一入口."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -726,7 +726,7 @@ def test_predict_routes_scalar_and_batch_inputs(
 
 def test_predict_requires_batch_capability(
 ) -> None:
-    """测试批量预测必须声明批量能力"""
+    """测试批量预测必须声明批量能力."""
     adapter = NoBatchAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -759,7 +759,7 @@ def test_predict_requires_batch_capability(
 
 def test_predict_rejects_invalid_input(
 ) -> None:
-    """测试拒绝非法概率预测输入"""
+    """测试拒绝非法概率预测输入."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -831,7 +831,7 @@ def test_predict_rejects_invalid_input(
 
 def test_predict_logit_routes_scalar_and_batch_inputs(
 ) -> None:
-    """测试对数几率预测统一入口"""
+    """测试对数几率预测统一入口."""
     adapter = LogitAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -872,7 +872,7 @@ def test_predict_logit_routes_scalar_and_batch_inputs(
 
 def test_predict_logit_requires_capability_and_implementation(
 ) -> None:
-    """测试对数几率能力和接口实现要求"""
+    """测试对数几率能力和接口实现要求."""
     adapter = ProbabilityAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -906,7 +906,7 @@ def test_predict_logit_requires_capability_and_implementation(
 
 def test_predict_logit_rejects_empty_three_dimensional_array(
 ) -> None:
-    """测试空三维数组不能绕过对数几率输入维度校验"""
+    """测试空三维数组不能绕过对数几率输入维度校验."""
     adapter = LogitAdapter(
         model=BinaryModel()
     )
@@ -928,7 +928,7 @@ def test_predict_logit_rejects_empty_three_dimensional_array(
 
 def test_positive_class_index_resolution(
 ) -> None:
-    """测试正类索引解析"""
+    """测试正类索引解析."""
     positive_one = ProbabilityAdapter(
         model=BinaryModel(),
         positive_class=1,
@@ -962,7 +962,7 @@ def test_positive_class_index_resolution(
 
 def test_positive_class_index_rejects_invalid_classes(
 ) -> None:
-    """测试拒绝非法类别配置"""
+    """测试拒绝非法类别配置."""
     multiclass_adapter = ProbabilityAdapter(
         model=MulticlassModel(),
         positive_class=1,
@@ -1003,7 +1003,7 @@ def test_validate_binary_model_rejects_invalid_class_count(
         class_count: Any,
         message: str,
 ) -> None:
-    """测试拒绝多分类和非整数类别数元数据"""
+    """测试拒绝多分类和非整数类别数元数据."""
     adapter = ProbabilityAdapter(
         model=SimpleNamespace(
             n_classes_=class_count,
@@ -1019,7 +1019,7 @@ def test_validate_binary_model_rejects_invalid_class_count(
 
 def test_feature_importance_public_interface(
 ) -> None:
-    """测试特征重要性公开接口"""
+    """测试特征重要性公开接口."""
     adapter = ImportanceAdapter(
         model=BinaryModel(),
         feature_names=[
@@ -1048,7 +1048,7 @@ def test_feature_importance_public_interface(
 
 def test_feature_importance_requires_implementation(
 ) -> None:
-    """测试特征重要性能力必须实现对应接口"""
+    """测试特征重要性能力必须实现对应接口."""
     adapter = DeclaredImportanceAdapter(
         model=BinaryModel()
     )
@@ -1072,10 +1072,10 @@ def test_feature_importance_requires_implementation(
 
 def test_feature_importance_rejects_invalid_values_and_names(
 ) -> None:
-    """测试特征重要性结果校验"""
+    """测试特征重要性结果校验."""
 
     class InvalidValueAdapter(ImportanceAdapter):
-        """包含非法重要性数值的测试适配器"""
+        """包含非法重要性数值的测试适配器."""
 
         def get_feature_importance(
                 self,
@@ -1088,7 +1088,7 @@ def test_feature_importance_rejects_invalid_values_and_names(
     class InvalidNameCountAdapter(
         ImportanceAdapter
     ):
-        """特征名称数量不一致的测试适配器"""
+        """特征名称数量不一致的测试适配器."""
 
         def get_feature_importance(
                 self,

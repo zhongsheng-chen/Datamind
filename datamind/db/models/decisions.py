@@ -1,4 +1,4 @@
-"""请求决策表
+"""请求决策表.
 
 记录请求的最终路由结果和业务决策，
 用于追踪模型版本、部署及实验分组的选择过程。
@@ -58,7 +58,7 @@ class Decision(
     TimestampMixin,
     Base,
 ):
-    """请求决策记录表"""
+    """请求决策记录表."""
 
     __tablename__ = "decisions"
 
@@ -285,7 +285,7 @@ class Decision(
     def __repr__(
             self,
     ) -> str:
-        """返回请求决策字符串表示"""
+        """返回请求决策字符串表示."""
         return (
             f"<Decision("
             f"decision_id='{self.decision_id}', "

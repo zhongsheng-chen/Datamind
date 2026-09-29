@@ -1,4 +1,4 @@
-"""列出实验分组命令
+"""列出实验分组命令.
 
 提供实验分组列表查询功能，支持过滤、分页和多种输出格式。
 
@@ -36,7 +36,7 @@ logger = structlog.get_logger(__name__)
 def _get_variant_environment(
         config: dict | None,
 ) -> str | None:
-    """获取实验分组环境"""
+    """获取实验分组环境."""
     if not isinstance(
             config,
             dict,
@@ -103,7 +103,7 @@ def list_variants(
             help="输出格式：text / json"
         ),
 ):
-    """列出实验分组"""
+    """列出实验分组."""
 
     async def _run():
         if output not in ("text", "json"):

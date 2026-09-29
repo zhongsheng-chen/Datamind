@@ -1,4 +1,4 @@
-"""查看路由命令
+"""查看路由命令.
 
 提供单条路由规则详情查询功能。
 
@@ -52,7 +52,7 @@ def show_route(
             help="输出格式：text / json"
         ),
 ):
-    """查看路由规则详情"""
+    """查看路由规则详情."""
 
     async def _run():
         if output not in ("text", "json"):

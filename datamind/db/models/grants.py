@@ -1,4 +1,4 @@
-"""角色授予表
+"""角色授予表.
 
 记录用户与角色之间的授予关系，
 用于维护用户角色和权限状态。
@@ -40,7 +40,7 @@ class Grant(
     TimestampMixin,
     Base,
 ):
-    """角色授予表"""
+    """角色授予表."""
 
     __tablename__ = "grants"
 
@@ -187,7 +187,7 @@ class Grant(
     def __repr__(
             self,
     ) -> str:
-        """返回角色授予字符串表示"""
+        """返回角色授予字符串表示."""
         return (
             f"<Grant("
             f"grant_id='{self.grant_id}', "

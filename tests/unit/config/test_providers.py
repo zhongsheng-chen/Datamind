@@ -1,4 +1,4 @@
-"""子配置 Provider 测试
+"""子配置 Provider 测试.
 
 验证配置 Provider 能够隔离 Pydantic Settings 的构造细节，并在每次调用时
 从当前配置源加载独立对象。
@@ -27,7 +27,7 @@ def isolate_service_environment(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """隔离服务配置环境变量和 .env 文件。"""
+    """隔离服务配置环境变量和 .env 文件."""
     for key in tuple(os.environ):
         if key.startswith("DATAMIND_SERVICE_"):
             monkeypatch.delenv(
@@ -41,7 +41,7 @@ def isolate_service_environment(
 def test_service_provider_reads_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试服务配置 Provider 读取环境变量。"""
+    """测试服务配置 Provider 读取环境变量."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_ENVIRONMENT",
         "production",
@@ -58,7 +58,7 @@ def test_service_provider_reads_environment(
 
 
 def test_service_provider_requires_environment() -> None:
-    """测试服务配置 Provider 保持运行环境必填。"""
+    """测试服务配置 Provider 保持运行环境必填."""
     with pytest.raises(ValidationError) as exc_info:
         get_service_config()
 
@@ -71,7 +71,7 @@ def test_service_provider_requires_environment() -> None:
 def test_service_provider_returns_fresh_config(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试服务配置 Provider 不缓存环境变量。"""
+    """测试服务配置 Provider 不缓存环境变量."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_ENVIRONMENT",
         "development",

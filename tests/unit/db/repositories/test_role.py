@@ -1,4 +1,4 @@
-"""角色仓储测试
+"""角色仓储测试.
 
 验证角色查询、列表筛选、创建、基础信息更新、
 权限替换和状态管理能力。
@@ -67,7 +67,7 @@ CURRENT_TIME = datetime(
 def create_role(
         **overrides: Any,
 ) -> Role:
-    """创建角色测试对象"""
+    """创建角色测试对象."""
     values: dict[str, Any] = {
         "role_id": "rol_0123456789abcdef",
         "name": "admin",
@@ -99,7 +99,7 @@ def create_repository(
     MagicMock,
     AsyncMock,
 ]:
-    """创建角色仓储及异步会话替身"""
+    """创建角色仓储及异步会话替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -140,7 +140,7 @@ def create_repository(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -179,7 +179,7 @@ async def test_get_role_queries_by_single_condition(
         arguments: dict[str, str],
         expected_condition: str,
 ) -> None:
-    """测试按角色 ID 或名称查询"""
+    """测试按角色 ID 或名称查询."""
     expected_role = create_role()
     repository, _, execute = create_repository(
         scalar_result=expected_role
@@ -220,7 +220,7 @@ async def test_get_role_queries_by_single_condition(
 async def test_get_role_rejects_invalid_conditions(
         arguments: dict[str, str],
 ) -> None:
-    """测试查询条件必须且只能提供一个"""
+    """测试查询条件必须且只能提供一个."""
     repository, _, execute = create_repository()
 
     with pytest.raises(
@@ -239,7 +239,7 @@ async def test_get_role_rejects_invalid_conditions(
 
 @pytest.mark.asyncio
 async def test_get_role_returns_none_when_not_found() -> None:
-    """测试角色不存在时返回 None"""
+    """测试角色不存在时返回 None."""
     repository, _, _ = create_repository(
         scalar_result=None
     )
@@ -253,7 +253,7 @@ async def test_get_role_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_roles_uses_default_order_and_limit() -> None:
-    """测试角色列表默认排序和数量限制"""
+    """测试角色列表默认排序和数量限制."""
     roles = [
         create_role()
     ]
@@ -284,7 +284,7 @@ async def test_list_roles_uses_default_order_and_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_list_roles_builds_filtered_query() -> None:
-    """测试角色列表筛选、排序和分页"""
+    """测试角色列表筛选、排序和分页."""
     roles = [
         create_role(
             status=str(
@@ -323,7 +323,7 @@ async def test_list_roles_builds_filtered_query() -> None:
 
 @pytest.mark.asyncio
 async def test_list_roles_allows_unlimited_query() -> None:
-    """测试角色列表允许不设置分页"""
+    """测试角色列表允许不设置分页."""
     repository, _, execute = create_repository()
 
     await repository.list_roles(
@@ -350,7 +350,7 @@ async def test_list_roles_allows_unlimited_query() -> None:
 async def test_list_active_roles_delegates_to_list_roles(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试活跃角色列表复用通用查询"""
+    """测试活跃角色列表复用通用查询."""
     roles = [
         create_role()
     ]
@@ -379,7 +379,7 @@ async def test_list_active_roles_delegates_to_list_roles(
 
 
 def test_role_patch_uses_slots_and_defaults() -> None:
-    """测试角色更新结构默认值和 slots"""
+    """测试角色更新结构默认值和 slots."""
     patch = RolePatch()
 
     assert patch.name is None
@@ -391,7 +391,7 @@ def test_role_patch_uses_slots_and_defaults() -> None:
 
 
 def test_create_role() -> None:
-    """测试创建角色并加入数据库会话"""
+    """测试创建角色并加入数据库会话."""
     repository, session, _ = create_repository()
     permissions = [
         "model.*",
@@ -420,7 +420,7 @@ def test_create_role() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_role_uses_defaults() -> None:
-    """测试创建角色默认状态和可选字段"""
+    """测试创建角色默认状态和可选字段."""
     repository, session, _ = create_repository()
 
     role = repository.create_role(
@@ -438,7 +438,7 @@ def test_create_role_uses_defaults() -> None:
 
 
 def test_create_inactive_role() -> None:
-    """测试创建停用角色时转换枚举值"""
+    """测试创建停用角色时转换枚举值."""
     repository, _, _ = create_repository()
 
     role = repository.create_role(
@@ -451,7 +451,7 @@ def test_create_inactive_role() -> None:
 
 
 def test_update_role() -> None:
-    """测试角色基础信息更新"""
+    """测试角色基础信息更新."""
     repository, _, _ = create_repository()
     role = create_role()
     original_permissions = role.permissions
@@ -475,7 +475,7 @@ def test_update_role() -> None:
 
 
 def test_update_role_ignores_none_fields() -> None:
-    """测试角色更新忽略值为 None 的字段"""
+    """测试角色更新忽略值为 None 的字段."""
     repository, _, _ = create_repository()
     role = create_role(
         updated_by="usr_original"
@@ -494,7 +494,7 @@ def test_update_role_ignores_none_fields() -> None:
 
 
 def test_replace_permissions() -> None:
-    """测试替换角色权限"""
+    """测试替换角色权限."""
     repository, _, _ = create_repository()
     role = create_role()
     permissions = [
@@ -514,7 +514,7 @@ def test_replace_permissions() -> None:
 
 
 def test_replace_permissions_with_empty_list() -> None:
-    """测试使用空列表移除全部权限"""
+    """测试使用空列表移除全部权限."""
     repository, _, _ = create_repository()
     role = create_role()
 
@@ -528,7 +528,7 @@ def test_replace_permissions_with_empty_list() -> None:
 
 # noinspection PyUnreachableCode
 def test_replace_permissions_with_none() -> None:
-    """测试使用 None 清空角色权限配置"""
+    """测试使用 None 清空角色权限配置."""
     repository, _, _ = create_repository()
     role = create_role(
         updated_by="usr_original"
@@ -544,7 +544,7 @@ def test_replace_permissions_with_none() -> None:
 
 
 def test_activate_role() -> None:
-    """测试启用角色"""
+    """测试启用角色."""
     repository, _, _ = create_repository()
     role = create_role(
         status=str(
@@ -563,7 +563,7 @@ def test_activate_role() -> None:
 
 
 def test_deactivate_role() -> None:
-    """测试停用角色"""
+    """测试停用角色."""
     repository, _, _ = create_repository()
     role = create_role()
 
@@ -578,7 +578,7 @@ def test_deactivate_role() -> None:
 
 
 def test_replace_description_allows_clearing() -> None:
-    """测试角色描述可以更新或清空"""
+    """测试角色描述可以更新或清空."""
     repository, _, _ = create_repository()
     role = create_role(
         description="旧描述"
@@ -599,7 +599,7 @@ def test_replace_description_allows_clearing() -> None:
 
 # noinspection PyUnreachableCode
 def test_mark_deleted_role() -> None:
-    """测试逻辑删除角色并保留授权历史"""
+    """测试逻辑删除角色并保留授权历史."""
     repository, _, _ = create_repository()
     role = create_role(
         deleted_at=None
@@ -622,7 +622,7 @@ def test_mark_deleted_role() -> None:
 
 # noinspection PyUnreachableCode
 def test_restore_role() -> None:
-    """测试恢复已逻辑删除的角色"""
+    """测试恢复已逻辑删除的角色."""
     repository, _, _ = create_repository()
     role = create_role(
         status="inactive",
@@ -656,7 +656,7 @@ def test_restore_role() -> None:
 def test_role_status_update_preserves_existing_updated_by(
         operation_name: str,
 ) -> None:
-    """测试未提供更新人时保留原更新人"""
+    """测试未提供更新人时保留原更新人."""
     repository, _, _ = create_repository()
     role = create_role(
         updated_by="usr_original"

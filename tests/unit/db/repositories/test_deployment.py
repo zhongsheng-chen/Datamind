@@ -1,4 +1,4 @@
-"""部署仓储测试
+"""部署仓储测试.
 
 验证 DeploymentRepository 的部署查询、列表筛选、创建、
 普通字段更新，以及部署启用和停用时的有效期管理。
@@ -89,7 +89,7 @@ LATER_TIME = datetime(
 def create_deployment(
         **overrides: Any,
 ) -> Deployment:
-    """创建部署测试对象"""
+    """创建部署测试对象."""
     values: dict[str, Any] = {
         "deployment_id": "dep_0123456789abcdef",
         "model_id": "mdl_0123456789abcdef",
@@ -126,7 +126,7 @@ def create_repository(
     AsyncMock,
     MagicMock,
 ]:
-    """创建部署仓储及会话方法替身"""
+    """创建部署仓储及会话方法替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = (
         scalar_result
@@ -174,7 +174,7 @@ def create_repository(
 def get_executed_statement(
         execute: AsyncMock,
 ) -> Select[Any]:
-    """获取异步会话执行的查询语句"""
+    """获取异步会话执行的查询语句."""
     awaited_call = execute.await_args
 
     assert awaited_call is not None
@@ -190,7 +190,7 @@ def get_executed_statement(
 def compile_statement(
         statement: Select[Any],
 ) -> str:
-    """将查询语句编译为 PostgreSQL SQL"""
+    """将查询语句编译为 PostgreSQL SQL."""
     return str(
         statement.compile(
             dialect=postgresql.dialect(),
@@ -203,7 +203,7 @@ def compile_statement(
 
 @pytest.mark.asyncio
 async def test_get_deployment() -> None:
-    """测试按部署 ID 查询"""
+    """测试按部署 ID 查询."""
     expected = create_deployment()
     repository, execute, _ = create_repository(
         scalar_result=expected
@@ -231,7 +231,7 @@ async def test_get_deployment() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_returns_none_when_not_found() -> None:
-    """测试部署不存在时返回 None"""
+    """测试部署不存在时返回 None."""
     repository, execute, _ = create_repository()
 
     result = await repository.get_deployment(
@@ -244,7 +244,7 @@ async def test_get_deployment_returns_none_when_not_found() -> None:
 
 @pytest.mark.asyncio
 async def test_list_deployments_without_filters() -> None:
-    """测试无筛选时返回全部部署并按创建时间倒序"""
+    """测试无筛选时返回全部部署并按创建时间倒序."""
     deployments = [
         create_deployment()
     ]
@@ -273,7 +273,7 @@ async def test_list_deployments_without_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_list_deployments_applies_filters_and_pagination() -> None:
-    """测试常量、状态、普通字段筛选和分页"""
+    """测试常量、状态、普通字段筛选和分页."""
     deployments = [
         create_deployment(
             framework="xgboost",
@@ -352,7 +352,7 @@ async def test_list_deployments_applies_filters_and_pagination() -> None:
 
 @pytest.mark.asyncio
 async def test_list_deployments_applies_zero_pagination() -> None:
-    """测试零值分页参数仍会应用"""
+    """测试零值分页参数仍会应用."""
     repository, execute, _ = create_repository()
 
     await repository.list_deployments(
@@ -402,7 +402,7 @@ async def test_list_deployments_rejects_negative_pagination(
         arguments: dict[str, int],
         expected_message: str,
 ) -> None:
-    """测试拒绝负数分页参数"""
+    """测试拒绝负数分页参数."""
     repository, execute, _ = create_repository()
 
     with pytest.raises(
@@ -418,7 +418,7 @@ async def test_list_deployments_rejects_negative_pagination(
 
 @pytest.mark.asyncio
 async def test_list_active_deployments() -> None:
-    """测试活跃部署列表"""
+    """测试活跃部署列表."""
     deployments = [
         create_deployment(
             status=str(
@@ -469,7 +469,7 @@ async def test_list_active_deployments() -> None:
 
 
 def test_deployment_patch_fields_and_defaults() -> None:
-    """测试更新结构字段和默认值"""
+    """测试更新结构字段和默认值."""
     patch = DeploymentPatch()
 
     assert [
@@ -506,7 +506,7 @@ def test_deployment_patch_fields_and_defaults() -> None:
 
 
 def test_deployment_patch_accepts_constant_enums() -> None:
-    """测试更新结构接受框架和环境枚举"""
+    """测试更新结构接受框架和环境枚举."""
     patch = DeploymentPatch(
         framework=Framework.XGBOOST,
         environment=Environment.STAGING,
@@ -521,7 +521,7 @@ def test_deployment_patch_accepts_constant_enums() -> None:
 
 
 def test_create_deployment() -> None:
-    """测试创建部署并显式设置 inactive 状态"""
+    """测试创建部署并显式设置 inactive 状态."""
     repository, _, add = create_repository()
 
     deployment = repository.create_deployment(
@@ -577,7 +577,7 @@ def test_create_deployment() -> None:
 
 # noinspection PyUnreachableCode
 def test_create_deployment_uses_optional_defaults() -> None:
-    """测试创建部署的可选默认值"""
+    """测试创建部署的可选默认值."""
     repository, _, add = create_repository()
 
     deployment = repository.create_deployment(
@@ -604,7 +604,7 @@ def test_create_deployment_uses_optional_defaults() -> None:
 
 
 def test_update_deployment() -> None:
-    """测试更新所有非空普通部署字段"""
+    """测试更新所有非空普通部署字段."""
     repository, _, _ = create_repository()
     deployment = create_deployment()
     original_status = deployment.status
@@ -646,7 +646,7 @@ def test_update_deployment() -> None:
 
 
 def test_update_deployment_ignores_none_fields() -> None:
-    """测试值为 None 的字段不会覆盖原值"""
+    """测试值为 None 的字段不会覆盖原值."""
     repository, _, _ = create_repository()
     deployment = create_deployment(
         description="原部署说明",
@@ -670,7 +670,7 @@ def test_update_deployment_ignores_none_fields() -> None:
 
 
 def test_update_deployment_accepts_empty_strings() -> None:
-    """测试空字符串作为明确更新值写入对象"""
+    """测试空字符串作为明确更新值写入对象."""
     repository, _, _ = create_repository()
     deployment = create_deployment()
 
@@ -694,7 +694,7 @@ def test_update_deployment_accepts_empty_strings() -> None:
 def test_activate_deployment_sets_effective_from(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次启用设置开始时间并清除结束时间"""
+    """测试首次启用设置开始时间并清除结束时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -744,7 +744,7 @@ def test_activate_deployment_sets_effective_from(
 
 # noinspection PyUnreachableCode
 def test_activate_deployment_preserves_effective_from() -> None:
-    """测试重复启用保留原开始时间"""
+    """测试重复启用保留原开始时间."""
     repository, _, _ = create_repository()
     deployment = create_deployment(
         status=str(
@@ -774,7 +774,7 @@ def test_activate_deployment_preserves_effective_from() -> None:
 
 
 def test_activate_deployment_accepts_empty_operator() -> None:
-    """测试启用时允许写入空字符串操作人"""
+    """测试启用时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     deployment = create_deployment()
 
@@ -789,7 +789,7 @@ def test_activate_deployment_accepts_empty_operator() -> None:
 def test_deactivate_deployment_sets_effective_to(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试首次停用记录结束时间"""
+    """测试首次停用记录结束时间."""
     class FrozenDateTime(
         datetime
     ):
@@ -841,7 +841,7 @@ def test_deactivate_deployment_sets_effective_to(
 
 
 def test_deactivate_deployment_preserves_effective_to() -> None:
-    """测试重复停用保留原结束时间"""
+    """测试重复停用保留原结束时间."""
     repository, _, _ = create_repository()
     deployment = create_deployment(
         status=str(
@@ -866,7 +866,7 @@ def test_deactivate_deployment_preserves_effective_to() -> None:
 
 
 def test_deactivate_deployment_accepts_empty_operator() -> None:
-    """测试停用时允许写入空字符串操作人"""
+    """测试停用时允许写入空字符串操作人."""
     repository, _, _ = create_repository()
     deployment = create_deployment(
         status=str(

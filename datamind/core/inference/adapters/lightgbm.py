@@ -1,4 +1,4 @@
-"""LightGBM 模型适配器
+"""LightGBM 模型适配器.
 
 为采用 Sklearn API 的 LightGBM 二分类模型提供概率预测和
 Gain 特征重要性接口。
@@ -81,12 +81,12 @@ def _call_model_method(
         *args: object,
         **kwargs: object,
 ) -> _Result:
-    """调用已验证的模型方法"""
+    """调用已验证的模型方法."""
     return method(*args, **kwargs)
 
 
 class LightGBMAdapter(BaseModelAdapter):
-    """LightGBM 二分类模型适配器"""
+    """LightGBM 二分类模型适配器."""
 
     def __init__(
             self,
@@ -95,7 +95,7 @@ class LightGBMAdapter(BaseModelAdapter):
             data_types: dict[str, DataType] | None = None,
             positive_class: Any = 1,
     ) -> None:
-        """初始化 LightGBM 模型适配器
+        """初始化 LightGBM 模型适配器.
 
         参数：
             model: 已训练模型
@@ -115,7 +115,7 @@ class LightGBMAdapter(BaseModelAdapter):
     def _detect_capabilities(
             self,
     ) -> ModelCapability:
-        """检测当前 LightGBM 模型能力"""
+        """检测当前 LightGBM 模型能力."""
         capabilities = ModelCapability.NONE
 
         supports_sklearn_proba = callable(
@@ -170,7 +170,7 @@ class LightGBMAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> float:
-        """概率预测"""
+        """概率预测."""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
@@ -196,7 +196,7 @@ class LightGBMAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> list[float]:
-        """批量概率预测"""
+        """批量概率预测."""
         self.require_capability(
             ModelCapability.PREDICT_PROBA
         )
@@ -225,7 +225,7 @@ class LightGBMAdapter(BaseModelAdapter):
     def get_feature_importance(
             self,
     ) -> dict[str, float]:
-        """获取 Gain 特征重要性"""
+        """获取 Gain 特征重要性."""
         self.require_capability(
             ModelCapability.FEATURE_IMPORTANCE
         )
@@ -297,7 +297,7 @@ class LightGBMAdapter(BaseModelAdapter):
     def _validate_classifier_model(
             self,
     ) -> None:
-        """校验模型为已训练的 LightGBM 二分类模型"""
+        """校验模型为已训练的 LightGBM 二分类模型."""
         supports_sklearn = callable(
             getattr(
                 self.model,
@@ -349,7 +349,7 @@ class LightGBMAdapter(BaseModelAdapter):
             self,
             X: np.ndarray,
     ) -> np.ndarray:
-        """执行模型预测并提取正类概率"""
+        """执行模型预测并提取正类概率."""
         array = self.transformer.ensure_2d(
             X
         )
@@ -396,7 +396,7 @@ class LightGBMAdapter(BaseModelAdapter):
             booster_names: Any,
             importance_count: int,
     ) -> list[str]:
-        """解析特征名称"""
+        """解析特征名称."""
         configured_names = (
             list(self.feature_names)
             if self.feature_names
@@ -447,7 +447,7 @@ class LightGBMAdapter(BaseModelAdapter):
     def _to_feature_names(
             values: Any,
     ) -> list[str] | None:
-        """将特征名称转换为字符串列表"""
+        """将特征名称转换为字符串列表."""
         if (
                 values is None
                 or isinstance(

@@ -1,4 +1,4 @@
-"""运行时模型服务异常
+"""运行时模型服务异常.
 
 定义运行时模型服务对外接口使用的异常类型。
 
@@ -45,13 +45,13 @@ from bentoml.exceptions import (
 class ServiceDeploymentNotFoundError(
     NotFound
 ):
-    """服务部署不存在"""
+    """服务部署不存在."""
 
 
 class ServiceEnvironmentMismatchError(
     BentoMLException
 ):
-    """部署环境与当前服务环境不一致"""
+    """部署环境与当前服务环境不一致."""
 
     error_code = HTTPStatus.CONFLICT
 
@@ -59,7 +59,7 @@ class ServiceEnvironmentMismatchError(
 class ServiceAuthenticationError(
     BentoMLException
 ):
-    """请求身份认证失败"""
+    """请求身份认证失败."""
 
     error_code = HTTPStatus.UNAUTHORIZED
 
@@ -67,7 +67,7 @@ class ServiceAuthenticationError(
 class ServiceAuthorizationError(
     BentoMLException
 ):
-    """请求权限不足"""
+    """请求权限不足."""
 
     error_code = HTTPStatus.FORBIDDEN
 
@@ -75,6 +75,6 @@ class ServiceAuthorizationError(
 class ServiceAuthenticationUnavailableError(
     BentoMLException
 ):
-    """认证服务不可用"""
+    """认证服务不可用."""
 
     error_code = HTTPStatus.SERVICE_UNAVAILABLE

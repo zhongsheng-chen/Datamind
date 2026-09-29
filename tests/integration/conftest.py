@@ -1,4 +1,4 @@
-"""集成测试公共配置
+"""集成测试公共配置.
 
 提供隔离的集成测试基础设施配置。
 
@@ -34,7 +34,7 @@ from datamind.db import models as _models  # noqa: F401
 
 
 def required_test_environment(name: str) -> str:
-    """读取专用测试环境变量，缺失时给出可操作的跳过原因"""
+    """读取专用测试环境变量，缺失时给出可操作的跳过原因."""
     value = os.getenv(name)
     if not value:
         pytest.skip(f"{name} is not configured")
@@ -43,7 +43,7 @@ def required_test_environment(name: str) -> str:
 
 @pytest.fixture
 def database_url() -> str:
-    """返回 SQLAlchemy asyncpg 测试数据库地址"""
+    """返回 SQLAlchemy asyncpg 测试数据库地址."""
     return required_test_environment(
         "DATAMIND_TEST_DATABASE_URL"
     )
@@ -51,7 +51,7 @@ def database_url() -> str:
 
 @pytest.fixture
 def redis_url() -> str:
-    """返回隔离的 Redis 集成测试地址"""
+    """返回隔离的 Redis 集成测试地址."""
     return required_test_environment("DATAMIND_TEST_REDIS_URL")
 
 
@@ -60,7 +60,7 @@ async def datamind_database(
     database_url: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[AsyncEngine]:
-    """在专用 PostgreSQL 中创建每个测试独享的 Datamind schema"""
+    """在专用 PostgreSQL 中创建每个测试独享的 Datamind schema."""
     schema = f"datamind_it_{uuid.uuid4().hex}"
     admin_engine = create_async_engine(database_url)
 
@@ -96,7 +96,7 @@ async def datamind_database(
 
 @pytest.fixture
 def minio_settings() -> MinIOStorageConfig:
-    """返回 MinIO 集成测试凭据与可清理存储桶"""
+    """返回 MinIO 集成测试凭据与可清理存储桶."""
     return MinIOStorageConfig(
         endpoint=required_test_environment("DATAMIND_TEST_MINIO_ENDPOINT"),
         access_key=required_test_environment("DATAMIND_TEST_MINIO_ACCESS_KEY"),

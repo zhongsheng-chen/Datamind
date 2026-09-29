@@ -1,4 +1,4 @@
-"""查看角色命令
+"""查看角色命令.
 
 提供角色详情查询功能。
 
@@ -49,7 +49,7 @@ def show_role(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """查看角色"""
+    """查看角色."""
     async def runner() -> None:
         if output not in (
                 "text",

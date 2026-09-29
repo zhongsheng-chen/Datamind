@@ -1,4 +1,4 @@
-"""系统初始化服务
+"""系统初始化服务.
 
 在单个事务中创建部署时指定的首个管理员、内置系统管理员角色、
 角色授予和初始化审计记录。
@@ -63,7 +63,7 @@ logger = structlog.get_logger(__name__)
     frozen=True,
 )
 class InitializationResult:
-    """系统初始化结果"""
+    """系统初始化结果."""
 
     system_id: str
     username: str
@@ -73,12 +73,12 @@ class InitializationResult:
 
 
 class InitializationService:
-    """系统初始化服务"""
+    """系统初始化服务."""
 
     @staticmethod
     async def is_initialized(
     ) -> bool:
-        """查询系统是否已经完成初始化"""
+        """查询系统是否已经完成初始化."""
         async with UnitOfWork() as uow:
             state = await SystemStateRepository(
                 uow.session
@@ -102,7 +102,7 @@ class InitializationService:
             hostname: str | None = None,
             current_time: datetime | None = None,
     ) -> InitializationResult:
-        """一次性初始化系统
+        """一次性初始化系统.
 
         创建首个管理员、拥有全部权限的 administrator 角色及角色授予，
         同时写入初始化状态和审计记录。所有变更由同一个工作单元提交。
@@ -274,7 +274,7 @@ class InitializationService:
     def _validate_username(
             username: str,
     ) -> str:
-        """校验管理员用户名"""
+        """校验管理员用户名."""
         normalized = username.strip()
 
         if normalized == "":
@@ -293,7 +293,7 @@ class InitializationService:
     def _validate_password(
             password: str,
     ) -> None:
-        """校验管理员密码"""
+        """校验管理员密码."""
         if password == "":
             raise ValueError(
                 "管理员密码不能为空"
@@ -308,7 +308,7 @@ class InitializationService:
     def _normalize_time(
             value: datetime | None,
     ) -> datetime:
-        """获取 UTC 初始化时间"""
+        """获取 UTC 初始化时间."""
         if value is None:
             return datetime.now(
                 timezone.utc

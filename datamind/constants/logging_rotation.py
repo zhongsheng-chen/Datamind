@@ -1,4 +1,4 @@
-"""日志轮转枚举
+"""日志轮转枚举.
 
 定义日志轮转的策略类型和轮转时间。
 
@@ -28,7 +28,7 @@ from typing import FrozenSet
 
 
 class RotationType(str, Enum):
-    """日志轮转策略字符串枚举"""
+    """日志轮转策略字符串枚举."""
 
     TIME = "time"
     SIZE = "size"
@@ -36,12 +36,12 @@ class RotationType(str, Enum):
     def __str__(
             self,
     ) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 
 class RotationWhen(str, Enum):
-    """日志轮转时间字符串枚举"""
+    """日志轮转时间字符串枚举."""
 
     MIDNIGHT = "MIDNIGHT"
     HOUR = "H"
@@ -57,7 +57,7 @@ class RotationWhen(str, Enum):
     SUNDAY = "W6"
 
     def __str__(self) -> str:
-        """返回枚举值字符串"""
+        """返回枚举值字符串."""
         return self.value
 
 

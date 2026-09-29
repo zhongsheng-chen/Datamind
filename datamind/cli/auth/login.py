@@ -1,4 +1,4 @@
-"""登录命令
+"""登录命令.
 
 提供本地 CLI 会话登录和用户切换功能。
 
@@ -48,7 +48,7 @@ def login(
             help="登录用户名",
         ),
 ) -> None:
-    """使用本地用户名和密码登录"""
+    """使用本地用户名和密码登录."""
     client_ip = get_host_ip()
     hostname = get_hostname()
     actor_username = "anonymous"

@@ -1,0 +1,32 @@
+site_name: Datamind
+site_description: 开放式模型服务管理平台
+site_url: !ENV READTHEDOCS_CANONICAL_URL
+
+repo_name: zhongsheng-chen/Datamind
+repo_url: https://github.com/zhongsheng-chen/Datamind
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+nav:
+  - 首页: index.md
+  - 快速开始:
+      - 安装: getting-started/installation.md
+      - 快速上手: getting-started/quickstart.md
+  - 核心概念:
+      - 架构: concepts/architecture.md
+  - 部署:
+      - Docker: deployment/docker.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - fenced_code
+  - toc:
+      permalink: true

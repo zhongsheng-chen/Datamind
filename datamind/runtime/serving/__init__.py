@@ -1,4 +1,4 @@
-"""模型运行时服务组件
+"""模型运行时服务组件.
 
 提供分类预测、评分计算和运行时服务创建能力。
 
@@ -56,7 +56,7 @@ __all__ = [
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载具体运行时服务。"""
+    """按需加载具体运行时服务."""
     target = _SERVICE_EXPORTS.get(name)
     if target is None:
         raise AttributeError(

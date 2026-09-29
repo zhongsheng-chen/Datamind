@@ -1,4 +1,4 @@
-"""存储可观测性装饰器测试
+"""存储可观测性装饰器测试.
 
 验证存储操作的成功日志、异常日志、上下文合并和函数元数据保留。
 
@@ -27,7 +27,7 @@ from datamind.storage.observability import observe_storage
 
 
 class RecordingLogger:
-    """记录结构化日志调用的测试日志器"""
+    """记录结构化日志调用的测试日志器."""
 
     def __init__(self) -> None:
         self.debug_calls: list[
@@ -42,7 +42,7 @@ class RecordingLogger:
         event: str,
         **event_fields: object,
     ) -> None:
-        """记录 debug 日志"""
+        """记录 debug 日志."""
         self.debug_calls.append(
             (
                 event,
@@ -55,7 +55,7 @@ class RecordingLogger:
         event: str,
         **event_fields: object,
     ) -> None:
-        """记录 exception 日志"""
+        """记录 exception 日志."""
         self.exception_calls.append(
             (
                 event,
@@ -65,13 +65,13 @@ class RecordingLogger:
 
 
 class DemoStorageBackend:
-    """用于验证存储可观测性装饰器的测试对象"""
+    """用于验证存储可观测性装饰器的测试对象."""
 
     @property
     def storage_type(
         self,
     ) -> str:
-        """返回测试存储后端类型"""
+        """返回测试存储后端类型."""
         return self.__class__.__name__
 
     @observe_storage("put")
@@ -80,7 +80,7 @@ class DemoStorageBackend:
         key: str,
         data: bytes,
     ) -> str:
-        """保存测试对象"""
+        """保存测试对象."""
         assert data
         return key
 
@@ -89,7 +89,7 @@ class DemoStorageBackend:
         self,
         key: str,
     ) -> bytes:
-        """模拟读取对象失败"""
+        """模拟读取对象失败."""
         raise RuntimeError(
             f"读取失败: {key}"
         )
@@ -99,7 +99,7 @@ class DemoStorageBackend:
         self,
         value: int,
     ) -> int:
-        """执行测试计算"""
+        """执行测试计算."""
         return value * 2
 
     @observe_storage("metadata")
@@ -107,7 +107,7 @@ class DemoStorageBackend:
         self,
         value: int,
     ) -> int:
-        """用于验证函数元数据"""
+        """用于验证函数元数据."""
         return value + 1
 
 
@@ -117,7 +117,7 @@ def install_runtime(
     perf_values: list[float],
     context: dict[str, Any] | None = None,
 ) -> RecordingLogger:
-    """安装确定性的上下文、计时器和日志器"""
+    """安装确定性的上下文、计时器和日志器."""
     logger = RecordingLogger()
     value_iterator: Iterator[float] = iter(
         perf_values
@@ -150,7 +150,7 @@ def install_runtime(
 def test_successful_method_returns_result_and_logs_debug(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试方法成功执行后返回结果并记录 debug 日志"""
+    """测试方法成功执行后返回结果并记录 debug 日志."""
     logger = install_runtime(
         monkeypatch,
         perf_values=[
@@ -189,7 +189,7 @@ def test_successful_method_returns_result_and_logs_debug(
 def test_failing_method_logs_exception_and_reraises_same_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试方法失败后记录异常日志并重新抛出原异常"""
+    """测试方法失败后记录异常日志并重新抛出原异常."""
     logger = install_runtime(
         monkeypatch,
         perf_values=[
@@ -238,7 +238,7 @@ def test_failing_method_logs_exception_and_reraises_same_error(
 def test_core_fields_override_same_named_context_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试核心日志字段覆盖上下文中的同名字段"""
+    """测试核心日志字段覆盖上下文中的同名字段."""
     logger = install_runtime(
         monkeypatch,
         perf_values=[
@@ -275,7 +275,7 @@ def test_core_fields_override_same_named_context_fields(
 def test_error_fields_override_same_named_context_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试异常字段覆盖上下文中的同名字段"""
+    """测试异常字段覆盖上下文中的同名字段."""
     logger = install_runtime(
         monkeypatch,
         perf_values=[
@@ -310,7 +310,7 @@ def test_error_fields_override_same_named_context_fields(
 def test_context_is_read_for_each_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试每次调用时重新读取当前上下文"""
+    """测试每次调用时重新读取当前上下文."""
     logger = RecordingLogger()
     contexts = iter(
         [
@@ -379,12 +379,12 @@ def test_context_is_read_for_each_call(
 
 
 def test_decorator_preserves_function_metadata() -> None:
-    """测试 functools.wraps 保留函数名称和文档"""
+    """测试 functools.wraps 保留函数名称和文档."""
     method = DemoStorageBackend.documented_operation
 
     assert method.__name__ == (
         "documented_operation"
     )
     assert method.__doc__ == (
-        "用于验证函数元数据"
+        "用于验证函数元数据."
     )

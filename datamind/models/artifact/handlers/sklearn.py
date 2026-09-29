@@ -1,4 +1,4 @@
-"""Sklearn 模型加载器
+"""Sklearn 模型加载器.
 
 注册 Sklearn 框架的模型加载函数。
 
@@ -15,7 +15,7 @@ from datamind.models.artifact.register import ModelArtifactRegister
 
 @ModelArtifactRegister.register(Framework.SKLEARN)
 def load_sklearn(data: bytes):
-    """加载 Sklearn 模型
+    """加载 Sklearn 模型.
 
     参数：
         data: 二进制数据

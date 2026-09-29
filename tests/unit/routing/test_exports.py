@@ -1,4 +1,4 @@
-"""运行时路由包公共导出测试
+"""运行时路由包公共导出测试.
 
 验证运行时路由包公开 API 的完整性和可访问性。
 
@@ -22,12 +22,12 @@ EXPECTED_EXPORTS = {
 
 
 def test_routing_exports_expected_public_api() -> None:
-    """测试运行时路由包公开完整且准确的 API"""
+    """测试运行时路由包公开完整且准确的 API."""
     assert set(routing.__all__) == EXPECTED_EXPORTS
     assert len(routing.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可访问"""
+    """测试 __all__ 中声明的对象均可访问."""
     for name in routing.__all__:
         assert hasattr(routing, name), name

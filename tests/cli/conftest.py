@@ -1,4 +1,4 @@
-"""CLI 测试公共夹具
+"""CLI 测试公共夹具.
 
 提供隔离 CLI 主入口日志初始化的自动夹具。
 
@@ -17,7 +17,7 @@ import datamind.cli.main as main_module
 def isolate_cli_entry_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """隔离 CLI 主入口日志初始化"""
+    """隔离 CLI 主入口日志初始化."""
     logging_config = MagicMock()
     monkeypatch.setitem(
         vars(main_module),

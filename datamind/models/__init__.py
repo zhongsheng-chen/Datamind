@@ -1,4 +1,4 @@
-"""模型组件
+"""模型组件.
 
 提供模型状态枚举、领域异常、状态守卫、模型解析、Schema 提取和模型产物加载能力。
 
@@ -85,7 +85,7 @@ __all__ = list(_EXPORTS)
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载包级公共对象"""
+    """按需加载包级公共对象."""
     export = _EXPORTS.get(name)
 
     if export is None:
@@ -101,5 +101,5 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
-    """返回包含延迟公共导出的模块属性列表"""
+    """返回包含延迟公共导出的模块属性列表."""
     return sorted({*globals(), *__all__})

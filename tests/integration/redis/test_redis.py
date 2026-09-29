@@ -1,4 +1,4 @@
-"""Redis 真实集成测试
+"""Redis 真实集成测试.
 
 验证幂等键的原子占用和队列消息的一次性消费语义。
 
@@ -20,7 +20,7 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.asyncio
 async def test_idempotency_key_rejects_duplicate_claim(redis_url: str) -> None:
-    """测试 NX 幂等键拒绝重复占用"""
+    """测试 NX 幂等键拒绝重复占用."""
     client = Redis.from_url(redis_url, decode_responses=True)
     key = f"datamind:integration:idempotency:{uuid.uuid4().hex}"
     try:
@@ -34,7 +34,7 @@ async def test_idempotency_key_rejects_duplicate_claim(redis_url: str) -> None:
 
 @pytest.mark.asyncio
 async def test_queue_consumption_removes_each_message_once(redis_url: str) -> None:
-    """测试队列消息按顺序且仅消费一次"""
+    """测试队列消息按顺序且仅消费一次."""
     client = Redis.from_url(redis_url, decode_responses=True)
     key = f"datamind:integration:queue:{uuid.uuid4().hex}"
     try:

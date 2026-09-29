@@ -1,4 +1,4 @@
-"""停用实验分组命令
+"""停用实验分组命令.
 
 提供实验分组停用功能。
 
@@ -42,7 +42,7 @@ def deactivate_variant(
             help="输出格式：text / json"
         ),
 ):
-    """停用实验分组"""
+    """停用实验分组."""
 
     @audit(
         action="experiment.variant.deactivate",

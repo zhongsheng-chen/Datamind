@@ -1,4 +1,4 @@
-"""Python 发布包构建命令
+"""Python 分发包构建命令.
 
 负责校验控制台静态资源，并在 Wheel 与 sdist 的临时构建目录中写入
 构建身份，保持源码工作区不变。
@@ -20,7 +20,7 @@ from pathlib import Path
 from setuptools.command.build_py import build_py
 from setuptools.command.sdist import sdist
 
-from .identity import BuildIdentity, release_build_identity
+from build_support.identity import BuildIdentity, release_build_identity
 
 
 _BUILD_COMMIT_ENVIRONMENT = "DATAMIND_BUILD_COMMIT"
@@ -28,17 +28,17 @@ _BUILD_DATE_ENVIRONMENT = "DATAMIND_BUILD_DATE"
 
 
 def _project_root() -> Path:
-    """定位构建支持包所在的项目根目录。"""
-    return Path(__file__).resolve().parents[1]
+    """定位构建支持包所在的项目根目录."""
+    return Path(__file__).resolve().parents[2]
 
 
 def _source_build_metadata() -> Path:
-    """定位源码树中的构建元数据模块。"""
+    """定位源码树中的构建元数据模块."""
     return _project_root() / "datamind" / "_build.py"
 
 
 def _require_console_build() -> None:
-    """验证控制台入口、构建清单及其引用的静态资源。
+    """验证控制台入口、构建清单及其引用的静态资源.
 
     异常：
         RuntimeError: 控制台构建产物缺失、不完整或包含越界路径
@@ -73,20 +73,20 @@ def _require_console_build() -> None:
         )
 
 
-def _embedded_build_identity(path: Path) -> BuildIdentity:
-    """从源码树或 sdist 中读取已固化的构建身份。
+def _embedded_build_identity(path: Path) -> BuildIdentity | None:
+    """从源码树或 sdist 中读取已固化的构建身份.
 
     参数：
         path: 构建元数据模块的路径
 
     返回：
-        元数据模块记录的构建身份；开发源码使用 dev 与 None
+        元数据模块记录的正式构建身份；开发源码返回 ``None``
 
     异常：
         RuntimeError: 元数据模块无效或构建身份不完整
     """
     if not path.is_file():
-        return BuildIdentity(commit="dev", build_date=None)
+        return None
 
     try:
         content = path.read_text(encoding="utf-8")
@@ -115,7 +115,7 @@ def _embedded_build_identity(path: Path) -> BuildIdentity:
         raise RuntimeError(f"{path} 中的构建元数据无效") from error
 
     if commit == "dev" and build_date is None:
-        return BuildIdentity(commit="dev", build_date=None)
+        return None
 
     if not isinstance(commit, str) or not isinstance(build_date, str):
         raise RuntimeError(f"{path} 中的构建元数据不完整")
@@ -123,11 +123,11 @@ def _embedded_build_identity(path: Path) -> BuildIdentity:
     return release_build_identity(commit, build_date)
 
 
-def _build_identity() -> BuildIdentity:
-    """解析显式构建输入，未提供时继承现有构建身份。
+def _build_identity() -> BuildIdentity | None:
+    """解析显式构建输入，未提供时继承现有构建身份.
 
     返回：
-        本次构建应写入发布产物的构建身份
+        本次构建使用的正式构建身份；开发构建返回 ``None``
 
     异常：
         RuntimeError: 构建环境变量不完整或不符合正式构建要求
@@ -147,24 +147,26 @@ def _build_identity() -> BuildIdentity:
 
 def _write_build_metadata(
     path: Path,
-    identity: BuildIdentity,
+    identity: BuildIdentity | None,
 ) -> None:
-    """以稳定格式将构建身份写入 UTF-8 Python 模块。
+    """以稳定格式将构建身份写入 UTF-8 Python 模块.
 
     参数：
         path: 目标构建元数据模块的路径
-        identity: 写入发布产物的构建身份
+        identity: 写入分发包的正式构建身份；开发构建使用 ``None``
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    if identity.build_date is None:
+    if identity is None:
+        commit = "dev"
         build_date = "None"
     else:
+        commit = identity.commit
         build_date = f'"{identity.build_date}"'
 
     path.write_text(
         '"""Datamind build metadata."""\n\n'
-        f'BUILD_COMMIT: str = "{identity.commit}"\n'
+        f'BUILD_COMMIT: str = "{commit}"\n'
         f"BUILD_DATE: str | None = {build_date}\n",
         encoding="utf-8",
         newline="\n",
@@ -172,10 +174,10 @@ def _write_build_metadata(
 
 
 class BuildPy(build_py):
-    """为 Wheel 构建校验控制台资源并注入构建身份。"""
+    """为 Wheel 构建校验控制台资源并注入构建身份."""
 
     def run(self) -> None:
-        """执行标准包构建，并在临时输出目录写入构建元数据。"""
+        """执行标准包构建，并在临时输出目录写入构建元数据."""
         _require_console_build()
         identity = _build_identity()
 
@@ -188,12 +190,12 @@ class BuildPy(build_py):
 
 
 class Sdist(sdist):
-    """为 sdist 构建校验控制台资源并保留构建身份。"""
+    """为 sdist 构建校验控制台资源并保留构建身份."""
 
     _datamind_build_identity: BuildIdentity | None = None
 
     def run(self) -> None:
-        """校验控制台资源与构建身份，并生成源码发行包。"""
+        """校验控制台资源与构建身份，并生成源码发行包."""
         _require_console_build()
         self._datamind_build_identity = _build_identity()
 
@@ -204,7 +206,7 @@ class Sdist(sdist):
         base_dir: str,
         files: list[str],
     ) -> None:
-        """在临时源码发行目录中写入构建元数据。
+        """在临时源码发行目录中写入构建元数据.
 
         参数：
             base_dir: setuptools 创建的临时源码发行目录

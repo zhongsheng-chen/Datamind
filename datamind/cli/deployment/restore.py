@@ -1,4 +1,4 @@
-"""恢复部署命令
+"""恢复部署命令.
 
 提供逻辑删除部署的恢复功能。
 
@@ -39,7 +39,7 @@ def restore_deployment(
             help="输出格式：text / json",
         ),
 ) -> None:
-    """恢复逻辑删除的部署"""
+    """恢复逻辑删除的部署."""
 
     @audit(
         action="deployment.restore",

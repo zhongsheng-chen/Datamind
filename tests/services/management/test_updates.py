@@ -1,4 +1,4 @@
-"""部署相关管理资源更新测试
+"""部署相关管理资源更新测试.
 
 验证路由、实验和实验分组更新时的参数传递与状态约束。
 
@@ -26,7 +26,7 @@ from datamind.services import (
 
 
 class FakeUnitOfWork:
-    """服务更新测试工作单元。"""
+    """服务更新测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -55,7 +55,7 @@ async def test_update_routing_passes_patch(
         monkeypatch: pytest.MonkeyPatch,
         rules_update: dict,
 ) -> None:
-    """测试路由编辑传递更新字段，并区分规则保留、清空和替换"""
+    """测试路由编辑传递更新字段，并区分条件保留、清空和替换."""
     original_rules = {
         "match": "all",
         "conditions": [{"field": "features.age", "op": "gte", "value": 18}],
@@ -133,7 +133,7 @@ async def test_update_routing_passes_patch(
 async def test_update_experiment_only_edits_draft(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试草稿实验可更新名称和分流策略"""
+    """测试草稿实验可更新名称和分流策略."""
     experiment = SimpleNamespace(
         experiment_id="exp_test",
         model_id="mdl_test",
@@ -188,7 +188,7 @@ async def test_update_variant_checks_sibling_weight(
         monkeypatch: pytest.MonkeyPatch,
         config_update: dict,
 ) -> None:
-    """测试分组编辑保持实验内活动权重约束"""
+    """测试分组编辑保持实验内活动权重约束."""
     experiment = SimpleNamespace(
         experiment_id="exp_test",
         status="draft",

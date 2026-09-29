@@ -1,4 +1,4 @@
-"""审计日志仓储
+"""审计日志仓储.
 
 用于查询与写入系统操作记录，
 支持变更追踪、问题排查和审计分析。
@@ -59,7 +59,7 @@ from datamind.db.repositories.base import BaseRepository
 
 
 class AuditRepository(BaseRepository):
-    """审计日志仓储"""
+    """审计日志仓储."""
 
     @staticmethod
     def _validate_pagination(
@@ -67,7 +67,7 @@ class AuditRepository(BaseRepository):
             limit: int | None,
             offset: int | None,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if (
                 limit is not None
                 and limit < 0
@@ -104,7 +104,7 @@ class AuditRepository(BaseRepository):
             offset: int | None = None,
             order_desc: bool = True,
     ) -> list[Audit]:
-        """获取审计日志列表
+        """获取审计日志列表.
 
         参数：
             audit_id: 审计 ID（可选）
@@ -255,7 +255,7 @@ class AuditRepository(BaseRepository):
             target_type: str,
             target_id: str,
     ) -> list[Audit]:
-        """获取实体变更历史
+        """获取实体变更历史.
 
         参数：
             target_type: 目标类型
@@ -274,7 +274,7 @@ class AuditRepository(BaseRepository):
             self,
             audit_id: str,
     ) -> Audit | None:
-        """按唯一审计 ID 获取记录。"""
+        """按唯一审计 ID 获取记录."""
         result = await self.session.execute(
             select(Audit).where(
                 Audit.audit_id == audit_id
@@ -288,7 +288,7 @@ class AuditRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Audit]:
-        """获取失败操作记录
+        """获取失败操作记录.
 
         参数：
             limit: 返回数量限制，默认 100
@@ -310,7 +310,7 @@ class AuditRepository(BaseRepository):
             limit: int | None = 100,
             offset: int | None = None,
     ) -> list[Audit]:
-        """获取用户操作记录
+        """获取用户操作记录.
 
         参数：
             user: 用户名
@@ -348,7 +348,7 @@ class AuditRepository(BaseRepository):
             context: dict | None = None,
             occurred_at: datetime | None = None,
     ) -> Audit:
-        """创建审计日志
+        """创建审计日志.
 
         参数：
             audit_id: 审计 ID

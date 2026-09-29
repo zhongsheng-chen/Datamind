@@ -1,4 +1,4 @@
-"""日志保留管理测试
+"""日志保留管理测试.
 
 验证过期日志清理和后台保留线程的启停行为。
 
@@ -36,7 +36,7 @@ from datamind.logging import retention
 def test_cleanup_logs_deletes_expired_files(
         tmp_path: Path,
 ) -> None:
-    """测试删除超过保留天数的日志文件"""
+    """测试删除超过保留天数的日志文件."""
     old_log = tmp_path / "datamind.log.1"
     current_log = tmp_path / "datamind.log"
     ignored_file = tmp_path / "notes.txt"
@@ -84,7 +84,7 @@ def test_cleanup_logs_deletes_expired_files(
 def test_cleanup_logs_ignores_missing_directory(
         tmp_path: Path,
 ) -> None:
-    """测试日志目录不存在时直接返回"""
+    """测试日志目录不存在时直接返回."""
     missing_dir = tmp_path / "missing"
 
     retention.cleanup_logs(
@@ -107,7 +107,7 @@ def test_cleanup_logs_ignores_non_positive_retention_days(
         tmp_path: Path,
         retention_days: int,
 ) -> None:
-    """测试保留天数小于等于零时不清理日志"""
+    """测试保留天数小于等于零时不清理日志."""
     log_file = tmp_path / "datamind.log.1"
     log_file.write_text(
         "keep",
@@ -126,7 +126,7 @@ def test_cleanup_logs_ignores_non_positive_retention_days(
 def test_cleanup_logs_skips_matching_directories(
         tmp_path: Path,
 ) -> None:
-    """测试跳过名称匹配但类型为目录的路径"""
+    """测试跳过名称匹配但类型为目录的路径."""
     log_directory = tmp_path / "archive.log.1"
     log_directory.mkdir()
 
@@ -143,7 +143,7 @@ def test_start_retention_worker_avoids_duplicate_threads(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试重复启动时不会创建多个保留线程"""
+    """测试重复启动时不会创建多个保留线程."""
     monkeypatch.setitem(
         vars(retention),
         "_CHECK_INTERVAL_SECONDS",
@@ -175,7 +175,7 @@ def test_stop_retention_worker_stops_thread(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """测试停止日志保留线程"""
+    """测试停止日志保留线程."""
     monkeypatch.setitem(
         vars(retention),
         "_CHECK_INTERVAL_SECONDS",
@@ -201,7 +201,7 @@ def test_stop_retention_worker_stops_thread(
 
 
 def test_stop_retention_worker_without_start() -> None:
-    """测试未启动线程时停止操作可重复执行"""
+    """测试未启动线程时停止操作可重复执行."""
     retention.stop_retention_worker()
     retention.stop_retention_worker()
 

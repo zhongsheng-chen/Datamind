@@ -1,4 +1,4 @@
-"""MinIO 对象存储后端
+"""MinIO 对象存储后端.
 
 将数据存储在 MinIO 或 S3 兼容的对象存储中。
 
@@ -57,7 +57,7 @@ from datamind.storage.errors import (
 
 
 class MinIOStorageBackend(BaseStorageBackend):
-    """MinIO 对象存储后端"""
+    """MinIO 对象存储后端."""
 
     _OBJECT_NOT_FOUND_ERROR_CODES = {
         "NoSuchKey",
@@ -88,7 +88,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             base_prefix: str = "",
             region: str | None = None,
     ) -> None:
-        """初始化 MinIO 存储后端
+        """初始化 MinIO 存储后端.
 
         参数：
             endpoint: MinIO 服务端点
@@ -150,7 +150,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             key: str,
             data: bytes,
     ) -> None:
-        """上传对象到存储桶
+        """上传对象到存储桶.
 
         参数：
             key: 逻辑对象键
@@ -182,7 +182,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> bytes:
-        """下载对象内容
+        """下载对象内容.
 
         参数：
             key: 逻辑对象键
@@ -241,7 +241,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> None:
-        """删除对象
+        """删除对象.
 
         对象不存在时保持幂等，不抛出异常。
 
@@ -275,7 +275,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             self,
             key: str,
     ) -> bool:
-        """检查对象是否存在
+        """检查对象是否存在.
 
         参数：
             key: 逻辑对象键
@@ -317,7 +317,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             self,
             prefix: str,
     ) -> list[str]:
-        """列出指定前缀下的所有对象
+        """列出指定前缀下的所有对象.
 
         参数：
             prefix: 逻辑对象键前缀；空字符串表示基础前缀下的全部对象
@@ -383,7 +383,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             *,
             allow_empty: bool = False,
     ) -> str:
-        """将逻辑对象键转换为 MinIO 对象名称"""
+        """将逻辑对象键转换为 MinIO 对象名称."""
         normalized_key = self._normalize_key(
             key,
             allow_empty=allow_empty,
@@ -401,7 +401,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             self,
             object_name: str,
     ) -> str:
-        """将 MinIO 对象名称转换为逻辑对象键"""
+        """将 MinIO 对象名称转换为逻辑对象键."""
         normalized_name = self._normalize_key(
             object_name,
             allow_empty=False,
@@ -427,7 +427,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             *,
             allow_empty: bool,
     ) -> str:
-        """标准化并校验对象键或前缀"""
+        """标准化并校验对象键或前缀."""
         if not isinstance(key, str):
             raise StorageKeyError(
                 "对象键必须是字符串"
@@ -476,7 +476,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             cls,
             error: S3Error,
     ) -> bool:
-        """判断是否为对象不存在错误"""
+        """判断是否为对象不存在错误."""
         return error.code in cls._OBJECT_NOT_FOUND_ERROR_CODES
 
     @classmethod
@@ -484,7 +484,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             cls,
             error: S3Error,
     ) -> bool:
-        """判断是否为对象或存储桶不存在错误"""
+        """判断是否为对象或存储桶不存在错误."""
         return error.code in cls._RESOURCE_NOT_FOUND_ERROR_CODES
 
     @classmethod
@@ -495,7 +495,7 @@ class MinIOStorageBackend(BaseStorageBackend):
             error: S3Error,
             key: str | None = None,
     ) -> StorageBackendError:
-        """将 S3 异常映射为存储层标准异常
+        """将 S3 异常映射为存储层标准异常.
 
         参数：
             action: 当前存储操作

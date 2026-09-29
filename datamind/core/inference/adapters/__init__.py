@@ -1,4 +1,4 @@
-"""模型适配器模块
+"""模型适配器模块.
 
 提供统一模型适配入口，支持模型框架识别和适配器创建。
 
@@ -53,7 +53,7 @@ __all__ = [
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载具体框架的模型适配器。"""
+    """按需加载具体框架的模型适配器."""
     module_name = _ADAPTER_EXPORTS.get(name)
 
     if module_name is None:
@@ -67,5 +67,5 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
-    """返回包含延迟公共导出的模块属性列表。"""
+    """返回包含延迟公共导出的模块属性列表."""
     return sorted({*globals(), *__all__})

@@ -1,4 +1,4 @@
-"""存储配置测试
+"""存储配置测试.
 
 验证本地存储、MinIO 存储、外部配置隔离、路径安全校验和配置不可变行为。
 
@@ -59,7 +59,7 @@ from datamind.constants import (
 
 
 class InitOnlySettings:
-    """仅保留初始化参数配置源的测试混入类"""
+    """仅保留初始化参数配置源的测试混入类."""
 
     @classmethod
     def settings_customise_sources(
@@ -70,7 +70,7 @@ class InitOnlySettings:
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """禁用环境变量、.env 和密钥文件配置源"""
+        """禁用环境变量、.env 和密钥文件配置源."""
         _ = (
             cls,
             settings_cls,
@@ -86,41 +86,41 @@ class IsolatedLocalStorageConfig(
     InitOnlySettings,
     LocalStorageConfig,
 ):
-    """隔离外部配置源的本地存储配置"""
+    """隔离外部配置源的本地存储配置."""
 
 
 class IsolatedMinIOStorageConfig(
     InitOnlySettings,
     MinIOStorageConfig,
 ):
-    """隔离外部配置源的 MinIO 存储配置"""
+    """隔离外部配置源的 MinIO 存储配置."""
 
 
 class IsolatedStorageConfig(
     InitOnlySettings,
     StorageConfig,
 ):
-    """隔离外部配置源的存储配置"""
+    """隔离外部配置源的存储配置."""
 
 
 def create_local_config(
         **overrides: Any,
 ) -> LocalStorageConfig:
-    """创建隔离外部配置源的本地存储配置"""
+    """创建隔离外部配置源的本地存储配置."""
     return IsolatedLocalStorageConfig(**overrides)
 
 
 def create_minio_config(
         **overrides: Any,
 ) -> MinIOStorageConfig:
-    """创建隔离外部配置源的 MinIO 存储配置"""
+    """创建隔离外部配置源的 MinIO 存储配置."""
     return IsolatedMinIOStorageConfig(**overrides)
 
 
 def create_storage_config(
         **overrides: Any,
 ) -> StorageConfig:
-    """创建隔离外部配置源的存储配置"""
+    """创建隔离外部配置源的存储配置."""
     config_kwargs: dict[str, Any] = {
         "local": create_local_config(),
         "minio": create_minio_config(),
@@ -133,7 +133,7 @@ def create_storage_config(
 def create_valid_minio_config(
         **overrides: Any,
 ) -> MinIOStorageConfig:
-    """创建凭证完整的 MinIO 测试配置"""
+    """创建凭证完整的 MinIO 测试配置."""
     config_kwargs: dict[str, Any] = {
         "endpoint": "minio.internal:9000",
         "bucket": "datamind-models",
@@ -149,14 +149,14 @@ def create_valid_minio_config(
 
 
 def test_local_storage_config_defaults() -> None:
-    """测试本地存储默认配置"""
+    """测试本地存储默认配置."""
     config = create_local_config()
 
     assert config.base_dir == Path("./data")
 
 
 def test_minio_storage_config_defaults() -> None:
-    """测试 MinIO 默认配置"""
+    """测试 MinIO 默认配置."""
     config = create_minio_config()
 
     assert config.endpoint == "localhost:9000"
@@ -169,7 +169,7 @@ def test_minio_storage_config_defaults() -> None:
 
 
 def test_storage_config_defaults() -> None:
-    """测试存储配置默认值"""
+    """测试存储配置默认值."""
     config = create_storage_config()
 
     assert config.type == StorageType.LOCAL
@@ -182,7 +182,7 @@ def test_storage_config_defaults() -> None:
 def test_storage_config_ignores_external_sources(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试隔离顶层和嵌套配置的外部配置源"""
+    """测试隔离顶层和嵌套配置的外部配置源."""
     monkeypatch.setenv(
         "DATAMIND_STORAGE_TYPE",
         "minio",
@@ -216,7 +216,7 @@ def test_storage_config_ignores_external_sources(
 def test_storage_config_accepts_custom_local_storage(
         tmp_path: Path,
 ) -> None:
-    """测试接受有效的本地存储配置"""
+    """测试接受有效的本地存储配置."""
     local = create_local_config(
         base_dir=tmp_path / "model-data"
     )
@@ -235,7 +235,7 @@ def test_storage_config_accepts_custom_local_storage(
 
 
 def test_storage_config_accepts_valid_minio_storage() -> None:
-    """测试接受凭证完整的 MinIO 配置"""
+    """测试接受凭证完整的 MinIO 配置."""
     minio = create_valid_minio_config()
 
     config = create_storage_config(
@@ -264,7 +264,7 @@ def test_storage_config_accepts_valid_minio_storage() -> None:
 def test_storage_config_rejects_non_positive_max_file_size(
         max_file_size: int,
 ) -> None:
-    """测试拒绝非正数文件大小上限"""
+    """测试拒绝非正数文件大小上限."""
     with pytest.raises(
             ValidationError,
             match="max_file_size 必须大于 0",
@@ -284,7 +284,7 @@ def test_storage_config_rejects_non_positive_max_file_size(
 def test_storage_config_rejects_blank_model_dir(
         model_dir: str,
 ) -> None:
-    """测试拒绝空模型目录"""
+    """测试拒绝空模型目录."""
     with pytest.raises(
             ValidationError,
             match="model_dir 不能为空",
@@ -304,7 +304,7 @@ def test_storage_config_rejects_blank_model_dir(
 def test_storage_config_rejects_absolute_model_dir(
         model_dir: str,
 ) -> None:
-    """测试拒绝 Unix、Windows 和 UNC 绝对路径"""
+    """测试拒绝 Unix、Windows 和 UNC 绝对路径."""
     with pytest.raises(
             ValidationError,
             match="model_dir 必须是相对目录",
@@ -323,7 +323,7 @@ def test_storage_config_rejects_absolute_model_dir(
 def test_storage_config_rejects_parent_directory_reference(
         model_dir: str,
 ) -> None:
-    """测试拒绝包含上级目录引用的模型目录"""
+    """测试拒绝包含上级目录引用的模型目录."""
     with pytest.raises(
             ValidationError,
             match="model_dir 不能包含上级目录引用",
@@ -342,7 +342,7 @@ def test_storage_config_rejects_parent_directory_reference(
 def test_storage_config_accepts_safe_relative_model_dir(
         model_dir: str,
 ) -> None:
-    """测试接受安全的相对模型目录"""
+    """测试接受安全的相对模型目录."""
     config = create_storage_config(model_dir=model_dir)
 
     assert config.model_dir == model_dir
@@ -382,7 +382,7 @@ def test_minio_storage_requires_connection_fields(
         value: str,
         error_message: str,
 ) -> None:
-    """测试 MinIO 存储要求连接字段非空"""
+    """测试 MinIO 存储要求连接字段非空."""
     minio = create_valid_minio_config(
         **{
             field: value,
@@ -400,7 +400,7 @@ def test_minio_storage_requires_connection_fields(
 
 
 def test_local_storage_does_not_require_minio_credentials() -> None:
-    """测试本地存储不要求填写 MinIO 凭证"""
+    """测试本地存储不要求填写 MinIO 凭证."""
     config = create_storage_config(
         type=StorageType.LOCAL,
         minio=create_minio_config(),
@@ -412,20 +412,20 @@ def test_local_storage_does_not_require_minio_credentials() -> None:
 
 
 def test_storage_config_parses_storage_type_string() -> None:
-    """测试将字符串解析为存储类型枚举"""
+    """测试将字符串解析为存储类型枚举."""
     config = create_storage_config(type="local")
 
     assert config.type == StorageType.LOCAL
 
 
 def test_storage_config_rejects_unknown_storage_type() -> None:
-    """测试拒绝未知存储类型"""
+    """测试拒绝未知存储类型."""
     with pytest.raises(ValidationError):
         create_storage_config(type="unknown")
 
 
 def test_storage_configs_are_frozen() -> None:
-    """测试顶层和嵌套存储配置创建后不可修改"""
+    """测试顶层和嵌套存储配置创建后不可修改."""
     config = create_storage_config()
 
     with pytest.raises(ValidationError):

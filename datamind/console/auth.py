@@ -1,4 +1,4 @@
-"""管理控制台浏览器认证
+"""管理控制台浏览器认证.
 
 负责创建、轮换、撤销和验证浏览器登录会话。
 
@@ -49,7 +49,7 @@ async def login(
         error_response: Callable[..., JSONResponse],
         set_session_cookies: Callable[..., None],
 ) -> JSONResponse:
-    """使用本地账户创建浏览器会话"""
+    """使用本地账户创建浏览器会话."""
     try:
         payload = await request.json()
         login_request = LoginRequest.model_validate(
@@ -147,7 +147,7 @@ async def refresh(
         set_session_cookies: Callable[..., None],
         clear_session_cookies: Callable[[Response], None],
 ) -> Response:
-    """轮换浏览器登录凭据"""
+    """轮换浏览器登录凭据."""
     refresh_token = request.cookies.get(
         refresh_cookie
     )
@@ -209,7 +209,7 @@ async def logout(
         auth_service: Callable[..., Any],
         clear_session_cookies: Callable[[Response], None],
 ) -> Response:
-    """撤销浏览器会话"""
+    """撤销浏览器会话."""
     refresh_token = request.cookies.get(
         refresh_cookie
     )
@@ -255,7 +255,7 @@ async def authenticate(
         unit_of_work: Callable[[], Any],
         auth_service: Callable[..., Any],
 ) -> AuthenticatedUser | None:
-    """认证浏览器访问令牌"""
+    """认证浏览器访问令牌."""
     access_token = request.cookies.get(
         access_cookie
     )

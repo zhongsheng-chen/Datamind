@@ -1,4 +1,4 @@
-"""配置总入口
+"""配置总入口.
 
 聚合所有子配置，提供统一的配置访问接口和缓存实例。
 
@@ -52,7 +52,7 @@ from datamind.config.worker import TaskWorkerConfig
 
 
 class Settings:
-    """配置总入口类"""
+    """配置总入口类."""
 
     audit: AuditConfig
     auth: AuthConfig
@@ -86,7 +86,7 @@ class Settings:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """获取缓存的全局配置实例
+    """获取缓存的全局配置实例.
 
     返回：
         缓存的 Settings 实例

@@ -1,4 +1,4 @@
-"""数据类型枚举测试
+"""数据类型枚举测试.
 
 验证 DataType 的成员、字符串行为和支持集合。
 
@@ -36,7 +36,7 @@ EXPECTED_DATA_TYPES = {
 
 
 def test_data_type_members_and_values() -> None:
-    """测试数据类型枚举包含预期成员和值"""
+    """测试数据类型枚举包含预期成员和值."""
     assert {
         member: member.value
         for member in DataType
@@ -54,7 +54,7 @@ def test_data_type_string_behavior(
         member: DataType,
         expected_value: str,
 ) -> None:
-    """测试枚举成员具有字符串语义"""
+    """测试枚举成员具有字符串语义."""
     assert isinstance(
         member,
         str,
@@ -95,19 +95,19 @@ def test_data_type_can_be_created_from_value(
         value: str,
         expected_member: DataType,
 ) -> None:
-    """测试可以通过字符串值反向构造枚举"""
+    """测试可以通过字符串值反向构造枚举."""
     assert DataType(value) is expected_member
 
 
 def test_supported_data_types_contains_all_members() -> None:
-    """测试支持集合包含全部数据类型"""
+    """测试支持集合包含全部数据类型."""
     assert SUPPORTED_DATA_TYPES == frozenset(
         DataType
     )
 
 
 def test_supported_data_types_contains_string_values() -> None:
-    """测试支持集合可以使用字符串值判断"""
+    """测试支持集合可以使用字符串值判断."""
     assert {
         str(member)
         for member in SUPPORTED_DATA_TYPES
@@ -117,6 +117,6 @@ def test_supported_data_types_contains_string_values() -> None:
 
 
 def test_invalid_data_type_raises_value_error() -> None:
-    """测试非法数据类型不能构造枚举"""
+    """测试非法数据类型不能构造枚举."""
     with pytest.raises(ValueError):
         DataType("unknown")

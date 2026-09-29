@@ -1,4 +1,4 @@
-"""身份管理服务
+"""身份管理服务.
 
 提供 LOCAL 用户、角色和角色授予的管理能力。
 
@@ -97,7 +97,7 @@ logger = structlog.get_logger(__name__)
 
 
 class IdentityService:
-    """身份管理服务"""
+    """身份管理服务."""
 
     def __init__(
             self,
@@ -105,7 +105,7 @@ class IdentityService:
             audit_source: AuditSource = AuditSource.CLI,
             audit_context: dict[str, Any] | None = None,
     ) -> None:
-        """初始化身份管理服务
+        """初始化身份管理服务.
 
         参数：
             audit_source: 审计来源，默认使用 CLI
@@ -130,7 +130,7 @@ class IdentityService:
             email: str | None = None,
             role_names: list[str] | None = None,
     ) -> dict[str, Any]:
-        """创建用户并授予角色"""
+        """创建用户并授予角色."""
         logger.info(
             "开始创建用户",
             username=username,
@@ -329,7 +329,7 @@ class IdentityService:
             limit: int = 100,
             offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """获取用户列表"""
+        """获取用户列表."""
         logger.debug(
             "开始查询用户列表",
             status=status,
@@ -387,7 +387,7 @@ class IdentityService:
             username: str,
             include_deleted: bool = False,
     ) -> dict[str, Any]:
-        """按用户名获取用户"""
+        """按用户名获取用户."""
         logger.info(
             "开始查询用户详情",
             username=username,
@@ -429,7 +429,7 @@ class IdentityService:
             email: str | None = None,
             role_names: list[str] | None = None,
     ) -> dict[str, Any]:
-        """更新用户名、显示名称、邮箱和角色
+        """更新用户名、显示名称、邮箱和角色.
 
         系统初始化创建的内置管理员账户只允许修改邮箱和附加角色，
         其用户名、显示名称和 administrator 角色保持不变。
@@ -572,7 +572,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """启用用户"""
+        """启用用户."""
         logger.info(
             "开始启用用户",
             username=username,
@@ -632,7 +632,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """停用用户并撤销其登录会话"""
+        """停用用户并撤销其登录会话."""
         logger.info(
             "开始停用用户",
             username=username,
@@ -709,7 +709,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """重置用户密码并撤销其登录会话"""
+        """重置用户密码并撤销其登录会话."""
         logger.info(
             "开始重置用户密码",
             username=username,
@@ -773,7 +773,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """修改当前用户密码并撤销已有登录会话"""
+        """修改当前用户密码并撤销已有登录会话."""
         logger.info(
             "开始修改用户密码",
             username=username,
@@ -861,7 +861,7 @@ class IdentityService:
             operator: str,
             reason: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除用户并撤销角色与登录会话"""
+        """逻辑删除用户并撤销角色与登录会话."""
         logger.info(
             "开始删除用户",
             username=username,
@@ -966,7 +966,7 @@ class IdentityService:
             operator: str,
             description: str | None = None,
     ) -> dict[str, Any]:
-        """创建角色"""
+        """创建角色."""
         logger.info(
             "开始创建角色",
             name=name,
@@ -1093,7 +1093,7 @@ class IdentityService:
             limit: int = 100,
             offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """获取角色列表"""
+        """获取角色列表."""
         logger.debug(
             "开始查询角色列表",
             status=status,
@@ -1136,7 +1136,7 @@ class IdentityService:
             name: str,
             include_deleted: bool = False,
     ) -> dict[str, Any]:
-        """按名称获取角色"""
+        """按名称获取角色."""
         logger.info(
             "开始查询角色详情",
             name=name,
@@ -1165,7 +1165,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """更新普通角色的描述与权限"""
+        """更新普通角色的描述与权限."""
         logger.info(
             "开始更新角色资料与权限",
             name=name,
@@ -1245,7 +1245,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """启用角色"""
+        """启用角色."""
         logger.info(
             "开始启用角色",
             name=name,
@@ -1293,7 +1293,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """停用角色并暂时收回其权限"""
+        """停用角色并暂时收回其权限."""
         logger.info(
             "开始停用角色",
             name=name,
@@ -1351,7 +1351,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """授予用户角色"""
+        """授予用户角色."""
         logger.info(
             "开始授予用户角色",
             username=username,
@@ -1439,7 +1439,7 @@ class IdentityService:
             operator_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """撤销用户角色"""
+        """撤销用户角色."""
         logger.info(
             "开始撤销用户角色",
             username=username,
@@ -1522,7 +1522,7 @@ class IdentityService:
             operator: str,
             reason: str | None = None,
     ) -> dict[str, Any]:
-        """逻辑删除没有有效授予的角色"""
+        """逻辑删除没有有效授予的角色."""
         logger.info(
             "开始删除角色",
             name=name,
@@ -1600,7 +1600,7 @@ class IdentityService:
             role_repo: RoleRepository,
             role_names: list[str],
     ) -> list[Role]:
-        """解析待授予的有效角色"""
+        """解析待授予的有效角色."""
         roles: list[Role] = []
 
         for name in role_names:
@@ -1646,7 +1646,7 @@ class IdentityService:
             role_repo: RoleRepository,
             grant_repo: GrantRepository,
     ) -> list[str]:
-        """替换用户的有效角色授予"""
+        """替换用户的有效角色授予."""
         roles = await self._resolve_roles(
             role_repo=role_repo,
             role_names=role_names,
@@ -1717,7 +1717,7 @@ class IdentityService:
             username: str,
             include_deleted: bool = False,
     ) -> User:
-        """获取有效用户"""
+        """获取有效用户."""
         normalized = username.strip()
         user = await user_repo.get_user(
             username=normalized
@@ -1747,7 +1747,7 @@ class IdentityService:
             name: str,
             include_deleted: bool = False,
     ) -> Role:
-        """获取有效角色"""
+        """获取有效角色."""
         normalized = name.strip()
         role = await role_repo.get_role(
             name=normalized
@@ -1777,7 +1777,7 @@ class IdentityService:
             grant_repo: GrantRepository,
             role_repo: RoleRepository,
     ) -> list[str]:
-        """获取用户的有效角色名称"""
+        """获取用户的有效角色名称."""
         grants = await grant_repo.list_active_grants(
             user_id=user.user_id,
             limit=None,
@@ -1818,7 +1818,7 @@ class IdentityService:
             role_repo: RoleRepository,
             grant_repo: GrantRepository,
     ) -> None:
-        """保护最后一个有效系统管理员"""
+        """保护最后一个有效系统管理员."""
         admin_role = await role_repo.get_role(
             name=ADMINISTRATOR_ROLE_NAME
         )
@@ -1878,7 +1878,7 @@ class IdentityService:
             user: User,
             operation: str,
     ) -> None:
-        """拒绝停用或删除系统初始化创建的管理员账户"""
+        """拒绝停用或删除系统初始化创建的管理员账户."""
         if user.created_by == SYSTEM_BOOTSTRAP_ACTOR:
             raise IdentityConflictError(
                 f"内置管理员账户不能{operation}"
@@ -1892,7 +1892,7 @@ class IdentityService:
             display_name: str | None,
             role_names: list[str] | None,
     ) -> None:
-        """保护内置管理员账户的固定身份和管理员角色"""
+        """保护内置管理员账户的固定身份和管理员角色."""
         if user.created_by != SYSTEM_BOOTSTRAP_ACTOR:
             return
 
@@ -1920,7 +1920,7 @@ class IdentityService:
             role_name: str,
             operation: str,
     ) -> None:
-        """拒绝停用或删除内置角色"""
+        """拒绝停用或删除内置角色."""
         if role_name in BUILTIN_ROLE_NAMES:
             raise IdentityConflictError(
                 f"{role_name} 为系统保留角色，"
@@ -1934,7 +1934,7 @@ class IdentityService:
             operator_id: str,
             operation: str,
     ) -> None:
-        """拒绝危险的自身账户操作"""
+        """拒绝危险的自身账户操作."""
         if user.user_id == operator_id:
             raise IdentityConflictError(
                 f"不能{operation}当前登录用户"
@@ -1946,7 +1946,7 @@ class IdentityService:
             *,
             roles: list[str] | None = None,
     ) -> dict[str, Any]:
-        """构建用户结果"""
+        """构建用户结果."""
         return {
             "user_id": user.user_id,
             "username": user.username,
@@ -1981,7 +1981,7 @@ class IdentityService:
     def _role_result(
             role: Role,
     ) -> dict[str, Any]:
-        """构建角色结果"""
+        """构建角色结果."""
         permissions = role.permissions
 
         return {
@@ -2026,7 +2026,7 @@ class IdentityService:
             context: dict[str, Any] | None = None,
             occurred_at: datetime | None = None,
     ) -> None:
-        """记录身份管理审计事件"""
+        """记录身份管理审计事件."""
         audit_context = dict(
             self._audit_context
         )
@@ -2077,7 +2077,7 @@ class IdentityService:
             context: dict[str, Any],
             key: str,
     ) -> str | None:
-        """读取已净化的标准审计上下文字段"""
+        """读取已净化的标准审计上下文字段."""
         value = context.get(
             key
         )
@@ -2090,7 +2090,7 @@ class IdentityService:
             *,
             maximum: int,
     ) -> str:
-        """校验必填文本"""
+        """校验必填文本."""
         normalized = value.strip()
 
         if normalized == "":
@@ -2113,7 +2113,7 @@ class IdentityService:
             *,
             maximum: int,
     ) -> str | None:
-        """校验可选文本"""
+        """校验可选文本."""
         if value is None:
             return None
 
@@ -2131,7 +2131,7 @@ class IdentityService:
             *,
             maximum: int,
     ) -> str | None:
-        """规范化允许清空的文本"""
+        """规范化允许清空的文本."""
         if value is None or value.strip() == "":
             return None
 
@@ -2146,7 +2146,7 @@ class IdentityService:
             cls,
             values: list[str],
     ) -> list[str]:
-        """规范化权限或角色名称列表"""
+        """规范化权限或角色名称列表."""
         normalized = {
             cls._required_text(
                 value,
@@ -2164,7 +2164,7 @@ class IdentityService:
     def _validate_role_permissions(
             permissions: list[str],
     ) -> None:
-        """校验角色权限"""
+        """校验角色权限."""
         namespaces = {
             permission.partition(".")[0]
             for permission in SUPPORTED_PERMISSIONS
@@ -2194,7 +2194,7 @@ class IdentityService:
     def _validate_password(
             password: str,
     ) -> None:
-        """校验明文密码"""
+        """校验明文密码."""
         if password == "":
             raise ValueError(
                 "密码不能为空"
@@ -2211,7 +2211,7 @@ class IdentityService:
             limit: int,
             offset: int,
     ) -> None:
-        """校验分页参数"""
+        """校验分页参数."""
         if limit < 1:
             raise ValueError(
                 "limit 必须大于 0"

@@ -1,6 +1,6 @@
-"""存储键策略测试
+"""存储键策略测试.
 
-验证模型目录、模型 ID、版本号、文件名和存储键规则。
+验证模型目录、模型 ID、版本号、文件名和存储键格式。
 
 核心功能：
   - test_strategy_preserves_valid_model_dir:
@@ -43,7 +43,7 @@ from datamind.storage.strategy import StorageKeyStrategy
 
 
 def test_strategy_preserves_valid_model_dir() -> None:
-    """测试保存合法模型目录"""
+    """测试保存合法模型目录."""
     strategy = StorageKeyStrategy(
         model_dir="model_registry"
     )
@@ -63,7 +63,7 @@ def test_strategy_preserves_valid_model_dir() -> None:
 def test_validate_model_dir_accepts_valid_identifiers(
     model_dir: str,
 ) -> None:
-    """测试接受合法模型目录名"""
+    """测试接受合法模型目录名."""
     strategy = StorageKeyStrategy(
         model_dir=model_dir
     )
@@ -88,7 +88,7 @@ def test_validate_model_dir_accepts_valid_identifiers(
 def test_validate_model_dir_rejects_invalid_values(
     model_dir: Any,
 ) -> None:
-    """测试拒绝非法模型目录名"""
+    """测试拒绝非法模型目录名."""
     with pytest.raises(
         ValueError,
         match="非法的模型目录名",
@@ -110,7 +110,7 @@ def test_validate_model_dir_rejects_invalid_values(
 def test_validate_model_name_accepts_valid_identifiers(
     model_name: str,
 ) -> None:
-    """测试接受合法模型名称"""
+    """测试接受合法模型名称."""
     StorageKeyStrategy.validate_model_name(
         model_name
     )
@@ -133,7 +133,7 @@ def test_validate_model_name_accepts_valid_identifiers(
 def test_validate_model_name_rejects_invalid_values(
     model_name: Any,
 ) -> None:
-    """测试拒绝非法模型名称"""
+    """测试拒绝非法模型名称."""
     with pytest.raises(
         ValueError,
         match="非法的模型名称",
@@ -157,7 +157,7 @@ def test_validate_model_name_rejects_invalid_values(
 def test_validate_version_accepts_valid_values(
     version: str,
 ) -> None:
-    """测试接受合法模型版本号"""
+    """测试接受合法模型版本号."""
     StorageKeyStrategy.validate_version(
         version
     )
@@ -182,7 +182,7 @@ def test_validate_version_accepts_valid_values(
 def test_validate_version_rejects_invalid_values(
     version: Any,
 ) -> None:
-    """测试拒绝非法模型版本号"""
+    """测试拒绝非法模型版本号."""
     with pytest.raises(
         ValueError,
         match="非法的模型版本号",
@@ -205,7 +205,7 @@ def test_validate_version_rejects_invalid_values(
 def test_validate_filename_accepts_valid_values(
     filename: str,
 ) -> None:
-    """测试接受合法文件名"""
+    """测试接受合法文件名."""
     StorageKeyStrategy.validate_filename(
         filename
     )
@@ -227,7 +227,7 @@ def test_validate_filename_accepts_valid_values(
 def test_validate_filename_rejects_invalid_values(
     filename: Any,
 ) -> None:
-    """测试拒绝非法文件名"""
+    """测试拒绝非法文件名."""
     with pytest.raises(
         ValueError,
         match="非法的文件名",
@@ -238,7 +238,7 @@ def test_validate_filename_rejects_invalid_values(
 
 
 def test_model_key_builds_expected_key() -> None:
-    """测试构造完整模型存储键"""
+    """测试构造完整模型存储键."""
     strategy = StorageKeyStrategy(
         model_dir="models"
     )
@@ -303,7 +303,7 @@ def test_model_key_validates_components(
     filename: str,
     error_message: str,
 ) -> None:
-    """测试构造存储键前校验各组成部分"""
+    """测试构造存储键前校验各组成部分."""
     strategy = StorageKeyStrategy(
         model_dir="models"
     )
@@ -321,7 +321,7 @@ def test_model_key_validates_components(
 
 
 def test_model_prefix_builds_expected_prefix() -> None:
-    """测试构造模型目录前缀"""
+    """测试构造模型目录前缀."""
     strategy = StorageKeyStrategy(
         model_dir="models"
     )
@@ -334,7 +334,7 @@ def test_model_prefix_builds_expected_prefix() -> None:
 
 
 def test_model_prefix_validates_model_id() -> None:
-    """测试构造模型前缀前校验模型 ID"""
+    """测试构造模型前缀前校验模型 ID."""
     strategy = StorageKeyStrategy(
         model_dir="models"
     )
@@ -372,7 +372,7 @@ def test_extract_filename_returns_last_component(
     key: str,
     expected_filename: str,
 ) -> None:
-    """测试从不同格式存储键提取文件名"""
+    """测试从不同格式存储键提取文件名."""
     filename = StorageKeyStrategy.extract_filename(
         key
     )
@@ -394,7 +394,7 @@ def test_extract_filename_returns_last_component(
 def test_extract_filename_rejects_invalid_key(
     key: Any,
 ) -> None:
-    """测试拒绝无法提取有效文件名的存储键"""
+    """测试拒绝无法提取有效文件名的存储键."""
     with pytest.raises(
         ValueError,
     ):

@@ -1,4 +1,4 @@
-"""Celery 运行时任务执行器
+"""Celery 运行时任务执行器.
 
 在 Celery Worker 子进程中维护专用线程、异步事件循环和模型运行时实例，
 为同步 Celery 任务提供批量预测与影子预测执行能力，并复用已加载模型。
@@ -38,14 +38,14 @@ from datamind.runtime.task_queue.errors import BatchCancelledError
 
 
 class RuntimeTaskWorker:
-    """Celery 运行时任务执行器
+    """Celery 运行时任务执行器.
 
     在当前 Worker 子进程中维护专用异步事件循环和运行时服务实例，
     为同步 Celery 任务提供批量预测与影子预测执行入口。
     """
 
     def __init__(self) -> None:
-        """初始化运行时任务执行器
+        """初始化运行时任务执行器.
 
         异常：
             RuntimeError: 运行时服务初始化失败
@@ -74,7 +74,7 @@ class RuntimeTaskWorker:
             task_id: str,
             worker_id: str | None = None,
     ) -> int:
-        """启动批次并准备分片共享的请求记录
+        """启动批次并准备分片共享的请求记录.
 
         参数：
             batch_id: 批次 ID
@@ -101,7 +101,7 @@ class RuntimeTaskWorker:
             end_index: int,
             worker_id: str | None = None,
     ) -> None:
-        """执行批次的半开区间分片
+        """执行批次的半开区间分片.
 
         参数：
             batch_id: 批次 ID
@@ -129,7 +129,7 @@ class RuntimeTaskWorker:
             end_index: int,
             error: str,
     ) -> None:
-        """将重试耗尽的分片标记失败并尝试汇总
+        """将重试耗尽的分片标记失败并尝试汇总.
 
         参数：
             batch_id: 批次 ID
@@ -154,7 +154,7 @@ class RuntimeTaskWorker:
             batch_id: str,
             shards: list[dict[str, object]],
     ) -> None:
-        """在发布消息前登记本次执行的全部分片
+        """在发布消息前登记本次执行的全部分片.
 
         参数：
             batch_id: 批次 ID
@@ -170,7 +170,7 @@ class RuntimeTaskWorker:
             shard_id: str,
             error: str,
     ) -> None:
-        """记录分片等待 Celery 独立重试
+        """记录分片等待 Celery 独立重试.
 
         参数：
             shard_id: 分片 ID
@@ -181,7 +181,7 @@ class RuntimeTaskWorker:
         ).result()
 
     def execute_shadow(self, *, execution_id: str) -> None:
-        """执行持久化影子预测任务
+        """执行持久化影子预测任务.
 
         参数：
             execution_id: 影子执行 ID
@@ -191,7 +191,7 @@ class RuntimeTaskWorker:
         ).result()
 
     def mark_batch_failed(self, *, batch_id: str, error: str) -> None:
-        """记录批次执行失败
+        """记录批次执行失败.
 
         参数：
             batch_id: 批次 ID
@@ -211,7 +211,7 @@ class RuntimeTaskWorker:
             error: str,
             retry_in_seconds: int,
     ) -> None:
-        """标记批次等待自动重试
+        """标记批次等待自动重试.
 
         参数：
             batch_id: 批次 ID
@@ -227,7 +227,7 @@ class RuntimeTaskWorker:
         ).result()
 
     def requeue_shadow(self, execution_id: str) -> None:
-        """将待重试影子执行恢复为等待状态
+        """将待重试影子执行恢复为等待状态.
 
         参数：
             execution_id: 影子执行 ID
@@ -237,7 +237,7 @@ class RuntimeTaskWorker:
         ).result()
 
     def shutdown(self) -> None:
-        """关闭运行时服务并停止专用事件循环"""
+        """关闭运行时服务并停止专用事件循环."""
         loop = self._loop
         if loop is None or not loop.is_running():
             return
@@ -251,7 +251,7 @@ class RuntimeTaskWorker:
         self._thread.join(timeout=30)
 
     def _run_loop(self) -> None:
-        """在线程中初始化运行时服务并运行事件循环"""
+        """在线程中初始化运行时服务并运行事件循环."""
         from datamind.runtime.server.service import DatamindRuntimeService
 
         loop = asyncio.new_event_loop()
@@ -282,7 +282,7 @@ class RuntimeTaskWorker:
             self,
             coroutine: Coroutine[Any, Any, Any],
     ) -> Future[Any]:
-        """向专用事件循环提交协程
+        """向专用事件循环提交协程.
 
         参数：
             coroutine: 待执行协程
@@ -307,7 +307,7 @@ class RuntimeTaskWorker:
             task_id: str,
             worker_id: str | None = None,
     ) -> int:
-        """锁定批次、启动尝试并一次性创建请求记录
+        """锁定批次、启动尝试并一次性创建请求记录.
 
         参数：
             batch_id: 批次 ID
@@ -359,7 +359,7 @@ class RuntimeTaskWorker:
             end_index: int,
             worker_id: str | None = None,
     ) -> None:
-        """执行单个分片并在全部分片完成后汇总批次
+        """执行单个分片并在全部分片完成后汇总批次.
 
         参数：
             batch_id: 批次 ID
@@ -445,7 +445,7 @@ class RuntimeTaskWorker:
             end_index: int,
             error: str,
     ) -> None:
-        """将分片中仍未成功的请求置为失败
+        """将分片中仍未成功的请求置为失败.
 
         参数：
             batch_id: 批次 ID
@@ -477,7 +477,7 @@ class RuntimeTaskWorker:
             batch_id: str,
             shards: list[dict[str, object]],
     ) -> None:
-        """将协调任务生成的分片计划持久化
+        """将协调任务生成的分片计划持久化.
 
         参数：
             batch_id: 批次 ID
@@ -509,7 +509,7 @@ class RuntimeTaskWorker:
             shard_id: str,
             error: str,
     ) -> None:
-        """记录分片等待 Celery 独立重试
+        """记录分片等待 Celery 独立重试.
 
         参数：
             shard_id: 分片 ID
@@ -529,7 +529,7 @@ class RuntimeTaskWorker:
             start_index: int,
             end_index: int,
     ) -> None:
-        """根据分片内逐条请求结果确定分片终态
+        """根据分片内逐条请求结果确定分片终态.
 
         参数：
             batch_id: 批次 ID
@@ -562,7 +562,7 @@ class RuntimeTaskWorker:
             )
 
     async def _finalize_batch_if_complete(self, batch_id: str) -> None:
-        """在数据库锁内更新进度并由最后一个分片写入终态
+        """在数据库锁内更新进度并由最后一个分片写入终态.
 
         参数：
             batch_id: 批次 ID
@@ -625,7 +625,7 @@ class RuntimeTaskWorker:
             )
 
     async def _execute_shadow(self, execution_id: str) -> None:
-        """加载并执行影子预测任务"""
+        """加载并执行影子预测任务."""
         task = await self._service.load_shadow_task(execution_id)
         if task is None:
             return
@@ -650,7 +650,7 @@ class RuntimeTaskWorker:
             error: str,
             retry_in_seconds: int,
     ) -> None:
-        """记录批次即将由 Celery 重试"""
+        """记录批次即将由 Celery 重试."""
         async with UnitOfWork() as uow:
             await BatchRepository(uow.session).mark_retrying(
                 batch_id,
@@ -670,7 +670,7 @@ class RuntimeTaskWorker:
             batch_id: str,
             error: str,
     ) -> None:
-        """根据逐条执行结果持久化批次失败状态"""
+        """根据逐条执行结果持久化批次失败状态."""
         async with UnitOfWork() as uow:
             result, succeeded_count, failed_count = (
                 await RuntimeTaskWorker._build_batch_result(
@@ -712,7 +712,7 @@ class RuntimeTaskWorker:
             session: Any,
             batch_id: str,
     ) -> tuple[dict[str, Any], int, int]:
-        """根据逐条请求记录构造批次执行结果
+        """根据逐条请求记录构造批次执行结果.
 
         参数：
             session: 数据库会话
@@ -756,7 +756,7 @@ _worker_lock = threading.Lock()
 
 
 def get_runtime_task_worker() -> RuntimeTaskWorker:
-    """获取当前 Celery 子进程的运行时执行器
+    """获取当前 Celery 子进程的运行时执行器.
 
     返回：
         当前进程共享的运行时任务执行器
@@ -777,7 +777,7 @@ def get_runtime_task_worker() -> RuntimeTaskWorker:
 
 
 def shutdown_runtime_task_worker() -> None:
-    """关闭并释放当前 Celery 子进程的运行时执行器"""
+    """关闭并释放当前 Celery 子进程的运行时执行器."""
     global _worker
 
     worker = _worker

@@ -1,4 +1,4 @@
-"""运行时服务请求结构
+"""运行时服务请求结构.
 
 定义运行控制、模型预测和业务结果回流接口的输入结构。
 
@@ -29,7 +29,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class RuntimeRequest(BaseModel):
-    """运行时接口请求基类"""
+    """运行时接口请求基类."""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -38,7 +38,7 @@ class RuntimeRequest(BaseModel):
 
 
 class ControlRequest(RuntimeRequest):
-    """运行控制请求"""
+    """运行控制请求."""
 
     deployment_id: str = Field(
         min_length=1,
@@ -46,7 +46,7 @@ class ControlRequest(RuntimeRequest):
 
 
 class DeploymentRequest(RuntimeRequest):
-    """部署查询请求"""
+    """部署查询请求."""
 
     deployment_id: str = Field(
         min_length=1,
@@ -54,7 +54,7 @@ class DeploymentRequest(RuntimeRequest):
 
 
 class PredictRequest(RuntimeRequest):
-    """单条预测请求"""
+    """单条预测请求."""
 
     model_name: str = Field(
         min_length=1,
@@ -69,7 +69,7 @@ class PredictRequest(RuntimeRequest):
 
 
 class PredictionInstance(RuntimeRequest):
-    """批量预测中的单条预测实例"""
+    """批量预测中的单条预测实例."""
 
     features: dict[str, Any] = Field(
         min_length=1,
@@ -79,7 +79,7 @@ class PredictionInstance(RuntimeRequest):
 
 
 class BatchPredictRequest(RuntimeRequest):
-    """批量预测请求"""
+    """批量预测请求."""
 
     model_name: str = Field(
         min_length=1,
@@ -92,7 +92,7 @@ class BatchPredictRequest(RuntimeRequest):
 
 
 class BatchReferenceRequest(RuntimeRequest):
-    """批次引用请求"""
+    """批次引用请求."""
 
     batch_id: str = Field(
         min_length=1,
@@ -101,7 +101,7 @@ class BatchReferenceRequest(RuntimeRequest):
 
 
 class OutcomeFeedbackRequest(RuntimeRequest):
-    """业务结果回流请求"""
+    """业务结果回流请求."""
 
     outcome_id: str = Field(
         min_length=1,

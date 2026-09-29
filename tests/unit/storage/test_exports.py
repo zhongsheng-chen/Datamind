@@ -1,4 +1,4 @@
-"""存储包公共导出测试
+"""存储包公共导出测试.
 
 验证存储包公开 API 的完整性和可访问性。
 
@@ -19,12 +19,12 @@ EXPECTED_EXPORTS = {
 
 
 def test_storage_exports_expected_public_api() -> None:
-    """测试存储包公开完整且准确的 API"""
+    """测试存储包公开完整且准确的 API."""
     assert set(storage.__all__) == EXPECTED_EXPORTS
     assert len(storage.__all__) == len(EXPECTED_EXPORTS)
 
 
 def test_all_declared_exports_are_available() -> None:
-    """测试 __all__ 中声明的对象均可从包级访问"""
+    """测试 __all__ 中声明的对象均可从包级访问."""
     for name in storage.__all__:
         assert hasattr(storage, name), name

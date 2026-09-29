@@ -1,4 +1,4 @@
-"""Docker 镜像冒烟测试
+"""Docker 镜像冒烟测试.
 
 构建 Docker 镜像，验证应用通过 Wheel 安装，并检查版本信息、OCI 元数据与
 Console 首页。
@@ -23,7 +23,9 @@ from uuid import uuid4
 
 import pytest
 
-from scripts.build_docker import load_docker_metadata
+from build_support.docker import load_docker_metadata
+from build_support.identity import release_build_identity
+from datamind.cli.branding import short_commit
 
 
 pytestmark = pytest.mark.smoke
@@ -41,9 +43,26 @@ FRAMEWORK_MODULES = {
 }
 
 
+def expected_build_identity() -> tuple[str, str]:
+    """读取 Smoke 期望的构建身份，默认使用固定测试值."""
+    commit = os.getenv("DATAMIND_SMOKE_BUILD_COMMIT")
+    build_date = os.getenv("DATAMIND_SMOKE_BUILD_DATE")
+
+    if commit is None and build_date is None:
+        return BUILD_COMMIT, BUILD_DATE
+    if commit is None or build_date is None:
+        raise ValueError(
+            "DATAMIND_SMOKE_BUILD_COMMIT 与 DATAMIND_SMOKE_BUILD_DATE "
+            "必须同时设置"
+        )
+
+    identity = release_build_identity(commit, build_date)
+    return identity.commit, identity.build_date
+
+
 @dataclass(frozen=True, slots=True)
 class DockerCommandResult:
-    """Docker 命令执行结果。"""
+    """Docker 命令执行结果."""
 
     exit_code: int
     output: str
@@ -57,7 +76,7 @@ def docker_command(
     check: bool = True,
     timeout: int = 300,
 ) -> DockerCommandResult:
-    """执行 Docker 命令并返回 UTF-8 文本结果"""
+    """执行 Docker 命令并返回 UTF-8 文本结果."""
     completed = subprocess.run(
         ["docker", *arguments],
         cwd=PROJECT_ROOT,
@@ -77,7 +96,7 @@ def docker_command(
 
 
 def verify_image_framework(image: str, framework: str) -> None:
-    """验证镜像中的模型框架兼容性"""
+    """验证镜像中的模型框架兼容性."""
     docker_command(
         [
             "run",
@@ -96,14 +115,14 @@ def verify_image_framework(image: str, framework: str) -> None:
 
 
 def free_port() -> int:
-    """分配当前可用的本地端口"""
+    """分配当前可用的本地端口."""
     with socket.socket() as server:
         server.bind(("127.0.0.1", 0))
         return int(server.getsockname()[1])
 
 
 def wait_for_console(container: str, port: int) -> str:
-    """等待 Console 首页就绪并返回响应内容"""
+    """等待 Console 首页就绪并返回响应内容."""
     deadline = time.monotonic() + 180
 
     while time.monotonic() < deadline:
@@ -145,44 +164,49 @@ def wait_for_console(container: str, port: int) -> str:
 def test_docker_image_uses_wheel_and_exposes_metadata(
         framework: str,
 ) -> None:
-    """测试运行时镜像的安装来源、元数据与控制台可用性"""
+    """测试运行时镜像的安装来源、元数据与控制台可用性."""
     if os.getenv("DATAMIND_RUN_DOCKER_SMOKE") != "1":
         pytest.skip("设置 DATAMIND_RUN_DOCKER_SMOKE=1 后运行 Docker Smoke")
 
     suffix = uuid4().hex[:12]
-    image = f"datamind:smoke-{framework}-{suffix}"
+    configured_image = os.getenv("DATAMIND_SMOKE_DOCKER_IMAGE", "").strip()
+    image = configured_image or f"datamind:smoke-{framework}-{suffix}"
     container = f"datamind-smoke-{suffix}"
     metadata = load_docker_metadata()
     build_environment = os.environ.copy()
+    build_commit, build_date = expected_build_identity()
 
     try:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "scripts.build_docker",
-                "--tag",
-                image,
-                "--framework",
-                framework,
-                "--build-commit",
-                BUILD_COMMIT,
-                "--build-date",
-                BUILD_DATE,
-            ],
-            cwd=PROJECT_ROOT,
-            env=build_environment,
-            check=True,
-            timeout=1800,
-        )
+        if not configured_image:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "scripts.build_docker",
+                    "--image",
+                    image,
+                    "--framework",
+                    framework,
+                    "--build-commit",
+                    build_commit,
+                    "--build-date",
+                    build_date,
+                ],
+                cwd=PROJECT_ROOT,
+                env=build_environment,
+                check=True,
+                timeout=1800,
+            )
 
-        version = docker_command(
+        version_output = docker_command(
             ["run", "--rm", image, "datamind", "--version"],
             timeout=120,
-        ).output
-        assert metadata.version in version
-        assert BUILD_COMMIT in version
-        assert BUILD_DATE in version
+        ).output.strip()
+        expected_output = (
+            f"datamind version {metadata.version} "
+            f"(commit {short_commit(build_commit)}, built {build_date})"
+        )
+        assert version_output == expected_output
 
         module_path = docker_command(
             [
@@ -216,11 +240,11 @@ def test_docker_image_uses_wheel_and_exposes_metadata(
                 "docker.io/library/python:3.12-slim-bookworm"
             ),
             "org.opencontainers.image.base.digest": PYTHON_BASE_DIGEST,
-            "org.opencontainers.image.created": BUILD_DATE,
+            "org.opencontainers.image.created": build_date,
             "org.opencontainers.image.description": metadata.description,
             "org.opencontainers.image.documentation": metadata.documentation,
             "org.opencontainers.image.licenses": metadata.licenses,
-            "org.opencontainers.image.revision": BUILD_COMMIT,
+            "org.opencontainers.image.revision": build_commit,
             "org.opencontainers.image.source": metadata.source,
             "org.opencontainers.image.title": metadata.title,
             "org.opencontainers.image.url": metadata.url,
@@ -318,8 +342,9 @@ def test_docker_image_uses_wheel_and_exposes_metadata(
             check=False,
             timeout=60,
         )
-        docker_command(
-            ["image", "rm", "--force", image],
-            check=False,
-            timeout=120,
-        )
+        if not configured_image:
+            docker_command(
+                ["image", "rm", "--force", image],
+                check=False,
+                timeout=120,
+            )

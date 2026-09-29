@@ -1,4 +1,4 @@
-"""Celery Worker 健康检查
+"""Celery Worker 健康检查.
 
 检查当前容器内的 Worker 是否在线，并确认其正在消费角色要求的任务队列。
 
@@ -22,7 +22,7 @@ _INSPECT_TIMEOUT_SECONDS = 2.0
 
 
 def get_worker_node_pattern() -> tuple[str, str]:
-    """获取当前容器的 Worker 节点名规则
+    """获取当前容器的 Worker 节点名规则.
 
     返回：
         Worker 节点名必须满足的前缀和主机名后缀
@@ -32,7 +32,7 @@ def get_worker_node_pattern() -> tuple[str, str]:
 
 
 def get_required_queues() -> set[str]:
-    """获取当前 Worker 角色必须消费的队列
+    """获取当前 Worker 角色必须消费的队列.
 
     返回：
         当前 Worker 角色对应的队列名称集合
@@ -50,7 +50,7 @@ def get_required_queues() -> set[str]:
 
 
 def is_worker_ready() -> bool:
-    """检查当前容器的 Worker 是否就绪
+    """检查当前容器的 Worker 是否就绪.
 
     通过 Celery 检查接口确认节点名、Ping 响应和活动队列均符合
     当前容器及 Worker 角色的要求。Broker 不可用或响应无效时返回失败。
@@ -102,7 +102,7 @@ def is_worker_ready() -> bool:
 
 
 def main() -> None:
-    """通过进程退出码输出健康检查结果
+    """通过进程退出码输出健康检查结果.
 
     Worker 就绪时以状态码 0 退出，否则以状态码 1 退出。
     """

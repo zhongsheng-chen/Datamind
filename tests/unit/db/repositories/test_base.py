@@ -1,4 +1,4 @@
-"""数据库仓储基类测试
+"""数据库仓储基类测试.
 
 验证 BaseRepository 对异步数据库会话的保存，
 以及添加、批量添加、删除、刷新和对象重载操作。
@@ -46,7 +46,7 @@ def create_repository(
     AsyncMock,
     AsyncMock,
 ]:
-    """创建仓储、会话及方法替身"""
+    """创建仓储、会话及方法替身."""
     add = MagicMock()
     add_all = MagicMock()
     delete = AsyncMock()
@@ -82,7 +82,7 @@ def create_repository(
 
 
 def test_session_returns_original_session() -> None:
-    """测试公开属性返回原始数据库会话"""
+    """测试公开属性返回原始数据库会话."""
     (
         repository,
         session,
@@ -97,7 +97,7 @@ def test_session_returns_original_session() -> None:
 
 
 def test_add() -> None:
-    """测试添加单个对象"""
+    """测试添加单个对象."""
     (
         repository,
         _,
@@ -119,7 +119,7 @@ def test_add() -> None:
 
 
 def test_add_all() -> None:
-    """测试批量添加对象"""
+    """测试批量添加对象."""
     (
         repository,
         _,
@@ -144,7 +144,7 @@ def test_add_all() -> None:
 
 
 def test_add_all_preserves_iterable() -> None:
-    """测试批量添加不会提前消费可迭代对象"""
+    """测试批量添加不会提前消费可迭代对象."""
     (
         repository,
         _,
@@ -177,7 +177,7 @@ def test_add_all_preserves_iterable() -> None:
 
 @pytest.mark.asyncio
 async def test_delete() -> None:
-    """测试异步删除对象"""
+    """测试异步删除对象."""
     (
         repository,
         _,
@@ -200,7 +200,7 @@ async def test_delete() -> None:
 
 @pytest.mark.asyncio
 async def test_flush() -> None:
-    """测试异步刷新会话"""
+    """测试异步刷新会话."""
     (
         repository,
         _,
@@ -218,7 +218,7 @@ async def test_flush() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh() -> None:
-    """测试异步刷新对象状态"""
+    """测试异步刷新对象状态."""
     (
         repository,
         _,

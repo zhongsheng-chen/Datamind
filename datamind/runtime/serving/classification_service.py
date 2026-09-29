@@ -1,4 +1,4 @@
-"""分类任务运行时服务
+"""分类任务运行时服务.
 
 提供二分类模型的在线推理能力。
 
@@ -36,7 +36,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 
 
 class ClassificationService(BaseRuntimeService):
-    """分类任务运行时服务
+    """分类任务运行时服务.
 
     基于分类模型和分类阈值生成二分类结果。
 
@@ -55,7 +55,7 @@ class ClassificationService(BaseRuntimeService):
             data_types: dict[str, DataType] | None = None,
             threshold: float = 0.5,
     ):
-        """初始化分类任务运行时服务
+        """初始化分类任务运行时服务.
 
         参数：
             runtime_model: 已加载的运行时模型
@@ -98,7 +98,7 @@ class ClassificationService(BaseRuntimeService):
     def _resolve_class_labels(
             model: Any,
     ) -> tuple[Any, Any]:
-        """解析模型的负类和正类标签。"""
+        """解析模型的负类和正类标签."""
         classes = getattr(model, "classes_", None)
 
         if (
@@ -123,7 +123,7 @@ class ClassificationService(BaseRuntimeService):
 
     @staticmethod
     def _normalize_class_label(label: Any) -> Any:
-        """将 NumPy 类别标量转换为 Python 标量。"""
+        """将 NumPy 类别标量转换为 Python 标量."""
         return (
             label.item()
             if isinstance(label, np.generic)
@@ -133,14 +133,14 @@ class ClassificationService(BaseRuntimeService):
     def get_capabilities(
             self,
     ) -> ModelCapability:
-        """获取服务能力集"""
+        """获取服务能力集."""
         return self.inference.get_capabilities()
 
     def predict(
             self,
             features: dict[str, Any],
     ) -> dict[str, Any]:
-        """单条分类预测
+        """单条分类预测.
 
         参数：
             features: 特征字典
@@ -184,7 +184,7 @@ class ClassificationService(BaseRuntimeService):
             self,
             features_list: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """批量分类预测
+        """批量分类预测.
 
         参数：
             features_list: 特征字典列表
@@ -238,7 +238,7 @@ class ClassificationService(BaseRuntimeService):
             self,
             probability: float,
     ) -> dict[str, Any]:
-        """构造包含类别标签的分类结果。"""
+        """构造包含类别标签的分类结果."""
         prediction = self._classify(
             probability
         )
@@ -254,7 +254,7 @@ class ClassificationService(BaseRuntimeService):
             self,
             probability: float,
     ) -> int:
-        """根据分类阈值生成分类标签
+        """根据分类阈值生成分类标签.
 
         参数：
             probability: 预测概率

@@ -1,4 +1,4 @@
-"""系统状态表模型测试
+"""系统状态表模型测试.
 
 验证系统状态表字段、索引、约束和对象行为。
 
@@ -31,7 +31,7 @@ from datamind.db.models.system import SystemState
 def get_model_table(
         value: object,
 ) -> Table:
-    """获取并校验模型数据表"""
+    """获取并校验模型数据表."""
     assert isinstance(value, Table)
     return value
 
@@ -42,12 +42,12 @@ TABLE = get_model_table(
 
 
 def test_system_state_table_name() -> None:
-    """测试系统状态表名称"""
+    """测试系统状态表名称."""
     assert TABLE.name == "systems"
 
 
 def test_system_state_business_columns() -> None:
-    """测试系统状态表业务字段完整"""
+    """测试系统状态表业务字段完整."""
     assert set(TABLE.columns.keys()) >= {
         "system_id",
         "initialized",
@@ -69,7 +69,7 @@ def test_system_state_business_columns() -> None:
 
 
 def test_system_state_defaults_to_uninitialized() -> None:
-    """测试系统状态默认未初始化"""
+    """测试系统状态默认未初始化."""
     column = TABLE.columns[
         "initialized"
     ]
@@ -79,7 +79,7 @@ def test_system_state_defaults_to_uninitialized() -> None:
 
 
 def test_system_state_indexes() -> None:
-    """测试系统状态表唯一索引"""
+    """测试系统状态表唯一索引."""
     indexes: dict[str, Index] = {
         index.name: index
         for index in TABLE.indexes
@@ -95,7 +95,7 @@ def test_system_state_indexes() -> None:
 
 
 def test_system_state_check_constraints() -> None:
-    """测试系统状态表检查约束"""
+    """测试系统状态表检查约束."""
     constraints = {
         constraint.name: str(
             constraint.sqltext
@@ -118,7 +118,7 @@ def test_system_state_check_constraints() -> None:
 
 
 def test_system_state_constructor_and_repr() -> None:
-    """测试系统状态对象构造与字符串表示"""
+    """测试系统状态对象构造与字符串表示."""
     state = SystemState(
         system_id="datamind",
         initialized=False,

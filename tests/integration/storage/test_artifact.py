@@ -1,4 +1,4 @@
-"""MinIO 模型制品与 Artifact 元数据集成测试
+"""MinIO 模型制品与 Artifact 元数据集成测试.
 
 验证真实 sklearn 模型经 Storage facade 写入 MinIO，并由 ArtifactRepository
 持久化完整性元数据后，可以在新会话中读取、校验和重新加载。
@@ -33,7 +33,7 @@ pytestmark = pytest.mark.integration
 
 
 def serialize_model(model: LogisticRegression) -> bytes:
-    """将真实 sklearn 模型序列化为制品字节"""
+    """将真实 sklearn 模型序列化为制品字节."""
     buffer = BytesIO()
     joblib.dump(model, buffer)
     return buffer.getvalue()
@@ -44,7 +44,7 @@ async def test_model_artifact_round_trips_through_minio_and_repository(
     datamind_database: AsyncEngine,
     minio_settings: MinIOStorageConfig,
 ) -> None:
-    """测试真实模型通过 MinIO 和 ArtifactRepository 完整往返"""
+    """测试真实模型通过 MinIO 和 ArtifactRepository 完整往返."""
     del datamind_database
     suffix = uuid.uuid4().hex
     artifact_id = f"art_{suffix}"

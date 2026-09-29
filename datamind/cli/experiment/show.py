@@ -1,4 +1,4 @@
-"""查看实验命令
+"""查看实验命令.
 
 提供实验详情查看功能。
 
@@ -53,7 +53,7 @@ def show_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """查看实验详情"""
+    """查看实验详情."""
 
     async def _run():
         if output not in ("text", "json"):
@@ -287,7 +287,7 @@ def show_experiment(
 def _get_config(
         experiment: Experiment,
 ) -> dict:
-    """获取实验配置"""
+    """获取实验配置."""
     config = experiment.config or {}
 
     if not isinstance(config, dict):
@@ -299,7 +299,7 @@ def _get_config(
 def _get_strategy(
         config: dict,
 ) -> str:
-    """获取实验分配策略"""
+    """获取实验分配策略."""
     return str(
         config.get("strategy")
         or AssignmentStrategy.HASH
@@ -312,7 +312,7 @@ def _get_config_value(
         key: str,
         default: str,
 ):
-    """获取实验配置值"""
+    """获取实验配置值."""
     value = config.get(
         key,
         default,

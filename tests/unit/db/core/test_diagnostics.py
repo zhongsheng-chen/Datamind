@@ -1,4 +1,4 @@
-"""数据库诊断工具测试
+"""数据库诊断工具测试.
 
 验证数据库 URL 解析、连接池类型检查、连接池状态汇总、
 完整诊断信息合并和结构化日志输出。
@@ -48,14 +48,14 @@ DATABASE_URL = (
 
 
 def create_dbapi_connection() -> Any:
-    """创建连接池所需的数据库连接替身"""
+    """创建连接池所需的数据库连接替身."""
     return MagicMock()
 
 
 class DiagnosticsQueuePool(
     QueuePool
 ):
-    """用于诊断测试的队列连接池"""
+    """用于诊断测试的队列连接池."""
 
     def __init__(
             self,
@@ -64,7 +64,7 @@ class DiagnosticsQueuePool(
             checked_out: int,
             overflow: int,
     ) -> None:
-        """初始化测试连接池状态"""
+        """初始化测试连接池状态."""
         super().__init__(
             creator=create_dbapi_connection,
             pool_size=10,
@@ -81,26 +81,26 @@ class DiagnosticsQueuePool(
     def checkedin(
             self,
     ) -> int:
-        """返回池内连接数"""
+        """返回池内连接数."""
         return self._diagnostic_checked_in
 
     def checkedout(
             self,
     ) -> int:
-        """返回已借出连接数"""
+        """返回已借出连接数."""
         return self._diagnostic_checked_out
 
     def overflow(
             self,
     ) -> int:
-        """返回溢出连接数"""
+        """返回溢出连接数."""
         return self._diagnostic_overflow
 
 
 def create_engine_with_pool(
         pool: object,
 ) -> AsyncEngine:
-    """创建包含指定连接池的引擎替身"""
+    """创建包含指定连接池的引擎替身."""
     engine = SimpleNamespace(
         pool=pool
     )
@@ -117,7 +117,7 @@ def create_engine_with_pool(
 def test_get_queue_pool_returns_queue_pool(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试获取队列连接池"""
+    """测试获取队列连接池."""
     pool = DiagnosticsQueuePool(
         checked_in=8,
         checked_out=2,
@@ -145,7 +145,7 @@ def test_get_queue_pool_returns_queue_pool(
 def test_get_queue_pool_rejects_unsupported_pool(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试拒绝非队列连接池"""
+    """测试拒绝非队列连接池."""
     pool = NullPool(
         creator=create_dbapi_connection
     )
@@ -177,7 +177,7 @@ def test_get_queue_pool_rejects_unsupported_pool(
 def test_get_db_url_diagnostics(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库 URL 解析且不泄露密码"""
+    """测试数据库 URL 解析且不泄露密码."""
     get_db_url = MagicMock(
         return_value=DATABASE_URL
     )
@@ -210,7 +210,7 @@ def test_get_db_url_diagnostics(
 def test_get_db_url_diagnostics_supports_missing_optional_fields(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试数据库 URL 可缺少主机、端口和用户名"""
+    """测试数据库 URL 可缺少主机、端口和用户名."""
     get_db_url = MagicMock(
         return_value=(
             "sqlite+aiosqlite:///datamind.db"
@@ -240,7 +240,7 @@ def test_get_db_url_diagnostics_supports_missing_optional_fields(
 def test_get_db_pool_diagnostics(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试连接池配置和运行状态"""
+    """测试连接池配置和运行状态."""
     pool = DiagnosticsQueuePool(
         checked_in=7,
         checked_out=3,
@@ -291,7 +291,7 @@ def test_get_db_pool_diagnostics(
 def test_get_db_pool_diagnostics_preserves_negative_overflow(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试连接池初始化阶段的负溢出值不会被修改"""
+    """测试连接池初始化阶段的负溢出值不会被修改."""
     pool = DiagnosticsQueuePool(
         checked_in=0,
         checked_out=0,
@@ -329,7 +329,7 @@ def test_get_db_pool_diagnostics_preserves_negative_overflow(
 def test_get_db_diagnostics(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 URL 与连接池诊断信息合并"""
+    """测试 URL 与连接池诊断信息合并."""
     url_diagnostics = {
         "driver": "postgresql+asyncpg",
         "host": "db.example.com",
@@ -380,7 +380,7 @@ def test_get_db_diagnostics(
 def test_log_db_diagnostics(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试结构化日志内容"""
+    """测试结构化日志内容."""
     diagnostics = {
         "driver": "postgresql+asyncpg",
         "host": "db.example.com",
@@ -436,7 +436,7 @@ def test_log_db_diagnostics(
 def test_log_db_diagnostics_propagates_error(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试诊断失败时异常继续向上抛出"""
+    """测试诊断失败时异常继续向上抛出."""
     get_db_diagnostics = MagicMock(
         side_effect=RuntimeError(
             "diagnostics failed"

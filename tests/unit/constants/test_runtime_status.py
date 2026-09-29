@@ -1,4 +1,4 @@
-"""运行实例状态枚举测试
+"""运行实例状态枚举测试.
 
 验证持久化运行状态、派生健康状态和当前实例状态集合保持一致。
 
@@ -16,7 +16,7 @@ from datamind.constants.runtime_status import (
 
 
 def test_runtime_status_values() -> None:
-    """测试数据库运行状态枚举值"""
+    """测试数据库运行状态枚举值."""
     assert tuple(
         status.value
         for status in RuntimeStatus
@@ -30,7 +30,7 @@ def test_runtime_status_values() -> None:
 
 
 def test_runtime_health_status_values() -> None:
-    """测试派生健康状态枚举值"""
+    """测试派生健康状态枚举值."""
     assert tuple(
         status.value
         for status in RuntimeHealthStatus
@@ -42,7 +42,7 @@ def test_runtime_health_status_values() -> None:
 
 
 def test_active_runtime_statuses() -> None:
-    """测试当前实例只包含加载中和已加载状态"""
+    """测试当前实例只包含加载中和已加载状态."""
     assert ACTIVE_RUNTIME_STATUSES == (
         RuntimeStatus.STARTING.value,
         RuntimeStatus.RUNNING.value,

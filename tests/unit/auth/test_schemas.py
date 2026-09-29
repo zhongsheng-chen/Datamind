@@ -1,4 +1,4 @@
-"""认证数据结构测试
+"""认证数据结构测试.
 
 验证登录、令牌和已认证用户数据结构的校验与默认行为。
 
@@ -44,7 +44,7 @@ from datamind.auth.schemas import (
 
 
 def test_login_request_normalizes_username() -> None:
-    """测试登录请求规范化用户名"""
+    """测试登录请求规范化用户名."""
     request = LoginRequest.model_validate({
         "username": "  admin  ",
         "password": "P@ssw1rd",
@@ -55,7 +55,7 @@ def test_login_request_normalizes_username() -> None:
 
 
 def test_login_request_protects_password() -> None:
-    """测试登录请求不会暴露密码"""
+    """测试登录请求不会暴露密码."""
     request = LoginRequest.model_validate({
         "username": "admin",
         "password": "P@ssw1rd",
@@ -81,7 +81,7 @@ def test_login_request_protects_password() -> None:
 def test_login_request_validates_fields(
         values: dict[str, str],
 ) -> None:
-    """测试登录请求拒绝空字段"""
+    """测试登录请求拒绝空字段."""
     with pytest.raises(ValidationError):
         LoginRequest.model_validate(
             values
@@ -101,7 +101,7 @@ def test_refresh_token_requests_protect_token(
             | LogoutRequest
         ],
 ) -> None:
-    """测试刷新令牌请求保护原始令牌"""
+    """测试刷新令牌请求保护原始令牌."""
     request = schema_class.model_validate({
         "refresh_token": "refresh-token",
     })
@@ -113,7 +113,7 @@ def test_refresh_token_requests_protect_token(
 
 
 def test_logout_result_preserves_user_identity() -> None:
-    """测试退出结果携带撤销状态和用户身份"""
+    """测试退出结果携带撤销状态和用户身份."""
     result = LogoutResult(
         revoked=True,
         user_id="usr_test",
@@ -126,7 +126,7 @@ def test_logout_result_preserves_user_identity() -> None:
 
 
 def test_token_response_uses_defaults() -> None:
-    """测试令牌响应默认使用 bearer 类型"""
+    """测试令牌响应默认使用 bearer 类型."""
     response = TokenResponse(
         access_token="access-token",
         refresh_token="refresh-token",
@@ -138,7 +138,7 @@ def test_token_response_uses_defaults() -> None:
 
 
 def test_token_response_allows_missing_refresh_token() -> None:
-    """测试应急账户响应可以不含刷新令牌"""
+    """测试应急账户响应可以不含刷新令牌."""
     response = TokenResponse(
         access_token="access-token",
         expires_in=900,
@@ -163,7 +163,7 @@ def test_token_response_allows_missing_refresh_token() -> None:
 def test_token_response_validates_fields(
         values: dict[str, object],
 ) -> None:
-    """测试令牌响应拒绝非法字段"""
+    """测试令牌响应拒绝非法字段."""
     with pytest.raises(ValidationError):
         TokenResponse.model_validate(
             values
@@ -171,7 +171,7 @@ def test_token_response_validates_fields(
 
 
 def test_access_token_claims_uses_defaults() -> None:
-    """测试访问令牌声明使用独立的列表默认值"""
+    """测试访问令牌声明使用独立的列表默认值."""
     first = AccessTokenClaims(
         sub="usr_test",
         type="access",
@@ -217,7 +217,7 @@ def test_access_token_claims_uses_defaults() -> None:
 def test_access_token_claims_validates_fields(
         values: dict[str, object],
 ) -> None:
-    """测试访问令牌声明拒绝非法字段"""
+    """测试访问令牌声明拒绝非法字段."""
     with pytest.raises(ValidationError):
         AccessTokenClaims.model_validate(
             values
@@ -225,7 +225,7 @@ def test_access_token_claims_validates_fields(
 
 
 def test_authenticated_user_maps_status() -> None:
-    """测试已认证用户映射状态枚举"""
+    """测试已认证用户映射状态枚举."""
     user = AuthenticatedUser.model_validate({
         "user_id": "usr_test",
         "username": "admin",
@@ -242,7 +242,7 @@ def test_authenticated_user_maps_status() -> None:
 
 
 def test_authenticated_user_uses_defaults() -> None:
-    """测试已认证用户使用空权限默认值"""
+    """测试已认证用户使用空权限默认值."""
     user = AuthenticatedUser(
         user_id="usr_test",
         username="admin",
@@ -284,7 +284,7 @@ def test_removed_provider_fields_are_rejected(
         ],
         values: dict[str, object],
 ) -> None:
-    """测试已移除的认证来源字段不再被接受"""
+    """测试已移除的认证来源字段不再被接受."""
     with pytest.raises(ValidationError):
         schema_class.model_validate(
             values

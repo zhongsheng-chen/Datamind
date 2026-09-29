@@ -1,4 +1,4 @@
-"""运行时服务测试公共夹具
+"""运行时服务测试公共夹具.
 
 提供运行时服务对象、请求上下文、工作单元和仓储替身。
 
@@ -24,7 +24,7 @@ def patch_server_dependency(
         name: str,
         value: Any,
 ) -> None:
-    """替换服务或预测模块依赖"""
+    """替换服务或预测模块依赖."""
     dependency_modules = (
         service_module,
         import_module("datamind.runtime.server.authentication"),
@@ -44,7 +44,7 @@ def patch_server_dependency(
 def load_service_module(
         monkeypatch: pytest.MonkeyPatch,
 ) -> Any:
-    """在隔离服务环境中加载运行时服务模块"""
+    """在隔离服务环境中加载运行时服务模块."""
     monkeypatch.setenv(
         "DATAMIND_SERVICE_ENVIRONMENT",
         "testing",
@@ -72,7 +72,7 @@ def load_service_module(
 def create_service(
         service_module: Any,
 ) -> Any:
-    """创建跳过初始化的运行时服务对象"""
+    """创建跳过初始化的运行时服务对象."""
     service_class = service_module.DatamindRuntimeService.inner
     service = object.__new__(
         service_class
@@ -119,7 +119,7 @@ def create_service(
 
 
 def create_score_details(score: float) -> dict[str, Any]:
-    """创建总分可核对的评分明细"""
+    """创建总分可核对的评分明细."""
     return {
         "score_intercept": 20.0,
         "features": {
@@ -131,19 +131,19 @@ def create_score_details(score: float) -> dict[str, Any]:
 def get_service_cache(
         service: Any,
 ) -> dict[str, Any]:
-    """获取测试服务的本地服务缓存"""
+    """获取测试服务的本地服务缓存."""
     return vars(service)["_service_cache"]
 
 
 def get_audit_recorder(
         service: Any,
 ) -> MagicMock:
-    """获取测试服务的审计记录器替身"""
+    """获取测试服务的审计记录器替身."""
     return vars(service)["_audit_recorder"]
 
 
 class FakeUnitOfWork:
-    """运行时服务测试工作单元"""
+    """运行时服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -160,7 +160,7 @@ class FakeUnitOfWork:
 
 
 class SecurityStub:
-    """运行时安全请求作用域替身"""
+    """运行时安全请求作用域替身."""
 
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
@@ -170,7 +170,7 @@ class SecurityStub:
             self,
             **kwargs: Any,
     ):
-        """进入测试身份请求作用域"""
+        """进入测试身份请求作用域."""
         self.calls.append(kwargs)
         yield SimpleNamespace(
             username="alice"
@@ -186,7 +186,7 @@ def install_repositories(
         execution_repo: MagicMock | None = None,
         deployment_repo: MagicMock | None = None,
 ) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
-    """安装运行时服务仓储替身"""
+    """安装运行时服务仓储替身."""
     request_repository = request_repo or MagicMock()
     decision_repository = decision_repo or MagicMock()
     execution_repository = execution_repo or MagicMock()
@@ -258,7 +258,7 @@ def install_repositories(
 
 
 class RuntimeServerFixtures:
-    """汇集运行时服务测试使用的构造能力"""
+    """汇集运行时服务测试使用的构造能力."""
 
     FakeUnitOfWork = FakeUnitOfWork
     SecurityStub = SecurityStub
@@ -273,6 +273,6 @@ class RuntimeServerFixtures:
 
 @pytest.fixture
 def runtime_server() -> RuntimeServerFixtures:
-    """提供运行时服务测试共享构造能力"""
+    """提供运行时服务测试共享构造能力."""
     FakeUnitOfWork.latest = None
     return RuntimeServerFixtures()

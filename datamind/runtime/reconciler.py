@@ -1,4 +1,4 @@
-"""运行时状态协调器
+"""运行时状态协调器.
 
 负责根据运行控制状态，
 协调当前 Worker 的模型加载、重载与卸载。
@@ -71,7 +71,7 @@ DEFAULT_OPERATOR = "system"
 
 @dataclass(frozen=True, slots=True)
 class ControlSnapshot:
-    """运行控制状态快照
+    """运行控制状态快照.
 
     属性：
         deployment_id: 部署 ID
@@ -94,7 +94,7 @@ class ControlSnapshot:
 
 @dataclass(slots=True)
 class ReconcileResult:
-    """单次协调结果
+    """单次协调结果.
 
     属性：
         checked: 检查数量
@@ -121,7 +121,7 @@ class ReconcileResult:
             self,
             action: str,
     ) -> None:
-        """记录协调动作
+        """记录协调动作.
 
         参数：
             action: 动作名称
@@ -152,7 +152,7 @@ class ReconcileResult:
     def to_dict(
             self,
     ) -> dict[str, int]:
-        """转换为字典"""
+        """转换为字典."""
         return {
             "checked": self.checked,
             "loaded": self.loaded,
@@ -164,7 +164,7 @@ class ReconcileResult:
 
 
 class RuntimeReconciler:
-    """运行时状态协调器
+    """运行时状态协调器.
 
     每个 Worker 创建一个独立协调器实例。
 
@@ -188,7 +188,7 @@ class RuntimeReconciler:
             operator: str = DEFAULT_OPERATOR,
             service_instance_id: str | None = None,
     ):
-        """初始化运行时状态协调器
+        """初始化运行时状态协调器.
 
         参数：
             manager:
@@ -272,14 +272,14 @@ class RuntimeReconciler:
     def worker_id(
             self,
     ) -> str:
-        """获取当前 Worker ID"""
+        """获取当前 Worker ID."""
         return self.manager.worker_id
 
     @property
     def is_running(
             self,
     ) -> bool:
-        """判断协调器是否正在运行"""
+        """判断协调器是否正在运行."""
         return (
                 self._task is not None
                 and not self._task.done()
@@ -288,7 +288,7 @@ class RuntimeReconciler:
     async def start(
             self,
     ) -> None:
-        """启动后台协调循环
+        """启动后台协调循环.
 
         重复调用保持幂等。
         """
@@ -320,7 +320,7 @@ class RuntimeReconciler:
     async def stop(
             self,
     ) -> None:
-        """停止后台协调循环
+        """停止后台协调循环.
 
         说明：
             stop 只停止协调循环，
@@ -351,7 +351,7 @@ class RuntimeReconciler:
     async def reconcile_once(
             self,
     ) -> ReconcileResult:
-        """执行一次状态协调
+        """执行一次状态协调.
 
         返回：
             单次协调结果
@@ -439,7 +439,7 @@ class RuntimeReconciler:
             self,
             deployment_id: str,
     ) -> int | None:
-        """获取本 Worker 已应用的控制版本
+        """获取本 Worker 已应用的控制版本.
 
         参数：
             deployment_id: 部署 ID
@@ -454,7 +454,7 @@ class RuntimeReconciler:
     def get_applied_generations(
             self,
     ) -> dict[str, int]:
-        """获取本 Worker 全部已应用版本
+        """获取本 Worker 全部已应用版本.
 
         返回：
             deployment_id 到 generation 的映射副本
@@ -466,7 +466,7 @@ class RuntimeReconciler:
     async def _run_loop(
             self,
     ) -> None:
-        """运行后台协调循环"""
+        """运行后台协调循环."""
         while not self._stop_event.is_set():
             try:
                 await self.reconcile_once()
@@ -499,7 +499,7 @@ class RuntimeReconciler:
     async def _load_controls(
             self,
     ) -> list[ControlSnapshot]:
-        """读取当前环境的运行控制状态
+        """读取当前环境的运行控制状态.
 
         返回：
             当前 environment 对应的控制状态快照列表
@@ -546,7 +546,7 @@ class RuntimeReconciler:
             self,
             control: ControlSnapshot,
     ) -> str:
-        """协调单个 Deployment
+        """协调单个 Deployment.
 
         参数：
             control: 控制状态快照
@@ -723,7 +723,7 @@ class RuntimeReconciler:
             deployment_id: str,
             generation: int,
     ) -> None:
-        """持久化当前 Worker 已应用的控制版本号"""
+        """持久化当前 Worker 已应用的控制版本号."""
         async with UnitOfWork() as uow:
             await RuntimeRepository(
                 uow.session
@@ -737,7 +737,7 @@ class RuntimeReconciler:
             self,
             controls: list[ControlSnapshot],
     ) -> None:
-        """按间隔更新已加载模型运行心跳
+        """按间隔更新已加载模型运行心跳.
 
         参数：
             controls:
@@ -781,7 +781,7 @@ class RuntimeReconciler:
     async def _mark_stale_runtimes_failed(
             self,
     ) -> None:
-        """将当前环境中已失联的其他 Worker 实例收敛为失败。"""
+        """将当前环境中已失联的其他 Worker 实例收敛为失败."""
         async with UnitOfWork() as uow:
             runtime_ids = await RuntimeRepository(
                 uow.session
@@ -804,7 +804,7 @@ class RuntimeReconciler:
             self,
             controls: list[ControlSnapshot],
     ) -> None:
-        """更新当前 Worker 已加载模型心跳
+        """更新当前 Worker 已加载模型心跳.
 
         参数：
             controls:
@@ -862,7 +862,7 @@ class RuntimeReconciler:
     def _parse_status(
             value: RuntimeControlStatus | str,
     ) -> RuntimeControlStatus:
-        """解析运行控制状态
+        """解析运行控制状态.
 
         参数：
             value:

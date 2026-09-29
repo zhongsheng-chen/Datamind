@@ -1,4 +1,4 @@
-"""删除模型命令
+"""删除模型命令.
 
 提供可恢复的模型逻辑删除功能。
 
@@ -37,7 +37,7 @@ def _validate_target(
         version_id: str | None,
         output: str,
 ) -> None:
-    """校验模型删除目标和输出格式"""
+    """校验模型删除目标和输出格式."""
     if not (name or model_id):
         raise typer.BadParameter(
             "必须提供 <name> 或 --model-id"
@@ -96,7 +96,7 @@ def delete_model(
             help="输出格式：text / json"
         ),
 ):
-    """删除模型"""
+    """删除模型."""
 
     @audit(
         action="model.delete",

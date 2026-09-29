@@ -1,4 +1,4 @@
-"""分类模型运行服务测试
+"""分类模型运行服务测试.
 
 验证分类阈值、单条预测、批量预测和异常结果处理。
 
@@ -39,7 +39,7 @@ def create_service(
         feature_names: list[str] | None = None,
         data_types: dict[str, DataType] | None = None,
 ) -> tuple[ClassificationService, MagicMock]:
-    """创建使用推理替身的分类服务"""
+    """创建使用推理替身的分类服务."""
     inference = MagicMock()
     inference.get_capabilities.return_value = (
         ModelCapability.PREDICT_PROBA
@@ -77,7 +77,7 @@ def create_service(
 def test_service_rejects_invalid_threshold(
         threshold: float,
 ) -> None:
-    """测试分类服务拒绝范围外阈值"""
+    """测试分类服务拒绝范围外阈值."""
     with pytest.raises(
             ValueError,
             match="threshold 必须在 0 到 1 之间",
@@ -97,9 +97,9 @@ def test_service_rejects_invalid_threshold(
 def test_service_uses_model_second_class_as_positive_class(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试分类服务从模型类别顺序识别字符串正类"""
+    """测试分类服务从模型类别顺序识别字符串正类."""
     class StringLabelModel:
-        """带字符串类别的分类模型测试替身"""
+        """带字符串类别的分类模型测试替身."""
 
         classes_ = (
             "accepted",
@@ -161,7 +161,7 @@ def test_predict_classifies_probability(
         probability: float,
         expected: int,
 ) -> None:
-    """测试单条概率按照阈值转换为分类标签"""
+    """测试单条概率按照阈值转换为分类标签."""
     service, inference = create_service(
         monkeypatch,
         prediction=probability,
@@ -187,7 +187,7 @@ def test_predict_classifies_probability(
 def test_predict_rejects_empty_features(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条分类拒绝空特征"""
+    """测试单条分类拒绝空特征."""
     service, _ = create_service(monkeypatch)
 
     with pytest.raises(
@@ -209,7 +209,7 @@ def test_predict_rejects_invalid_feature_type(
         batch: bool,
         message: str,
 ) -> None:
-    """测试单条和批量分类在模型执行前拒绝非法特征类型"""
+    """测试单条和批量分类在模型执行前拒绝非法特征类型."""
     service, inference = create_service(
         monkeypatch,
         feature_names=["age"],
@@ -229,7 +229,7 @@ def test_predict_rejects_invalid_feature_type(
 def test_predict_rejects_batch_result(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试单条分类拒绝批量概率结果"""
+    """测试单条分类拒绝批量概率结果."""
     service, _ = create_service(
         monkeypatch,
         prediction=[0.8],
@@ -245,7 +245,7 @@ def test_predict_rejects_batch_result(
 def test_predict_batch_returns_classifications(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量分类返回逐条预测结果"""
+    """测试批量分类返回逐条预测结果."""
     service, inference = create_service(
         monkeypatch,
         prediction=[0.2, 0.8],
@@ -279,7 +279,7 @@ def test_predict_batch_returns_classifications(
 def test_predict_batch_returns_empty_result(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试空批次返回空预测列表"""
+    """测试空批次返回空预测列表."""
     service, inference = create_service(monkeypatch)
 
     result = service.predict_batch([])
@@ -293,7 +293,7 @@ def test_predict_batch_returns_empty_result(
 def test_predict_batch_rejects_scalar_result(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试批量分类拒绝标量概率结果"""
+    """测试批量分类拒绝标量概率结果."""
     service, _ = create_service(
         monkeypatch,
         prediction=0.8,

@@ -1,4 +1,4 @@
-"""模型加载器测试
+"""模型加载器测试.
 
 验证模型加载器复用 BentoML 模型，
 并在模型缺失时从统一存储完成同步。
@@ -30,7 +30,7 @@ from datamind.storage.errors import StorageConnectionError
 def test_loader_uses_default_dependencies(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有 Bento 模型不要求对象存储在启动时可用"""
+    """测试已有 Bento 模型不要求对象存储在启动时可用."""
     storage = MagicMock()
     backend = MagicMock()
     get_storage = MagicMock(return_value=storage)
@@ -65,7 +65,7 @@ def test_loader_uses_default_dependencies(
 def test_loader_initializes_storage_after_bento_model_miss(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 Bento 模型缺失时才连接对象存储"""
+    """测试 Bento 模型缺失时才连接对象存储."""
     storage = MagicMock()
     storage.load_by_key.return_value = b"model-data"
     get_storage = MagicMock(return_value=storage)
@@ -98,7 +98,7 @@ def test_loader_initializes_storage_after_bento_model_miss(
 def test_loader_retries_storage_after_dependency_recovers(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试对象存储晚于运行服务恢复后可以再次加载模型"""
+    """测试对象存储晚于运行服务恢复后可以再次加载模型."""
     storage = MagicMock()
     storage.load_by_key.return_value = b"model-data"
     get_storage = MagicMock(side_effect=[
@@ -142,7 +142,7 @@ def test_loader_retries_storage_after_dependency_recovers(
 
 def test_load_returns_existing_bento_model(
 ) -> None:
-    """测试直接复用 BentoML 中已有的模型"""
+    """测试直接复用 BentoML 中已有的模型."""
     storage = MagicMock()
     backend = MagicMock()
     expected = object()
@@ -165,7 +165,7 @@ def test_load_returns_existing_bento_model(
 def test_load_materializes_missing_bento_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从统一存储同步缺失的 BentoML 模型"""
+    """测试从统一存储同步缺失的 BentoML 模型."""
     storage = MagicMock()
     storage.load_by_key.return_value = b"model-data"
     backend = MagicMock()
@@ -215,7 +215,7 @@ def test_load_materializes_missing_bento_model(
 def test_load_reuses_concurrently_materialized_model(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试并发同步冲突后复用已有模型"""
+    """测试并发同步冲突后复用已有模型."""
     storage = MagicMock()
     storage.load_by_key.return_value = b"model-data"
     backend = MagicMock()
@@ -260,7 +260,7 @@ def test_load_rejects_blank_reference(
         value: str,
         message: str,
 ) -> None:
-    """测试拒绝空模型引用"""
+    """测试拒绝空模型引用."""
     storage = MagicMock()
     backend = MagicMock()
     references = {

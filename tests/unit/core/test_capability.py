@@ -1,4 +1,4 @@
-"""模型能力工具测试
+"""模型能力工具测试.
 
 验证模型能力的组合、查询、描述和摘要生成。
 
@@ -22,7 +22,7 @@ from datamind.core.capability import (
 
 
 def test_model_capability_helpers() -> None:
-    """测试模型能力组合与查询"""
+    """测试模型能力组合与查询."""
     capabilities = combine_model_capabilities([
         ModelCapability.PREDICT_PROBA,
         ModelCapability.BATCH_PREDICT,
@@ -50,7 +50,7 @@ def test_model_capability_helpers() -> None:
 
 
 def test_model_capability_summary() -> None:
-    """测试模型能力摘要"""
+    """测试模型能力摘要."""
     capabilities = combine_model_capabilities([
         ModelCapability.PREDICT_PROBA,
         ModelCapability.PREDICT_LOG_ODDS,

@@ -1,4 +1,4 @@
-"""认证工厂
+"""认证工厂.
 
 根据统一配置和数据库会话创建本地认证服务。
 
@@ -40,7 +40,7 @@ def create_auth_service(
         *,
         session: AsyncSession,
 ) -> AuthService:
-    """创建认证服务
+    """创建认证服务.
 
     参数：
         session: SQLAlchemy 异步数据库会话

@@ -1,4 +1,4 @@
-"""实验分组表
+"""实验分组表.
 
 记录实验下的分组配置，用于定义对照组、实验组、
 对应部署和实验内流量权重。
@@ -47,7 +47,7 @@ class Variant(
     TimestampMixin,
     Base,
 ):
-    """实验分组表"""
+    """实验分组表."""
 
     __tablename__ = "variants"
 
@@ -248,7 +248,7 @@ class Variant(
     def __repr__(
             self,
     ) -> str:
-        """返回实验分组字符串表示"""
+        """返回实验分组字符串表示."""
         return (
             f"<Variant("
             f"variant_id='{self.variant_id}', "

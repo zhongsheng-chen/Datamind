@@ -1,4 +1,4 @@
-"""本地认证提供方
+"""本地认证提供方.
 
 使用用户表中的 Argon2 密码哈希完成本地用户认证。
 
@@ -67,7 +67,7 @@ _DUMMY_PASSWORD_HASH = hash_password(
     frozen=True,
 )
 class LocalProviderConfig:
-    """本地认证配置"""
+    """本地认证配置."""
 
     max_failed_login_attempts: int = 5
     lock_minutes: int = 30
@@ -77,7 +77,7 @@ class LocalProviderConfig:
     def __post_init__(
             self,
     ) -> None:
-        """校验配置"""
+        """校验配置."""
         if self.max_failed_login_attempts <= 0:
             raise ValueError(
                 "max_failed_login_attempts 必须大于 0"
@@ -92,7 +92,7 @@ class LocalProviderConfig:
 class LocalAuthProvider(
     BaseAuthProvider
 ):
-    """本地认证提供方"""
+    """本地认证提供方."""
 
     def __init__(
             self,
@@ -100,7 +100,7 @@ class LocalAuthProvider(
             user_repo: UserRepository,
             config: LocalProviderConfig | None = None,
     ) -> None:
-        """初始化本地认证提供方
+        """初始化本地认证提供方.
 
         参数：
             user_repo: 用户仓储
@@ -118,7 +118,7 @@ class LocalAuthProvider(
             *,
             current_time: datetime | None = None,
     ) -> ProviderIdentity:
-        """校验本地用户名和密码"""
+        """校验本地用户名和密码."""
         now = self._normalize_current_time(
             current_time
         )
@@ -212,7 +212,7 @@ class LocalAuthProvider(
             *,
             current_time: datetime,
     ) -> None:
-        """校验用户状态"""
+        """校验用户状态."""
         if user.status == str(
                 UserStatus.DISABLED
         ):
@@ -247,7 +247,7 @@ class LocalAuthProvider(
             *,
             current_time: datetime,
     ) -> None:
-        """记录登录失败并按阈值锁定用户"""
+        """记录登录失败并按阈值锁定用户."""
         self.user_repo.record_login_failure(
             user
         )
@@ -287,7 +287,7 @@ class LocalAuthProvider(
             password: str,
             current_time: datetime,
     ) -> bool:
-        """按当前 Argon2 参数升级密码哈希"""
+        """按当前 Argon2 参数升级密码哈希."""
         if not self.config.upgrade_password_hash:
             return False
 
@@ -318,7 +318,7 @@ class LocalAuthProvider(
     def _normalize_current_time(
             value: datetime | None,
     ) -> datetime:
-        """获取 UTC 当前时间"""
+        """获取 UTC 当前时间."""
         if value is None:
             return datetime.now(
                 timezone.utc
@@ -332,7 +332,7 @@ class LocalAuthProvider(
     def _to_utc(
             value: datetime,
     ) -> datetime:
-        """转换为 UTC 时间"""
+        """转换为 UTC 时间."""
         if (
                 value.tzinfo is None
                 or value.utcoffset() is None

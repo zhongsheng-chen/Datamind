@@ -1,4 +1,4 @@
-"""模型制品仓储
+"""模型制品仓储.
 
 提供模型制品修订的查询、创建、切换和清理状态管理能力。
 
@@ -50,7 +50,7 @@ from datamind.models.enums import ArtifactStatus
 
 
 class ArtifactRepository(BaseRepository):
-    """模型制品仓储"""
+    """模型制品仓储."""
 
     async def get_artifact(
             self,
@@ -58,7 +58,7 @@ class ArtifactRepository(BaseRepository):
             *,
             for_update: bool = False,
     ) -> Artifact | None:
-        """获取模型制品"""
+        """获取模型制品."""
         stmt = select(
             Artifact
         ).where(
@@ -81,7 +81,7 @@ class ArtifactRepository(BaseRepository):
             *,
             for_update: bool = False,
     ) -> Artifact | None:
-        """获取版本当前生效制品"""
+        """获取版本当前生效制品."""
         stmt = select(
             Artifact
         ).where(
@@ -107,7 +107,7 @@ class ArtifactRepository(BaseRepository):
             include_purged: bool = True,
             for_update: bool = False,
     ) -> list[Artifact]:
-        """获取版本全部制品修订"""
+        """获取版本全部制品修订."""
         stmt = select(
             Artifact
         ).where(
@@ -149,7 +149,7 @@ class ArtifactRepository(BaseRepository):
             bento_tag: str,
             created_by: str | None = None,
     ) -> Artifact:
-        """创建 active 模型制品修订"""
+        """创建 active 模型制品修订."""
         artifact = Artifact(
             artifact_id=artifact_id,
             version_id=version_id,
@@ -178,7 +178,7 @@ class ArtifactRepository(BaseRepository):
             *,
             retired_by: str | None = None,
     ) -> Artifact:
-        """停止使用模型制品"""
+        """停止使用模型制品."""
         artifact.status = str(
             ArtifactStatus.RETIRED
         )
@@ -198,7 +198,7 @@ class ArtifactRepository(BaseRepository):
             reason: str | None = None,
             requested_by: str | None = None,
     ) -> Artifact:
-        """请求永久清理模型制品"""
+        """请求永久清理模型制品."""
         if artifact.status == str(ArtifactStatus.PURGED):
             return artifact
 
@@ -222,7 +222,7 @@ class ArtifactRepository(BaseRepository):
             *,
             purged_by: str | None = None,
     ) -> Artifact:
-        """标记模型制品已永久清理"""
+        """标记模型制品已永久清理."""
         artifact.status = str(
             ArtifactStatus.PURGED
         )
@@ -245,7 +245,7 @@ class ArtifactRepository(BaseRepository):
             *,
             error: str,
     ) -> Artifact:
-        """标记模型制品清理失败"""
+        """标记模型制品清理失败."""
         artifact.status = str(
             ArtifactStatus.PURGE_FAILED
         )

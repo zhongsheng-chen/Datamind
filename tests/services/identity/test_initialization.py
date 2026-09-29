@@ -1,4 +1,4 @@
-"""系统初始化服务测试
+"""系统初始化服务测试.
 
 验证首次管理员、角色、授权、审计和初始化状态在同一工作单元中创建。
 
@@ -61,7 +61,7 @@ TRACE_ID = "0123456789abcdef0123456789abcdef"
 
 
 class FakeUnitOfWork:
-    """系统初始化服务测试工作单元"""
+    """系统初始化服务测试工作单元."""
 
     def __init__(self) -> None:
         self.session = MagicMock()
@@ -86,7 +86,7 @@ def configure_service(
     MagicMock,
     MagicMock,
 ]:
-    """配置系统初始化服务仓储替身"""
+    """配置系统初始化服务仓储替身."""
     state_repo = MagicMock()
     state_repo.get_or_create_state = AsyncMock(
         return_value=state
@@ -145,7 +145,7 @@ def configure_service(
 async def test_initialize_reuses_request_context(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试初始化成功日志与审计复用调用方的请求标识"""
+    """测试初始化成功日志与审计复用调用方的请求标识."""
     *_, audit_repo = configure_service(
         monkeypatch,
         state=SystemState(system_id="datamind", initialized=False),
@@ -171,7 +171,7 @@ async def test_initialize_reuses_request_context(
 async def test_is_initialized_reads_system_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试查询系统初始化状态"""
+    """测试查询系统初始化状态."""
     initialized_state = SystemState(
         system_id="datamind",
         initialized=True,
@@ -191,7 +191,7 @@ async def test_is_initialized_reads_system_state(
 async def test_initialize_creates_admin_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试创建完整管理员身份并标记系统已初始化"""
+    """测试创建完整管理员身份并标记系统已初始化."""
     service_logger = MagicMock()
     monkeypatch.setitem(vars(initialization_module), "logger", service_logger)
     state = SystemState(
@@ -287,7 +287,7 @@ async def test_initialize_creates_admin_identity(
 async def test_initialize_rejects_completed_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试初始化只能执行一次"""
+    """测试初始化只能执行一次."""
     state = SystemState(
         system_id="datamind",
         initialized=True,
@@ -313,7 +313,7 @@ async def test_initialize_rejects_completed_state(
 async def test_initialize_rejects_existing_users(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试已有用户时拒绝初始化"""
+    """测试已有用户时拒绝初始化."""
     state = SystemState(
         system_id="datamind",
         initialized=False,
@@ -346,7 +346,7 @@ async def test_initialize_rejects_existing_users(
 async def test_initialize_rejects_existing_admin_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试角色冲突时拒绝初始化"""
+    """测试角色冲突时拒绝初始化."""
     state = SystemState(
         system_id="datamind",
         initialized=False,
@@ -414,7 +414,7 @@ async def test_initialize_validates_credentials_and_time(
         kwargs: dict[str, Any],
         message: str,
 ) -> None:
-    """测试初始化用户名、密码和时间"""
+    """测试初始化用户名、密码和时间."""
     with pytest.raises(
             ValueError,
             match=message,
