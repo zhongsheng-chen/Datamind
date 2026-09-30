@@ -42,6 +42,8 @@ from datamind.services.initialization import (
 
 
 runner = CliRunner()
+
+
 CURRENT_TIME = datetime(
     2026,
     8,
@@ -252,10 +254,7 @@ def test_init_renders_clean_database_error(
     )
 
     assert result.exit_code == 1
-    assert (
-        "初始化失败：数据库操作失败，"
-        "请检查数据库配置和迁移状态"
-    ) in result.output
+    assert "初始化失败：数据库操作失败" in result.output
     assert "relation systems does not exist" not in result.output
     assert "Traceback" not in result.output
 

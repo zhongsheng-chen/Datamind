@@ -111,9 +111,9 @@ services:
   migrate:
     <<: *datamind-service
     command:
-      - alembic
+      - datamind
+      - db
       - upgrade
-      - head
     profiles:
       - tools
     restart: "no"

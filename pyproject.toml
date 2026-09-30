@@ -123,6 +123,7 @@ exclude = ["datamind.console.static*", "datamind.console.dist*"]
 
 [tool.setuptools.package-data]
 "datamind.console" = ["dist/index.html", "dist/assets/*", "dist/.vite/manifest.json"]
+"datamind.db.migrations" = ["script.py.mako", "versions/*.py"]
 
 
 [tool.pytest.ini_options]
