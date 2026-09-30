@@ -4,3 +4,4 @@ include datamind/console/README.md
 recursive-include datamind/console/static *.html *.css *.js
 recursive-include datamind/console/dist *.html *.css *.js *.json
 include datamind/console/dist/.vite/manifest.json
+recursive-include datamind/db/migrations *.py *.mako

@@ -1,6 +1,6 @@
 """系统初始化命令.
 
-提供首次部署时的一次性系统初始化功能。
+初始化系统，创建首个管理员并授予系统管理员角色。
 
 核心功能：
   - initialize: 创建首个系统管理员
@@ -38,7 +38,7 @@ logger = structlog.get_logger(__name__)
 
 
 def initialize() -> None:
-    """一次性系统初始化."""
+    """初始化系统，已初始化时跳过."""
     log_context = {
         "trace_id": generate_trace_id(),
         "request_id": generate_random_id(prefix="req"),
@@ -117,7 +117,7 @@ def initialize() -> None:
         )
         console.error(
             "初始化失败：数据库操作失败，"
-            "请检查数据库配置和迁移状态"
+            "请检查连接配置及迁移状态。"
         )
         raise typer.Exit(
             code=1

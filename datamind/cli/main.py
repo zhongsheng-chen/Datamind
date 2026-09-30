@@ -3,7 +3,7 @@
 提供命令行工具的入口和子命令管理。
 
 核心功能：
-  - init: 一次性系统初始化
+  - init: 系统初始化，创建首个管理员并授予系统管理员角色
   - login: 登录本地 CLI 会话
   - logout: 退出本地 CLI 会话
   - whoami: 查询当前登录身份
@@ -17,6 +17,7 @@
   - user: 用户管理子命令
   - role: 角色管理子命令
   - console: 管理控制台子命令
+  - db: 数据库管理子命令
 
 使用示例：
   python -m datamind.cli.main --help
@@ -32,6 +33,7 @@ from datamind.cli.auth.logout import logout
 from datamind.cli.auth.whoami import whoami
 from datamind.cli.branding import short_commit
 from datamind.cli.console import app as console_app
+from datamind.cli.db import app as db_app
 from datamind.cli.deployment import app as deployment_app
 from datamind.cli.experiment import app as experiment_app
 from datamind.cli.init import initialize
@@ -104,6 +106,7 @@ app.add_typer(outcome_app, name="outcome")
 app.add_typer(user_app, name="user")
 app.add_typer(role_app, name="role")
 app.add_typer(console_app, name="console")
+app.add_typer(db_app, name="db")
 
 if __name__ == "__main__":
     app()

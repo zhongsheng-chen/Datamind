@@ -20,9 +20,11 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tarfile
 import tomllib
 from typing import Any
 from unittest.mock import Mock
+import zipfile
 
 import pytest
 from setuptools import Distribution
@@ -422,6 +424,18 @@ def test_release_distributions_preserve_build_identity(tmp_path: Path) -> None:
     assert wheel.name == "pydatamind-0.1.0-py3-none-any.whl"
     assert sdist.name == "pydatamind-0.1.0.tar.gz"
     assert source_metadata.read_bytes() == original_content
+
+    migration_root = PROJECT_ROOT / "datamind" / "db" / "migrations"
+    migration_files = {
+        path.relative_to(PROJECT_ROOT).as_posix()
+        for path in migration_root.rglob("*")
+        if path.is_file() and path.suffix in {".py", ".mako"}
+    }
+    with zipfile.ZipFile(wheel) as archive:
+        assert migration_files <= set(archive.namelist())
+    with tarfile.open(sdist) as archive:
+        members = {name.split("/", 1)[-1] for name in archive.getnames()}
+        assert migration_files <= members
 
 
 def test_dockerfile_installs_wheel_only() -> None:

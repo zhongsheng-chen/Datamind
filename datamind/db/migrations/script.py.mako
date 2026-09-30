@@ -22,10 +22,10 @@ depends_on = ${repr(depends_on)}
 
 
 def upgrade() -> None:
-    """升级数据库结构（upgrade）"""
+    """升级数据库结构（upgrade）."""
     ${upgrades if upgrades else "raise NotImplementedError('未定义 upgrade 操作')"}
 
 
 def downgrade() -> None:
-    """回滚数据库结构（downgrade）"""
+    """回滚数据库结构（downgrade）."""
     ${downgrades if downgrades else "raise NotImplementedError('未定义 downgrade 操作')"}
