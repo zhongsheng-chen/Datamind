@@ -82,7 +82,7 @@ def cli_pages() -> dict[Path, str]:
     index = [
         "# CLI Reference",
         "",
-        "本索引与逐命令参数表从当前 Typer 入口生成。流程解释见各使用指南；资源状态和权限见[状态与权限](../reference/states-permissions.md)。",
+        "按命令组查阅参数、默认值与权限。完整操作流程见各组对应指南，生命周期见[状态与权限](../reference/states-permissions.md)。",
         "",
         "```bash",
         "datamind --help",
@@ -103,9 +103,9 @@ def cli_pages() -> dict[Path, str]:
         lines = [
             f"# {title} CLI",
             "",
-            f"任务步骤见[使用指南]({guide})。本页列出当前命令、全部显式参数、默认值、权限和入口校验；服务层的状态转换见[状态与权限](../reference/states-permissions.md)。",
+            f"操作流程见[使用指南]({guide})，状态限制见[状态与权限](../reference/states-permissions.md)。",
             "",
-            "位置参数用大写表示；`null` 表示未指定。布尔开关默认关闭时，传入选项将其开启。重复选项和路径要求以类型/说明为准。所有命令还支持 `--help`。",
+            "`<参数名>` 为位置参数，`null` 表示未指定。所有命令支持 `--help`，标记“可重复”的选项可多次传入。",
             "",
         ]
         for path, command in commands:
@@ -127,11 +127,11 @@ def cli_pages() -> dict[Path, str]:
             lines += [
                 f"## {name}",
                 "",
-                (command.help or "").strip(),
+                (command.help or "").strip().rstrip(".。") + "。",
                 "",
-                f"权限：{', '.join(f'`{p}`' for p in permissions) if permissions else '入口不要求资源权限；认证和初始化条件见对应指南。'}",
+                f"权限：{', '.join(f'`{p}`' for p in permissions) if permissions else '无需资源权限'}",
                 "",
-                f"[当前实现]({SOURCE_URL}{source_path.as_posix()})。",
+                f"[源码]({SOURCE_URL}{source_path.as_posix()})",
                 "",
             ]
             positional = [p for p in command.params if p.param_type_name == "argument"]
@@ -151,11 +151,21 @@ def cli_pages() -> dict[Path, str]:
                 "| 参数 | 类型 | 必需 | 默认值 | 说明 |",
                 "| --- | --- | --- | --- | --- |",
             ]
+            if not command.params:
+                lines = lines[:-2]
+                lines += ["无额外参数。", ""]
             for p in command.params:
                 opts = "/".join([*p.opts, *getattr(p, "secondary_opts", [])])
                 if p.param_type_name == "argument":
                     opts = "<" + p.name + ">"
-                kind = getattr(p.type, "name", "text")
+                kind = {
+                    "text": "字符串",
+                    "integer": "整数",
+                    "float": "数值",
+                    "boolean": "布尔",
+                    "path": "路径",
+                    "integer range": "整数范围",
+                }.get(getattr(p.type, "name", "text"), getattr(p.type, "name", "text"))
                 choices = getattr(p.type, "choices", None)
                 if choices:
                     kind = "/".join(
@@ -179,7 +189,7 @@ def cli_pages() -> dict[Path, str]:
                         if arg.value not in errors:
                             errors.append(arg.value)
             if errors:
-                lines += ["", "入口校验与错误：", ""] + ["- " + cell(e) for e in errors]
+                lines += ["", "输入校验：", ""] + ["- " + cell(e) for e in errors]
             # Collect explicitly constructed result objects, not request/config dictionaries.
             keys = set()
             for node in ast.walk(tree):
@@ -249,7 +259,7 @@ def api_pages() -> dict[Path, str]:
     lines = [
         "# Runtime 请求字段",
         "",
-        "本页从当前 Pydantic 请求模型生成。HTTP 外层封装、响应与错误见 [Runtime API](runtime-api.md)。所有模型拒绝未知字段并去除字符串首尾空白。",
+        "HTTP 封装、响应与错误见 [Runtime API](runtime-api.md)。请求仅接受下表声明的字段，字符串会去除首尾空白。",
         "",
     ]
     for name, cls in vars(schemas).items():
@@ -297,15 +307,35 @@ def api_pages() -> dict[Path, str]:
     return {ROOT / "docs/reference/runtime-schemas.md": "\n".join(lines)}
 
 
+CONFIG_TITLES = {
+    "AuditConfig": "审计",
+    "AuthConfig": "认证",
+    "LocalAuthConfig": "本地认证",
+    "ClassificationConfig": "分类预测",
+    "ScoringConfig": "评分预测",
+    "ConsoleConfig": "管理控制台",
+    "DatabaseConfig": "数据库",
+    "InitializationConfig": "初始化",
+    "LoggingConfig": "日志",
+    "RuntimeConfig": "运行协调与影子预测",
+    "ServiceConfig": "预测服务",
+    "StorageConfig": "制品存储",
+    "LocalStorageConfig": "本地存储",
+    "MinIOStorageConfig": "MinIO 存储",
+    "TaskQueueConfig": "任务队列",
+    "TaskWorkerConfig": "任务 Worker",
+}
+
+
 def config_pages() -> dict[Path, str]:
     lines = [
-        "# 配置 Reference",
+        "# 配置参考",
         "",
-        "下表从 `datamind/config/` 的类字段默认值生成，不读取当前机器的环境变量或凭据。类型与校验来自当前配置类。",
+        "按功能查阅环境变量、默认值与校验规则。首次配置见[配置与初始化](../getting-started/configuration.md)。",
         "",
-        "配置优先级为显式构造参数、环境变量、工作目录 `.env`、类默认值。CLI、Runtime、Console 与任务 Worker 应使用相同配置；Settings/provider 使用进程内缓存，修改 `.env` 后重启相关进程。嵌套配置使用独立前缀，例如 `DATAMIND_STORAGE_MINIO_`，不是双下划线分隔。",
+        "配置优先级从高到低为：显式构造参数、环境变量、工作目录 `.env`、默认值。CLI、Runtime、Console 与任务 Worker 使用相同的部署配置，修改后重启相关进程。嵌套配置使用独立前缀，例如 `DATAMIND_STORAGE_MINIO_`。",
         "",
-        '列表环境变量使用 JSON，例如 `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS=["127.0.0.0/8"]`。路径相对于进程工作目录；生产进程应固定工作目录。空字符串默认值不表示该字段在实际运行中可以省略：数据库 URL 始终需要填写，MinIO 密钥在选择 MinIO 时需要填写，认证启用时签名密钥不能为空。',
+        '列表使用 JSON，例如 `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS=["127.0.0.0/8"]`。相对路径以进程工作目录为起点。数据库 URL 必须填写，选择 MinIO 时填写访问密钥，启用认证时填写签名密钥。',
         "",
     ]
     count = 0
@@ -323,9 +353,9 @@ def config_pages() -> dict[Path, str]:
             schema = cls.model_json_schema()
             props = schema["properties"]
             lines += [
-                f"## {name}",
+                f"## {CONFIG_TITLES.get(name, name)}",
                 "",
-                f"前缀：`{cls.model_config['env_prefix']}`。[当前实现]({SOURCE_URL}datamind/config/{path.name})。",
+                f"前缀：`{cls.model_config['env_prefix']}`。[源码]({SOURCE_URL}datamind/config/{path.name})",
                 "",
                 "| 环境变量 | 类型 | 默认值 |",
                 "| --- | --- | --- |",
@@ -367,7 +397,7 @@ def config_pages() -> dict[Path, str]:
                     if msg and msg not in validators:
                         validators.append(msg.split("当前值")[0].rstrip("，:： "))
             if validators:
-                lines += ["", "校验约束：", ""] + ["- " + cell(v) for v in validators]
+                lines += ["", "校验规则：", ""] + ["- " + cell(v) for v in validators]
             lines += [""]
     lines += [
         "## 运行时依赖",

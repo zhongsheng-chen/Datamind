@@ -1,6 +1,6 @@
 # Runtime 请求字段
 
-本页从当前 Pydantic 请求模型生成。HTTP 外层封装、响应与错误见 [Runtime API](runtime-api.md)。所有模型拒绝未知字段并去除字符串首尾空白。
+HTTP 封装、响应与错误见 [Runtime API](runtime-api.md)。请求仅接受下表声明的字段，字符串会去除首尾空白。
 
 ## ControlRequest
 

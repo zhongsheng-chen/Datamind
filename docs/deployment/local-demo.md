@@ -1,6 +1,6 @@
 # 本地演示环境
 
-本页为操作手册准备独立的 PostgreSQL、Redis 和 MinIO，应用从源码启动。基础设施仅绑定本机地址，演示端口与默认应用端口分开。
+使用 Docker 启动独立的 PostgreSQL、Redis 和 MinIO，再从源码运行 Datamind。服务仅绑定本机地址，并使用独立端口，便于体验完整的 Console 操作流程。
 
 ## 启动基础设施
 
@@ -85,4 +85,4 @@ python -m datamind.runtime.task_queue.entrypoints.worker
 docker compose -f docs/assets/demo-infrastructure.yml down
 ```
 
-该命令保留命名数据卷，便于恢复演示。本文提供可复现的启动配置；本次截图使用同版本镜像的独立容器，未修改机器上已有的基础设施服务。
+该命令保留命名数据卷，便于恢复演示。再次启动时可继续使用已有数据。

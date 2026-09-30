@@ -31,7 +31,7 @@ npm run build:console
 - [前端](frontend.md)：界面代码与资源构建。
 - [测试](testing.md)：分层测试与外部基础设施。
 - [构建与 Release](release.md)：包、镜像与发布流程。
-- [文档盘点与验收](documentation.md)：页面边界、依据与验收记录。
+- [文档维护](documentation.md)：页面组织、参考生成与构建验证。
 
 ## 本地联调
 

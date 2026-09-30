@@ -1,6 +1,6 @@
 # Runtime 与 Worker
 
-Runtime 接收在线请求；Celery Worker 消费批量预测和影子预测任务。Runtime 的服务 Worker 和 Celery 任务 Worker 是不同类型的进程。
+在线预测由 Runtime 处理，批量和影子预测由 Celery 任务 Worker 执行。两个进程分别启动，并共享数据库、制品存储和服务环境配置。
 
 ## Runtime 与 Console
 
@@ -28,6 +28,6 @@ python -m datamind.runtime.task_queue.entrypoints.worker
 
 ## 就绪与运行状态
 
-Runtime 提供 `/health` 和 `/ready`；部署实际运行状态可通过 `datamind runtime list` 和 `datamind runtime show` 查询。启用 Deployment 后，应核对实际状态与预测结果。
+Runtime 提供 `/health` 和 `/ready`。部署实际运行状态可通过 `datamind runtime list` 和 `datamind runtime show` 查询。启用 Deployment 后，应核对实际状态与预测结果。
 
 容器进程、Worker 分角色配置和健康检查见[Docker](docker.md)。多实例共享与生产运维见[生产部署](production.md)。

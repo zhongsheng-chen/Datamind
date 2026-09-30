@@ -1,6 +1,6 @@
 # 状态与权限
 
-状态和权限由当前枚举、Guard、Repository 与资源服务共同约束。删除标记 `deleted_at` 与业务状态独立，恢复删除不等于重新启用资源。
+资源状态决定允许的生命周期操作，权限决定用户能否执行这些操作。删除标记 `deleted_at` 独立于业务状态，恢复后需按原有状态继续管理。
 
 ## 生命周期
 
@@ -16,7 +16,7 @@
 | Execution | queued、running、success、failed、timeout、cancelled |
 | Batch | queued、running、retrying、cancelling、succeeded、partially_succeeded、failed、cancelled |
 
-这些转换不绕过关联校验。例如有效部署阻止版本停用或删除；删除部署之前需要停用并等待运行节点卸载。实验分组绑定的部署必须属于同一模型、环境且可用，不能是 shadow。各资源的[模型](../models/index.md)、[部署](../deployment/index.md)和[实验](../experiments/analysis.md)指南说明操作顺序。
+这些转换不绕过关联校验。例如有效部署阻止版本停用或删除。删除部署之前需要停用并等待运行节点卸载。实验分组绑定的部署必须属于同一模型、环境且可用，不能是 shadow。各资源的[模型](../models/index.md)、[部署](../deployment/index.md)和[实验](../experiments/analysis.md)指南说明操作顺序。
 
 ## 发布与决策枚举
 
@@ -29,7 +29,7 @@
 | decision result | approve、reject |
 | execution type | primary、shadow |
 
-`champion` 和 `challenger` 是部署角色；它们不自动创建路由或设置比例。主、副、影子路由的配置见[流量管理](../routing/index.md)。
+`champion` 和 `challenger` 是部署角色。它们不自动创建路由或设置比例。主、副、影子路由的配置见[流量管理](../routing/index.md)。
 
 ## 权限全集
 
@@ -47,6 +47,6 @@
 | audit.read | 查看审计记录 |
 | data.export | 导出数据 |
 
-上表共 21 个具体权限，来源为 `datamind/constants/permissions.py`。内置 administrator 使用 `*`。权限判断支持精确匹配、全局 `*` 与命名空间通配（如 `model.*`）；授予角色时仍须遵守身份服务对可配置权限的校验，通常使用表中的具体权限。
+上表共 21 个具体权限，来源为 `datamind/constants/permissions.py`。内置 administrator 使用 `*`。权限判断支持精确匹配、全局 `*` 与命名空间通配（如 `model.*`）。授予角色时仍须遵守身份服务对可配置权限的校验，通常使用表中的具体权限。
 
 不同命令的权限不能从动词猜测，例如 Deployment 的 restore 使用 `deployment.delete`。逐命令要求见[CLI Reference](../cli/index.md)，接口要求见[Runtime API](runtime-api.md)。Console 按权限显示按钮，前端动作名不是可直接授予的后端权限。服务端仍会校验权限。

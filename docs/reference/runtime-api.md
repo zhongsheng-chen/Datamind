@@ -25,7 +25,7 @@ Runtime 默认监听 `http://127.0.0.1:8700`。认证启用时，受保护接口
 | `/health` | 无参数 | 无资源权限 | 进程健康信息 |
 | `/ready` | 无参数 | 无资源权限 | 数据库等就绪检查，失败 HTTP 503 |
 
-探针可用 GET 请求。`/ready` 成功不等于所有部署均已加载；模型交付还要检查 Runtime 记录并执行预测。
+探针可用 GET 请求。`/ready` 成功不等于所有部署均已加载。模型交付还要检查 Runtime 记录并执行预测。
 
 ## 请求示例
 
@@ -36,7 +36,7 @@ curl -X POST http://127.0.0.1:8700/admin/status \
   -d '{"request":{"deployment_id":"<deployment_id>"}}'
 ```
 
-单条预测必须提供非空 `model_name` 和 `features`；`deployment_id` 可指定主目标，但不能指向影子部署。`subject_key` 用于稳定分桶和关联 Outcome。批量请求使用 `instances`，每条实例有独立 features 和可选主体。
+单条预测必须提供非空 `model_name` 和 `features`。`deployment_id` 可指定主目标，但不能指向影子部署。`subject_key` 用于稳定分桶和关联 Outcome。批量请求使用 `instances`，每条实例有独立 features 和可选主体。
 
 Outcome 必须有 `outcome_id`、`subject_key`，且 `decision_id`、`request_id` 至少提供一个。二者同时提供时必须指向同一决策。API 不接受客户端自行指定 experiment_id 或 variant_id，归属从原始决策读取。
 
@@ -44,7 +44,7 @@ Outcome 必须有 `outcome_id`、`subject_key`，且 `decision_id`、`request_id
 
 预测响应包含 `success`、`request_id` 及任务结果。分类结果包含预测类别与概率，评分结果包含概率、评分、决策、阈值及特征评分信息，具体示例见[模型指南](../guides/models.md)。影子结果异步写入执行记录，不替代返回给调用方的主结果。
 
-批次查询包含 `batch_id`、`status`、`total_count`、`completed_count`、`succeeded_count`、`failed_count`、`attempt_count`、`created_at`、`started_at`、`finished_at`；产生后再包含 `result` 或 `error`。部分成功需要检查逐实例结果，不能仅凭 HTTP 200 判断全部成功。终态和取消重试边界见[批量指南](../guides/batch-prediction.md)。
+批次查询包含 `batch_id`、`status`、`total_count`、`completed_count`、`succeeded_count`、`failed_count`、`attempt_count`、`created_at`、`started_at`、`finished_at`。产生后再包含 `result` 或 `error`。部分成功需要检查逐实例结果，不能仅凭 HTTP 200 判断全部成功。终态和取消重试边界见[批量指南](../guides/batch-prediction.md)。
 
 ## 错误
 
@@ -58,4 +58,4 @@ Outcome 必须有 `outcome_id`、`subject_key`，且 `decision_id`、`request_id
 | 504 | RequestTimeoutError | 检查模型耗时与服务超时 |
 | 500 | 未在映射表中声明的业务异常 | 保留 request_id，核对服务日志 |
 
-Pydantic/BentoML 输入校验发生在方法调用前，HTTP 错误与业务 `success=false` 响应应分别处理。错误对象通常含 `success=false`、`error`、`error_type`；客户端应同时检查 HTTP 状态与响应内容。当前错误映射由 `datamind/runtime/server/service.py` 定义。
+Pydantic/BentoML 输入校验发生在方法调用前，HTTP 错误与业务 `success=false` 响应应分别处理。错误对象通常含 `success=false`、`error`、`error_type`。客户端应同时检查 HTTP 状态与响应内容。

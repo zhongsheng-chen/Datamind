@@ -28,7 +28,7 @@ nav:
       - 模型与版本: models/index.md
       - 兼容性与制品: models/compatibility.md
   - 部署:
-      - Deployment 与 Runtime: deployment/index.md
+      - 部署概览: deployment/index.md
       - 全量发布: deployment/full.md
       - 金丝雀发布: deployment/canary.md
       - 影子发布: deployment/shadow.md
@@ -37,12 +37,12 @@ nav:
       - 本地演示环境: deployment/local-demo.md
       - 生产部署: deployment/production.md
   - 流量管理:
-      - Routing 与流量分配: routing/index.md
+      - 路由与流量分配: routing/index.md
       - 路由规则与生效时间: routing/rules.md
   - A/B 测试:
       - 实验流程: experiments/index.md
-      - Assignment 与稳定分桶: experiments/assignment.md
-      - Outcome 回流: experiments/outcomes.md
+      - 分配与稳定分桶: experiments/assignment.md
+      - 业务结果回流: experiments/outcomes.md
       - 实验分析与生命周期: experiments/analysis.md
   - 使用指南:
       - 评分卡与分类模型: guides/models.md
@@ -74,7 +74,7 @@ nav:
       - 前端: development/frontend.md
       - 测试: development/testing.md
       - 构建与 Release: development/release.md
-      - 文档盘点与验收: development/documentation.md
+      - 文档维护: development/documentation.md
 
 validation:
   nav:

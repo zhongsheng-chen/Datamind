@@ -29,10 +29,10 @@ npm run test:e2e
 
 Linux 缺少浏览器系统库时可使用 Playwright 的 `install --with-deps chromium` 安装。Windows 配置使用 msedge，需要本机 Edge。playwright.config.js 自动构建 Console 并启动 Vite preview（127.0.0.1:4173），可以复用已有 preview 服务，失败时保留 trace。
 
-这里验证前端行为，测试中的 API fixture 不等于真实后端完整验证；实际产品链路还需后端 E2E 或真实 Console 环境。
+这里验证前端行为，测试中的 API fixture 不等于真实后端完整验证。实际产品链路还需后端 E2E 或真实 Console 环境。
 
 ## 资源交付
 
-Vite 入口为 datamind/console/static，构建输出 datamind/console/dist，并生成 .vite/manifest.json。Wheel 打包 dist/index.html、assets 和 manifest，源码目录不是发布资源的替代。修改页面后检查开发构建、Vitest、ESLint 与相关浏览器用例；正式发行前用 Wheel/镜像运行 Console 核对资源加载。
+Vite 入口为 datamind/console/static，构建输出 datamind/console/dist，并生成 .vite/manifest.json。Wheel 打包 dist/index.html、assets 和 manifest，源码目录不是发布资源的替代。修改页面后检查开发构建、Vitest、ESLint 与相关浏览器用例。正式发行前用 Wheel/镜像运行 Console 核对资源加载。
 
 Console 产品操作见[Console 使用](../guides/console.md)。

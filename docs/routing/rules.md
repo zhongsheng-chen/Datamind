@@ -1,6 +1,6 @@
 # 路由规则与生效时间
 
-`route create` 与 `route update` 的 `--rules-file` 读取 JSON 对象，由 RuleMatcher 校验。空规则匹配所有请求；规范写法如下：
+`route create` 与 `route update` 的 `--rules-file` 读取 JSON 对象，由 RuleMatcher 校验。空规则匹配所有请求。规范写法如下：
 
 ```json
 {
@@ -18,7 +18,7 @@
 datamind route update <routing_id> --rules-file routing-rules.json
 ```
 
-示例字段来自违约概率模型的贷款特征，不适用于申请评分卡的另一套输入。规则使用字段点路径读取请求载荷；模型特征可写 `features.<字段>`，也可按 matcher 支持的载荷解析方式读取。规则条件不会生成或变更模型输入。
+示例字段来自违约概率模型的贷款特征，不适用于申请评分卡的另一套输入。规则使用字段点路径读取请求载荷。模型特征可写 `features.<字段>`，也可按 matcher 支持的载荷解析方式读取。规则条件不会生成或变更模型输入。
 
 ## 条件组合和运算符
 
@@ -36,13 +36,13 @@ datamind route update <routing_id> --rules-file routing-rules.json
 | startswith / endswith | 字符串前缀 / 后缀 |
 | regex | 字符串匹配正则表达式 |
 
-missing 对不存在或 null 都成立，is_null 仅对实际 null 成立；exists 要求字段存在且非 null。数字比较会尝试将数字字符串转为数字，但布尔值不作为数字；无法转换时不匹配。between 包含两个边界。非法运算符、between 数组长度或正则表达式会被校验拒绝。可使用多个 all/any 条件表达筛选，无需把业务条件写入说明字段。
+missing 对不存在或 null 都成立，is_null 仅对实际 null 成立。exists 要求字段存在且非 null。数字比较会尝试将数字字符串转为数字，但布尔值不作为数字。无法转换时不匹配。between 包含两个边界。非法运算符、between 数组长度或正则表达式会被校验拒绝。可使用多个 all/any 条件表达筛选，无需把业务条件写入说明字段。
 
 `bucket_key`、`bucket_range`、`customer_id`、`hash_salt`、`salt`、`description`、`note`、`version` 属于 matcher 的兼容元数据键，不能单靠它们表达条件筛选。新规则优先使用上面的 conditions 结构。完整实现与验证用例位于 `datamind/runtime/routing/matcher.py` 和 `tests/unit/routing/test_matcher.py`。
 
 ## 生效时间
 
-Deployment 和 Routing 都可设置 effective_from / effective_to。解析时以 UTC 比较：起点包含，终点不包含，即 `[from, to)`。省略一侧表示该侧不限制；终点必须晚于起点。CLI 时间输入和显示受日志时区配置影响，跨时区操作优先提交明确带时区的 ISO 时间。
+Deployment 和 Routing 都可设置 effective_from / effective_to。解析时以 UTC 比较：起点包含，终点不包含，即 `[from, to)`。省略一侧表示该侧不限制。终点必须晚于起点。CLI 时间输入和显示受日志时区配置影响，跨时区操作优先提交明确带时区的 ISO 时间。
 
 ```bash
 datamind route update <routing_id> \

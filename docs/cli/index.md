@@ -1,6 +1,6 @@
 # CLI Reference
 
-本索引与逐命令参数表从当前 Typer 入口生成。流程解释见各使用指南；资源状态和权限见[状态与权限](../reference/states-permissions.md)。
+按命令组查阅参数、默认值与权限。完整操作流程见各组对应指南，生命周期见[状态与权限](../reference/states-permissions.md)。
 
 ```bash
 datamind --help

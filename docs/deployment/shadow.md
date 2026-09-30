@@ -26,12 +26,12 @@ datamind route create <shadow_deployment_id> \
 
 ## 验证执行
 
-发起[在线](../guides/online-prediction.md)或[批量](../guides/batch-prediction.md)预测。在 Console“执行记录”区分 primary 与 shadow，核对部署、版本和成功状态；主预测与影子预测各有独立执行记录。
+发起[在线](../guides/online-prediction.md)或[批量](../guides/batch-prediction.md)预测。在 Console“执行记录”区分 primary 与 shadow，核对部署、版本和成功状态。主预测与影子预测各有独立执行记录。
 
-本次申请评分的在线与批量预测均启用了 100% 影子路由，包括追加的大量在线调用及 50、100、200 条实例批次。最终成功执行数与截图见[Console 手册](../guides/console.md)。
+按请求查看主结果与影子结果的示例见[Console 手册](../guides/console.md)。
 
 ## 比较与故障处理
 
-按 request_id 对齐 primary 与 shadow 执行，比较概率、评分、决策及耗时，确认两个版本使用相同输入 Schema。影子失败或超时保留独立执行状态，不覆盖主预测结果；排查执行记录、任务 Worker、制品加载与 Broker 日志。Celery 对可重试失败按队列 max_retries/retry_backoff 配置重试；不存在用于任意影子执行的公开 retry API。
+按 request_id 对齐 primary 与 shadow 执行，比较概率、评分、决策及耗时，确认两个版本使用相同输入 Schema。影子失败或超时保留独立执行状态，不覆盖主预测结果。排查执行记录、任务 Worker、制品加载与 Broker 日志。Celery 对可重试失败按队列 max_retries/retry_backoff 配置重试。不存在用于任意影子执行的公开 retry API。
 
-Shadow Deployment 不能绑定 Experiment Variant，不能作为显式主预测目标。Runtime 的 shadow_enabled 和 shadow_timeout_seconds 见[配置 Reference](../reference/configuration.md)。需要停止影子时禁用影子 Routing；下线部署前确认队列中已有任务和运行状态。历史执行仍可查询。
+Shadow Deployment 不能绑定 Experiment Variant，不能作为显式主预测目标。Runtime 的 shadow_enabled 和 shadow_timeout_seconds 见[配置 Reference](../reference/configuration.md)。需要停止影子时禁用影子 Routing。下线部署前确认队列中已有任务和运行状态。历史执行仍可查询。

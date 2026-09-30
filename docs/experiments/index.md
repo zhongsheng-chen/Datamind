@@ -1,6 +1,15 @@
 # A/B 测试
 
-本例比较 `application-scorecard` 的 1.0.0 与 1.1.0 两个评分卡版本。先完成[首次模型部署](../getting-started/quickstart.md)，确保 1.0.0 主部署 active，并记下 Model ID 和 Deployment ID。
+以 `application-scorecard` 的 1.0.0 与 1.1.0 为例，将一部分请求分配到两个评分卡版本，回流业务结果后比较表现。先完成[首次模型部署](../getting-started/quickstart.md)，确认主部署已启用，并记下模型与部署 ID。
+
+## 启动前约束
+
+- 同一模型与环境 同时只能有一个 运行中的实验。
+- 必须且只能有一个启用的 对照组，至少有一个启用的 实验组。
+- 启用分组 必须绑定 active Deployment，且属于同一模型与环境。
+- 分组仅可使用非影子部署。
+- hash 策略下启用分组 的权重之和必须为 1。
+- manual 策略需要有效的主体到 Variant 映射。
 
 ## 1. 准备候选版本
 
@@ -28,7 +37,7 @@ datamind deployment create application-scorecard --version 1.1.0 --rollout canar
 datamind deployment enable <challenger_deployment_id>
 ```
 
-候选部署可以仅通过 Experiment 参与分配。本次控制台演示还为它配置了 20% 的普通副路由，主部署使用 80% 的普通主路由；具体切换步骤见[流量管理](../routing/index.md)。未进入实验的请求继续按普通路由分配。候选数据为合成示例，不用于证明新版本效果更好。
+候选部署可以仅通过 Experiment 参与分配。本次控制台演示还为它配置了 20% 的普通副路由，主部署使用 80% 的普通主路由。具体切换步骤见[流量管理](../routing/index.md)。未进入实验的请求继续按普通路由分配。候选数据为合成示例，不用于证明新版本效果更好。
 
 ## 2. 创建 Experiment
 
@@ -68,9 +77,9 @@ datamind experiment variant add <experiment_id> \
 datamind experiment start <experiment_id>
 ```
 
-使用[快速上手中的预测请求](../getting-started/quickstart.md)，为每个借款人提供稳定的 `subject_key` 和 `subject_type=borrower`。hash 分配时，显式 `subject_key` 优先；没有显式主体时，才尝试从请求载荷解析 `bucket_key`。不能仅配置 `bucket_key` 就假定客户端已经提供主体。
+使用[快速上手中的预测请求](../getting-started/quickstart.md)，为每个借款人提供稳定的 `subject_key` 和 `subject_type=borrower`。hash 分配时，显式 `subject_key` 优先。没有显式主体时，才尝试从请求载荷解析 `bucket_key`。不能仅配置 `bucket_key` 就假定客户端已经提供主体。
 
-在线与批量预测都可参与实验。重复主体用于验证分配稳定性；不同主体用于观察两组分配及普通路由回退。避免显式提供 `deployment_id`，否则会进入指定部署路径。
+在线与批量预测都可参与实验。重复主体用于验证分配稳定性。不同主体用于观察两组分配及普通路由回退。避免显式提供 `deployment_id`，否则会进入指定部署路径。
 
 ## 5. Outcome 回流与分析
 
@@ -107,19 +116,10 @@ datamind experiment complete <experiment_id>
 datamind experiment stop <experiment_id>
 ```
 
-演示截图时实验保持 running，便于继续查看。暂停、恢复、结束与配置修改边界见[实验分析与生命周期](analysis.md)。
+暂停、恢复及结束后的操作见[实验分析与生命周期](analysis.md)。
 
-## 启动前约束
+## 演示结果
 
-- 同一 Model 与 Environment 同时只能有一个 running Experiment。
-- 必须且只能有一个启用的 Control，至少有一个启用的 Treatment。
-- 启用 Variant 必须绑定 active Deployment，且属于同一 Model 与 Environment。
-- Shadow Deployment 不能绑定 Variant。
-- hash 策略下启用 Variant 的权重之和必须为 1。
-- manual 策略需要有效的主体到 Variant 映射。
+手册中的首轮 64 个借款人请求，22 个命中对照组、17 个命中实验组、25 个使用普通路由，随后回流模拟 T+30 结果并完成分析。完整调用规模与界面见[Console 手册](../guides/console.md)。
 
-## 实际验证
-
-2026-09-30 已创建并启动本例实验，首轮 64 次独立借款人请求中，22 次命中 Control、17 次命中 Treatment、25 次使用普通路由；这些请求均回流模拟 T+30 Outcome 并执行分析。此后追加约三万次在线调用和 50、100、200 条实例的批量任务，申请评分模型同时参与实验、普通主副路由及影子执行。
-
-分组命中数和最终调用规模见[Console 手册](../guides/console.md)。样本量用于验证分流与记录链路，演示数据不能用于判断业务版本的真实效果。
+这些合成样本用于演示分流、记录和分析流程，模型的业务效果需要用真实、成熟的结果评估。

@@ -1,10 +1,10 @@
 # 示例
 
-训练脚本位于源码仓库的 `examples/`，请克隆仓库后从项目根目录运行。示例生成可注册制品，首次交付步骤见[快速上手](../getting-started/quickstart.md)。
+训练脚本位于源码仓库的 `examples/`，请克隆仓库后从项目根目录运行。生成的制品可按[快速上手](../getting-started/quickstart.md)注册并发布。
 
-## 银行场景制品
+## 银行场景示例
 
-安装本次演示使用的框架依赖：
+安装评分卡与分类模型所需依赖：
 
 ```bash
 python -m pip install -e ".[sklearn,catboost,xgboost]"

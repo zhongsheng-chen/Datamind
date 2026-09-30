@@ -1,6 +1,6 @@
 # 用户、角色与认证
 
-认证确认身份，角色权限决定允许的操作。CLI、HTTP 与 Console 的登录凭据分别管理；一个客户端已登录不会自动登录其他客户端。
+用户通过认证登录后，按角色权限查询资源或执行管理操作。CLI、HTTP 与 Console 分别登录，各自管理凭据。
 
 ## 初始化与启用认证
 
@@ -27,7 +27,7 @@ datamind role grant analyst model-reader
 datamind user show analyst --format json
 ```
 
-用户创建交互设置密码；重复 grant 不用于修改角色权限。需要变更权限时在 Console 编辑角色，或创建新角色再授予；当前 CLI 的角色命令不提供任意更新参数。撤销角色和停用账户：
+用户创建交互设置密码。重复 grant 不用于修改角色权限。需要变更权限时在 Console 编辑角色，或创建新角色再授予。当前 CLI 的角色命令不提供任意更新参数。撤销角色和停用账户：
 
 ```bash
 datamind role revoke analyst model-reader
@@ -38,11 +38,11 @@ datamind user reset-password analyst
 
 密码重置通过交互输入。用户、角色和凭据的当前有效性由服务端检查，不能把尚未到期的 JWT 理解为权限永远不变。完整参数见[用户与角色 CLI](../cli/identity.md)。
 
-内置初始化管理员不能被停用或删除，其固定身份和 administrator 角色受到保护。内置角色不能停用或删除；最后一个有效 administrator 也不能被移除。当前登录用户的危险自身操作会被拒绝。管理员密码可以通过账户密码管理调整。
+内置初始化管理员不能被停用或删除，其固定身份和 administrator 角色受到保护。内置角色不能停用或删除。最后一个有效 administrator 也不能被移除。当前登录用户的危险自身操作会被拒绝。管理员密码可以通过账户密码管理调整。
 
 ## HTTP 与 Console
 
-HTTP 使用 POST `/auth/login`，直接发送 `{"username":"…","password":"…"}`，后续请求使用 Bearer access_token。`/auth/refresh` 使用 refresh_token 并轮换凭据；`/auth/logout` 撤销刷新凭据。访问令牌与刷新令牌用途不同，客户端需保存刷新响应中的新令牌。接口见[Runtime API](../reference/runtime-api.md)。
+HTTP 使用 POST `/auth/login`，直接发送 `{"username":"…","password":"…"}`，后续请求使用 Bearer access_token。`/auth/refresh` 使用 refresh_token 并轮换凭据。`/auth/logout` 撤销刷新凭据。访问令牌与刷新令牌用途不同，客户端需保存刷新响应中的新令牌。接口见[Runtime API](../reference/runtime-api.md)。
 
 Console 登录页面建立自身会话，可在用户与角色页面管理账户和授权，截图与步骤见[Console 手册](console.md)。页面按钮按权限显示，服务端仍对每次操作授权。
 

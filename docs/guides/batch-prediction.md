@@ -113,7 +113,7 @@ curl -sS http://127.0.0.1:8700/predict/batch \
 
 每条实例的主体信息参与路由或实验分流。配置影子路由后，还会产生独立的影子执行记录。主批次结果与影子记录分别核对。
 
-本次六个模型各完成两条基础批量实例，申请评分另完成十二条实验批量实例。还为每个模型分别提交 50、100、200 条实例，共十八个较大批次、2,100 条实例；最终状态与统计见[Console 手册](console.md)。
+本次六个模型各完成两条基础批量实例，申请评分另完成十二条实验批量实例。还为每个模型分别提交 50、100、200 条实例，共十八个较大批次、2,100 条实例。最终状态与统计见[Console 手册](console.md)。
 
 ## 取消与重试
 
@@ -127,6 +127,6 @@ curl -sS http://127.0.0.1:8700/predict/batch \
 | partially_succeeded / failed | 不允许取消 | 可重新排队 |
 | succeeded | 不允许 | 不允许 |
 
-取消不是强杀已经开始的模型计算，必须继续查询到 cancelled。已成功实例保留；手动重试创建新的任务和 Attempt，只重试未成功实例，batch_id 保持不变，成功计数作为已有进度保留。attempt_count 用于追踪尝试次数。自动队列重试使用 retrying 状态，与客户端手动 retry 是不同过程。
+取消不是强杀已经开始的模型计算，必须继续查询到 cancelled。已成功实例保留。手动重试创建新的任务和 Attempt，只重试未成功实例，batch_id 保持不变，成功计数作为已有进度保留。attempt_count 用于追踪尝试次数。自动队列重试使用 retrying 状态，与客户端手动 retry 是不同过程。
 
-查询 result 时逐条检查实例结果和错误。partially_succeeded 表示部分实例失败，需要定位特征、部署或运行错误；failed 也可能是投递失败。遇到 TaskDispatchError 检查 Redis、队列名和 Worker 角色后再重试。状态错误返回 HTTP 409，不存在的批次返回 404；成功提交和重试返回 202。完整字段见[Runtime API](../reference/runtime-api.md)。
+查询 result 时逐条检查实例结果和错误。partially_succeeded 表示部分实例失败，需要定位特征、部署或运行错误。failed 也可能是投递失败。遇到 TaskDispatchError 检查 Redis、队列名和 Worker 角色后再重试。状态错误返回 HTTP 409，不存在的批次返回 404。成功提交和重试返回 202。完整字段见[Runtime API](../reference/runtime-api.md)。

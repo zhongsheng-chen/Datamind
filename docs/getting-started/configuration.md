@@ -14,7 +14,7 @@ DATAMIND_AUTH_ENABLED=true
 DATAMIND_AUTH_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
-替换数据库连接地址与签名密钥，提前创建数据库。默认使用本地制品存储；跨进程共享方式见[生产部署](../deployment/production.md)。环境变量和配置分组见[配置 Reference](../reference/configuration.md)。
+替换数据库连接地址与签名密钥，提前创建数据库。默认使用本地制品存储。跨进程共享方式见[生产部署](../deployment/production.md)。环境变量和配置分组见[配置 Reference](../reference/configuration.md)。
 
 ## 数据库迁移与系统初始化
 
@@ -39,6 +39,6 @@ datamind login --username admin
 datamind whoami
 ```
 
-按提示输入初始化时设置的密码。CLI 将保存登录凭据；HTTP 调用需要单独取得访问令牌。用户与权限见[访问控制指南](../guides/access-control.md)。
+按提示输入初始化时设置的密码。CLI 将保存登录凭据。HTTP 调用需要单独取得访问令牌。用户与权限见[访问控制指南](../guides/access-control.md)。
 
 下一步按照[快速上手](quickstart.md)注册模型、部署并发起预测。

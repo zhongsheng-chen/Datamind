@@ -1,27 +1,27 @@
-# Deployment 与 Runtime
+# 部署
 
-Deployment 记录某个模型版本在指定环境中的发布配置，Routing 决定请求如何到达 Deployment，Runtime 负责加载模型并执行预测。
+部署将一个模型版本发布到指定环境。发布前激活版本，发布后检查 Runtime 的加载状态，再通过路由接入流量。
 
-## 从配置到执行
+## 选择发布方式
 
-1. 注册并激活模型版本。
-2. 创建 Deployment，选择发布方式。
-3. 启用 Deployment，配置并启用 Routing。
-4. 启动 Runtime，检查实际运行状态。
-5. 发起预测并核对命中的部署与版本。
-
-完整命令见[快速上手](../getting-started/quickstart.md)。
-
-## 发布方式
-
-| 发布方式 | 部署角色 | 适用场景 |
+| 方式 | 适用场景 | 部署角色 |
 | --- | --- | --- |
-| [full](full.md) | 自动选择 champion | 全量提供主预测结果 |
-| [canary](canary.md) | 显式选择 champion 或 challenger | 新旧版本按流量比例共同服务 |
-| [shadow](shadow.md) | 自动选择 shadow | 旁路执行并保留主预测结果 |
+| [全量](full.md) | 单一正式版本提供预测 | champion |
+| [金丝雀](canary.md) | 新旧版本共同服务，逐步调整比例 | champion / challenger |
+| [影子](shadow.md) | 使用真实输入旁路验证候选版本 | shadow |
 
-`rollout_type` 表示发布方式，Deployment 的 `role` 表示部署角色。创建 Routing 时会将部署角色写入 `rollout_group`。
+发布方式使用 rollout_type 表示，角色使用 role 表示。full 和 shadow 自动确定角色，canary 在创建时选择角色。比例在路由上配置。
 
-## 进程与基础设施
+## 发布流程
 
-Runtime 与任务 Worker 是不同进程，Console 提供管理界面。进程入口见[Runtime 与 Worker](processes.md)，容器组合见[Docker](docker.md)。
+1. 注册并激活目标版本。
+2. 创建并启用部署。
+3. 确认 Runtime 已加载模型。
+4. 创建并启用路由，发起预测。
+5. 在请求与执行记录中确认命中的版本。
+
+首次发布的完整命令见[快速上手](../getting-started/quickstart.md)。
+
+## 运行进程
+
+Runtime 执行在线预测，任务 Worker 执行批量和影子预测，Console 提供管理界面。启动入口见[Runtime 与 Worker](processes.md)，容器运行见[Docker](docker.md)，共享存储与运维见[生产部署](production.md)。

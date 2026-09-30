@@ -1,6 +1,6 @@
 # 全量发布
 
-全量发布使用 `rollout_type=full`，角色自动为 `champion`。它适合首次交付或单一正式版本承接流量；启用 full 路由时比例必须为 1。
+全量发布使用 `rollout_type=full`，角色自动为 `champion`。它适合首次交付或单一正式版本承接流量。启用 full 路由时比例必须为 1。
 
 ## 首次发布
 
@@ -14,11 +14,11 @@ datamind route create <deployment_id> \
 datamind runtime list --format json
 ```
 
-创建 Deployment 默认 inactive，创建 Routing 默认不启用；以上明确开启两者。确认 Runtime 实际加载后，按[在线预测](../guides/online-prediction.md)调用模型并核对响应及请求记录中的版本。
+创建 Deployment 默认 inactive，创建 Routing 默认不启用。以上明确开启两者。确认 Runtime 实际加载后，按[在线预测](../guides/online-prediction.md)调用模型并核对响应及请求记录中的版本。
 
 ## 版本切换
 
-先注册并激活新版本，创建新的 inactive full 部署。验证制品与部署条件，启用新部署并等待加载完成；可指定其 deployment_id 做定向验证。然后禁用旧主路由，启用新部署比例为 1 的路由。两条 full 主路由不能同时启用，否则超出总流量预算。
+先注册并激活新版本，创建新的 inactive full 部署。验证制品与部署条件，启用新部署并等待加载完成。可指定其 deployment_id 做定向验证。然后禁用旧主路由，启用新部署比例为 1 的路由。两条 full 主路由不能同时启用，否则超出总流量预算。
 
 路由切换由多条管理操作组成，不是跨命令原子事务。新路由生效前仍存在默认部署回退，因此有连续交付要求时优先使用[canary](canary.md)完成渐进切换。记录新旧路由、部署 ID 和操作时间，检查实际主预测版本后再停用旧部署。
 

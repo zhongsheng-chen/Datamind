@@ -1,8 +1,8 @@
 # 快速上手
 
-本页使用申请评分模型完成第一次服务调用。先完成[安装](installation.md)和[配置与初始化](configuration.md)，并克隆源码仓库；训练脚本不包含在 PyPI 安装包中。
+使用申请评分模型完成一次服务发布：训练制品、注册版本、启用部署，然后发起预测。开始前请完成[安装](installation.md)和[配置与初始化](configuration.md)，并克隆源码仓库以运行训练脚本。
 
-## 1. 生成并注册制品
+## 1. 训练并注册模型
 
 在仓库根目录安装 sklearn extra，运行训练脚本：
 
@@ -27,7 +27,7 @@ datamind model register application-scorecard \
 datamind model activate application-scorecard --version 1.0.0
 ```
 
-## 2. 创建并启用 Deployment
+## 2. 启用部署
 
 ```bash
 datamind deployment create application-scorecard --version 1.0.0 --rollout full
@@ -41,7 +41,7 @@ datamind deployment enable <deployment_id>
 
 注册、激活和启用部署是不同步骤，职责见[Deployment 与 Runtime](../deployment/index.md)。
 
-## 3. 配置 Routing
+## 3. 配置路由
 
 ```bash
 datamind route create <deployment_id> \
@@ -52,7 +52,7 @@ datamind route create <deployment_id> \
 
 Routing 创建默认不启用。本例显式使用 `--enabled`，让该路由分配全部主流量。
 
-## 4. 启动 Runtime 与 Console
+## 4. 启动服务
 
 在一个终端启动 Runtime：
 
@@ -68,7 +68,7 @@ datamind console run
 
 Runtime 默认端口为 8700，Console 默认端口为 8701。打开 `http://127.0.0.1:8701` 登录管理控制台，核对部署、路由和运行状态。逐屏操作见[Console 手册](../guides/console.md)。
 
-本例在线预测无需 Redis Worker；使用批量或影子执行时需另外启动[任务 Worker](../deployment/processes.md)。
+本例在线预测无需 Redis Worker。使用批量或影子执行时需另外启动[任务 Worker](../deployment/processes.md)。
 
 ## 5. 获取 HTTP 访问令牌
 
@@ -127,6 +127,6 @@ curl -sS http://127.0.0.1:8700/predict \
 
 ## 验证范围与下一步
 
-2026-09-30 已在 Python 3.12、PostgreSQL 17、MinIO 和 Redis 的独立演示环境验证：初始化、CLI 登录、注册、激活、Deployment、Routing、HTTP 认证与在线预测。应用使用本地 18700/18701 演示端口；本页按默认 8700/8701 给出操作。
+2026-09-30 已在 Python 3.12、PostgreSQL 17、MinIO 和 Redis 的独立演示环境验证：初始化、CLI 登录、注册、激活、Deployment、Routing、HTTP 认证与在线预测。应用使用本地 18700/18701 演示端口。本页按默认 8700/8701 给出操作。
 
-需要异步调用时阅读[批量预测](../guides/batch-prediction.md)；需要渐进发布时阅读[部署](../deployment/index.md)；需要后验效果评估时阅读[A/B 测试](../experiments/index.md)。
+需要异步调用时阅读[批量预测](../guides/batch-prediction.md)。需要渐进发布时阅读[部署](../deployment/index.md)。需要后验效果评估时阅读[A/B 测试](../experiments/index.md)。
