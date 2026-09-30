@@ -1,6 +1,6 @@
 site_name: Datamind
 site_description: 开放式模型服务管理平台
-site_url: !ENV READTHEDOCS_CANONICAL_URL
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, 'https://datamind.readthedocs.io/en/latest/']
 
 repo_name: zhongsheng-chen/Datamind
 repo_url: https://github.com/zhongsheng-chen/Datamind
@@ -10,6 +10,7 @@ theme:
   name: material
   language: zh
   features:
+    - navigation.tabs
     - navigation.sections
     - navigation.top
     - content.code.copy
@@ -18,11 +19,72 @@ nav:
   - 首页: index.md
   - 快速开始:
       - 安装: getting-started/installation.md
+      - 配置与初始化: getting-started/configuration.md
       - 快速上手: getting-started/quickstart.md
   - 核心概念:
       - 架构: concepts/architecture.md
+      - 资源与生命周期: concepts/resources.md
+  - 模型:
+      - 模型与版本: models/index.md
+      - 兼容性与制品: models/compatibility.md
   - 部署:
+      - Deployment 与 Runtime: deployment/index.md
+      - 全量发布: deployment/full.md
+      - 金丝雀发布: deployment/canary.md
+      - 影子发布: deployment/shadow.md
       - Docker: deployment/docker.md
+      - Runtime 与 Worker: deployment/processes.md
+      - 本地演示环境: deployment/local-demo.md
+      - 生产部署: deployment/production.md
+  - 流量管理:
+      - Routing 与流量分配: routing/index.md
+      - 路由规则与生效时间: routing/rules.md
+  - A/B 测试:
+      - 实验流程: experiments/index.md
+      - Assignment 与稳定分桶: experiments/assignment.md
+      - Outcome 回流: experiments/outcomes.md
+      - 实验分析与生命周期: experiments/analysis.md
+  - 使用指南:
+      - 评分卡与分类模型: guides/models.md
+      - 在线预测: guides/online-prediction.md
+      - 批量预测: guides/batch-prediction.md
+      - Console: guides/console.md
+      - 用户、角色与认证: guides/access-control.md
+  - CLI Reference:
+      - 命令索引: cli/index.md
+      - 初始化、认证与数据库: cli/system.md
+      - 模型: cli/model.md
+      - 部署: cli/deployment.md
+      - 路由: cli/routing.md
+      - 实验: cli/experiment.md
+      - 分组: cli/variant.md
+      - Outcome: cli/outcome.md
+      - 用户与角色: cli/identity.md
+      - 服务与运行状态: cli/processes.md
+  - 示例:
+      - 示例索引: examples/index.md
+  - Reference:
+      - 配置: reference/configuration.md
+      - Runtime API: reference/runtime-api.md
+      - Runtime 请求字段: reference/runtime-schemas.md
+      - 状态与权限: reference/states-permissions.md
+  - 开发:
+      - 开发环境与项目结构: development/index.md
+      - 数据库与扩展: development/extensions.md
+      - 前端: development/frontend.md
+      - 测试: development/testing.md
+      - 构建与 Release: development/release.md
+      - 文档盘点与验收: development/documentation.md
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    anchors: warn
 
 markdown_extensions:
   - admonition

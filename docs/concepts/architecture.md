@@ -7,13 +7,14 @@ Datamind 将模型管理的控制面与实际执行预测的运行面分开。
 核心资源关系可以简化为：
 
 ```text
-Model
-  └─ Version
-      └─ Artifact
-          └─ Deployment
-              └─ Routing
-                  └─ Runtime
+Model → Version → 当前 Artifact
+          ↑
+      Deployment ← Routing
+          ↓
+      Runtime 加载与执行
 ```
+
+Deployment 关联模型版本，Routing 关联 Deployment；Runtime 是执行层，并非 Routing 的子资源。完整关系见[资源与生命周期](resources.md)。
 
 ## 控制面
 

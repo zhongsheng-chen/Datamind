@@ -13,40 +13,29 @@ Model → Version → Deployment → Routing → Runtime
 - **模型与版本管理**：统一管理模型、版本、制品和生命周期。
 - **部署与路由**：支持全量、金丝雀和影子发布，并通过路由控制请求流量。
 - **在线与批量推理**：提供统一 Runtime Service，并支持批量预测任务。
-- **分类与评分**：同时支持通用分类模型和信用评分卡。
+- **分类与评分**：同时支持通用分类模型和申请评分模型。
 - **实验管理**：支持 A/B 实验、实验分组、流量分配和效果分析。
 - **生产治理**：提供认证、权限、审计、健康检查和运行状态管理。
 - **模型存储**：支持本地文件系统和 MinIO。
 
 Datamind 输出模型预测结果，不承担授信审批、额度策略或其他业务决策。
 
-## 安装
+## 按任务阅读
 
-安装 scikit-learn 与评分卡支持：
+| 目标 | 入口 |
+| --- | --- |
+| 第一次使用 | [安装](getting-started/installation.md)、[配置与初始化](getting-started/configuration.md)、[快速上手](getting-started/quickstart.md) |
+| 理解平台资源 | [架构](concepts/architecture.md)、[资源与生命周期](concepts/resources.md) |
+| 准备模型制品 | [模型与版本](models/index.md)、[兼容性](models/compatibility.md) |
+| 发布与运行 | [部署](deployment/index.md)、[流量管理](routing/index.md) |
+| 评估模型效果 | [A/B 测试](experiments/index.md)、[Outcome](experiments/outcomes.md) |
+| 接入预测与管理界面 | [在线预测](guides/online-prediction.md)、[批量预测](guides/batch-prediction.md)、[Console](guides/console.md) |
+| 查命令与字段 | [CLI Reference](cli/index.md)、[配置](reference/configuration.md)、[Runtime API](reference/runtime-api.md) |
+| 参与开发 | [开发环境](development/index.md)、[测试](development/testing.md)、[Release](development/release.md) |
 
-```bash
-python -m pip install "pydatamind[sklearn]"
-```
+## 文档范围
 
-安装全部模型框架：
-
-```bash
-python -m pip install "pydatamind[full]"
-```
-
-确认 CLI：
-
-```bash
-datamind --version
-datamind --help
-```
-
-下一步请阅读：
-
-- [安装](getting-started/installation.md)
-- [快速上手](getting-started/quickstart.md)
-- [架构](concepts/architecture.md)
-- [Docker 部署](deployment/docker.md)
+本站按任务指南、概念和 Reference 组织正式文档，内容依据当前代码、配置与测试核对。正在完善的章节及核对依据见[文档实施计划](development/documentation.md)。
 
 !!! note "包名与入口"
 

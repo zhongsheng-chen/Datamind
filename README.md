@@ -165,37 +165,40 @@ Datamind 当前支持分类与评分两类任务，并兼容多种主流 Python 
 
 ## 示例
 
-示例位于源码仓库的 `examples/` 目录，请克隆仓库后在项目根目录运行。 相关依赖包括 `scikit-learn` 和 `optbinning`。若已安装 `pydatamind[sklearn]` 或 `pydatamind[full]`，可跳过依赖安装。
+示例位于源码仓库的 `examples/` 目录，请克隆仓库后在项目根目录运行。 相关依赖包括 `scikit-learn`、`optbinning` 和 `CatBoost`。若已安装对应 extra 或 `pydatamind[full]`，可跳过依赖安装。
 
 ```bash
-python -m pip install -e ".[sklearn]"
+python -m pip install -e ".[sklearn,catboost]"
 ```
 
 ### 分类任务
 
-以 `random-forest` 分类模型为例：
+以 `fraud-risk` 欺诈风险模型为例：
 
 ```bash
-python examples/classification/random_forest/train.py
+python examples/classification/catboost/train.py \
+  --output examples/classification/catboost/artifacts/fraud_risk.cbm
 
-datamind model register random-forest \
+datamind model register fraud-risk \
+  --display-name "欺诈风险模型" \
   --version 1.0.0 \
-  --model-path examples/classification/random_forest/artifacts/random_forest.pkl \
-  --framework sklearn \
-  --model-type random_forest \
+  --model-path examples/classification/catboost/artifacts/fraud_risk.cbm \
+  --framework catboost \
+  --model-type catboost \
   --task-type classification
 ```
 
 ### 评分任务
 
-以 `scorecard` 评分模型为例：
+以 `application-scorecard` 申请评分模型为例：
 
 ```bash
 python examples/scorecard/train.py
 
-datamind model register scorecard \
+datamind model register application-scorecard \
+  --display-name "申请评分模型" \
   --version 1.0.0 \
-  --model-path examples/scorecard/artifacts/scorecard.pkl \
+  --model-path examples/scorecard/artifacts/application_scorecard.pkl \
   --framework sklearn \
   --model-type logistic_regression \
   --task-type scoring
