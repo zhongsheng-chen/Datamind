@@ -126,14 +126,18 @@ Docker 镜像、Docker Compose 及相关配置见 [Docker 部署文档](https://
 ```bash
 python -m pip install -e ".[test,full,release]"
 npm ci
+npm run build:console
 ```
 
-常用入口：
+运行本地测试：
 
 ```bash
-make test
-make test-framework
-make frontend-test
+make test-all
+```
+
+构建：
+
+```bash
 make build
 ```
 
