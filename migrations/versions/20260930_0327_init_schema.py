@@ -1,8 +1,8 @@
 """init schema.
 
-Revision ID: cae77eb648fe
+Revision ID: a00326ba98dd
 Revises: 
-Create Date: 2026-09-19 10:06:27.409669+00:00
+Create Date: 2026-09-30 03:27:46.127059+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'cae77eb648fe'
+revision = 'a00326ba98dd'
 down_revision = None
 branch_labels = None
 depends_on = None
