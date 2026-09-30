@@ -18,7 +18,7 @@ docker compose -f docs/assets/demo-infrastructure.yml up -d --wait
 | Redis | 16379 | 批量与影子队列 |
 | MinIO API | 19000 | 模型制品 |
 | MinIO Console | 19001 | 对象存储管理 |
-| Datamind Runtime | 18700 | 预测接口 |
+| Datamind 预测服务（`Runtime`） | 18700 | 预测接口 |
 | Datamind Console | 18701 | 操作手册截图对应界面 |
 
 若端口已被占用，请修改 Compose 和对应连接配置。

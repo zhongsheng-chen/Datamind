@@ -20,7 +20,7 @@ datamind <命令组> <命令> --help
 | [路由管理](routing.md) | 8 |
 | [实验管理](experiment.md) | 12 |
 | [实验分组](variant.md) | 9 |
-| [Outcome 回流](outcome.md) | 1 |
+| [业务结果回流](outcome.md) | 1 |
 | [用户与角色](identity.md) | 15 |
 | [服务与运行状态](processes.md) | 4 |
 
@@ -29,10 +29,10 @@ datamind <命令组> <命令> --help
 以下展示模型注册响应的关键字段（省略存储等字段）；资源 ID 是后续命令的输入，业务版本与制品修订分别保留：
 
 ```json
-{"name":"application-scorecard","model_id":"<model_id>","version":"1.0.0","version_id":"<version_id>","artifact_id":"<artifact_id>","artifact_revision":1,"action":"created"}
+{"name":"scorecard-demo","model_id":"<model_id>","version":"1.0.0","version_id":"<version_id>","artifact_id":"<artifact_id>","artifact_revision":1,"action":"created"}
 ```
 
-注册 action 为 created、revised 或 unchanged。模型 list 的 JSON 为数组，show 为对象；Deployment 创建/查询保留 deployment_id、版本、环境、rollout_type、role 与 status；Routing 保留 routing_id、deployment_id、比例及启用状态；实验与分组保留各自 ID、状态和配置；Outcome 输出包含原始决策归属。字段随资源命令而异，不能把某个示例当作所有命令的统一响应。
+注册 `action` 为 `created`、`revised` 或 `unchanged`。模型 `list` 的 JSON 为数组，`show` 为对象；部署创建/查询保留 `deployment_id`、版本、环境、`rollout_type`、`role` 与 `status`；路由保留 `routing_id`、`deployment_id`、比例及启用状态；实验与分组保留各自 ID、状态和配置；业务结果输出包含原始决策归属。字段随资源命令而异，不能把某个示例当作所有命令的统一响应。
 
 init、login、logout、whoami 和进程启动命令没有 --format 参数。用户创建与密码重置会交互读取密码，--format json 不会取消交互。自动化应先查看该命令是否具备无交互参数。
 

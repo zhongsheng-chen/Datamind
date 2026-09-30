@@ -4,7 +4,7 @@
 
 ## 初始化与启用认证
 
-`datamind init` 创建内置 administrator 角色与首个管理员。默认凭据和初始化前自定义配置见[配置与初始化](../getting-started/configuration.md)。通过 `DATAMIND_AUTH_ENABLED=true` 启用认证，配置非空签名密钥并在 Runtime、Console、CLI 与 Worker 之间保持一致。staging 和 production 必须启用认证，LOCAL 登录还必须设置 `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS`，例如仅本机开发验证可用 `["127.0.0.0/8"]`。正式部署填写真实可信来源网段，不能只打开认证而省略网络配置。
+`datamind init` 创建内置 administrator 角色与首个管理员。默认凭据和初始化前自定义配置见[配置与初始化](../getting-started/configuration.md)。通过 `DATAMIND_AUTH_ENABLED=true` 启用认证，配置非空签名密钥并在预测服务（`Runtime`）、Console、CLI 与 Worker 之间保持一致。`staging` 和 `production` 必须启用认证，`LOCAL` 登录还必须设置 `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS`，例如仅本机开发验证可用 `["127.0.0.0/8"]`。正式部署填写真实可信来源网段，不能只打开认证而省略网络配置。
 
 ## CLI 登录
 
@@ -42,7 +42,7 @@ datamind user reset-password analyst
 
 ## HTTP 与 Console
 
-HTTP 使用 POST `/auth/login`，直接发送 `{"username":"…","password":"…"}`，后续请求使用 Bearer access_token。`/auth/refresh` 使用 refresh_token 并轮换凭据。`/auth/logout` 撤销刷新凭据。访问令牌与刷新令牌用途不同，客户端需保存刷新响应中的新令牌。接口见[Runtime API](../reference/runtime-api.md)。
+HTTP 使用 POST `/auth/login`，直接发送 `{"username":"…","password":"…"}`，后续请求使用 Bearer `access_token`。`/auth/refresh` 使用 `refresh_token` 并轮换凭据。`/auth/logout` 撤销刷新凭据。访问令牌与刷新令牌用途不同，客户端需保存刷新响应中的新令牌。接口见[Runtime API](../reference/runtime-api.md)。
 
 Console 登录页面建立自身会话，可在用户与角色页面管理账户和授权，截图与步骤见[Console 手册](console.md)。页面按钮按权限显示，服务端仍对每次操作授权。
 

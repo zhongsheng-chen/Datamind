@@ -29,7 +29,7 @@ docker.io/zhongshengchen/datamind:<version>-catboost
 
 ## Docker Compose
 
-仓库中的 Docker Compose 配置用于启动 Datamind Runtime、管理控制台以及相关 Worker。
+仓库中的 Docker Compose 配置用于启动 Datamind 预测服务（`Runtime`）、管理控制台以及相关 Worker。
 
 配置文件：
 

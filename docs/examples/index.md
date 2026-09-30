@@ -1,56 +1,41 @@
-# 示例
+# 训练示例
 
-训练脚本位于源码仓库的 `examples/`，请克隆仓库后从项目根目录运行。生成的制品可按[快速上手](../getting-started/quickstart.md)注册并发布。
+源码仓库的 `examples/` 提供可复现的训练脚本。请克隆仓库后从项目根目录运行，PyPI 安装包不包含这些文件。脚本生成本地制品，注册和发布由调用方执行。
 
-## 银行场景示例
+## 评分卡示例
 
-安装评分卡与分类模型所需依赖：
-
-```bash
-python -m pip install -e ".[sklearn,catboost,xgboost]"
-```
-
-三个评分模型使用同一评分卡示例，以不同随机种子训练。申请评分另准备 1.1.0 候选版本：
+安装 `.[sklearn]`，训练两个版本的制品。两个文件都注册为 `scorecard-demo` 的版本，用于金丝雀或 A/B 教程：
 
 ```bash
+python -m pip install -e '.[sklearn]'
 python examples/scorecard/train.py --random-seed 42 --n-jobs 1 \
-  --output examples/scorecard/artifacts/application_scorecard.pkl
+  --output examples/scorecard/artifacts/scorecard_demo.pkl
 python examples/scorecard/train.py --random-seed 7 --n-jobs 1 \
-  --output examples/scorecard/artifacts/application_scorecard_candidate.pkl
-python examples/scorecard/train.py --random-seed 19 --n-jobs 1 \
-  --output examples/scorecard/artifacts/behavior_scorecard.pkl
-python examples/scorecard/train.py --random-seed 31 --n-jobs 1 \
-  --output examples/scorecard/artifacts/collection_scorecard.pkl
+  --output examples/scorecard/artifacts/scorecard_demo_v2.pkl
 ```
 
-三个分类模型分别使用 CatBoost、XGBoost 和随机森林示例：
+合成信贷数据包含数值、类别、缺失值和特殊值。脚本训练 `optbinning.Scorecard`，以逻辑回归估计违约概率并转换为评分。使用[第一个模型服务](../getting-started/quickstart.md)发布首个版本，候选版本用于[A/B 教程](../experiments/index.md)。
+
+## 分类示例
+
+核心指南使用 `classification-demo` 和 CatBoost 原生制品，其注册与输入见[任务选择](../guides/models.md)。其他框架可按下表选择，安装对应 extra 后运行脚本：
+
+| 框架 | 脚本目录（examples/classification/ 下） | 模型类型 |
+| --- | --- | --- |
+| sklearn | logistic_regression/ | logistic_regression |
+| sklearn | decision_tree/ | decision_tree |
+| sklearn | random_forest/ | random_forest |
+| sklearn | credit_risk/ | random_forest |
+| xgboost | xgboost/ | xgboost |
+| lightgbm | lightgbm/ | lightgbm |
+| catboost | catboost/ | catboost |
 
 ```bash
-python examples/classification/catboost/train.py \
-  --output examples/classification/catboost/artifacts/fraud_risk.cbm
-python examples/classification/xgboost/train.py \
-  --output examples/classification/xgboost/artifacts/multi_borrowing_risk.ubj
-python examples/classification/credit_risk/train.py \
-  --output examples/classification/credit_risk/artifacts/default_probability.pkl
+python examples/classification/catboost/train.py --help
 ```
 
-业务显示名称用于演示资源管理，训练数据与标签仍以各脚本为准。模型清单、注册参数和输入区别见[评分卡与分类模型](../guides/models.md)。
+credit_risk 使用合成信贷特征和 0/1 违约标签。其他分类脚本使用合成二分类数据，具体列名和标签以脚本为准。选择新脚本后检查它的输入特征与保存格式，按[兼容性参考](../models/compatibility.md)注册。
 
-## 其他训练入口
+## 从示例到实际模型
 
-| 任务 | 框架 | 脚本 |
-| --- | --- | --- |
-| 分类 | sklearn | `examples/classification/logistic_regression/train.py` |
-| 分类 | sklearn | `examples/classification/decision_tree/train.py` |
-| 分类 | sklearn | `examples/classification/random_forest/train.py` |
-| 分类 | lightgbm | `examples/classification/lightgbm/train.py` |
-
-这些脚本使用各自的特征和制品格式，不能仅替换文件名就混用输入。安装对应框架 extra，具体兼容边界见[模型兼容性](../models/compatibility.md)。
-
-## 选择下一步
-
-- 首次服务交付：[快速上手](../getting-started/quickstart.md)。
-- 模型注册与任务区别：[使用指南](../guides/models.md)。
-- 主、副、影子路由：[流量管理](../routing/index.md)。
-- 版本比较：[A/B 测试](../experiments/index.md)。
-- 实际操作和删除后的概览：[Console 手册](../guides/console.md)。
+合成数据用于学习训练、保存和发布流程。接入自己的模型时，确认制品保留了有序特征信息，并用实际输入检查加载与预测。任务名称或文件名不会改变训练标签的含义。

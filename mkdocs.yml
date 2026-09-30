@@ -20,60 +20,57 @@ nav:
   - 快速开始:
       - 安装: getting-started/installation.md
       - 配置与初始化: getting-started/configuration.md
-      - 快速上手: getting-started/quickstart.md
-  - 核心概念:
-      - 架构: concepts/architecture.md
-      - 资源与生命周期: concepts/resources.md
-  - 模型:
-      - 模型与版本: models/index.md
-      - 兼容性与制品: models/compatibility.md
-  - 部署:
-      - 部署概览: deployment/index.md
-      - 全量发布: deployment/full.md
-      - 金丝雀发布: deployment/canary.md
-      - 影子发布: deployment/shadow.md
-      - Docker: deployment/docker.md
-      - Runtime 与 Worker: deployment/processes.md
-      - 本地演示环境: deployment/local-demo.md
-      - 生产部署: deployment/production.md
-  - 流量管理:
-      - 路由与流量分配: routing/index.md
-      - 路由规则与生效时间: routing/rules.md
-  - A/B 测试:
-      - 实验流程: experiments/index.md
-      - 分配与稳定分桶: experiments/assignment.md
-      - 业务结果回流: experiments/outcomes.md
-      - 实验分析与生命周期: experiments/analysis.md
+      - 第一个模型服务: getting-started/quickstart.md
+      - 进阶教程:
+          - 金丝雀发布: deployment/canary.md
+          - A/B 测试: experiments/index.md
+          - 训练示例: examples/index.md
   - 使用指南:
-      - 评分卡与分类模型: guides/models.md
+      - 注册与管理模型: models/index.md
+      - 选择评分或分类任务: guides/models.md
+      - 全量发布: deployment/full.md
+      - 配置影子预测: deployment/shadow.md
+      - 设置路由规则: routing/rules.md
       - 在线预测: guides/online-prediction.md
       - 批量预测: guides/batch-prediction.md
+      - 回流业务结果: experiments/outcomes.md
       - Console: guides/console.md
-      - 用户、角色与认证: guides/access-control.md
-  - CLI Reference:
-      - 命令索引: cli/index.md
-      - 初始化、认证与数据库: cli/system.md
-      - 模型: cli/model.md
-      - 部署: cli/deployment.md
-      - 路由: cli/routing.md
-      - 实验: cli/experiment.md
-      - 分组: cli/variant.md
-      - Outcome: cli/outcome.md
-      - 用户与角色: cli/identity.md
-      - 服务与运行状态: cli/processes.md
-  - 示例:
-      - 示例索引: examples/index.md
+      - 用户与认证: guides/access-control.md
+  - 核心概念:
+      - 架构: concepts/architecture.md
+      - 模型、版本与制品: concepts/resources.md
+      - 部署与运行实例: deployment/index.md
+      - 路由与流量选择: routing/index.md
+      - 实验与稳定分配: experiments/assignment.md
+      - 实验分析与生命周期: experiments/analysis.md
+  - 运维部署:
+      - Docker: deployment/docker.md
+      - Runtime 与任务 Worker: deployment/processes.md
+      - 本地体验环境: deployment/local-demo.md
+      - 生产部署与运维: deployment/production.md
   - Reference:
+      - CLI:
+          - 命令索引: cli/index.md
+          - 初始化、认证与数据库: cli/system.md
+          - 模型: cli/model.md
+          - 部署: cli/deployment.md
+          - 路由: cli/routing.md
+          - 实验: cli/experiment.md
+          - 实验分组: cli/variant.md
+          - 业务结果: cli/outcome.md
+          - 用户与角色: cli/identity.md
+          - 服务与运行状态: cli/processes.md
       - 配置: reference/configuration.md
       - Runtime API: reference/runtime-api.md
-      - Runtime 请求字段: reference/runtime-schemas.md
+      - 请求字段: reference/runtime-schemas.md
       - 状态与权限: reference/states-permissions.md
-  - 开发:
-      - 开发环境与项目结构: development/index.md
+      - 模型兼容性: models/compatibility.md
+  - 开发指南:
+      - 开发环境: development/index.md
       - 数据库与扩展: development/extensions.md
       - 前端: development/frontend.md
       - 测试: development/testing.md
-      - 构建与 Release: development/release.md
+      - 构建与发布: development/release.md
       - 文档维护: development/documentation.md
 
 validation:
@@ -89,6 +86,10 @@ validation:
 markdown_extensions:
   - admonition
   - tables
-  - fenced_code
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true

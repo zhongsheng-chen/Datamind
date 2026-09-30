@@ -18,7 +18,7 @@
 datamind route update <routing_id> --rules-file routing-rules.json
 ```
 
-示例字段来自违约概率模型的贷款特征，不适用于申请评分卡的另一套输入。规则使用字段点路径读取请求载荷。模型特征可写 `features.<字段>`，也可按 matcher 支持的载荷解析方式读取。规则条件不会生成或变更模型输入。
+示例字段来自违约概率模型的贷款特征，不适用于评分卡示例卡的另一套输入。规则使用字段点路径读取请求载荷。模型特征可写 `features.<字段>`，也可按 matcher 支持的载荷解析方式读取。规则条件不会生成或变更模型输入。
 
 ## 条件组合和运算符
 
@@ -42,7 +42,7 @@ missing 对不存在或 null 都成立，is_null 仅对实际 null 成立。exis
 
 ## 生效时间
 
-Deployment 和 Routing 都可设置 effective_from / effective_to。解析时以 UTC 比较：起点包含，终点不包含，即 `[from, to)`。省略一侧表示该侧不限制。终点必须晚于起点。CLI 时间输入和显示受日志时区配置影响，跨时区操作优先提交明确带时区的 ISO 时间。
+部署（`Deployment`）和路由（`Routing`）都可设置 `effective_from` / `effective_to`。解析时以 UTC 比较：起点包含，终点不包含，即 `[from, to)`。省略一侧表示该侧不限制。终点必须晚于起点。CLI 时间输入和显示受日志时区配置影响，跨时区操作优先提交明确带时区的 ISO 时间。
 
 ```bash
 datamind route update <routing_id> \
@@ -50,4 +50,4 @@ datamind route update <routing_id> \
   --effective-to '2026-11-01T00:00:00+08:00'
 ```
 
-路由需要同时满足启用状态、时间、规则和部署可用性。规则不匹配并不保证请求被拒绝：之后仍可能走默认部署回退，见[Routing](index.md)。
+路由需要同时满足启用状态、时间、规则和部署可用性。规则不匹配并不保证请求被拒绝：之后仍可能走默认部署回退，见[路由](index.md)。

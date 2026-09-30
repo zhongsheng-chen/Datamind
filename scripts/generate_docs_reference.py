@@ -7,6 +7,7 @@ import ast
 import importlib
 import inspect
 import json
+import re
 import textwrap
 from enum import Enum
 from pathlib import Path
@@ -25,11 +26,11 @@ GROUPS = {
         "init/login/logout/whoami/db",
     ),
     "model": ("模型管理", "../models/index.md", "model"),
-    "deployment": ("部署管理", "../deployment/index.md", "deployment"),
-    "routing": ("路由管理", "../routing/index.md", "route"),
+    "deployment": ("部署管理", "../deployment/full.md", "deployment"),
+    "routing": ("路由管理", "../routing/rules.md", "route"),
     "experiment": ("实验管理", "../experiments/index.md", "experiment"),
     "variant": ("实验分组", "../experiments/assignment.md", "experiment variant"),
-    "outcome": ("Outcome 回流", "../experiments/outcomes.md", "outcome"),
+    "outcome": ("业务结果回流", "../experiments/outcomes.md", "outcome"),
     "identity": ("用户与角色", "../guides/access-control.md", "user/role"),
     "processes": (
         "服务与运行状态",
@@ -220,10 +221,10 @@ def cli_pages() -> dict[Path, str]:
         "以下展示模型注册响应的关键字段（省略存储等字段）；资源 ID 是后续命令的输入，业务版本与制品修订分别保留：",
         "",
         "```json",
-        '{"name":"application-scorecard","model_id":"<model_id>","version":"1.0.0","version_id":"<version_id>","artifact_id":"<artifact_id>","artifact_revision":1,"action":"created"}',
+        '{"name":"scorecard-demo","model_id":"<model_id>","version":"1.0.0","version_id":"<version_id>","artifact_id":"<artifact_id>","artifact_revision":1,"action":"created"}',
         "```",
         "",
-        "注册 action 为 created、revised 或 unchanged。模型 list 的 JSON 为数组，show 为对象；Deployment 创建/查询保留 deployment_id、版本、环境、rollout_type、role 与 status；Routing 保留 routing_id、deployment_id、比例及启用状态；实验与分组保留各自 ID、状态和配置；Outcome 输出包含原始决策归属。字段随资源命令而异，不能把某个示例当作所有命令的统一响应。",
+        "注册 `action` 为 `created`、`revised` 或 `unchanged`。模型 `list` 的 JSON 为数组，`show` 为对象；部署创建/查询保留 `deployment_id`、版本、环境、`rollout_type`、`role` 与 `status`；路由保留 `routing_id`、`deployment_id`、比例及启用状态；实验与分组保留各自 ID、状态和配置；业务结果输出包含原始决策归属。字段随资源命令而异，不能把某个示例当作所有命令的统一响应。",
         "",
         "init、login、logout、whoami 和进程启动命令没有 --format 参数。用户创建与密码重置会交互读取密码，--format json 不会取消交互。自动化应先查看该命令是否具备无交互参数。",
         "",
@@ -327,11 +328,57 @@ CONFIG_TITLES = {
 }
 
 
+def documented_attributes(docstring: str | None) -> dict[str, str]:
+    """Read attribute and multiline environment-variable doc entries."""
+    lines = (docstring or "").splitlines()
+    descriptions = {}
+    for index, line in enumerate(lines):
+        match = re.match(r"\s*-\s*([a-zA-Z_][a-zA-Z_0-9]*):\s*(.*)$", line)
+        if not match:
+            continue
+        key, description = match.groups()
+        if not description and index + 1 < len(lines):
+            continuation = lines[index + 1]
+            if continuation.startswith(" ") and not continuation.lstrip().startswith(
+                "-"
+            ):
+                description = continuation.strip()
+        if description:
+            descriptions[key] = re.sub(r"[，,]\s*默认.*$", "", description)
+    return descriptions
+
+
+def config_description(cls: type[BaseSettings], field: str, info: Any) -> str:
+    """Require a description from source; never silently document an empty cell."""
+    module = inspect.getmodule(cls)
+    class_docs = documented_attributes(cls.__doc__)
+    module_docs = documented_attributes(module.__doc__ if module else None)
+    env_name = cls.model_config["env_prefix"] + field.upper()
+    description = (
+        info.description
+        or class_docs.get(field)
+        or module_docs.get(field)
+        or module_docs.get(env_name)
+    )
+    if not description:
+        raise ValueError(f"Missing configuration description: {cls.__name__}.{field}")
+    # Units supplement existing source documentation without changing config fields.
+    units = {
+        ("LoggingConfig", "max_bytes"): "单位：字节。",
+        ("LocalAuthConfig", "lock_minutes"): "单位：分钟。",
+        ("LocalAuthConfig", "break_glass_access_token_expires_minutes"): "单位：分钟。",
+        ("AuthConfig", "access_token_expires_minutes"): "单位：分钟。",
+        ("AuthConfig", "refresh_token_expires_days"): "单位：天。",
+    }
+    note = units.get((cls.__name__, field), "")
+    return description.rstrip("。") + "。" + note
+
+
 def config_pages() -> dict[Path, str]:
     lines = [
         "# 配置参考",
         "",
-        "按功能查阅环境变量、默认值与校验规则。首次配置见[配置与初始化](../getting-started/configuration.md)。",
+        "按功能查阅环境变量、用途、默认值与校验规则。首次配置见[配置与初始化](../getting-started/configuration.md)。",
         "",
         "配置优先级从高到低为：显式构造参数、环境变量、工作目录 `.env`、默认值。CLI、Runtime、Console 与任务 Worker 使用相同的部署配置，修改后重启相关进程。嵌套配置使用独立前缀，例如 `DATAMIND_STORAGE_MINIO_`。",
         "",
@@ -357,8 +404,8 @@ def config_pages() -> dict[Path, str]:
                 "",
                 f"前缀：`{cls.model_config['env_prefix']}`。[源码]({SOURCE_URL}datamind/config/{path.name})",
                 "",
-                "| 环境变量 | 类型 | 默认值 |",
-                "| --- | --- | --- |",
+                "| 环境变量 | 类型 | 默认值 | 说明 |",
+                "| --- | --- | --- | --- |",
             ]
             for field, info in cls.model_fields.items():
                 if inspect.isclass(info.annotation) and issubclass(
@@ -373,7 +420,7 @@ def config_pages() -> dict[Path, str]:
                     else value_text(info.get_default(call_default_factory=False))
                 )
                 lines.append(
-                    f"| `{cls.model_config['env_prefix']}{field.upper()}` | `{cell(annotation)}` | `{cell(default)}` |"
+                    f"| `{cls.model_config['env_prefix']}{field.upper()}` | `{cell(annotation)}` | `{cell(default)}` | {cell(config_description(cls, field, info))} |"
                 )
                 count += 1
             class_tree = ast.parse(textwrap.dedent(inspect.getsource(cls)))

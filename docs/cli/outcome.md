@@ -1,4 +1,4 @@
-# Outcome 回流 CLI
+# 业务结果回流 CLI
 
 操作流程见[使用指南](../experiments/outcomes.md)，状态限制见[状态与权限](../reference/states-permissions.md)。
 

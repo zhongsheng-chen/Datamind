@@ -1,219 +1,131 @@
-# Console 操作手册
+# Console
 
-从申请评分模型开始，依次完成注册、发布、预测和版本比较。最后下线一个分类模型，查看回收站与历史记录。下表列出手册使用的演示模型。
+Console 提供模型服务的管理与观测界面。左侧导航进入资源和运行记录，右上角账号菜单进入用户与角色管理。操作按钮按权限和资源状态显示。
 
-| 模型标识 | 显示名称 | 任务 | 框架 |
-| --- | --- | --- | --- |
-| `application-scorecard` | 申请评分模型 | scoring | sklearn / optbinning |
-| `behavior-scorecard` | 行为评分模型 | scoring | sklearn / optbinning |
-| `collection-scorecard` | 催收评分模型 | scoring | sklearn / optbinning |
-| `fraud-risk` | 欺诈风险模型 | classification | CatBoost |
-| `multi-borrowing-risk` | 多头借贷风险模型 | classification | XGBoost |
-| `default-probability` | 违约概率模型 | classification | sklearn / RandomForest |
+截图用于定位界面功能，示例资产名称与数据不作为操作前提。CLI 操作与接口接入分别见 [Reference](../cli/index.md)和[在线预测](online-prediction.md)。
 
-业务名称用于演示资源管理，模型仍使用 `examples/` 中的合成数据与标签。训练入口、制品名称和输入区别见[评分卡与分类模型](models.md)。
+## 概览与登录
 
-## 1. 准备环境与制品
+先按[进程指南](../deployment/processes.md)启动 Console，默认访问地址为 `http://127.0.0.1:8701`。使用初始化时创建的账户登录，认证配置见[用户与认证](access-control.md)。
 
-按[本地演示环境](../deployment/local-demo.md)启动 PostgreSQL、Redis、MinIO、Runtime、Console 和任务 Worker，再运行[银行场景训练命令](../examples/index.md)。本次 Console 使用 `http://127.0.0.1:18701`。默认安装使用 8701 端口。
+![登录](../assets/login.png)
 
-申请评分制品为 `application_scorecard.pkl`，候选版为 `application_scorecard_candidate.pkl`。行为和催收评分分别使用 `behavior_scorecard.pkl` 与 `collection_scorecard.pkl`。
+概览显示调用量、成功率、响应耗时与趋势。模型调用表和排行支持查看历史表现，删除模型后，已有调用仍保留在统计中。截图展开了可滚动列表，以便查看完整布局。
 
-## 2. 登录
+![概览](../assets/overview.png)
 
-打开控制台，填写初始化时创建的账号，点击“登录”。
+## 模型管理
 
-![控制台登录](../assets/login.png)
+### 列表与注册
 
-左侧导航用于资源、运行状态、任务和调用查询。右上角账号菜单用于用户与角色管理。
+进入“模型”查看状态、框架与任务类型，点击右上角“+”打开注册向导。
 
-## 3. 注册模型
+![模型列表](../assets/models-before-delete.png)
 
-进入“模型”，点击列表右上角的“+”，打开注册向导。
+填写模型名称、版本、框架、类型和任务。评分卡选择 sklearn、逻辑回归与评分任务，分类模型按实际训练框架和算法填写。
 
-| 字段 | 申请评分模型 | 欺诈风险模型 |
-| --- | --- | --- |
-| 模型名称 | `application-scorecard` | `fraud-risk` |
-| 显示名称 | 申请评分模型 | 欺诈风险模型 |
-| 版本 | `1.0.0` | `1.0.0` |
-| 框架 | `sklearn` | `catboost` |
-| 类型 | 逻辑回归 | CatBoost |
-| 任务类型 | 评分 | 分类 |
+![基本信息](../assets/register-basic.png)
 
-![申请评分模型基本信息](../assets/register-basic.png)
+上传制品，填写模型和版本说明后确认。任务类型与输入要求见[任务选择](models.md)。
 
-点击“下一步”上传对应制品，填写模型和版本说明，最后点击“确认注册”。评分卡类型选逻辑回归，对应 `optbinning.Scorecard` 中使用的估计器。
+![上传制品](../assets/register-file.png)
 
-![上传申请评分制品](../assets/register-file.png)
+![注册选项](../assets/register-options.png)
 
-![注册说明与选项](../assets/register-options.png)
+### 版本与评分卡
 
-按模型清单分别注册其他制品。为申请评分新增 1.1.0 时，通过“版本”的“添加版本”入口上传候选文件。同一业务版本的制品修订与新增版本的区别见[模型与版本](../models/index.md)。
+通过模型行的“更多操作”激活模型，在“版本”中检查目标版本状态。新增业务版本使用“添加版本”，同版本文件替换受[制品修订规则](../models/index.md)约束。
 
-## 4. 激活与检查版本
+![激活模型](../assets/activate-model.png)
 
-在模型行点击“更多操作”，选择“激活”。进入“版本”核对目标版本已启用。未启用时通过版本行操作激活。
+分类详情显示框架、任务和关联资源。评分卡版本详情还显示刻度、变量和分箱，点击“查看评分表”查看 WoE、系数与特征分，可导出 CSV 或 JSON。
 
-![首次激活申请评分模型](../assets/activate-model.png)
+![分类模型详情](../assets/classification-model.png)
 
-删除演示开始前，模型列表包含六个业务模型：
+![版本详情](../assets/version-detail.png)
 
-![六个模型的注册结果](../assets/models-before-delete.png)
+![评分表](../assets/scorecard.png)
 
-点击欺诈风险模型可查看 CatBoost 框架、分类任务和关联资源：
+### 下线与回收站
 
-![欺诈风险分类模型详情](../assets/classification-model.png)
+下线前先结束关联实验并处理流量，停用部署，等待节点卸载后删除部署，再处理模型或版本。具体生命周期见[模型管理](../models/index.md)。
 
-申请评分版本详情显示评分刻度、变量与分箱。点击“查看评分表”，检查 WoE、系数与特征分，并使用 CSV 或 JSON 导出。
+在模型行选择“删除”，填写原因并确认。逻辑删除的模型进入回收站，普通列表不再显示。
 
-![申请评分版本详情](../assets/version-detail.png)
+![删除确认](../assets/delete-model.png)
 
-![申请评分表](../assets/scorecard.png)
+![普通模型列表](../assets/models.png)
 
-## 5. 创建并启用部署
+回收站显示已删除资源与原因。恢复需要满足资源状态与制品条件，永久清理会删除物理制品。
 
-申请评分模型需要三个部署：
+![回收站](../assets/models-trash.png)
 
-| 用途 | 版本 | 发布类型 | 角色 |
-| --- | --- | --- | --- |
-| 主部署 | 1.0.0 | canary | Champion |
-| 候选部署 | 1.1.0 | canary | Challenger |
-| 影子部署 | 1.1.0 | shadow | Shadow |
+## 部署管理
 
-进入“部署”，点击“+”，选择已启用版本。主、副路由要按比例分配，因此本演示的主部署选择“金丝雀发布”并明确选择 Champion。单一版本全量服务的简化步骤见[快速上手](../getting-started/quickstart.md)。
+在“部署”点击“+”，选择已激活版本、发布方式和环境。金丝雀发布还需选择 `champion` 或 `challenger` 角色，其他方式自动确定角色。
 
-![创建申请评分主部署](../assets/create-deployment.png)
+![创建部署](../assets/create-deployment.png)
 
-创建后，通过行操作选择“启用”。其余五个业务模型各创建一个 full 主部署，角色自动为 Champion。评分默认阈值为 600，分类默认概率阈值为 0.5。
+通过行操作启用或停用部署。启用后检查运行实例的节点、状态和健康情况，一个部署可能对应多个节点。
 
 ![部署列表](../assets/deployments.png)
 
-模型激活、Deployment 启用和 Runtime 加载是不同状态，还需核对运行实例。
+![运行实例](../assets/runtimes.png)
 
-## 6. 创建主、副与影子路由
+部署配置与节点实际加载分别检查，职责见[部署与运行实例](../deployment/index.md)。
 
-进入“路由”，点击“+”，为申请评分配置：
+## 流量管理
 
-| 路由名称 | 绑定部署 | 比例 |
-| --- | --- | --- |
-| `application-scorecard-main` | 1.0.0 Champion | 80% |
-| `application-scorecard-secondary` | 1.1.0 Challenger | 20% |
-| `application-scorecard-shadow` | 1.1.0 Shadow | 100% |
+进入“路由”，创建指向目标部署的路由，设置比例、规则和时间，再启用。界面使用百分数，CLI/API 使用 0～1，例如 80% 对应 `traffic_ratio=0.8`。
 
-![创建 80% 主路由](../assets/create-routing.png)
+![创建路由](../assets/create-routing.png)
 
-创建后通过行操作“启用”。其余模型的 full 主路由使用 100%。Console 显示百分数，CLI/API 使用 0～1，80% 对应 `traffic_ratio=0.8`。
+普通路由共享主流量预算，影子路由独立采样。主、副路由用于分配到不同版本，这些名称表示分流用途。选择顺序与预算见[路由概念](../routing/index.md)，条件设置见[路由规则](../routing/rules.md)。
 
-![主、副与影子路由](../assets/routings.png)
+![路由列表](../assets/routings.png)
 
-这里“主路由”和“副路由”表示 Champion 与 Challenger 的两条普通流量路由，不是故障转移的主备关系。两者共享 100% 主流量预算，影子路由独立采样，不占用该预算。一个部署只维护一条未删除路由。完整命令见[流量管理](../routing/index.md)。
+## 实验管理
 
-## 7. 检查运行状态
+在“实验”创建实验（`Experiment`），设置策略、曝光比例和主体字段。实验分组（`Variant`）分别绑定有效部署，指定对照组并设置权重。
 
-核对模型、版本、部署角色、节点、状态和健康情况。一个 Deployment 可以对应多个运行节点，列表行数不是部署数。
+![实验详情](../assets/experiment-detail.png)
 
-![运行实例状态](../assets/runtimes.png)
+![实验分组](../assets/variants.png)
 
-首次请求见[快速上手](../getting-started/quickstart.md)，评分与分类的请求区别见[模型指南](models.md)。
+启动前检查分组和部署。运行后查看主体分配与业务结果，结果成熟并回流后执行分析。曝光比例和权重的区别见[实验与稳定分配](../experiments/assignment.md)，完整操作见[A/B 教程](../experiments/index.md)。
 
-## 8. 查看预测结果
+## 运行观测
 
-进入“API 调用”，查看模型、任务、版本、耗时与状态。使用请求 ID 查询并点击对应行，可查看输入、响应及关联决策。
+### API 调用与执行记录
 
-![真实调用记录](../assets/requests.png)
+“API 调用”显示模型、版本、耗时与状态。按请求 ID 筛选并打开明细，可查看输入、响应、关联决策及部署。
 
-评分结果包含违约概率、总分及逐特征分。请求明细保留完整响应，并提供决策和部署的查看入口。
+![调用列表](../assets/requests.png)
 
-![申请评分请求与响应](../assets/request-detail.png)
+![请求明细](../assets/request-detail.png)
 
-## 9. 查看批量与影子执行
+“执行记录”区分主执行 `primary` 与影子执行 `shadow`。影子结果不替代客户端收到的主结果，使用请求 ID 关联查看。
 
-按照[批量预测](batch-prediction.md)提交异步任务。本次六个模型各完成基础批量任务，并分别提交 50、100、200 条实例。申请评分另有十二条实验批量实例。合计 25 个批次、2,124 条批量实例，均查询至成功完成。
+![执行记录](../assets/executions.png)
 
-点击批次查看总数、完成数、失败数、命中部署和结果：
+### 批量任务
 
-![申请评分批量任务](../assets/batch-detail.png)
+按[批量指南](batch-prediction.md)提交任务后，在“批量任务”查看状态和进度。打开批次明细，检查完成、成功、失败计数及逐实例结果，部分成功需要继续排查失败实例。
 
-影子部署使用相同输入旁路执行，客户端仍获得主预测结果。进入“执行记录”，区分 primary 与 shadow 并核对状态。
+![批次明细](../assets/batch-detail.png)
 
-![包含影子预测的执行记录](../assets/executions.png)
+### 审计
 
-配置与 Worker 步骤见[影子发布](../deployment/shadow.md)。
+“审计记录”用于查询操作者、目标资源、动作及结果。调查管理操作时按时间和资源定位，结合请求与执行记录查看。
 
-## 10. 查看实验与分组
+![审计记录](../assets/audits.png)
 
-实验 `application-scorecard-comparison` 使用 1.0.0 主部署作为 Control，1.1.0 候选部署作为 Treatment，两个分组均启用。
+## 系统管理
 
-![申请评分实验](../assets/experiment-detail.png)
-
-曝光比例为 50%，Control 与 Treatment 在实验内部各占 50%。未进入实验的请求继续按 80%/20% 普通路由分配。影子执行同时旁路运行。
-
-![实验分组与绑定版本](../assets/variants.png)
-
-本次先用 24 次请求验证普通路由，19 次命中主部署、5 次命中候选部署。再为不同借款人提交 64 次在线请求，回流 64 条模拟 T+30 Outcome，并执行实验分析。随后继续追加大量在线与批量调用，实验保持运行。配置、请求与回流步骤见[A/B 测试](../experiments/index.md)。
-
-## 11. 删除多头借贷风险模型
-
-完成该模型的在线与批量预测后，先禁用并删除它的主路由，停用对应部署，待运行节点卸载后删除部署，再停用模型。CLI 操作顺序如下，ID 来自此前创建结果：
-
-```bash
-datamind route disable <multi_borrowing_routing_id>
-datamind route delete <multi_borrowing_routing_id> --yes --reason "演示模型退役"
-datamind deployment disable <multi_borrowing_deployment_id>
-# 先在运行状态确认节点已卸载，再执行删除。
-datamind deployment delete <multi_borrowing_deployment_id> --yes --reason "演示模型退役"
-datamind model deactivate multi-borrowing-risk
-```
-
-回到“模型”，在多头借贷风险模型的行操作中选择“删除”，填写原因并确认：
-
-![删除多头借贷风险模型](../assets/delete-model.png)
-
-删除后普通模型列表保留五个模型：
-
-![删除后的模型列表](../assets/models.png)
-
-点击“回收站”，可查看已删除模型与删除原因。本次执行逻辑删除，未执行永久清理。
-
-![模型回收站](../assets/models-trash.png)
-
-## 12. 查看最终概览与审计
-
-完成路由、实验、批量、影子和删除操作后，返回“概览”，选择“1 小时”。
-
-![删除模型后的最终概览](../assets/overview.png)
-
-本次从空数据库生成 32,230 次成功预测：30,106 次在线调用、2,124 条批量实例。各模型统计如下：
-
-| 模型 | 调用数 | 最终状态 |
-| --- | --- | --- |
-| 申请评分模型 | 18,455 | 已启用 |
-| 行为评分模型 | 4,855 | 已启用 |
-| 催收评分模型 | 3,355 | 已启用 |
-| 欺诈风险模型 | 2,455 | 已启用 |
-| 违约概率模型 | 1,855 | 已启用 |
-| 多头借贷风险模型 | 1,255 | 已删除 |
-
-评分任务合计 26,665 次，分类任务合计 5,565 次。已删除模型的历史调用仍计入累计统计。
-
-申请评分的 18,455 次主预测均生成成功的异步影子执行。影子执行不是另一次客户端调用，因此 32,230 次 API 调用对应 50,685 条执行记录。实验的有限样本命中数见[A/B 验证结果](../experiments/index.md)。
-
-界面中的模型调用表和累计排行可滚动查看。为完整展示，本页概览截图展开了这两个列表，显示全部六个模型。当前可用模型数量与历史调用统计分别表示不同范围：模型删除后，其已有请求、结果和审计记录仍可查询。以概览与回收站共同核对当前资源和历史行为。
-
-![包含模型删除的审计记录](../assets/audits.png)
-
-## 13. 用户与角色
-
-点击右上角账号菜单，进入“用户管理”或“角色管理”。操作按钮受当前权限和资源状态约束。
+点击右上角账号菜单进入“用户管理”或“角色管理”。管理用户启停、密码与角色授权，角色决定可执行的资源操作。
 
 ![用户管理](../assets/users.png)
 
-![角色与权限](../assets/roles.png)
+![角色管理](../assets/roles.png)
 
-具体授权操作见[访问控制](access-control.md)。
-
-## 验证范围
-
-截图拍摄于 2026-09-30，来自真实运行的 Datamind v0.1.0。环境为 Python 3.12.13、Node.js 24、PostgreSQL 17.10、Redis 8.8.2、MinIO `RELEASE.2025-09-07T16-13-09Z`。
-
-权限与状态转换见[状态与权限](../reference/states-permissions.md)，运行故障的排查见[生产部署](../deployment/production.md)。
+操作步骤见[用户与认证](access-control.md)，权限全集见[状态与权限](../reference/states-permissions.md)。
