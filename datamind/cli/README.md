@@ -38,27 +38,27 @@ cp .env.example .env
 CLI 采用单环境模式。资源创建、更新、查询和服务启动统一使用
 `DATAMIND_SERVICE_ENVIRONMENT`，不提供 `--environment` 参数。
 
-初始化或升级数据库：
+执行数据库迁移：
 
 ```bash
-alembic upgrade head
+datamind db upgrade
 ```
 
-首次部署前在 `.env.example` 中配置管理员凭据：
+首次部署前在 `.env` 或环境变量中配置管理员凭据：
 
 ```dotenv
 DATAMIND_INIT_ADMIN_USERNAME=admin
 DATAMIND_INIT_ADMIN_PASSWORD=<strong-password>
 ```
 
-随后执行一次性系统初始化：
+创建首个管理员并完成系统初始化：
 
 ```bash
 datamind init
 ```
 
 初始化命令不会在终端读取用户名或密码。用户名和密码未配置时均使用 `admin`。
-生产环境应在初始化前通过环境变量或 `.env.example` 覆盖密码；初始化完成后，应从
+生产环境应在初始化前通过环境变量或 `.env` 覆盖密码；初始化完成后，应从
 运行环境中移除 `DATAMIND_INIT_ADMIN_PASSWORD`。
 
 初始化完成后登录：
@@ -101,7 +101,8 @@ datamind console --help
 
 | 命令组 | 说明                                                 |
 |--------|------------------------------------------------------|
-| `init` | 一次性创建首个管理员、系统管理员角色和初始化状态     |
+| `init` | 创建首个管理员、系统管理员角色和初始化状态 |
+| `db` | 独立执行数据库升级 |
 | `login` / `logout` / `whoami` | 登录、退出和身份查询                                 |
 | `user` | 本地用户创建、查询、启停、密码重置和逻辑删除         |
 | `role` | 角色创建、查询、授予、撤销和逻辑删除                 |
@@ -146,9 +147,8 @@ Datamind 仅支持数据库中的本地用户。密码通过隐藏提示输入�
 datamind login --username alice
 ```
 
-首次管理员由顶层 `datamind init` 命令根据初始化配置创建。该命令仅在系统
-未初始化且用户表为空时可执行，不接收用户名或密码参数，也不支持强制覆盖或
-重复初始化。
+首次管理员由 `datamind init` 根据初始化配置创建。系统已初始化时跳过初始化。
+命令不接收用户名或密码参数，也不支持覆盖已有账号。
 预发布和生产环境启用认证时必须配置 LOCAL 认证允许网段。
 
 普通本地账户登录后签发访问令牌和刷新令牌。应急账户使用同一登录命令，

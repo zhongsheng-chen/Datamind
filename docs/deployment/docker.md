@@ -36,15 +36,29 @@ docker.io/zhongshengchen/datamind:<version>-catboost
 - [Docker Compose](https://github.com/zhongsheng-chen/Datamind/blob/main/docker/docker-compose.yml)
 - [Docker 环境变量模板](https://github.com/zhongsheng-chen/Datamind/blob/main/docker/.env.example)
 
-基本流程：
+准备配置：
 
 ```bash
 cd docker
 cp .env.example .env.docker
 export DATAMIND_IMAGE_TAG=<version>
+```
 
+执行数据库迁移：
+
+```bash
 docker compose --profile tools run --rm migrate
+```
+
+创建首个管理员并完成系统初始化：
+
+```bash
 docker compose --profile tools run --rm init
+```
+
+启动服务：
+
+```bash
 docker compose up -d
 ```
 

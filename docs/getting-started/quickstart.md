@@ -13,10 +13,10 @@
 执行数据库迁移：
 
 ```bash
-alembic upgrade head
+datamind db upgrade
 ```
 
-初始化 Datamind：
+创建首个管理员并完成系统初始化：
 
 ```bash
 datamind init
