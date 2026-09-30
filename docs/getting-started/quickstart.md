@@ -109,7 +109,7 @@ curl -sS http://127.0.0.1:8700/predict \
 
 `features` 必须与训练脚本的输入特征一致。本例使用年龄、年收入、负债收入比、信用额度使用率、历史逾期次数、信用历史年数、就业类型和居住状态八个特征，数据为合成信贷数据。
 
-在本次实际运行中，响应为：
+响应示例：
 
 ```json
 {
@@ -125,8 +125,6 @@ curl -sS http://127.0.0.1:8700/predict \
 
 以上为响应摘要，完整结果还包含逐特征的分箱、WoE 与分值。`decision` 表示模型按评分阈值给出的判断，不代表银行实际审批。重新训练、依赖版本变化或使用不同输入时，概率和评分可能变化。以 `success=true` 和返回的 `request_id` 确认调用完成，再到 Console 的“API 调用”与“执行记录”核对结果。
 
-## 验证范围与下一步
+## 下一步
 
-2026-09-30 已在 Python 3.12、PostgreSQL 17、MinIO 和 Redis 的独立演示环境验证：初始化、CLI 登录、注册、激活、Deployment、Routing、HTTP 认证与在线预测。应用使用本地 18700/18701 演示端口。本页按默认 8700/8701 给出操作。
-
-需要异步调用时阅读[批量预测](../guides/batch-prediction.md)。需要渐进发布时阅读[部署](../deployment/index.md)。需要后验效果评估时阅读[A/B 测试](../experiments/index.md)。
+在 [Console](../guides/console.md) 中查看模型与调用记录，使用[批量预测](../guides/batch-prediction.md)处理多条输入，或通过[A/B 测试](../experiments/index.md)比较新旧版本。需要逐步接入候选版本时，继续阅读[金丝雀发布](../deployment/canary.md)。

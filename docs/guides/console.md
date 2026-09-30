@@ -216,4 +216,4 @@ datamind model deactivate multi-borrowing-risk
 
 截图拍摄于 2026-09-30，来自真实运行的 Datamind v0.1.0。环境为 Python 3.12.13、Node.js 24、PostgreSQL 17.10、Redis 8.8.2、MinIO `RELEASE.2025-09-07T16-13-09Z`。
 
-本手册覆盖上述已运行流程。完整权限矩阵、所有生命周期操作和故障处理仍按[文档实施计划](../development/documentation.md)继续完善。
+权限与状态转换见[状态与权限](../reference/states-permissions.md)，运行故障的排查见[生产部署](../deployment/production.md)。
