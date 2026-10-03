@@ -1,4 +1,4 @@
-# 用户、角色与认证
+# 访问控制
 
 用户通过认证登录后，按角色权限查询资源或执行管理操作。CLI、HTTP 与 Console 分别登录，各自管理凭据。
 
@@ -42,9 +42,9 @@ datamind user reset-password analyst
 
 ## HTTP 与 Console
 
-HTTP 使用 POST `/auth/login`，直接发送 `{"username":"…","password":"…"}`，后续请求使用 Bearer `access_token`。`/auth/refresh` 使用 `refresh_token` 并轮换凭据。`/auth/logout` 撤销刷新凭据。访问令牌与刷新令牌用途不同，客户端需保存刷新响应中的新令牌。接口见[Runtime API](../reference/runtime-api.md)。
+HTTP 使用 POST `/auth/login`，直接发送 `{"username":"…","password":"…"}`，后续请求使用 Bearer `access_token`。`/auth/refresh` 使用 `refresh_token` 并轮换凭据。`/auth/logout` 撤销刷新凭据。访问令牌与刷新令牌用途不同，客户端需保存刷新响应中的新令牌。接口见[预测 API](../reference/runtime-api.md)。
 
-Console 登录页面建立自身会话，可在用户与角色页面管理账户和授权，截图与步骤见[Console 手册](console.md)。页面按钮按权限显示，服务端仍对每次操作授权。
+Console 登录页面建立自身会话，可在用户与角色页面管理账户和授权，截图与步骤见[管理控制台](console.md)。页面按钮按权限显示，服务端仍对每次操作授权。
 
 ## 失败处理
 

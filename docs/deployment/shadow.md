@@ -1,4 +1,4 @@
-# 影子发布
+# 影子预测
 
 影子发布使用 `rollout_type=shadow`，角色自动为 `shadow`。它使用主请求的输入旁路执行候选模型，客户端仍获得主部署的预测结果。
 
@@ -28,10 +28,10 @@ datamind route create <shadow_deployment_id> \
 
 发起[在线](../guides/online-prediction.md)或[批量](../guides/batch-prediction.md)预测。在 Console“执行记录”区分 `primary` 与 `shadow`，核对部署、版本和成功状态。主预测与影子预测各有独立执行记录。
 
-按请求查看主结果与影子结果的示例见[Console 手册](../guides/console.md)。
+按请求查看主结果与影子结果的示例见[管理控制台](../guides/console.md)。
 
 ## 比较与故障处理
 
 按 `request_id` 对齐 `primary` 与 `shadow` 执行，比较概率、评分、决策及耗时，确认两个版本使用相同输入 Schema。影子失败或超时保留独立执行状态，不覆盖主预测结果。排查执行记录、任务 Worker、制品加载与 Broker 日志。Celery 对可重试失败按队列的 `max_retries` 与 `retry_backoff_seconds` 配置重试。不存在用于任意影子执行的公开重试接口。
 
-影子部署不能绑定实验分组，也不能作为显式主预测目标。预测服务（`Runtime`）的 `shadow_enabled` 和 `shadow_timeout` 见[配置 Reference](../reference/configuration.md)。需要停止影子时禁用影子路由（`Routing`）。下线部署前确认队列中已有任务和运行状态。历史执行仍可查询。
+影子部署不能绑定实验分组，也不能作为显式主预测目标。预测服务（`Runtime`）的 `shadow_enabled` 和 `shadow_timeout` 见[配置参考](../reference/configuration.md)。需要停止影子时禁用影子路由（`Routing`）。下线部署前确认队列中已有任务和运行状态。历史执行仍可查询。

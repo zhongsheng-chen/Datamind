@@ -29,7 +29,7 @@
 | 决策结果 | `approve`、`reject` |
 | 执行类型 | `primary`、`shadow` |
 
-`champion` 和 `challenger` 是部署角色。它们不自动创建路由或设置比例。主、副、影子路由的配置见[流量管理](../routing/index.md)。
+`champion` 和 `challenger` 是部署角色。它们不自动创建路由或设置比例。主、副、影子路由的配置见[流量分配](../routing/index.md)。
 
 ## 权限全集
 
@@ -49,4 +49,4 @@
 
 上表共 21 个具体权限，来源为 `datamind/constants/permissions.py`。内置 `administrator` 使用 `*`。权限判断支持精确匹配、全局 `*` 与命名空间通配（如 `model.*`）。授予角色时仍须遵守身份服务对可配置权限的校验，通常使用表中的具体权限。
 
-不同命令的权限不能从动词猜测，例如部署的 `restore` 使用 `deployment.delete`。逐命令要求见[CLI Reference](../cli/index.md)，接口要求见[Runtime API](runtime-api.md)。Console 按权限显示按钮，前端动作名不是可直接授予的后端权限。服务端仍会校验权限。
+不同命令的权限不能从动词猜测，例如部署的 `restore` 使用 `deployment.delete`。逐命令要求见[命令索引](../cli/index.md)，接口要求见[预测 API](runtime-api.md)。Console 按权限显示按钮，前端动作名不是可直接授予的后端权限。服务端仍会校验权限。

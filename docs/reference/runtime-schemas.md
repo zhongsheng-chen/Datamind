@@ -1,6 +1,6 @@
-# Runtime 请求字段
+# 请求字段
 
-HTTP 封装、响应与错误见 [Runtime API](runtime-api.md)。请求仅接受下表声明的字段，字符串会去除首尾空白。
+HTTP 封装、响应与错误见 [预测 API](runtime-api.md)。请求仅接受下表声明的字段，字符串会去除首尾空白。
 
 ## ControlRequest
 

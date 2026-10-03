@@ -1,4 +1,4 @@
-# 选择评分或分类任务
+# 分类与评分
 
 注册模型时，通过 `task_type` 指定任务语义。评分任务使用评分卡，分类任务使用二分类模型，两者的输入取决于训练特征，输出结构也不同。
 
@@ -9,7 +9,7 @@
 
 ## 使用评分卡
 
-评分卡示例使用合成信贷特征，标签表示违约结果。跟随[第一个模型服务](../getting-started/quickstart.md)注册 `scorecard-demo`，使用如下特征调用 `/predict`：
+评分卡示例使用合成信贷特征，标签表示违约结果。跟随[快速上手](../getting-started/quickstart.md)注册 `scorecard-demo`，使用如下特征调用 `/predict`：
 
 ```json
 {
@@ -68,4 +68,4 @@ datamind model register classification-demo \
 }
 ```
 
-分类响应包含 `probability`、`prediction`、`label` 和 `threshold`，默认概率阈值为 0.5。它不包含评分卡的分箱与特征分。训练入口见[训练示例](../examples/index.md)，支持的对象与格式见[模型兼容性](../models/compatibility.md)。
+分类响应包含 `probability`、`prediction`、`label` 和 `threshold`，默认概率阈值为 0.5。它不包含评分卡的分箱与特征分。训练入口见[模型训练](../examples/index.md)，支持的对象与格式见[模型兼容性](../models/compatibility.md)。

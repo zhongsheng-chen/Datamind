@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_URL = "https://github.com/zhongsheng-chen/Datamind/blob/main/"
 GROUPS = {
     "system": (
-        "初始化、认证与数据库",
+        "初始化与认证",
         "../getting-started/configuration.md",
         "init/login/logout/whoami/db",
     ),
@@ -33,7 +33,7 @@ GROUPS = {
     "outcome": ("业务结果回流", "../experiments/outcomes.md", "outcome"),
     "identity": ("用户与角色", "../guides/access-control.md", "user/role"),
     "processes": (
-        "服务与运行状态",
+        "服务管理",
         "../deployment/processes.md",
         "service/console/runtime",
     ),
@@ -81,7 +81,7 @@ def cli_pages() -> dict[Path, str]:
     entries = list(walk(typer.main.get_command(app)))
     pages = {}
     index = [
-        "# CLI Reference",
+        "# 命令索引",
         "",
         "按命令组查阅参数、默认值与权限。完整操作流程见各组对应指南，生命周期见[状态与权限](../reference/states-permissions.md)。",
         "",
@@ -102,9 +102,9 @@ def cli_pages() -> dict[Path, str]:
         commands = [(p, c) for p, c in entries if cli_group(p) == group]
         index.append(f"| [{title}]({group}.md) | {len(commands)} |")
         lines = [
-            f"# {title} CLI",
+            f"# {title}",
             "",
-            f"操作流程见[使用指南]({guide})，状态限制见[状态与权限](../reference/states-permissions.md)。",
+            f"相关说明见[对应文档]({guide})，状态限制见[状态与权限](../reference/states-permissions.md)。",
             "",
             "`<参数名>` 为位置参数，`null` 表示未指定。所有命令支持 `--help`，标记“可重复”的选项可多次传入。",
             "",
@@ -258,9 +258,9 @@ def api_pages() -> dict[Path, str]:
     from datamind.runtime.server import schemas
 
     lines = [
-        "# Runtime 请求字段",
+        "# 请求字段",
         "",
-        "HTTP 封装、响应与错误见 [Runtime API](runtime-api.md)。请求仅接受下表声明的字段，字符串会去除首尾空白。",
+        "HTTP 封装、响应与错误见 [预测 API](runtime-api.md)。请求仅接受下表声明的字段，字符串会去除首尾空白。",
         "",
     ]
     for name, cls in vars(schemas).items():

@@ -1,4 +1,4 @@
-# 构建与 Release
+# 构建与发布
 
 Python 包与 Docker 镜像共同交付后端、框架依赖和 Console 静态资源。版本来自 `pyproject.toml`，发布流程由 `.github/workflows/release.yml` 和 `scripts/release.py` 定义。
 

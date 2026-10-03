@@ -1,10 +1,10 @@
 # A/B 测试
 
-实验（`Experiment`）将一部分请求分配到不同版本，通过实验分组（`Variant`）比较回流的业务结果。本教程使用 `scorecard-demo` 的 1.0.0 与 1.1.0，完成分流、结果回流和分析。先完成[首次模型部署](../getting-started/quickstart.md)，确认主部署已启用，并记下模型与部署 ID。
+实验（`Experiment`）将一部分请求分配到不同版本，通过实验分组（`Variant`）比较回流的业务结果。本教程使用 `scorecard-demo` 的 1.0.0 与 1.1.0，完成分流、结果回流和分析。先完成[快速上手](../getting-started/quickstart.md)，确认主部署已启用，并记下模型与部署 ID。
 
 ## 分配方式
 
-实验的 `traffic_ratio` 控制总体请求的曝光比例，分组 `weight` 控制实验内部的分配。例如曝光 20%，对照组权重 0.75、实验组权重 0.25，约 80% 请求走普通路由、15% 进入对照组、5% 进入实验组。有限样本不保证精确比例，重复主体复用有效分配。详细语义见[实验与稳定分配](assignment.md)。
+实验的 `traffic_ratio` 控制总体请求的曝光比例，分组 `weight` 控制实验内部的分配。例如曝光 20%，对照组权重 0.75、实验组权重 0.25，约 80% 请求走普通路由、15% 进入对照组、5% 进入实验组。有限样本不保证精确比例，重复主体复用有效分配。详细语义见[实验分流](assignment.md)。
 
 ## 1. 准备候选版本
 
@@ -98,7 +98,7 @@ datamind outcome submit borrower-001 \
 datamind experiment analyze <experiment_id> --format json
 ```
 
-未进入实验的请求仍可记录业务结果，但不能将其当作实验分组的样本。回流标识、观察窗口和更新边界见[业务结果](outcomes.md)，指标解释见[分析](analysis.md)。
+未进入实验的请求仍可记录业务结果，但不能将其当作实验分组的样本。回流标识、观察窗口和更新边界见[业务结果](outcomes.md)，指标解释见[实验分析](analysis.md)。
 
 ## 6. 完成或停止
 
@@ -114,7 +114,7 @@ datamind experiment complete <experiment_id>
 datamind experiment stop <experiment_id>
 ```
 
-暂停、恢复及结束后的操作见[实验分析与生命周期](analysis.md)。
+暂停、恢复及结束后的操作见[实验分析](analysis.md)。
 
 ## 启动约束
 

@@ -1,4 +1,4 @@
-# 开发环境与项目结构
+# 开发环境
 
 本地开发推荐 Python 3.12 和 Node.js 24。先克隆仓库，在项目根目录创建并激活虚拟环境，再安装依赖：
 
@@ -35,6 +35,6 @@ npm run build:console
 
 ## 本地联调
 
-准备专用 PostgreSQL，按[配置与初始化](../getting-started/configuration.md)设置工作目录 .env。需要批量和影子时同时准备 Redis，需要共享制品时选择 MinIO。在独立终端分别启动预测服务（`Runtime`）、Console 和任务 Worker，入口见[进程指南](../deployment/processes.md)。使用 examples 训练本地模型并跑快速上手，确认管理操作和预测链路。
+准备专用 PostgreSQL，按[配置与初始化](../getting-started/configuration.md)设置工作目录 .env。需要批量和影子时同时准备 Redis，需要共享制品时选择 MinIO。在独立终端分别启动预测服务（`Runtime`）、Console 和任务 Worker，入口见[服务管理](../deployment/processes.md)。使用 examples 训练本地模型并跑快速上手，确认管理操作和预测链路。
 
 Windows 虚拟环境激活使用 `.venv\Scripts\Activate.ps1`。所有进程保持相同工作目录，避免相对制品路径和 .env 指向不同位置。开发凭据、模型文件、日志和本地数据库数据不提交到仓库。测试环境与联调环境分开，避免运行清理 fixture 影响演示。

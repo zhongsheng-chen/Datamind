@@ -67,7 +67,7 @@ datamind service run
 datamind console run
 ```
 
-预测服务默认端口为 8700，Console 默认端口为 8701。打开 `http://127.0.0.1:8701` 登录管理控制台，核对部署、路由和运行状态。逐屏操作见[Console 手册](../guides/console.md)。
+预测服务默认端口为 8700，Console 默认端口为 8701。打开 `http://127.0.0.1:8701` 登录管理控制台，核对部署、路由和运行状态。逐屏操作见[管理控制台](../guides/console.md)。
 
 本例在线预测无需 Redis Worker。使用批量或影子执行时需另外启动[任务 Worker](../deployment/processes.md)。
 
@@ -116,4 +116,4 @@ curl -sS http://127.0.0.1:8700/predict \
 
 ## 下一步
 
-在 [Console](../guides/console.md) 中查看模型与调用记录，使用[批量预测](../guides/batch-prediction.md)处理多条输入，或通过[A/B 测试](../experiments/index.md)比较新旧版本。需要逐步接入候选版本时，继续阅读[金丝雀发布](../deployment/canary.md)。
+在 [管理控制台](../guides/console.md) 中查看模型与调用记录，使用[批量预测](../guides/batch-prediction.md)处理多条输入，或通过[A/B 测试](../experiments/index.md)比较新旧版本。需要逐步接入候选版本时，继续阅读[金丝雀发布](../deployment/canary.md)。

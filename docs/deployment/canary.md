@@ -4,7 +4,7 @@
 
 ## 准备主版本和候选版本
 
-先完成[快速上手](../getting-started/quickstart.md)，注册并激活 `scorecard-demo` 1.0.0。按[训练示例](../examples/index.md)生成候选制品 `scorecard_demo_v2.pkl`，然后注册并激活候选版本：
+先完成[快速上手](../getting-started/quickstart.md)，注册并激活 `scorecard-demo` 1.0.0。按[模型训练](../examples/index.md)生成候选制品 `scorecard_demo_v2.pkl`，然后注册并激活候选版本：
 
 ```bash
 datamind model register scorecard-demo \
@@ -44,7 +44,7 @@ datamind route update <main_routing_id> --traffic-ratio 0.5
 datamind route update <secondary_routing_id> --traffic-ratio 0.5
 ```
 
-两次操作之间剩余流量可能走默认部署回退，详见[路由优先级](../routing/index.md)。不能先增加候选比例到 0.5，否则启用主路由比例合计 1.3，更新会被拒绝。继续放量也遵循先减少一侧、再增加另一侧的顺序。
+两次操作之间剩余流量可能走默认部署回退，详见[流量分配](../routing/index.md)。不能先增加候选比例到 0.5，否则启用主路由比例合计 1.3，更新会被拒绝。继续放量也遵循先减少一侧、再增加另一侧的顺序。
 
 回滚到主版本：
 
@@ -57,4 +57,4 @@ datamind route update <main_routing_id> --traffic-ratio 1
 
 ## 与实验和影子的关系
 
-运行中的实验优先于普通路由。评估纯 `canary` 比例前暂停或结束同模型、同环境的实验，显式指定 `deployment_id` 的请求也不会按普通路由分流。A/B 还记录实验分配（`Assignment`）和后验业务结果（`Outcome`），见[实验流程](../experiments/index.md)。影子路由独立执行，不占主路由预算，见[影子发布](shadow.md)。
+运行中的实验优先于普通路由。评估纯 `canary` 比例前暂停或结束同模型、同环境的实验，显式指定 `deployment_id` 的请求也不会按普通路由分流。A/B 还记录实验分配（`Assignment`）和后验业务结果（`Outcome`），见[实验流程](../experiments/index.md)。影子路由独立执行，不占主路由预算，见[影子预测](shadow.md)。

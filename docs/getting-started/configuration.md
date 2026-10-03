@@ -14,7 +14,7 @@ DATAMIND_AUTH_ENABLED=true
 DATAMIND_AUTH_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
-替换数据库连接地址与签名密钥，提前创建数据库。默认使用本地制品存储。跨进程共享方式见[生产部署](../deployment/production.md)。环境变量和配置分组见[配置 Reference](../reference/configuration.md)。
+替换数据库连接地址与签名密钥，提前创建数据库。默认使用本地制品存储。跨进程共享方式见[生产部署](../deployment/production.md)。环境变量和配置分组见[配置参考](../reference/configuration.md)。
 
 ## 数据库迁移与系统初始化
 

@@ -1,4 +1,4 @@
-# Runtime API
+# 预测 API
 
 预测服务（`Runtime`）默认监听 `http://127.0.0.1:8700`。认证启用时，受保护接口必须发送 `Authorization: Bearer <access_token>`。请求字段与约束见[请求字段表](runtime-schemas.md)，预测操作见[在线](../guides/online-prediction.md)与[批量指南](../guides/batch-prediction.md)。
 
@@ -42,7 +42,7 @@ curl -X POST http://127.0.0.1:8700/admin/status \
 
 ## 响应与追踪
 
-预测响应包含 `success`、`request_id` 及任务结果。分类结果包含预测类别与概率，评分结果包含概率、评分、决策、阈值及特征评分信息，具体示例见[模型指南](../guides/models.md)。影子结果异步写入执行记录，不替代返回给调用方的主结果。
+预测响应包含 `success`、`request_id` 及任务结果。分类结果包含预测类别与概率，评分结果包含概率、评分、决策、阈值及特征评分信息，具体示例见[分类与评分](../guides/models.md)。影子结果异步写入执行记录，不替代返回给调用方的主结果。
 
 批次查询包含 `batch_id`、`status`、`total_count`、`completed_count`、`succeeded_count`、`failed_count`、`attempt_count`、`created_at`、`started_at`、`finished_at`。产生后再包含 `result` 或 `error`。部分成功需要检查逐实例结果，不能仅凭 HTTP 200 判断全部成功。终态和取消重试边界见[批量指南](../guides/batch-prediction.md)。
 

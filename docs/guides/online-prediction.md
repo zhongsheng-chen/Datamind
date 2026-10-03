@@ -14,8 +14,8 @@
 
 ## 排查路径
 
-先核对认证与权限，再检查模型版本、部署（`Deployment`）、路由（`Routing`）和运行实例状态。错误对象包含 `success=false`、`error` 和 `error_type`，HTTP 状态映射见[Runtime API](../reference/runtime-api.md)。客户端同时检查 HTTP 状态和业务 `success`，保留 `request_id` 用于定位。
+先核对认证与权限，再检查模型版本、部署（`Deployment`）、路由（`Routing`）和运行实例状态。错误对象包含 `success=false`、`error` 和 `error_type`，HTTP 状态映射见[预测 API](../reference/runtime-api.md)。客户端同时检查 HTTP 状态和业务 `success`，保留 `request_id` 用于定位。
 
 输入校验失败先修正 `features` 与注册 Schema。无可用部署先核对环境、状态与生效时间。部署加载失败检查框架依赖和存储。504 表示超时，需要检查模型计算和服务的 `timeout` 配置。在线接口没有请求幂等键，盲目重试可能新增预测与决策记录。重试应由上游按业务语义和请求追踪设计。
 
-同一个 `subject_key` 保持实验分组稳定，但不使预测调用幂等。显式 `deployment_id` 可用于候选版本验证，仍要求模型与部署匹配，并绕过实验和普通路由选择。分类和评分完整特征示例见[模型指南](models.md)。
+同一个 `subject_key` 保持实验分组稳定，但不使预测调用幂等。显式 `deployment_id` 可用于候选版本验证，仍要求模型与部署匹配，并绕过实验和普通路由选择。分类和评分完整特征示例见[分类与评分](models.md)。

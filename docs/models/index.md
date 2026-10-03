@@ -1,4 +1,4 @@
-# 模型与版本
+# 模型管理
 
 训练完成后，将模型文件注册到平台。模型（`Model`）保存名称与任务类型，版本（`Version`）标识一次业务交付，制品（`Artifact`）记录对应文件及修订。
 
@@ -50,4 +50,4 @@
 3. 停用部署，等待节点卸载，再删除部署。
 4. 停用并删除版本或模型。
 
-历史请求、执行和审计记录保留用于追踪。界面操作见[Console 手册](../guides/console.md)，全部参数见[模型 CLI](../cli/model.md)，合法转换见[状态与权限](../reference/states-permissions.md)。
+历史请求、执行和审计记录保留用于追踪。界面操作见[管理控制台](../guides/console.md)，全部参数见[模型 CLI](../cli/model.md)，合法转换见[状态与权限](../reference/states-permissions.md)。

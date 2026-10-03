@@ -1,4 +1,4 @@
-# 路由规则与生效时间
+# 路由规则
 
 `route create` 与 `route update` 的 `--rules-file` 读取 JSON 对象，由 RuleMatcher 校验。空规则匹配所有请求。规范写法如下：
 

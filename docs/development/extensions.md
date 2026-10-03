@@ -1,10 +1,10 @@
-# 数据库与扩展
+# 扩展开发
 
 扩展时同时维护入口、服务约束、持久化、权限与测试。CLI 和 Console 负责接收请求，共享业务校验放在 Service 或公共模块。
 
 ## 配置体系
 
-字段与校验定义在 `datamind/config/`。新增配置要选择稳定前缀，设置类型、默认值和 validator，同步 `.env.example` 与容器模板，覆盖合法和非法输入测试。运行 `python -m scripts.generate_docs_reference` 更新[配置 Reference](../reference/configuration.md)。嵌套配置有独立环境变量前缀，进程中的 provider 缓存需要在测试隔离时清理。
+字段与校验定义在 `datamind/config/`。新增配置要选择稳定前缀，设置类型、默认值和 validator，同步 `.env.example` 与容器模板，覆盖合法和非法输入测试。运行 `python -m scripts.generate_docs_reference` 更新[配置参考](../reference/configuration.md)。嵌套配置有独立环境变量前缀，进程中的 provider 缓存需要在测试隔离时清理。
 
 ## Migration
 

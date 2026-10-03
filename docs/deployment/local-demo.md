@@ -1,4 +1,4 @@
-# 本地演示环境
+# 本地部署
 
 使用 Docker 启动独立的 PostgreSQL、Redis 和 MinIO，再从源码运行 Datamind。服务仅绑定本机地址，并使用独立端口，便于体验完整的 Console 操作流程。
 
@@ -75,7 +75,7 @@ datamind console run
 python -m datamind.runtime.task_queue.entrypoints.worker
 ```
 
-打开 `http://127.0.0.1:18701`，继续[Console 操作手册](../guides/console.md)。HTTP 示例使用本页环境时，请将默认 8700 端口替换为 18700。
+打开 `http://127.0.0.1:18701`，继续[管理控制台](../guides/console.md)。HTTP 示例使用本页环境时，请将默认 8700 端口替换为 18700。
 
 ## 停止
 

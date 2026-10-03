@@ -1,4 +1,4 @@
-# 兼容性与制品
+# 模型兼容性
 
 注册前确认模型框架、算法标识与制品格式匹配，并安装对应框架依赖。
 
@@ -17,7 +17,7 @@
 
 分类支持上述框架，当前推理语义为二分类。sklearn 与 CatBoost 的类别按模型 `classes_` 顺序解释，第二个类别为正类。XGBoost/LightGBM 原生 Booster 示例使用 0/1，正类为 1。业务含义应与训练标签对应，不能仅凭模型名称推断正类是好客户或坏客户。评分任务使用 sklearn 框架下的 `optbinning.Scorecard`，以 `LogisticRegression` 为估计器，注册时使用 `--model-type logistic_regression --task-type scoring`。
 
-评分卡输出包括违约概率、总评分与特征分，操作入口见[分类模型与评分卡指南](../guides/models.md)。
+评分卡输出包括违约概率、总评分与特征分，操作入口见[分类与评分](../guides/models.md)。
 
 ## 输入信息与依赖
 
@@ -35,7 +35,7 @@ booster.save_model("classification_demo.txt")
 model.save_model("classification_demo.cbm")
 ```
 
-各片段使用已经训练好的对应对象，完整脚本见[示例索引](../examples/index.md)。`.pkl` 等文件实际由 joblib 加载，不要仅改扩展名伪装格式。加载会校验真实模型类型。没有可用特征名时 Schema 可能无法提取，不能据此推断请求任意字段或列顺序均可用，应重新训练/保存并检查注册后的 Schema。
+各片段使用已经训练好的对应对象，完整脚本见[模型训练](../examples/index.md)。`.pkl` 等文件实际由 joblib 加载，不要仅改扩展名伪装格式。加载会校验真实模型类型。没有可用特征名时 Schema 可能无法提取，不能据此推断请求任意字段或列顺序均可用，应重新训练/保存并检查注册后的 Schema。
 
 ## 依赖与兼容验证
 

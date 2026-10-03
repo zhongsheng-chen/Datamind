@@ -1,12 +1,12 @@
-# Console
+# 管理控制台
 
 Console 提供模型服务的管理与观测界面。左侧导航进入资源和运行记录，右上角账号菜单进入用户与角色管理。操作按钮按权限和资源状态显示。
 
-截图用于定位界面功能，示例资产名称与数据不作为操作前提。CLI 操作与接口接入分别见 [Reference](../cli/index.md)和[在线预测](online-prediction.md)。
+截图用于定位界面功能，示例资产名称与数据不作为操作前提。CLI 操作与接口接入分别见 [参考手册](../cli/index.md)和[在线预测](online-prediction.md)。
 
 ## 概览与登录
 
-先按[进程指南](../deployment/processes.md)启动 Console，默认访问地址为 `http://127.0.0.1:8701`。使用初始化时创建的账户登录，认证配置见[用户与认证](access-control.md)。
+先按[服务管理](../deployment/processes.md)启动 Console，默认访问地址为 `http://127.0.0.1:8701`。使用初始化时创建的账户登录，认证配置见[访问控制](access-control.md)。
 
 ![登录](../assets/login.png)
 
@@ -26,7 +26,7 @@ Console 提供模型服务的管理与观测界面。左侧导航进入资源和
 
 ![基本信息](../assets/register-basic.png)
 
-上传制品，填写模型和版本说明后确认。任务类型与输入要求见[任务选择](models.md)。
+上传制品，填写模型和版本说明后确认。任务类型与输入要求见[分类与评分](models.md)。
 
 ![上传制品](../assets/register-file.png)
 
@@ -72,7 +72,7 @@ Console 提供模型服务的管理与观测界面。左侧导航进入资源和
 
 ![运行实例](../assets/runtimes.png)
 
-部署配置与节点实际加载分别检查，职责见[部署与运行实例](../deployment/index.md)。
+部署配置与节点实际加载分别检查，职责见[部署与运行](../deployment/index.md)。
 
 ## 流量管理
 
@@ -80,7 +80,7 @@ Console 提供模型服务的管理与观测界面。左侧导航进入资源和
 
 ![创建路由](../assets/create-routing.png)
 
-普通路由共享主流量预算，影子路由独立采样。主、副路由用于分配到不同版本，这些名称表示分流用途。选择顺序与预算见[路由概念](../routing/index.md)，条件设置见[路由规则](../routing/rules.md)。
+普通路由共享主流量预算，影子路由独立采样。主、副路由用于分配到不同版本，这些名称表示分流用途。选择顺序与预算见[流量分配](../routing/index.md)，条件设置见[路由规则](../routing/rules.md)。
 
 ![路由列表](../assets/routings.png)
 
@@ -92,7 +92,7 @@ Console 提供模型服务的管理与观测界面。左侧导航进入资源和
 
 ![实验分组](../assets/variants.png)
 
-启动前检查分组和部署。运行后查看主体分配与业务结果，结果成熟并回流后执行分析。曝光比例和权重的区别见[实验与稳定分配](../experiments/assignment.md)，完整操作见[A/B 教程](../experiments/index.md)。
+启动前检查分组和部署。运行后查看主体分配与业务结果，结果成熟并回流后执行分析。曝光比例和权重的区别见[实验分流](../experiments/assignment.md)，完整操作见[A/B 教程](../experiments/index.md)。
 
 ## 运行观测
 
@@ -128,4 +128,4 @@ Console 提供模型服务的管理与观测界面。左侧导航进入资源和
 
 ![角色管理](../assets/roles.png)
 
-操作步骤见[用户与认证](access-control.md)，权限全集见[状态与权限](../reference/states-permissions.md)。
+操作步骤见[访问控制](access-control.md)，权限全集见[状态与权限](../reference/states-permissions.md)。

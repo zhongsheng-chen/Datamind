@@ -1,4 +1,4 @@
-# 训练示例
+# 模型训练
 
 源码仓库的 `examples/` 提供可复现的训练脚本。请克隆仓库后从项目根目录运行，PyPI 安装包不包含这些文件。脚本生成本地制品，注册和发布由调用方执行。
 
@@ -14,11 +14,11 @@ python examples/scorecard/train.py --random-seed 7 --n-jobs 1 \
   --output examples/scorecard/artifacts/scorecard_demo_v2.pkl
 ```
 
-合成信贷数据包含数值、类别、缺失值和特殊值。脚本训练 `optbinning.Scorecard`，以逻辑回归估计违约概率并转换为评分。使用[第一个模型服务](../getting-started/quickstart.md)发布首个版本，候选版本用于[A/B 教程](../experiments/index.md)。
+合成信贷数据包含数值、类别、缺失值和特殊值。脚本训练 `optbinning.Scorecard`，以逻辑回归估计违约概率并转换为评分。使用[快速上手](../getting-started/quickstart.md)发布首个版本，候选版本用于[A/B 教程](../experiments/index.md)。
 
 ## 分类示例
 
-核心指南使用 `classification-demo` 和 CatBoost 原生制品，其注册与输入见[任务选择](../guides/models.md)。其他框架可按下表选择，安装对应 extra 后运行脚本：
+核心指南使用 `classification-demo` 和 CatBoost 原生制品，其注册与输入见[分类与评分](../guides/models.md)。其他框架可按下表选择，安装对应 extra 后运行脚本：
 
 | 框架 | 脚本目录（examples/classification/ 下） | 模型类型 |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # 生产部署
 
-预测服务（`Runtime`）、Console、CLI 与任务 Worker 必须统一服务环境、数据库、存储、Broker 和认证设置。基础配置见[配置 Reference](../reference/configuration.md)，容器入口见[Docker](docker.md)。
+预测服务（`Runtime`）、Console、CLI 与任务 Worker 必须统一服务环境、数据库、存储、Broker 和认证设置。基础配置见[配置参考](../reference/configuration.md)，容器入口见[Docker](docker.md)。
 
 ## 拓扑与共享状态
 

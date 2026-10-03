@@ -1,4 +1,4 @@
-# CLI Reference
+# 命令索引
 
 按命令组查阅参数、默认值与权限。完整操作流程见各组对应指南，生命周期见[状态与权限](../reference/states-permissions.md)。
 
@@ -14,7 +14,7 @@ datamind <命令组> <命令> --help
 
 | 命令组 | 命令数量 |
 | --- | --- |
-| [初始化、认证与数据库](system.md) | 5 |
+| [初始化与认证](system.md) | 5 |
 | [模型管理](model.md) | 9 |
 | [部署管理](deployment.md) | 7 |
 | [路由管理](routing.md) | 8 |
@@ -22,7 +22,7 @@ datamind <命令组> <命令> --help
 | [实验分组](variant.md) | 9 |
 | [业务结果回流](outcome.md) | 1 |
 | [用户与角色](identity.md) | 15 |
-| [服务与运行状态](processes.md) | 4 |
+| [服务管理](processes.md) | 4 |
 
 ## JSON 输出约定
 
