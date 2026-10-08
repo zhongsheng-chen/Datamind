@@ -17,8 +17,8 @@
     验证拒绝覆盖不符合修订条件的已有版本
   - test_register_force_creates_new_artifact_revision:
     验证 force 为未发布版本创建新制品修订
-  - test_force_validation_rejects_deployment_history:
-    验证存在部署历史时拒绝 force
+  - test_force_validation_rejects_current_deployment:
+    验证当前存在未删除部署时拒绝 force
   - test_register_rejects_missing_model_file:
     验证注册前拒绝不存在的模型文件
   - test_register_rejects_unsupported_extension_before_loading:
@@ -487,7 +487,7 @@ def test_save_artifact_registers_rollback_cleanup(
             False,
             "inactive",
             None,
-            "请创建新的制品修订",
+            "请指定 --force",
         ),
         (
             True,
@@ -763,8 +763,8 @@ async def test_register_force_creates_new_artifact_revision(
 
 
 @pytest.mark.asyncio
-async def test_force_validation_rejects_deployment_history() -> None:
-    """测试存在部署历史时拒绝强制注册."""
+async def test_force_validation_rejects_current_deployment() -> None:
+    """测试当前存在未删除部署时拒绝强制注册."""
     deployment_repo = MagicMock()
     deployment_repo.list_deployments = AsyncMock(
         return_value=[SimpleNamespace(deployment_id="dep_test")]
@@ -774,7 +774,7 @@ async def test_force_validation_rejects_deployment_history() -> None:
         status="inactive",
     )
 
-    with pytest.raises(InvalidModelStateError, match="部署历史"):
+    with pytest.raises(InvalidModelStateError, match="未删除的部署记录"):
         await ModelRegistrationService._validate_force_registration(
             version_record=version,
             deployment_repo=deployment_repo,

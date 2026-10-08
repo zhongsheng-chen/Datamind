@@ -1,6 +1,6 @@
 site_name: Datamind
 site_description: 开放式模型服务管理平台
-site_url: !ENV READTHEDOCS_CANONICAL_URL
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, 'https://datamind.readthedocs.io/en/latest/']
 
 repo_name: zhongsheng-chen/Datamind
 repo_url: https://github.com/zhongsheng-chen/Datamind
@@ -10,23 +10,94 @@ theme:
   name: material
   language: zh
   features:
+    - navigation.tabs
     - navigation.sections
     - navigation.top
     - content.code.copy
 
 nav:
-  - 首页: index.md
-  - 快速开始:
+  - 概览: index.md
+  - 快速入门:
       - 安装: getting-started/installation.md
+      - 配置与初始化: getting-started/configuration.md
       - 快速上手: getting-started/quickstart.md
+  - 教程:
+      - 模型训练示例: examples/index.md
+      - 金丝雀发布: deployment/canary.md
+      - A/B 测试: experiments/index.md
+  - 操作指南:
+      - 模型管理: models/index.md
+      - 评分与分类: guides/scoring-and-classification.md
+      - 模型发布:
+          - 全量发布: deployment/full.md
+          - 影子发布: deployment/shadow.md
+          - 路由规则: routing/rules.md
+      - 模型调用:
+          - 在线预测: guides/online-prediction.md
+          - 批量预测: guides/batch-prediction.md
+      - 管理控制台: guides/console.md
+      - 访问控制: guides/access-control.md
   - 核心概念:
-      - 架构: concepts/architecture.md
-  - 部署:
-      - Docker: deployment/docker.md
+      - 系统架构: concepts/architecture.md
+      - 模型与版本: concepts/resources.md
+      - 部署与运行: deployment/index.md
+      - 流量分配与决策优先级: routing/index.md
+      - 实验分流: experiments/assignment.md
+      - 实验分析: experiments/analysis.md
+  - 运维:
+      - Docker 部署: deployment/docker.md
+      - 本地部署: deployment/local-demo.md
+      - 服务管理: deployment/processes.md
+      - 生产部署: deployment/production.md
+  - 参考手册:
+      - 命令行:
+          - 命令索引: cli/index.md
+          - 初始化与认证: cli/system.md
+          - 模型管理: cli/model.md
+          - 部署管理: cli/deployment.md
+          - 路由管理: cli/routing.md
+          - 实验管理: cli/experiment.md
+          - 实验分组: cli/variant.md
+          - 用户与角色: cli/identity.md
+          - 服务管理: cli/processes.md
+      - 环境变量: reference/environment-variables.md
+      - 预测 API: reference/runtime-api.md
+      - 请求字段: reference/runtime-schemas.md
+      - 状态与权限: reference/states-permissions.md
+      - 模型兼容性: models/compatibility.md
+  - 开发:
+      - 开发环境: development/index.md
+      - 扩展开发: development/extensions.md
+      - 前端开发: development/frontend.md
+      - 测试: development/testing.md
+      - 构建与发布: development/release.md
+      - 文档维护: development/documentation.md
+
+plugins:
+  - search
+  - redirects:
+      redirect_maps:
+        guides/models.md: guides/scoring-and-classification.md
+        reference/configuration.md: reference/environment-variables.md
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    anchors: warn
 
 markdown_extensions:
   - admonition
   - tables
-  - fenced_code
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true
+      slugify: !!python/name:markdown.extensions.toc.slugify_unicode

@@ -526,7 +526,7 @@ const sections = {
 const versionColumns = [
   ["version", "版本"],
   ["framework", "框架"],
-  ["artifact_revision", "制品修订"],
+  ["artifact_revision", "文件修订"],
   ["status", "状态", "status"],
   ["updated_at", "更新时间", "time"],
 ];

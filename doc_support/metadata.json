@@ -1,0 +1,156 @@
+{
+  "cli_groups": {
+    "system": {
+      "title": "初始化与认证",
+      "guide": "../getting-started/configuration.md"
+    },
+    "model": {
+      "title": "模型管理",
+      "guide": "../models/index.md"
+    },
+    "deployment": {
+      "title": "部署管理",
+      "guide": "../deployment/full.md"
+    },
+    "routing": {
+      "title": "路由管理",
+      "guide": "../routing/rules.md"
+    },
+    "experiment": {
+      "title": "实验管理",
+      "guide": "../experiments/index.md"
+    },
+    "variant": {
+      "title": "实验分组",
+      "guide": "../experiments/assignment.md"
+    },
+    "identity": {
+      "title": "用户与角色",
+      "guide": "../guides/access-control.md"
+    },
+    "processes": {
+      "title": "服务管理",
+      "guide": "../deployment/processes.md"
+    }
+  },
+  "api_models": {
+    "ControlRequest": {
+      "endpoints": "`POST /admin/reload`",
+      "conditions": [
+        "部署必须存在，属于当前预测服务配置的运行环境，并且处于 `active` 状态。",
+        "重载请求会递增共享控制状态的 `generation`，由各运行实例协调并重新加载部署；受理后应通过 `/admin/status` 检查实际状态。"
+      ],
+      "example": {
+        "deployment_id": "<deployment_id>"
+      }
+    },
+    "DeploymentRequest": {
+      "endpoints": "`POST /admin/status`",
+      "conditions": [
+        "部署必须存在，并且属于当前预测服务配置的运行环境；启用和停用的部署均可查询。",
+        "响应同时包含共享控制状态、各运行实例状态和当前预测服务 Worker 的本地状态。"
+      ],
+      "example": {
+        "deployment_id": "<deployment_id>"
+      }
+    },
+    "PredictRequest": {
+      "endpoints": "`POST /predict`",
+      "conditions": [
+        "`model_name` 必须对应已注册模型；`features` 的字段名和值类型由目标模型定义，请求模型本身只校验映射非空。",
+        "实验场景应提供稳定的 `subject_key`，使同一主体复用已有分组或获得稳定分桶。",
+        "提供 `deployment_id` 时绕过实验和普通路由；该部署仍须属于请求模型和当前环境、处于可路由状态及生效时间内，且不能是影子部署。"
+      ],
+      "example": {
+        "model_name": "<model_name>",
+        "subject_key": "borrower-001",
+        "subject_type": "borrower",
+        "features": {
+          "<feature_name>": "<value>"
+        }
+      }
+    },
+    "PredictionInstance": {
+      "endpoints": "作为 `BatchPredictRequest.instances` 的元素，不直接提交到独立路径",
+      "conditions": [
+        "每个实例分别提供目标模型要求的 `features` 和可选主体信息；模型名称和显式部署由外层批量请求统一指定。",
+        "批量任务逐条路由；实验场景应为每个业务主体提供稳定且可区分的 `subject_key`。"
+      ],
+      "example": {
+        "subject_key": "borrower-001",
+        "subject_type": "borrower",
+        "features": {
+          "<feature_name>": "<value>"
+        }
+      }
+    },
+    "BatchPredictRequest": {
+      "endpoints": "`POST /predict/batch`",
+      "conditions": [
+        "批次内所有实例共用 `model_name` 和可选的 `deployment_id`，但各自保留特征和主体信息。",
+        "提交时先校验模型名称并持久化批次，再通过 Broker 投递任务；成功响应只表示已排队，实际预测由任务 Worker 异步执行。",
+        "单条实例失败不会撤销已经成功的实例，最终状态可能为 `partially_succeeded`。"
+      ],
+      "example": {
+        "model_name": "<model_name>",
+        "instances": [
+          {
+            "subject_key": "borrower-001",
+            "subject_type": "borrower",
+            "features": {
+              "<feature_name>": "<value>"
+            }
+          },
+          {
+            "subject_key": "borrower-002",
+            "subject_type": "borrower",
+            "features": {
+              "<feature_name>": "<value>"
+            }
+          }
+        ]
+      }
+    },
+    "BatchReferenceRequest": {
+      "endpoints": "`POST /predict/batch/status`、`POST /predict/batch/cancel`、`POST /predict/batch/retry`",
+      "conditions": [
+        "`batch_id` 必须使用批量提交响应返回的值；状态查询返回持久化的进度、计数以及可用的结果或错误。",
+        "取消适用于 `queued`、`retrying` 或 `running`，并可对 `cancelling`、`cancelled` 重复调用；重试只适用于 `partially_succeeded`、`failed` 或 `cancelled`。"
+      ],
+      "example": {
+        "batch_id": "<batch_id>"
+      }
+    }
+  },
+  "config_titles": {
+    "AuditConfig": "审计",
+    "AuthConfig": "认证",
+    "LocalAuthConfig": "本地认证",
+    "ClassificationConfig": "分类预测",
+    "ScoringConfig": "评分预测",
+    "ConsoleConfig": "管理控制台",
+    "DatabaseConfig": "数据库",
+    "InitializationConfig": "初始化",
+    "LoggingConfig": "日志",
+    "RuntimeConfig": "运行管理",
+    "ServiceConfig": "预测服务",
+    "StorageConfig": "模型文件存储",
+    "LocalStorageConfig": "本地存储",
+    "MinIOStorageConfig": "MinIO 存储",
+    "TaskQueueConfig": "任务队列",
+    "TaskWorkerConfig": "任务 Worker"
+  },
+  "config_units": {
+    "LoggingConfig": {
+      "max_bytes": "单位：字节。"
+    },
+    "LocalAuthConfig": {
+      "lock_minutes": "单位：分钟。",
+      "break_glass_access_token_expires_minutes": "单位：分钟。"
+    },
+    "AuthConfig": {
+      "access_token_expires_minutes": "单位：分钟。",
+      "refresh_token_expires_days": "单位：天。"
+    }
+  }
+}

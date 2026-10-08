@@ -18,6 +18,8 @@ docker.io/zhongshengchen/datamind:latest
 docker.io/zhongshengchen/datamind:<version>
 ```
 
+例如，`0.1.0` 版本的完整框架镜像为 `docker.io/zhongshengchen/datamind:0.1.0`。
+
 单框架镜像的正式版本同样不可变，并使用对应后缀：
 
 ```text
@@ -29,22 +31,38 @@ docker.io/zhongshengchen/datamind:<version>-catboost
 
 ## Docker Compose
 
-仓库中的 Docker Compose 配置用于启动 Datamind Runtime、管理控制台以及相关 Worker。
+仓库中的 Docker Compose 配置用于启动 Datamind 预测服务、管理控制台以及相关任务 Worker。
 
 配置文件：
 
 - [Docker Compose](https://github.com/zhongsheng-chen/Datamind/blob/main/docker/docker-compose.yml)
 - [Docker 环境变量模板](https://github.com/zhongsheng-chen/Datamind/blob/main/docker/.env.example)
 
-基本流程：
+准备配置：
+
+从项目根目录执行以下命令，将 `<version>` 替换为所需版本，并修改 `.env.docker` 中的连接参数与认证配置：
 
 ```bash
 cd docker
 cp .env.example .env.docker
 export DATAMIND_IMAGE_TAG=<version>
+```
 
+执行数据库迁移：
+
+```bash
 docker compose --profile tools run --rm migrate
+```
+
+创建首个管理员并完成系统初始化：
+
+```bash
 docker compose --profile tools run --rm init
+```
+
+启动服务：
+
+```bash
 docker compose up -d
 ```
 

@@ -1,10 +1,8 @@
 """运行时控制服务.
 
-负责模型运行控制和状态查询。
+负责部署重载和运行状态查询。
 
 核心功能：
-  - load: 请求加载部署模型
-  - unload: 请求卸载部署模型
   - reload: 请求重新加载部署模型
   - get_status: 查询部署运行状态
   - list_services: 查询运行服务列表
@@ -14,7 +12,7 @@
 
   service = RuntimeControlService()
 
-  result = await service.load(
+  result = await service.reload(
       deployment_id="dep_0123456789abcdef",
       operator="admin",
   )
@@ -28,7 +26,6 @@ from typing import Any
 
 import structlog
 
-from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.models.controls import Control
 from datamind.db.models.deployments import Deployment
@@ -46,7 +43,6 @@ from datamind.models.errors import (
     DeploymentNotFoundError,
     InvalidDeploymentStateError,
 )
-from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
 
@@ -54,217 +50,8 @@ logger = structlog.get_logger(__name__)
 class RuntimeControlService:
     """运行时控制服务.
 
-    负责管理模型部署的期望运行状态，
-    并查询各 Worker 的实际运行状态。
+    负责提交部署重载请求，并查询各 Worker 的实际运行状态。
     """
-
-    async def load(
-            self,
-            *,
-            deployment_id: str,
-            operator: str = "system",
-    ) -> dict[str, Any]:
-        """请求加载部署模型.
-
-        设置部署的期望运行状态为 loaded。
-
-        如果运行控制记录不存在，则创建控制记录，
-        再将期望状态设置为 loaded；
-        如果已经是 loaded，则保持幂等；
-        如果当前为 unloaded，则切换为 loaded，
-        并递增 generation。
-
-        参数：
-            deployment_id: 部署 ID
-            operator: 操作人
-
-        返回：
-            控制请求结果
-
-        异常：
-            DeploymentNotFoundError:
-                部署不存在
-
-            InvalidDeploymentStateError:
-                部署不是启用状态
-
-            RuntimeError:
-                Control 与 Deployment 环境不一致
-        """
-        logger.info(
-            "开始提交模型加载控制请求",
-            deployment_id=deployment_id,
-            operator=operator,
-        )
-
-        async with UnitOfWork() as uow:
-            deployment_repo = DeploymentRepository(
-                uow.session
-            )
-
-            control_repo = ControlRepository(
-                uow.session
-            )
-
-            deployment = await self._validate_deployment(
-                deployment_repo=deployment_repo,
-                deployment_id=deployment_id,
-                required_status=DeploymentStatus.ACTIVE,
-            )
-
-            control = (
-                await control_repo.get_deployment_control(
-                    deployment_id
-                )
-            )
-
-            if control is None:
-                control = control_repo.create_control(
-                    control_id=generate_random_id(
-                        prefix="ctl"
-                    ),
-                    deployment_id=deployment_id,
-                    environment=Environment(
-                        deployment.environment
-                    ),
-                    created_by=operator,
-                )
-
-            else:
-                self._validate_control_environment(
-                    control=control,
-                    deployment=deployment,
-                )
-
-            control = control_repo.set_loaded(
-                control,
-                updated_by=operator,
-            )
-
-            await uow.session.flush()
-            await uow.session.refresh(control)
-
-            control_info = self._control_to_dict(
-                control
-            )
-
-        logger.info(
-            "模型加载控制请求提交完成",
-            deployment_id=deployment_id,
-            environment=control_info["environment"],
-            operator=operator,
-            generation=control_info["generation"],
-        )
-
-        return {
-            "action": "load",
-            "accepted": True,
-            "control": control_info,
-        }
-
-    async def unload(
-            self,
-            *,
-            deployment_id: str,
-            operator: str = "system",
-    ) -> dict[str, Any]:
-        """请求卸载部署模型.
-
-        设置部署的期望运行状态为 unloaded。
-
-        如果运行控制记录不存在，则创建默认状态为
-        unloaded 的控制记录；
-        如果已经是 unloaded，则保持幂等；
-        如果当前为 loaded，则切换为 unloaded，
-        并递增 generation。
-
-        参数：
-            deployment_id: 部署 ID
-            operator: 操作人
-
-        返回：
-            控制请求结果
-
-        异常：
-            DeploymentNotFoundError:
-                部署不存在
-
-            InvalidDeploymentStateError:
-                部署仍处于启用状态
-
-            RuntimeError:
-                Control 与 Deployment 环境不一致
-        """
-        logger.info(
-            "开始提交模型卸载控制请求",
-            deployment_id=deployment_id,
-            operator=operator,
-        )
-
-        async with UnitOfWork() as uow:
-            deployment_repo = DeploymentRepository(
-                uow.session
-            )
-
-            control_repo = ControlRepository(
-                uow.session
-            )
-
-            deployment = await self._validate_deployment(
-                deployment_repo=deployment_repo,
-                deployment_id=deployment_id,
-                required_status=DeploymentStatus.INACTIVE,
-            )
-
-            control = (
-                await control_repo.get_deployment_control(
-                    deployment_id
-                )
-            )
-
-            if control is None:
-                control = control_repo.create_control(
-                    control_id=generate_random_id(
-                        prefix="ctl"
-                    ),
-                    deployment_id=deployment_id,
-                    environment=Environment(
-                        deployment.environment
-                    ),
-                    created_by=operator,
-                )
-
-            else:
-                self._validate_control_environment(
-                    control=control,
-                    deployment=deployment,
-                )
-
-                control = control_repo.set_unloaded(
-                    control,
-                    updated_by=operator,
-                )
-
-            await uow.session.flush()
-            await uow.session.refresh(control)
-
-            control_info = self._control_to_dict(
-                control
-            )
-
-        logger.info(
-            "模型卸载控制请求提交完成",
-            deployment_id=deployment_id,
-            environment=control_info["environment"],
-            operator=operator,
-            generation=control_info["generation"],
-        )
-
-        return {
-            "action": "unload",
-            "accepted": True,
-            "control": control_info,
-        }
 
     async def reload(
             self,
@@ -314,10 +101,9 @@ class RuntimeControlService:
                 uow.session
             )
 
-            deployment = await self._validate_deployment(
+            deployment = await self._validate_active_deployment(
                 deployment_repo=deployment_repo,
                 deployment_id=deployment_id,
-                required_status=DeploymentStatus.ACTIVE,
             )
 
             control = (
@@ -648,13 +434,12 @@ class RuntimeControlService:
         return result
 
     @staticmethod
-    async def _validate_deployment(
+    async def _validate_active_deployment(
             *,
             deployment_repo: DeploymentRepository,
             deployment_id: str,
-            required_status: DeploymentStatus,
     ) -> Deployment:
-        """校验并返回部署对象.
+        """校验并返回启用部署.
 
         参数：
             deployment_repo:
@@ -662,9 +447,6 @@ class RuntimeControlService:
 
             deployment_id:
                 部署 ID
-
-            required_status:
-                要求的部署状态
 
         返回：
             Deployment 对象
@@ -691,17 +473,11 @@ class RuntimeControlService:
             deployment.status
         )
 
-        if current_status is required_status:
+        if current_status is DeploymentStatus.ACTIVE:
             return deployment
 
-        if required_status is DeploymentStatus.ACTIVE:
-            raise InvalidDeploymentStateError(
-                "部署不是启用状态，不能加载: "
-                f"{deployment_id}"
-            )
-
         raise InvalidDeploymentStateError(
-            "部署仍处于启用状态，请先禁用部署: "
+            "部署不是启用状态，不能重新加载: "
             f"{deployment_id}"
         )
 
@@ -797,6 +573,9 @@ class RuntimeControlService:
             "framework": runtime.framework,
             "status": runtime.status,
             "worker_id": runtime.worker_id,
+            "applied_generation": (
+                runtime.applied_generation
+            ),
             "loaded_at": (
                 runtime.loaded_at.isoformat()
                 if runtime.loaded_at

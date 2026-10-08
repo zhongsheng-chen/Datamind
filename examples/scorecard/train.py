@@ -4,7 +4,7 @@
 
 使用示例：
   python examples/scorecard/train.py
-  python examples/scorecard/train.py --output ./scorecard.pkl
+  python examples/scorecard/train.py --output ./application_scorecard.pkl
 """
 
 import argparse
@@ -30,7 +30,7 @@ ZERO_CREDIT_LIMIT = -888.0
 DEFAULT_OUTPUT_PATH = (
     Path(__file__).resolve().parent
     / "artifacts"
-    / "scorecard.pkl"
+    / "application_scorecard.pkl"
 )
 
 FEATURE_NAMES = [

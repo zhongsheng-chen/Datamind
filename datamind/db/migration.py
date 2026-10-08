@@ -3,10 +3,8 @@
 使用安装包内的 Alembic 迁移脚本执行数据库升级与降级。
 
 核心功能：
-  - _migration_config: 创建数据库迁移配置
   - upgrade_database: 将数据库升级到最新迁移版本
   - downgrade_database: 将数据库降级到指定迁移版本
-  - MigrationError: 封装迁移失败，避免向调用方暴露数据库凭据
 
 使用示例：
   upgrade_database()

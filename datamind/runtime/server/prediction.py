@@ -43,7 +43,6 @@ from datamind.db.repositories import (
 )
 from datamind.models.enums import (
     DecisionStrategy,
-    DeploymentStatus,
     ExecutionStatus,
     ExecutionType,
 )
@@ -2558,11 +2557,6 @@ class PredictionMixin:
                     f"{deployment.environment}, "
                     f"service_environment="
                     f"{service_config.environment}"
-                )
-
-            if deployment.status != str(DeploymentStatus.ACTIVE):
-                raise RuntimeRouteError(
-                    f"部署不可用: {deployment_id}"
                 )
 
     @staticmethod

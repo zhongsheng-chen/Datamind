@@ -700,9 +700,10 @@ export function createResourceManager({
         { name: "version_description", label: "版本描述", type: "textarea", rows: 3, wide: true },
         {
           name: "force",
-          label: "为相同版本保存新的制品修订",
+          label: "强制重新注册已有版本",
           type: "checkbox",
           wide: true,
+          help: "强制重新注册要求版本处于停用状态，并且当前没有部署。",
         },
       ],
       onSubmit: async (formData) => {
@@ -1843,8 +1844,8 @@ export function createResourceManager({
     createManagementDialog({
       title: `永久清理${resourceLabel}`,
       description: isModel
-        ? "该操作会永久删除模型及其版本制品，且无法恢复。"
-        : "该操作会永久删除版本制品，且无法恢复。",
+        ? "将永久清理该模型各版本的文件。此后无法恢复该模型。"
+        : "将永久清理该版本的文件。此后无法恢复该版本。",
       submitLabel: "永久清理",
       fields: [
         { name: "reason", label: "清理原因", type: "textarea", rows: 3, wide: true },

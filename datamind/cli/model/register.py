@@ -84,10 +84,7 @@ def register_model(
         force: bool = typer.Option(
             False,
             "--force",
-            help=(
-                "为未启用且从未部署的已有版本"
-                "注册新的制品修订"
-            )
+            help="强制重新注册已有版本",
         ),
         output: str = typer.Option(
             "text",

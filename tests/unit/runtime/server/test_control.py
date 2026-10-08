@@ -1,20 +1,20 @@
 """运行时部署控制接口测试.
 
-验证部署加载、卸载、状态查询及环境校验行为。
+验证部署重载、状态查询及环境校验行为。
 
 核心功能：
-  - test_control_operation_updates_desired_state:
-    验证运行控制操作更新期望状态
-  - test_control_operation_returns_validation_error:
-    验证运行控制校验失败时返回标准错误响应
-  - test_unload_returns_deployment_state_error:
-    验证卸载启用部署时返回部署状态错误
+  - test_runtime_service_exposes_only_supported_admin_routes:
+    验证预测服务不再公开直接加载和卸载接口
+  - test_reload_returns_controller_result:
+    验证重载请求返回控制服务结果
+  - test_reload_returns_validation_error:
+    验证重载校验失败时返回标准错误响应
   - test_status_combines_control_and_local_state:
     验证部署状态查询合并控制、运行记录和本地状态
   - test_validate_service_environment_rejects_invalid_deployment:
     验证服务环境校验拒绝无效部署
-  - test_validate_service_environment_accepts_active_deployment:
-    验证服务环境校验接受当前环境的活跃部署
+  - test_validate_service_environment_accepts_current_environment:
+    验证服务环境校验不限制部署状态
 """
 
 from types import SimpleNamespace
@@ -23,7 +23,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from datamind.models.errors import InvalidDeploymentStateError, RuntimeRouteError
 from datamind.runtime.server.errors import (
     ServiceDeploymentNotFoundError,
     ServiceEnvironmentMismatchError,
@@ -34,32 +33,41 @@ from datamind.runtime.server.schemas import (
 )
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "action",
-    [
-        "load",
-        "unload",
-        "reload",
-    ],
-)
-async def test_control_operation_updates_desired_state(
+def test_runtime_service_exposes_only_supported_admin_routes(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
-        action: str,
 ) -> None:
-    """测试运行控制操作更新期望状态."""
+    """测试预测服务只公开保留的运行管理接口."""
+    service_module = runtime_server.load_service_module(monkeypatch)
+
+    admin_routes = {
+        api.route
+        for api in service_module.DatamindRuntimeService.apis.values()
+        if api.route.startswith("/admin/")
+    }
+
+    assert admin_routes == {
+        "/admin/reload",
+        "/admin/services",
+        "/admin/status",
+    }
+
+
+@pytest.mark.asyncio
+async def test_reload_returns_controller_result(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试重载请求返回控制服务结果."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock()
-    controller_method = getattr(service.controller, action)
-    controller_method.return_value = {
+    service.controller.reload.return_value = {
         "deployment_id": "dep_test",
-        "action": action,
+        "action": "reload",
     }
-    operation = getattr(service, f"_{action}")
 
-    result = await operation(
+    result = await service._reload(
         request=ControlRequest(
             deployment_id="dep_test"
         ),
@@ -68,64 +76,27 @@ async def test_control_operation_updates_desired_state(
     )
 
     assert result["success"] is True
-    assert result["action"] == action
-    controller_method.assert_awaited_once_with(
+    assert result["action"] == "reload"
+    service.controller.reload.assert_awaited_once_with(
         deployment_id="dep_test",
         operator="alice",
     )
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "action",
-    [
-        "load",
-        "unload",
-        "reload",
-    ],
-)
-async def test_control_operation_returns_validation_error(
+async def test_reload_returns_validation_error(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
-        action: str,
 ) -> None:
-    """测试运行控制校验失败时返回标准错误响应."""
+    """测试重载校验失败时返回标准错误响应."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock(
-        side_effect=RuntimeRouteError("部署不可用")
-    )
-    operation = getattr(service, f"_{action}")
-
-    result = await operation(
-        request=ControlRequest(
-            deployment_id="dep_test"
-        ),
-        request_id="req_test",
-        operator="alice",
-    )
-
-    assert result["success"] is False
-    assert result["error_type"] == "RuntimeRouteError"
-    getattr(service.controller, action).assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_unload_returns_deployment_state_error(
-        runtime_server: Any,
-        monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """测试卸载启用部署时返回部署状态错误."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
-    service._validate_service_environment = AsyncMock()
-    service.controller.unload.side_effect = (
-        InvalidDeploymentStateError(
-            "部署仍处于启用状态，请先禁用部署: dep_test"
+        side_effect=ServiceEnvironmentMismatchError(
+            "部署环境与当前服务环境不一致"
         )
     )
-
-    result = await service._unload(
+    result = await service._reload(
         request=ControlRequest(
             deployment_id="dep_test"
         ),
@@ -134,7 +105,8 @@ async def test_unload_returns_deployment_state_error(
     )
 
     assert result["success"] is False
-    assert result["error_type"] == "InvalidDeploymentStateError"
+    assert result["error_type"] == "ServiceEnvironmentMismatchError"
+    service.controller.reload.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -147,8 +119,22 @@ async def test_status_combines_control_and_local_state(
     service = runtime_server.create_service(service_module)
     service._validate_service_environment = AsyncMock()
     service.controller.get_status.return_value = {
-        "control": {"desired_status": "loaded"},
-        "runtimes": [{"worker_id": "worker_test"}],
+        "control": {
+            "desired_status": "loaded",
+            "generation": 4,
+        },
+        "runtimes": [
+            {
+                "worker_id": "worker_one",
+                "status": "running",
+                "applied_generation": 4,
+            },
+            {
+                "worker_id": "worker_two",
+                "status": "running",
+                "applied_generation": 3,
+            },
+        ],
     }
     service.manager.get_status.return_value = {
         "loaded_in_memory": True,
@@ -164,8 +150,21 @@ async def test_status_combines_control_and_local_state(
 
     assert result["success"] is True
     assert result["control"] == {
-        "desired_status": "loaded"
+        "desired_status": "loaded",
+        "generation": 4,
     }
+    assert result["runtimes"] == [
+        {
+            "worker_id": "worker_one",
+            "status": "running",
+            "applied_generation": 4,
+        },
+        {
+            "worker_id": "worker_two",
+            "status": "running",
+            "applied_generation": 3,
+        },
+    ]
     assert result["local_generation"] == 3
 
 
@@ -180,13 +179,6 @@ async def test_status_combines_control_and_local_state(
                 status="active",
             ),
             ServiceEnvironmentMismatchError,
-        ),
-        (
-            SimpleNamespace(
-                environment="testing",
-                status="inactive",
-            ),
-            RuntimeRouteError,
         ),
     ],
 )
@@ -215,17 +207,19 @@ async def test_validate_service_environment_rejects_invalid_deployment(
 
 
 @pytest.mark.asyncio
-async def test_validate_service_environment_accepts_active_deployment(
+@pytest.mark.parametrize("status", ["active", "inactive"])
+async def test_validate_service_environment_accepts_current_environment(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
+        status: str,
 ) -> None:
-    """测试服务环境校验接受当前环境的活跃部署."""
+    """测试服务环境校验不限制当前环境部署的状态."""
     service_module = runtime_server.load_service_module(monkeypatch)
     deployment_repo = MagicMock()
     deployment_repo.get_deployment = AsyncMock(
         return_value=SimpleNamespace(
             environment="testing",
-            status="active",
+            status=status,
         )
     )
     runtime_server.install_repositories(
