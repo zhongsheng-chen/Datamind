@@ -15,6 +15,16 @@
     验证请求作用域建立可信上下文
   - test_security_documentation_lists_public_components:
     验证核心功能列出安全模块公共组件
+  - test_extract_bearer_token_rejects_invalid_header:
+    测试拒绝非法 Authorization 头
+  - test_authenticate_accepts_administrator_permission:
+    测试系统管理员通配权限可调用预测接口
+  - test_authenticate_maps_invalid_access_token:
+    测试认证异常转换为服务认证错误
+  - test_authenticate_maps_permission_denied:
+    测试权限不足转换为服务授权错误
+  - test_request_scope_handles_missing_client:
+    测试请求未提供客户端地址时上下文 IP 为空
 """
 
 from types import SimpleNamespace

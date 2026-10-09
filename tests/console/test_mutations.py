@@ -1,6 +1,26 @@
 """Console 写操作 HTTP 契约测试.
 
 验证控制台写接口的权限、CSRF、防重复提交、审计以及错误响应契约。
+
+核心功能：
+  - test_create_deployment_requires_csrf_and_permission:
+    测试部署创建同时校验写权限和 CSRF 令牌
+  - test_register_model_uploads_model_file:
+    测试模型注册接口接收并解析 Schema 文件
+  - test_update_model_information:
+    测试模型显示名称和描述更新接口
+  - test_update_version_information:
+    测试模型版本说明更新接口
+  - test_identity_manager_updates_user_and_role:
+    测试身份管理员更新用户资料和角色权限
+  - test_version_restore_and_purge_actions:
+    测试控制台接入版本恢复和永久清理服务
+  - test_model_lifecycle_action_is_exposed_over_http:
+    测试模型生命周期动作可通过统一管理接口调用
+  - test_routing_enable_audit_records_state_change:
+    测试路由启用审计仅记录状态变化
+  - test_batch_action_is_exposed_over_http:
+    测试批次取消和重试可通过统一管理接口调用
 """
 
 import json

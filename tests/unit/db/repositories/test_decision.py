@@ -20,6 +20,24 @@
     验证创建决策记录
   - test_create_decision_validation:
     验证权重范围
+  - test_get_decision_returns_none_when_not_found:
+    测试请求没有决策结果时返回 None
+  - test_list_decisions_without_filters:
+    测试无筛选时返回全部决策并按时间倒序
+  - test_list_decisions_applies_filters_and_pagination:
+    测试决策来源、主体字段、普通字段筛选和分页
+  - test_list_decisions_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_methods_reject_negative_pagination:
+    测试决策列表方法拒绝负数分页参数
+  - test_specialized_list_methods:
+    测试辅助列表方法应用对应筛选条件
+  - test_create_decision_uses_optional_defaults:
+    测试创建决策时允许省略可选字段并使用当前时间
+  - test_create_decision_accepts_boundary_values:
+    测试数值字段边界值有效
+  - test_create_decision_rejects_invalid_values:
+    测试创建决策时拒绝非法数值
 """
 
 from datetime import (

@@ -39,7 +39,10 @@
   - test_invalid_probability_output_is_rejected:
     验证拒绝非法概率预测结果
   - test_invalid_probability_for_positive_class_zero_is_rejected:
-    验证正类为类别零时校验第一列概率"""
+    验证正类为类别零时校验第一列概率
+  - test_native_booster_predicts_probability:
+    测试原生 Booster 可以直接执行概率预测
+"""
 
 from typing import Any
 

@@ -24,6 +24,36 @@
     验证角色启用和停用
   - test_restore_role:
     验证恢复已逻辑删除的角色
+  - test_get_role_returns_none_when_not_found:
+    测试角色不存在时返回 None
+  - test_list_roles_uses_default_order_and_limit:
+    测试角色列表默认排序和数量限制
+  - test_list_roles_builds_filtered_query:
+    测试角色列表筛选、排序和分页
+  - test_list_roles_allows_unlimited_query:
+    测试角色列表允许不设置分页
+  - test_role_patch_uses_slots_and_defaults:
+    测试角色更新结构默认值和 slots
+  - test_create_role_uses_defaults:
+    测试创建角色默认状态和可选字段
+  - test_create_inactive_role:
+    测试创建停用角色时转换枚举值
+  - test_update_role_ignores_none_fields:
+    测试角色更新忽略值为 None 的字段
+  - test_replace_permissions_with_empty_list:
+    测试使用空列表移除全部权限
+  - test_replace_permissions_with_none:
+    测试使用 None 清空角色权限配置
+  - test_activate_role:
+    测试启用角色
+  - test_deactivate_role:
+    测试停用角色
+  - test_replace_description_allows_clearing:
+    测试角色描述可以更新或清空
+  - test_mark_deleted_role:
+    测试逻辑删除角色并保留授权历史
+  - test_role_status_update_preserves_existing_updated_by:
+    测试未提供更新人时保留原更新人
 """
 
 from datetime import (

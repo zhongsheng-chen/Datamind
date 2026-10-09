@@ -20,6 +20,38 @@
     验证卸载状态和 generation 变化
   - test_request_reload:
     验证重新加载请求和状态限制
+  - test_get_control_returns_none_when_not_found:
+    测试控制记录不存在时返回 None
+  - test_get_deployment_control_returns_none:
+    测试部署没有控制记录时返回 None
+  - test_list_controls_without_filters:
+    测试无筛选时返回全部记录并按时间倒序
+  - test_list_controls_applies_filters_and_pagination:
+    测试环境、状态、审计字段筛选和分页
+  - test_list_controls_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_controls_rejects_negative_pagination:
+    测试拒绝负数分页参数
+  - test_create_control_allows_missing_creator:
+    测试创建控制记录时允许省略创建人
+  - test_set_loaded_without_operator:
+    测试加载时未提供操作人则保留原值
+  - test_set_loaded_accepts_empty_operator:
+    测试加载时允许写入空字符串操作人
+  - test_set_loaded_is_idempotent:
+    测试重复设置 loaded 保持幂等
+  - test_set_unloaded_without_operator:
+    测试卸载时未提供操作人则保留原值
+  - test_set_unloaded_accepts_empty_operator:
+    测试卸载时允许写入空字符串操作人
+  - test_set_unloaded_is_idempotent:
+    测试重复设置 unloaded 保持幂等
+  - test_request_reload_without_operator:
+    测试重新加载时未提供操作人则保留原值
+  - test_request_reload_accepts_empty_operator:
+    测试重新加载时允许写入空字符串操作人
+  - test_request_reload_rejects_non_loaded_status:
+    测试非 loaded 状态不能请求重新加载
 """
 
 from typing import (

@@ -67,6 +67,7 @@ class ConsoleHandlers:
     create_variant: RouteHandler
     update_variant: RouteHandler
     experiment_variants: RouteHandler
+    experiment_analysis: RouteHandler
     section_export: RouteHandler
     section: RouteHandler
     events: RouteHandler
@@ -179,6 +180,11 @@ def create_routes(
         Route(
             "/api/models/{model_id:str}/versions",
             handlers.model_versions,
+            methods=["GET"],
+        ),
+        Route(
+            "/api/experiments/{experiment_id:str}/analysis",
+            handlers.experiment_analysis,
             methods=["GET"],
         ),
         Route(

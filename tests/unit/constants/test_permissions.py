@@ -29,7 +29,6 @@ EXPECTED_PERMISSIONS = {
     "routing.delete",
     "runtime.read",
     "runtime.manage",
-    "outcome.write",
     "prediction.invoke",
     "request.read",
     "audit.read",

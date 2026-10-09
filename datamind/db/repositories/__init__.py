@@ -35,8 +35,6 @@
   - AttemptRepository: 批次执行尝试仓储
   - DecisionRepository: 请求决策仓储
   - ExecutionRepository: 模型执行仓储
-  - OutcomePatch: 实验结果更新字段
-  - OutcomeRepository: 实验结果仓储
   - AuditRepository: 审计日志仓储
   - ArtifactRepository: 模型制品仓储
   - OutboxRepository: 控制台事件仓储
@@ -77,10 +75,7 @@ from datamind.db.repositories.metadata import (
     MetadataPatch,
     MetadataRepository,
 )
-from datamind.db.repositories.outcome import (
-    OutcomePatch,
-    OutcomeRepository,
-)
+
 from datamind.db.repositories.request import RequestRepository
 from datamind.db.repositories.batch import BatchRepository
 from datamind.db.repositories.attempt import AttemptRepository
@@ -149,8 +144,6 @@ __all__ = [
     "ShardRepository",
     "DecisionRepository",
     "ExecutionRepository",
-    "OutcomePatch",
-    "OutcomeRepository",
     "AuditRepository",
     "ArtifactRepository",
     "OutboxRepository",

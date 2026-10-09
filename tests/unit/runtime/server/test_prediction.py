@@ -1,6 +1,6 @@
 """运行时预测处理测试.
 
-验证结果回流、单条与批量预测、记录持久化和影子执行行为。
+验证单条与批量预测、记录持久化和影子执行行为。
 
 核心功能：
   - test_predict_timeout_records_failure:
@@ -13,8 +13,6 @@
     验证批量预测记录每项请求和决策
   - test_execute_routed_batch_groups_deployments_and_restores_order:
     验证批量预测按路由部署分组执行并恢复请求顺序
-  - test_submit_outcome_calls_feedback_service:
-    验证结果回流接口调用业务服务
   - test_predict_records_successful_decision:
     验证单条预测创建请求并记录成功决策
   - test_predict_returns_error_and_marks_request_failed:
@@ -59,6 +57,18 @@
     验证决策负载过滤和可选值安全转换
   - test_resolve_model_id_uses_model_name:
     验证运行时按公开模型名称解析内部模型 ID
+  - test_submit_batch_persists_before_publishing:
+    测试异步批次先持久化再发布轻量级引用消息
+  - test_submit_batch_rejects_unknown_model_before_persisting:
+    测试批量提交在模型不存在时返回请求错误且不创建批次
+  - test_get_batch_status_returns_persisted_result:
+    测试批次状态查询以 PostgreSQL 记录为准
+  - test_cancel_batch_records_request_and_revokes_task:
+    测试取消同时更新业务状态并撤销 Celery 任务
+  - test_cancel_batch_keeps_persisted_state_when_revoke_fails:
+    测试 Broker 不可用时仍返回已经持久化的取消状态
+  - test_retry_batch_uses_new_celery_task_id:
+    测试业务重试不会复用可能已被撤销的 Celery 任务 ID
 """
 
 import asyncio
@@ -79,7 +89,6 @@ from datamind.runtime.executor import ExecutionPlan, ExecutionResult
 from datamind.runtime.routing import RouteResult, RoutingPlan
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
-    OutcomeFeedbackRequest,
     PredictRequest,
     PredictionInstance,
 )
@@ -431,60 +440,6 @@ async def test_execute_routed_batch_groups_deployments_and_restores_order(
     ])
 
 
-@pytest.mark.asyncio
-async def test_submit_outcome_calls_feedback_service(
-        runtime_server: Any,
-        monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """测试结果回流接口调用业务服务."""
-    service_module = runtime_server.load_service_module(
-        monkeypatch
-    )
-    outcome_service = MagicMock()
-    outcome_service.submit = AsyncMock(return_value={
-        "created": True,
-        "outcome": {
-            "outcome_id": "out_test",
-            "outcome_time": None,
-            "created_at": None,
-            "updated_at": None,
-        },
-    })
-    runtime_server.patch_server_dependency(
-        monkeypatch,
-        service_module,
-        "OutcomeService",
-        lambda: outcome_service,
-    )
-    request = OutcomeFeedbackRequest(
-        outcome_id="out_test",
-        decision_id="dcs_test",
-        subject_key="customer_10001",
-        converted=True,
-    )
-
-    result = await service_module.DatamindRuntimeService.inner._submit_outcome(
-        request=request,
-        request_id="req_feedback",
-    )
-
-    assert result["success"] is True
-    assert result["request_id"] == "req_feedback"
-    outcome_service.submit.assert_awaited_once_with(
-        outcome_id="out_test",
-        subject_key="customer_10001",
-        decision_id="dcs_test",
-        request_id=None,
-        subject_type=None,
-        approved=None,
-        converted=True,
-        defaulted=None,
-        overdue_days=None,
-        amount=None,
-        label=None,
-        context=None,
-        outcome_time=None,
-    )
 
 
 @pytest.mark.asyncio

@@ -23,6 +23,56 @@
     验证失败调用详情
   - test_decision_item_includes_trace_and_route_details:
     验证决策执行详情
+  - test_build_request_trend_preserves_outcomes:
+    测试 API 调用趋势区分成功和失败次数
+  - test_role_item_marks_builtin_role:
+    测试控制台角色摘要标识内置角色
+  - test_resolve_request_trend_period:
+    测试趋势时间范围映射到固定聚合粒度
+  - test_resolve_request_trend_period_rejects_unknown_range:
+    测试拒绝不支持的趋势时间范围
+  - test_build_request_summary_calculates_core_metrics:
+    测试 API 调用核心指标计算成功率和周期变化
+  - test_build_model_usage_calculates_recent_metrics:
+    测试模型调用概况计算最近表现和累计调用量
+  - test_get_model_versions_supports_recycle_bin:
+    测试模型版本分页可以仅返回逻辑删除记录
+  - test_get_model_versions_rejects_invalid_page:
+    测试模型版本分页拒绝非法页码
+  - test_get_experiment_variants_searches_and_sorts:
+    测试实验分组查询和排序在数据库分页前完成
+  - test_get_experiment_variants_supports_recycle_bin:
+    测试实验详情中的分组回收站仅查询已删除记录
+  - test_get_section_searches_by_keyword:
+    测试页面查询使用规范化关键词和统一分页
+  - test_get_section_returns_deleted_versions:
+    测试全局版本回收站仅返回已逻辑删除版本
+  - test_get_section_returns_deleted_models:
+    测试模型回收站仅返回整体逻辑删除的模型
+  - test_get_section_filters_selected_records:
+    测试页面查询可限定为待导出的已选记录
+  - test_get_section_sorts_before_pagination:
+    测试页面排序由数据库查询在分页前完成
+  - test_get_section_normalizes_multiple_sort_fields:
+    测试页面查询规范化多字段排序参数
+  - test_deployment_item_includes_model_labels:
+    测试部署摘要包含模型名称和版本号
+  - test_routing_item_uses_current_deployment_release_values:
+    测试路由摘要以关联部署的当前发布信息为准
+  - test_runtime_item_includes_deployment_labels:
+    测试运行实例摘要包含模型和部署角色
+  - test_runtime_item_reports_unhealthy_worker:
+    测试过期心跳仅影响健康状态并格式化 Worker 名称
+  - test_experiment_item_includes_variant_count:
+    测试实验摘要包含分组数量和更新时间
+  - test_variant_item_includes_experiment_and_model_labels:
+    测试分组摘要包含实验名称和部署模型版本
+  - test_variant_item_does_not_invent_experiment_allocation:
+    测试实验分流配置缺失时不伪造默认值
+  - test_request_item_includes_model_and_decision_details:
+    测试 API 调用摘要包含模型、决策和预测详情
+  - test_batch_item_includes_progress_and_payload:
+    测试批次摘要包含进度、请求负载和执行结果
 """
 
 from datetime import (

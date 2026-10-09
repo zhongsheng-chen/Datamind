@@ -1,8 +1,8 @@
 """init schema.
 
-Revision ID: a00326ba98dd
-Revises: 
-Create Date: 2026-09-30 03:27:46.127059+00:00
+Revision ID: 217479c4bbc8
+Revises:
+Create Date: 2026-10-09 01:32:17.547137+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'a00326ba98dd'
+revision = '217479c4bbc8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -429,40 +429,6 @@ def upgrade() -> None:
     )
     op.create_index('idx_outbox_occurred_at', 'outbox', ['occurred_at'], unique=False)
     op.create_index('idx_outbox_topic_event_id', 'outbox', ['topic', 'event_id'], unique=False)
-    op.create_table('outcomes',
-    sa.Column('outcome_id', sa.String(length=64), nullable=False, comment='结果 ID，实验结果记录的唯一标识'),
-    sa.Column('experiment_id', sa.String(length=64), nullable=True, comment='实验 ID'),
-    sa.Column('variant_id', sa.String(length=64), nullable=True, comment='实验分组 ID'),
-    sa.Column('assignment_id', sa.String(length=64), nullable=True, comment='实验分配 ID'),
-    sa.Column('decision_id', sa.String(length=64), nullable=True, comment='请求决策 ID'),
-    sa.Column('request_id', sa.String(length=64), nullable=True, comment='请求 ID'),
-    sa.Column('subject_key', sa.String(length=128), nullable=False, comment='结果主体标识，例如客户号、订单号、申请单号'),
-    sa.Column('subject_type', sa.String(length=32), nullable=True, comment='结果主体类型，例如 customer / order / application'),
-    sa.Column('approved', sa.Boolean(), nullable=True, comment='是否审批通过'),
-    sa.Column('converted', sa.Boolean(), nullable=True, comment='是否转化，例如是否放款、是否签约、是否支用'),
-    sa.Column('defaulted', sa.Boolean(), nullable=True, comment='是否违约或成为坏样本'),
-    sa.Column('overdue_days', sa.Integer(), nullable=True, comment='最大逾期天数，不得小于 0'),
-    sa.Column('amount', sa.Float(), nullable=True, comment='结果金额，例如审批金额、放款金额、支用金额，不得小于 0'),
-    sa.Column('label', sa.String(length=32), nullable=True, comment='结果标签，例如 good / bad / unknown'),
-    sa.Column('context', postgresql.JSONB(none_as_null=True, astext_type=sa.Text()), nullable=True, comment='结果上下文，JSON 格式。可记录业务结果、观测窗口和回流来源等信息'),
-    sa.Column('outcome_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='结果发生时间'),
-    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
-    sa.CheckConstraint("context IS NULL OR jsonb_typeof(context) = 'object'", name=op.f('ck_outcomes_context_object')),
-    sa.CheckConstraint('amount IS NULL OR amount >= 0', name=op.f('ck_outcomes_amount_non_negative')),
-    sa.CheckConstraint('overdue_days IS NULL OR overdue_days >= 0', name=op.f('ck_outcomes_overdue_days_non_negative')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_outcomes'))
-    )
-    op.create_index('idx_outcomes_assignment_id', 'outcomes', ['assignment_id'], unique=False)
-    op.create_index('idx_outcomes_created_at', 'outcomes', ['created_at'], unique=False)
-    op.create_index('idx_outcomes_decision_id', 'outcomes', ['decision_id'], unique=False)
-    op.create_index('idx_outcomes_experiment_id', 'outcomes', ['experiment_id'], unique=False)
-    op.create_index('idx_outcomes_outcome_time', 'outcomes', ['outcome_time'], unique=False)
-    op.create_index('idx_outcomes_request_id', 'outcomes', ['request_id'], unique=False)
-    op.create_index('idx_outcomes_subject_key', 'outcomes', ['subject_key'], unique=False)
-    op.create_index('idx_outcomes_variant_id', 'outcomes', ['variant_id'], unique=False)
-    op.create_index('uk_outcomes_outcome_id', 'outcomes', ['outcome_id'], unique=True)
     op.create_table('requests',
     sa.Column('request_id', sa.String(length=64), nullable=False, comment='请求 ID，请求的唯一标识'),
     sa.Column('latest_decision_id', sa.String(length=64), nullable=True, comment='最近一次决策 ID'),
@@ -866,16 +832,6 @@ def downgrade() -> None:
     op.drop_index('idx_requests_created_at', table_name='requests')
     op.drop_index('idx_requests_batch_id', table_name='requests')
     op.drop_table('requests')
-    op.drop_index('uk_outcomes_outcome_id', table_name='outcomes')
-    op.drop_index('idx_outcomes_variant_id', table_name='outcomes')
-    op.drop_index('idx_outcomes_subject_key', table_name='outcomes')
-    op.drop_index('idx_outcomes_request_id', table_name='outcomes')
-    op.drop_index('idx_outcomes_outcome_time', table_name='outcomes')
-    op.drop_index('idx_outcomes_experiment_id', table_name='outcomes')
-    op.drop_index('idx_outcomes_decision_id', table_name='outcomes')
-    op.drop_index('idx_outcomes_created_at', table_name='outcomes')
-    op.drop_index('idx_outcomes_assignment_id', table_name='outcomes')
-    op.drop_table('outcomes')
     op.drop_index('idx_outbox_topic_event_id', table_name='outbox')
     op.drop_index('idx_outbox_occurred_at', table_name='outbox')
     op.drop_table('outbox')

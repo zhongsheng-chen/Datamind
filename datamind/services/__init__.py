@@ -1,7 +1,7 @@
 """业务服务模块.
 
 提供系统初始化、身份管理、模型管理、资源生命周期管理、
-运行控制、结果回流和控制台查询服务。
+运行控制和控制台查询服务。
 
 核心功能：
   - InitializationService: 系统初始化服务
@@ -14,8 +14,7 @@
   - RoutingLifecycleService: 路由生命周期服务
   - ExperimentLifecycleService: 实验生命周期服务
   - BatchLifecycleService: 批次生命周期服务
-  - RuntimeControlService: 部署运行期望状态控制服务
-  - OutcomeService: 实验结果回流服务
+  - RuntimeControlService: 部署重载与运行状态查询服务
   - DashboardService: 管理控制台查询服务
 
 使用示例：
@@ -31,7 +30,6 @@
       ExperimentLifecycleService,
       BatchLifecycleService,
       RuntimeControlService,
-      OutcomeService,
       DashboardService,
   )
 """
@@ -50,7 +48,6 @@ if TYPE_CHECKING:
     from datamind.services.identity import IdentityService
     from datamind.services.initialization import InitializationService
     from datamind.services.lifecycle import ModelLifecycleService
-    from datamind.services.outcome import OutcomeService
     from datamind.services.registration import ModelRegistrationService
     from datamind.services.routing import RoutingLifecycleService
 
@@ -66,7 +63,6 @@ __all__ = [
     "ExperimentLifecycleService",
     "BatchLifecycleService",
     "RuntimeControlService",
-    "OutcomeService",
     "DashboardService",
 ]
 
@@ -83,7 +79,6 @@ _SERVICE_MODULES = {
     "ExperimentLifecycleService": "experiment",
     "BatchLifecycleService": "batch",
     "RuntimeControlService": "control",
-    "OutcomeService": "outcome",
     "DashboardService": "dashboard",
 }
 

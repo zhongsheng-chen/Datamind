@@ -1,264 +1,135 @@
-"""A/B 实验指标评估测试.
+"""A/B 实验决策与执行指标测试.
 
-验证分组指标、坏样本识别、金额聚合和基准组 lift 对比。
+验证流量计数、执行状态、缺失值处理与分组比较。
 
 核心功能：
-  - test_metrics_ignore_non_finite_amounts:
-    验证 NaN 和无穷金额不会污染汇总指标
-  - test_metrics_calculate_counts_and_rates:
-    验证审批、转化、违约和金额指标
-  - test_metrics_compare_variants:
-    验证相对基准组的绝对和相对提升
+  - test_request_and_subject_counts_are_separate:
+    测试重复主体分别计入请求数，但主体与分配去重
+  - test_unsuccessful_executions_do_not_contribute_predictions:
+    测试终态失败计入成功率分母，预测分布只使用成功执行
+  - test_shadow_and_unrelated_executions_are_excluded:
+    测试影子与不关联实验决策的执行不污染指标
+  - test_invalid_numbers_are_excluded:
+    测试无效数值不计入均值或样本数
+  - test_no_executions_do_not_produce_comparisons:
+    测试只有决策时仍可统计流量，无执行时不生成数值比较
+  - test_comparisons_preserve_zero_baseline:
+    测试零基准允许绝对差异，相对差异返回 None
+  - test_filters_other_experiments_and_handles_missing_subject:
+    测试其他实验不计入当前流量，缺失主体不构造伪主体
+  - test_invalid_identifiers_are_rejected:
+    测试非法实验或基准分组拒绝分析
 """
 
 from types import SimpleNamespace
-from typing import Any
 
 import pytest
 
 from datamind.ab_test.metrics import ABTestMetricEvaluator
 
 
-def create_outcome(
-        *,
-        experiment_id: str = "exp_test",
-        variant_id: object = "var_control",
-        approved: object = False,
-        converted: object = False,
-        defaulted: object = False,
-        label: object = None,
-        overdue_days: object = None,
-        amount: object = None,
-        **overrides: Any,
+def decision(
+        key: str = "d1",
+        variant: str = "control",
+        subject: str | None = "borrower",
 ) -> SimpleNamespace:
-    """创建实验结果测试对象."""
-    values = {
-        "experiment_id": experiment_id,
-        "variant_id": variant_id,
-        "approved": approved,
-        "converted": converted,
-        "defaulted": defaulted,
-        "label": label,
-        "overdue_days": overdue_days,
-        "amount": amount,
-    }
-    values.update(overrides)
+    """创建请求决策测试对象."""
+    return SimpleNamespace(
+        decision_id=key, experiment_id="exp", variant_id=variant,
+        subject_key=subject, subject_type="borrower", assignment_id="a" + subject if subject else None,
+        decision="approve",
+    )
 
+
+def execution(key="d1", **kwargs):
+    """创建主执行测试对象."""
+    values = dict(decision_id=key, execution_type="primary", status="success",
+                  latency_ms=10.0, probability=0.3, score=600.0, prediction={"label": "low"})
+    values.update(kwargs)
     return SimpleNamespace(**values)
 
 
-def test_metrics_ignore_non_finite_amounts() -> None:
-    """测试非有限金额不会污染汇总指标."""
-    outcomes = [
-        SimpleNamespace(
-            experiment_id="exp_test",
-            variant_id="var_control",
-            approved=False,
-            converted=False,
-            defaulted=False,
-            label=None,
-            overdue_days=None,
-            amount=amount,
-        )
-        for amount in [100.0, float("nan"), float("inf"), -float("inf")]
-    ]
-
+def test_request_and_subject_counts_are_separate():
+    """测试重复主体分别计入请求数，但主体与分配去重."""
     result = ABTestMetricEvaluator().calculate_experiment_metrics(
-        experiment_id="exp_test",
-        outcomes=outcomes,
+        experiment_id="exp", decisions=[decision(), decision("d2"), decision("d3", "treatment", "other")],
+        executions=[execution(), execution("d2", status="queued"), execution("d3")], baseline_variant_id="control",
     )
-    metrics = result.variants["var_control"]
-
-    assert metrics.amount_count == 1
-    assert metrics.total_amount == 100.0
-    assert metrics.average_amount == 100.0
-
-
-def test_metrics_calculate_counts_and_rates() -> None:
-    """测试计算分组数量、比例和金额指标."""
-    outcomes = [
-        create_outcome(
-            approved=True,
-            converted=True,
-            amount=100.0,
-        ),
-        create_outcome(
-            defaulted=True,
-            amount="300",
-        ),
-    ]
-
-    metrics = ABTestMetricEvaluator().calculate_variant_metrics(
-        outcomes=outcomes
-    )["var_control"]
-
-    assert metrics.total_count == 2
-    assert metrics.approved_count == 1
-    assert metrics.converted_count == 1
-    assert metrics.defaulted_count == 1
-    assert metrics.bad_count == 1
-    assert metrics.amount_count == 2
-    assert metrics.total_amount == 400.0
-    assert metrics.average_amount == 200.0
-    assert metrics.approval_rate == 0.5
-    assert metrics.conversion_rate == 0.5
-    assert metrics.default_rate == 0.5
-    assert metrics.bad_rate == 0.5
+    control = result.variants["control"]
+    assert result.total_count == 3
+    assert control.total_count == 2 and control.subject_count == control.assignment_count == 1
+    assert control.traffic_ratio == pytest.approx(2 / 3)
+    assert control.queued_count == 1 and control.completed_count == 1
+    assert control.success_rate == 1.0
+    assert control.prediction_counts == {"low": 1}
+    assert result.to_dict()["variants"]["control"]["average_score"] == 600.0
 
 
-@pytest.mark.parametrize(
-    "outcome",
-    [
-        create_outcome(defaulted=True),
-        create_outcome(label="BAD"),
-        create_outcome(overdue_days=31),
-        create_outcome(overdue_days="31"),
-    ],
-)
-def test_metrics_identify_bad_outcomes(
-        outcome: SimpleNamespace,
-) -> None:
-    """测试通过违约、标签和逾期天数识别坏样本."""
-    metrics = ABTestMetricEvaluator().calculate_variant_metrics(
-        outcomes=[outcome]
-    )["var_control"]
-
-    assert metrics.bad_count == 1
-    assert metrics.bad_rate == 1.0
+@pytest.mark.parametrize("status", ["failed", "timeout", "cancelled"])
+def test_unsuccessful_executions_do_not_contribute_predictions(status):
+    """测试终态失败计入成功率分母，预测分布只使用成功执行."""
+    result = ABTestMetricEvaluator().calculate_variant_metrics(
+        decisions=[decision(), decision("d2")], executions=[execution(), execution("d2", status=status)],
+    )["control"]
+    assert result.completed_count == 2 and result.success_rate == 0.5
+    assert getattr(result, status + "_count") == 1
+    assert result.score_count == result.probability_count == 1
+    assert result.latency_count == 2
 
 
-def test_metrics_ignore_invalid_variant_ids() -> None:
-    """测试忽略缺少有效分组 ID 的结果记录."""
-    metrics = ABTestMetricEvaluator().calculate_variant_metrics(
-        outcomes=[
-            create_outcome(variant_id=None),
-            create_outcome(variant_id=""),
-            create_outcome(variant_id=100),
-            create_outcome(variant_id="var_control"),
-        ]
-    )
-
-    assert set(metrics) == {
-        "var_control"
-    }
-    assert metrics["var_control"].total_count == 1
+def test_shadow_and_unrelated_executions_are_excluded():
+    """测试影子与不关联实验决策的执行不污染指标."""
+    result = ABTestMetricEvaluator().calculate_variant_metrics(
+        decisions=[decision()], executions=[execution(execution_type="shadow"), execution("other")],
+    )["control"]
+    assert result.execution_count == 0 and result.total_count == 1
+    assert result.success_rate is None and result.average_score is None
 
 
-def test_metrics_compare_variants() -> None:
-    """测试计算实验分组相对基准组的提升."""
-    outcomes = [
-        create_outcome(
-            variant_id="var_control",
-            approved=True,
-            amount=100.0,
-        ),
-        create_outcome(
-            variant_id="var_control",
-            approved=False,
-            amount=100.0,
-        ),
-        create_outcome(
-            variant_id="var_treatment",
-            approved=True,
-            amount=150.0,
-        ),
-        create_outcome(
-            variant_id="var_treatment",
-            approved=True,
-            amount=150.0,
-        ),
-        create_outcome(
-            experiment_id="exp_other",
-            variant_id="var_other",
-            approved=True,
-        ),
-    ]
+@pytest.mark.parametrize("value", [None, True, float("nan"), float("inf")])
+def test_invalid_numbers_are_excluded(value):
+    """测试无效数值不计入均值或样本数."""
+    result = ABTestMetricEvaluator().calculate_variant_metrics(
+        decisions=[decision()], executions=[execution(score=value, probability=value, latency_ms=value)],
+    )["control"]
+    assert result.score_count == result.probability_count == result.latency_count == 0
+    assert result.average_score is result.average_probability is result.average_latency_ms is None
 
+
+def test_no_executions_do_not_produce_comparisons():
+    """测试只有决策时仍可统计流量，无执行时不生成数值比较."""
     result = ABTestMetricEvaluator().calculate_experiment_metrics(
-        experiment_id="exp_test",
-        outcomes=outcomes,
-        baseline_variant_id="var_control",
+        experiment_id="exp", decisions=[decision(), decision("d2", "treatment")], executions=[],
+        baseline_variant_id="control",
     )
-    comparison = result.comparisons[
-        "var_treatment"
-    ]["approval_rate"]
-
-    assert result.total_count == 4
-    assert set(result.variants) == {
-        "var_control",
-        "var_treatment",
-    }
-    assert comparison.baseline_value == 0.5
-    assert comparison.variant_value == 1.0
-    assert comparison.absolute_lift == 0.5
-    assert comparison.relative_lift == 1.0
-
-    serialized = result.to_dict()
-    assert serialized["comparisons"]["var_treatment"][
-        "approval_rate"
-    ]["relative_lift"] == 1.0
+    assert result.comparisons == {"treatment": {}}
 
 
-def test_metrics_return_none_relative_lift_for_zero_baseline() -> None:
-    """测试基准值为零时不计算相对提升."""
+def test_comparisons_preserve_zero_baseline():
+    """测试零基准允许绝对差异，相对差异返回 None."""
     result = ABTestMetricEvaluator().calculate_experiment_metrics(
-        experiment_id="exp_test",
-        outcomes=[
-            create_outcome(
-                variant_id="var_control",
-                approved=False,
-            ),
-            create_outcome(
-                variant_id="var_treatment",
-                approved=True,
-            ),
-        ],
-        baseline_variant_id="var_control",
+        experiment_id="exp", decisions=[decision(), decision("d2", "treatment")],
+        executions=[execution(score=0), execution("d2", score=100)], baseline_variant_id="control",
     )
-
-    comparison = result.comparisons[
-        "var_treatment"
-    ]["approval_rate"]
-    assert comparison.absolute_lift == 1.0
-    assert comparison.relative_lift is None
+    value = result.comparisons["treatment"]["average_score"]
+    assert value.absolute_lift == 100 and value.relative_lift is None
 
 
-@pytest.mark.parametrize(
-    ("experiment_id", "baseline_variant_id", "message"),
-    [
-        ("", None, "实验 ID 不能为空"),
-        ("exp_test", "var_missing", "基准分组不存在"),
-    ],
-)
-def test_metrics_reject_invalid_experiment_query(
-        experiment_id: str,
-        baseline_variant_id: str | None,
-        message: str,
-) -> None:
-    """测试拒绝空实验 ID 或不存在的基准分组."""
-    with pytest.raises(ValueError, match=message):
+def test_filters_other_experiments_and_handles_missing_subject():
+    """测试其他实验不计入当前流量，缺失主体不构造伪主体."""
+    other = decision("other")
+    other.experiment_id = "another"
+    result = ABTestMetricEvaluator().calculate_experiment_metrics(
+        experiment_id="exp", decisions=[decision(subject=None), other], executions=[],
+    )
+    assert result.total_count == 1
+    assert result.variants["control"].subject_count == 0
+
+
+@pytest.mark.parametrize("experiment_id,baseline", [("", None), ("exp", "missing")])
+def test_invalid_identifiers_are_rejected(experiment_id, baseline):
+    """测试非法实验或基准分组拒绝分析."""
+    with pytest.raises(ValueError):
         ABTestMetricEvaluator().calculate_experiment_metrics(
-            experiment_id=experiment_id,
-            outcomes=[
-                create_outcome()
-            ],
-            baseline_variant_id=baseline_variant_id,
+            experiment_id=experiment_id, decisions=[decision()], executions=[], baseline_variant_id=baseline,
         )
-
-
-def test_metrics_support_custom_bad_sample_rules() -> None:
-    """测试自定义坏样本标签和逾期阈值."""
-    evaluator = ABTestMetricEvaluator(
-        bad_label="reject",
-        overdue_bad_threshold=10,
-    )
-    metrics = evaluator.calculate_variant_metrics(
-        outcomes=[
-            create_outcome(label="REJECT"),
-            create_outcome(overdue_days=11),
-            create_outcome(label="bad", overdue_days=10),
-        ]
-    )["var_control"]
-
-    assert metrics.total_count == 3
-    assert metrics.bad_count == 2

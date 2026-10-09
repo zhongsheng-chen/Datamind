@@ -6,6 +6,12 @@
   - 验证 RuntimeStatus 的数据库状态值
   - 验证 RuntimeHealthStatus 的派生状态值
   - 验证 ACTIVE_RUNTIME_STATUSES 仅包含当前实例状态
+  - test_runtime_status_values:
+    测试数据库运行状态枚举值
+  - test_runtime_health_status_values:
+    测试派生健康状态枚举值
+  - test_active_runtime_statuses:
+    测试当前实例只包含加载中和已加载状态
 """
 
 from datamind.constants.runtime_status import (

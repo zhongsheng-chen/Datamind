@@ -45,8 +45,6 @@ EXPECTED_EXPORTS = {
     "RequestRepository",
     "DecisionRepository",
     "ExecutionRepository",
-    "OutcomePatch",
-    "OutcomeRepository",
     "AuditRepository",
     "ArtifactRepository",
     "OutboxRepository",

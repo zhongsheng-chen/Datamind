@@ -37,6 +37,24 @@
     验证禁用部署时级联禁用已启用路由
   - test_enable_does_not_restore_disabled_routings:
     验证重新启用部署不会自动恢复路由
+  - test_create_shadow_deployment_passes_normalized_values:
+    测试创建影子部署并传递规范化发布参数
+  - test_validate_release_mode_rejects_invalid_combinations:
+    测试拒绝不合法的发布方式和部署角色组合
+  - test_enable_deployment_reuses_runtime_control:
+    测试重新启用部署时复用运行控制记录
+  - test_enable_rejects_missing_model:
+    测试模型不存在时拒绝启用部署
+  - test_disable_rejects_missing_deployment:
+    测试禁用不存在的部署时报错
+  - test_update_deployment_normalizes_release_values:
+    测试仅允许编辑停用部署并规范化发布参数
+  - test_update_deployment_to_full_sets_routing_to_100_percent:
+    测试切换为全量发布时同步固定现有路由比例
+  - test_update_deployment_rejects_active_deployment:
+    测试启用状态部署必须先停用再编辑
+  - test_disable_rejects_missing_model:
+    测试模型不存在时拒绝禁用部署
 """
 
 from types import SimpleNamespace

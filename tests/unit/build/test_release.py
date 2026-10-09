@@ -15,6 +15,22 @@
     验证精确版本 Docker 标签保持不可变
   - test_release_workflow_publishes_latest_after_release_artifacts:
     验证 latest 在 Python distributions 与精确版本镜像发布成功后更新
+  - test_project_uses_public_distribution_name:
+    测试正式项目元数据声明 pydatamind distribution
+  - test_release_metadata_writes_distribution_outputs:
+    测试发布准备步骤输出正式分发包名称
+  - test_load_release_metadata_rejects_mismatched_tag:
+    测试正式 Tag 必须与 pyproject.toml 版本完全一致
+  - test_twine_configuration_accepts_compatible_repository:
+    测试 Twine 支持 PyPI-compatible 仓库
+  - test_dockerhub_configuration_accepts_repository:
+    测试 Docker Hub 发布使用项目配置的镜像仓库
+  - test_release_dependency_group_owns_twine:
+    测试 Twine 属于发布工具依赖，不进入 Runtime dependencies
+  - test_release_configuration_check_is_non_publishing:
+    测试发布配置检查仅执行校验与 Docker Hub 登录
+  - test_tests_workflow_is_reusable_release_gate:
+    测试 Tests Workflow 同时支持 workflow_call
 """
 
 from argparse import Namespace

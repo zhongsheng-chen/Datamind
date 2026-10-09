@@ -7,6 +7,8 @@
     验证加载请求与二进制数据正确分派
   - test_load_rejects_unsupported_framework:
     验证拒绝不支持的模型框架
+  - test_load_reports_missing_framework_dependency:
+    测试模型加载缺少可选依赖时返回明确安装建议
 """
 
 from unittest.mock import Mock

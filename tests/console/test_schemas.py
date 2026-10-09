@@ -15,6 +15,16 @@
     验证模型注册字段约束
   - test_extra_fields_are_rejected:
     验证未知字段拒绝
+  - test_routing_create_defaults_to_disabled:
+    测试新路由默认保持停用
+  - test_routing_requests_accept_effective_window:
+    测试路由创建和更新请求接受生效区间
+  - test_model_registration_target_does_not_require_csrf:
+    测试只读的模型注册检查不要求 CSRF 令牌
+  - test_console_password_requests_accept_short_passwords:
+    测试控制台密码请求只要求密码非空
+  - test_environment_is_not_a_console_write_parameter:
+    测试单环境控制台拒绝客户端指定资源环境
 """
 
 from types import SimpleNamespace

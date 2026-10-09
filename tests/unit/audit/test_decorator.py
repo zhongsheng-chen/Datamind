@@ -15,6 +15,34 @@
     验证故障隔离
   - test_audit_preserves_function_metadata:
     验证装饰后函数元数据
+  - test_audit_rejects_blank_target_type:
+    测试拒绝空目标类型
+  - test_audit_rejects_blank_target_id_from:
+    测试拒绝空目标 ID 参数名
+  - test_audit_rejects_synchronous_function:
+    测试装饰器拒绝同步函数
+  - test_audit_rejects_missing_target_id_parameter:
+    测试目标 ID 参数不在函数签名中时立即报错
+  - test_disabled_audit_executes_business_without_recording:
+    测试审计关闭时直接执行原函数
+  - test_empty_parameter_target_id_raises_before_business_call:
+    测试目标 ID 参数为空时不执行业务函数
+  - test_non_string_parameter_target_id_is_rejected:
+    测试目标 ID 参数必须是字符串
+  - test_target_id_func_resolves_id_from_result:
+    测试通过返回值解析目标 ID
+  - test_target_id_func_params_exclude_self:
+    测试目标 ID 解析参数排除实例 self
+  - test_business_error_uses_unknown_target_for_result_resolver:
+    测试业务失败且仅有结果解析器时使用未知目标 ID
+  - test_record_failure_does_not_change_success_result:
+    测试审计记录失败不影响成功业务结果
+  - test_closed_mode_propagates_audit_failure:
+    测试 Fail-closed 模式阻止成功结果返回
+  - test_target_id_func_error_is_logged_without_changing_result:
+    测试目标 ID 解析异常只记录日志
+  - test_blank_target_id_from_func_is_logged:
+    测试解析器返回空目标 ID 时记录日志并返回业务结果
 """
 
 from typing import Any

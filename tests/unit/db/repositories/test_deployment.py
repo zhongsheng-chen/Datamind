@@ -20,6 +20,38 @@
     验证启用部署并维护生效时间
   - test_deactivate_deployment:
     验证停用部署并维护结束时间
+  - test_get_deployment_returns_none_when_not_found:
+    测试部署不存在时返回 None
+  - test_list_deployments_without_filters:
+    测试无筛选时返回全部部署并按创建时间倒序
+  - test_list_deployments_applies_filters_and_pagination:
+    测试常量、状态、普通字段筛选和分页
+  - test_list_deployments_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_deployments_rejects_negative_pagination:
+    测试拒绝负数分页参数
+  - test_deployment_patch_fields_and_defaults:
+    测试更新结构字段和默认值
+  - test_deployment_patch_accepts_constant_enums:
+    测试更新结构接受框架和环境枚举
+  - test_create_deployment_uses_optional_defaults:
+    测试创建部署的可选默认值
+  - test_update_deployment_ignores_none_fields:
+    测试值为 None 的字段不会覆盖原值
+  - test_update_deployment_accepts_empty_strings:
+    测试空字符串作为明确更新值写入对象
+  - test_activate_deployment_sets_effective_from:
+    测试首次启用设置开始时间并清除结束时间
+  - test_activate_deployment_preserves_effective_from:
+    测试重复启用保留原开始时间
+  - test_activate_deployment_accepts_empty_operator:
+    测试启用时允许写入空字符串操作人
+  - test_deactivate_deployment_sets_effective_to:
+    测试首次停用记录结束时间
+  - test_deactivate_deployment_preserves_effective_to:
+    测试重复停用保留原结束时间
+  - test_deactivate_deployment_accepts_empty_operator:
+    测试停用时允许写入空字符串操作人
 """
 
 from dataclasses import fields

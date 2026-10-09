@@ -13,6 +13,8 @@
     验证基础异常捕获
   - test_audit_error_preserves_exception_cause:
     验证异常链保留
+  - test_audit_error_accepts_message:
+    测试基础审计异常保留错误消息
 """
 
 import pytest

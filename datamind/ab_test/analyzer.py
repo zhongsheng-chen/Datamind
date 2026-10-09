@@ -1,6 +1,7 @@
 """A/B 实验分析器.
 
-负责读取实验、实验分组和实验结果，并调用指标评估器生成实验分析结果。
+负责读取实验、实验分组、请求决策和主执行记录，
+并调用指标评估器生成实验分析结果。
 
 核心功能：
   - VariantInfo: 实验分组信息
@@ -13,7 +14,8 @@
   from datamind.db.core import UnitOfWork
   from datamind.db.repositories import (
       ExperimentRepository,
-      OutcomeRepository,
+      DecisionRepository,
+      ExecutionRepository,
       VariantRepository
   )
 
@@ -21,7 +23,8 @@
       analyzer = ABTestAnalyzer(
           experiment_repo=ExperimentRepository(uow.session),
           variant_repo=VariantRepository(uow.session),
-          outcome_repo=OutcomeRepository(uow.session),
+          decision_repo=DecisionRepository(uow.session),
+          execution_repo=ExecutionRepository(uow.session),
           metric_evaluator=ABTestMetricEvaluator()
       )
 
@@ -36,10 +39,11 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from datamind.ab_test.metrics import ABTestMetricEvaluator, ExperimentMetrics
-from datamind.db.models.outcomes import Outcome
+from datamind.db.models.decisions import Decision
 from datamind.db.models.variants import Variant
 from datamind.db.repositories.experiment import ExperimentRepository
-from datamind.db.repositories.outcome import OutcomeRepository
+from datamind.db.repositories.decision import DecisionRepository
+from datamind.db.repositories.execution import ExecutionRepository
 from datamind.db.repositories.variant import VariantRepository
 from datamind.models.enums import AssignmentStrategy, ExperimentVariantStatus
 
@@ -87,7 +91,7 @@ class ABTestAnalysis:
         status: 实验状态
         strategy: 实验分配策略
         baseline_variant_id: 基准分组 ID
-        outcome_count: 实验结果记录数
+        decision_count: 实验决策记录数
         variants: 实验分组信息，key 为 variant_id
         metrics: 实验指标结果
         warnings: 分析提示信息
@@ -100,7 +104,7 @@ class ABTestAnalysis:
     status: str
     strategy: str
     baseline_variant_id: str | None
-    outcome_count: int
+    decision_count: int
     variants: dict[str, VariantInfo]
     metrics: ExperimentMetrics
     warnings: list[str] = field(default_factory=list)
@@ -115,7 +119,7 @@ class ABTestAnalysis:
             "status": self.status,
             "strategy": self.strategy,
             "baseline_variant_id": self.baseline_variant_id,
-            "outcome_count": self.outcome_count,
+            "decision_count": self.decision_count,
             "variants": {
                 variant_id: variant.to_dict()
                 for variant_id, variant in self.variants.items()
@@ -128,7 +132,7 @@ class ABTestAnalysis:
 class ABTestAnalyzer:
     """A/B 实验分析器.
 
-    读取实验配置、实验分组和实验结果，
+    读取实验配置、实验分组、请求决策和主执行记录，
     并调用 ABTestMetricEvaluator 生成实验分析结果。
     """
 
@@ -137,7 +141,8 @@ class ABTestAnalyzer:
             *,
             experiment_repo: ExperimentRepository,
             variant_repo: VariantRepository,
-            outcome_repo: OutcomeRepository,
+            decision_repo: DecisionRepository,
+            execution_repo: ExecutionRepository,
             metric_evaluator: ABTestMetricEvaluator | None = None,
     ):
         """初始化 A/B 实验分析器.
@@ -145,12 +150,14 @@ class ABTestAnalyzer:
         参数：
             experiment_repo: 实验仓储
             variant_repo: 实验分组仓储
-            outcome_repo: 实验结果仓储
+            decision_repo: 请求决策仓储
+            execution_repo: 执行记录仓储
             metric_evaluator: A/B 实验指标评估器，默认使用 ABTestMetricEvaluator
         """
         self.experiment_repo = experiment_repo
         self.variant_repo = variant_repo
-        self.outcome_repo = outcome_repo
+        self.decision_repo = decision_repo
+        self.execution_repo = execution_repo
         self.metric_evaluator = metric_evaluator or ABTestMetricEvaluator()
 
     async def analyze_experiment(
@@ -196,23 +203,24 @@ class ABTestAnalyzer:
             baseline_variant_id=baseline_variant_id,
         )
 
-        outcomes = await self._list_experiment_outcomes(
+        decisions = await self._list_experiment_decisions(
             experiment_id=experiment_id,
         )
 
-        outcome_variant_ids = self._get_outcome_variant_ids(outcomes)
+        decision_variant_ids = self._get_decision_variant_ids(decisions)
 
         metrics_baseline_variant_id = resolved_baseline_variant_id
 
         if (
                 metrics_baseline_variant_id is not None
-                and metrics_baseline_variant_id not in outcome_variant_ids
+                and metrics_baseline_variant_id not in decision_variant_ids
         ):
             metrics_baseline_variant_id = None
 
         metrics_result = self.metric_evaluator.calculate_experiment_metrics(
             experiment_id=experiment_id,
-            outcomes=outcomes,
+            decisions=decisions,
+            executions=await self.execution_repo.list_experiment_executions(experiment_id),
             baseline_variant_id=metrics_baseline_variant_id,
         )
 
@@ -221,7 +229,7 @@ class ABTestAnalyzer:
         warnings = self._build_warnings(
             strategy=strategy,
             variants=variants,
-            outcomes=outcomes,
+            decisions=decisions,
             baseline_variant_id=resolved_baseline_variant_id,
             metrics=metrics_result,
         )
@@ -234,7 +242,7 @@ class ABTestAnalyzer:
             status=self._as_str(experiment.status),
             strategy=self._as_str(strategy),
             baseline_variant_id=resolved_baseline_variant_id,
-            outcome_count=len(outcomes),
+            decision_count=len(decisions),
             variants=variant_map,
             metrics=metrics_result,
             warnings=warnings,
@@ -264,12 +272,13 @@ class ABTestAnalyzer:
         if variant is None:
             raise ValueError("实验分组不存在")
 
-        outcomes = await self._list_variant_outcomes(
+        decisions = await self._list_variant_decisions(
             variant_id=variant_id,
         )
 
         metrics_map = self.metric_evaluator.calculate_variant_metrics(
-            outcomes=outcomes,
+            decisions=decisions,
+            executions=await self.execution_repo.list_experiment_executions(variant.experiment_id),
         )
 
         variant_id_value = self._as_str(variant.variant_id)
@@ -277,7 +286,7 @@ class ABTestAnalyzer:
 
         return {
             "variant": self._build_variant_info(variant).to_dict(),
-            "outcome_count": len(outcomes),
+            "decision_count": len(decisions),
             "metrics": (
                 metrics_result.to_dict()
                 if metrics_result is not None
@@ -325,37 +334,37 @@ class ABTestAnalyzer:
 
         return None
 
-    async def _list_experiment_outcomes(
+    async def _list_experiment_decisions(
             self,
             *,
             experiment_id: str,
-    ) -> list[Outcome]:
-        """获取实验全部结果记录.
+    ) -> list[Decision]:
+        """获取实验全部决策记录.
 
         参数：
             experiment_id: 实验 ID
 
         返回：
-            实验结果记录列表
+            实验决策记录列表
         """
-        return await self.outcome_repo.list_experiment_outcomes(
+        return await self.decision_repo.list_experiment_decisions(
             experiment_id
         )
 
-    async def _list_variant_outcomes(
+    async def _list_variant_decisions(
             self,
             *,
             variant_id: str,
-    ) -> list[Outcome]:
-        """获取实验分组全部结果记录.
+    ) -> list[Decision]:
+        """获取实验分组全部决策记录.
 
         参数：
             variant_id: 实验分组 ID
 
         返回：
-            实验结果记录列表
+            实验决策记录列表
         """
-        return await self.outcome_repo.list_variant_outcomes(
+        return await self.decision_repo.list_variant_decisions(
             variant_id
         )
 
@@ -408,7 +417,7 @@ class ABTestAnalyzer:
             *,
             strategy: AssignmentStrategy,
             variants: list[Variant],
-            outcomes: list[Outcome],
+            decisions: list[Decision],
             baseline_variant_id: str | None,
             metrics: ExperimentMetrics,
     ) -> list[str]:
@@ -417,7 +426,7 @@ class ABTestAnalyzer:
         参数：
             strategy: 实验分配策略
             variants: 实验分组列表
-            outcomes: 实验结果记录列表
+            decisions: 实验决策记录列表
             baseline_variant_id: 基准分组 ID
             metrics: 实验指标结果
 
@@ -426,14 +435,14 @@ class ABTestAnalyzer:
         """
         warnings: list[str] = []
 
-        if not outcomes:
-            warnings.append("实验暂无结果记录")
+        if not decisions:
+            warnings.append("实验暂无决策记录")
 
         if baseline_variant_id is None:
             warnings.append("未找到基准分组，未生成 lift 对比")
         elif baseline_variant_id not in metrics.variants:
             warnings.append(
-                f"基准分组 {baseline_variant_id} 暂无结果记录，未生成 lift 对比"
+                f"基准分组 {baseline_variant_id} 暂无决策记录，未生成 lift 对比"
             )
 
         variant_ids = {
@@ -448,24 +457,24 @@ class ABTestAnalyzer:
 
             if variant_id not in variant_ids_with_metrics:
                 warnings.append(
-                    f"实验分组 {variant_id} 暂无结果记录"
+                    f"实验分组 {variant_id} 暂无决策记录"
                 )
 
         invalid_variant_count = sum(
             1
-            for outcome in outcomes
+            for decision in decisions
             if not cls._is_valid_variant_id(
-                getattr(outcome, "variant_id", None)
+                getattr(decision, "variant_id", None)
             )
         )
 
         if invalid_variant_count > 0:
             warnings.append(
-                f"存在 {invalid_variant_count} 条结果记录缺少有效实验分组 ID"
+                f"存在 {invalid_variant_count} 条决策记录缺少有效实验分组 ID"
             )
 
-        outcome_variant_ids = cls._get_outcome_variant_ids(outcomes)
-        unknown_variant_ids = outcome_variant_ids - variant_ids
+        decision_variant_ids = cls._get_decision_variant_ids(decisions)
+        unknown_variant_ids = decision_variant_ids - variant_ids
 
         if unknown_variant_ids:
             unknown_variant_text = ", ".join(
@@ -582,23 +591,23 @@ class ABTestAnalyzer:
         )
 
     @classmethod
-    def _get_outcome_variant_ids(
+    def _get_decision_variant_ids(
             cls,
-            outcomes: list[Outcome],
+            decisions: list[Decision],
     ) -> set[str]:
-        """获取实验结果中的有效分组 ID.
+        """获取请求决策中的有效分组 ID.
 
         参数：
-            outcomes: 实验结果记录列表
+            decisions: 实验决策记录列表
 
         返回：
             实验分组 ID 集合
         """
         variant_ids: set[str] = set()
 
-        for outcome in outcomes:
+        for decision in decisions:
             variant_id = getattr(
-                outcome,
+                decision,
                 "variant_id",
                 None,
             )

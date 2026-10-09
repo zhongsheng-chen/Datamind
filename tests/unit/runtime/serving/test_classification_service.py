@@ -15,6 +15,12 @@
     验证批量预测拒绝标量结果
   - test_predict_rejects_invalid_feature_type:
     验证单条和批量分类在模型执行前拒绝非法特征类型
+  - test_service_uses_model_second_class_as_positive_class:
+    测试分类服务从模型类别顺序识别字符串正类
+  - test_predict_rejects_empty_features:
+    测试单条分类拒绝空特征
+  - test_predict_batch_returns_empty_result:
+    测试空批次返回空预测列表
 """
 
 from typing import Any

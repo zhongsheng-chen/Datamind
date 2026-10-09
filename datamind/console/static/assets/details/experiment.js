@@ -1,5 +1,7 @@
 "use strict";
 
+import { createExperimentAnalysisSummary, showExperimentAnalysisPanel } from "./experiment/analysis.js";
+
 import {
   appendDetailField as appendRequestDetail,
   appendDetailFooter,
@@ -432,6 +434,12 @@ export function createExperimentDetailController({
           ["分组数量", record.variant_count],
         ], dialog, "config", appendRequestDetail),
         createVariantList(record, variants, dialog),
+        createExperimentAnalysisSummary({
+          experimentId,
+          request,
+          dialog,
+          onViewAnalysis: () => showExperimentAnalysisPanel({ experiment: record, request, parentDialog: dialog, createStatusBadge }),
+        }),
       );
       if (config.strategy === "manual") {
         body.append(createCustomerAssignmentsSection(record, dialog));

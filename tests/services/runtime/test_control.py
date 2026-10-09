@@ -27,6 +27,14 @@
     验证分页参数校验
   - test_validate_control_environment_rejects_mismatch:
     验证环境一致性
+  - test_runtime_serialization_preserves_applied_generation:
+    测试运行实例序列化保留控制代次及其可空语义
+  - test_get_status_preserves_worker_applied_generations:
+    测试状态响应保留每个 Worker 实际应用的控制代次
+  - test_get_status_rejects_missing_deployment:
+    测试查询不存在的部署状态时报错
+  - test_list_services_supports_empty_filters:
+    测试不传筛选条件时查询全部运行服务
 """
 
 from datetime import datetime, timezone

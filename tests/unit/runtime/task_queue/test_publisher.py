@@ -9,6 +9,8 @@
     验证影子预测任务发布到影子队列
   - test_revoke_delegates_to_celery_control:
     验证任务撤销委托给 Celery 控制面
+  - test_submit_batch_chunk_uses_batch_queue:
+    测试批量分片带全局下标范围发布
 """
 
 from unittest.mock import MagicMock, patch

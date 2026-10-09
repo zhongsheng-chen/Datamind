@@ -17,6 +17,10 @@
     验证指数退避
   - test_permanent_error_does_not_retry:
     验证永久错误不重试
+  - test_record_overrides_default_failure_mode:
+    测试单次记录可以覆盖默认失败策略
+  - test_transient_error_returns_after_retries_exhausted:
+    测试 Fail-open 在瞬时错误重试耗尽后返回失败
 """
 
 from unittest.mock import (

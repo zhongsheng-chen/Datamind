@@ -153,7 +153,6 @@ const permissionResourceLabels = {
   identity: "身份",
   routing: "路由",
   runtime: "运行时",
-  outcome: "结果回流",
   prediction: "预测",
   request: "API 调用",
   audit: "审计",

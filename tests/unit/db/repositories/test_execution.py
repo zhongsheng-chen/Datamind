@@ -17,6 +17,10 @@
     验证影子执行重试条件
   - test_execution_validation:
     验证执行参数和状态迁移约束
+  - test_mark_failed_supports_terminal_statuses:
+    测试未成功执行可以进入各类终态
+  - test_list_experiment_executions_joins_original_decision:
+    测试按原始决策筛选实验，并仅查询主执行
 """
 
 from datetime import (
@@ -364,3 +368,22 @@ def test_execution_validation() -> None:
                 status="success"
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_list_experiment_executions_joins_original_decision() -> None:
+    """测试按原始决策筛选实验，并仅查询主执行."""
+    session = AsyncMock(spec=AsyncSession)
+    row = create_execution(execution_type="primary")
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [row]
+    session.execute.return_value = result
+
+    rows = await ExecutionRepository(session).list_experiment_executions("exp_test")
+
+    assert rows == [row]
+    statement = session.execute.call_args.args[0]
+    sql = str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+    assert "JOIN decisions ON executions.decision_id = decisions.decision_id" in sql
+    assert "decisions.experiment_id = 'exp_test'" in sql
+    assert "executions.execution_type = 'primary'" in sql

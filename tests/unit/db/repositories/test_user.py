@@ -28,6 +28,36 @@
     验证登录成功状态记录
   - test_record_login_failure:
     验证登录失败次数递增
+  - test_get_user_returns_none_when_not_found:
+    测试用户不存在时返回 None
+  - test_list_users_uses_default_order_and_limit:
+    测试用户列表默认排序和数量限制
+  - test_list_users_allows_unlimited_query:
+    测试用户列表允许不设置分页
+  - test_user_patch_uses_slots_and_defaults:
+    测试用户更新结构默认值和 slots
+  - test_update_user_ignores_none_fields:
+    测试用户更新忽略值为 None 的字段
+  - test_update_password_with_explicit_time:
+    测试使用指定时间更新密码哈希
+  - test_update_password_uses_current_utc_time:
+    测试未指定时间时使用当前 UTC 时间
+  - test_activate_user:
+    测试启用用户并清除锁定状态
+  - test_disable_user:
+    测试停用用户并清除临时锁定时间
+  - test_mark_deleted_user:
+    测试逻辑删除用户并保留身份记录
+  - test_lock_user:
+    测试锁定用户
+  - test_unlock_user:
+    测试解锁用户并清除失败次数
+  - test_status_update_preserves_existing_updated_by:
+    测试未提供更新人时保留原更新人
+  - test_record_login_success_with_explicit_time:
+    测试记录登录成功并清除失败次数
+  - test_record_login_success_uses_current_utc_time:
+    测试未指定登录时间时使用当前 UTC 时间
 """
 
 from datetime import (

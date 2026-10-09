@@ -5,6 +5,12 @@
 核心功能：
   - test_deployment_mutation_reports_business_error:
     验证部署状态变更命令处理业务异常
+  - test_deployment_create_rejects_invalid_release_role_before_context:
+    测试创建命令在认证和数据库访问前拒绝非法发布角色组合
+  - test_resolve_release_options:
+    测试 CLI 自动推导固定角色并规范化金丝雀角色
+  - test_canary_deployment_requires_explicit_role:
+    测试金丝雀发布必须明确选择部署角色
 """
 
 from collections.abc import AsyncIterator

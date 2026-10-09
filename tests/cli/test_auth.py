@@ -11,6 +11,16 @@
     验证退出并清理本地会话
   - test_auth_commands_render_clean_error:
     验证认证失败不显示 traceback
+  - test_login_revokes_previous_session_before_saving_new_session:
+    测试登录成功后撤销并替换已有本地会话
+  - test_login_replaces_invalid_stored_session:
+    测试已有凭据损坏时仍可保存新的登录会话
+  - test_login_failure_preserves_previous_session:
+    测试新登录失败时不撤销或覆盖已有会话
+  - test_whoami_does_not_expose_format_option:
+    测试身份查询仅提供文本输出
+  - test_whoami_renders_clean_error:
+    测试身份查询失败时不显示 traceback
 """
 
 from collections.abc import AsyncIterator

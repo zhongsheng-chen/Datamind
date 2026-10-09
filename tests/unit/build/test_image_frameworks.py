@@ -12,6 +12,8 @@
     验证 Dockerfile 复用 Python extra 定义
   - test_core_imports_do_not_require_optional_frameworks:
     验证核心入口不依赖可选模型框架
+  - test_scorecard_dependency_uses_supported_version_range:
+    测试评分卡依赖使用已验证的版本范围
 """
 
 from pathlib import Path

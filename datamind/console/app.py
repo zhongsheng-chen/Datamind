@@ -44,6 +44,7 @@ from starlette.responses import (
 )
 from starlette.types import ASGIApp
 
+from datamind.ab_test.analyzer import ABTestAnalyzer
 from datamind.auth.enums import RoleStatus
 from datamind.auth.events import record_authentication_event
 from datamind.auth.factory import create_auth_service
@@ -77,6 +78,10 @@ from datamind.db.core import UnitOfWork
 from datamind.db.models.outbox import OutboxEvent
 from datamind.db.repositories import (
     MetadataRepository,
+    ExperimentRepository,
+    VariantRepository,
+    DecisionRepository,
+    ExecutionRepository,
     OutboxRepository,
     VersionRepository,
 )
@@ -633,6 +638,46 @@ async def _model_registration_target(
         ),
         "version_exists": bool(versions),
     })
+
+
+async def _experiment_analysis(
+        request: Request,
+) -> JSONResponse:
+    """返回实验分析结果."""
+    user = await _authenticate(request)
+    if user is None:
+        return _error_response("尚未登录", status_code=401)
+
+    if not has_permission(
+            granted_permissions=user.permissions,
+            required_permission="experiment.read",
+    ):
+        return _error_response("没有实验查看权限", status_code=403)
+
+    baseline_variant_id = request.query_params.get("baseline_variant_id", "").strip() or None
+    try:
+        async with UnitOfWork() as uow:
+            analyzer = ABTestAnalyzer(
+                experiment_repo=ExperimentRepository(uow.session),
+                variant_repo=VariantRepository(uow.session),
+                decision_repo=DecisionRepository(uow.session),
+                execution_repo=ExecutionRepository(uow.session),
+            )
+            result = await analyzer.analyze_experiment(
+                experiment_id=request.path_params["experiment_id"],
+                baseline_variant_id=baseline_variant_id,
+            )
+    except ValueError as error:
+        return _error_response(
+            str(error),
+            status_code=404 if str(error) == "实验不存在" else 400,
+        )
+    except SQLAlchemyError:
+        return _error_response("实验分析暂不可用", status_code=503)
+
+    response = JSONResponse(result.to_dict())
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 async def _model_detail(
@@ -2825,6 +2870,7 @@ console_app = Starlette(
             create_variant=_create_variant,
             update_variant=_update_variant,
             experiment_variants=_experiment_variants,
+            experiment_analysis=_experiment_analysis,
             section_export=_section_export,
             section=_section,
             events=_events,

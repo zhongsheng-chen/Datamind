@@ -1418,7 +1418,7 @@ export function createResourceManager({
   }
 
   function canManageSection(section) {
-    if (["batches", "models", "versions"].includes(section)) return true;
+    if (["batches", "models", "versions", "experiments"].includes(section)) return true;
 
     const capabilities = {
       deployments: ["deployments.manage", "deployments.delete"],

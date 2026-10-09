@@ -21,6 +21,24 @@
     验证撤销角色授予
   - test_grant_status_operations_use_current_utc_time:
     验证状态操作默认使用当前 UTC 时间
+  - test_get_grant_returns_none_when_not_found:
+    测试角色授予不存在时返回 None
+  - test_list_grants_uses_default_order_and_limit:
+    测试角色授予列表默认排序和数量限制
+  - test_list_grants_builds_filtered_query:
+    测试授予列表筛选、排序和分页
+  - test_list_grants_allows_unlimited_query:
+    测试授予列表允许不设置分页
+  - test_create_grant_uses_defaults:
+    测试创建默认有效角色授予
+  - test_create_grant_with_explicit_values:
+    测试创建指定状态和授予时间的记录
+  - test_activate_grant_with_explicit_time:
+    测试使用指定时间重新激活角色授予
+  - test_activate_grant_allows_empty_granted_by:
+    测试重新激活时允许不记录授予用户
+  - test_revoke_grant_with_explicit_time:
+    测试使用指定时间撤销角色授予
 """
 
 from datetime import (

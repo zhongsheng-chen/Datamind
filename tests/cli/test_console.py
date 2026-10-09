@@ -29,6 +29,8 @@
     验证异常退出码
   - test_console_run_stops_process_on_interrupt:
     验证中断处理
+  - test_console_run_verbose_preserves_bentoml_logs:
+    测试详细模式不抑制 BentoML 日志
 """
 
 from types import SimpleNamespace

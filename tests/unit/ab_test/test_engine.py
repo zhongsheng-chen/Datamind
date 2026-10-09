@@ -11,6 +11,32 @@
     验证命中新分组后创建并返回固定分配
   - test_resolve_subject_key:
     验证从直接参数或请求负载解析分桶主体
+  - test_engine_returns_existing_assignment:
+    测试优先返回已经存在且有效的固定分配
+  - test_engine_rejects_missing_arguments:
+    测试拒绝缺少必要参数
+  - test_engine_rejects_invalid_environment:
+    测试拒绝不支持的实验环境
+  - test_engine_queries_running_experiments_with_environment_enum:
+    测试使用环境枚举查询运行中的实验
+  - test_engine_rejects_multiple_running_experiments:
+    测试拒绝同一模型环境存在多个运行实验
+  - test_engine_skips_ineffective_experiment:
+    测试跳过尚未生效的实验
+  - test_engine_skips_expired_experiment:
+    测试跳过已经失效的实验
+  - test_engine_skips_unresolved_payload_subject:
+    测试请求负载中不存在有效分桶主体时跳过实验
+  - test_engine_returns_none_when_assigner_has_no_result:
+    测试分配器未命中实验曝光时返回 None
+  - test_engine_rejects_invalid_experiment_config:
+    测试拒绝非法曝光比例或分配策略
+  - test_engine_rejects_non_mapping_config:
+    测试拒绝非 JSON 对象的实验配置
+  - test_engine_ignores_unavailable_existing_assignment:
+    测试已有分配对应分组不存在或未启用时不返回结果
+  - test_get_manual_variant_target:
+    测试按配置和请求负载优先级读取手工分组目标
 """
 
 from datetime import datetime, timedelta, timezone

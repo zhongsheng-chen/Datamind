@@ -14,6 +14,10 @@
     验证并发同步冲突后复用已有模型
   - test_load_rejects_blank_reference:
     验证拒绝空模型引用
+  - test_loader_initializes_storage_after_bento_model_miss:
+    测试 Bento 模型缺失时才连接对象存储
+  - test_loader_retries_storage_after_dependency_recovers:
+    测试对象存储晚于运行服务恢复后可以再次加载模型
 """
 
 from unittest.mock import MagicMock

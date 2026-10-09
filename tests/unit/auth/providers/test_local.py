@@ -30,6 +30,12 @@
     验证关闭或无需升级时不更新密码哈希
   - test_authenticate_rejects_naive_current_time:
     验证拒绝不包含时区的当前时间
+  - test_local_provider_config_uses_defaults:
+    测试本地认证配置默认值
+  - test_authenticate_does_not_disclose_disabled_user_for_wrong_password:
+    测试密码错误时不暴露用户停用状态
+  - test_authenticate_preserves_password_changed_at:
+    测试升级密码哈希时保留原密码变更时间
 """
 
 from datetime import (

@@ -24,6 +24,46 @@
     验证批次请求重试前恢复待处理状态
   - test_request_latency:
     验证处理耗时不能为负数
+  - test_get_request_returns_none_when_not_found:
+    测试请求记录不存在时返回 None
+  - test_list_requests_without_filters:
+    测试无筛选时返回全部请求并按创建时间倒序
+  - test_list_requests_applies_filters_and_pagination:
+    测试请求字段筛选、排序和分页
+  - test_list_requests_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_methods_reject_negative_pagination:
+    测试请求列表方法拒绝负数分页参数
+  - test_list_recent_requests_uses_default_limit:
+    测试最近请求默认返回 100 条
+  - test_list_recent_requests_accepts_custom_pagination:
+    测试最近请求支持自定义分页
+  - test_list_model_requests_uses_default_limit:
+    测试模型请求默认返回 100 条
+  - test_list_model_requests_accepts_custom_pagination:
+    测试模型请求支持自定义分页
+  - test_create_request_allows_optional_fields:
+    测试创建请求时允许省略可选字段
+  - test_create_request_allows_unresolved_model:
+    测试模型解析前可保存原始请求
+  - test_create_request_accepts_non_negative_latency:
+    测试创建请求接受非负耗时
+  - test_create_request_rejects_negative_latency:
+    测试创建请求拒绝负数耗时
+  - test_mark_success_preserves_latency_when_omitted:
+    测试成功时未提供耗时则保留原值
+  - test_mark_success_accepts_zero_latency:
+    测试成功状态允许零耗时
+  - test_mark_success_rejects_negative_latency_without_mutation:
+    测试成功状态拒绝负数耗时且不修改对象
+  - test_mark_failed_preserves_latency_when_omitted:
+    测试失败时未提供耗时则保留原值
+  - test_mark_failed_accepts_empty_error:
+    测试失败状态允许明确写入空错误信息
+  - test_reset_for_retry_rejects_success:
+    测试成功的批次请求不能进入重试流程
+  - test_mark_failed_rejects_negative_latency_without_mutation:
+    测试失败状态拒绝负数耗时且不修改对象
 """
 
 from typing import (

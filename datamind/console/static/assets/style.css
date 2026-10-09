@@ -538,7 +538,7 @@ tbody tr:last-child td { border-bottom: 0; }
   font-size: 12px;
   white-space: nowrap;
 }
-.page-size select {
+.page-size select, .experiment-analysis-controls select {
   appearance: none;
   min-width: 68px;
   padding: 9px 28px 9px 11px;
@@ -554,8 +554,8 @@ tbody tr:last-child td { border-bottom: 0; }
   cursor: pointer;
   transition: border-color .15s, background-color .15s, box-shadow .15s;
 }
-.page-size select:hover { border-color: #b8c4d1; background-color: #f7f9fb; }
-.page-size select:focus { border-color: #9dcec7; box-shadow: 0 0 0 3px rgba(22,163,148,.09); }
+.page-size select:hover, .experiment-analysis-controls select:hover { border-color: #b8c4d1; background-color: #f7f9fb; }
+.page-size select:focus, .experiment-analysis-controls select:focus { border-color: #9dcec7; box-shadow: 0 0 0 3px rgba(22,163,148,.09); }
 .page-jump { display: flex; align-items: center; gap: 8px; margin-left: 4px; }
 .page-jump input { width: 68px; padding: 8px 9px; text-align: center; }
 .mono { font-family: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 11px; color: #526073; }
@@ -1675,4 +1675,166 @@ button.registry-related-item:hover { background: #f1f6fb; }
   .management-form-body { grid-template-columns: 1fr; padding: 18px; }
   .management-field.wide { grid-column: auto; }
   .choice-grid, .choice-grid.compact, .multiselect-options { grid-template-columns: 1fr; }
+}
+
+.experiment-analysis, .experiment-analysis-compact { --analysis-surface: #f8fafc; }
+.experiment-analysis-controls { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--muted); font-size: 13px; }
+.experiment-analysis-controls select { max-width: 100%; font-family: inherit; font-size: 13px; }
+.experiment-analysis-content { min-width: 0; }
+.experiment-analysis-summary { margin: 12px 0; font-size: 13px; font-weight: 600; }
+.experiment-analysis-block { margin: 18px 0; min-width: 0; }
+.experiment-analysis-block h5 { margin: 0 0 10px; font-size: 13px; }
+.experiment-analysis-scroll { max-width: 100%; overflow-x: auto; border: 1px solid #e3e9ef; border-radius: 6px; }
+.experiment-analysis-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.experiment-analysis-table th, .experiment-analysis-table td { padding: 10px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid #e8edf2; }
+.experiment-analysis-table thead th { background: #f5f8fb; color: #52677c; font-weight: 600; }
+.experiment-analysis-table th:first-child { text-align: left; }
+.experiment-analysis-table tbody th { font-weight: 500; }
+.experiment-analysis-table tbody tr:last-child > * { border-bottom: 0; }
+.experiment-analysis-note { margin: 10px 0; color: #66788a; font-size: 12px; line-height: 1.7; }
+
+.experiment-analysis-dialog { width: min(1120px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: white; color: var(--ink); box-shadow: 0 28px 80px rgba(8,25,45,.24); }
+.experiment-analysis-dialog[open] { display: flex; flex-direction: column; }
+.experiment-analysis-dialog::backdrop { background: rgba(11,27,45,.42); }
+.experiment-analysis-dialog > header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 26px; border-bottom: 1px solid var(--line); }
+.experiment-analysis-dialog h3 { margin: 0; font-size: 18px; }
+.experiment-analysis-dialog header p { margin: 7px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.experiment-analysis-body { min-height: 0; overflow-y: auto; padding: 0 26px 22px; }
+.experiment-analysis-body .experiment-analysis { padding: 0; border: 0; }
+.experiment-analysis-dialog > footer { display: flex; flex: 0 0 auto; justify-content: flex-end; padding: 14px 26px; border-top: 1px solid var(--line); }
+.experiment-analysis-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 0 16px; }
+.experiment-analysis-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0 24px; }
+.experiment-analysis-cards > div { padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--analysis-surface); }
+.experiment-analysis-cards dt { color: var(--muted); font-size: 12px; }
+.experiment-analysis-cards dd { margin: 10px 0 0; font-size: 22px; font-weight: 600; }
+.experiment-analysis-states { margin: 22px 0; }
+@media (max-width: 600px) {
+  .experiment-analysis-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .experiment-analysis-body { padding: 0 16px 18px; }
+  .experiment-analysis-dialog > header, .experiment-analysis-dialog > footer { padding: 16px; }
+  .experiment-analysis-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .experiment-analysis-controls { min-width: 0; }
+  .experiment-analysis-controls select { min-width: 0; }
+}
+
+.experiment-analysis-compact { min-width: 0; }
+.experiment-analysis-compact .experiment-analysis-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.experiment-analysis-compact .experiment-analysis-cards > div { padding: 12px 14px; }
+.experiment-analysis-compact .experiment-analysis-cards dd { font-size: 19px; overflow-wrap: anywhere; }
+.experiment-analysis-group { margin: 16px 0; }
+.experiment-analysis-group-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12px; }
+.experiment-analysis-group-heading strong { min-width: 0; overflow-wrap: anywhere; }
+.experiment-analysis-group-heading span { flex-shrink: 0; color: var(--muted); }
+.experiment-analysis-group progress { display: block; width: 100%; height: 6px; margin-top: 8px; border: 0; border-radius: 4px; overflow: hidden; accent-color: #176fe5; background: #edf2f7; }
+.experiment-analysis-group progress::-webkit-progress-bar { background: #edf2f7; }
+.experiment-analysis-group progress::-webkit-progress-value { background: #176fe5; border-radius: 4px; }
+.experiment-analysis-group progress::-moz-progress-bar { background: #176fe5; border-radius: 4px; }
+
+.experiment-analysis-title-row { display: flex; align-items: center; gap: 12px; }
+.experiment-analysis-body .experiment-analysis-cards { gap: 0; margin: 0 0 24px; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.experiment-analysis-body .experiment-analysis-cards > div { padding: 0 22px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; }
+.experiment-analysis-body .experiment-analysis-cards > div:first-child { padding-left: 0; }
+.experiment-analysis-body .experiment-analysis-cards > div:last-child { border-right: 0; }
+.experiment-analysis-body .experiment-analysis-cards dd { margin-top: 7px; font-size: 21px; }
+.experiment-analysis-main { min-width: 0; }
+.experiment-analysis-main > .experiment-analysis-block:first-child { margin-top: 0; }
+.experiment-analysis-main .experiment-analysis-table { table-layout: fixed; }
+.experiment-analysis-main .experiment-analysis-table th, .experiment-analysis-main .experiment-analysis-table td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+.experiment-analysis-value { display: grid; gap: 7px; }
+.experiment-analysis-value strong { font-size: 16px; font-weight: 600; }
+.experiment-analysis-difference { color: #52677c; font-size: 11px; line-height: 1.6; }
+.experiment-analysis-value small { color: var(--muted); font-size: 10px; line-height: 1.6; }
+.experiment-analysis-traffic h5 { margin: 0; font-size: 13px; }
+.experiment-analysis-samples { display: flex; gap: 22px; margin: 12px 0 0; font-size: 11px; }
+.experiment-analysis-samples dt { color: var(--muted); }
+.experiment-analysis-samples dd { margin: 5px 0 0; font-size: 13px; font-weight: 600; }
+.experiment-analysis-states { padding-top: 20px; border-top: 1px solid var(--line); }
+.experiment-analysis-states .experiment-analysis-scroll { border: 0; border-radius: 0; }
+.experiment-analysis-states .experiment-analysis-table thead th { background: transparent; }
+@media (max-width: 600px) {
+  .experiment-analysis-body .experiment-analysis-cards { row-gap: 18px; }
+  .experiment-analysis-body .experiment-analysis-cards > div { padding: 0 14px; }
+  .experiment-analysis-body .experiment-analysis-cards > div:nth-child(odd) { padding-left: 0; }
+  .experiment-analysis-body .experiment-analysis-cards > div:nth-child(even) { border-right: 0; }
+  .experiment-analysis-main .experiment-analysis-table th, .experiment-analysis-main .experiment-analysis-table td { padding: 10px 7px; }
+  .experiment-analysis-value strong { font-size: 14px; }
+}
+
+.experiment-analysis-layout { display: flex; flex-direction: column; gap: 24px; }
+.experiment-analysis-main, .experiment-analysis-traffic { width: 100%; box-sizing: border-box; }
+.experiment-analysis-traffic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfc; }
+.experiment-analysis-traffic > h5 { grid-column: 1 / -1; }
+.experiment-analysis-traffic > .experiment-analysis-note { display: none; }
+.experiment-analysis-traffic .experiment-analysis-group { margin: 0; padding: 0; border: 0; }
+.experiment-analysis-traffic .experiment-analysis-samples { margin-top: 10px; }
+.experiment-analysis-samples > div { display: flex; align-items: baseline; gap: 8px; }
+.experiment-analysis-samples dd { margin: 0; }
+.experiment-analysis-heading { margin: 0 0 16px; font-size: 15px; }
+@media (max-width: 600px) {
+  .experiment-analysis-traffic { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 独立分析面板 */
+.experiment-analysis-dialog { width: min(980px, calc(100vw - 32px)); height: min(980px, calc(100dvh - 48px)); border-radius: 10px; }
+.experiment-analysis-dialog > header { padding: 22px 28px; }
+.experiment-analysis-dialog header p { font-size: 13px; }
+.experiment-analysis-body { flex: 1 1 auto; padding: 0 28px 20px; }
+.experiment-analysis-toolbar { padding: 12px 0; }
+.experiment-analysis-controls { margin: 0; font-size: 13px; font-weight: 400; }
+.experiment-analysis-controls select, .experiment-analysis-controls option { font-family: inherit; font-size: 13px; font-weight: 400; }
+.experiment-analysis-body .experiment-analysis-cards { display: flex; gap: 28px; margin: 0 0 22px; padding: 10px 0 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+.experiment-analysis-body .experiment-analysis-cards > div { display: flex; align-items: baseline; gap: 10px; padding: 0; border: 0; }
+.experiment-analysis-body .experiment-analysis-cards dd { margin: 0; font-size: 17px; font-variant-numeric: tabular-nums; }
+.experiment-analysis-layout { gap: 24px; }
+.experiment-analysis-traffic { padding: 0; gap: 14px 32px; border: 0; border-radius: 0; background: var(--surface); }
+.experiment-analysis-traffic > h5 { display: block; margin: 0; color: #1f334b; font-size: 14px; font-weight: 600; }
+.experiment-analysis-traffic .experiment-analysis-group-heading { font-size: 13px; }
+.experiment-analysis-traffic .experiment-analysis-samples { gap: 20px; }
+.experiment-analysis-traffic .experiment-analysis-samples dd { font-size: 12px; font-weight: 500; }
+.experiment-analysis-main .experiment-analysis-block h5, .experiment-analysis-states h5 { margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.experiment-analysis-main .experiment-analysis-scroll { border: 1px solid var(--line); border-radius: 6px; overflow: visible; }
+.experiment-analysis-main .experiment-analysis-table th, .experiment-analysis-main .experiment-analysis-table td { padding: 10px 18px; vertical-align: middle; font-family: inherit; font-variant-numeric: tabular-nums; }
+.experiment-analysis-main .experiment-analysis-table thead th { padding: 12px 18px; background: var(--analysis-surface); color: #46576b; font-size: 13px; letter-spacing: 0; }
+.experiment-analysis-main .experiment-analysis-table thead th:first-child { border-radius: 6px 0 0 0; }
+.experiment-analysis-main .experiment-analysis-table thead th:last-child { border-radius: 0 6px 0 0; }
+.experiment-analysis-main .experiment-analysis-table tbody th { background: white; color: #34465c; font-size: 13px; }
+.experiment-analysis-main .experiment-analysis-table th:first-child { width: 30%; }
+.experiment-analysis-main .experiment-analysis-value { position: relative; gap: 4px; min-height: 36px; align-content: center; }
+.experiment-analysis-main .experiment-analysis-value strong { font-size: 16px; font-weight: 600; }
+.experiment-analysis-difference { font-size: 11px; color: var(--muted); }
+.experiment-analysis-sample-hint { display: none; position: absolute; right: 0; top: 100%; z-index: 2; width: max-content; max-width: 260px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: white; box-shadow: 0 6px 20px rgba(8,25,45,.1); color: var(--muted); font-size: 12px; line-height: 1.6; }
+.experiment-analysis-value:focus-within .experiment-analysis-sample-hint, .experiment-analysis-value:hover .experiment-analysis-sample-hint { display: block; }
+.experiment-analysis-states { margin: 24px 0 0; padding-top: 0; border: 0; }
+.experiment-analysis-states .experiment-analysis-scroll { border: 1px solid var(--line); border-radius: 6px; }
+.experiment-analysis-states .experiment-analysis-table thead th { background: var(--analysis-surface); }
+.experiment-analysis-states .experiment-analysis-table th, .experiment-analysis-states .experiment-analysis-table td { font-family: inherit; font-size: 13px; letter-spacing: 0; font-variant-numeric: tabular-nums; padding: 12px 10px; }
+.experiment-analysis-content > .experiment-analysis-note { margin: 12px 0 0; font-size: 11px; }
+@media (max-width: 600px) {
+  .experiment-analysis-dialog { width: calc(100vw - 20px); }
+  .experiment-analysis-dialog > header, .experiment-analysis-dialog > footer { padding: 16px; }
+  .experiment-analysis-body { padding: 0 16px 18px; }
+  .experiment-analysis-body .experiment-analysis-cards { gap: 16px; padding: 12px; flex-wrap: wrap; }
+  .experiment-analysis-body .experiment-analysis-cards > div { gap: 6px; }
+  .experiment-analysis-traffic { padding: 12px; }
+  .experiment-analysis-main .experiment-analysis-table th, .experiment-analysis-main .experiment-analysis-table td { padding: 12px 7px; }
+  .experiment-analysis-main .experiment-analysis-value strong { font-size: 14px; }
+  .experiment-analysis-sample-hint { max-width: 180px; }
+}
+
+/* 评估指标与比较列 */
+.experiment-analysis-dialog { height: min(920px, calc(100dvh - 48px)); }
+.experiment-analysis-dialog > header { flex-wrap: wrap; gap: 16px; }
+.experiment-analysis-dialog > header > div:first-child { flex: 1 1 auto; }
+.experiment-analysis-dialog > header .experiment-analysis-toolbar { padding: 0; gap: 16px; }
+.experiment-analysis-total { margin: 20px 0; color: var(--muted); font-size: 13px; }
+.experiment-analysis-main .experiment-analysis-table { table-layout: auto; min-width: 640px; }
+.experiment-analysis-main .experiment-analysis-table th:first-child { width: auto; min-width: 170px; }
+.experiment-analysis-main .experiment-analysis-table th, .experiment-analysis-main .experiment-analysis-table td { padding: 14px 16px; white-space: nowrap; font-size: 13px; }
+.experiment-analysis-main .experiment-analysis-value { min-height: 0; }
+.experiment-analysis-main .experiment-analysis-value strong { font-size: 14px; font-weight: 500; }
+.experiment-analysis-main .experiment-analysis-scroll { overflow-x: auto; }
+.experiment-analysis-value:focus-within .experiment-analysis-sample-hint, .experiment-analysis-value:hover .experiment-analysis-sample-hint { display: none; }
+@media (max-width: 600px) {
+  .experiment-analysis-dialog > header .experiment-analysis-toolbar { order: 3; flex: 1 1 100%; }
+  .experiment-analysis-main .experiment-analysis-table th, .experiment-analysis-main .experiment-analysis-table td { padding: 12px; }
 }

@@ -7,6 +7,8 @@
     验证 __all__ 包含完整且准确的加载器模块
   - test_all_declared_exports_are_available:
     验证声明的模块均可从包级访问
+  - test_handler_modules_are_registered:
+    测试各框架加载器均已完成注册
 """
 
 from collections.abc import Callable

@@ -19,6 +19,14 @@
     验证必填字段
   - test_audit_event_rejects_oversized_optional_fields:
     验证可选字段长度
+  - test_audit_event_accepts_explicit_identity_and_time:
+    测试允许显式指定审计 ID 和发生时间
+  - test_audit_event_rejects_invalid_fields:
+    测试事件在写数据库前拒绝非法字段
+  - test_audit_event_rejects_inconsistent_action:
+    测试 action 必须与资源和操作名称一致
+  - test_audit_event_rejects_naive_occurred_at:
+    测试事件发生时间必须包含时区
 """
 
 from datetime import datetime, timezone

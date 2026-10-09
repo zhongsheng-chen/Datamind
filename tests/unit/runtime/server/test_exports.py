@@ -9,6 +9,8 @@
     验证声明的公共对象均可从包级访问
   - test_core_functions_document_all_exports:
     验证核心功能完整列出公共 API
+  - test_removed_feedback_schema_is_unavailable:
+    测试运行服务不再导出业务结果请求模型
 """
 
 import datamind.runtime.server as server
@@ -21,7 +23,6 @@ EXPECTED_EXPORTS = {
     "ControlRequest",
     "DatamindRuntimeService",
     "DeploymentRequest",
-    "OutcomeFeedbackRequest",
     "PredictRequest",
     "PredictionInstance",
     "ServiceAuthenticationError",
@@ -60,3 +61,11 @@ def test_core_functions_document_all_exports() -> None:
 
     for name in server.__all__:
         assert f"- {name}:" in core_functions
+
+
+def test_removed_feedback_schema_is_unavailable() -> None:
+    """测试运行服务不再导出业务结果请求模型."""
+    from datamind.runtime.server import schemas
+
+    assert not hasattr(schemas, "OutcomeFeedbackRequest")
+    assert not hasattr(server.DatamindRuntimeService.inner, "submit_outcome")

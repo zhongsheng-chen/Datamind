@@ -15,6 +15,26 @@
     验证按分组 ID、名称和主体映射执行手工分配
   - test_experiment_assigner_dispatches_strategy:
     验证统一分配器按策略选择具体实现
+  - test_stable_hash_rejects_missing_identifiers:
+    测试拒绝缺少实验 ID 或分桶主体
+  - test_stable_hash_rejects_invalid_traffic_ratio:
+    测试拒绝越界的实验曝光比例
+  - test_stable_hash_rejects_invalid_active_weights:
+    测试拒绝无可用分组或权重总和非法
+  - test_stable_hash_returns_none_outside_exposure:
+    测试主体未进入实验曝光比例时返回 None
+  - test_manual_assignment_uses_subject_mapping:
+    测试从主体映射中解析手工指定分组
+  - test_manual_assignment_returns_none_without_target:
+    测试未提供有效手工目标时返回 None
+  - test_manual_assignment_rejects_invalid_request:
+    测试手工分配拒绝缺少标识或无可用分组
+  - test_manual_assignment_returns_none_for_invalid_mapping:
+    测试主体映射缺失或不含目标字段时返回 None
+  - test_manual_assignment_rejects_unavailable_target:
+    测试拒绝不存在或权重为零的手工目标
+  - test_experiment_assigner_rejects_unknown_strategy:
+    测试统一分配器拒绝未知策略
 """
 
 from types import SimpleNamespace

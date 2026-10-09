@@ -13,6 +13,38 @@
     验证通知连接清理
   - test_stop_is_idempotent:
     验证未启动时可以安全停止
+  - test_initialize_cursor_reads_latest_event_once:
+    测试初始化游标只读取一次最新事件
+  - test_cleanup_removes_expired_events_once_per_interval:
+    测试过期事件清理受时间间隔限制
+  - test_poll_safely_suppresses_replay_error:
+    测试安全轮询吞掉普通回放异常
+  - test_poll_safely_preserves_cancellation:
+    测试安全轮询继续传播任务取消
+  - test_receive_notification_broadcasts_latest_cursor:
+    测试数据库通知广播最新事件游标
+  - test_receive_notification_wakes_polling_for_invalid_payload:
+    测试无效通知仍唤醒数据库轮询
+  - test_run_polls_during_notification_reconnect:
+    测试通知异常后轮询事件并重新连接
+  - test_get_notification_dsn_supports_postgresql_only:
+    测试通知连接地址仅支持 PostgreSQL
+  - test_stream_events_starts_with_consistent_sync:
+    测试首次连接从最新游标执行一致性同步
+  - test_stream_events_filters_topics_by_permission:
+    测试事件流只推送当前用户有权查看的主题
+  - test_events_streams_only_granted_topics:
+    测试事件接口仅建立有权限主题的事件流
+  - test_stream_events_reports_expired_session:
+    测试事件流定期校验并报告登录会话过期
+  - test_stream_events_sends_heartbeat_for_valid_session:
+    测试有效会话在空闲时接收 SSE 心跳
+  - test_event_repository_helpers:
+    测试事件游标范围和增量事件查询
+  - test_event_query_waits_for_cleanup_when_cancelled:
+    测试事件查询取消时等待数据库清理完成
+  - test_event_cursor_and_sse_encoding_helpers:
+    测试事件游标解析和 SSE 消息编码
 """
 
 import asyncio
