@@ -15,6 +15,40 @@
     验证模型和版本的可部署状态
   - test_enable_and_disable_deployment:
     验证部署启用与禁用约束
+  - test_metadata_transition_allows_valid_transition:
+    测试允许合法的模型元数据状态迁移
+  - test_metadata_transition_rejects_invalid_transition:
+    测试拒绝非法的模型元数据状态迁移
+  - test_version_transition_allows_valid_transition:
+    测试允许合法的模型版本状态迁移
+  - test_version_transition_rejects_invalid_transition:
+    测试拒绝非法的模型版本状态迁移
+  - test_deployment_transition_allows_valid_transition:
+    测试允许合法的部署状态迁移
+  - test_deployment_transition_allows_same_state:
+    测试允许部署保持当前状态
+  - test_deployment_transition_rejects_non_active_model:
+    测试非活动模型不能启用部署
+  - test_experiment_transition_allows_valid_transition:
+    测试允许合法的实验状态迁移
+  - test_experiment_transition_rejects_invalid_transition:
+    测试拒绝非法的实验状态迁移
+  - test_draft_experiment_transition_uses_actionable_message:
+    测试草稿实验使用明确的操作错误
+  - test_experiment_transition_allows_same_state:
+    测试允许实验保持当前状态
+  - test_active_model_and_version_are_deployable:
+    测试活动模型和版本允许部署
+  - test_non_active_model_is_not_deployable:
+    测试非活动模型不允许部署
+  - test_non_active_version_is_not_deployable:
+    测试非活动版本不允许部署
+  - test_enable_deployment_allows_valid_state:
+    测试允许合法状态的部署启用操作
+  - test_enable_deployment_rejects_non_active_model:
+    测试非活动模型不能启用部署
+  - test_disable_deployment_allows_valid_state:
+    测试允许活动或已禁用部署执行禁用操作
 """
 
 import pytest

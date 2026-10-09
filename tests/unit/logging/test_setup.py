@@ -24,6 +24,10 @@
     验证按配置加入采样和脱敏处理器
   - test_shutdown_logging_clears_global_state:
     验证关闭日志系统后清理全局状态
+  - test_setup_logging_captures_foreign_exception_via_root:
+    测试第三方 logger 的原生异常记录直接写入文件
+  - test_setup_logging_applies_console_level:
+    测试控制台和文件分别使用各自的日志阈值
 """
 
 import logging

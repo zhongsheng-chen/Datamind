@@ -29,6 +29,20 @@
     验证拒绝恢复状态不正确的模型或版本
   - test_restore_model_rejects_permanently_purged_versions:
     验证模型版本均已永久清理时拒绝恢复模型
+  - test_delete_last_active_version_deactivates_model:
+    测试删除最后一个激活版本时同步停用模型
+  - test_purge_rejects_running_runtime:
+    测试仍有已加载运行实例时拒绝永久清理
+  - test_request_purge_requires_logical_deletion:
+    测试永久清理要求目标已完成逻辑删除
+  - test_request_purge_rejects_missing_artifacts:
+    测试版本缺少制品记录时拒绝永久清理
+  - test_record_purge_result_rejects_missing_artifact:
+    测试清理结果找不到制品记录时抛出异常
+  - test_restore_version_requires_restorable_artifact:
+    测试恢复版本要求逻辑删除状态和完整当前制品
+  - test_purge_ignores_absent_optional_objects:
+    测试清理时忽略空 Schema 键和不存在的 BentoML 模型
 """
 
 from datetime import (

@@ -19,6 +19,8 @@ from datetime import (
 
 from sqlalchemy import select
 
+from datamind.db.models.decisions import Decision
+
 from datamind.db.models.executions import Execution
 from datamind.db.repositories.base import BaseRepository
 from datamind.models.enums import (
@@ -59,6 +61,27 @@ class ExecutionRepository(BaseRepository):
         )
 
         return result.scalar_one_or_none()
+
+    async def list_experiment_executions(
+            self,
+            experiment_id: str,
+    ) -> list[Execution]:
+        """获取实验决策对应的主执行记录.
+
+        参数：
+            experiment_id: 实验 ID
+
+        返回：
+            按原始决策关联的主执行记录
+        """
+        statement = select(Execution).join(
+            Decision, Execution.decision_id == Decision.decision_id,
+        ).where(
+            Decision.experiment_id == experiment_id,
+            Execution.execution_type == "primary",
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
 
     async def list_executions(
             self,

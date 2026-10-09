@@ -18,6 +18,30 @@
     验证创建审计日志
   - test_create_audit_enum_values:
     验证来源和状态枚举写入
+  - test_list_audits_without_filters:
+    测试无筛选时返回全部日志并按时间倒序
+  - test_list_audits_applies_filters_and_pagination:
+    测试全部审计字段筛选、排序和分页
+  - test_list_audits_orders_ascending:
+    测试审计日志支持按时间升序排列
+  - test_list_audits_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_methods_reject_negative_pagination:
+    测试审计列表方法拒绝负数分页参数
+  - test_list_failed_operations_uses_default_limit:
+    测试失败操作默认返回 100 条
+  - test_list_failed_operations_accepts_custom_pagination:
+    测试失败操作支持自定义分页
+  - test_list_user_actions_uses_default_limit:
+    测试用户操作默认返回 100 条
+  - test_list_user_actions_accepts_custom_pagination:
+    测试用户操作支持自定义分页
+  - test_create_audit_uses_optional_defaults:
+    测试创建审计日志的默认状态和当前时间
+  - test_create_audit_accepts_valid_sources:
+    测试创建审计日志接受全部合法来源
+  - test_create_audit_accepts_valid_statuses:
+    测试创建审计日志接受全部合法状态
 """
 
 from datetime import (

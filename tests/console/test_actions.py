@@ -15,6 +15,8 @@
     验证实验分组开关映射启用状态
   - test_dispatch_batch_actions:
     验证批次取消和重试动作分派到批次生命周期服务
+  - test_dispatch_default_deployment_actions:
+    验证默认部署动作分派到显式切换服务
 """
 
 from unittest.mock import AsyncMock, MagicMock

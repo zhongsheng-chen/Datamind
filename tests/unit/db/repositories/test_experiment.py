@@ -22,6 +22,42 @@
     验证启动实验时设置生效时间
   - test_experiment_lifecycle:
     验证实验生命周期状态迁移
+  - test_get_experiment_returns_none_when_not_found:
+    测试实验不存在时返回 None
+  - test_get_running_experiment_applies_exclusion_and_window:
+    测试运行中实验查询应用排除条件和生效时间窗口
+  - test_list_experiments_without_filters:
+    测试无筛选时返回全部实验并按创建时间倒序
+  - test_list_experiments_applies_filters_and_pagination:
+    测试环境、状态、普通字段筛选和分页
+  - test_list_experiments_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_methods_reject_negative_pagination:
+    测试实验列表方法拒绝负数分页参数
+  - test_experiment_patch_fields_and_defaults:
+    测试更新结构字段和默认值
+  - test_experiment_patch_accepts_environment_enum:
+    测试更新结构接受环境枚举
+  - test_create_experiment_allows_optional_fields:
+    测试创建实验时允许省略可选字段
+  - test_update_experiment_ignores_none_fields:
+    测试值为 None 的字段不会覆盖原值
+  - test_update_experiment_accepts_empty_strings:
+    测试空字符串作为明确更新值写入对象
+  - test_experiment_lifecycle_transition:
+    测试生命周期方法调用守卫并写入字符串状态
+  - test_start_experiment_sets_missing_effective_from:
+    测试启动时使用当前时间补全生效时间
+  - test_start_experiment_preserves_configured_effective_from:
+    测试启动时保留显式配置的生效时间
+  - test_experiment_lifecycle_is_idempotent:
+    测试目标状态相同时保持幂等
+  - test_experiment_lifecycle_accepts_empty_operator:
+    测试生命周期方法允许写入空字符串操作人
+  - test_experiment_lifecycle_propagates_guard_error:
+    测试守卫拒绝迁移时不修改实验
+  - test_experiment_lifecycle_rejects_unknown_status:
+    测试未知状态不能进入实验生命周期迁移
 """
 
 from dataclasses import fields

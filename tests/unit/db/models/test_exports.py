@@ -35,7 +35,6 @@ EXPECTED_EXPORTS = {
     "Shard",
     "Decision",
     "Execution",
-    "Outcome",
     "Audit",
     "OutboxEvent",
 }

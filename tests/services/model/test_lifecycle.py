@@ -37,6 +37,12 @@
     验证激活和停用要求模型存在
   - test_lifecycle_rejects_missing_version:
     验证版本操作要求模型版本存在
+  - test_activate_model_version_by_version_id:
+    测试仅凭版本 ID 激活模型版本
+  - test_archive_model_version:
+    测试归档未激活的模型版本
+  - test_archive_model_and_remaining_versions:
+    测试归档模型时级联归档尚未归档的版本
 """
 
 from types import SimpleNamespace

@@ -15,10 +15,16 @@
     验证顶层登录会话命令可用
   - test_identity_help_lists_management_commands:
     验证用户和角色管理命令可用
-  - test_outcome_submit_help_lists_link_fields:
-    验证结果回流命令公开关联字段
   - test_business_command_help_is_available:
     验证全部业务命令能够生成帮助信息
+  - test_service_and_runtime_commands_have_separate_responsibilities:
+    测试服务进程与运行状态命令边界清晰
+  - test_cli_uses_configured_service_environment:
+    测试单环境 CLI 不公开环境参数
+  - test_init_help_does_not_list_credential_options:
+    测试系统初始化命令不公开管理员凭据参数
+  - test_removed_feedback_command_is_unavailable:
+    测试 CLI 不再公开业务结果提交入口
 """
 
 from unittest.mock import MagicMock
@@ -86,7 +92,6 @@ BUSINESS_COMMANDS = [
     "runtime list",
     "runtime show",
     "console run",
-    "outcome submit",
     "user create",
     "user list",
     "user show",
@@ -191,7 +196,6 @@ def test_main_help_lists_command_groups() -> None:
 
     assert result.exit_code == 0
     assert "init" in result.stdout
-    assert "outcome" in result.stdout
     assert "user" in result.stdout
     assert "role" in result.stdout
     assert "runtime" in result.stdout
@@ -257,18 +261,6 @@ def test_main_help_lists_session_commands() -> None:
         assert command in result.stdout
 
 
-def test_outcome_submit_help_lists_link_fields() -> None:
-    """测试结果回流命令公开决策和请求关联参数."""
-    result = runner.invoke(
-        app,
-        ["outcome", "submit", "--help"],
-    )
-
-    assert result.exit_code == 0
-    output = unstyle(result.stdout)
-
-    assert "--decision-id" in output
-    assert "--request-id" in output
 
 
 def test_identity_help_lists_management_commands() -> None:
@@ -329,3 +321,10 @@ def test_business_command_help_is_available(
 
     if command_path == "model list":
         assert "--created-by" in unstyle(result.stdout)
+
+
+def test_removed_feedback_command_is_unavailable() -> None:
+    """测试 CLI 不再公开业务结果提交入口."""
+    result = runner.invoke(app, ["outcome", "--help"])
+    assert result.exit_code != 0
+    assert "No such command" in result.output

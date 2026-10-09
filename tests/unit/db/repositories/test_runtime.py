@@ -32,6 +32,48 @@
     验证标记加载失败
   - test_heartbeat:
     验证更新运行心跳
+  - test_get_runtime_returns_none_when_not_found:
+    测试运行记录不存在时返回 None
+  - test_get_deployment_runtime_uses_default_worker:
+    测试按部署 ID 和默认 Worker 查询
+  - test_get_deployment_runtime_uses_custom_worker:
+    测试按部署 ID 和指定 Worker 查询
+  - test_list_runtimes_without_filters:
+    测试无筛选时返回全部记录并按时间倒序
+  - test_list_runtimes_applies_filters_and_pagination:
+    测试框架、状态、操作人筛选和分页
+  - test_list_runtimes_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_runtimes_rejects_negative_pagination:
+    测试拒绝负数分页参数
+  - test_runtime_patch_fields_and_defaults:
+    测试更新结构字段和默认值
+  - test_runtime_patch_accepts_framework_enum:
+    测试更新结构接受框架枚举
+  - test_create_runtime_uses_optional_defaults:
+    测试创建运行记录的可选默认值
+  - test_update_runtime_ignores_none_fields:
+    测试值为 None 的字段不会覆盖原值
+  - test_mark_starting_accepts_empty_operator:
+    测试加载中状态允许写入空字符串操作人
+  - test_mark_running_with_explicit_time:
+    测试标记已加载并同步首次心跳时间
+  - test_mark_running_uses_current_time:
+    测试未提供时间时使用同一个当前时间
+  - test_mark_running_accepts_empty_operator:
+    测试已加载状态允许写入空字符串操作人
+  - test_mark_stopped_with_explicit_time:
+    测试标记已卸载并记录控制版本
+  - test_mark_stopped_uses_current_time:
+    测试未提供卸载时间时使用当前时间
+  - test_mark_stopped_accepts_empty_operator:
+    测试卸载状态允许写入空字符串操作人
+  - test_mark_failed_accepts_empty_operator:
+    测试失败状态允许写入空字符串操作人
+  - test_heartbeat_with_explicit_time:
+    测试使用指定时间更新运行心跳
+  - test_heartbeat_uses_current_time:
+    测试未提供时间时使用当前 UTC 时间
 """
 
 from dataclasses import fields

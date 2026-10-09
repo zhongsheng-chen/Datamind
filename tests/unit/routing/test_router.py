@@ -7,14 +7,46 @@
     验证使用显式指定的部署
   - test_resolve_uses_ab_test_deployment:
     验证使用 A/B 实验分配的部署
-  - test_routing_uses_stable_payload_identifier:
-    验证路由使用稳定的请求标识分桶
+  - test_routing_uses_explicit_subject_key:
+    验证路由使用显式主体标识，缺省时按模型分桶
   - test_routing_context_uses_bucket_value:
     验证路由上下文区分分桶值与流量比例且不包含旧字段
-  - test_resolve_uses_first_active_deployment_without_champion:
-    验证缺少冠军部署时选择首个启用部署
+  - test_resolve_rejects_missing_default:
+    验证未指定默认部署时不隐式选择部署
+  - test_resolve_rejects_multiple_defaults:
+    验证多个默认部署时报错
+  - test_resolve_uses_only_explicit_default:
+    验证默认流量仅选择显式指定的主部署
+  - test_resolve_routes_to_challenger_without_default:
+    验证候选部署仍可通过显式路由承接流量
   - test_resolve_includes_independently_matched_shadow:
     验证路由结果包含独立匹配的影子部署
+  - test_routing_effective_window_controls_eligibility:
+    测试路由仅在自身生效区间内参与流量分配
+  - test_routing_ratio_preserves_default_traffic:
+    测试未进入灰度比例时交给默认部署
+  - test_routing_ratio_selects_candidate:
+    测试进入灰度比例时命中候选部署
+  - test_routing_rejects_total_ratio_above_one:
+    测试拒绝启用路由总占比超过 1
+  - test_route_result_converts_to_dict:
+    测试路由结果完整转换为字典
+  - test_resolve_rejects_missing_required_parameter:
+    测试路由解析拒绝空模型或环境
+  - test_resolve_rejects_invalid_manual_deployment:
+    测试显式部署拒绝不存在、模型不符或不可用状态
+  - test_resolve_rejects_ineffective_manual_deployment:
+    测试显式部署拒绝尚未生效或已经失效的部署
+  - test_resolve_wraps_ab_test_assignment_error:
+    测试 A/B 实验参数错误转换为路由错误
+  - test_invalid_ab_test_deployment_falls_back:
+    测试实验部署失效时回滚分配并回退默认部署
+  - test_resolve_rejects_missing_available_deployment:
+    测试没有实验、路由和默认部署时抛出路由错误
+  - test_resolve_skips_shadow_routing_for_primary_result:
+    测试影子路由不参与主路由流量分配
+  - test_resolve_can_disable_shadow_resolution:
+    测试配置关闭时不查询影子路由
 """
 
 from datetime import datetime, timedelta, timezone

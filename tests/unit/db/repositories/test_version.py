@@ -26,6 +26,48 @@
     验证从 active 废弃版本
   - test_version_lifecycle_rejects_invalid_transition:
     验证拒绝非法状态迁移
+  - test_get_version_returns_none_when_not_found:
+    测试版本不存在时返回 None
+  - test_get_latest_version_returns_none:
+    测试模型没有版本时返回 None
+  - test_list_versions_excludes_archived_by_default:
+    测试版本列表默认排除归档版本
+  - test_list_versions_includes_archived_when_requested:
+    测试显式请求时包含归档版本
+  - test_list_versions_status_overrides_archive_filter:
+    测试显式状态过滤优先于默认归档排除
+  - test_list_versions_applies_filters_and_pagination:
+    测试列表筛选、状态、排序和分页
+  - test_list_versions_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_versions_rejects_negative_pagination:
+    测试拒绝负数分页参数
+  - test_version_patch_fields_and_defaults:
+    测试更新结构仅包含普通版本字段
+  - test_version_patch_accepts_framework_enum:
+    测试更新结构接受框架枚举
+  - test_create_version_allows_optional_fields:
+    测试创建版本时允许省略可选字段
+  - test_update_version_ignores_none_fields:
+    测试值为 None 的字段不会覆盖原值
+  - test_archive_version_is_idempotent:
+    测试重复归档保持幂等
+  - test_archive_version_rejects_active_status:
+    测试 active 状态不能直接归档
+  - test_activate_version_is_idempotent:
+    测试重复激活保持幂等
+  - test_activate_version_rejects_invalid_transition:
+    测试 deprecated 和 archived 状态不能激活
+  - test_deprecate_inactive_version:
+    测试从 inactive 状态废弃版本
+  - test_deprecate_version_is_idempotent:
+    测试重复废弃保持幂等
+  - test_deprecate_version_rejects_invalid_transition:
+    测试 archived 状态不能废弃
+  - test_version_lifecycle_rejects_unknown_status:
+    测试未知状态不能进入版本生命周期迁移
+  - test_restore_version:
+    测试恢复逻辑删除版本并重置为 inactive
 """
 
 from dataclasses import fields

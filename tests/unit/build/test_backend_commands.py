@@ -13,6 +13,32 @@
     验证 Docker 镜像只安装 Wheel
   - test_dockerfile_maps_oci_metadata_arguments:
     验证 OCI Labels 映射统一传入的项目与构建元数据
+  - test_build_identity_defaults_to_development:
+    测试未注入发布身份时使用源码开发默认值
+  - test_build_identity_uses_explicit_release_values:
+    测试同时注入 Commit 与 Build Date 时清理并保留完整值
+  - test_build_identity_rejects_partial_input:
+    测试构建身份只配置一项时拒绝构建
+  - test_build_identity_rejects_blank_input:
+    测试显式空白 Commit 或 Build Date 被拒绝
+  - test_build_identity_rejects_invalid_build_date:
+    测试非 UTC RFC 3339 或无效日历时间被拒绝
+  - test_build_identity_rejects_incomplete_git_sha:
+    测试发布 Commit 必须是完整 Git SHA
+  - test_write_build_metadata_generates_stable_module:
+    测试 Build Metadata 使用稳定 UTF-8 Python 格式
+  - test_write_build_metadata_generates_development_defaults:
+    测试未提供正式构建身份时写入开发默认值
+  - test_sdist_writes_metadata_only_to_release_tree:
+    测试 sdist 仅覆盖临时 release tree 中的 Build Metadata
+  - test_dockerfile_pins_builder_and_runtime_images:
+    测试 Node Builder 与 Python Runtime 均使用精确镜像摘要
+  - test_dockerfile_defaults_to_official_python_package_index:
+    测试 Docker 构建默认使用官方 Python 包索引
+  - test_dockerfile_does_not_hardcode_project_metadata:
+    测试 Dockerfile 不维护第二套项目元数据
+  - test_dockerfile_does_not_use_ref_name_label:
+    测试 ref.name 不会被误用为普通 Docker LABEL
 """
 
 import json

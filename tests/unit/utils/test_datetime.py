@@ -45,6 +45,10 @@
     验证无时区时间按 UTC 格式化
   - test_iso_format_and_parse_support_round_trip:
     验证 ISO 8601 UTC 格式化结果可以重新解析
+  - test_parse_datetime_uses_explicit_timezone_for_naive_value:
+    测试无时区输入按显式指定的本地时区解析
+  - test_parse_datetime_preserves_input_timezone_offset:
+    测试输入时区优先于无时区输入的默认时区
 """
 
 from datetime import (
