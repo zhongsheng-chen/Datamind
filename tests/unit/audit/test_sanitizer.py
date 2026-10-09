@@ -13,6 +13,12 @@
     验证深度、数量和长度限制
   - test_sanitize_handles_circular_values:
     验证循环引用保护
+  - test_sanitize_limits_nested_depth:
+    测试嵌套值超过最大深度后停止递归
+  - test_sanitize_handles_circular_sequence:
+    测试序列循环引用不会导致无限递归
+  - test_sanitize_mapping_accepts_none:
+    测试空审计映射保持为空
 """
 
 from dataclasses import dataclass

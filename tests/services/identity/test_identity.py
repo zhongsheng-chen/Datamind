@@ -57,6 +57,12 @@
     验证系统角色和仍被授予的角色不能删除
   - test_update_role_replaces_description_and_permissions:
     验证更新普通角色描述与权限
+  - test_role_result_marks_builtin_role:
+    测试角色结果标识内置管理员角色
+  - test_delete_user_accepts_missing_reason:
+    测试逻辑删除用户允许省略删除原因
+  - test_delete_role_accepts_missing_reason:
+    测试逻辑删除角色允许省略删除原因
 """
 
 from datetime import (

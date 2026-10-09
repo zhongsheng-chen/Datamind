@@ -29,6 +29,8 @@
     验证用户详情使用标准文本布局
   - test_show_role_renders_standard_detail_layout:
     验证角色详情使用标准文本布局
+  - test_create_role_rejects_mixed_permission_options:
+    测试全部权限选项不能与单项权限混用
 """
 
 from types import SimpleNamespace

@@ -12,6 +12,22 @@
     验证 Docker 构建支持使用标准库解析 TOML
   - test_compose_requires_explicit_image_tag:
     验证 Compose 部署必须显式提供镜像标签
+  - test_project_license_file_is_apache_20:
+    测试仓库许可证使用标准 Apache License 2.0 文本
+  - test_resolve_image_follows_framework_contract:
+    测试完整版与框架专用镜像采用约定的默认引用
+  - test_resolve_image_prefers_explicit_reference:
+    测试显式镜像引用优先于默认镜像名称
+  - test_repository_override_keeps_image_reference_generation:
+    测试镜像仓库覆盖仍复用默认镜像引用格式
+  - test_image_and_repository_override_are_mutually_exclusive:
+    测试完整镜像引用与镜像仓库覆盖不能同时指定
+  - test_parse_arguments_reads_build_identity_from_environment:
+    测试 Docker 构建参数从环境变量读取构建身份
+  - test_parse_arguments_rejects_unknown_framework:
+    测试非法模型框架在 Docker 调用前被拒绝
+  - test_docker_support_has_no_build_identity_dependency:
+    测试 Docker 构建支持不负责解析构建身份
 """
 
 from pathlib import Path

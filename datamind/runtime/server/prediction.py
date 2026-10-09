@@ -1,6 +1,6 @@
 """运行时预测处理.
 
-负责业务结果回流、单条与批量预测、记录持久化、
+负责单条与批量预测、记录持久化、
 影子预测调度以及 Worker 本地服务缓存。
 
 核心功能：
@@ -72,7 +72,6 @@ from datamind.runtime.server.errors import (
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
     BatchReferenceRequest,
-    OutcomeFeedbackRequest,
     PredictionInstance,
     PredictRequest,
 )
@@ -89,7 +88,6 @@ from datamind.runtime.task_queue import (
     TaskDispatchError,
     TaskPublisher,
 )
-from datamind.services import OutcomeService
 from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
 
@@ -111,71 +109,6 @@ class PredictionMixin:
     _service_cache: dict[str, ServiceCacheEntry]
     _service_lock: asyncio.Lock
     _execute_secured: Callable[..., Awaitable[dict[str, Any]]]
-
-    @bentoml.api(
-        route="/feedback/outcomes",
-    )
-    async def submit_outcome(
-            self,
-            request: OutcomeFeedbackRequest,
-            ctx: bentoml.Context,
-    ) -> dict[str, Any]:
-        """提交已认证的延迟业务结果."""
-        request_id = generate_random_id(
-            prefix="req"
-        )
-
-        return await self._execute_secured(
-            ctx=ctx,
-            permission="outcome.write",
-            request_id=request_id,
-            handler=lambda _identity: self._submit_outcome(
-                request=request,
-                request_id=request_id,
-            ),
-            audit_action="outcome.submit",
-            target_type="outcome",
-            target_id=request.outcome_id,
-        )
-
-    @staticmethod
-    async def _submit_outcome(
-            *,
-            request: OutcomeFeedbackRequest,
-            request_id: str,
-    ) -> dict[str, Any]:
-        """提交延迟业务结果."""
-        result = await OutcomeService().submit(
-            outcome_id=request.outcome_id,
-            subject_key=request.subject_key,
-            decision_id=request.decision_id,
-            request_id=request.request_id,
-            subject_type=request.subject_type,
-            approved=request.approved,
-            converted=request.converted,
-            defaulted=request.defaulted,
-            overdue_days=request.overdue_days,
-            amount=request.amount,
-            label=request.label,
-            context=request.context,
-            outcome_time=request.outcome_time,
-        )
-        outcome = result["outcome"]
-
-        for field in (
-                "outcome_time",
-                "created_at",
-                "updated_at",
-        ):
-            outcome[field] = format_iso_utc(
-                outcome[field]
-            )
-
-        return {
-            "success": True,
-            "request_id": request_id,
-            **result,
-        }
 
     @bentoml.api(
         route="/predict",

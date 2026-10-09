@@ -7,6 +7,10 @@
     验证 __all__ 包含完整且准确的公共 API
   - test_all_declared_exports_are_available:
     验证声明的公共对象均可从包级访问
+  - test_module_dir_contains_declared_exports:
+    测试模块属性列表包含全部公共导出
+  - test_unknown_export_raises_attribute_error:
+    测试访问未声明的包级对象时抛出异常
 """
 
 import pytest

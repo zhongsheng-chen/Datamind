@@ -9,6 +9,8 @@
     验证分箱标签格式化
   - test_scorecard_inspector_rejects_other_models:
     验证模型类型校验
+  - test_scorecard_inspector_includes_intercept_in_theoretical_bounds:
+    截距计分模式的理论边界与 Scorecard.score 计算口径一致
 """
 
 import json

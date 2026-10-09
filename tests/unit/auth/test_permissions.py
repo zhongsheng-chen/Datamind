@@ -28,6 +28,28 @@
     验证全部权限要求、缺失权限和空集合校验
   - test_required_permissions_are_normalized_and_deduplicated:
     验证批量目标权限规范化和去重
+  - test_has_permission_accepts_generator:
+    测试单项权限检查支持生成器
+  - test_has_any_permission_accepts_generators:
+    测试任一权限检查支持生成器
+  - test_has_all_permissions_accepts_generators:
+    测试全部权限检查支持生成器
+  - test_require_permission_rejects_empty_required_permission:
+    测试拒绝空的单项目标权限
+  - test_require_any_permission_allows_matching_permission:
+    测试拥有任一目标权限时不抛出异常
+  - test_require_any_permission_rejects_missing_permissions:
+    测试缺少全部候选权限时抛出异常
+  - test_require_any_permission_rejects_empty_permissions:
+    测试任一权限要求拒绝空集合
+  - test_require_all_permissions_allows_matching_permissions:
+    测试拥有全部目标权限时不抛出异常
+  - test_require_all_permissions_reports_only_missing_permissions:
+    测试仅报告缺失的目标权限
+  - test_require_all_permissions_rejects_empty_permissions:
+    测试全部权限要求拒绝空集合
+  - test_batch_require_rejects_blank_permission:
+    测试批量权限要求拒绝空白权限标识
 """
 
 from collections.abc import (

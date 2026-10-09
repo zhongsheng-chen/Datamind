@@ -17,6 +17,20 @@
     验证恢复实验时恢复同批次分组
   - test_delete_variant_requires_draft_experiment:
     验证仅允许删除草稿实验的分组
+  - test_delete_deployment_marks_safe_deployment_deleted:
+    测试删除已停用且已卸载的部署
+  - test_delete_deployment_rejects_active_deployment:
+    测试拒绝删除启用状态的部署
+  - test_delete_deployment_rejects_loaded_control:
+    测试加载期望状态阻止删除部署
+  - test_delete_deployment_rejects_live_running_runtime:
+    测试仍有近期心跳的运行实例时拒绝删除部署
+  - test_delete_deployment_finalizes_stale_runtime_after_unload:
+    测试卸载请求后的失联实例不会永久阻塞部署删除
+  - test_delete_experiment_cascades_same_deletion_batch:
+    测试删除实验时同批删除分组
+  - test_delete_experiment_rejects_running_experiment:
+    测试运行中实验不能删除
 """
 
 from datetime import datetime, timedelta, timezone

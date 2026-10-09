@@ -1,9 +1,9 @@
 """实验分析命令.
 
-提供 A/B 实验效果分析功能。
+提供 A/B 实验运行与预测结果分析功能。
 
 核心功能：
-  - analyze_experiment: 分析实验效果
+  - analyze_experiment: 分析实验运行与预测结果
 
 使用示例：
   python -m datamind.cli.main experiment analyze exp_0123456789abcdef
@@ -25,7 +25,8 @@ from datamind.cli.common import cli_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     ExperimentRepository,
-    OutcomeRepository,
+    DecisionRepository,
+    ExecutionRepository,
     VariantRepository,
 )
 
@@ -52,7 +53,7 @@ def analyze_experiment(
             help="输出格式：text / json"
         ),
 ):
-    """分析实验效果."""
+    """分析实验运行与预测结果."""
 
     async def _run():
         if output not in ("text", "json"):
@@ -68,7 +69,8 @@ def analyze_experiment(
             analyzer = ABTestAnalyzer(
                 experiment_repo=ExperimentRepository(uow.session),
                 variant_repo=VariantRepository(uow.session),
-                outcome_repo=OutcomeRepository(uow.session),
+                decision_repo=DecisionRepository(uow.session),
+                execution_repo=ExecutionRepository(uow.session),
                 metric_evaluator=ABTestMetricEvaluator(),
             )
 
@@ -120,7 +122,7 @@ def _print_analysis(result: dict[str, Any]) -> None:
         f"{'BASELINE VARIANT':<20} : "
         f"{result['baseline_variant_id'] or '-'}"
     )
-    console.print(f"{'OUTCOME COUNT':<20} : {result['outcome_count']}")
+    console.print(f"{'DECISION COUNT':<20} : {result['decision_count']}")
 
     console.print()
     _print_metrics_table(result["metrics"]["variants"])
@@ -157,21 +159,21 @@ def _print_metrics_table(variants: dict[str, Any]) -> None:
 
     table.add_column("VARIANT ID")
     table.add_column("TOTAL")
-    table.add_column("APPROVAL")
-    table.add_column("CONVERSION")
-    table.add_column("DEFAULT")
-    table.add_column("BAD")
-    table.add_column("AVG AMOUNT")
+    table.add_column("SUBJECTS")
+    table.add_column("TRAFFIC")
+    table.add_column("SUCCESS")
+    table.add_column("LATENCY MS")
+    table.add_column("AVG SCORE")
 
     for variant_id, metrics in variants.items():
         table.add_row(
             str(variant_id),
             str(metrics["total_count"]),
-            _format_rate(metrics["approval_rate"]),
-            _format_rate(metrics["conversion_rate"]),
-            _format_rate(metrics["default_rate"]),
-            _format_rate(metrics["bad_rate"]),
-            f"{metrics['average_amount']:.2f}",
+            str(metrics["subject_count"]),
+            _format_rate(metrics["traffic_ratio"]),
+            _format_rate(metrics["success_rate"]),
+            _format_float(metrics["average_latency_ms"]),
+            _format_float(metrics["average_score"]),
         )
 
     console.print(table)
@@ -219,11 +221,11 @@ def _print_comparison_table(comparisons: dict[str, Any]) -> None:
     console.print(table)
 
 
-def _format_rate(value: float) -> str:
+def _format_rate(value: float | None) -> str:
     """格式化比例."""
-    return f"{value:.2%}"
+    return f"{value:.2%}" if value is not None else "-"
 
 
-def _format_float(value: float) -> str:
+def _format_float(value: float | None) -> str:
     """格式化浮点数."""
-    return f"{value:.4f}"
+    return f"{value:.4f}" if value is not None else "-"

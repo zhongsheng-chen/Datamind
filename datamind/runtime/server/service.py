@@ -11,9 +11,6 @@
   - batch_status: 查询异步预测批次状态和结果
   - cancel_batch: 取消异步预测批次
   - retry_batch: 重新提交失败或已取消的预测批次
-  - submit_outcome: 提交延迟业务结果
-  - load: 设置部署期望状态为 loaded
-  - unload: 设置部署期望状态为 unloaded
   - reload: 请求重新加载部署模型
   - status: 查询部署控制状态和 Worker 运行状态
   - services: 查询当前 Worker 的运行时服务

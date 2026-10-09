@@ -21,6 +21,8 @@
     验证拒绝缺少命令权限的用户
   - test_cli_context_allows_development_maintenance_mode:
     验证开发环境关闭认证时允许本地维护
+  - test_cli_context_requires_login_without_credentials:
+    测试认证开启且没有本地凭据时要求登录
 """
 
 from types import SimpleNamespace

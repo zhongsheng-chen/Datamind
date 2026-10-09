@@ -20,6 +20,44 @@
     验证启用路由配置
   - test_disable_routing:
     验证禁用路由配置
+  - test_get_routing_returns_none_when_not_found:
+    测试路由配置不存在时返回 None
+  - test_list_routings_without_filters:
+    测试无筛选时返回全部路由并按时间倒序
+  - test_list_routings_applies_filters_and_pagination:
+    测试环境、启用状态、普通字段筛选和分页
+  - test_list_routings_applies_zero_pagination:
+    测试零值分页参数仍会应用
+  - test_list_routings_rejects_negative_pagination:
+    测试拒绝负数分页参数
+  - test_routing_patch_fields_and_defaults:
+    测试更新结构字段和默认值
+  - test_routing_patch_accepts_environment_enum:
+    测试更新结构接受环境枚举
+  - test_create_routing_uses_optional_defaults:
+    测试创建路由配置的可选默认值
+  - test_create_routing_accepts_boundary_ratio:
+    测试流量比例边界值有效
+  - test_create_routing_rejects_invalid_ratio:
+    测试创建时拒绝非法流量比例
+  - test_update_routing_ignores_none_fields:
+    测试值为 None 的字段不会覆盖原值
+  - test_update_routing_accepts_empty_strings:
+    测试空字符串作为明确更新值写入对象
+  - test_update_routing_rejects_invalid_ratio:
+    测试更新时拒绝非法流量比例
+  - test_enable_routing_without_operator:
+    测试启用时未提供操作人则保留原值
+  - test_enable_routing_accepts_empty_operator:
+    测试启用时允许写入空字符串操作人
+  - test_enable_routing_is_idempotent:
+    测试重复启用保持幂等
+  - test_disable_routing_without_operator:
+    测试禁用时未提供操作人则保留原值
+  - test_disable_routing_accepts_empty_operator:
+    测试禁用时允许写入空字符串操作人
+  - test_disable_routing_is_idempotent:
+    测试重复禁用保持幂等
 """
 
 from dataclasses import fields

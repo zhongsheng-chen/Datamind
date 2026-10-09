@@ -397,8 +397,8 @@ export function showJsonDialog(title, value) {
  * @param {string | null | undefined} options.title 主标题
  * @param {string | null | undefined} options.subtitle 副标题
  * @param {unknown} options.status 状态值
- * @param {Node[]} [options.badges=[]] 补充徽标
- * @param {(status: unknown) => Node} options.createStatusBadge 状态徽标创建器
+ * @param {HTMLElement[]} [options.badges=[]] 补充徽标
+ * @param {(status: unknown) => HTMLElement} options.createStatusBadge 状态徽标创建器
  * @returns {HTMLElement} 身份摘要区块
  */
 export function createDetailSummary({
@@ -541,11 +541,11 @@ export function createDetailAction(label, iconKind, tone = "") {
  * 向详情抽屉追加底部操作区。
  *
  * @param {HTMLDialogElement} dialog 详情抽屉
- * @param {Array<Node | null | undefined>} buttons 操作按钮
+ * @param {Array<HTMLElement | null | undefined>} buttons 操作按钮
  * @returns {void} 无返回值
  */
 export function appendDetailFooter(dialog, buttons) {
-  const visible = buttons.filter(Boolean);
+  const visible = buttons.filter((button) => button instanceof HTMLElement);
   if (visible.length === 0) return;
   const footer = document.createElement("footer");
   footer.className = "registry-detail-actions";

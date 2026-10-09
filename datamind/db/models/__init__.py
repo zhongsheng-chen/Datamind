@@ -24,7 +24,6 @@
   - Attempt: 批次执行尝试表
   - Decision: 请求决策表
   - Execution: 模型执行表
-  - Outcome: 实验结果表
   - Audit: 审计日志表
   - OutboxEvent: 控制台变更事件表
 
@@ -68,7 +67,6 @@ from datamind.db.models.attempts import Attempt
 from datamind.db.models.shards import Shard
 from datamind.db.models.decisions import Decision
 from datamind.db.models.executions import Execution
-from datamind.db.models.outcomes import Outcome
 from datamind.db.models.audit import Audit
 from datamind.db.models.outbox import OutboxEvent
 
@@ -96,7 +94,6 @@ __all__ = [
     "Shard",
     "Decision",
     "Execution",
-    "Outcome",
     "Audit",
     "OutboxEvent",
 ]

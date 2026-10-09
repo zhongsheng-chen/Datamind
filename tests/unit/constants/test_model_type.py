@@ -15,6 +15,8 @@
     验证支持集合与枚举值一致
   - test_invalid_model_type_raises_value_error:
     验证非法值不能构造枚举
+  - test_model_types_match_frameworks:
+    测试框架仅接受对应的模型类型
 """
 
 from enum import Enum

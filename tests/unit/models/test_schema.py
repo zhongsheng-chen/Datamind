@@ -19,6 +19,24 @@
     验证数组式、空值和不可迭代特征名称
   - test_extract_rejects_unsupported_framework:
     验证拒绝不支持的框架
+  - test_extract_optbinning_scorecard_schema:
+    测试从评分卡分箱过程提取特征类型
+  - test_extract_prefers_lightgbm_feature_name_attribute:
+    测试优先使用 LightGBM 估计器的特征名称属性
+  - test_extract_prefers_lightgbm_sklearn_feature_names:
+    测试优先使用 LightGBM 的 sklearn 标准特征名称
+  - test_extract_prefers_estimator_feature_names:
+    测试优先使用估计器直接提供的特征名称
+  - test_extract_supports_array_like_feature_names:
+    测试提取支持 tolist 的数组式特征名称
+  - test_extract_supports_single_feature_name:
+    测试将单个字符串特征名称转换为列表
+  - test_extract_ignores_non_iterable_feature_names:
+    测试忽略不可迭代的特征名称对象
+  - test_extract_ignores_model_without_feature_names:
+    测试忽略未提供特征名称的模型
+  - test_extract_ignores_missing_or_empty_feature_names:
+    测试忽略缺失或空特征名称
 """
 
 from types import SimpleNamespace
