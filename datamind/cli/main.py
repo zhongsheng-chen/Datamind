@@ -16,6 +16,7 @@
   - user: 用户管理子命令
   - role: 角色管理子命令
   - console: 管理控制台子命令
+  - worker: 任务 Worker 子命令
   - db: 数据库管理子命令
 
 使用示例：
@@ -42,6 +43,7 @@ from datamind.cli.role import app as role_app
 from datamind.cli.runtime import app as runtime_app
 from datamind.cli.service import app as service_app
 from datamind.cli.user import app as user_app
+from datamind.cli.worker import app as worker_app
 from datamind.config import get_logging_config
 from datamind.logging import setup_logging
 
@@ -99,6 +101,7 @@ app.add_typer(deployment_app, name="deployment")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(route_app, name="route")
 app.add_typer(service_app, name="service")
+app.add_typer(worker_app, name="worker")
 app.add_typer(runtime_app, name="runtime")
 app.add_typer(user_app, name="user")
 app.add_typer(role_app, name="role")
