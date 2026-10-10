@@ -3,11 +3,13 @@
 提供评分服务进程的启动功能。
 
 命令组：
+  - healthcheck: 检查预测服务就绪状态
   - run: 启动常驻模型服务
 """
 
 import typer
 
+from datamind.cli.service.healthcheck import app as healthcheck_app
 from datamind.cli.service.run import app as run_app
 
 app = typer.Typer(
@@ -15,3 +17,5 @@ app = typer.Typer(
 )
 
 app.add_typer(run_app)
+
+app.add_typer(healthcheck_app)

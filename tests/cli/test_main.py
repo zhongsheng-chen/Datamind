@@ -89,9 +89,13 @@ BUSINESS_COMMANDS = [
     "experiment variant delete",
     "experiment variant restore",
     "service run",
+    "service healthcheck",
     "runtime list",
     "runtime show",
     "console run",
+    "console healthcheck",
+    "worker run",
+    "worker healthcheck",
     "user create",
     "user list",
     "user show",
@@ -118,6 +122,7 @@ SERVICE_ENVIRONMENT_COMMANDS = [
     "experiment update",
     "runtime list",
     "service run",
+    "service healthcheck",
 ]
 
 
@@ -200,6 +205,7 @@ def test_main_help_lists_command_groups() -> None:
     assert "role" in result.stdout
     assert "runtime" in result.stdout
     assert "console" in result.stdout
+    assert "worker" in result.stdout
 
 
 def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
@@ -213,7 +219,7 @@ def test_service_and_runtime_commands_have_separate_responsibilities() -> None:
     service_commands = set(service_group.commands)
     runtime_commands = set(runtime_group.commands)
 
-    assert service_commands == {"run"}
+    assert service_commands == {"run", "healthcheck"}
     assert runtime_commands == {"list", "show"}
 
 
