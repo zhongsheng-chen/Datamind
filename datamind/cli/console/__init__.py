@@ -4,10 +4,12 @@
 
 命令组：
   - run: 启动管理控制台
+  - healthcheck: 检查管理控制台健康状态
 """
 
 import typer
 
+from datamind.cli.console.healthcheck import app as healthcheck_app
 from datamind.cli.console.run import app as run_app
 
 
@@ -17,4 +19,8 @@ app = typer.Typer(
 
 app.add_typer(
     run_app
+)
+
+app.add_typer(
+    healthcheck_app
 )

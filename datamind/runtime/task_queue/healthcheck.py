@@ -2,8 +2,8 @@
 
 检查当前容器内的 Worker 是否在线，并确认其正在消费角色要求的任务队列。
 
-运行方式：
-  python -m datamind.runtime.task_queue.entrypoints.healthcheck
+使用方式：
+  datamind worker healthcheck
 """
 
 import socket
@@ -100,14 +100,3 @@ def is_worker_ready() -> bool:
 
     return False
 
-
-def main() -> None:
-    """通过进程退出码输出健康检查结果.
-
-    Worker 就绪时以状态码 0 退出，否则以状态码 1 退出。
-    """
-    raise SystemExit(0 if is_worker_ready() else 1)
-
-
-if __name__ == "__main__":
-    main()
