@@ -17,7 +17,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import datamind.runtime.task_queue.entrypoints.healthcheck as healthcheck_module
+import datamind.runtime.task_queue.healthcheck as healthcheck_module
 
 
 def replace_control_method(

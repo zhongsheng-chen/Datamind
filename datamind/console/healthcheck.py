@@ -2,8 +2,11 @@
 
 检查管理控制台是否可以接收请求。
 
-运行方式：
-  python -m datamind.console.entrypoints.healthcheck
+核心功能：
+  - is_console_healthy: 检查配置的控制台健康检查地址
+
+使用方式：
+  datamind console healthcheck
 """
 
 import os
@@ -28,11 +31,3 @@ def is_console_healthy() -> bool:
     except (OSError, ValueError):
         return False
 
-
-def main() -> None:
-    """通过进程退出码输出健康检查结果."""
-    raise SystemExit(0 if is_console_healthy() else 1)
-
-
-if __name__ == "__main__":
-    main()
