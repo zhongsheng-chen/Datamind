@@ -1,9 +1,9 @@
 """模型注册服务.
 
-负责校验模型制品、生成独立修订并更新版本的当前制品投影。
+负责校验模型文件、记录文件修订并更新版本当前使用的文件。
 
 核心功能：
-  - register: 注册模型或制品修订
+  - register: 注册模型或强制重新注册已有版本
 
 使用示例：
   from datamind.services.registration import ModelRegistrationService
@@ -98,12 +98,12 @@ class ModelRegistrationService:
             created_by: str | None = None,
             force: bool = False,
     ) -> dict[str, Any]:
-        """注册模型或模型制品修订.
+        """注册模型或强制重新注册已有版本.
 
-        首次提交创建模型版本及 revision 1 制品。版本已存在时，
+        首次提交创建模型版本及第一个文件修订。版本已存在时，
         未指定 force 且摘要相同则按幂等成功返回；指定 force
-        后，只有版本处于 inactive、从未部署且未删除时，
-        才创建新的制品修订。
+        后，只有版本处于 inactive、未删除且当前不存在未删除
+        部署记录时，才记录新的模型文件修订。
 
         参数：
             name: 模型机器名称
@@ -118,15 +118,15 @@ class ModelRegistrationService:
             params: 模型参数（可选）
             metrics: 评估指标（可选）
             created_by: 创建人（可选）
-            force: 是否为符合条件的已有版本创建下一制品修订
+            force: 是否强制重新注册符合条件的已有版本
 
         返回：
-            注册结果及当前制品标识、修订号和完整性摘要
+            注册结果及当前文件记录、修订号和完整性摘要
 
         异常：
-            ArtifactError: 模型制品处理失败
+            ArtifactError: 模型文件处理失败
             ModelAlreadyExistsError: 版本已存在且未指定 force
-            InvalidModelStateError: 已有版本不允许创建新制品修订
+            InvalidModelStateError: 已有版本不允许强制重新注册
             ValueError: 已有模型注册新版本时尝试修改模型描述
         """
         if re.fullmatch(
@@ -272,8 +272,8 @@ class ModelRegistrationService:
 
                 if not force:
                     raise ModelAlreadyExistsError(
-                        "模型版本已存在，且上传文件与当前制品不同。"
-                        "如需继续，请创建新的制品修订。"
+                        "模型版本已存在，且提交文件与当前模型文件不同。"
+                        "如需强制重新注册，请指定 --force。"
                     )
 
                 await self._validate_force_registration(
@@ -454,7 +454,7 @@ class ModelRegistrationService:
 
     @staticmethod
     def _read_artifact(path: Path) -> bytes:
-        """读取模型制品."""
+        """读取模型文件."""
         try:
             return path.read_bytes()
         except OSError as exc:
@@ -474,7 +474,7 @@ class ModelRegistrationService:
             data: bytes,
             framework: str,
     ) -> Any:
-        """加载并校验模型制品."""
+        """加载并校验模型文件."""
         try:
             return ModelArtifactLoader.load(
                 data=data,
@@ -520,7 +520,7 @@ class ModelRegistrationService:
             filename: str,
             data: bytes,
     ) -> str:
-        """保存制品对象并注册事务回滚补偿."""
+        """保存模型文件并注册事务回滚补偿."""
         key = self.storage.save(
             model_name,
             version,
@@ -571,10 +571,10 @@ class ModelRegistrationService:
             version_record: Any,
             deployment_repo: DeploymentRepository,
     ) -> None:
-        """校验已有版本是否允许创建下一制品修订."""
+        """校验已有版本是否允许强制重新注册."""
         if VersionStatus(version_record.status) != VersionStatus.INACTIVE:
             raise InvalidModelStateError(
-                "只有 inactive 模型版本允许强制注册新制品修订"
+                "只有 inactive 模型版本允许强制重新注册"
             )
 
         deployments = await deployment_repo.list_deployments(
@@ -583,7 +583,8 @@ class ModelRegistrationService:
 
         if deployments:
             raise InvalidModelStateError(
-                "模型版本已有部署历史，不能强制注册新制品修订"
+                "模型版本当前存在未删除的部署记录，"
+                "不能强制重新注册"
             )
 
     @staticmethod

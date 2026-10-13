@@ -3,24 +3,27 @@
 验证模型命令使用认证上下文中的操作人和对应权限。
 
 核心功能：
+  - test_register_force_help_is_concise_and_accurate:
+    验证强制重新注册选项使用简洁准确的说明
+  - test_deletion_commands_render_clean_business_error:
+    验证模型删除相关命令使用简洁的业务错误提示
   - test_activate_model_versions:
     验证激活模型时批量激活模型版本
   - test_activate_uses_authenticated_actor:
     验证激活模型使用认证用户作为实际操作人
+  - test_deprecate_uses_authenticated_actor:
+    验证弃用模型使用认证用户作为实际操作人
   - test_activate_renders_clean_business_error:
     验证激活模型使用简洁的业务错误提示
   - test_deactivate_renders_clean_business_error:
     验证停用模型使用简洁的业务错误提示
-  - test_deprecate_uses_authenticated_actor:
-    验证弃用模型使用认证用户作为实际操作人
-  - test_deletion_commands_render_clean_business_error:
-    验证模型删除相关命令使用简洁的业务错误提示
   - test_show_rejects_foreign_version_without_traceback:
     验证查看模型拒绝不属于当前模型的版本
   - test_register_renders_clean_business_error:
     验证注册模型使用简洁的业务错误提示
 """
 
+import inspect
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -79,6 +82,18 @@ DELETION_COMMAND_CASES = (
         "模型恢复失败：",
     ),
 )
+
+
+def test_register_force_help_is_concise_and_accurate() -> None:
+    """测试强制重新注册帮助简洁且不包含错误限制."""
+    force_option = inspect.signature(
+        register_module.register_model
+    ).parameters["force"].default
+    help_text = str(
+        force_option.help
+    )
+
+    assert help_text == "强制重新注册已有版本"
 
 
 class FakeCLIContext:
