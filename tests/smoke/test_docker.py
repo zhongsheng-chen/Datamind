@@ -5,7 +5,7 @@ Console 首页。
 
 核心功能：
   - test_docker_image_uses_wheel_and_exposes_metadata:
-    验证 Docker 镜像安装 Wheel 发布产物并可启动管理控制台
+    验证 Wheel 安装、版本信息、OCI 元数据、模型框架兼容性和管理控制台启动
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def wait_for_console(container: str, port: int) -> str:
     deadline = time.monotonic() + 180
 
     while time.monotonic() < deadline:
-        state = docker_command(
+        state: DockerCommandResult = docker_command(
             ["inspect", "--format", "{{.State.Running}}", container],
             check=False,
             timeout=30,
