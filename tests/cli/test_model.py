@@ -69,7 +69,7 @@ DELETION_COMMAND_CASES = (
             "scorecard",
             "--yes",
         ],
-        "模型永久清理失败：",
+        "模型永久删除失败：",
     ),
     (
         restore_module,

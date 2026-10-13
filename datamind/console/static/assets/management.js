@@ -700,9 +700,10 @@ export function createResourceManager({
         { name: "version_description", label: "版本描述", type: "textarea", rows: 3, wide: true },
         {
           name: "force",
-          label: "为相同版本保存新的制品修订",
+          label: "强制重新注册已有版本",
           type: "checkbox",
           wide: true,
+          help: "强制重新注册要求版本处于停用状态，并且当前没有部署。",
         },
       ],
       onSubmit: async (formData) => {
@@ -1464,7 +1465,7 @@ export function createResourceManager({
     } else if (section === "models") {
       if (record.deleted_at) {
         add("恢复", "models", record.model_id, "restore", "models.create");
-        add("永久清理", "models", record.model_id, "purge", "models.create", "danger");
+        add("永久删除", "models", record.model_id, "purge", "models.create", "danger");
         return actions;
       }
       add(
@@ -1493,7 +1494,7 @@ export function createResourceManager({
     } else if (section === "versions") {
       if (record.deleted_at) {
         add("恢复", "versions", record.version_id, "restore", "versions.manage");
-        add("永久清理", "versions", record.version_id, "purge", "versions.manage", "danger");
+        add("永久删除", "versions", record.version_id, "purge", "versions.manage", "danger");
         return actions;
       }
       add(
@@ -1846,18 +1847,18 @@ export function createResourceManager({
     const isModel = actionConfig.resource === "models";
     const resourceLabel = isModel ? "模型" : "版本";
     createManagementDialog({
-      title: `永久清理${resourceLabel}`,
+      title: `永久删除${resourceLabel}`,
       description: isModel
-        ? "该操作会永久删除模型及其版本制品，且无法恢复。"
-        : "该操作会永久删除版本制品，且无法恢复。",
-      submitLabel: "永久清理",
+        ? "将永久删除该模型各版本的文件。此后无法恢复该模型。"
+        : "将永久删除该版本的文件。此后无法恢复该版本。",
+      submitLabel: "永久删除",
       fields: [
-        { name: "reason", label: "清理原因", type: "textarea", rows: 3, wide: true },
+        { name: "reason", label: "删除原因", type: "textarea", rows: 3, wide: true },
         { name: "confirmation", label: "我了解该操作无法撤销", type: "checkbox", required: true, wide: true },
       ],
       onSubmit: async (formData) => {
         if (formData.get("confirmation") !== "on") {
-          throw new Error("请确认永久清理风险");
+          throw new Error("请确认永久删除风险");
         }
         return executeRecordAction(
           actionConfig,

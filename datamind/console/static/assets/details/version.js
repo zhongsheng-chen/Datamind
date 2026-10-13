@@ -99,9 +99,9 @@ export function createVersionDetailController({
     const section = createDetailSection(
       "文件信息",
       [
-        ["制品 ID", () => createFileIdentifier(
+        ["模型文件 ID", () => createFileIdentifier(
           version.current_artifact_id,
-          "制品 ID",
+          "模型文件 ID",
         )],
         ["Bento Tag", () => createFileIdentifier(
           version.bento_tag,

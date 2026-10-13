@@ -39,7 +39,7 @@ def _resolve_release_options(
         rollout: str,
         role: str | None,
 ) -> tuple[str, str]:
-    """规范化发布方式，并推导或校验部署角色."""
+    """解析发布选项."""
     normalized_rollout = rollout.strip().lower()
 
     if normalized_rollout == "full":
@@ -140,8 +140,8 @@ def create_deployment(
 ):
     """创建部署.
 
-    全量发布自动使用 champion，影子发布自动使用 shadow；
-    金丝雀发布需要通过 --role 指定 champion 或 challenger。
+    创建部署时，全量发布自动设置角色为 champion，影子发布自动设置为 shadow，
+    金丝雀发布需通过 --role 指定 champion 或 challenger。
     """
     service_config = get_service_config()
 

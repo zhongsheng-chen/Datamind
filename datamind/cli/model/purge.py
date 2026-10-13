@@ -1,9 +1,9 @@
-"""永久清理模型命令.
+"""永久删除模型命令.
 
-仅清理已经逻辑删除的模型或模型版本。
+提供模型或模型版本的永久删除功能，仅适用于已逻辑删除的对象。
 
 核心功能：
-  - purge_model: 永久清理模型或模型版本
+  - purge_model: 永久删除模型或模型版本
 
 使用示例：
   python -m datamind.cli.main model purge scorecard
@@ -21,7 +21,7 @@ from datamind.cli.output import CLIConsole
 from datamind.models.errors import ModelError
 from datamind.services.deletion import ModelDeletionService
 
-app = typer.Typer(help="永久清理模型命令")
+app = typer.Typer(help="永久删除模型命令")
 console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
@@ -81,7 +81,7 @@ def purge_model(
         reason: str | None = typer.Option(
             None,
             "--reason",
-            help="永久清理原因"
+            help="永久删除原因"
         ),
         yes: bool = typer.Option(
             False,
@@ -94,7 +94,7 @@ def purge_model(
             help="输出格式：text / json"
         ),
 ) -> None:
-    """永久清理已逻辑删除的模型或模型版本."""
+    """永久删除已逻辑删除的模型或模型版本."""
 
     @audit(
         action="model.purge",
@@ -117,13 +117,13 @@ def purge_model(
         if (
                 not yes
                 and not typer.confirm(
-                    "该操作不可恢复，确认永久清理模型？"
+                    "该操作不可恢复，确认永久删除模型？"
                 )
         ):
             raise typer.Exit(0)
 
         logger.info(
-            "开始永久清理模型",
+            "开始永久删除模型",
             name=name,
             model_id=model_id,
             version=version,
@@ -150,7 +150,7 @@ def purge_model(
         else:
             color = "green" if result["failed_count"] == 0 else "yellow"
             console.print(
-                f"[{color}]模型永久清理完成[/{color}]"
+                f"[{color}]模型永久删除完成[/{color}]"
             )
             console.print(
                 f"{'PURGED':<16} : "
@@ -180,7 +180,7 @@ def purge_model(
         ValueError,
     ) as error:
         console.error(
-            f"模型永久清理失败：{error}",
+            f"模型永久删除失败：{error}",
             output_format=output,
             error_type=type(error).__name__,
         )
