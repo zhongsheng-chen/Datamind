@@ -21,7 +21,7 @@ import typer
 from datamind.audit import audit
 from datamind.cli.common import cli_context
 from datamind.cli.output import CLIConsole
-from datamind.config import get_service_config
+from datamind.config import get_common_config
 from datamind.models.errors import (
     DeploymentError,
     InvalidModelStateError,
@@ -143,9 +143,9 @@ def create_deployment(
     创建部署时，全量发布自动设置角色为 champion，影子发布自动设置为 shadow，
     金丝雀发布需通过 --role 指定 champion 或 challenger。
     """
-    service_config = get_service_config()
+    common_config = get_common_config()
 
-    environment = service_config.environment
+    environment = common_config.environment
     normalized_rollout, resolved_role = _resolve_release_options(
         rollout=rollout,
         role=role,

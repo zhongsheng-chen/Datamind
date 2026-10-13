@@ -285,7 +285,7 @@ def run_service(
     service_config = settings.service
     expected_workers = int(service_config.workers)
 
-    environment = service_config.environment.value
+    environment = settings.common.environment.value
     resolved_host = (
         host
         if host is not None
@@ -322,7 +322,7 @@ def run_service(
 
         if not run_environment:
             raise typer.BadParameter(
-                "DATAMIND_SERVICE_ENVIRONMENT 不能为空"
+                "DATAMIND_ENVIRONMENT 不能为空"
             )
 
         if not run_host:
@@ -368,7 +368,7 @@ def run_service(
 
         env = os.environ.copy()
 
-        env["DATAMIND_SERVICE_ENVIRONMENT"] = (
+        env["DATAMIND_ENVIRONMENT"] = (
             run_environment
         )
 

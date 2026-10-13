@@ -33,6 +33,7 @@ from zoneinfo import (
 
 import structlog
 
+from datamind.config import get_common_config
 from datamind.config.logging import LoggingConfig
 
 
@@ -128,19 +129,21 @@ def start_retention_worker(
 
         _RETENTION_STOP_EVENT.clear()
 
+        timezone_name = get_common_config().timezone
+
         def worker() -> None:
             while not _RETENTION_STOP_EVENT.is_set():
                 try:
                     cleanup_logs(
                         config.dir,
                         config.retention_days,
-                        config.timezone,
+                        timezone_name,
                     )
 
                 except ZoneInfoNotFoundError as exc:
                     logger.error(
                         "日志保留线程时区配置无效",
-                        timezone=config.timezone,
+                        timezone=timezone_name,
                         error=str(exc),
                     )
 

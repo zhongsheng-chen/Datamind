@@ -16,7 +16,7 @@ from datetime import (
 )
 from typing import Any
 
-from datamind.config import get_logging_config
+from datamind.config import get_common_config
 from datamind.utils.datetime import format_datetime
 
 
@@ -101,7 +101,7 @@ def export_filename(
     resolved_timezone = (
         timezone_name
         if timezone_name is not None
-        else get_logging_config().timezone
+        else get_common_config().timezone
     )
     timestamp = format_datetime(
         export_time,

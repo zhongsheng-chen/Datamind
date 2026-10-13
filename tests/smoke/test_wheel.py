@@ -130,7 +130,7 @@ def prepare_console_environment(tmp_path: Path) -> dict[str, str]:
             "DATAMIND_DATABASE_URL": database_url,
             "DATAMIND_LOG_DIR": str(tmp_path / "logs"),
             "DATAMIND_LOG_ENABLE_FILE": "false",
-            "DATAMIND_SERVICE_ENVIRONMENT": "development",
+            "DATAMIND_ENVIRONMENT": "development",
             "DATAMIND_STORAGE_TYPE": "local",
             "DATAMIND_STORAGE_LOCAL_BASE_DIR": str(tmp_path / "storage"),
         }

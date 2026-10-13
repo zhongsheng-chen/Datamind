@@ -39,6 +39,7 @@ import pytest
 from datamind.config.audit import AuditConfig
 from datamind.config.auth import AuthConfig
 from datamind.config.classification import ClassificationConfig
+from datamind.config.common import CommonConfig
 from datamind.config.console import ConsoleConfig
 from datamind.config.database import DatabaseConfig
 from datamind.config.initialization import InitializationConfig
@@ -61,6 +62,8 @@ DATABASE_URL: Final[str] = (
     "datamind:password@localhost:5432/datamind"
 )
 CONFIG_ENV_PREFIXES: Final[tuple[str, ...]] = (
+    "DATAMIND_ENVIRONMENT",
+    "DATAMIND_TIMEZONE",
     "DATAMIND_AUDIT_",
     "DATAMIND_AUTH_",
     "DATAMIND_CLASSIFICATION_",
@@ -98,7 +101,7 @@ def isolate_settings(
         DATABASE_URL,
     )
     monkeypatch.setenv(
-        "DATAMIND_SERVICE_ENVIRONMENT",
+        "DATAMIND_ENVIRONMENT",
         "development",
     )
 
@@ -111,6 +114,7 @@ def test_settings_contains_all_child_configs() -> None:
     """测试配置总入口聚合全部子配置."""
     settings = Settings()
 
+    assert isinstance(settings.common, CommonConfig)
     assert isinstance(
         settings.database,
         DatabaseConfig,
@@ -168,6 +172,7 @@ def test_settings_contains_all_child_configs() -> None:
 def test_settings_annotations_match_child_configs() -> None:
     """测试配置总入口类型标注完整且准确."""
     assert get_type_hints(Settings) == {
+        "common": CommonConfig,
         "database": DatabaseConfig,
         "initialization": InitializationConfig,
         "storage": StorageConfig,
@@ -255,7 +260,7 @@ def test_get_settings_reads_environment_on_first_call(
         "0.65",
     )
     monkeypatch.setenv(
-        "DATAMIND_SERVICE_ENVIRONMENT",
+        "DATAMIND_ENVIRONMENT",
         "production",
     )
     monkeypatch.setenv(
@@ -275,7 +280,7 @@ def test_get_settings_reads_environment_on_first_call(
     assert settings.auth.secret_key.get_secret_value() == "test-jwt-secret"
     assert settings.auth.access_token_expires_minutes == 60
     assert settings.classification.threshold == 0.65
-    assert settings.service.environment == Environment.PRODUCTION
+    assert settings.common.environment == Environment.PRODUCTION
     assert settings.service.port == 3100
     assert settings.console.port == 4100
 

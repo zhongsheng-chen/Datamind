@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from datamind.config import get_service_config
+from datamind.config import get_common_config, get_service_config
 
 
 def patch_server_dependency(
@@ -46,10 +46,12 @@ def load_service_module(
 ) -> Any:
     """在隔离服务环境中加载运行时服务模块."""
     monkeypatch.setenv(
-        "DATAMIND_SERVICE_ENVIRONMENT",
+        "DATAMIND_ENVIRONMENT",
         "testing",
     )
     service_config = get_service_config()
+
+    common_config = get_common_config()
 
     service_module = import_module(
         "datamind.runtime.server.service"
@@ -59,6 +61,9 @@ def load_service_module(
         service_module,
         "service_config",
         service_config,
+    )
+    patch_server_dependency(
+        monkeypatch, service_module, "common_config", common_config
     )
     patch_server_dependency(
         monkeypatch,

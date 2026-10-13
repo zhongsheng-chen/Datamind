@@ -48,7 +48,6 @@
   )
 """
 
-import os
 from datetime import (
     datetime,
     timedelta,
@@ -57,14 +56,15 @@ from datetime import (
 from typing import overload
 from zoneinfo import ZoneInfo
 
+from datamind.config import get_common_config
+
 
 def get_timezone(
         timezone_name: str | None = None,
 ) -> ZoneInfo:
     """获取当前配置时区.
 
-    优先使用显式传入的 IANA 时区名称，否则从环境变量 TZ 读取，
-    两者均未配置时使用 UTC。
+    优先使用显式传入的 IANA 时区名称，否则使用应用默认时区。
 
     参数：
         timezone_name: IANA 时区名称（可选）
@@ -72,13 +72,7 @@ def get_timezone(
     返回：
         当前配置的 ZoneInfo 实例
     """
-    resolved_name = (
-        timezone_name
-        or os.getenv(
-            "TZ",
-            "UTC",
-        )
-    )
+    resolved_name = timezone_name or get_common_config().timezone
 
     return ZoneInfo(
         resolved_name

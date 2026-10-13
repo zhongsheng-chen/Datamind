@@ -317,7 +317,7 @@ def test_docker_image_uses_wheel_and_exposes_metadata(
                     "--env",
                     "DATAMIND_LOG_ENABLE_FILE=false",
                     "--env",
-                    "DATAMIND_SERVICE_ENVIRONMENT=development",
+                    "DATAMIND_ENVIRONMENT=development",
                     "--env",
                     "DATAMIND_STORAGE_TYPE=local",
                     image,

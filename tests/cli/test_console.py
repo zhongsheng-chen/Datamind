@@ -72,7 +72,7 @@ def mock_console_settings(
             port=8701,
             startup_timeout=120,
         ),
-        service=SimpleNamespace(
+        common=SimpleNamespace(
             environment=Environment.DEVELOPMENT,
         ),
     )

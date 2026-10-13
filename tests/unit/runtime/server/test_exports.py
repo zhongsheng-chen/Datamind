@@ -44,7 +44,7 @@ def test_all_declared_exports_are_available(
 ) -> None:
     """测试 __all__ 中声明的对象均可从包级访问."""
     monkeypatch.setenv(
-        "DATAMIND_SERVICE_ENVIRONMENT",
+        "DATAMIND_ENVIRONMENT",
         "testing",
     )
 

@@ -42,6 +42,7 @@ from datamind.audit import AuditRecorder
 from datamind.config import (
     get_logging_config,
     get_runtime_config,
+    get_common_config,
     get_service_config,
 )
 from datamind.db.core import UnitOfWork
@@ -72,6 +73,7 @@ from datamind.services import RuntimeControlService
 
 logger = structlog.get_logger(__name__)
 
+common_config = get_common_config()
 service_config = get_service_config()
 runtime_config = get_runtime_config()
 
@@ -228,7 +230,7 @@ class DatamindRuntimeService(
             manager=self.manager,
             service_instance_id=service_instance_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
             interval_seconds=(
                 runtime_config.reconcile_interval
@@ -257,7 +259,7 @@ class DatamindRuntimeService(
             "运行时 Worker 初始化完成",
             worker_id=worker_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
             service_workers=(
                 service_config.workers
@@ -298,7 +300,7 @@ class DatamindRuntimeService(
             self._logger.warning(
                 "运行时首次状态协调等待数据库恢复",
                 worker_id=self.manager.worker_id,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 error=str(exc),
             )
 
@@ -308,14 +310,14 @@ class DatamindRuntimeService(
             "运行时 Worker 启动完成",
             worker_id=self.manager.worker_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
             **result,
         )
 
         _write_worker_ready_marker(
             worker_id=self.manager.worker_id,
-            environment=service_config.environment,
+            environment=common_config.environment,
         )
 
     @bentoml.on_shutdown
@@ -353,7 +355,7 @@ class DatamindRuntimeService(
                     "Worker 关闭时卸载模型失败",
                     worker_id=self.manager.worker_id,
                     environment=(
-                        service_config.environment
+                        common_config.environment
                     ),
                     deployment_id=deployment_id,
                     error=str(exc),
@@ -365,7 +367,7 @@ class DatamindRuntimeService(
             "运行时 Worker 已关闭",
             worker_id=self.manager.worker_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
         )
 
@@ -384,7 +386,7 @@ class DatamindRuntimeService(
             "status": "ok",
             "worker_id": self.manager.worker_id,
             "environment": (
-                service_config.environment
+                common_config.environment
             ),
             "reconciler_running": (
                 self.reconciler.is_running
@@ -444,7 +446,7 @@ class DatamindRuntimeService(
                 self.reconciler.is_running
             ),
             "worker_id": self.manager.worker_id,
-            "environment": service_config.environment,
+            "environment": common_config.environment,
         }
 
     async def _execute_secured(

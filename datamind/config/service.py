@@ -7,8 +7,6 @@
 
 属性：
   - name: 服务名称
-  - version: 服务版本
-  - environment: 运行环境，必填
   - host: 服务监听地址
   - port: 服务监听端口
   - workers: 工作进程数
@@ -19,10 +17,6 @@
 环境变量：
   - DATAMIND_SERVICE_NAME:
     服务名称，默认 datamind
-  - DATAMIND_SERVICE_VERSION:
-    服务版本，默认 1.0.0
-  - DATAMIND_SERVICE_ENVIRONMENT:
-    运行环境，必填
   - DATAMIND_SERVICE_HOST:
     监听地址，默认 0.0.0.0
   - DATAMIND_SERVICE_PORT:
@@ -41,7 +35,6 @@
 
   config = ServiceConfig()
 
-  print(config.environment)
   print(config.port)
 """
 
@@ -50,9 +43,6 @@ from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
 )
-
-from datamind.constants import Environment
-
 
 class ServiceConfig(BaseSettings):
     """服务配置类."""
@@ -65,8 +55,6 @@ class ServiceConfig(BaseSettings):
     )
 
     name: str = "datamind"
-    version: str = "1.0.0"
-    environment: Environment
 
     host: str = "0.0.0.0"
     port: int = 8700
@@ -82,11 +70,6 @@ class ServiceConfig(BaseSettings):
         if not self.name.strip():
             raise ValueError(
                 "name 不能为空"
-            )
-
-        if not self.version.strip():
-            raise ValueError(
-                "version 不能为空"
             )
 
         if not self.host.strip():

@@ -102,7 +102,7 @@ def configure_security(
     )
     monkeypatch.setitem(
         vars(security_module),
-        "get_service_config",
+        "get_common_config",
         lambda: SimpleNamespace(environment=environment),
     )
 

@@ -121,8 +121,8 @@ def update_experiment(
     时区偏移。未提供时区偏移时，按配置时区解析。
     """
     settings = get_settings()
-    timezone_name = settings.logging.timezone
-    service_environment = settings.service.environment.value
+    timezone_name = settings.common.timezone
+    service_environment = settings.common.environment.value
 
     @audit(
         action="experiment.update",

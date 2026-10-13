@@ -73,7 +73,7 @@ def create_settings(
         auth=SimpleNamespace(
             enabled=auth_enabled
         ),
-        service=SimpleNamespace(
+        common=SimpleNamespace(
             environment=environment
         ),
         logging=logging_config,

@@ -1,11 +1,9 @@
 """服务配置测试.
 
-验证运行环境必填、可选参数默认值、环境变量读取、
+验证参数默认值、环境变量读取、
 外部配置隔离、参数校验、额外字段处理和配置不可变行为。
 
 核心功能：
-  - test_service_config_requires_environment:
-    验证运行环境必须显式提供
   - test_service_config_default_optional_values:
     验证服务可选参数默认值
   - test_service_config_ignores_external_sources:
@@ -20,10 +18,6 @@
     验证拒绝超出范围的监听端口
   - test_service_config_rejects_invalid_numeric_values:
     验证拒绝无效数值参数
-  - test_service_config_parses_environment_string:
-    验证将字符串解析为运行环境枚举
-  - test_service_config_rejects_unknown_environment:
-    验证拒绝未知运行环境
   - test_service_config_ignores_extra_fields:
     验证忽略未声明的额外配置字段
   - test_service_config_is_frozen:
@@ -43,7 +37,6 @@ from pydantic_settings import (
 
 from datamind.config import get_service_config
 from datamind.config.service import ServiceConfig
-from datamind.constants import Environment
 
 
 class IsolatedServiceConfig(ServiceConfig):
@@ -89,24 +82,12 @@ def isolate_service_config(
 def create_config(
         **overrides: Any,
 ) -> ServiceConfig:
-    """创建包含必填运行环境的隔离服务配置."""
-    config_kwargs: dict[str, Any] = {
-        "environment": Environment.DEVELOPMENT,
-    }
+    """创建隔离外部配置源的服务配置."""
+    config_kwargs: dict[str, Any] = {}
     config_kwargs.update(overrides)
 
     return IsolatedServiceConfig(**config_kwargs)
 
-
-def test_service_config_requires_environment() -> None:
-    """测试运行环境必须显式提供."""
-    with pytest.raises(ValidationError) as exc_info:
-        IsolatedServiceConfig.model_validate({})
-
-    errors = exc_info.value.errors()
-
-    assert errors[0]["loc"] == ("environment",)
-    assert errors[0]["type"] == "missing"
 
 
 def test_service_config_default_optional_values() -> None:
@@ -114,8 +95,6 @@ def test_service_config_default_optional_values() -> None:
     config = create_config()
 
     assert config.name == "datamind"
-    assert config.version == "1.0.0"
-    assert config.environment == Environment.DEVELOPMENT
     assert config.host == "0.0.0.0"
     assert config.port == 8700
     assert config.workers == 4
@@ -129,10 +108,6 @@ def test_service_config_ignores_external_sources(
 ) -> None:
     """测试隔离配置不读取外部配置源."""
     monkeypatch.setenv(
-        "DATAMIND_SERVICE_ENVIRONMENT",
-        "production",
-    )
-    monkeypatch.setenv(
         "DATAMIND_SERVICE_NAME",
         "environment-service",
     )
@@ -143,7 +118,6 @@ def test_service_config_ignores_external_sources(
 
     config = create_config()
 
-    assert config.environment == Environment.DEVELOPMENT
     assert config.name == "datamind"
     assert config.port == 8700
 
@@ -154,8 +128,6 @@ def test_service_config_reads_environment_variables(
     """测试从环境变量读取并转换服务配置."""
     environment = {
         "DATAMIND_SERVICE_NAME": "datamind-runtime",
-        "DATAMIND_SERVICE_VERSION": "2.0.0",
-        "DATAMIND_SERVICE_ENVIRONMENT": "production",
         "DATAMIND_SERVICE_HOST": "127.0.0.1",
         "DATAMIND_SERVICE_PORT": "8080",
         "DATAMIND_SERVICE_WORKERS": "8",
@@ -173,8 +145,6 @@ def test_service_config_reads_environment_variables(
     config = get_service_config()
 
     assert config.name == "datamind-runtime"
-    assert config.version == "2.0.0"
-    assert config.environment == Environment.PRODUCTION
     assert config.host == "127.0.0.1"
     assert config.port == 8080
     assert config.workers == 8
@@ -187,8 +157,6 @@ def test_service_config_accepts_custom_values() -> None:
     """测试接受有效的自定义配置."""
     config = create_config(
         name="datamind-runtime",
-        version="2.0.0",
-        environment=Environment.PRODUCTION,
         host="127.0.0.1",
         port=8080,
         workers=8,
@@ -198,8 +166,6 @@ def test_service_config_accepts_custom_values() -> None:
     )
 
     assert config.name == "datamind-runtime"
-    assert config.version == "2.0.0"
-    assert config.environment == Environment.PRODUCTION
     assert config.host == "127.0.0.1"
     assert config.port == 8080
     assert config.workers == 8
@@ -224,16 +190,6 @@ def test_service_config_accepts_custom_values() -> None:
             "name",
             "   ",
             "name 不能为空",
-        ),
-        (
-            "version",
-            "",
-            "version 不能为空",
-        ),
-        (
-            "version",
-            "   ",
-            "version 不能为空",
         ),
         (
             "host",
@@ -318,24 +274,12 @@ def test_service_config_rejects_invalid_numeric_values(
         )
 
 
-def test_service_config_parses_environment_string() -> None:
-    """测试将字符串解析为运行环境枚举."""
-    config = create_config(environment="production")
-
-    assert config.environment == Environment.PRODUCTION
-
-
-def test_service_config_rejects_unknown_environment() -> None:
-    """测试拒绝未知运行环境."""
-    with pytest.raises(ValidationError):
-        create_config(environment="unknown")
 
 
 def test_service_config_ignores_extra_fields() -> None:
     """测试忽略未声明的额外配置字段."""
     config = IsolatedServiceConfig.model_validate(
         {
-            "environment": Environment.DEVELOPMENT,
             "unknown_option": "ignored",
         }
     )

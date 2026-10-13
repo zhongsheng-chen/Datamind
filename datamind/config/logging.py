@@ -12,7 +12,6 @@
   - dir: 日志文件目录
   - filename: 日志文件名
   - date_format: 日期格式
-  - timezone: IANA 时区名称
   - rotation: 日志轮转策略
   - rotation_when: 时间轮转周期
   - rotation_interval: 日志轮转间隔
@@ -42,8 +41,6 @@
     日志文件名，默认 datamind.log
   - DATAMIND_LOG_DATE_FORMAT:
     日期格式，默认 None
-  - DATAMIND_LOG_TIMEZONE:
-    时区，默认 Asia/Shanghai
   - DATAMIND_LOG_ROTATION:
     轮转策略，默认 time
   - DATAMIND_LOG_ROTATION_WHEN:
@@ -87,10 +84,6 @@
 
 import codecs
 from pathlib import Path
-from zoneinfo import (
-    ZoneInfo,
-    ZoneInfoNotFoundError,
-)
 
 from pydantic import model_validator
 from pydantic_settings import (
@@ -125,7 +118,6 @@ class LoggingConfig(BaseSettings):
     filename: str = "datamind.log"
 
     date_format: str | None = None
-    timezone: str = "Asia/Shanghai"
 
     rotation: RotationType = RotationType.TIME
     rotation_when: RotationWhen = RotationWhen.MIDNIGHT
@@ -174,19 +166,6 @@ class LoggingConfig(BaseSettings):
             raise ValueError(
                 "date_format 不能是空字符串"
             )
-
-        if not self.timezone.strip():
-            raise ValueError(
-                "timezone 不能为空"
-            )
-
-        try:
-            ZoneInfo(self.timezone)
-        except ZoneInfoNotFoundError as exc:
-            raise ValueError(
-                "timezone 不是有效的 IANA 时区，"
-                f"当前值：{self.timezone}"
-            ) from exc
 
         if self.rotation_interval <= 0:
             raise ValueError(

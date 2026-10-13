@@ -176,7 +176,7 @@ def test_deployment_create_rejects_invalid_release_role_before_context(
     )
     monkeypatch.setitem(
         vars(create_module),
-        "get_service_config",
+        "get_common_config",
         lambda: service_config,
     )
 
