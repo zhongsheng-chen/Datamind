@@ -34,7 +34,7 @@ from sqlalchemy import (
     select,
 )
 
-from datamind.config import get_logging_config
+from datamind.config import get_common_config
 from datamind.constants.runtime_status import (
     ACTIVE_RUNTIME_STATUSES,
     RuntimeHealthStatus,
@@ -221,7 +221,7 @@ def _parse_query_time(
     if parsed.tzinfo is None:
         parsed = parsed.replace(
             tzinfo=get_timezone(
-                get_logging_config().timezone
+                get_common_config().timezone
             )
         )
 

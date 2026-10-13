@@ -11,7 +11,7 @@
 
   settings = get_settings()
 
-  print(settings.service.environment)
+  print(settings.common.environment)
   print(settings.console.port)
   print(settings.initialization.admin_username)
   print(settings.runtime.shadow_enabled)
@@ -24,6 +24,7 @@ from functools import lru_cache
 from datamind.config.audit import AuditConfig
 from datamind.config.auth import AuthConfig
 from datamind.config.classification import ClassificationConfig
+from datamind.config.common import CommonConfig
 from datamind.config.console import ConsoleConfig
 from datamind.config.database import DatabaseConfig
 from datamind.config.initialization import InitializationConfig
@@ -32,6 +33,7 @@ from datamind.config.providers import (
     get_audit_config,
     get_auth_config,
     get_classification_config,
+    get_common_config,
     get_console_config,
     get_database_config,
     get_initialization_config,
@@ -57,6 +59,7 @@ class Settings:
     audit: AuditConfig
     auth: AuthConfig
     classification: ClassificationConfig
+    common: CommonConfig
     console: ConsoleConfig
     database: DatabaseConfig
     initialization: InitializationConfig
@@ -72,6 +75,7 @@ class Settings:
         self.audit = get_audit_config()
         self.auth = get_auth_config()
         self.classification = get_classification_config()
+        self.common = get_common_config()
         self.console = get_console_config()
         self.database = get_database_config()
         self.initialization = get_initialization_config()

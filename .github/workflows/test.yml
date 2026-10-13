@@ -21,7 +21,7 @@ jobs:
           - "3.14"
 
     env:
-      DATAMIND_SERVICE_ENVIRONMENT: testing
+      DATAMIND_ENVIRONMENT: testing
 
     steps:
       - name: Checkout
@@ -191,7 +191,7 @@ jobs:
           --health-retries 10
 
     env:
-      DATAMIND_SERVICE_ENVIRONMENT: testing
+      DATAMIND_ENVIRONMENT: testing
       DATAMIND_TEST_DATABASE_URL: postgresql+asyncpg://datamind_test:datamind_test@127.0.0.1:5432/datamind_test
       DATAMIND_TEST_REDIS_URL: redis://127.0.0.1:6379/15
       DATAMIND_TEST_MINIO_ENDPOINT: 127.0.0.1:9000
@@ -235,7 +235,7 @@ jobs:
           --health-retries 5
 
     env:
-      DATAMIND_SERVICE_ENVIRONMENT: testing
+      DATAMIND_ENVIRONMENT: testing
       DATAMIND_TEST_DATABASE_URL: postgresql+asyncpg://datamind_test:datamind_test@127.0.0.1:5432/datamind_test
 
     steps:

@@ -18,7 +18,7 @@ from typing import Any
 import bentoml
 from structlog.typing import FilteringBoundLogger
 
-from datamind.config import get_service_config
+from datamind.config import get_common_config
 from datamind.models.errors import InvalidDeploymentStateError
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
@@ -32,7 +32,7 @@ from datamind.runtime.serving.base import BaseRuntimeService
 from datamind.services import RuntimeControlService
 from datamind.utils.generator import generate_random_id
 
-service_config = get_service_config()
+common_config = get_common_config()
 
 
 class RuntimeControlMixin:
@@ -125,7 +125,7 @@ class RuntimeControlMixin:
                 request_id=request_id,
                 deployment_id=request.deployment_id,
                 operator=operator,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -142,7 +142,7 @@ class RuntimeControlMixin:
                 request_id=request_id,
                 deployment_id=request.deployment_id,
                 operator=operator,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -217,7 +217,7 @@ class RuntimeControlMixin:
                 "request_id": request_id,
                 "deployment_id": deployment_id,
                 "environment": (
-                    service_config.environment
+                    common_config.environment
                 ),
                 "control": status_info["control"],
                 "runtimes": status_info["runtimes"],
@@ -239,7 +239,7 @@ class RuntimeControlMixin:
                 "部署运行状态查询失败",
                 request_id=request_id,
                 deployment_id=deployment_id,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -255,7 +255,7 @@ class RuntimeControlMixin:
                 "部署运行状态查询异常",
                 request_id=request_id,
                 deployment_id=deployment_id,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -296,7 +296,7 @@ class RuntimeControlMixin:
         return {
             "worker_id": self.manager.worker_id,
             "environment": (
-                service_config.environment
+                common_config.environment
             ),
             "runtime_count": (
                 len(self.manager.registry)

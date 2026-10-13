@@ -237,7 +237,7 @@ def run_console(
             "--port 必须在 1 到 65535 之间"
         )
 
-    environment = settings.service.environment.value
+    environment = settings.common.environment.value
 
     command = [
         sys.executable,

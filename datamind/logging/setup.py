@@ -27,6 +27,7 @@ from logging.handlers import QueueListener
 import structlog
 from structlog.typing import Processor
 
+from datamind.config import get_common_config
 from datamind.config.logging import LoggingConfig
 from datamind.logging.handlers import (
     create_async_handler,
@@ -160,7 +161,7 @@ def setup_logging(
     processors.extend(
         [
             add_timestamp(
-                config.timezone,
+                get_common_config().timezone,
                 config.date_format,
             ),
             add_context(),

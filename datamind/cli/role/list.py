@@ -20,7 +20,7 @@ from rich.table import Table
 
 from datamind.auth.enums import RoleStatus
 from datamind.cli.common import cli_context
-from datamind.config import get_logging_config
+from datamind.config import get_common_config
 from datamind.services.identity import IdentityService
 from datamind.utils.datetime import (
     format_datetime,
@@ -127,7 +127,7 @@ def list_roles(
         table.add_column("STATUS")
         table.add_column("PERMISSIONS")
         table.add_column("UPDATED AT")
-        timezone_name = get_logging_config().timezone
+        timezone_name = get_common_config().timezone
 
         for item in result:
             table.add_row(

@@ -65,9 +65,9 @@ def test_service_run_does_not_authenticate_cli_user(
 
     settings = SimpleNamespace(
         logging=MagicMock(),
+        common=SimpleNamespace(environment=Environment(environment)),
         service=SimpleNamespace(
             name="datamind",
-                environment=Environment(environment),
             host="127.0.0.1",
             port=8700,
             workers=1,

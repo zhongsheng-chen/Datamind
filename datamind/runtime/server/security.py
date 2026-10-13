@@ -35,7 +35,7 @@ from datamind.auth.factory import create_auth_service
 from datamind.auth.permissions import require_permission
 from datamind.config.providers import (
     get_auth_config,
-    get_service_config,
+    get_common_config,
 )
 from datamind.constants import Environment
 from datamind.context.scope import context_scope
@@ -111,10 +111,10 @@ class RuntimeSecurity:
     ) -> RuntimeIdentity:
         """认证请求并校验权限."""
         auth_config = get_auth_config()
-        service_config = get_service_config()
+        common_config = get_common_config()
 
         if not auth_config.enabled:
-            if service_config.environment in (
+            if common_config.environment in (
                     Environment.STAGING,
                     Environment.PRODUCTION,
             ):

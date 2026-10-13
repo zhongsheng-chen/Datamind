@@ -205,7 +205,7 @@ class CLIContext:
         本地访问令牌失效时，使用刷新令牌续期并保存新凭据。
         """
         auth_config = self.settings.auth
-        environment = self.settings.service.environment
+        environment = self.settings.common.environment
 
         if not auth_config.enabled:
             if environment in (

@@ -32,7 +32,7 @@ def configure_isolated_runtime(
     """配置仅用于当前 E2E case 的本地制品与 BentoML 目录."""
     monkeypatch.setenv("DATAMIND_STORAGE_TYPE", "local")
     monkeypatch.setenv("DATAMIND_AUTH_ENABLED", "false")
-    monkeypatch.setenv("DATAMIND_SERVICE_ENVIRONMENT", "testing")
+    monkeypatch.setenv("DATAMIND_ENVIRONMENT", "testing")
     monkeypatch.setenv(
         "DATAMIND_STORAGE_LOCAL_BASE_DIR",
         str(tmp_path / "storage"),

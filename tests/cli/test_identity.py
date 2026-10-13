@@ -512,7 +512,7 @@ def test_user_list_renders_count_and_updated_at(
     )
     monkeypatch.setitem(
         vars(user_list_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),
@@ -561,7 +561,7 @@ def test_role_list_renders_count_and_updated_at(
     )
     monkeypatch.setitem(
         vars(role_list_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),
@@ -611,7 +611,7 @@ def test_show_user_renders_standard_detail_layout(
     )
     monkeypatch.setitem(
         vars(show_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),
@@ -664,7 +664,7 @@ def test_show_role_renders_standard_detail_layout(
     )
     monkeypatch.setitem(
         vars(role_show_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),

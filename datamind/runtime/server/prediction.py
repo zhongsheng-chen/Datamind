@@ -28,6 +28,7 @@ from datamind.audit import AuditRecorder
 from datamind.audit.errors import AuditError
 from datamind.config import (
     get_runtime_config,
+    get_common_config,
     get_service_config,
 )
 from datamind.context import get_context
@@ -91,6 +92,7 @@ from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
+common_config = get_common_config()
 service_config = get_service_config()
 runtime_config = get_runtime_config()
 
@@ -193,7 +195,7 @@ class PredictionMixin:
                 routing_plan = await self.router.resolve(
                     model_id=resolved_model_id,
                     environment=(
-                        service_config.environment
+                        common_config.environment
                     ),
                     subject_key=request.subject_key,
                     subject_type=request.subject_type,
@@ -278,7 +280,7 @@ class PredictionMixin:
                 deployment_id=request.deployment_id,
                 subject_key=request.subject_key,
                 subject_type=request.subject_type,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 **(
                     {"timeout_seconds": exc.seconds, "timeout_stage": exc.stage}
@@ -317,7 +319,7 @@ class PredictionMixin:
                 deployment_id=request.deployment_id,
                 subject_key=request.subject_key,
                 subject_type=request.subject_type,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -382,7 +384,7 @@ class PredictionMixin:
                 model_id=model_id,
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
-                environment=service_config.environment.value,
+                environment=common_config.environment.value,
                 payload=request.model_dump(mode="json"),
                 total_count=len(request.instances),
                 source="http",
@@ -740,7 +742,7 @@ class PredictionMixin:
                         budget.enter_stage("routing")
                         routing_plan = await self.router.resolve(
                             model_id=model_id,
-                            environment=service_config.environment,
+                            environment=common_config.environment,
                             subject_key=instance.subject_key,
                             subject_type=instance.subject_type,
                             payload=instance.features,
@@ -922,7 +924,7 @@ class PredictionMixin:
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
                 batch_size=len(request.instances),
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 **(
                     {"timeout_seconds": exc.seconds, "timeout_stage": exc.stage}
@@ -962,7 +964,7 @@ class PredictionMixin:
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
                 batch_size=len(request.instances),
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -1450,7 +1452,7 @@ class PredictionMixin:
             "request_id": request_id,
             "error": str(error),
             "error_type": error.__class__.__name__,
-            "environment": service_config.environment,
+            "environment": common_config.environment,
             "worker_id": self.manager.worker_id,
         }
 
@@ -1540,7 +1542,7 @@ class PredictionMixin:
         """
         return {
             "model_name": request.model_name,
-            "environment": service_config.environment,
+            "environment": common_config.environment,
             "deployment_id": request.deployment_id,
             "subject_key": request.subject_key,
             "subject_type": request.subject_type,
@@ -2500,7 +2502,7 @@ class PredictionMixin:
                 "创建 Worker RuntimeService",
                 worker_id=self.manager.worker_id,
                 environment=(
-                    service_config.environment
+                    common_config.environment
                 ),
                 deployment_id=deployment_id,
                 service_type=(
@@ -2548,7 +2550,7 @@ class PredictionMixin:
 
             if (
                     deployment.environment
-                    != service_config.environment
+                    != common_config.environment
             ):
                 raise ServiceEnvironmentMismatchError(
                     "部署环境与当前服务环境不一致: "
@@ -2556,7 +2558,7 @@ class PredictionMixin:
                     f"deployment_environment="
                     f"{deployment.environment}, "
                     f"service_environment="
-                    f"{service_config.environment}"
+                    f"{common_config.environment}"
                 )
 
     @staticmethod

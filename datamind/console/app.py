@@ -73,7 +73,7 @@ from datamind.constants import (
     SUPPORTED_MODEL_TYPES,
     SUPPORTED_PERMISSIONS,
 )
-from datamind.config import get_service_config
+from datamind.config import get_common_config
 from datamind.db.core import UnitOfWork
 from datamind.db.models.outbox import OutboxEvent
 from datamind.db.repositories import (
@@ -1934,7 +1934,7 @@ def _service_environment(
 ) -> str:
     """返回当前控制台实例管理的唯一环境."""
     return str(
-        get_service_config().environment.value
+        get_common_config().environment.value
     )
 
 
