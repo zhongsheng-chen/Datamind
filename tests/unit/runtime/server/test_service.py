@@ -9,6 +9,10 @@
     验证错误类型映射为对应 HTTP 状态
   - test_startup_reconciles_and_marks_worker_ready:
     验证 Worker 启动时首次协调并写入就绪标记
+  - test_startup_keeps_worker_alive_until_database_recovers:
+    验证数据库尚未可用时 Worker 启动后台重试
+  - test_startup_keeps_worker_alive_on_native_connection_refusal:
+    验证原生数据库连接被拒绝时 Worker 不会退出
   - test_shutdown_stops_models_and_clears_cache:
     验证 Worker 关闭时停止协调器、卸载模型并清理缓存
   - test_health_returns_worker_state:
@@ -333,7 +337,7 @@ async def test_execute_secured_applies_status_and_records_audit(
         permission="runtime.manage",
         request_id="req_test",
         handler=handler,
-        audit_action="runtime.load",
+        audit_action="runtime.reload",
         target_type="deployment",
         target_id="dep_test",
     )
@@ -341,7 +345,7 @@ async def test_execute_secured_applies_status_and_records_audit(
     assert result["success"] is successful
     handler.assert_awaited_once()
     runtime_server.get_audit_recorder(service).record.assert_awaited_once_with(
-        action="runtime.load",
+        action="runtime.reload",
         target_type="deployment",
         target_id="dep_test",
         status=expected_status,

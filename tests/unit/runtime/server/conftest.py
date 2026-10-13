@@ -96,8 +96,6 @@ def create_service(
     service.executor = MagicMock()
     service.executor.execute = AsyncMock()
     service.controller = MagicMock()
-    service.controller.load = AsyncMock()
-    service.controller.unload = AsyncMock()
     service.controller.reload = AsyncMock()
     service.controller.get_status = AsyncMock()
     service.reconciler = MagicMock()
