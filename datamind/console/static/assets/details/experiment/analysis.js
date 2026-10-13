@@ -114,7 +114,7 @@ export function createExperimentAnalysisSection({ experimentId, request, dialog 
   refresh.type = "button";
   const controls = element("label", "比较基准 ", "experiment-analysis-controls");
   const baseline = document.createElement("select");
-  baseline.setAttribute("aria-label", "实验评估比较基准");
+  baseline.setAttribute("aria-label", "实验分析比较基准");
   baseline.append(new window.Option("默认基准", ""));
   controls.append(baseline);
   const content = element("div", undefined, "experiment-analysis-content");
@@ -239,14 +239,14 @@ export function createExperimentAnalysisSection({ experimentId, request, dialog 
     section.setAttribute("aria-busy", "true");
     refresh.disabled = true;
     baseline.disabled = true;
-    content.replaceChildren(element("p", "正在加载实验评估…", "registry-related-empty"));
+    content.replaceChildren(element("p", "正在加载实验分析…", "registry-related-empty"));
     const query = baseline.value ? `?baseline_variant_id=${encodeURIComponent(baseline.value)}` : "";
     try {
       const data = await request(`experiments/${encodeURIComponent(experimentId)}/analysis${query}`, { signal: controller.signal });
       if (!closed && current === generation) render(data);
     } catch (error) {
       if (!closed && current === generation && error?.name !== "AbortError") {
-        content.replaceChildren(element("p", error instanceof Error ? error.message : "实验评估加载失败", "experiment-analysis-note"));
+        content.replaceChildren(element("p", error instanceof Error ? error.message : "实验分析加载失败", "experiment-analysis-note"));
       }
     } finally {
       if (!closed && current === generation) {
@@ -282,7 +282,7 @@ export function showExperimentAnalysisPanel({ experiment, request, parentDialog,
   const dialog = element("dialog", undefined, "experiment-analysis-dialog");
   const header = element("header");
   const identity = element("div");
-  const title = element("h3", "实验评估");
+  const title = element("h3", "实验分析");
   title.id = "experiment-analysis-title";
   dialog.setAttribute("aria-labelledby", title.id);
   const titleRow = element("div", undefined, "experiment-analysis-title-row");
@@ -291,7 +291,7 @@ export function showExperimentAnalysisPanel({ experiment, request, parentDialog,
   identity.append(titleRow, element("p", experiment.name || experiment.experiment_id));
   const close = element("button", "×", "registry-drawer-close");
   close.type = "button";
-  close.setAttribute("aria-label", "关闭实验评估");
+  close.setAttribute("aria-label", "关闭实验分析");
   close.addEventListener("click", () => dialog.close());
   header.append(identity, close);
   const body = element("div", undefined, "experiment-analysis-body");
@@ -332,7 +332,7 @@ export function createExperimentAnalysisSummary({ experimentId, request, dialog,
   const section = element("section", undefined, "registry-detail-section experiment-analysis-compact");
   const heading = element("div", undefined, "registry-section-heading");
   const title = element("h4");
-  title.append(createDetailIcon("monitor", "registry-section-icon"), document.createTextNode("实验评估"));
+  title.append(createDetailIcon("monitor", "registry-section-icon"), document.createTextNode("实验分析"));
   heading.append(title);
   if (onViewAnalysis) {
     const view = element("button", "查看全部", "registry-section-link");

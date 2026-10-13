@@ -41,8 +41,8 @@ def test_upgrade_runs_from_any_directory(
     migration.upgrade_database()
 
     sql = output.getvalue()
-    assert "CREATE TABLE users" in sql
-    assert "CREATE TABLE systems" in sql
+    for table_name in ("users", "systems"):
+        assert f"CREATE TABLE {table_name}" in sql
 
 
 def test_migration_hides_connection_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -79,8 +79,8 @@ def test_downgrade_runs_from_any_directory(
     migration.downgrade_database("base")
 
     sql = output.getvalue()
-    assert "DROP TABLE users" in sql
-    assert "DROP TABLE systems" in sql
+    for table_name in ("users", "systems"):
+        assert f"DROP TABLE {table_name}" in sql
 
 
 def test_downgrade_hides_connection_secrets(monkeypatch) -> None:

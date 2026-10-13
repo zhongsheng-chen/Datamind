@@ -1,9 +1,9 @@
-"""运行服务命令.
+"""运行预测服务命令.
 
-提供模型评分服务启动功能。
+提供预测服务启动功能。
 
 核心功能：
-  - run_service: 启动模型服务
+  - run_service: 启动预测服务
 
 使用示例：
   python -m datamind.cli.main service run \
@@ -39,7 +39,7 @@ from datamind.cli.branding import (
 from datamind.config import get_settings
 from datamind.logging import setup_logging, shutdown_logging
 
-app = typer.Typer(help="运行服务命令")
+app = typer.Typer(help="运行预测服务命令")
 console = CLIConsole()
 
 logger = structlog.get_logger(__name__)
@@ -51,7 +51,7 @@ SERVICE_TARGET = (
 
 
 class ServiceStartupResult(TypedDict):
-    """模型服务启动结果."""
+    """预测服务启动结果."""
 
     name: str
     version: str
@@ -69,7 +69,7 @@ def _build_ready_dir(
     """构建 Worker 就绪标记目录.
 
     参数：
-        service_instance_id: 服务实例 ID
+        service_instance_id: 预测服务实例 ID
 
     返回：
         Worker 就绪标记目录
@@ -127,7 +127,7 @@ def _read_worker_ready_files(
 
     参数：
         ready_dir: Worker 就绪标记目录
-        service_instance_id: 服务实例 ID
+        service_instance_id: 预测服务实例 ID
 
     返回：
         已就绪 Worker ID 集合
@@ -184,8 +184,8 @@ async def _wait_for_workers_ready(
 
     参数：
         ready_dir: Worker 就绪标记目录
-        service_instance_id: 服务实例 ID
-        process: 服务子进程
+        service_instance_id: 预测服务实例 ID
+        process: 预测服务子进程
         expected_workers: 预期 Worker 数量
         timeout_seconds: 等待超时时间
         interval_seconds: 探测间隔
@@ -194,7 +194,7 @@ async def _wait_for_workers_ready(
         已就绪 Worker ID 集合
 
     异常：
-        RuntimeError: 服务子进程提前退出
+        RuntimeError: 预测服务子进程提前退出
         TimeoutError: 等待 Worker 就绪超时
     """
     loop = asyncio.get_running_loop()
@@ -275,7 +275,7 @@ def run_service(
             help="显示 BentoML 警告和信息日志",
         ),
 ):
-    """启动 Datamind 模型服务."""
+    """启动 Datamind 预测服务."""
     settings = get_settings()
 
     setup_logging(
@@ -314,7 +314,7 @@ def run_service(
             run_port: int,
             reload_enabled: bool,
     ) -> ServiceStartupResult:
-        """启动服务子进程并等待 Worker 就绪."""
+        """启动预测服务子进程并等待 Worker 就绪."""
         nonlocal process
         nonlocal ready_dir
         nonlocal service_instance_id
@@ -536,7 +536,7 @@ def run_service(
             return_code: int | None,
             stop_reason: str,
     ) -> None:
-        """记录服务主动停止事件."""
+        """记录预测服务主动停止事件."""
         logger.info(
             "Datamind 服务已停止",
             service_name=configured_service_name,
@@ -554,7 +554,7 @@ def run_service(
             service_process: subprocess.Popen,
             return_code: int,
     ) -> None:
-        """记录服务进程自行退出事件."""
+        """记录预测服务进程自行退出事件."""
         logger.warning(
             "Datamind 服务进程已退出",
             service_name=configured_service_name,
@@ -569,10 +569,10 @@ def run_service(
     async def _stop_process(
             service_process: subprocess.Popen,
     ) -> int | None:
-        """停止服务子进程.
+        """停止预测服务子进程.
 
         参数：
-            service_process: 服务子进程
+            service_process: 预测服务子进程
 
         返回：
             子进程退出码
