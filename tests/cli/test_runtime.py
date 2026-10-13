@@ -5,6 +5,8 @@
 核心功能：
   - test_runtime_query_reports_business_error:
     验证运行状态查询命令处理业务异常
+  - test_runtime_show_json_preserves_applied_generation:
+    验证运行状态 JSON 输出保留实际应用的控制代次
 """
 
 from collections.abc import AsyncIterator
@@ -18,6 +20,7 @@ from unittest.mock import (
     MagicMock,
 )
 import importlib
+import json
 
 import pytest
 import typer
@@ -153,3 +156,57 @@ def test_runtime_query_reports_business_error(
         output_format="text",
         error_type=type(error).__name__,
     )
+
+
+def test_runtime_show_json_preserves_applied_generation(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试运行状态 JSON 输出保留实际应用的控制代次."""
+    controller = MagicMock()
+    controller.get_status = AsyncMock(
+        return_value={
+            "deployment": {
+                "deployment_id": "dep_test",
+                "model_id": "mdl_test",
+                "version_id": "ver_test",
+                "framework": "sklearn",
+                "environment": "production",
+                "rollout_type": "full",
+                "role": "champion",
+                "status": "active",
+            },
+            "control": None,
+            "runtimes": [
+                {
+                    "runtime_id": "run_test",
+                    "deployment_id": "dep_test",
+                    "model_id": "mdl_test",
+                    "version_id": "ver_test",
+                    "framework": "sklearn",
+                    "status": "running",
+                    "worker_id": "worker_test",
+                    "applied_generation": None,
+                    "loaded_at": None,
+                    "unloaded_at": None,
+                    "last_heartbeat_at": None,
+                    "error": None,
+                    "context": None,
+                }
+            ],
+        }
+    )
+    console = configure_runtime_module(
+        monkeypatch,
+        show_module,
+        controller,
+    )
+
+    show_module.show_runtime(
+        deployment_id="dep_test",
+        output="json",
+    )
+
+    rendered = json.loads(
+        console.print_json.call_args.args[0]
+    )
+    assert rendered["runtimes"][0]["applied_generation"] is None

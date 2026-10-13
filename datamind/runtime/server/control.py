@@ -1,6 +1,6 @@
 """运行时部署控制接口.
 
-提供部署加载、卸载、重载和 Worker 运行状态查询接口。
+提供部署重载和 Worker 运行状态查询接口。
 
 核心功能：
   - RuntimeControlMixin: 提供运行时部署控制相关的 BentoML 接口
@@ -19,7 +19,7 @@ import bentoml
 from structlog.typing import FilteringBoundLogger
 
 from datamind.config import get_service_config
-from datamind.models.errors import InvalidDeploymentStateError, RuntimeRouteError
+from datamind.models.errors import InvalidDeploymentStateError
 from datamind.runtime.manager import RuntimeManager
 from datamind.runtime.reconciler import RuntimeReconciler
 from datamind.runtime.server.cache import ServiceCacheEntry
@@ -36,7 +36,7 @@ service_config = get_service_config()
 
 
 class RuntimeControlMixin:
-    """运行时部署控制接口能力."""
+    """部署重载与运行状态查询接口能力."""
 
     controller: RuntimeControlService
     manager: RuntimeManager
@@ -48,216 +48,6 @@ class RuntimeControlMixin:
     _build_error_response: Callable[..., dict[str, Any]]
     _get_service: Callable[[str], Awaitable[BaseRuntimeService]]
     _build_service_info: Callable[[BaseRuntimeService], dict[str, Any]]
-
-    @bentoml.api(
-        route="/admin/load",
-    )
-    async def load(
-            self,
-            request: ControlRequest,
-            ctx: bentoml.Context,
-    ) -> dict[str, Any]:
-        """提交已认证的部署加载请求."""
-        request_id = generate_random_id(
-            prefix="req"
-        )
-
-        return await self._execute_secured(
-            ctx=ctx,
-            permission="runtime.manage",
-            request_id=request_id,
-            handler=lambda identity: self._load(
-                request=request,
-                request_id=request_id,
-                operator=identity.username,
-            ),
-            audit_action="runtime.load",
-            target_type="deployment",
-            target_id=request.deployment_id,
-        )
-
-    async def _load(
-            self,
-            *,
-            request: ControlRequest,
-            request_id: str,
-            operator: str,
-    ) -> dict[str, Any]:
-        """设置部署期望状态为 loaded.
-
-        只允许操作当前 Service environment
-        对应的 Deployment。
-
-        环境校验通过后，
-        由 RuntimeControlService 更新共享 controls 表。
-
-        各 Worker 由 RuntimeReconciler
-        独立完成模型加载。
-
-        参数：
-            request: 运行控制请求
-
-        返回：
-            控制请求受理结果
-        """
-        try:
-            await self._validate_service_environment(
-                deployment_id=request.deployment_id,
-            )
-
-            result = await self.controller.load(
-                deployment_id=request.deployment_id,
-                operator=operator,
-            )
-
-            return {
-                "success": True,
-                "request_id": request_id,
-                **result,
-            }
-
-        except (
-                ServiceDeploymentNotFoundError,
-                ServiceEnvironmentMismatchError,
-                InvalidDeploymentStateError,
-                RuntimeRouteError,
-                RuntimeError,
-                ValueError,
-        ) as exc:
-            self._logger.warning(
-                "请求加载失败",
-                request_id=request_id,
-                deployment_id=request.deployment_id,
-                operator=operator,
-                environment=service_config.environment,
-                worker_id=self.manager.worker_id,
-                error_type=exc.__class__.__name__,
-                error=str(exc),
-            )
-
-            return self._build_error_response(
-                request_id=request_id,
-                error=exc,
-            )
-
-        except Exception as exc:
-            self._logger.exception(
-                "请求加载异常",
-                request_id=request_id,
-                deployment_id=request.deployment_id,
-                operator=operator,
-                environment=service_config.environment,
-                worker_id=self.manager.worker_id,
-                error_type=exc.__class__.__name__,
-                error=str(exc),
-            )
-
-            return self._build_error_response(
-                request_id=request_id,
-                error=exc,
-            )
-
-    @bentoml.api(
-        route="/admin/unload",
-    )
-    async def unload(
-            self,
-            request: ControlRequest,
-            ctx: bentoml.Context,
-    ) -> dict[str, Any]:
-        """提交已认证的部署卸载请求."""
-        request_id = generate_random_id(
-            prefix="req"
-        )
-
-        return await self._execute_secured(
-            ctx=ctx,
-            permission="runtime.manage",
-            request_id=request_id,
-            handler=lambda identity: self._unload(
-                request=request,
-                request_id=request_id,
-                operator=identity.username,
-            ),
-            audit_action="runtime.unload",
-            target_type="deployment",
-            target_id=request.deployment_id,
-        )
-
-    async def _unload(
-            self,
-            *,
-            request: ControlRequest,
-            request_id: str,
-            operator: str,
-    ) -> dict[str, Any]:
-        """设置部署期望状态为 unloaded.
-
-        只允许操作当前 Service environment
-        对应的 Deployment。
-
-        参数：
-            request: 运行控制请求
-
-        返回：
-            控制请求受理结果
-        """
-        try:
-            await self._validate_service_environment(
-                deployment_id=request.deployment_id,
-            )
-
-            result = await self.controller.unload(
-                deployment_id=request.deployment_id,
-                operator=operator,
-            )
-
-            return {
-                "success": True,
-                "request_id": request_id,
-                **result,
-            }
-
-        except (
-                ServiceDeploymentNotFoundError,
-                ServiceEnvironmentMismatchError,
-                InvalidDeploymentStateError,
-                RuntimeRouteError,
-                RuntimeError,
-                ValueError,
-        ) as exc:
-            self._logger.warning(
-                "请求卸载失败",
-                request_id=request_id,
-                deployment_id=request.deployment_id,
-                operator=operator,
-                environment=service_config.environment,
-                worker_id=self.manager.worker_id,
-                error_type=exc.__class__.__name__,
-                error=str(exc),
-            )
-
-            return self._build_error_response(
-                request_id=request_id,
-                error=exc,
-            )
-
-        except Exception as exc:
-            self._logger.exception(
-                "请求卸载异常",
-                request_id=request_id,
-                deployment_id=request.deployment_id,
-                operator=operator,
-                environment=service_config.environment,
-                worker_id=self.manager.worker_id,
-                error_type=exc.__class__.__name__,
-                error=str(exc),
-            )
-
-            return self._build_error_response(
-                request_id=request_id,
-                error=exc,
-            )
 
     @bentoml.api(
         route="/admin/reload",
@@ -327,7 +117,6 @@ class RuntimeControlMixin:
                 ServiceDeploymentNotFoundError,
                 ServiceEnvironmentMismatchError,
                 InvalidDeploymentStateError,
-                RuntimeRouteError,
                 RuntimeError,
                 ValueError,
         ) as exc:
@@ -443,7 +232,6 @@ class RuntimeControlMixin:
         except (
                 ServiceDeploymentNotFoundError,
                 ServiceEnvironmentMismatchError,
-                RuntimeRouteError,
                 RuntimeError,
                 ValueError,
         ) as exc:
