@@ -56,26 +56,26 @@
     },
     "service": {
       "title": "预测服务",
-      "guide_title": "服务管理",
-      "guide": "../deployment/processes.md",
+      "guide_title": "本地部署",
+      "guide": "../deployment/local.md",
       "summary": "启动预测服务和检查就绪状态"
     },
     "worker": {
       "title": "任务 Worker",
-      "guide_title": "服务管理",
-      "guide": "../deployment/processes.md",
+      "guide_title": "本地部署",
+      "guide": "../deployment/local.md",
       "summary": "启动任务 Worker 和检查就绪状态"
     },
     "console": {
       "title": "管理控制台",
-      "guide_title": "服务管理",
-      "guide": "../deployment/processes.md",
+      "guide_title": "本地部署",
+      "guide": "../deployment/local.md",
       "summary": "启动管理控制台和检查就绪状态"
     },
     "runtime": {
       "title": "运行实例",
-      "guide_title": "服务管理",
-      "guide": "../deployment/processes.md",
+      "guide_title": "本地部署",
+      "guide": "../deployment/local.md",
       "summary": "查询运行实例及模型加载状态"
     }
   },
@@ -151,6 +151,7 @@
     "ConsoleConfig": "管理控制台",
     "DatabaseConfig": "数据库",
     "InitializationConfig": "初始化",
+    "CommonConfig": "通用配置",
     "LoggingConfig": "日志",
     "RuntimeConfig": "运行管理",
     "ServiceConfig": "预测服务",

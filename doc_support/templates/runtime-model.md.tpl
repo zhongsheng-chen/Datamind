@@ -8,7 +8,7 @@ ${description}
 | --- | --- | --- | --- | --- | --- |
 ${fields}
 
-业务条件：
+使用说明：
 
 ${conditions}
 
