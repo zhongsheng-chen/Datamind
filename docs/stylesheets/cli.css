@@ -1,0 +1,18 @@
+.md-typeset:has(.cli-reference) .md-typeset__table {
+  display: block;
+}
+
+.md-typeset:has(.cli-reference) table:not([class]) {
+  display: table;
+  width: 100%;
+}
+
+.md-typeset:has(.cli-reference) table td:first-child code {
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.md-typeset:has(.cli-index) table td:first-child,
+.md-typeset:has(.cli-index) table td:nth-child(2) code {
+  white-space: nowrap;
+}

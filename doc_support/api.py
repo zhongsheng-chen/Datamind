@@ -132,20 +132,30 @@ def api_pages() -> dict[Path, str]:
             example = cls.model_validate(guidance["example"]).model_dump(
                 mode="json", exclude_none=True
             )
+            if name == "PredictionInstance":
+                example = schemas.BatchPredictRequest.model_validate(
+                    {"model_name": "<model_name>", "instances": [example]}
+                ).model_dump(mode="json", exclude_none=True)
         except Exception as exc:
             raise ValueError(f"Invalid API example: {name}") from exc
         models.append(
             render_template(
                 "runtime-model",
                 name=name,
+                title=guidance["title"],
+                anchor=name.lower(),
                 description=description.rstrip(".。") + "。",
                 endpoints=guidance["endpoints"],
                 fields=table_rows(api_field_rows(cls, schema)),
                 conditions=render_template(f"runtime-conditions/{name}").rstrip("\n"),
-                example_title="实例结构示例："
+                example_title="在批量请求中的使用示例："
                 if name == "PredictionInstance"
-                else "请求对象示例（不含外层 `request`）：",
-                example=json.dumps(example, ensure_ascii=False, indent=2),
+                else "请求载荷示例：",
+                example=json.dumps(
+                    {"request": example},
+                    ensure_ascii=False,
+                    indent=2,
+                ),
             )
         )
     return {
