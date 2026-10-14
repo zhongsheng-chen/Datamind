@@ -1,10 +1,10 @@
 # 安装
 
-Datamind 支持 Python 3.12、3.13 和 3.14。
+Datamind 支持 Python `>=3.12,<3.15`，建议使用 Python 3.12。
 
 ## 使用 pip 安装
 
-按需要选择模型框架对应的 extra。
+根据所用模型框架，安装相应的可选依赖：
 
 ### scikit-learn
 
@@ -30,7 +30,9 @@ python -m pip install "pydatamind[lightgbm]"
 python -m pip install "pydatamind[catboost]"
 ```
 
-### 全部框架
+### 完整安装
+
+安装所有支持的模型框架及相关依赖。
 
 ```bash
 python -m pip install "pydatamind[full]"
@@ -40,19 +42,28 @@ python -m pip install "pydatamind[full]"
 
 ```bash
 datamind --version
-datamind --help
 ```
 
-Python 中的导入名保持为：
+## 从源码安装
 
-```python
-import datamind
+克隆仓库并进入项目目录：
+
+```bash
+git clone https://github.com/zhongsheng-chen/Datamind.git
+cd Datamind
 ```
 
-## 基础设施
+以可编辑模式安装，同时安装 scikit-learn 所需依赖：
 
-Datamind 使用 PostgreSQL 保存平台数据。批量任务、影子预测和模型对象存储等能力还会根据部署方式使用 Redis、MinIO 等外部基础设施。
+```bash
+python -m pip install -e ".[sklearn]"
+```
 
-完整配置项以仓库根目录的 [`.env.example`](https://github.com/zhongsheng-chen/Datamind/blob/main/.env.example) 为准。
+如需从源码运行管理控制台，请先安装 [Node.js 24](https://nodejs.org/)，再构建前端资源：
 
-完成安装后，继续阅读 [快速上手](quickstart.md)。
+```bash
+npm ci
+npm run build:console
+```
+
+安装完成后，继续阅读[配置与初始化](configuration.md)。

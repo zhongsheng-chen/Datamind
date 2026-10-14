@@ -1,3 +1,5 @@
+name: datamind
+
 x-datamind-service: &datamind-service
   image: "${DATAMIND_IMAGE_REPOSITORY:-docker.io/zhongshengchen/datamind}:${DATAMIND_IMAGE_TAG:?DATAMIND_IMAGE_TAG is required}"
   env_file:
@@ -59,7 +61,7 @@ services:
       retries: 3
       start_period: 30s
 
-  batch-worker-1:
+  batch-worker-a:
     <<: *datamind-service
     command:
       - datamind
@@ -80,7 +82,7 @@ services:
       retries: 3
       start_period: 20s
 
-  batch-worker-2:
+  batch-worker-b:
     <<: *datamind-service
     command:
       - datamind

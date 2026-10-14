@@ -151,6 +151,7 @@
     "ConsoleConfig": "管理控制台",
     "DatabaseConfig": "数据库",
     "InitializationConfig": "初始化",
+    "CommonConfig": "通用配置",
     "LoggingConfig": "日志",
     "RuntimeConfig": "运行管理",
     "ServiceConfig": "预测服务",
