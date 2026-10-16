@@ -58,3 +58,7 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+
+networks:
+  default:
+    name: datamind

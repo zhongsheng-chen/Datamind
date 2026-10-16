@@ -124,3 +124,8 @@ services:
     profiles:
       - tools
     restart: "no"
+
+networks:
+  default:
+    name: datamind
+    external: true

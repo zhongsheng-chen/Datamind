@@ -50,6 +50,16 @@ CI 当前使用 Python 3.12–3.14、Node.js 24、PostgreSQL 17.11、Redis 8.8.2
 
 Smoke 可使用 `DATAMIND_SMOKE_DOCKER_IMAGE` 指定待测镜像，框架覆盖 sklearn、xgboost、lightgbm、catboost、full。涉及构建身份时设置对应 `DATAMIND_SMOKE_BUILD_COMMIT` 与 `DATAMIND_SMOKE_BUILD_DATE`。精确入口和参数以各 smoke 测试和独立 CI 工作流为准。不要用源码环境测试替代安装后的 Wheel 或容器测试。
 
+共享网络验证使用独立的临时 Compose 项目、网络和数据卷，不发布宿主机端口。准备好 Datamind 镜像及基础设施镜像后执行：
+
+```bash
+DATAMIND_RUN_COMPOSE_SMOKE=1 \
+DATAMIND_COMPOSE_SMOKE_IMAGE=datamind:network-check \
+python -m pytest -ra tests/smoke/test_compose_network.py
+```
+
+该测试验证全部应用容器对基础设施服务名的 DNS 解析与 TCP 连接，以及两份 Compose 分别停止时的网络归属。测试覆盖启动命令以避免迁移、初始化和任务消费，不验证业务服务的就绪状态。
+
 ## 文档验证
 
 ```bash

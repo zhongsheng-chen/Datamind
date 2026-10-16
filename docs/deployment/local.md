@@ -4,9 +4,9 @@
 
 ## 基础设施
 
-按 [Docker 部署中的“基础设施”](docker.md#基础设施)一节启动 PostgreSQL、Redis 和 MinIO，并创建 `datamind` 存储桶。随后返回本页，从项目根目录继续配置 Datamind。
+按 [Docker 部署中的“基础设施”](docker.md#基础设施)一节启动 PostgreSQL、Redis 和 MinIO，共享网络由基础设施 Compose 自动创建。随后返回本页，从项目根目录继续配置 Datamind。
 
-本页从宿主机运行 Datamind，使用该节列出的本机地址，无需设置用于合并应用配置的 `COMPOSE_FILE`。
+本页从宿主机运行 Datamind，使用基础设施一节列出的本机地址连接。
 
 ## 配置 Datamind
 
