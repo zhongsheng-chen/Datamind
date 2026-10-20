@@ -1,8 +1,12 @@
-# 系统初始化
+# 初始化命令
+
+<span class="cli-reference"></span>
 
 操作流程见[配置与初始化](../getting-started/configuration.md)，状态说明见[状态与权限](../reference/states-permissions.md)。
 
-## datamind init
+<a id="datamind-init"></a>
+
+## `init`
 
 初始化系统，已初始化时跳过。
 

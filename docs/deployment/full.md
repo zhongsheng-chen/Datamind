@@ -58,7 +58,7 @@ datamind deployment set-default <deployment_id>
 
 ## 验证发布结果
 
-参照[在线预测](../guides/online-prediction.md)或[批量预测](../guides/batch-prediction.md)发起请求，再通过[管理控制台](../guides/console.md#api-调用与执行记录)查看请求与执行记录。
+参照[在线预测](../guides/online-prediction.md)或[批量预测](../guides/batch-prediction.md)发起请求，再通过[管理控制台](../guides/console.md#调用与执行)查看请求与执行记录。
 
 按以下步骤核对：
 

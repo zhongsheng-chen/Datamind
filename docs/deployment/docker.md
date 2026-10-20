@@ -40,11 +40,11 @@
 
     服务启动后，可通过以下地址在本机访问：
 
-    | 服务 | 地址 |
-    |------|------|
-    | PostgreSQL | `127.0.0.1:5432` |
-    | Redis | `127.0.0.1:6379` |
-    | MinIO API | `http://127.0.0.1:9000` |
+    | 服务         | 地址                    |
+    |--------------|-------------------------|
+    | PostgreSQL   | `127.0.0.1:5432`        |
+    | Redis        | `127.0.0.1:6379`        |
+    | MinIO API    | `http://127.0.0.1:9000` |
     | MinIO 控制台 | `http://127.0.0.1:9001` |
 
     服务端口默认绑定到 `127.0.0.1`，仅供本机访问。可修改 `docker-compose.infrastructure.yml` 中的 `ports` 配置，调整端口映射。
@@ -86,8 +86,8 @@
 3. 默认管理员用户名和密码均为 `admin`。首次初始化前，可在 `.env.docker` 中设置管理员账户：
 
     ```dotenv
-    DATAMIND_INIT_ADMIN_USERNAME=replace-with-admin-username
-    DATAMIND_INIT_ADMIN_PASSWORD=replace-with-admin-password
+    DATAMIND_INIT_ADMIN_USERNAME=admin-username
+    DATAMIND_INIT_ADMIN_PASSWORD=admin-password
     ```
 
 Docker Compose 从 `.env.docker` 加载应用配置。各配置项的含义见[环境变量](../reference/environment-variables.md)，生产环境的配置要求见[生产部署](production.md)。
@@ -153,9 +153,9 @@ docker compose logs --tail=100
 
 服务就绪后，可通过以下地址访问：
 
-| 服务 | 地址 |
-|------|------|
-| 预测服务 | `http://localhost:8700` |
+| 服务       | 地址                    |
+|------------|-------------------------|
+| 预测服务   | `http://localhost:8700` |
 | 管理控制台 | `http://localhost:8701` |
 
 打开[管理控制台](http://localhost:8701)，使用初始化时设置的管理员账户登录。

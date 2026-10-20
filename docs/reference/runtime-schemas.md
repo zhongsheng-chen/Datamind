@@ -2,13 +2,19 @@
 
 本文介绍预测服务请求对象的字段及约束。HTTP 路径、认证、响应与错误处理见[预测 API](runtime-api.md)，调用示例见[在线预测](../guides/online-prediction.md)和[批量预测](../guides/batch-prediction.md)。
 
-## 约定
+<a id="约定"></a>
+
+## 字段约定
 
 - 请求对象仅接受已声明的字段。
 - 可选字段省略时使用默认值。
 - 字符串字段会去除首尾空白，请求载荷中 `features` 对象的字符串值除外。
 
-## ControlRequest
+<a id="controlrequest"></a>
+
+## 部署重载
+
+请求对象：`ControlRequest`。
 
 运行控制请求。
 
@@ -33,7 +39,11 @@
 }
 ```
 
-## DeploymentRequest
+<a id="deploymentrequest"></a>
+
+## 部署状态
+
+请求对象：`DeploymentRequest`。
 
 部署查询请求。
 
@@ -58,7 +68,11 @@
 }
 ```
 
-## PredictRequest
+<a id="predictrequest"></a>
+
+## 单条预测
+
+请求对象：`PredictRequest`。
 
 单条预测请求。
 
@@ -93,7 +107,11 @@
 }
 ```
 
-## PredictionInstance
+<a id="predictioninstance"></a>
+
+## 批量预测实例
+
+请求对象：`PredictionInstance`。
 
 批量预测中的单条预测实例。
 
@@ -129,7 +147,11 @@
 }
 ```
 
-## BatchPredictRequest
+<a id="batchpredictrequest"></a>
+
+## 批量预测
+
+请求对象：`BatchPredictRequest`。
 
 批量预测请求。
 
@@ -173,7 +195,11 @@
 }
 ```
 
-## BatchReferenceRequest
+<a id="batchreferencerequest"></a>
+
+## 批次操作
+
+请求对象：`BatchReferenceRequest`。
 
 批次引用请求。
 
@@ -197,3 +223,4 @@
   }
 }
 ```
+

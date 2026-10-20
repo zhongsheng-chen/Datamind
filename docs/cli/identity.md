@@ -1,8 +1,12 @@
-# 用户与角色
+# 用户与角色命令
+
+<span class="cli-reference"></span>
 
 操作流程见[访问控制](../guides/access-control.md)，状态说明见[状态与权限](../reference/states-permissions.md)。
 
-## datamind user create
+<a id="datamind-user-create"></a>
+
+## `user create`
 
 创建用户。
 
@@ -10,17 +14,19 @@
 datamind user create <username> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `--display-name` | 字符串 | 否 | `null` | 用户显示名称 |
-| `--email` | 字符串 | 否 | `null` | 用户邮箱 |
-| `--role` | 字符串（可重复） | 否 | `null` | 初始角色，可重复指定 |
-| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| 参数             | 类型             | 必需 | 默认值   | 说明                  |
+|------------------|------------------|------|----------|-----------------------|
+| `<username>`     | 字符串           | 是   | `—`      | 登录用户名            |
+| `--display-name` | 字符串           | 否   | `null`   | 用户显示名称          |
+| `--email`        | 字符串           | 否   | `null`   | 用户邮箱              |
+| `--role`         | 字符串（可重复） | 否   | `null`   | 初始角色，可重复指定  |
+| `--format`       | 字符串           | 否   | `"text"` | 输出格式：text / json |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/create.py)
 
-## datamind user list
+<a id="datamind-user-list"></a>
+
+## `user list`
 
 列出用户。
 
@@ -28,17 +34,19 @@ datamind user create <username> [OPTIONS]
 datamind user list [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `--status` | 字符串 | 否 | `null` | 用户状态：active / disabled / locked |
-| `--include-deleted` | 布尔 | 否 | `false` | 包含已删除用户 |
-| `--limit` | 整数 | 否 | `100` | 返回记录数量限制 |
-| `--offset` | 整数 | 否 | `0` | 分页偏移量 |
-| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| 参数                | 类型   | 必需 | 默认值   | 说明                                 |
+|---------------------|--------|------|----------|--------------------------------------|
+| `--status`          | 字符串 | 否   | `null`   | 用户状态：active / disabled / locked |
+| `--include-deleted` | 布尔   | 否   | `false`  | 包含已删除用户                       |
+| `--limit`           | 整数   | 否   | `100`    | 返回记录数量限制                     |
+| `--offset`          | 整数   | 否   | `0`      | 分页偏移量                           |
+| `--format`          | 字符串 | 否   | `"text"` | 输出格式：text / json                |
 
 权限：`identity.read` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/list.py)
 
-## datamind user show
+<a id="datamind-user-show"></a>
+
+## `user show`
 
 查看用户。
 
@@ -46,15 +54,17 @@ datamind user list [OPTIONS]
 datamind user show <username> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `--include-deleted` | 布尔 | 否 | `false` | 允许查看已删除用户 |
-| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| 参数                | 类型   | 必需 | 默认值   | 说明                  |
+|---------------------|--------|------|----------|-----------------------|
+| `<username>`        | 字符串 | 是   | `—`      | 登录用户名            |
+| `--include-deleted` | 布尔   | 否   | `false`  | 允许查看已删除用户    |
+| `--format`          | 字符串 | 否   | `"text"` | 输出格式：text / json |
 
 权限：`identity.read` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/show.py)
 
-## datamind user enable
+<a id="datamind-user-enable"></a>
+
+## `user enable`
 
 启用用户。
 
@@ -62,13 +72,15 @@ datamind user show <username> [OPTIONS]
 datamind user enable <username> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| 参数         | 类型   | 必需 | 默认值 | 说明       |
+|--------------|--------|------|--------|------------|
+| `<username>` | 字符串 | 是   | `—`    | 登录用户名 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/enable.py)
 
-## datamind user disable
+<a id="datamind-user-disable"></a>
+
+## `user disable`
 
 停用用户。
 
@@ -76,13 +88,15 @@ datamind user enable <username> [OPTIONS]
 datamind user disable <username> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| 参数         | 类型   | 必需 | 默认值 | 说明       |
+|--------------|--------|------|--------|------------|
+| `<username>` | 字符串 | 是   | `—`    | 登录用户名 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/disable.py)
 
-## datamind user reset-password
+<a id="datamind-user-reset-password"></a>
+
+## `user reset-password`
 
 重置用户密码。
 
@@ -90,13 +104,15 @@ datamind user disable <username> [OPTIONS]
 datamind user reset-password <username> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| 参数         | 类型   | 必需 | 默认值 | 说明       |
+|--------------|--------|------|--------|------------|
+| `<username>` | 字符串 | 是   | `—`    | 登录用户名 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/reset.py)
 
-## datamind user delete
+<a id="datamind-user-delete"></a>
+
+## `user delete`
 
 逻辑删除用户。
 
@@ -104,15 +120,17 @@ datamind user reset-password <username> [OPTIONS]
 datamind user delete <username> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `--reason` | 字符串 | 否 | `null` | 删除原因 |
-| `--yes` | 布尔 | 否 | `false` | 跳过确认 |
+| 参数         | 类型   | 必需 | 默认值  | 说明       |
+|--------------|--------|------|---------|------------|
+| `<username>` | 字符串 | 是   | `—`     | 登录用户名 |
+| `--reason`   | 字符串 | 否   | `null`  | 删除原因   |
+| `--yes`      | 布尔   | 否   | `false` | 跳过确认   |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/delete.py)
 
-## datamind role create
+<a id="datamind-role-create"></a>
+
+## `role create`
 
 创建角色。
 
@@ -120,13 +138,13 @@ datamind user delete <username> [OPTIONS]
 datamind role create <name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
-| `--permission` | 字符串（可重复） | 否 | `null` | 权限标识，可重复指定 |
-| `--all-permissions` | 布尔 | 否 | `false` | 授予全部权限 |
-| `--description` | 字符串 | 否 | `null` | 角色说明 |
-| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| 参数                | 类型             | 必需 | 默认值   | 说明                  |
+|---------------------|------------------|------|----------|-----------------------|
+| `<name>`            | 字符串           | 是   | `—`      | 角色名称              |
+| `--permission`      | 字符串（可重复） | 否   | `null`   | 权限标识，可重复指定  |
+| `--all-permissions` | 布尔             | 否   | `false`  | 授予全部权限          |
+| `--description`     | 字符串           | 否   | `null`   | 角色说明              |
+| `--format`          | 字符串           | 否   | `"text"` | 输出格式：text / json |
 
 参数组合：
 
@@ -134,7 +152,9 @@ datamind role create <name> [OPTIONS]
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/create.py)
 
-## datamind role list
+<a id="datamind-role-list"></a>
+
+## `role list`
 
 列出角色。
 
@@ -142,17 +162,19 @@ datamind role create <name> [OPTIONS]
 datamind role list [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `--status` | 字符串 | 否 | `null` | 角色状态：active / inactive |
-| `--include-deleted` | 布尔 | 否 | `false` | 包含已删除角色 |
-| `--limit` | 整数 | 否 | `100` | 返回记录数量限制 |
-| `--offset` | 整数 | 否 | `0` | 分页偏移量 |
-| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| 参数                | 类型   | 必需 | 默认值   | 说明                        |
+|---------------------|--------|------|----------|-----------------------------|
+| `--status`          | 字符串 | 否   | `null`   | 角色状态：active / inactive |
+| `--include-deleted` | 布尔   | 否   | `false`  | 包含已删除角色              |
+| `--limit`           | 整数   | 否   | `100`    | 返回记录数量限制            |
+| `--offset`          | 整数   | 否   | `0`      | 分页偏移量                  |
+| `--format`          | 字符串 | 否   | `"text"` | 输出格式：text / json       |
 
 权限：`identity.read` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/list.py)
 
-## datamind role show
+<a id="datamind-role-show"></a>
+
+## `role show`
 
 查看角色。
 
@@ -160,15 +182,17 @@ datamind role list [OPTIONS]
 datamind role show <name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
-| `--include-deleted` | 布尔 | 否 | `false` | 允许查看已删除角色 |
-| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| 参数                | 类型   | 必需 | 默认值   | 说明                  |
+|---------------------|--------|------|----------|-----------------------|
+| `<name>`            | 字符串 | 是   | `—`      | 角色名称              |
+| `--include-deleted` | 布尔   | 否   | `false`  | 允许查看已删除角色    |
+| `--format`          | 字符串 | 否   | `"text"` | 输出格式：text / json |
 
 权限：`identity.read` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/show.py)
 
-## datamind role enable
+<a id="datamind-role-enable"></a>
+
+## `role enable`
 
 启用角色。
 
@@ -176,13 +200,15 @@ datamind role show <name> [OPTIONS]
 datamind role enable <name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| 参数     | 类型   | 必需 | 默认值 | 说明     |
+|----------|--------|------|--------|----------|
+| `<name>` | 字符串 | 是   | `—`    | 角色名称 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/enable.py)
 
-## datamind role disable
+<a id="datamind-role-disable"></a>
+
+## `role disable`
 
 停用角色。
 
@@ -190,13 +216,15 @@ datamind role enable <name> [OPTIONS]
 datamind role disable <name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| 参数     | 类型   | 必需 | 默认值 | 说明     |
+|----------|--------|------|--------|----------|
+| `<name>` | 字符串 | 是   | `—`    | 角色名称 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/disable.py)
 
-## datamind role grant
+<a id="datamind-role-grant"></a>
+
+## `role grant`
 
 授予用户角色。
 
@@ -204,14 +232,16 @@ datamind role disable <name> [OPTIONS]
 datamind role grant <username> <role_name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `<role_name>` | 字符串 | 是 | `—` | 角色名称 |
+| 参数          | 类型   | 必需 | 默认值 | 说明       |
+|---------------|--------|------|--------|------------|
+| `<username>`  | 字符串 | 是   | `—`    | 登录用户名 |
+| `<role_name>` | 字符串 | 是   | `—`    | 角色名称   |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/grant.py)
 
-## datamind role revoke
+<a id="datamind-role-revoke"></a>
+
+## `role revoke`
 
 撤销用户角色。
 
@@ -219,14 +249,16 @@ datamind role grant <username> <role_name> [OPTIONS]
 datamind role revoke <username> <role_name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `<role_name>` | 字符串 | 是 | `—` | 角色名称 |
+| 参数          | 类型   | 必需 | 默认值 | 说明       |
+|---------------|--------|------|--------|------------|
+| `<username>`  | 字符串 | 是   | `—`    | 登录用户名 |
+| `<role_name>` | 字符串 | 是   | `—`    | 角色名称   |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/revoke.py)
 
-## datamind role delete
+<a id="datamind-role-delete"></a>
+
+## `role delete`
 
 逻辑删除角色。
 
@@ -234,10 +266,10 @@ datamind role revoke <username> <role_name> [OPTIONS]
 datamind role delete <name> [OPTIONS]
 ```
 
-| 参数 | 类型 | 必需 | 默认值 | 说明 |
-| --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
-| `--reason` | 字符串 | 否 | `null` | 删除原因 |
-| `--yes` | 布尔 | 否 | `false` | 跳过确认 |
+| 参数       | 类型   | 必需 | 默认值  | 说明     |
+|------------|--------|------|---------|----------|
+| `<name>`   | 字符串 | 是   | `—`     | 角色名称 |
+| `--reason` | 字符串 | 否   | `null`  | 删除原因 |
+| `--yes`    | 布尔   | 否   | `false` | 跳过确认 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/delete.py)

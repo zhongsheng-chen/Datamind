@@ -4,7 +4,7 @@
 
 ## 前置条件
 
-开始发布前，请完成以下准备：
+开始前，请完成以下准备：
 
 - 按[模型训练示例](../examples/index.md#评分卡示例)准备主版本和候选版本，再参照[快速上手](../getting-started/quickstart.md)分别完成部署。
 - 确认主版本和候选版本均能正常预测。
@@ -78,7 +78,7 @@ datamind route create <challenger_deployment_id> \
 
 ## 验证发布结果
 
-参照[在线预测](../guides/online-prediction.md)或[批量预测](../guides/batch-prediction.md)发起请求，再通过[管理控制台](../guides/console.md#api-调用与执行记录)查看请求与执行记录。
+参照[在线预测](../guides/online-prediction.md)或[批量预测](../guides/batch-prediction.md)发起请求，再通过[管理控制台](../guides/console.md#调用与执行)查看请求与执行记录。
 
 按以下步骤核对：
 

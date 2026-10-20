@@ -52,7 +52,7 @@
 
 | 权限                                                         | 用途                                             |
 |--------------------------------------------------------------|--------------------------------------------------|
-| `model.read` / `model.write` / `model.delete`                | 查询；注册、激活、停用、恢复；删除与永久清理     |
+| `model.read` / `model.write` / `model.delete`                | 查询；注册、激活、停用、恢复；删除与永久删除     |
 | `deployment.read` / `deployment.write` / `deployment.delete` | 查询；创建、启停；删除与恢复                     |
 | `routing.read` / `routing.write` / `routing.delete`          | 查询；创建、更新、启停；删除与恢复               |
 | `experiment.read` / `experiment.write` / `experiment.delete` | 查询和分析；实验与分组配置、生命周期；删除与恢复 |

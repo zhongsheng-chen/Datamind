@@ -216,8 +216,8 @@ def render_cli_description(description: str) -> str:
     in_note = False
     for line in lines:
         stripped = line.strip()
-        if stripped == "注意：":
-            rendered.extend(["> **注意**", ">"])
+        if stripped in {"注意：", "说明："}:
+            rendered.extend([f"> **{stripped[:-1]}**", ">"])
             in_note = True
             continue
         if in_note and stripped and not line.startswith((" ", "\t")):
@@ -268,6 +268,11 @@ def render_cli_command(
         命令参考文档的 Markdown 文本
     """
     name = "datamind " + " ".join(path)
+    group = cli_group(path)
+    prefix_length = 2 if group == "variant" else (
+        0 if group in {"auth", "identity", "system"} else 1
+    )
+    title = " ".join(path[prefix_length:])
     positional = [
         param for param in command.params if param.param_type_name == "argument"
     ]
@@ -343,6 +348,8 @@ def render_cli_command(
     return render_template(
         "cli-command",
         name=name,
+        title=title,
+        anchor=name.replace(" ", "-"),
         description=render_cli_description(description),
         permissions=", ".join(code(permission) for permission in source.permissions)
         or "无需资源权限",
@@ -370,14 +377,23 @@ def cli_pages() -> dict[Path, str]:
         commands = [
             (path, command) for path, command in entries if cli_group(path) == group
         ]
-        groups.append((f"[{metadata['title']}]({group}.md)", metadata["summary"]))
+        prefix_length = 2 if group == "variant" else 1
+        prefixes = dict.fromkeys(path[:prefix_length] for path, _ in commands)
+        command_names = "<br>".join(
+            code("datamind " + " ".join(prefix)) for prefix in prefixes
+        )
+        groups.append((
+            f"[{metadata['title']}]({group}.md)",
+            command_names,
+            metadata["summary"],
+        ))
         rendered = [
             render_cli_command(path, command, command_source(command))
             for path, command in commands
         ]
         pages[ROOT / "docs/cli" / f"{group}.md"] = (
             render_template(
-                "cli-group", **metadata, commands="\n".join(rendered)
+                "cli-group", **metadata, commands="\n".join(rendered),
             ).rstrip()
             + "\n"
         )

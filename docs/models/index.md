@@ -151,11 +151,11 @@ datamind model restore scorecard-demo --version 1.0.0
 datamind model restore scorecard-demo
 ```
 
-恢复后，版本处于未激活（`inactive`）状态。模型文件一旦开始永久清理，版本便无法恢复。
+恢复后，版本处于未激活（`inactive`）状态。模型文件一旦开始永久删除，版本便无法恢复。
 
-## 永久清理
+## 永久删除
 
-永久清理已逻辑删除版本的模型文件：
+永久删除已逻辑删除版本的模型文件：
 
 ```bash
 datamind model purge scorecard-demo --version 1.0.0

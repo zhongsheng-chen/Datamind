@@ -1,8 +1,8 @@
 # 环境变量
 
-本页列出可用的环境变量及其类型、默认值和说明，按功能分组，并以对应模块名称的字母顺序排列。首次使用请参阅[配置与初始化](../getting-started/configuration.md)。
+本页按功能列出环境变量、类型、默认值及说明。首次配置请参阅[配置与初始化](../getting-started/configuration.md)。
 
-参数取值依次优先采用显式传入的参数、环境变量、工作目录下的 `.env` 文件和默认值。修改环境变量或 `.env` 文件后，请重启相关进程使更改生效。
+配置优先级从高到低为：显式传入的参数、环境变量、工作目录中的 `.env` 文件、默认值。修改环境变量或 `.env` 文件后，需重启相关进程。
 
 填写环境变量时，请注意：
 
@@ -10,74 +10,9 @@
 - 列表值使用 JSON 格式，例如 `["127.0.0.0/8"]`。
 - 相对路径以进程的工作目录为基准。
 
-## 审计
+## 基础配置
 
-前缀：`DATAMIND_AUDIT_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/audit.py)
-
-| 环境变量                          | 类型          | 默认值 | 说明                         |
-|-----------------------------------|---------------|--------|------------------------------|
-| `DATAMIND_AUDIT_ENABLED`          | `boolean`     | `true` | 是否启用审计组件。           |
-| `DATAMIND_AUDIT_FAILURE_MODE`     | `open/closed` | `open` | 审计失败处理模式。           |
-| `DATAMIND_AUDIT_MAX_RETRIES`      | `integer`     | `2`    | 瞬时数据库错误最大尝试次数。 |
-| `DATAMIND_AUDIT_RETRY_BASE_DELAY` | `number`      | `0.05` | 重试基础延迟（秒）。         |
-
-校验规则：
-
-- max_retries 必须大于等于 1
-- retry_base_delay 必须大于 0
-
-## 本地认证
-
-前缀：`DATAMIND_AUTH_LOCAL_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/auth.py)
-
-| 环境变量                                                       | 类型            | 默认值  | 说明                               |
-|----------------------------------------------------------------|-----------------|---------|------------------------------------|
-| `DATAMIND_AUTH_LOCAL_MAX_FAILED_LOGIN_ATTEMPTS`                | `integer`       | `5`     | 最大连续登录失败次数。             |
-| `DATAMIND_AUTH_LOCAL_LOCK_MINUTES`                             | `integer`       | `30`    | 登录失败锁定时间。单位：分钟。     |
-| `DATAMIND_AUTH_LOCAL_UPGRADE_PASSWORD_HASH`                    | `boolean`       | `true`  | 是否自动升级密码哈希。             |
-| `DATAMIND_AUTH_LOCAL_BREAK_GLASS_ONLY`                         | `boolean`       | `false` | 是否仅允许应急账户登录。           |
-| `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS`                         | `array[string]` | `[]`    | 本地认证允许访问的网段。           |
-| `DATAMIND_AUTH_LOCAL_BREAK_GLASS_ACCESS_TOKEN_EXPIRES_MINUTES` | `integer`       | `15`    | 应急访问令牌有效时间。单位：分钟。 |
-
-校验规则：
-
-- max_failed_login_attempts 必须大于 0
-- lock_minutes 必须大于 0
-- break_glass_access_token_expires_minutes 必须大于 0
-- allowed_networks 包含无效网段
-
-## 认证
-
-前缀：`DATAMIND_AUTH_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/auth.py)
-
-| 环境变量                                     | 类型                | 默认值  | 说明                           |
-|----------------------------------------------|---------------------|---------|--------------------------------|
-| `DATAMIND_AUTH_ENABLED`                      | `boolean`           | `false` | 是否启用认证功能。             |
-| `DATAMIND_AUTH_SECRET_KEY`                   | `string (password)` | `""`    | JWT 签名密钥。                 |
-| `DATAMIND_AUTH_ALGORITHM`                    | `string`            | `HS256` | JWT 签名算法。                 |
-| `DATAMIND_AUTH_ACCESS_TOKEN_EXPIRES_MINUTES` | `integer`           | `30`    | 访问令牌有效时间。单位：分钟。 |
-| `DATAMIND_AUTH_REFRESH_TOKEN_EXPIRES_DAYS`   | `integer`           | `7`     | 刷新令牌有效时间。单位：天。   |
-
-校验规则：
-
-- algorithm 不能为空
-- access_token_expires_minutes 必须大于 0
-- refresh_token_expires_days 必须大于 0
-- 启用认证功能时，secret_key 不能为空
-
-## 分类预测
-
-前缀：`DATAMIND_CLASSIFICATION_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/classification.py)
-
-| 环境变量                            | 类型     | 默认值 | 说明                                 |
-|-------------------------------------|----------|--------|--------------------------------------|
-| `DATAMIND_CLASSIFICATION_THRESHOLD` | `number` | `0.5`  | 分类阈值，概率大于该值时预测为正类。 |
-
-校验规则：
-
-- threshold 必须在 0 到 1 之间
-
-## 通用配置
+### 通用配置
 
 前缀：`DATAMIND_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/common.py)
 
@@ -91,23 +26,21 @@
 - timezone 不能为空
 - timezone 不是有效的 IANA 时区
 
-## 管理控制台
+### 初始化
 
-前缀：`DATAMIND_CONSOLE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/console.py)
+前缀：`DATAMIND_INIT_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/initialization.py)
 
-| 环境变量                           | 类型      | 默认值      | 说明                                      |
-|------------------------------------|-----------|-------------|-------------------------------------------|
-| `DATAMIND_CONSOLE_HOST`            | `string`  | `127.0.0.1` | 管理控制台监听地址。                      |
-| `DATAMIND_CONSOLE_PORT`            | `integer` | `8701`      | 管理控制台监听端口。                      |
-| `DATAMIND_CONSOLE_STARTUP_TIMEOUT` | `integer` | `120`       | 控制台启动超时时间（秒），范围 1 到 600。 |
+| 环境变量                       | 类型                | 默认值  | 说明           |
+|--------------------------------|---------------------|---------|----------------|
+| `DATAMIND_INIT_ADMIN_USERNAME` | `string`            | `admin` | 管理员用户名。 |
+| `DATAMIND_INIT_ADMIN_PASSWORD` | `string (password)` | `admin` | 管理员密码。   |
 
 校验规则：
 
-- host 不能为空
-- port 必须在 1 到 65535 之间
-- startup_timeout 必须在 1 到 600 之间
+- admin_username 不能为空
+- admin_username 长度不能超过 64
 
-## 数据库
+### 数据库
 
 前缀：`DATAMIND_DATABASE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/database.py)
 
@@ -128,21 +61,7 @@
 - pool_timeout 必须大于等于 0
 - pool_recycle 必须大于等于 0
 
-## 初始化
-
-前缀：`DATAMIND_INIT_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/initialization.py)
-
-| 环境变量                       | 类型                | 默认值  | 说明           |
-|--------------------------------|---------------------|---------|----------------|
-| `DATAMIND_INIT_ADMIN_USERNAME` | `string`            | `admin` | 管理员用户名。 |
-| `DATAMIND_INIT_ADMIN_PASSWORD` | `string (password)` | `admin` | 管理员密码。   |
-
-校验规则：
-
-- admin_username 不能为空
-- admin_username 长度不能超过 64
-
-## 日志
+### 日志
 
 前缀：`DATAMIND_LOG_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/logging.py)
 
@@ -186,7 +105,47 @@
 - unmasked_suffix 必须大于等于 0
 - encoding 不是有效的字符编码
 
-## 任务队列
+## 服务配置
+
+### 预测服务
+
+前缀：`DATAMIND_SERVICE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/service.py)
+
+| 环境变量                               | 类型      | 默认值     | 说明                                                       |
+|----------------------------------------|-----------|------------|------------------------------------------------------------|
+| `DATAMIND_SERVICE_NAME`                | `string`  | `datamind` | 服务名称。                                                 |
+| `DATAMIND_SERVICE_HOST`                | `string`  | `0.0.0.0`  | 服务监听地址。                                             |
+| `DATAMIND_SERVICE_PORT`                | `integer` | `8700`     | 服务监听端口。                                             |
+| `DATAMIND_SERVICE_WORKERS`             | `integer` | `4`        | 工作进程数。                                               |
+| `DATAMIND_SERVICE_TIMEOUT`             | `integer` | `30`       | 认证后单条或整批预测请求的超时时间（秒），不包含启动等待。 |
+| `DATAMIND_SERVICE_ENABLE_DOCS`         | `boolean` | `true`     | 是否启用 API 文档。                                        |
+| `DATAMIND_SERVICE_ENABLE_HEALTH_CHECK` | `boolean` | `true`     | 是否启用健康检查。                                         |
+
+校验规则：
+
+- name 不能为空
+- host 不能为空
+- workers 必须大于等于 1
+- port 必须在 1 到 65535 之间
+- timeout 必须大于等于 1
+
+### 管理控制台
+
+前缀：`DATAMIND_CONSOLE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/console.py)
+
+| 环境变量                           | 类型      | 默认值      | 说明                                      |
+|------------------------------------|-----------|-------------|-------------------------------------------|
+| `DATAMIND_CONSOLE_HOST`            | `string`  | `127.0.0.1` | 管理控制台监听地址。                      |
+| `DATAMIND_CONSOLE_PORT`            | `integer` | `8701`      | 管理控制台监听端口。                      |
+| `DATAMIND_CONSOLE_STARTUP_TIMEOUT` | `integer` | `120`       | 控制台启动超时时间（秒），范围 1 到 600。 |
+
+校验规则：
+
+- host 不能为空
+- port 必须在 1 到 65535 之间
+- startup_timeout 必须在 1 到 600 之间
+
+### 任务队列
 
 前缀：`DATAMIND_TASK_QUEUE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/queue.py)
 
@@ -211,7 +170,50 @@
 - retry_backoff_seconds 必须大于等于 1
 - visibility_timeout_seconds 必须大于等于 1
 
-## 运行管理
+### 任务 Worker
+
+前缀：`DATAMIND_TASK_WORKER_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/worker.py)
+
+| 环境变量                           | 类型                                | 默认值                 | 说明                    |
+|------------------------------------|-------------------------------------|------------------------|-------------------------|
+| `DATAMIND_TASK_WORKER_NAME`        | `string`                            | `datamind-task-worker` | Worker 名称。           |
+| `DATAMIND_TASK_WORKER_ROLE`        | `all/batch/shadow`                  | `all`                  | Worker 处理的任务类型。 |
+| `DATAMIND_TASK_WORKER_CONCURRENCY` | `integer`                           | `1`                    | Worker 并发数。         |
+| `DATAMIND_TASK_WORKER_LOG_LEVEL`   | `DEBUG/INFO/WARNING/ERROR/CRITICAL` | `INFO`                 | Worker 日志级别。       |
+
+校验规则：
+
+- name 不能为空
+- name 不能包含 @
+- concurrency 必须大于等于 1
+
+## 预测配置
+
+### 分类预测
+
+前缀：`DATAMIND_CLASSIFICATION_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/classification.py)
+
+| 环境变量                            | 类型     | 默认值 | 说明                                 |
+|-------------------------------------|----------|--------|--------------------------------------|
+| `DATAMIND_CLASSIFICATION_THRESHOLD` | `number` | `0.5`  | 分类阈值，概率大于该值时预测为正类。 |
+
+校验规则：
+
+- threshold 必须在 0 到 1 之间
+
+### 评分预测
+
+前缀：`DATAMIND_SCORING_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/scoring.py)
+
+| 环境变量                     | 类型     | 默认值  | 说明                                   |
+|------------------------------|----------|---------|----------------------------------------|
+| `DATAMIND_SCORING_THRESHOLD` | `number` | `600.0` | 评分决策阈值，评分大于等于该值时通过。 |
+
+校验规则：
+
+- threshold 必须是有限数值
+
+### 运行管理
 
 前缀：`DATAMIND_RUNTIME_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/runtime.py)
 
@@ -228,63 +230,9 @@
 - heartbeat_interval 必须大于 0
 - shadow_timeout 必须大于 0
 
-## 评分预测
+## 存储配置
 
-前缀：`DATAMIND_SCORING_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/scoring.py)
-
-| 环境变量                     | 类型     | 默认值  | 说明                                   |
-|------------------------------|----------|---------|----------------------------------------|
-| `DATAMIND_SCORING_THRESHOLD` | `number` | `600.0` | 评分决策阈值，评分大于等于该值时通过。 |
-
-校验规则：
-
-- threshold 必须是有限数值
-
-## 预测服务
-
-前缀：`DATAMIND_SERVICE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/service.py)
-
-| 环境变量                               | 类型      | 默认值     | 说明                                                       |
-|----------------------------------------|-----------|------------|------------------------------------------------------------|
-| `DATAMIND_SERVICE_NAME`                | `string`  | `datamind` | 服务名称。                                                 |
-| `DATAMIND_SERVICE_HOST`                | `string`  | `0.0.0.0`  | 服务监听地址。                                             |
-| `DATAMIND_SERVICE_PORT`                | `integer` | `8700`     | 服务监听端口。                                             |
-| `DATAMIND_SERVICE_WORKERS`             | `integer` | `4`        | 工作进程数。                                               |
-| `DATAMIND_SERVICE_TIMEOUT`             | `integer` | `30`       | 认证后单条或整批预测请求的超时时间（秒），不包含启动等待。 |
-| `DATAMIND_SERVICE_ENABLE_DOCS`         | `boolean` | `true`     | 是否启用 API 文档。                                        |
-| `DATAMIND_SERVICE_ENABLE_HEALTH_CHECK` | `boolean` | `true`     | 是否启用健康检查。                                         |
-
-校验规则：
-
-- name 不能为空
-- host 不能为空
-- workers 必须大于等于 1
-- port 必须在 1 到 65535 之间
-- timeout 必须大于等于 1
-
-## 本地存储
-
-前缀：`DATAMIND_STORAGE_LOCAL_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/storage.py)
-
-| 环境变量                          | 类型            | 默认值 | 说明           |
-|-----------------------------------|-----------------|--------|----------------|
-| `DATAMIND_STORAGE_LOCAL_BASE_DIR` | `string (path)` | `data` | 本地基础目录。 |
-
-## MinIO 存储
-
-前缀：`DATAMIND_STORAGE_MINIO_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/storage.py)
-
-| 环境变量                             | 类型             | 默认值           | 说明                |
-|--------------------------------------|------------------|------------------|---------------------|
-| `DATAMIND_STORAGE_MINIO_ENDPOINT`    | `string`         | `localhost:9000` | MinIO 服务地址。    |
-| `DATAMIND_STORAGE_MINIO_BUCKET`      | `string`         | `datamind`       | 存储桶名称。        |
-| `DATAMIND_STORAGE_MINIO_ACCESS_KEY`  | `string`         | `""`             | 访问密钥。          |
-| `DATAMIND_STORAGE_MINIO_SECRET_KEY`  | `string`         | `""`             | 秘密密钥。          |
-| `DATAMIND_STORAGE_MINIO_SECURE`      | `boolean`        | `false`          | 是否启用 TLS/SSL。  |
-| `DATAMIND_STORAGE_MINIO_REGION`      | `string \| null` | `null`           | S3 兼容区域，可选。 |
-| `DATAMIND_STORAGE_MINIO_BASE_PREFIX` | `string`         | `datamind`       | 对象存储基础前缀。  |
-
-## 模型文件存储
+### 模型文件存储
 
 前缀：`DATAMIND_STORAGE_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/storage.py)
 
@@ -305,22 +253,84 @@
 - 使用 minio 存储时，access_key 不能为空
 - 使用 minio 存储时，secret_key 不能为空
 
-## 任务 Worker
+### 本地存储
 
-前缀：`DATAMIND_TASK_WORKER_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/worker.py)
+前缀：`DATAMIND_STORAGE_LOCAL_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/storage.py)
 
-| 环境变量                           | 类型                                | 默认值                 | 说明                    |
-|------------------------------------|-------------------------------------|------------------------|-------------------------|
-| `DATAMIND_TASK_WORKER_NAME`        | `string`                            | `datamind-task-worker` | Worker 名称。           |
-| `DATAMIND_TASK_WORKER_ROLE`        | `all/batch/shadow`                  | `all`                  | Worker 处理的任务类型。 |
-| `DATAMIND_TASK_WORKER_CONCURRENCY` | `integer`                           | `1`                    | Worker 并发数。         |
-| `DATAMIND_TASK_WORKER_LOG_LEVEL`   | `DEBUG/INFO/WARNING/ERROR/CRITICAL` | `INFO`                 | Worker 日志级别。       |
+| 环境变量                          | 类型            | 默认值 | 说明           |
+|-----------------------------------|-----------------|--------|----------------|
+| `DATAMIND_STORAGE_LOCAL_BASE_DIR` | `string (path)` | `data` | 本地基础目录。 |
+
+### MinIO 存储
+
+前缀：`DATAMIND_STORAGE_MINIO_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/storage.py)
+
+| 环境变量                             | 类型             | 默认值           | 说明                |
+|--------------------------------------|------------------|------------------|---------------------|
+| `DATAMIND_STORAGE_MINIO_ENDPOINT`    | `string`         | `localhost:9000` | MinIO 服务地址。    |
+| `DATAMIND_STORAGE_MINIO_BUCKET`      | `string`         | `datamind`       | 存储桶名称。        |
+| `DATAMIND_STORAGE_MINIO_ACCESS_KEY`  | `string`         | `""`             | 访问密钥。          |
+| `DATAMIND_STORAGE_MINIO_SECRET_KEY`  | `string`         | `""`             | 秘密密钥。          |
+| `DATAMIND_STORAGE_MINIO_SECURE`      | `boolean`        | `false`          | 是否启用 TLS/SSL。  |
+| `DATAMIND_STORAGE_MINIO_REGION`      | `string \| null` | `null`           | S3 兼容区域，可选。 |
+| `DATAMIND_STORAGE_MINIO_BASE_PREFIX` | `string`         | `datamind`       | 对象存储基础前缀。  |
+
+## 安全配置
+
+### 认证
+
+前缀：`DATAMIND_AUTH_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/auth.py)
+
+| 环境变量                                     | 类型                | 默认值  | 说明                           |
+|----------------------------------------------|---------------------|---------|--------------------------------|
+| `DATAMIND_AUTH_ENABLED`                      | `boolean`           | `false` | 是否启用认证功能。             |
+| `DATAMIND_AUTH_SECRET_KEY`                   | `string (password)` | `""`    | JWT 签名密钥。                 |
+| `DATAMIND_AUTH_ALGORITHM`                    | `string`            | `HS256` | JWT 签名算法。                 |
+| `DATAMIND_AUTH_ACCESS_TOKEN_EXPIRES_MINUTES` | `integer`           | `30`    | 访问令牌有效时间。单位：分钟。 |
+| `DATAMIND_AUTH_REFRESH_TOKEN_EXPIRES_DAYS`   | `integer`           | `7`     | 刷新令牌有效时间。单位：天。   |
 
 校验规则：
 
-- name 不能为空
-- name 不能包含 @
-- concurrency 必须大于等于 1
+- algorithm 不能为空
+- access_token_expires_minutes 必须大于 0
+- refresh_token_expires_days 必须大于 0
+- 启用认证功能时，secret_key 不能为空
+
+### 本地认证
+
+前缀：`DATAMIND_AUTH_LOCAL_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/auth.py)
+
+| 环境变量                                                       | 类型            | 默认值  | 说明                               |
+|----------------------------------------------------------------|-----------------|---------|------------------------------------|
+| `DATAMIND_AUTH_LOCAL_MAX_FAILED_LOGIN_ATTEMPTS`                | `integer`       | `5`     | 最大连续登录失败次数。             |
+| `DATAMIND_AUTH_LOCAL_LOCK_MINUTES`                             | `integer`       | `30`    | 登录失败锁定时间。单位：分钟。     |
+| `DATAMIND_AUTH_LOCAL_UPGRADE_PASSWORD_HASH`                    | `boolean`       | `true`  | 是否自动升级密码哈希。             |
+| `DATAMIND_AUTH_LOCAL_BREAK_GLASS_ONLY`                         | `boolean`       | `false` | 是否仅允许应急账户登录。           |
+| `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS`                         | `array[string]` | `[]`    | 本地认证允许访问的网段。           |
+| `DATAMIND_AUTH_LOCAL_BREAK_GLASS_ACCESS_TOKEN_EXPIRES_MINUTES` | `integer`       | `15`    | 应急访问令牌有效时间。单位：分钟。 |
+
+校验规则：
+
+- max_failed_login_attempts 必须大于 0
+- lock_minutes 必须大于 0
+- break_glass_access_token_expires_minutes 必须大于 0
+- allowed_networks 包含无效网段
+
+### 审计
+
+前缀：`DATAMIND_AUDIT_`。[源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/config/audit.py)
+
+| 环境变量                          | 类型          | 默认值 | 说明                         |
+|-----------------------------------|---------------|--------|------------------------------|
+| `DATAMIND_AUDIT_ENABLED`          | `boolean`     | `true` | 是否启用审计组件。           |
+| `DATAMIND_AUDIT_FAILURE_MODE`     | `open/closed` | `open` | 审计失败处理模式。           |
+| `DATAMIND_AUDIT_MAX_RETRIES`      | `integer`     | `2`    | 瞬时数据库错误最大尝试次数。 |
+| `DATAMIND_AUDIT_RETRY_BASE_DELAY` | `number`      | `0.05` | 重试基础延迟（秒）。         |
+
+校验规则：
+
+- max_retries 必须大于等于 1
+- retry_base_delay 必须大于 0
 
 ## 使用说明
 

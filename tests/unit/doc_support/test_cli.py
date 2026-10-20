@@ -151,7 +151,9 @@ def test_render_cli_command_uses_extracted_metadata() -> None:
         result_keys=("model_id",),
     )
     text = render_cli_command(("model", "show"), command, source)
-    assert "## datamind model show" in text
+    assert "## `show`" in text
+    assert '<a id="datamind-model-show"></a>' in text
+    assert "datamind model show" in text
     assert "权限：`model.read`" in text
     assert "invalid model" not in text
     assert "### 输出" in text

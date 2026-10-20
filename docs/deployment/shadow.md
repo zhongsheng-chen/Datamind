@@ -8,7 +8,7 @@
 
 - 按[模型训练示例](../examples/index.md#评分卡示例)准备主版本和候选版本，再参照[快速上手](../getting-started/quickstart.md)分别完成部署。
 - 确认主版本和候选版本均能正常预测。
-- 参照[本地部署](local.md)配置 Redis Broker，并启动任务 Worker。
+- 配置 Redis，并启动角色为 `shadow` 或 `all` 的[任务 Worker](worker.md)。
 - 确认当前账户具备 `model.write`、`deployment.write`、`routing.read`、`routing.write`、`runtime.read`、`prediction.invoke` 和 `request.read` [权限](../reference/states-permissions.md#权限全集)。
 
 ## 创建部署
@@ -58,7 +58,7 @@ datamind route create <deployment_id> \
 
 ## 验证发布结果
 
-参照[在线预测](../guides/online-prediction.md)或[批量预测](../guides/batch-prediction.md)发起请求，再通过[管理控制台](../guides/console.md#api-调用与执行记录)查看请求与执行记录。
+参照[在线预测](../guides/online-prediction.md)或[批量预测](../guides/batch-prediction.md)发起请求，再通过[管理控制台](../guides/console.md#调用与执行)查看请求与执行记录。
 
 按以下步骤核对：
 

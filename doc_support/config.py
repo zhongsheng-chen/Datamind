@@ -174,8 +174,9 @@ def config_pages() -> dict[Path, str]:
     异常：
         ValueError: 配置字段缺少说明
     """
-    sections = []
-    titles = reference_metadata()["config_titles"]
+    sections = {}
+    metadata = reference_metadata()
+    titles = metadata["config_titles"]
     paths: list[Path] = sorted(
         (ROOT / "datamind/config").glob("*.py"),
         key=lambda source_path: source_path.name,
@@ -191,18 +192,24 @@ def config_pages() -> dict[Path, str]:
                 or not issubclass(cls, BaseSettings)
             ):
                 continue
-            sections.append(
-                render_template(
-                    "config-section",
-                    title=titles.get(name, name),
-                    prefix=cls.model_config["env_prefix"],
-                    source_url=SOURCE_URL + f"datamind/config/{path.name}",
-                    fields=table_rows(config_field_rows(cls)),
-                    validation=bullet_section("校验规则：", config_validators(cls)),
-                )
+            sections[name] = render_template(
+                "config-section",
+                title=titles.get(name, name),
+                prefix=cls.model_config["env_prefix"],
+                source_url=SOURCE_URL + f"datamind/config/{path.name}",
+                fields=table_rows(config_field_rows(cls)),
+                validation=bullet_section("校验规则：", config_validators(cls)),
             )
+    grouped_sections = []
+    remaining = dict(sections)
+    for title, names in metadata["config_groups"].items():
+        grouped_sections.append(f"## {title}\n")
+        for name in names:
+            grouped_sections.append(remaining.pop(name))
+    if remaining:
+        raise ValueError("配置分组缺少定义：" + ", ".join(remaining))
     return {
         ROOT / "docs/reference/environment-variables.md": render_template(
-            "environment-variables", sections="\n".join(sections)
+            "environment-variables", sections="\n".join(grouped_sections)
         )
     }

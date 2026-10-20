@@ -7,7 +7,7 @@
 提交批次前，请完成以下准备：
 
 - 按[模型训练示例](../examples/index.md)准备模型，激活模型版本并启用部署，确认模型已成功加载。
-- 配置 Redis，并启动角色为 `batch` 或 `all` 的[任务 Worker](../deployment/services.md)。
+- 配置 Redis，并启动角色为 `batch` 或 `all` 的[任务 Worker](../deployment/worker.md)。
 - 启用认证时，获取访问令牌，并确认当前账户具备 `prediction.invoke` 权限。
 
 首次使用见[快速上手](../getting-started/quickstart.md)，令牌获取方式见[预测 API](../reference/runtime-api.md#认证)。

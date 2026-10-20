@@ -4,21 +4,33 @@
 
 ## 部署架构
 
-预测服务、管理控制台和任务 Worker 应使用同一部署环境的数据库和文件存储，并保持认证参数一致。预测服务与任务 Worker 通过 Redis 消息队列传递批量预测和影子预测任务，需使用相同的连接地址和对应队列名称。
+管理控制台负责模型管理与发布，预测服务负责处理在线请求，任务 Worker 负责执行批量预测和影子预测。三者共享数据库和模型文件存储，预测服务与任务 Worker 通过 Redis 消息队列传递异步任务。
 
-- **PostgreSQL** 保存平台配置、请求、执行和任务状态。使用持久卷或托管数据库保存数据。
-- **Redis** 提供异步任务队列。
-- **文件存储** 保存模型文件，可使用 MinIO 或共享本地目录。所有模型加载进程均需能够读取相同的文件；使用本地目录时，路径和内容也需保持一致。
+```mermaid
+flowchart LR
+    A[预测请求] --> C[预测服务]
+    C -->|在线预测| D[同步返回结果]
+    C -->|批量预测与影子预测| E[(Redis)]
+    E --> F[任务 Worker]
+```
 
-预测服务由多个 Worker 接收 HTTP 请求并执行在线预测。每个 Worker 独立加载模型，通过数据库中的运行控制记录协调加载状态；运行实例记录反映某个部署在各 Worker 中的实际状态。模型内存占用随 Worker 数量增加。
+**服务部署**
 
-管理控制台可以独立运行。任务 Worker 使用 Celery 执行批量预测和影子预测任务，可按 `all`、`batch` 或 `shadow` 角色分别扩容。负载均衡器将在线请求转发至预测服务。
+- **预测服务**：通过多个 Worker 接收 HTTP 请求并执行在线预测。各 Worker 独立加载模型，通过数据库中的运行控制记录协调加载状态，并上报运行实例状态。
+- **管理控制台**：与预测服务分别启动，共用同一环境的数据库和模型文件存储。
+- **任务 Worker**：通过 Celery 执行批量预测和影子预测，可按 `all`、`batch` 或 `shadow` 角色选择处理的任务类型。同一队列可由多个 Worker 共同消费。
+
+**共享依赖**
+
+- **PostgreSQL**：保存系统配置、请求、执行和任务状态，使用持久卷或托管数据库保存数据。
+- **Redis**：提供异步任务队列。预测服务与任务 Worker 使用相同的 Redis 连接地址和队列名称。
+- **模型文件存储**：可使用 MinIO 或本地目录，确保各模型加载进程均能访问模型文件。使用本地目录时，文件路径和内容须在各进程间保持一致。
 
 ## 部署步骤
 
 ### 安装
 
-安装 Datamind，具体步骤见[安装](../getting-started/installation.md)。使用容器部署请参阅[Docker 部署](docker.md)。
+安装步骤请参阅[安装指南](../getting-started/installation.md)；使用容器部署时，请参阅[Docker 部署](docker.md)。
 
 ### 准备
 
@@ -32,15 +44,16 @@
 通过环境变量或 `.env` 文件设置以下内容：
 
 - **运行环境**：将 `DATAMIND_ENVIRONMENT` 设为 `production`。
-- **服务连接**：设置数据库、文件存储和 Redis 的连接参数。
-- **身份认证**：将 `DATAMIND_AUTH_ENABLED` 设为 `true`，使用 `DATAMIND_AUTH_SECRET_KEY` 设置随机生成的签名密钥，并在 `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS` 中指定允许访问的网段。各应用进程应使用相同的认证参数。
-- **管理员账户**：首次初始化前，通过 `DATAMIND_INIT_ADMIN_PASSWORD` 设置管理员密码。该变量仅用于创建初始账户；已有账户需通过密码重置更新密码。
+- **服务连接**：配置数据库、模型文件存储和 Redis。
+- **身份认证**：将 `DATAMIND_AUTH_ENABLED` 设为 `true`，通过 `DATAMIND_AUTH_SECRET_KEY` 设置随机生成的签名密钥。各应用进程须使用相同的签名密钥。
+- **登录限制**：如需限制本地账户登录的来源网段，配置 `DATAMIND_AUTH_LOCAL_ALLOWED_NETWORKS`。
+- **管理员账户**：首次初始化前，通过 `DATAMIND_INIT_ADMIN_PASSWORD` 设置管理员密码。修改该变量不会更新已有账户的密码。
+
+配置示例见[配置与初始化](../getting-started/configuration.md)，更多说明见[环境变量](../reference/environment-variables.md)。
 
 > **注意**
 >
 > 生产环境的凭据建议通过部署系统的密钥管理功能提供。使用 `.env` 文件时，应限制其读取权限。
-
-配置示例见[配置与初始化](../getting-started/configuration.md)，更多说明见[环境变量](../reference/environment-variables.md)。
 
 ### 数据库迁移与初始化
 
@@ -80,23 +93,24 @@ datamind console run --host 0.0.0.0 --port 8701
 datamind worker run
 ```
 
-默认角色为 `all`，同时处理批量和影子任务。可通过 `DATAMIND_TASK_WORKER_ROLE` 设为 `batch` 或 `shadow`。
+角色、队列和并发的配置方式请参阅[任务 Worker](worker.md)。
 
 ### 验证在线预测
 
-通过 `/health` 和 `/ready` 检查服务状态。服务就绪后，注册并激活模型、启用部署，再查看模型的实际加载状态：
+通过 `/health` 和 `/ready` 检查服务状态。服务就绪后，注册并激活模型、启用部署，然后查看运行实例：
 
 ```bash
 datamind runtime list
 ```
 
-确认目标部署的运行实例状态为 `running` 后，发送[在线预测](../guides/online-prediction.md)请求，确认服务正常返回预测结果。
+目标部署的运行实例状态为 `running` 后，发起[在线预测](../guides/online-prediction.md)请求，验证预测结果。
 
 ### 验证异步任务
 
-启用批量预测后，提交[批量预测](../guides/batch-prediction.md)请求，等待任务结束并核对每条预测结果。配置[影子发布](shadow.md)后，发送能够命中影子路由的请求，确认主请求正常返回，并生成独立的影子执行记录。
+- **批量预测**：发起[批量预测](../guides/batch-prediction.md)请求，等待批次执行结束，并核对各实例的预测结果。
+- **影子预测**：按照[影子发布](shadow.md)配置路由，发起命中影子路由的请求，确认主预测正常返回，并生成独立的影子执行记录。
 
-确认预测结果符合预期，日志和审计中没有异常，队列与文件存储正常后，再接入生产流量。
+预测结果符合预期，日志、审计、任务队列和文件存储均无异常后，再接入生产流量。
 
 ## 容量与监控
 
@@ -113,9 +127,8 @@ datamind runtime list
 
 ### 连接池和内存
 
-每个进程维护独立的数据库连接池。设置 `DATAMIND_DATABASE_POOL_SIZE` 和 `DATAMIND_DATABASE_MAX_OVERFLOW` 时，应按预测服务、管理控制台和任务 Worker 的进程总数估算连接需求。
-
-模型由各预测服务 Worker 和任务 Worker 分别加载。增加进程数量前，应评估各进程加载模型所需的内存。
+- **数据库连接池**：各进程独立维护连接池。配置 `DATAMIND_DATABASE_POOL_SIZE` 和 `DATAMIND_DATABASE_MAX_OVERFLOW` 时，需结合预测服务、管理控制台及任务 Worker 的进程总数，评估数据库连接数。
+- **模型内存**：各预测服务 Worker 和任务 Worker 分别加载模型，增加进程数量前需评估模型的内存占用。
 
 ### 任务队列
 

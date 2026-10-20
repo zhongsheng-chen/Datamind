@@ -43,7 +43,7 @@ Datamind 通过 HTTP 接口提供在线预测和批量预测。在线预测在�
 - [本地部署](deployment/local.md)：在本地运行完整演示环境。
 - [Docker 部署](deployment/docker.md)：使用容器启动服务。
 - [生产部署](deployment/production.md)：配置生产环境的服务与存储。
-- [服务管理](deployment/services.md)：启动、停止服务及检查运行状态。
+- [任务 Worker](deployment/worker.md)：配置异步任务队列、角色和并发，验证任务执行。
 - [访问控制](guides/access-control.md)：管理用户、角色与权限。
 
 ## 参考手册

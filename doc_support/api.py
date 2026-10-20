@@ -142,6 +142,8 @@ def api_pages() -> dict[Path, str]:
             render_template(
                 "runtime-model",
                 name=name,
+                title=guidance["title"],
+                anchor=name.lower(),
                 description=description.rstrip(".。") + "。",
                 endpoints=guidance["endpoints"],
                 fields=table_rows(api_field_rows(cls, schema)),
