@@ -71,6 +71,15 @@ async def dispatch_resource_action(
     if resource == "deployments":
         service = deployment_factory()
 
+        if action == "set-default":
+            return await service.set_default_deployment(
+                deployment_id=identifier, updated_by=username,
+            )
+        if action == "unset-default":
+            return await service.unset_default_deployment(
+                deployment_id=identifier, updated_by=username,
+            )
+
         if action == "enable":
             return await service.enable_deployment(
                 deployment_id=identifier,

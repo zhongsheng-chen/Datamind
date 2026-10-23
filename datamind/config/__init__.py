@@ -16,7 +16,7 @@
   settings = get_settings()
   service_config = get_service_config()
 
-  print(settings.service.environment)
+  print(settings.common.environment)
   print(settings.database.url)
   print(settings.storage.type)
   print(service_config.port)
@@ -30,6 +30,7 @@ from datamind.config.providers import (
     get_audit_config,
     get_auth_config,
     get_classification_config,
+    get_common_config,
     get_console_config,
     get_database_config,
     get_initialization_config,
@@ -48,6 +49,7 @@ __all__ = [
     "get_audit_config",
     "get_auth_config",
     "get_classification_config",
+    "get_common_config",
     "get_console_config",
     "get_database_config",
     "get_initialization_config",

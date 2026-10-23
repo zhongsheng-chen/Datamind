@@ -231,6 +231,8 @@ export function createPresentationController({
         summary.append(process);
       }
       cell.append(summary);
+    } else if (kind === "boolean") {
+      cell.textContent = value ? "是" : "否";
     } else if (kind === "deployment-role") {
       cell.append(createDeploymentRoleBadge(value));
     } else if (kind === "execution-type") {

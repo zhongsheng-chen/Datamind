@@ -20,7 +20,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 
-SAMPLE_COUNT = 2000
+SAMPLE_SIZE = 2000
 RANDOM_SEED = 42
 TEST_SIZE = 0.25
 FEATURE_NAMES = [
@@ -39,15 +39,15 @@ DEFAULT_OUTPUT_PATH = (
 
 def build_training_data(
         *,
-        sample_count: int = SAMPLE_COUNT,
+        sample_size: int = SAMPLE_SIZE,
         random_seed: int = RANDOM_SEED,
 ) -> tuple[pd.DataFrame, NDArray[Any]]:
     """构造可复现的交易风险二分类数据."""
-    if sample_count < 100:
-        raise ValueError("sample_count 不能小于 100")
+    if sample_size < 100:
+        raise ValueError("sample_size 不能小于 100")
 
     values, generated_labels = make_classification(
-        n_samples=sample_count,
+        n_samples=sample_size,
         n_features=len(FEATURE_NAMES),
         n_informative=4,
         n_redundant=1,
@@ -143,9 +143,25 @@ def parse_arguments(
     parser = argparse.ArgumentParser(
         description="训练 LightGBM 风险分类示例模型",
     )
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
-    parser.add_argument("--sample-count", type=int, default=SAMPLE_COUNT)
-    parser.add_argument("--random-seed", type=int, default=RANDOM_SEED)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT_PATH,
+        metavar="PATH",
+        help="保存路径",
+    )
+    parser.add_argument(
+        "--sample-size",
+        type=int,
+        default=SAMPLE_SIZE,
+        help="合成数据总样本数",
+    )
+    parser.add_argument(
+        "--random-seed",
+        type=int,
+        default=RANDOM_SEED,
+        help="随机种子",
+    )
 
     return parser.parse_args(arguments)
 
@@ -154,7 +170,7 @@ def main() -> None:
     """执行数据生成、划分、训练、评估和保存流程."""
     arguments = parse_arguments()
     features, labels = build_training_data(
-        sample_count=arguments.sample_count,
+        sample_size=arguments.sample_size,
         random_seed=arguments.random_seed,
     )
     (

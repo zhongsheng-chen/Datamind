@@ -29,6 +29,8 @@
     验证异常退出码
   - test_console_run_stops_process_on_interrupt:
     验证中断处理
+  - test_console_run_verbose_preserves_bentoml_logs:
+    测试详细模式不抑制 BentoML 日志
 """
 
 from types import SimpleNamespace
@@ -70,7 +72,7 @@ def mock_console_settings(
             port=8701,
             startup_timeout=120,
         ),
-        service=SimpleNamespace(
+        common=SimpleNamespace(
             environment=Environment.DEVELOPMENT,
         ),
     )
@@ -230,6 +232,7 @@ def test_console_run_starts_bentoml_service(
         mock_console_readiness: MagicMock,
 ) -> None:
     """测试控制台命令启动独立 BentoML 服务."""
+    monkeypatch.setattr(run_module, "get_app_version", lambda: "0.1.0")
     process = MagicMock()
     process.pid = 4321
     process.wait.return_value = 0

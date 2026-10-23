@@ -11,9 +11,6 @@
   - batch_status: 查询异步预测批次状态和结果
   - cancel_batch: 取消异步预测批次
   - retry_batch: 重新提交失败或已取消的预测批次
-  - submit_outcome: 提交延迟业务结果
-  - load: 设置部署期望状态为 loaded
-  - unload: 设置部署期望状态为 unloaded
   - reload: 请求重新加载部署模型
   - status: 查询部署控制状态和 Worker 运行状态
   - services: 查询当前 Worker 的运行时服务
@@ -45,6 +42,7 @@ from datamind.audit import AuditRecorder
 from datamind.config import (
     get_logging_config,
     get_runtime_config,
+    get_common_config,
     get_service_config,
 )
 from datamind.db.core import UnitOfWork
@@ -75,6 +73,7 @@ from datamind.services import RuntimeControlService
 
 logger = structlog.get_logger(__name__)
 
+common_config = get_common_config()
 service_config = get_service_config()
 runtime_config = get_runtime_config()
 
@@ -231,7 +230,7 @@ class DatamindRuntimeService(
             manager=self.manager,
             service_instance_id=service_instance_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
             interval_seconds=(
                 runtime_config.reconcile_interval
@@ -260,7 +259,7 @@ class DatamindRuntimeService(
             "运行时 Worker 初始化完成",
             worker_id=worker_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
             service_workers=(
                 service_config.workers
@@ -301,7 +300,7 @@ class DatamindRuntimeService(
             self._logger.warning(
                 "运行时首次状态协调等待数据库恢复",
                 worker_id=self.manager.worker_id,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 error=str(exc),
             )
 
@@ -311,14 +310,14 @@ class DatamindRuntimeService(
             "运行时 Worker 启动完成",
             worker_id=self.manager.worker_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
             **result,
         )
 
         _write_worker_ready_marker(
             worker_id=self.manager.worker_id,
-            environment=service_config.environment,
+            environment=common_config.environment,
         )
 
     @bentoml.on_shutdown
@@ -356,7 +355,7 @@ class DatamindRuntimeService(
                     "Worker 关闭时卸载模型失败",
                     worker_id=self.manager.worker_id,
                     environment=(
-                        service_config.environment
+                        common_config.environment
                     ),
                     deployment_id=deployment_id,
                     error=str(exc),
@@ -368,7 +367,7 @@ class DatamindRuntimeService(
             "运行时 Worker 已关闭",
             worker_id=self.manager.worker_id,
             environment=(
-                service_config.environment
+                common_config.environment
             ),
         )
 
@@ -387,7 +386,7 @@ class DatamindRuntimeService(
             "status": "ok",
             "worker_id": self.manager.worker_id,
             "environment": (
-                service_config.environment
+                common_config.environment
             ),
             "reconciler_running": (
                 self.reconciler.is_running
@@ -447,7 +446,7 @@ class DatamindRuntimeService(
                 self.reconciler.is_running
             ),
             "worker_id": self.manager.worker_id,
-            "environment": service_config.environment,
+            "environment": common_config.environment,
         }
 
     async def _execute_secured(

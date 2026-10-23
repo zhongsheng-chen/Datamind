@@ -7,14 +7,46 @@
     验证使用显式指定的部署
   - test_resolve_uses_ab_test_deployment:
     验证使用 A/B 实验分配的部署
-  - test_routing_uses_stable_payload_identifier:
-    验证路由使用稳定的请求标识分桶
+  - test_routing_uses_explicit_subject_key:
+    验证路由使用显式主体标识，缺省时按模型分桶
   - test_routing_context_uses_bucket_value:
     验证路由上下文区分分桶值与流量比例且不包含旧字段
-  - test_resolve_uses_first_active_deployment_without_champion:
-    验证缺少冠军部署时选择首个启用部署
+  - test_resolve_rejects_missing_default:
+    验证未指定默认部署时不隐式选择部署
+  - test_resolve_rejects_multiple_defaults:
+    验证多个默认部署时报错
+  - test_resolve_uses_only_explicit_default:
+    验证默认流量仅选择显式指定的主部署
+  - test_resolve_routes_to_challenger_without_default:
+    验证候选部署仍可通过显式路由承接流量
   - test_resolve_includes_independently_matched_shadow:
     验证路由结果包含独立匹配的影子部署
+  - test_routing_effective_window_controls_eligibility:
+    测试路由仅在自身生效区间内参与流量分配
+  - test_routing_ratio_preserves_default_traffic:
+    测试未进入灰度比例时交给默认部署
+  - test_routing_ratio_selects_candidate:
+    测试进入灰度比例时命中候选部署
+  - test_routing_rejects_total_ratio_above_one:
+    测试拒绝启用路由总占比超过 1
+  - test_route_result_converts_to_dict:
+    测试路由结果完整转换为字典
+  - test_resolve_rejects_missing_required_parameter:
+    测试路由解析拒绝空模型或环境
+  - test_resolve_rejects_invalid_manual_deployment:
+    测试显式部署拒绝不存在、模型不符或不可用状态
+  - test_resolve_rejects_ineffective_manual_deployment:
+    测试显式部署拒绝尚未生效或已经失效的部署
+  - test_resolve_wraps_ab_test_assignment_error:
+    测试 A/B 实验参数错误转换为路由错误
+  - test_invalid_ab_test_deployment_falls_back:
+    测试实验部署失效时回滚分配并回退默认部署
+  - test_resolve_rejects_missing_available_deployment:
+    测试没有实验、路由和默认部署时抛出路由错误
+  - test_resolve_skips_shadow_routing_for_primary_result:
+    测试影子路由不参与主路由流量分配
+  - test_resolve_can_disable_shadow_resolution:
+    测试配置关闭时不查询影子路由
 """
 
 from datetime import datetime, timedelta, timezone
@@ -62,6 +94,7 @@ def create_deployment(deployment_id: str) -> SimpleNamespace:
         environment="production",
         rollout_type="canary",
         role="challenger",
+        is_default=False,
         status="active",
         effective_from=None,
         effective_to=None,
@@ -239,6 +272,7 @@ async def resolve_routing(
         "dep_default"
     )
     default_deployment.role = "champion"
+    default_deployment.is_default = True
     routing_repo = AsyncMock()
     routing_repo.list_enabled_routings.return_value = routings
     deployment_repo = AsyncMock()
@@ -340,45 +374,52 @@ async def test_routing_rejects_total_ratio_above_one(
         )
 
 
-@pytest.mark.parametrize(
-    (
-        "payload",
-        "expected",
-    ),
-    [
-        (
-            {"customer_id": 10001},
-            "10001",
-        ),
-        (
-            {
-                "customer_id": {"value": 10001},
-                "order_id": 20001,
-            },
-            "20001",
-        ),
-        (
-            {"customer_id": [10001]},
-            None,
-        ),
-    ],
-)
+@pytest.mark.parametrize("subject_key", [None, "", "customer_10001"])
+@pytest.mark.parametrize("field", ["subject_key", "customer_id", "order_id", "application_id"])
+@pytest.mark.parametrize("shadow", [False, True])
 @pytest.mark.asyncio
-async def test_routing_uses_stable_payload_identifier(
+async def test_routing_uses_explicit_subject_key(
         monkeypatch: pytest.MonkeyPatch,
-        payload: dict[str, object],
-        expected: str | None,
+        subject_key: str | None,
+        field: str,
+        shadow: bool,
 ) -> None:
-    """测试稳定路由键使用首个有效标量标识."""
-    result = await resolve_routing(
-        monkeypatch,
-        ratio=0.05,
-        routing_ratios=[0.1],
-        subject_key=None,
-        payload=payload,
+    """测试主路由和影子路由仅使用显式主体标识或模型 ID 分桶."""
+    deployment = (
+        create_shadow_deployment("dep_test")
+        if shadow
+        else create_deployment("dep_test")
     )
+    router, deployment_repo, routing_repo, _ = configure_router(monkeypatch)
+    routing = create_routing("rtn_test", "dep_test", 1.0)
+    routing_repo.list_enabled_routings.return_value = [routing]
+    deployment_repo.get_deployment.return_value = deployment
+    hash_ratio = MagicMock(return_value=(0.05, "bucket_test"))
+    monkeypatch.setattr(router, "_hash_ratio", hash_ratio)
+    arguments = dict(
+        model_id="mdl_test",
+        subject_key=subject_key,
+        subject_type="customer",
+        payload={field: "payload_identifier"},
+        environment="production",
+        now=datetime.now(timezone.utc),
+    )
+    if shadow:
+        results = await router._resolve_shadows(
+            **arguments, primary_deployment_id="dep_primary",
+        )
+        assert len(results) == 1
+        result = results[0]
+        expected_hash_parts = ("shadow", "mdl_test", "production", "rtn_test")
+    else:
+        result = await router._resolve_routing(
+            **arguments, deployment_repo=deployment_repo, routing_repo=routing_repo,
+        )
+        assert result is not None
+        expected_hash_parts = ("routing", "mdl_test", "production")
 
-    assert result.subject_key == expected
+    hash_ratio.assert_called_once_with(*expected_hash_parts, subject_key or "mdl_test")
+    assert result.subject_key == (subject_key or None)
 
 
 def test_route_result_converts_to_dict() -> None:
@@ -633,6 +674,7 @@ async def test_invalid_ab_test_deployment_falls_back(
 
     default_deployment = create_deployment("dep_default")
     default_deployment.role = "champion"
+    default_deployment.is_default = True
     router, deployment_repo, _, _ = configure_router(
         monkeypatch,
         active_deployments=[default_deployment],
@@ -657,25 +699,76 @@ async def test_invalid_ab_test_deployment_falls_back(
 
 
 @pytest.mark.asyncio
-async def test_resolve_uses_first_active_deployment_without_champion(
+async def test_resolve_rejects_missing_default(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试没有主部署时使用首个可用部署."""
+    """测试没有主部署时拒绝将候选部署作为默认目标."""
     deployment = create_deployment("dep_first")
     deployment.role = "challenger"
     router, _, _, _ = configure_router(
-        monkeypatch,
-        active_deployments=[deployment],
+        monkeypatch, active_deployments=[deployment],
     )
 
-    plan = await router.resolve(
-        model_id="mdl_test",
-        environment="production",
-    )
-    result = plan.primary
+    with pytest.raises(RuntimeRouteError, match="没有可用部署"):
+        await router.resolve(model_id="mdl_test", environment="production")
 
-    assert result.deployment_id == "dep_first"
-    assert result.context["reason"] == "first_active_deployment"
+
+@pytest.mark.asyncio
+async def test_resolve_rejects_multiple_defaults(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试多个默认部署时拒绝按创建顺序隐式选择."""
+    champions = [create_deployment("dep_first"), create_deployment("dep_second")]
+    for deployment in champions:
+        deployment.role = "champion"
+        deployment.is_default = True
+    router, _, _, _ = configure_router(monkeypatch, active_deployments=champions)
+
+    with pytest.raises(RuntimeRouteError, match="多个可用默认部署"):
+        await router.resolve(model_id="mdl_test", environment="production")
+
+
+@pytest.mark.asyncio
+async def test_resolve_uses_only_explicit_default(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试默认流量仅选择有效的主部署，忽略候选和失效主部署."""
+    candidate = create_deployment("dep_candidate")
+    candidate.role = "champion"
+    expired = create_deployment("dep_expired")
+    expired.role = "champion"
+    expired.is_default = True
+    expired.effective_to = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    champion = create_deployment("dep_champion")
+    champion.role = "champion"
+    champion.is_default = True
+    router, _, _, _ = configure_router(
+        monkeypatch, active_deployments=[candidate, expired, champion],
+    )
+
+    result = await router.resolve(model_id="mdl_test", environment="production")
+
+    assert result.primary.deployment_id == "dep_champion"
+    assert result.primary.context["reason"] == "explicit_default_deployment"
+
+
+@pytest.mark.asyncio
+async def test_resolve_routes_to_challenger_without_default(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """候选部署可通过匹配路由接收请求，但不能作为默认部署."""
+    candidate = create_deployment("dep_candidate")
+    router, deployment_repo, routing_repo, _ = configure_router(monkeypatch)
+    routing_repo.list_enabled_routings.return_value = [
+        create_routing("rtn_candidate", "dep_candidate", 1.0),
+    ]
+    deployment_repo.get_deployment.return_value = candidate
+
+    result = await router.resolve(model_id="mdl_test", environment="production")
+
+    assert result.primary.deployment_id == "dep_candidate"
+    assert result.primary.source == str(DecisionStrategy.ROUTING)
+    deployment_repo.list_active_deployments.assert_not_awaited()
 
 
 @pytest.mark.asyncio

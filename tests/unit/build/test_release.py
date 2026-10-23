@@ -5,10 +5,32 @@
 核心功能：
   - test_load_release_metadata_validates_tag_and_project_version:
     验证 Tag、项目版本与构建身份保持一致
-  - test_publish_configuration_validates_destinations:
-    验证正式发布目标配置
+  - test_twine_configuration_rejects_invalid_values:
+    验证 Python distributions 发布配置
+  - test_dockerhub_configuration_rejects_invalid_values:
+    验证 Docker 镜像发布配置
   - test_release_workflow_reuses_existing_quality_gates:
     验证正式发布复用现有测试与冒烟测试入口
+  - test_release_workflow_keeps_exact_docker_tags_immutable:
+    验证精确版本 Docker 标签保持不可变
+  - test_release_workflow_publishes_latest_after_release_artifacts:
+    验证 latest 在 Python distributions 与精确版本镜像发布成功后更新
+  - test_project_uses_public_distribution_name:
+    测试正式项目元数据声明 pydatamind distribution
+  - test_release_metadata_writes_distribution_outputs:
+    测试发布准备步骤输出正式分发包名称
+  - test_load_release_metadata_rejects_mismatched_tag:
+    测试正式 Tag 必须与 pyproject.toml 版本完全一致
+  - test_twine_configuration_accepts_compatible_repository:
+    测试 Twine 支持 PyPI-compatible 仓库
+  - test_dockerhub_configuration_accepts_repository:
+    测试 Docker Hub 发布使用项目配置的镜像仓库
+  - test_release_dependency_group_owns_twine:
+    测试 Twine 属于发布工具依赖，不进入 Runtime dependencies
+  - test_release_configuration_check_is_non_publishing:
+    测试发布配置检查仅执行校验与 Docker Hub 登录
+  - test_tests_workflow_is_reusable_release_gate:
+    测试 Tests Workflow 同时支持 workflow_call
 """
 
 from argparse import Namespace
@@ -256,14 +278,99 @@ def test_release_workflow_reuses_existing_quality_gates() -> None:
     assert "dist/datamind-${{" not in workflow
 
 
+def _release_workflow_job(
+    workflow: str,
+    name: str,
+    next_name: str | None = None,
+) -> str:
+    """提取 Release Workflow 中单个 job 的文本."""
+    start = workflow.index(f"  {name}:\n")
+    if next_name is None:
+        return workflow[start:]
+
+    end = workflow.index(f"  {next_name}:\n", start)
+    return workflow[start:end]
+
+
+def test_release_workflow_keeps_exact_docker_tags_immutable() -> None:
+    """测试精确版本镜像继续执行存在性检查并拒绝覆盖."""
+    workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+    exact_job = _release_workflow_job(
+        workflow,
+        "publish-versioned-docker-images",
+        "publish-latest-docker-image",
+    )
+
+    assert "docker manifest inspect" in exact_job
+    assert "已存在，拒绝覆盖正式标签" in exact_job
+    assert "Smoke test exact release image" in exact_job
+    assert "Push exact verified image" in exact_job
+    for framework in (
+        "sklearn",
+        "xgboost",
+        "lightgbm",
+        "catboost",
+        "full",
+    ):
+        assert f"          - {framework}\n" in exact_job
+
+
+def test_release_workflow_publishes_latest_after_release_artifacts() -> None:
+    """测试 latest 仅在 Python 与精确版本镜像发布成功后更新."""
+    workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+    latest_job = _release_workflow_job(
+        workflow,
+        "publish-latest-docker-image",
+        "publish-github-release",
+    )
+    github_release_job = _release_workflow_job(
+        workflow,
+        "publish-github-release",
+    )
+
+    assert "      - prepare-release\n" in latest_job
+    assert "      - publish-python-distributions\n" in latest_job
+    assert "      - publish-versioned-docker-images\n" in latest_job
+    assert "environment: release" in latest_job
+    assert "validate-dockerhub-config" in latest_job
+    assert "--framework full" in latest_job
+    assert "docker pull" in latest_job
+    assert "docker tag" in latest_job
+    assert "docker push" in latest_job
+    assert "docker manifest inspect" not in latest_job
+    assert "docker build" not in latest_job
+    assert "--build-commit" not in latest_job
+    assert "--build-date" not in latest_job
+    assert '${repository}:latest' in latest_job
+    assert "latest-sklearn" not in workflow
+    assert "latest-xgboost" not in workflow
+    assert "latest-lightgbm" not in workflow
+    assert "latest-catboost" not in workflow
+    assert "--prerelease=${{" in github_release_job
+    for marker in ("a", "b", "rc", "dev"):
+        assert f"contains(needs.prepare-release.outputs.version, '{marker}')" in github_release_job
+
+    for dependency in (
+        "prepare-release",
+        "publish-python-distributions",
+        "publish-versioned-docker-images",
+        "publish-latest-docker-image",
+    ):
+        assert f"      - {dependency}\n" in github_release_job
+
+
 def test_release_configuration_check_is_non_publishing() -> None:
     """测试发布配置检查仅执行校验与 Docker Hub 登录."""
     workflow = (
-        PROJECT_ROOT / ".github" / "workflows" / "release-check.yml"
+        PROJECT_ROOT / ".github" / "workflows" / "check.yml"
     ).read_text(encoding="utf-8")
 
     assert 'branches:\n      - main' in workflow
-    assert 'paths:\n      - ".github/workflows/release-check.yml"' in workflow
+    assert 'paths:\n      - ".github/workflows/check.yml"' in workflow
     assert "workflow_dispatch:" in workflow
     assert "environment: release" in workflow
     assert "validate-twine-config" in workflow

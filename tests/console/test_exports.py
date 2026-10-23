@@ -5,6 +5,16 @@
 核心功能：
   - test_console_exports_expected_public_api:
     验证控制台公共 API
+  - test_section_export_streams_filtered_csv:
+    测试导出当前筛选和排序条件下的全部记录
+  - test_trace_exports_preserve_complete_id_relationships:
+    测试调用链导出保留完整 ID 对应关系
+  - test_section_export_only_selected_records:
+    测试导出接口只查询用户选择的记录
+  - test_export_filename_uses_uniform_local_timestamp:
+    测试导出文件名统一使用页面名称和本地时间
+  - test_section_export_requires_export_permission:
+    测试导出接口要求独立数据导出权限
 """
 
 import re

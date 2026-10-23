@@ -21,6 +21,7 @@
 """
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -81,6 +82,15 @@ class Deployment(
             "uk_deployments_deployment_id",
             "deployment_id",
             unique=True,
+        ),
+        Index(
+            "uk_deployments_default_model_environment",
+            "model_id", "environment", unique=True,
+            postgresql_where=text("is_default AND deleted_at IS NULL"),
+        ),
+        CheckConstraint(
+            "NOT is_default OR (role = 'champion' AND rollout_type <> 'shadow')",
+            name="default_role_valid",
         ),
         CheckConstraint(
             (
@@ -208,6 +218,11 @@ class Deployment(
             "部署角色，可选值："
             "champion / challenger / shadow"
         ),
+    )
+
+    is_default = Column(
+        Boolean, nullable=False, server_default=text("false"),
+        comment="是否为默认部署",
     )
 
     effective_from = Column(

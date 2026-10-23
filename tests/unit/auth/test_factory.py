@@ -51,7 +51,7 @@ def create_settings(
 
     return SimpleNamespace(
         auth=auth,
-        service=SimpleNamespace(
+        common=SimpleNamespace(
             environment=environment
         ),
     )
@@ -69,8 +69,8 @@ def install_settings(
     )
     monkeypatch.setitem(
         vars(factory_module),
-        "get_service_config",
-        lambda: settings.service,
+        "get_common_config",
+        lambda: settings.common,
     )
 
 

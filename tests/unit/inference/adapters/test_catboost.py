@@ -43,7 +43,10 @@
   - test_invalid_probability_for_positive_class_zero_is_rejected:
     验证正类为类别零时校验第一列概率
   - test_invalid_feature_importance_is_rejected:
-    验证拒绝非有限特征重要性"""
+    验证拒绝非有限特征重要性
+  - test_native_model_predicts_probability:
+    测试原生 CatBoost 模型可以直接执行概率预测
+"""
 
 from typing import Any
 

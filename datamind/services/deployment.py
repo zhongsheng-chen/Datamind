@@ -6,6 +6,8 @@
   - create_deployment: 创建部署实例
   - enable_deployment: 启用部署
   - disable_deployment: 禁用部署
+  - set_default_deployment: 设置默认部署
+  - unset_default_deployment: 取消默认部署
   - delete_deployment: 逻辑删除部署
   - restore_deployment: 恢复部署
 
@@ -83,6 +85,7 @@ from datamind.services.mutation import MutationResult
 from datamind.models.guard import ModelGuard
 from datamind.models.resolver import ModelResolver
 from datamind.utils.generator import generate_random_id
+from datamind.utils.datetime import to_utc
 
 logger = structlog.get_logger(__name__)
 
@@ -541,6 +544,106 @@ class DeploymentLifecycleService:
                 result,
                 before={"status": str(current_status)},
                 after={"status": str(deployment.status)},
+            )
+
+    async def set_default_deployment(
+            self,
+            *,
+            deployment_id: str,
+            updated_by: str | None = None,
+    ) -> dict[str, Any]:
+        """将已启用且处于有效期内的主部署设为默认部署."""
+        return await self._change_default_deployment(
+            deployment_id=deployment_id,
+            is_default=True,
+            updated_by=updated_by,
+        )
+
+    async def unset_default_deployment(
+            self,
+            *,
+            deployment_id: str,
+            updated_by: str | None = None,
+    ) -> dict[str, Any]:
+        """取消部署的默认流量分配，不影响其启用状态和路由."""
+        return await self._change_default_deployment(
+            deployment_id=deployment_id,
+            is_default=False,
+            updated_by=updated_by,
+        )
+
+    async def _change_default_deployment(
+            self,
+            *,
+            deployment_id: str,
+            is_default: bool,
+            updated_by: str | None,
+    ) -> MutationResult:
+        """在同一事务中切换默认部署."""
+        async with UnitOfWork() as uow:
+            repo = DeploymentRepository(uow.session)
+            deployment = await repo.get_deployment(deployment_id)
+
+            if deployment is None:
+                raise DeploymentNotFoundError(f"部署不存在: {deployment_id}")
+
+            await repo.lock_model(deployment.model_id)
+            deployment = await repo.get_deployment(
+                deployment_id,
+                for_update=True,
+            )
+
+            if deployment is None:
+                raise DeploymentNotFoundError(f"部署不存在: {deployment_id}")
+
+            previous_id = None
+            before = {"is_default": bool(deployment.is_default)}
+
+            if is_default:
+                if (
+                        deployment.status != DeploymentStatus.ACTIVE.value
+                        or deployment.role != DeploymentRole.CHAMPION.value
+                        or deployment.rollout_type == RolloutType.SHADOW.value
+                ):
+                    raise InvalidDeploymentStateError(
+                        "默认部署必须是已启用的 champion 部署"
+                    )
+
+                now = datetime.now(timezone.utc)
+
+                if (
+                        (
+                                deployment.effective_from is not None
+                                and to_utc(deployment.effective_from) > now
+                        )
+                        or (
+                                deployment.effective_to is not None
+                                and to_utc(deployment.effective_to) <= now
+                        )
+                ):
+                    raise InvalidDeploymentStateError(
+                        "默认部署必须处于有效期内"
+                    )
+
+                previous_id = await repo.set_default_deployment(
+                    deployment,
+                    updated_by=updated_by,
+                )
+            else:
+                deployment.is_default = False
+                if updated_by is not None:
+                    deployment.updated_by = updated_by
+
+            return MutationResult.changed(
+                {
+                    "deployment_id": deployment.deployment_id,
+                    "model_id": deployment.model_id,
+                    "environment": deployment.environment,
+                    "is_default": is_default,
+                    "previous_deployment_id": previous_id,
+                },
+                before=before,
+                after={"is_default": is_default},
             )
 
     async def update_deployment(

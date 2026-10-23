@@ -98,6 +98,7 @@ def show_deployment(
                 "environment": deployment.environment,
                 "rollout_type": deployment.rollout_type,
                 "role": deployment.role,
+                    "is_default": bool(deployment.is_default),
                 "status": deployment.status,
                 "threshold": deployment.threshold,
                 "description": deployment.description,
@@ -135,6 +136,7 @@ def show_deployment(
         console.print(f"{'FRAMEWORK':<16} : {result['framework']}")
         console.print(f"{'ENVIRONMENT':<16} : {result['environment']}")
         console.print(f"{'ROLLOUT TYPE':<16} : {result['rollout_type']}")
+        console.print(f"{'DEFAULT':<16} : {result['is_default']}")
         console.print(f"{'ROLE':<16} : {result['role']}")
         console.print(f"{'STATUS':<16} : {result['status']}")
 

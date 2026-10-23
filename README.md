@@ -1,258 +1,257 @@
-# Datamind
+<!--suppress HtmlDeprecatedAttribute -->
+<div align="center">
+  <h1>Datamind</h1>
+  <p><strong>开放式模型服务管理平台</strong></p>
+  <p>将模型交付为可管理、可部署、可调用、可审计的生产服务。</p>
+  <p>
+    <a href="https://github.com/zhongsheng-chen/Datamind/actions/workflows/test.yml"><img alt="Tests" src="https://github.com/zhongsheng-chen/Datamind/actions/workflows/test.yml/badge.svg?branch=main"></a>
+    <a href="https://datamind.readthedocs.io/"><img alt="Documentation" src="https://readthedocs.org/projects/datamind/badge/?version=latest"></a>
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.12%20%7C%203.13%20%7C%203.14-blue">
+    <a href="https://github.com/zhongsheng-chen/Datamind/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg"></a>
+  </p>
+  <p>
+    <a href="https://datamind.readthedocs.io/"><strong>文档</strong></a> ·
+    <a href="#quick-start"><strong>快速开始</strong></a> ·
+    <a href="#features"><strong>核心能力</strong></a> ·
+    <a href="#model-compatibility"><strong>模型支持</strong></a> ·
+    <a href="#examples"><strong>示例</strong></a>
+  </p>
+</div>
 
-**开放式模型服务管理平台，连接模型交付与生产服务，让模型注册、版本管理、
-部署上线、API 调用、实验评估与审计追踪更加简单可靠。**
+---
 
-[快速开始](#快速开始) ·
-[模型支持](#模型支持) ·
-[Docker](#docker) ·
-[CLI 文档](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/README.md) ·
-[示例](https://github.com/zhongsheng-chen/Datamind/tree/main/examples)
+## Datamind 是什么
 
-Datamind 管理模型从制品到在线服务的交付链路：
+Datamind 是一个开放式模型服务管理平台，专注于模型训练完成后的交付与运行。它连接模型开发与生产运行，让开发成果能够直接转化为生产服务。平台支持多框架、多任务和多算法，将复杂的交付、运行与治理沉淀为稳定的平台能力。
 
-```text
-模型制品 → 注册与版本 → 部署与路由 → 在线推理 → 实验与审计
-```
+<a id="features"></a>
 
-> PyPI 发行包名为 `pydatamind`，Python 导入名和命令行入口均为
-> `datamind`。
+## 核心能力
 
-## 为什么使用 Datamind
+- **多框架、多任务、多算法**：支持不同机器学习框架，保持一致的交付与运行方式。
+- **渐进式模型发布**：支持全量、金丝雀和影子发布，让模型上线与切换更加可控。
+- **在线与批量推理**：支持实时预测和批量预测，满足不同生产运行场景。
+- **在线实验与评估**：支持 A/B 实验、稳定分桶和流量分配，用于真实流量下的运行指标与预测结果对比。
+- **全生命周期治理**：提供权限控制、操作审计和运行状态管理，让模型服务可追踪、可管理。
 
-- **统一模型交付**：集中管理模型、版本、制品和部署状态。
-- **渐进式上线**：支持全量、金丝雀和影子发布，并通过路由控制流量。
-- **一致的推理服务**：为分类模型和信用评分卡提供统一 Runtime Service。
-- **在线与批量任务**：同时支持实时调用、批量预测、取消、重试和结果回流。
-- **实验评估**：管理 A/B 实验、实验分组、流量分配和效果分析。
-- **生产治理**：提供权限控制、操作审计、健康检查和运行状态管理。
-- **开放存储与框架**：支持本地文件系统、MinIO 及主流树模型框架。
-
-Datamind 输出模型预测结果，不承担授信审批、额度策略或其他业务决策。
+<a id="quick-start"></a>
 
 ## 快速开始
 
-Datamind 支持 Python 3.12、3.13 和 3.14，并使用 PostgreSQL 保存平台数据。
+Datamind 支持 Python `>=3.12,<3.15`，建议使用 Python 3.12。
+
+如需异步任务或对象存储，还需分别配置 Redis 或 MinIO。已验证的版本为 Redis `8.8.2` 和 MinIO `RELEASE.2025-09-07T16-13-09Z`。
 
 ### 安装
 
-按模型框架安装对应的 extra。以下示例安装 scikit-learn 与评分卡支持：
+从 PyPI 安装：
+
+```bash
+python -m pip install pydatamind
+```
+
+如需机器学习框架支持，可按需安装对应 extra，例如：
 
 ```bash
 python -m pip install "pydatamind[sklearn]"
 ```
 
-安装全部框架：
+或安装全部支持的机器学习框架：
 
 ```bash
 python -m pip install "pydatamind[full]"
 ```
 
-确认 CLI 可用：
+从源码安装：
 
 ```bash
-datamind --version
-datamind --help
+git clone https://github.com/zhongsheng-chen/Datamind.git
+cd Datamind
+python -m pip install -e .
 ```
 
-### 配置与初始化
+从源码运行管理控制台前，需要构建前端资源，推荐使用 Node.js 24：
 
-在工作目录创建 `.env`：
+```bash
+npm ci
+npm run build:console
+```
+
+### 配置
+
+创建 `.env` 配置文件，并设置以下首次运行所需参数。完整配置项及说明见 [`.env.example`](https://github.com/zhongsheng-chen/Datamind/blob/main/.env.example)。
 
 ```dotenv
-DATAMIND_SERVICE_ENVIRONMENT=development
-DATAMIND_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/datamind
+# 运行环境
+DATAMIND_ENVIRONMENT=development
 
-DATAMIND_STORAGE_TYPE=local
-DATAMIND_STORAGE_LOCAL_BASE_DIR=./data
+# 数据库连接地址
+DATAMIND_DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname
 
+# 身份认证
 DATAMIND_AUTH_ENABLED=true
-DATAMIND_AUTH_SECRET_KEY=<long-random-secret>
-DATAMIND_INIT_ADMIN_USERNAME=admin
-DATAMIND_INIT_ADMIN_PASSWORD=<strong-password>
+DATAMIND_AUTH_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
-创建数据库结构并初始化系统：
+- `DATAMIND_ENVIRONMENT`：设置运行环境。
+- `DATAMIND_DATABASE_URL`：设置 PostgreSQL 数据库连接地址。
+- `DATAMIND_AUTH_ENABLED`：是否启用认证。
+- `DATAMIND_AUTH_SECRET_KEY`：设置 JWT 签名密钥。
+
+请根据实际环境设置数据库连接地址和 JWT 签名密钥。完整参数见[环境变量](https://datamind.readthedocs.io/en/latest/reference/environment-variables/)，生产环境要求见[生产部署](https://datamind.readthedocs.io/en/latest/deployment/production/)和 [Docker 部署](https://datamind.readthedocs.io/en/latest/deployment/docker/)。
+
+### 初始化
+
+执行数据库迁移：
 
 ```bash
-alembic upgrade head
+datamind db upgrade
+```
+
+创建首个管理员并完成系统初始化：
+
+```bash
 datamind init
+```
+
+默认管理员用户名和密码均为 `admin`。如需自定义，请在执行初始化前配置：
+
+```dotenv
+DATAMIND_INIT_ADMIN_USERNAME=admin
+DATAMIND_INIT_ADMIN_PASSWORD=replace-with-a-strong-password
+```
+
+### 登录
+
+启用认证后，完成系统初始化即可登录 CLI：
+
+```bash
 datamind login --username admin
 ```
 
-初始化完成后，应从运行环境中移除 `DATAMIND_INIT_ADMIN_PASSWORD`。
-所有配置项见
-[环境变量模板](https://github.com/zhongsheng-chen/Datamind/blob/main/.env.example)。
+如已自定义管理员用户名，请替换命令中的 `admin`。按提示输入密码即可完成登录。CLI 会在本地保存登录凭据，供后续命令自动使用。
 
-### 交付模型
+### 启动
 
-注册已经训练好的 scikit-learn 分类模型：
-
-```bash
-datamind model register credit-model \
-  --version 1.0.0 \
-  --model-path ./models/model.pkl \
-  --framework sklearn \
-  --model-type logistic_regression \
-  --task-type classification \
-  --display-name "Credit Model"
-```
-
-激活模型版本：
-
-```bash
-datamind model activate credit-model --version 1.0.0
-```
-
-创建并启用全量部署：
-
-```bash
-datamind deployment create credit-model \
-  --version 1.0.0 \
-  --rollout full
-
-datamind deployment enable <deployment_id>
-```
-
-将全部流量路由到该部署：
-
-```bash
-datamind route create <deployment_id> \
-  --name credit-model-route \
-  --traffic-ratio 1.0 \
-  --enabled
-```
-
-没有现成模型时，可以运行仓库中的可复现训练示例：
-
-```bash
-python examples/classification/logistic_regression/train.py
-```
-
-更多模型见
-[examples](https://github.com/zhongsheng-chen/Datamind/tree/main/examples)。
-
-### 启动服务
-
-启动 Runtime Service：
+启动服务：
 
 ```bash
 datamind service run
 ```
 
-Runtime 默认监听 `http://127.0.0.1:8700`。
-
-启动管理控制台：
+在另一个终端启动管理控制台：
 
 ```bash
 datamind console run
 ```
 
-管理控制台默认监听 `http://127.0.0.1:8701`。
+打开管理控制台：[http://127.0.0.1:8701](http://127.0.0.1:8701)，使用初始化时创建的管理员账号登录。
 
-完整命令和参数见
-[CLI 文档](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/README.md)。
+![Datamind 管理控制台登录界面](docs/assets/images/login.png)
+
+<a id="model-compatibility"></a>
 
 ## 模型支持
 
-选择与模型框架对应的 Python extra：
+Datamind 当前支持分类与评分两类任务，并兼容多种主流 Python 机器学习框架。
 
-| Extra | Framework | Model Type |
-| --- | --- | --- |
-| `sklearn` | scikit-learn | `logistic_regression`、`decision_tree`、`random_forest` |
-| `xgboost` | XGBoost | `xgboost` |
-| `lightgbm` | LightGBM | `lightgbm` |
-| `catboost` | CatBoost | `catboost` |
-| `full` | 全部框架 | 全部模型类型 |
+| 机器学习框架     | 分类 | 评分 |
+|------------------|:----:|:----:|
+| **scikit-learn** |  ✓  |  ✓  |
+| **XGBoost**      |  ✓  |  —   |
+| **LightGBM**     |  ✓  |  —   |
+| **CatBoost**     |  ✓  |  —   |
 
-Datamind 支持以下任务：
+- **分类任务**：支持 `sklearn.linear_model.LogisticRegression`、`sklearn.tree.DecisionTreeClassifier` 和 `sklearn.ensemble.RandomForestClassifier`，并兼容 `XGBoost`、`LightGBM` 与 `CatBoost`，返回分类标签与预测概率。
+- **评分任务**：支持以 `sklearn.linear_model.LogisticRegression` 为估计器的 `optbinning.Scorecard`，返回违约概率、总评分与特征分。
 
-- `classification`：返回分类结果和概率。
-- `scoring`：返回信用评分、违约概率、特征分和截距分。
 
-评分任务目前支持基于 scikit-learn 的逻辑回归评分卡；其他模型类型用于分类任务。
+<a id="examples"></a>
 
-## Docker
+## 示例
 
-正式镜像发布至 Docker Hub：
-
-```text
-docker.io/zhongshengchen/datamind:<version>
-```
-
-纯版本标签包含全部模型框架。单框架镜像使用 `-sklearn`、`-xgboost`、
-`-lightgbm` 或 `-catboost` 后缀。
-
-Docker Compose 启动 Runtime、管理控制台、批量任务 Worker 和影子任务
-Worker。PostgreSQL、Redis 和 MinIO 由外部基础设施提供。
+示例位于源码仓库的 `examples/` 目录，请克隆仓库后在项目根目录运行。 相关依赖包括 `scikit-learn`、`optbinning` 和 `CatBoost`。若已安装对应 extra 或 `pydatamind[full]`，可跳过依赖安装。
 
 ```bash
-cd docker
-cp .env.example .env.docker
-export DATAMIND_IMAGE_TAG=<version>
-
-docker compose --profile tools run --rm migrate
-docker compose --profile tools run --rm init
-docker compose up -d
+python -m pip install -e ".[sklearn,catboost]"
 ```
 
-容器访问宿主机服务时应使用 `host.docker.internal`。完整配置见
-[Docker 环境变量模板](https://github.com/zhongsheng-chen/Datamind/blob/main/docker/.env.example)
-和
-[Docker Compose](https://github.com/zhongsheng-chen/Datamind/blob/main/docker/docker-compose.yml)。
+### 分类任务
 
-## 工作方式
+以 `fraud-risk` 欺诈风险模型为例：
 
-Datamind 将控制面与运行面分开：
+```bash
+python examples/classification/catboost/train.py \
+  --output examples/classification/catboost/artifacts/fraud_risk.cbm
 
-- **CLI / Console** 管理模型、部署、路由、实验、用户和角色。
-- **Services** 处理资源生命周期与业务约束。
-- **Runtime** 负责路由、模型装载、预测执行和任务协调。
-- **Storage** 保存本地或 MinIO 模型制品。
-- **Database** 使用 SQLAlchemy、Alembic 和 PostgreSQL 持久化平台状态。
-- **Auth / Audit** 提供身份认证、权限控制和操作追踪。
+datamind model register fraud-risk \
+  --display-name "欺诈风险模型" \
+  --version 1.0.0 \
+  --model-path examples/classification/catboost/artifacts/fraud_risk.cbm \
+  --framework catboost \
+  --model-type catboost \
+  --task-type classification
+```
 
-核心资源按以下关系组织：
+### 评分任务
+
+以 `application-scorecard` 申请评分模型为例：
+
+```bash
+python examples/scorecard/train.py
+
+datamind model register application-scorecard \
+  --display-name "申请评分模型" \
+  --version 1.0.0 \
+  --model-path examples/scorecard/artifacts/application_scorecard.pkl \
+  --framework sklearn \
+  --model-type logistic_regression \
+  --task-type scoring
+```
+
+更多示例见 [examples](https://github.com/zhongsheng-chen/Datamind/tree/main/examples)。
+
+## Docker 镜像
+
+Datamind 的 Docker 镜像发布于 Docker Hub：
 
 ```text
-Model
-  └─ Version
-      └─ Artifact
-          └─ Deployment
-              └─ Routing
-                  └─ Runtime
+docker.io/zhongshengchen/datamind:latest
 ```
+
+Docker 镜像、Docker Compose 及相关配置见 [Docker 部署文档](https://datamind.readthedocs.io/en/latest/deployment/docker/)。
+
+## 文档
+
+安装、使用与部署说明见 [Documentation](https://datamind.readthedocs.io/)。
+
 
 ## 开发
 
-安装开发依赖：
+安装开发环境：
 
 ```bash
 python -m pip install -e ".[test,full,release]"
 npm ci
+npm run build:console
 ```
 
-运行快速测试：
+运行本地测试：
 
 ```bash
-pytest tests/unit tests/services tests/cli tests/console
-npm run test:frontend
+make test-all
 ```
 
-集成测试和端到端测试需要真实基础设施：
+构建：
 
 ```bash
-pytest -m integration
-pytest tests/e2e
+make build
 ```
 
-详细说明见：
+## 致谢
 
-- [CLI 文档](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/README.md)
-- [测试指南](https://github.com/zhongsheng-chen/Datamind/blob/main/tests/README.md)
-- [发布指南](https://github.com/zhongsheng-chen/Datamind/blob/main/RELEASING.md)
+感谢所有参与 Datamind 开发、测试、文档与反馈的贡献者，以及为本项目提供基础能力的开源社区。
 
 ## License
 
-Datamind 使用
-[Apache License 2.0](https://github.com/zhongsheng-chen/Datamind/blob/main/LICENSE)。
+Datamind 使用 [Apache License 2.0](LICENSE)。

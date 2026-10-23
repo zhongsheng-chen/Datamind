@@ -29,6 +29,8 @@
     验证用户详情使用标准文本布局
   - test_show_role_renders_standard_detail_layout:
     验证角色详情使用标准文本布局
+  - test_create_role_rejects_mixed_permission_options:
+    测试全部权限选项不能与单项权限混用
 """
 
 from types import SimpleNamespace
@@ -510,7 +512,7 @@ def test_user_list_renders_count_and_updated_at(
     )
     monkeypatch.setitem(
         vars(user_list_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),
@@ -559,7 +561,7 @@ def test_role_list_renders_count_and_updated_at(
     )
     monkeypatch.setitem(
         vars(role_list_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),
@@ -609,7 +611,7 @@ def test_show_user_renders_standard_detail_layout(
     )
     monkeypatch.setitem(
         vars(show_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),
@@ -662,7 +664,7 @@ def test_show_role_renders_standard_detail_layout(
     )
     monkeypatch.setitem(
         vars(role_show_module),
-        "get_logging_config",
+        "get_common_config",
         lambda: SimpleNamespace(
             timezone="Asia/Shanghai"
         ),

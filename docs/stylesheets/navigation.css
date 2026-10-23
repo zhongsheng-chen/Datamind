@@ -1,0 +1,37 @@
+.md-nav--primary .md-nav__item--nested > .md-nav__link .md-nav__icon {
+  color: var(--md-default-fg-color);
+  opacity: 0.7;
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  transition: color 160ms ease;
+}
+
+.md-nav--primary .md-nav__item--nested > .md-nav__link .md-nav__icon::after {
+  background-color: currentColor;
+  border-radius: 0;
+  height: 14px;
+  width: 14px;
+  -webkit-mask-image: url("../assets/icons/chevron-right.svg");
+  mask-image: url("../assets/icons/chevron-right.svg");
+  transform: rotate(0deg);
+  transition: transform 160ms ease;
+}
+
+.md-nav--primary .md-nav__item--nested > .md-nav__toggle:checked ~ .md-nav__link .md-nav__icon::after,
+.md-nav--primary .md-nav__item--nested > .md-toggle--indeterminate ~ .md-nav__link .md-nav__icon::after {
+  transform: rotate(90deg);
+}
+
+.md-nav--primary .md-nav__item--nested > .md-nav__link:hover .md-nav__icon,
+.md-nav--primary .md-nav__item--nested > .md-nav__link:focus-visible .md-nav__icon {
+  color: var(--md-accent-fg-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-nav--primary .md-nav__item--nested > .md-nav__link .md-nav__icon,
+  .md-nav--primary .md-nav__item--nested > .md-nav__link .md-nav__icon::after {
+    transition: none;
+  }
+}

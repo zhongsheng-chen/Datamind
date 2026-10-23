@@ -1,6 +1,6 @@
 """运行时预测处理.
 
-负责业务结果回流、单条与批量预测、记录持久化、
+负责单条与批量预测、记录持久化、
 影子预测调度以及 Worker 本地服务缓存。
 
 核心功能：
@@ -28,6 +28,7 @@ from datamind.audit import AuditRecorder
 from datamind.audit.errors import AuditError
 from datamind.config import (
     get_runtime_config,
+    get_common_config,
     get_service_config,
 )
 from datamind.context import get_context
@@ -43,7 +44,6 @@ from datamind.db.repositories import (
 )
 from datamind.models.enums import (
     DecisionStrategy,
-    DeploymentStatus,
     ExecutionStatus,
     ExecutionType,
 )
@@ -72,7 +72,6 @@ from datamind.runtime.server.errors import (
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
     BatchReferenceRequest,
-    OutcomeFeedbackRequest,
     PredictionInstance,
     PredictRequest,
 )
@@ -89,11 +88,11 @@ from datamind.runtime.task_queue import (
     TaskDispatchError,
     TaskPublisher,
 )
-from datamind.services import OutcomeService
 from datamind.utils.datetime import format_iso_utc
 from datamind.utils.generator import generate_random_id
 
 logger = structlog.get_logger(__name__)
+common_config = get_common_config()
 service_config = get_service_config()
 runtime_config = get_runtime_config()
 
@@ -111,71 +110,6 @@ class PredictionMixin:
     _service_cache: dict[str, ServiceCacheEntry]
     _service_lock: asyncio.Lock
     _execute_secured: Callable[..., Awaitable[dict[str, Any]]]
-
-    @bentoml.api(
-        route="/feedback/outcomes",
-    )
-    async def submit_outcome(
-            self,
-            request: OutcomeFeedbackRequest,
-            ctx: bentoml.Context,
-    ) -> dict[str, Any]:
-        """提交已认证的延迟业务结果."""
-        request_id = generate_random_id(
-            prefix="req"
-        )
-
-        return await self._execute_secured(
-            ctx=ctx,
-            permission="outcome.write",
-            request_id=request_id,
-            handler=lambda _identity: self._submit_outcome(
-                request=request,
-                request_id=request_id,
-            ),
-            audit_action="outcome.submit",
-            target_type="outcome",
-            target_id=request.outcome_id,
-        )
-
-    @staticmethod
-    async def _submit_outcome(
-            *,
-            request: OutcomeFeedbackRequest,
-            request_id: str,
-    ) -> dict[str, Any]:
-        """提交延迟业务结果."""
-        result = await OutcomeService().submit(
-            outcome_id=request.outcome_id,
-            subject_key=request.subject_key,
-            decision_id=request.decision_id,
-            request_id=request.request_id,
-            subject_type=request.subject_type,
-            approved=request.approved,
-            converted=request.converted,
-            defaulted=request.defaulted,
-            overdue_days=request.overdue_days,
-            amount=request.amount,
-            label=request.label,
-            context=request.context,
-            outcome_time=request.outcome_time,
-        )
-        outcome = result["outcome"]
-
-        for field in (
-                "outcome_time",
-                "created_at",
-                "updated_at",
-        ):
-            outcome[field] = format_iso_utc(
-                outcome[field]
-            )
-
-        return {
-            "success": True,
-            "request_id": request_id,
-            **result,
-        }
 
     @bentoml.api(
         route="/predict",
@@ -261,7 +195,7 @@ class PredictionMixin:
                 routing_plan = await self.router.resolve(
                     model_id=resolved_model_id,
                     environment=(
-                        service_config.environment
+                        common_config.environment
                     ),
                     subject_key=request.subject_key,
                     subject_type=request.subject_type,
@@ -346,7 +280,7 @@ class PredictionMixin:
                 deployment_id=request.deployment_id,
                 subject_key=request.subject_key,
                 subject_type=request.subject_type,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 **(
                     {"timeout_seconds": exc.seconds, "timeout_stage": exc.stage}
@@ -385,7 +319,7 @@ class PredictionMixin:
                 deployment_id=request.deployment_id,
                 subject_key=request.subject_key,
                 subject_type=request.subject_type,
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -450,7 +384,7 @@ class PredictionMixin:
                 model_id=model_id,
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
-                environment=service_config.environment.value,
+                environment=common_config.environment.value,
                 payload=request.model_dump(mode="json"),
                 total_count=len(request.instances),
                 source="http",
@@ -808,7 +742,7 @@ class PredictionMixin:
                         budget.enter_stage("routing")
                         routing_plan = await self.router.resolve(
                             model_id=model_id,
-                            environment=service_config.environment,
+                            environment=common_config.environment,
                             subject_key=instance.subject_key,
                             subject_type=instance.subject_type,
                             payload=instance.features,
@@ -990,7 +924,7 @@ class PredictionMixin:
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
                 batch_size=len(request.instances),
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 **(
                     {"timeout_seconds": exc.seconds, "timeout_stage": exc.stage}
@@ -1030,7 +964,7 @@ class PredictionMixin:
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
                 batch_size=len(request.instances),
-                environment=service_config.environment,
+                environment=common_config.environment,
                 worker_id=self.manager.worker_id,
                 error_type=exc.__class__.__name__,
                 error=str(exc),
@@ -1518,7 +1452,7 @@ class PredictionMixin:
             "request_id": request_id,
             "error": str(error),
             "error_type": error.__class__.__name__,
-            "environment": service_config.environment,
+            "environment": common_config.environment,
             "worker_id": self.manager.worker_id,
         }
 
@@ -1608,7 +1542,7 @@ class PredictionMixin:
         """
         return {
             "model_name": request.model_name,
-            "environment": service_config.environment,
+            "environment": common_config.environment,
             "deployment_id": request.deployment_id,
             "subject_key": request.subject_key,
             "subject_type": request.subject_type,
@@ -2568,7 +2502,7 @@ class PredictionMixin:
                 "创建 Worker RuntimeService",
                 worker_id=self.manager.worker_id,
                 environment=(
-                    service_config.environment
+                    common_config.environment
                 ),
                 deployment_id=deployment_id,
                 service_type=(
@@ -2616,7 +2550,7 @@ class PredictionMixin:
 
             if (
                     deployment.environment
-                    != service_config.environment
+                    != common_config.environment
             ):
                 raise ServiceEnvironmentMismatchError(
                     "部署环境与当前服务环境不一致: "
@@ -2624,12 +2558,7 @@ class PredictionMixin:
                     f"deployment_environment="
                     f"{deployment.environment}, "
                     f"service_environment="
-                    f"{service_config.environment}"
-                )
-
-            if deployment.status != str(DeploymentStatus.ACTIVE):
-                raise RuntimeRouteError(
-                    f"部署不可用: {deployment_id}"
+                    f"{common_config.environment}"
                 )
 
     @staticmethod

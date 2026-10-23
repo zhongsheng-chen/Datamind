@@ -98,14 +98,14 @@ def create_route(
 ):
     """创建路由规则.
 
-    时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
-    时区偏移。未提供时区偏移时，按配置时区解析。
+    说明：
+        时间格式：YYYY-MM-DD HH:MM:SS，可附加 ±HH:MM
+        时区偏移。未提供时区偏移时，按配置时区解析。
     """
     settings = get_settings()
-    service_config = settings.service
-    timezone_name = settings.logging.timezone
+    timezone_name = settings.common.timezone
 
-    environment = service_config.environment
+    environment = settings.common.environment
 
     @audit(
         action="route.create",

@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
+  prepare-release:
     runs-on: ubuntu-latest
 
     outputs:
@@ -57,18 +57,18 @@ jobs:
           fi
 
   tests-gate:
-    needs: prepare
+    needs: prepare-release
     uses: ./.github/workflows/test.yml
 
   build-python-distributions:
     needs:
-      - prepare
+      - prepare-release
       - tests-gate
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
+        image: ghcr.io/zhongsheng-chen/postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
         env:
           POSTGRES_DB: release_smoke
           POSTGRES_USER: release_smoke
@@ -82,11 +82,11 @@ jobs:
           --health-retries 5
 
     env:
-      DATAMIND_BUILD_COMMIT: ${{ needs.prepare.outputs.commit }}
-      DATAMIND_BUILD_DATE: ${{ needs.prepare.outputs.build_date }}
+      DATAMIND_BUILD_COMMIT: ${{ needs.prepare-release.outputs.commit }}
+      DATAMIND_BUILD_DATE: ${{ needs.prepare-release.outputs.build_date }}
       DATAMIND_RUN_WHEEL_SMOKE: "1"
-      DATAMIND_SMOKE_BUILD_COMMIT: ${{ needs.prepare.outputs.commit }}
-      DATAMIND_SMOKE_BUILD_DATE: ${{ needs.prepare.outputs.build_date }}
+      DATAMIND_SMOKE_BUILD_COMMIT: ${{ needs.prepare-release.outputs.commit }}
+      DATAMIND_SMOKE_BUILD_DATE: ${{ needs.prepare-release.outputs.build_date }}
       DATAMIND_SMOKE_DATABASE_URL: postgresql+asyncpg://release_smoke:release_smoke@127.0.0.1:5432/release_smoke
 
     steps:
@@ -127,22 +127,22 @@ jobs:
 
       - name: Smoke test the exact release Wheel
         env:
-          DATAMIND_SMOKE_WHEEL: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.wheel_name }}
+          DATAMIND_SMOKE_WHEEL: ${{ github.workspace }}/dist/${{ needs.prepare-release.outputs.wheel_name }}
         run: pytest --color=no -ra tests/smoke/test_wheel.py
 
       - name: Upload Python distributions
         uses: actions/upload-artifact@v7
         with:
-          name: python-${{ needs.prepare.outputs.distribution }}-${{ needs.prepare.outputs.version }}
+          name: python-${{ needs.prepare-release.outputs.distribution }}-${{ needs.prepare-release.outputs.version }}
           path: |
-            dist/${{ needs.prepare.outputs.wheel_name }}
-            dist/${{ needs.prepare.outputs.sdist_name }}
+            dist/${{ needs.prepare-release.outputs.wheel_name }}
+            dist/${{ needs.prepare-release.outputs.sdist_name }}
           if-no-files-found: error
           retention-days: 14
 
-  publish-python:
+  publish-python-distributions:
     needs:
-      - prepare
+      - prepare-release
       - build-python-distributions
     runs-on: ubuntu-latest
     environment: release
@@ -167,7 +167,7 @@ jobs:
       - name: Download Python distributions
         uses: actions/download-artifact@v8
         with:
-          name: python-${{ needs.prepare.outputs.distribution }}-${{ needs.prepare.outputs.version }}
+          name: python-${{ needs.prepare-release.outputs.distribution }}-${{ needs.prepare-release.outputs.version }}
           path: dist
 
       - name: Validate Twine publishing configuration
@@ -183,9 +183,9 @@ jobs:
           --non-interactive
           dist/*
 
-  build-verify-push-docker:
+  publish-versioned-docker-images:
     needs:
-      - prepare
+      - prepare-release
       - tests-gate
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -203,7 +203,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
+        image: ghcr.io/zhongsheng-chen/postgres:17.11-alpine3.24@sha256:f02121de6f74d30d8a94cd1d9584125e2178d7e6c377d8130112d4e52d867995
         env:
           POSTGRES_DB: release_docker_smoke
           POSTGRES_USER: release_docker_smoke
@@ -218,8 +218,8 @@ jobs:
 
     env:
       DATAMIND_RUN_DOCKER_SMOKE: "1"
-      DATAMIND_SMOKE_BUILD_COMMIT: ${{ needs.prepare.outputs.commit }}
-      DATAMIND_SMOKE_BUILD_DATE: ${{ needs.prepare.outputs.build_date }}
+      DATAMIND_SMOKE_BUILD_COMMIT: ${{ needs.prepare-release.outputs.commit }}
+      DATAMIND_SMOKE_BUILD_DATE: ${{ needs.prepare-release.outputs.build_date }}
       DATAMIND_SMOKE_DATABASE_URL: postgresql+asyncpg://release_docker_smoke:release_docker_smoke@host.docker.internal:5432/release_docker_smoke
       DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
 
@@ -275,8 +275,8 @@ jobs:
         run: >-
           python -m scripts.build_docker
           --framework "${{ matrix.framework }}"
-          --build-commit "${{ needs.prepare.outputs.commit }}"
-          --build-date "${{ needs.prepare.outputs.build_date }}"
+          --build-commit "${{ needs.prepare-release.outputs.commit }}"
+          --build-date "${{ needs.prepare-release.outputs.build_date }}"
 
       - name: Smoke test exact release image
         env:
@@ -292,11 +292,71 @@ jobs:
         if: always()
         run: docker logout docker.io
 
-  create-github-release:
+  publish-latest-docker-image:
     needs:
-      - prepare
-      - publish-python
-      - build-verify-push-docker
+      - prepare-release
+      - publish-python-distributions
+      - publish-versioned-docker-images
+    runs-on: ubuntu-latest
+    environment: release
+
+    env:
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Docker Hub publishing configuration
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: python -m scripts.release validate-dockerhub-config
+
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        shell: bash
+        run: >-
+          printf '%s' "${DOCKERHUB_TOKEN}"
+          | docker login docker.io
+          --username "${DOCKERHUB_USERNAME}"
+          --password-stdin
+
+      - name: Resolve full image tags
+        id: image
+        shell: bash
+        run: |
+          exact_image="$(python -m scripts.build_docker \
+            --framework full \
+            --print)"
+          repository="${exact_image%:*}"
+          echo "exact=${exact_image}" >> "${GITHUB_OUTPUT}"
+          echo "latest=${repository}:latest" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish latest from exact verified image
+        shell: bash
+        run: |
+          docker pull "${{ steps.image.outputs.exact }}"
+          docker tag \
+            "${{ steps.image.outputs.exact }}" \
+            "${{ steps.image.outputs.latest }}"
+          docker push "${{ steps.image.outputs.latest }}"
+
+      - name: Log out from Docker Hub
+        if: always()
+        run: docker logout docker.io
+
+  publish-github-release:
+    needs:
+      - prepare-release
+      - publish-python-distributions
+      - publish-versioned-docker-images
+      - publish-latest-docker-image
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -305,7 +365,7 @@ jobs:
       - name: Download exact Python distributions
         uses: actions/download-artifact@v8
         with:
-          name: python-${{ needs.prepare.outputs.distribution }}-${{ needs.prepare.outputs.version }}
+          name: python-${{ needs.prepare-release.outputs.distribution }}-${{ needs.prepare-release.outputs.version }}
           path: dist
 
       - name: Create GitHub Release
@@ -313,9 +373,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: >-
-          gh release create "${{ needs.prepare.outputs.tag }}"
-          "dist/${{ needs.prepare.outputs.wheel_name }}"
-          "dist/${{ needs.prepare.outputs.sdist_name }}"
+          gh release create "${{ needs.prepare-release.outputs.tag }}"
+          "dist/${{ needs.prepare-release.outputs.wheel_name }}"
+          "dist/${{ needs.prepare-release.outputs.sdist_name }}"
           --verify-tag
           --generate-notes
-          --title "Datamind ${{ needs.prepare.outputs.version }}"
+          --prerelease=${{ contains(needs.prepare-release.outputs.version, 'a') || contains(needs.prepare-release.outputs.version, 'b') || contains(needs.prepare-release.outputs.version, 'rc') || contains(needs.prepare-release.outputs.version, 'dev') }}
+          --title "Datamind ${{ needs.prepare-release.outputs.version }}"

@@ -1,6 +1,6 @@
 """运行时服务请求结构.
 
-定义运行控制、模型预测和业务结果回流接口的输入结构。
+定义运行控制、模型预测接口的输入结构。
 
 核心功能：
   - ControlRequest: 运行控制请求
@@ -9,7 +9,6 @@
   - PredictionInstance: 批量预测中的单条预测实例
   - BatchPredictRequest: 批量预测请求
   - BatchReferenceRequest: 批次引用请求
-  - OutcomeFeedbackRequest: 业务结果回流请求
 
 使用示例：
   from datamind.runtime.server.schemas import PredictRequest
@@ -22,7 +21,6 @@
   )
 """
 
-from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -42,6 +40,7 @@ class ControlRequest(RuntimeRequest):
 
     deployment_id: str = Field(
         min_length=1,
+        description="要重新加载的部署 ID",
     )
 
 
@@ -50,6 +49,7 @@ class DeploymentRequest(RuntimeRequest):
 
     deployment_id: str = Field(
         min_length=1,
+        description="要查询运行状态的部署 ID",
     )
 
 
@@ -59,13 +59,24 @@ class PredictRequest(RuntimeRequest):
     model_name: str = Field(
         min_length=1,
         max_length=100,
+        description="已注册的模型名称",
     )
     features: dict[str, Any] = Field(
         min_length=1,
+        description="本次预测的输入特征",
     )
-    deployment_id: str | None = None
-    subject_key: str | None = None
-    subject_type: str | None = None
+    deployment_id: str | None = Field(
+        default=None,
+        description="显式指定的部署 ID；省略时由路由选择部署",
+    )
+    subject_key: str | None = Field(
+        default=None,
+        description="用于实验分组和路由匹配的稳定业务主体标识",
+    )
+    subject_type: str | None = Field(
+        default=None,
+        description="用于路由条件匹配的业务主体类型，例如 customer",
+    )
 
 
 class PredictionInstance(RuntimeRequest):
@@ -73,9 +84,16 @@ class PredictionInstance(RuntimeRequest):
 
     features: dict[str, Any] = Field(
         min_length=1,
+        description="该实例的输入特征",
     )
-    subject_key: str | None = None
-    subject_type: str | None = None
+    subject_key: str | None = Field(
+        default=None,
+        description="该实例用于实验分组和路由匹配的稳定业务主体标识",
+    )
+    subject_type: str | None = Field(
+        default=None,
+        description="该实例用于路由条件匹配的业务主体类型，例如 customer",
+    )
 
 
 class BatchPredictRequest(RuntimeRequest):
@@ -84,11 +102,16 @@ class BatchPredictRequest(RuntimeRequest):
     model_name: str = Field(
         min_length=1,
         max_length=100,
+        description="已注册的模型名称",
     )
     instances: list[PredictionInstance] = Field(
         min_length=1,
+        description="需要预测的实例列表",
     )
-    deployment_id: str | None = None
+    deployment_id: str | None = Field(
+        default=None,
+        description="批次内所有实例共用的部署 ID；省略时逐条路由",
+    )
 
 
 class BatchReferenceRequest(RuntimeRequest):
@@ -97,34 +120,5 @@ class BatchReferenceRequest(RuntimeRequest):
     batch_id: str = Field(
         min_length=1,
         max_length=64,
+        description="批量预测提交返回的批次 ID",
     )
-
-
-class OutcomeFeedbackRequest(RuntimeRequest):
-    """业务结果回流请求."""
-
-    outcome_id: str = Field(
-        min_length=1,
-        max_length=64,
-    )
-    subject_key: str = Field(
-        min_length=1,
-        max_length=128,
-    )
-    decision_id: str | None = None
-    request_id: str | None = None
-    subject_type: str | None = None
-    approved: bool | None = None
-    converted: bool | None = None
-    defaulted: bool | None = None
-    overdue_days: int | None = Field(
-        default=None,
-        ge=0,
-    )
-    amount: float | None = Field(
-        default=None,
-        ge=0,
-    )
-    label: str | None = None
-    context: dict[str, Any] | None = None
-    outcome_time: datetime | None = None

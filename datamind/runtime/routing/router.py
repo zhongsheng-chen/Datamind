@@ -543,20 +543,7 @@ class RuntimeRouter:
             key=lambda item: str(item[0].routing_id)
         )
 
-        payload_subject_key = self._payload_key(
-            payload
-        )
-
-        routing_key = (
-                subject_key
-                or payload_subject_key
-                or model_id
-        )
-
-        route_subject_key = (
-                subject_key
-                or payload_subject_key
-        )
+        routing_key = subject_key or model_id
 
         ratio, bucket = self._hash_ratio(
             "routing",
@@ -593,7 +580,7 @@ class RuntimeRouter:
                     source=DecisionStrategy.ROUTING,
                     strategy="weighted",
                     routing_id=routing.routing_id,
-                    subject_key=route_subject_key,
+                    subject_key=subject_key or None,
                     subject_type=subject_type,
                     bucket=bucket,
                     weight=weight,
@@ -640,20 +627,22 @@ class RuntimeRouter:
             )
         ]
 
-        if not deployments:
-            return None
-
-        champion = [
+        defaults = [
             item for item in deployments
             if item.role == DeploymentRole.CHAMPION.value
+            and item.is_default
         ]
 
-        if champion:
-            deployment = champion[0]
-            fallback_reason = "active_champion_deployment"
-        else:
-            deployment = deployments[0]
-            fallback_reason = "first_active_deployment"
+        if not defaults:
+            return None
+
+        if len(defaults) > 1:
+            raise RuntimeRouteError(
+                f"模型在当前环境下存在多个可用默认部署: "
+                f"model_id={model_id}, environment={environment}"
+            )
+
+        deployment = defaults[0]
 
         return self._build_deployment_result(
             deployment=deployment,
@@ -662,7 +651,7 @@ class RuntimeRouter:
             subject_key=subject_key,
             subject_type=subject_type,
             context={
-                "reason": fallback_reason,
+                "reason": "explicit_default_deployment",
             },
         )
 
@@ -690,14 +679,7 @@ class RuntimeRouter:
                     environment
                 ),
             )
-            route_subject_key = (
-                subject_key
-                or self._payload_key(payload)
-            )
-            routing_key = (
-                route_subject_key
-                or model_id
-            )
+            routing_key = subject_key or model_id
             results: list[RouteResult] = []
             deployments_seen: set[str] = set()
 
@@ -777,7 +759,7 @@ class RuntimeRouter:
                         source=DecisionStrategy.SHADOW,
                         strategy="weighted",
                         routing_id=routing.routing_id,
-                        subject_key=route_subject_key,
+                        subject_key=subject_key or None,
                         subject_type=subject_type,
                         bucket=bucket,
                         weight=weight,
@@ -892,35 +874,6 @@ class RuntimeRouter:
                 **(context or {}),
             },
         )
-
-    @staticmethod
-    def _payload_key(
-            payload: dict | None,
-    ) -> str | None:
-        """从 payload 中取一个稳定路由键.
-
-        说明：
-          - A/B 实验分桶主体由 ABTestEngine 根据 bucket_key 解析
-          - 这里仅用于 routing 表稳定加权路由
-        """
-        if not payload:
-            return None
-
-        for key in (
-                "subject_key",
-                "customer_id",
-                "order_id",
-                "application_id",
-        ):
-            value = payload.get(key)
-
-            if isinstance(
-                    value,
-                    (str, bool, int, float),
-            ):
-                return str(value)
-
-        return None
 
     def _is_routable_deployment(
             self,

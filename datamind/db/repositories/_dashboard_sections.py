@@ -613,6 +613,7 @@ _SECTION_SORT_COLUMNS: dict[str, dict[str, Any]] = {
         "framework": Deployment.framework,
         "rollout_type": Deployment.rollout_type,
         "role": Deployment.role,
+        "is_default": Deployment.is_default,
         "status": Deployment.status,
         "updated_at": Deployment.updated_at,
     },

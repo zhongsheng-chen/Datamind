@@ -17,6 +17,7 @@ EXPECTED_EXPORTS = {
     "get_audit_config",
     "get_auth_config",
     "get_classification_config",
+    "get_common_config",
     "get_console_config",
     "get_database_config",
     "get_initialization_config",

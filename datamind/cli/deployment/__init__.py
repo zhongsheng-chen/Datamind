@@ -6,6 +6,8 @@
   - create: 创建模型部署
   - enable: 启用部署
   - disable: 停用部署
+  - set-default: 设置默认部署
+  - unset-default: 取消默认部署
   - delete: 删除部署
   - restore: 恢复部署
   - list: 列出部署
@@ -16,6 +18,7 @@ import typer
 
 from datamind.cli.deployment.create import app as create_app
 from datamind.cli.deployment.enable import app as enable_app
+from datamind.cli.deployment.default import app as default_app
 from datamind.cli.deployment.disable import app as disable_app
 from datamind.cli.deployment.delete import app as delete_app
 from datamind.cli.deployment.list import app as list_app
@@ -28,6 +31,7 @@ app = typer.Typer(
 
 app.add_typer(create_app)
 app.add_typer(enable_app)
+app.add_typer(default_app)
 app.add_typer(disable_app)
 app.add_typer(delete_app)
 app.add_typer(restore_app)

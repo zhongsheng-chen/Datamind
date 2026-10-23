@@ -130,6 +130,11 @@ async def create_canary_deployments(
             updated_by="e2e-test",
         )
 
+    await deployment_service.set_default_deployment(
+        deployment_id=champion_deployment["deployment_id"],
+        updated_by="e2e-test",
+    )
+
     routing = await RoutingLifecycleService().create_routing(
         name=f"route-{name}-challenger",
         deployment_id=challenger_deployment["deployment_id"],

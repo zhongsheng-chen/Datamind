@@ -119,7 +119,7 @@ def configure_module(
     if module is list_module:
         monkeypatch.setitem(
             namespace,
-            "get_service_config",
+            "get_common_config",
             lambda: SimpleNamespace(
                 environment=Environment.DEVELOPMENT
             ),

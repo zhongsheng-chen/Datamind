@@ -1,0 +1,2 @@
+- `batch_id` 必须使用批量提交响应返回的值；状态查询返回持久化的进度、计数以及可用的结果或错误。
+- 取消适用于 `queued`、`retrying` 或 `running`，并可对 `cancelling`、`cancelled` 重复调用；重试只适用于 `partially_succeeded`、`failed` 或 `cancelled`。

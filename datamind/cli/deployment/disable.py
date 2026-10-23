@@ -39,7 +39,10 @@ def disable_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """停用部署并停止运行实例."""
+    """停用部署.
+
+    停用后，运行实例将停止运行，已加载的模型将被卸载。
+    """
 
     @audit(
         action="deploy.disable",

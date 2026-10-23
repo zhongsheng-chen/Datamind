@@ -98,7 +98,6 @@ def test_logging_config_defaults() -> None:
     assert config.dir == Path("logs")
     assert config.filename == "datamind.log"
     assert config.date_format is None
-    assert config.timezone == "Asia/Shanghai"
     assert config.rotation == RotationType.TIME
     assert config.rotation_when == RotationWhen.MIDNIGHT
     assert config.rotation_interval == 1
@@ -160,7 +159,6 @@ def test_logging_config_reads_environment_variables(
         "DATAMIND_LOG_DIR": "runtime/logs",
         "DATAMIND_LOG_FILENAME": "service.log",
         "DATAMIND_LOG_DATE_FORMAT": "%Y-%m-%d %H:%M:%S",
-        "DATAMIND_LOG_TIMEZONE": "UTC",
         "DATAMIND_LOG_ROTATION": "size",
         "DATAMIND_LOG_ROTATION_WHEN": "H",
         "DATAMIND_LOG_ROTATION_INTERVAL": "2",
@@ -192,7 +190,6 @@ def test_logging_config_reads_environment_variables(
     assert config.dir == Path("runtime/logs")
     assert config.filename == "service.log"
     assert config.date_format == "%Y-%m-%d %H:%M:%S"
-    assert config.timezone == "UTC"
     assert config.rotation == RotationType.SIZE
     assert config.rotation_when == RotationWhen.HOUR
     assert config.rotation_interval == 2
@@ -232,7 +229,6 @@ def test_logging_config_accepts_valid_values() -> None:
         dir=Path("runtime/logs"),
         filename="service.log",
         date_format="%Y-%m-%d %H:%M:%S",
-        timezone="UTC",
         rotation=RotationType.SIZE,
         rotation_when=RotationWhen.HOUR,
         rotation_interval=2,
@@ -255,7 +251,6 @@ def test_logging_config_accepts_valid_values() -> None:
     assert config.dir == Path("runtime/logs")
     assert config.filename == "service.log"
     assert config.date_format == "%Y-%m-%d %H:%M:%S"
-    assert config.timezone == "UTC"
     assert config.rotation == RotationType.SIZE
     assert config.rotation_when == RotationWhen.HOUR
     assert config.rotation_interval == 2
@@ -298,16 +293,6 @@ def test_logging_config_accepts_valid_values() -> None:
             "date_format",
             " ",
             "date_format 不能是空字符串",
-        ),
-        (
-            "timezone",
-            "",
-            "timezone 不能为空",
-        ),
-        (
-            "timezone",
-            "Invalid/Timezone",
-            "timezone 不是有效的 IANA 时区",
         ),
         (
             "rotation_interval",

@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import datamind.runtime.server.entrypoints.healthcheck as healthcheck_module
+import datamind.runtime.server.healthcheck as healthcheck_module
 
 
 def test_healthcheck_calls_ready_endpoint(

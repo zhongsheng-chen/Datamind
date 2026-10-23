@@ -229,6 +229,7 @@ def show_runtime(
         table.add_column("RUNTIME ID")
         table.add_column("WORKER ID")
         table.add_column("STATUS")
+        table.add_column("APPLIED GENERATION")
         table.add_column("LOADED AT")
         table.add_column("UNLOADED AT")
         table.add_column("HEARTBEAT")
@@ -239,6 +240,11 @@ def show_runtime(
                 str(runtime["runtime_id"]),
                 str(runtime["worker_id"]),
                 str(runtime["status"]),
+                str(
+                    runtime["applied_generation"]
+                    if runtime["applied_generation"] is not None
+                    else "-"
+                ),
                 format_datetime(
                     parse_datetime(
                         runtime["loaded_at"]

@@ -351,6 +351,7 @@ const sections = {
       ["model_version", "版本"],
       ["rollout_type", "发布类型"],
       ["role", "角色", "deployment-role"],
+      ["is_default", "默认部署", "boolean"],
       ["framework", "框架"],
       ["status", "状态", "status"],
       ["updated_at", "更新时间", "time"],
@@ -526,7 +527,7 @@ const sections = {
 const versionColumns = [
   ["version", "版本"],
   ["framework", "框架"],
-  ["artifact_revision", "制品修订"],
+  ["artifact_revision", "文件修订"],
   ["status", "状态", "status"],
   ["updated_at", "更新时间", "time"],
 ];

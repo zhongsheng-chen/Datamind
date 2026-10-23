@@ -3,7 +3,7 @@
 提供命令行工具的入口和子命令管理。
 
 核心功能：
-  - init: 一次性系统初始化
+  - init: 系统初始化，创建首个管理员并授予系统管理员角色
   - login: 登录本地 CLI 会话
   - logout: 退出本地 CLI 会话
   - whoami: 查询当前登录身份
@@ -13,10 +13,11 @@
   - route: 路由管理子命令
   - service: 服务进程子命令
   - runtime: 运行状态管理子命令
-  - outcome: 实验结果回流子命令
   - user: 用户管理子命令
   - role: 角色管理子命令
   - console: 管理控制台子命令
+  - worker: 任务 Worker 子命令
+  - db: 数据库管理子命令
 
 使用示例：
   python -m datamind.cli.main --help
@@ -32,16 +33,17 @@ from datamind.cli.auth.logout import logout
 from datamind.cli.auth.whoami import whoami
 from datamind.cli.branding import short_commit
 from datamind.cli.console import app as console_app
+from datamind.cli.db import app as db_app
 from datamind.cli.deployment import app as deployment_app
 from datamind.cli.experiment import app as experiment_app
 from datamind.cli.init import initialize
 from datamind.cli.model import app as model_app
-from datamind.cli.outcome import app as outcome_app
 from datamind.cli.route import app as route_app
 from datamind.cli.role import app as role_app
 from datamind.cli.runtime import app as runtime_app
 from datamind.cli.service import app as service_app
 from datamind.cli.user import app as user_app
+from datamind.cli.worker import app as worker_app
 from datamind.config import get_logging_config
 from datamind.logging import setup_logging
 
@@ -99,11 +101,12 @@ app.add_typer(deployment_app, name="deployment")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(route_app, name="route")
 app.add_typer(service_app, name="service")
+app.add_typer(worker_app, name="worker")
 app.add_typer(runtime_app, name="runtime")
-app.add_typer(outcome_app, name="outcome")
 app.add_typer(user_app, name="user")
 app.add_typer(role_app, name="role")
 app.add_typer(console_app, name="console")
+app.add_typer(db_app, name="db")
 
 if __name__ == "__main__":
     app()

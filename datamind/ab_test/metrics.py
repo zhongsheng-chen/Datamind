@@ -1,27 +1,15 @@
 """A/B 实验指标评估.
 
-根据实验结果记录计算 A/B 测试指标，用于实验效果评估和模型表现对比。
+根据请求决策和主执行记录计算流量、运行及预测分布指标。
 
 核心功能：
   - VariantMetrics: 实验分组指标
   - MetricComparison: 指标对比结果
   - ExperimentMetrics: 实验整体指标
   - ABTestMetricEvaluator: A/B 实验指标评估器
-
-使用示例：
-  from datamind.ab_test.metrics import ABTestMetricEvaluator
-
-  evaluator = ABTestMetricEvaluator()
-
-  metrics = evaluator.calculate_experiment_metrics(
-      experiment_id="exp_0123456789abcdef",
-      outcomes=outcomes,
-      baseline_variant_id="var_control",
-  )
-
-  result = metrics.to_dict()
 """
 
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 import math
 from typing import Any
@@ -32,36 +20,46 @@ class VariantMetrics:
     """实验分组指标.
 
     属性：
-        experiment_id: 实验 ID
-        variant_id: 实验分组 ID
-        total_count: 样本总数
-        approved_count: 审批通过数
-        converted_count: 转化数
-        defaulted_count: 违约数
-        bad_count: 坏样本数
-        amount_count: 有金额记录数
-        total_amount: 总金额
-        average_amount: 平均金额
-        approval_rate: 审批通过率
-        conversion_rate: 转化率
-        default_rate: 违约率
-        bad_rate: 坏样本率
+        total_count: 决策记录数，重复主体的请求分别计数
+        subject_count: 不同主体类型与标识的组合数
+        assignment_count: 不同实验分配记录数
+        traffic_ratio: 当前分析范围内的决策占比
+        execution_count: 主执行记录数
+        completed_count: 已结束的主执行记录数
+        success_rate: 成功主执行数除以已结束主执行数
+        average_latency_ms: 已结束主执行的平均有效耗时
+        average_probability: 成功主执行的平均有效预测概率
+        average_score: 成功主执行的平均有效评分
+        prediction_counts: 成功主执行的分类标签分布
     """
 
     experiment_id: str | None
     variant_id: str
     total_count: int = 0
-    approved_count: int = 0
-    converted_count: int = 0
-    defaulted_count: int = 0
-    bad_count: int = 0
-    amount_count: int = 0
-    total_amount: float = 0.0
-    average_amount: float = 0.0
-    approval_rate: float = 0.0
-    conversion_rate: float = 0.0
-    default_rate: float = 0.0
-    bad_rate: float = 0.0
+    subject_count: int = 0
+    assignment_count: int = 0
+    traffic_ratio: float = 0.0
+    execution_count: int = 0
+    completed_count: int = 0
+    success_count: int = 0
+    failed_count: int = 0
+    timeout_count: int = 0
+    cancelled_count: int = 0
+    queued_count: int = 0
+    running_count: int = 0
+    success_rate: float | None = None
+    latency_count: int = 0
+    average_latency_ms: float | None = None
+    probability_count: int = 0
+    average_probability: float | None = None
+    minimum_probability: float | None = None
+    maximum_probability: float | None = None
+    score_count: int = 0
+    average_score: float | None = None
+    minimum_score: float | None = None
+    maximum_score: float | None = None
+    decision_counts: dict[str, int] = field(default_factory=dict)
+    prediction_counts: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """转换为字典."""
@@ -70,17 +68,7 @@ class VariantMetrics:
 
 @dataclass(slots=True)
 class MetricComparison:
-    """指标对比结果.
-
-    属性：
-        metric: 指标名称
-        baseline_variant_id: 基准分组 ID
-        variant_id: 对比分组 ID
-        baseline_value: 基准分组指标值
-        variant_value: 对比分组指标值
-        absolute_lift: 绝对提升，variant_value - baseline_value
-        relative_lift: 相对提升，baseline_value 为 0 时返回 None
-    """
+    """分组指标差异，正值表示实验组的数值较高."""
 
     metric: str
     baseline_variant_id: str
@@ -97,15 +85,7 @@ class MetricComparison:
 
 @dataclass(slots=True)
 class ExperimentMetrics:
-    """实验整体指标.
-
-    属性：
-        experiment_id: 实验 ID
-        total_count: 实验样本总数
-        baseline_variant_id: 基准分组 ID
-        variants: 分组指标，key 为 variant_id
-        comparisons: 分组对比结果，第一层 key 为 variant_id，第二层 key 为 metric
-    """
+    """实验整体指标，按决策所属分组统计."""
 
     experiment_id: str
     total_count: int
@@ -119,418 +99,152 @@ class ExperimentMetrics:
             "experiment_id": self.experiment_id,
             "total_count": self.total_count,
             "baseline_variant_id": self.baseline_variant_id,
-            "variants": {
-                variant_id: metrics.to_dict()
-                for variant_id, metrics in self.variants.items()
-            },
+            "variants": {key: value.to_dict() for key, value in self.variants.items()},
             "comparisons": {
-                variant_id: {
-                    metric: comparison.to_dict()
-                    for metric, comparison in metric_map.items()
-                }
-                for variant_id, metric_map in self.comparisons.items()
+                key: {name: value.to_dict() for name, value in values.items()}
+                for key, values in self.comparisons.items()
             },
         }
 
 
 class ABTestMetricEvaluator:
-    """A/B 实验指标评估器.
-
-    提供 A/B 实验分组指标、整体指标和 lift 对比的评估能力。
-
-    说明：
-      - total_count 使用 outcome 记录数
-      - approval_rate = approved_count / total_count
-      - conversion_rate = converted_count / total_count
-      - default_rate = defaulted_count / total_count
-      - bad_rate = bad_count / total_count
-      - bad_count 会综合 defaulted、label、overdue_days 判断
-    """
-
-    def __init__(
-        self,
-        *,
-        bad_label: str = "bad",
-        overdue_bad_threshold: int = 30,
-    ):
-        """初始化 A/B 实验指标评估器.
-
-        参数：
-            bad_label: 坏样本标签，默认值为 bad
-            overdue_bad_threshold: 坏样本逾期天数阈值，默认值为 30
-        """
-        self.bad_label = bad_label
-        self.overdue_bad_threshold = overdue_bad_threshold
+    """使用决策与主执行记录评估实验运行情况."""
 
     def calculate_experiment_metrics(
-        self,
-        *,
-        experiment_id: str,
-        outcomes: list[Any],
-        baseline_variant_id: str | None = None,
+            self,
+            *,
+            experiment_id: str,
+            decisions: list[Any],
+            executions: list[Any],
+            baseline_variant_id: str | None = None,
     ) -> ExperimentMetrics:
-        """计算实验整体指标.
+        """计算实验指标.
 
         参数：
             experiment_id: 实验 ID
-            outcomes: 实验结果记录列表
-            baseline_variant_id: 基准分组 ID（可选）
+            decisions: 原始请求决策记录
+            executions: 对应的执行记录，影子执行不参与指标计算
+            baseline_variant_id: 基准分组 ID
 
         返回：
-            实验整体指标
-
-        异常：
-            ValueError: 实验 ID 为空，或 baseline_variant_id 不存在
+            实验指标及有有效样本的分组差异
         """
         if not experiment_id:
             raise ValueError("实验 ID 不能为空")
 
-        experiment_outcomes = [
-            item for item in outcomes
-            if getattr(item, "experiment_id", None) == experiment_id
-        ]
+        selected = [item for item in decisions if item.experiment_id == experiment_id]
+        variants = self.calculate_variant_metrics(decisions=selected, executions=executions)
+        if baseline_variant_id is not None and baseline_variant_id not in variants:
+            raise ValueError("基准分组没有决策记录")
 
-        variants = self.calculate_variant_metrics(
-            outcomes=experiment_outcomes,
-        )
-
+        comparisons = {}
         if baseline_variant_id is not None:
-            if baseline_variant_id not in variants:
-                raise ValueError("基准分组不存在")
-
-        comparisons = self._compare_variants(
-            variants=variants,
-            baseline_variant_id=baseline_variant_id,
-        )
-
-        total_count = sum(
-            metrics.total_count
-            for metrics in variants.values()
-        )
+            baseline = variants[baseline_variant_id]
+            for key, metrics in variants.items():
+                if key == baseline_variant_id:
+                    continue
+                values = {}
+                for name in (
+                        "success_rate", "average_latency_ms",
+                        "average_probability", "average_score",
+                ):
+                    base_value = getattr(baseline, name)
+                    value = getattr(metrics, name)
+                    if base_value is None or value is None:
+                        continue
+                    values[name] = MetricComparison(
+                        metric=name,
+                        baseline_variant_id=baseline_variant_id,
+                        variant_id=key,
+                        baseline_value=base_value,
+                        variant_value=value,
+                        absolute_lift=value - base_value,
+                        relative_lift=(value - base_value) / base_value if base_value else None,
+                    )
+                comparisons[key] = values
 
         return ExperimentMetrics(
             experiment_id=experiment_id,
-            total_count=total_count,
+            total_count=len(selected),
             baseline_variant_id=baseline_variant_id,
             variants=variants,
             comparisons=comparisons,
         )
 
     def calculate_variant_metrics(
-        self,
-        *,
-        outcomes: list[Any],
+            self,
+            *,
+            decisions: list[Any],
+            executions: list[Any],
     ) -> dict[str, VariantMetrics]:
-        """计算实验分组指标.
-
-        参数：
-            outcomes: 实验结果记录列表
-
-        返回：
-            分组指标字典，key 为 variant_id
-        """
+        """按决策分组计算指标，排除影子与无关联执行."""
         grouped: dict[str, list[Any]] = {}
+        primary: dict[str, list[Any]] = {}
+        for item in executions:
+            if item.execution_type == "primary":
+                primary.setdefault(item.decision_id, []).append(item)
+        for item in decisions:
+            if isinstance(item.variant_id, str) and item.variant_id:
+                grouped.setdefault(item.variant_id, []).append(item)
 
-        for outcome in outcomes:
-            variant_id = getattr(outcome, "variant_id", None)
-
-            if not isinstance(variant_id, str) or not variant_id:
-                continue
-
-            grouped.setdefault(variant_id, []).append(outcome)
-
-        result: dict[str, VariantMetrics] = {}
-
+        result = {}
         for variant_id, items in grouped.items():
-            result[variant_id] = self._calculate_single_variant_metrics(
+            runs = [run for item in items for run in primary.get(item.decision_id, [])]
+            statuses = Counter(run.status for run in runs)
+            finished = [run for run in runs if run.status in ("success", "failed", "timeout", "cancelled")]
+            successful = [run for run in runs if run.status == "success"]
+            latency = self._numbers(finished, "latency_ms")
+            probability = self._numbers(successful, "probability")
+            scores = self._numbers(successful, "score")
+            labels = Counter()
+            for run in successful:
+                prediction = run.prediction
+                if isinstance(prediction, dict):
+                    label = prediction.get("label")
+                    if isinstance(label, (str, int, float, bool)):
+                        labels[str(label)] += 1
+            result[variant_id] = VariantMetrics(
+                experiment_id=items[0].experiment_id,
                 variant_id=variant_id,
-                outcomes=items,
+                total_count=len(items),
+                subject_count=len({(item.subject_type, item.subject_key) for item in items if item.subject_key is not None}),
+                assignment_count=len({item.assignment_id for item in items if item.assignment_id is not None}),
+                traffic_ratio=len(items) / len(decisions) if decisions else 0.0,
+                execution_count=len(runs),
+                completed_count=len(finished),
+                success_count=statuses["success"],
+                failed_count=statuses["failed"],
+                timeout_count=statuses["timeout"],
+                cancelled_count=statuses["cancelled"],
+                queued_count=statuses["queued"],
+                running_count=statuses["running"],
+                success_rate=statuses["success"] / len(finished) if finished else None,
+                latency_count=len(latency),
+                average_latency_ms=self._mean(latency),
+                probability_count=len(probability),
+                average_probability=self._mean(probability),
+                minimum_probability=min(probability) if probability else None,
+                maximum_probability=max(probability) if probability else None,
+                score_count=len(scores),
+                average_score=self._mean(scores),
+                minimum_score=min(scores) if scores else None,
+                maximum_score=max(scores) if scores else None,
+                decision_counts=dict(Counter(item.decision for item in items if item.decision is not None)),
+                prediction_counts=dict(labels),
             )
-
         return result
 
-    def _calculate_single_variant_metrics(
-        self,
-        *,
-        variant_id: str,
-        outcomes: list[Any],
-    ) -> VariantMetrics:
-        """计算单个实验分组指标.
-
-        参数：
-            variant_id: 实验分组 ID
-            outcomes: 分组下的结果记录列表
-
-        返回：
-            实验分组指标
-        """
-        total_count = len(outcomes)
-        experiment_id = self._first_experiment_id(outcomes)
-
-        approved_count = 0
-        converted_count = 0
-        defaulted_count = 0
-        bad_count = 0
-        amount_count = 0
-        total_amount = 0.0
-
-        for outcome in outcomes:
-            if getattr(outcome, "approved", None):
-                approved_count += 1
-
-            if getattr(outcome, "converted", None):
-                converted_count += 1
-
-            if getattr(outcome, "defaulted", None):
-                defaulted_count += 1
-
-            if self._is_bad_outcome(outcome):
-                bad_count += 1
-
-            amount = self._to_float(getattr(outcome, "amount", None))
-
-            if amount is not None:
-                amount_count += 1
-                total_amount += amount
-
-        return VariantMetrics(
-            experiment_id=experiment_id,
-            variant_id=variant_id,
-            total_count=total_count,
-            approved_count=approved_count,
-            converted_count=converted_count,
-            defaulted_count=defaulted_count,
-            bad_count=bad_count,
-            amount_count=amount_count,
-            total_amount=total_amount,
-            average_amount=self._safe_divide(total_amount, amount_count),
-            approval_rate=self._safe_divide(approved_count, total_count),
-            conversion_rate=self._safe_divide(converted_count, total_count),
-            default_rate=self._safe_divide(defaulted_count, total_count),
-            bad_rate=self._safe_divide(bad_count, total_count),
-        )
-
-    def _compare_variants(
-        self,
-        *,
-        variants: dict[str, VariantMetrics],
-        baseline_variant_id: str | None,
-    ) -> dict[str, dict[str, MetricComparison]]:
-        """计算各分组相对基准组的指标提升.
-
-        参数：
-            variants: 分组指标
-            baseline_variant_id: 基准分组 ID
-
-        返回：
-            分组对比结果
-        """
-        if baseline_variant_id is None:
-            return {}
-
-        baseline = variants[baseline_variant_id]
-        comparisons: dict[str, dict[str, MetricComparison]] = {}
-
-        for variant_id, metrics in variants.items():
-            if variant_id == baseline_variant_id:
-                continue
-
-            comparisons[variant_id] = {
-                "approval_rate": self._compare_metric(
-                    metric="approval_rate",
-                    baseline_variant_id=baseline_variant_id,
-                    variant_id=variant_id,
-                    baseline_value=baseline.approval_rate,
-                    variant_value=metrics.approval_rate,
-                ),
-                "conversion_rate": self._compare_metric(
-                    metric="conversion_rate",
-                    baseline_variant_id=baseline_variant_id,
-                    variant_id=variant_id,
-                    baseline_value=baseline.conversion_rate,
-                    variant_value=metrics.conversion_rate,
-                ),
-                "default_rate": self._compare_metric(
-                    metric="default_rate",
-                    baseline_variant_id=baseline_variant_id,
-                    variant_id=variant_id,
-                    baseline_value=baseline.default_rate,
-                    variant_value=metrics.default_rate,
-                ),
-                "bad_rate": self._compare_metric(
-                    metric="bad_rate",
-                    baseline_variant_id=baseline_variant_id,
-                    variant_id=variant_id,
-                    baseline_value=baseline.bad_rate,
-                    variant_value=metrics.bad_rate,
-                ),
-                "average_amount": self._compare_metric(
-                    metric="average_amount",
-                    baseline_variant_id=baseline_variant_id,
-                    variant_id=variant_id,
-                    baseline_value=baseline.average_amount,
-                    variant_value=metrics.average_amount,
-                ),
-            }
-
-        return comparisons
+    @staticmethod
+    def _numbers(records: list[Any], field_name: str) -> list[float]:
+        """提取有效数值，忽略缺失值、布尔值和非有限数值."""
+        values = []
+        for record in records:
+            value = getattr(record, field_name, None)
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+                values.append(float(value))
+        return values
 
     @staticmethod
-    def _compare_metric(
-        *,
-        metric: str,
-        baseline_variant_id: str,
-        variant_id: str,
-        baseline_value: float,
-        variant_value: float,
-    ) -> MetricComparison:
-        """计算单个指标对比结果.
-
-        参数：
-            metric: 指标名称
-            baseline_variant_id: 基准分组 ID
-            variant_id: 对比分组 ID
-            baseline_value: 基准分组指标值
-            variant_value: 对比分组指标值
-
-        返回：
-            指标对比结果
-        """
-        absolute_lift = variant_value - baseline_value
-
-        if baseline_value == 0:
-            relative_lift = None
-        else:
-            relative_lift = absolute_lift / baseline_value
-
-        return MetricComparison(
-            metric=metric,
-            baseline_variant_id=baseline_variant_id,
-            variant_id=variant_id,
-            baseline_value=baseline_value,
-            variant_value=variant_value,
-            absolute_lift=absolute_lift,
-            relative_lift=relative_lift,
-        )
-
-    def _is_bad_outcome(self, outcome: Any) -> bool:
-        """判断是否为坏样本.
-
-        参数：
-            outcome: 实验结果记录
-
-        返回：
-            是否为坏样本
-        """
-        if getattr(outcome, "defaulted", None):
-            return True
-
-        label = getattr(outcome, "label", None)
-
-        if isinstance(label, str) and label.lower() == self.bad_label.lower():
-            return True
-
-        overdue_days = self._to_int(getattr(outcome, "overdue_days", None))
-
-        if overdue_days is not None:
-            return overdue_days > self.overdue_bad_threshold
-
-        return False
-
-    @staticmethod
-    def _first_experiment_id(outcomes: list[Any]) -> str | None:
-        """获取第一条结果记录的实验 ID.
-
-        参数：
-            outcomes: 实验结果记录列表
-
-        返回：
-            实验 ID，不存在时返回 None
-        """
-        if not outcomes:
-            return None
-
-        experiment_id = getattr(outcomes[0], "experiment_id", None)
-
-        if isinstance(experiment_id, str) and experiment_id:
-            return experiment_id
-
-        return None
-
-    @staticmethod
-    def _safe_divide(
-        numerator: float | int,
-        denominator: float | int,
-    ) -> float:
-        """安全除法.
-
-        参数：
-            numerator: 分子
-            denominator: 分母
-
-        返回：
-            除法结果，分母为 0 时返回 0
-        """
-        if denominator == 0:
-            return 0.0
-
-        return float(numerator) / float(denominator)
-
-    @staticmethod
-    def _to_float(value: Any) -> float | None:
-        """转换为浮点数.
-
-        参数：
-            value: 原始值
-
-        返回：
-            浮点数；无法转换时返回 None
-        """
-        if value is None:
-            return None
-
-        if isinstance(value, bool):
-            return None
-
-        if isinstance(value, (int, float)):
-            result = float(value)
-            return result if math.isfinite(result) else None
-
-        if isinstance(value, str) and value.strip():
-            try:
-                result = float(value)
-                return result if math.isfinite(result) else None
-            except ValueError:
-                return None
-
-        return None
-
-    @staticmethod
-    def _to_int(value: Any) -> int | None:
-        """转换为整数.
-
-        参数：
-            value: 原始值
-
-        返回：
-            整数；无法转换时返回 None
-        """
-        if value is None:
-            return None
-
-        if isinstance(value, bool):
-            return None
-
-        if isinstance(value, int):
-            return value
-
-        if isinstance(value, float):
-            return int(value)
-
-        if isinstance(value, str) and value.strip():
-            try:
-                return int(value)
-            except ValueError:
-                return None
-
-        return None
+    def _mean(values: list[float]) -> float | None:
+        """计算平均值，无有效样本时返回 None."""
+        return sum(values) / len(values) if values else None

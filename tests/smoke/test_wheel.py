@@ -5,7 +5,7 @@ Console 首页。
 
 核心功能：
   - test_wheel_installs_and_serves_console:
-    验证 Wheel 可独立安装并启动管理控制台
+    验证 Wheel 独立安装、Python 导入、版本信息、CLI 入口和管理控制台启动
 """
 
 from __future__ import annotations
@@ -130,7 +130,7 @@ def prepare_console_environment(tmp_path: Path) -> dict[str, str]:
             "DATAMIND_DATABASE_URL": database_url,
             "DATAMIND_LOG_DIR": str(tmp_path / "logs"),
             "DATAMIND_LOG_ENABLE_FILE": "false",
-            "DATAMIND_SERVICE_ENVIRONMENT": "development",
+            "DATAMIND_ENVIRONMENT": "development",
             "DATAMIND_STORAGE_TYPE": "local",
             "DATAMIND_STORAGE_LOCAL_BASE_DIR": str(tmp_path / "storage"),
         }

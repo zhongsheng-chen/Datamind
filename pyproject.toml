@@ -6,7 +6,7 @@ backend-path = ["."]
 
 [project]
 name = "pydatamind"
-version = "0.1.0"
+version = "0.1.0rc1"
 description = "开放式模型服务管理平台"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -25,7 +25,7 @@ dependencies = [
     "typer>=0.12.0",
     "rich>=13.0.0",
     "bentoml>=1.4.39",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy[asyncio]>=2.0.0",
     "alembic>=1.12.0",
     "asyncpg>=0.29.0",
     "pydantic>=2.0.0",
@@ -95,7 +95,7 @@ datamind = "datamind.cli.main:app"
 
 [project.urls]
 Homepage = "https://github.com/zhongsheng-chen/Datamind"
-Documentation = "https://github.com/zhongsheng-chen/Datamind#readme"
+Documentation = "https://datamind.readthedocs.io"
 Source = "https://github.com/zhongsheng-chen/Datamind"
 
 
@@ -123,6 +123,7 @@ exclude = ["datamind.console.static*", "datamind.console.dist*"]
 
 [tool.setuptools.package-data]
 "datamind.console" = ["dist/index.html", "dist/assets/*", "dist/.vite/manifest.json"]
+"datamind.db.migrations" = ["script.py.mako", "versions/*.py"]
 
 
 [tool.pytest.ini_options]

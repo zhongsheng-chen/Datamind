@@ -23,6 +23,32 @@
     验证拒绝不支持评分的模型
   - test_predict_rejects_invalid_feature_type:
     验证单条和批量评分在模型执行前拒绝非法特征类型
+  - test_unknown_category_uses_woe_fallback:
+    测试未知类别按 WoE 回退评分，不读取最后一个分箱
+  - test_rejects_non_woe_transform:
+    测试非 WoE 转换不会被误报为 WoE 明细
+  - test_rejects_invalid_score_intercept:
+    测试拒绝非有限评分截距
+  - test_rejects_invalid_woe:
+    测试无效 WoE 不能进入评分明细或关联到错误样本
+  - test_rejects_invalid_scorecard_points:
+    测试加载时拒绝无效或与模型刻度不一致的评分表
+  - test_empty_batch_does_not_run_model:
+    测试空批次不调用模型预测和分箱转换
+  - test_woe_configuration_does_not_override_bin_matching:
+    测试显式 WoE 配置不影响分箱命中且不改写原模型
+  - test_custom_missing_and_special_woe:
+    测试全局及变量级缺失值、特殊值 WoE 与概率预测保持一致
+  - test_partial_variable_transform_params_override_global_metrics:
+    测试变量级缺失和特殊值配置在未显式设置 metric 时仍覆盖全局配置
+  - test_scaling_preserves_fitted_bin_points:
+    测试各种刻度、方向、评分截距及取整配置沿用已拟合分箱的分值
+  - test_min_max_rounding_rejects_undefined_fallback:
+    测试联合整数刻度不会为训练时不存在的分箱猜测分值
+  - test_feature_values_are_json_scalars:
+    测试原始标量类型得到保留，缺失值可严格序列化为 null
+  - test_rejects_non_json_feature_values:
+    测试不会将无穷值或非标量输入伪装为有效特征值
 """
 
 import json

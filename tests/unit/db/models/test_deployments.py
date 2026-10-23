@@ -46,6 +46,7 @@ def test_deployment_table_and_columns() -> None:
         "status",
         "rollout_type",
         "role",
+        "is_default",
         "effective_from",
         "effective_to",
         "threshold",
@@ -71,6 +72,7 @@ def test_deployment_indexes() -> None:
         "idx_deployments_model_id_environment_status",
         "idx_deployments_model_id_version_id",
         "uk_deployments_deployment_id",
+        "uk_deployments_default_model_environment",
     }
 
 
@@ -81,6 +83,7 @@ def test_deployment_check_constraints() -> None:
         for constraint in TABLE.constraints
         if isinstance(constraint, CheckConstraint)
     } == {
+        "ck_deployments_default_role_valid",
         "ck_deployments_effective_time_valid",
         "ck_deployments_environment_valid",
         "ck_deployments_role_valid",

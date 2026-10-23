@@ -217,6 +217,7 @@ celerybeat.pid
 # Environments
 .env
 docker/.env.docker
+docker/.env.infrastructure
 .venv
 env/
 venv/

@@ -5,6 +5,16 @@
 核心功能：
   - test_deployment_mutation_reports_business_error:
     验证部署状态变更命令处理业务异常
+  - test_deployment_create_rejects_invalid_release_role_before_context:
+    测试创建命令在认证和数据库访问前拒绝非法发布角色组合
+  - test_resolve_release_options:
+    测试 CLI 自动推导固定角色并规范化金丝雀角色
+  - test_canary_deployment_requires_explicit_role:
+    测试金丝雀发布必须明确选择部署角色
+  - test_default_deployment_command_returns_structured_result:
+    验证默认部署命令参数及结构化输出
+  - test_default_deployment_command_reports_error:
+    验证默认部署命令报告业务错误
 """
 
 from collections.abc import AsyncIterator
@@ -18,6 +28,7 @@ from unittest.mock import (
     MagicMock,
 )
 import importlib
+import json
 
 import pytest
 import typer
@@ -165,7 +176,7 @@ def test_deployment_create_rejects_invalid_release_role_before_context(
     )
     monkeypatch.setitem(
         vars(create_module),
-        "get_service_config",
+        "get_common_config",
         lambda: service_config,
     )
 
@@ -226,3 +237,35 @@ def test_canary_deployment_requires_explicit_role() -> None:
             rollout="canary",
             role=None,
         )
+
+
+@pytest.mark.parametrize("method", ["set_default_deployment", "unset_default_deployment"])
+def test_default_deployment_command_returns_structured_result(
+        monkeypatch: pytest.MonkeyPatch, method: str,
+) -> None:
+    """默认部署命令传递目标 ID 和操作人，并输出服务返回结果."""
+    module = importlib.import_module("datamind.cli.deployment.default")
+    service = MagicMock()
+    result = {"deployment_id": "dep_test", "is_default": method.startswith("set_")}
+    callback = AsyncMock(return_value=result)
+    setattr(service, method, callback)
+    console = configure_deployment_module(monkeypatch, module, service)
+    getattr(module, method)(deployment_id="dep_test", output="json")
+    callback.assert_awaited_once_with(deployment_id="dep_test", updated_by="alice")
+    assert json.loads(console.print_json.call_args.args[0]) == result
+
+
+@pytest.mark.parametrize("method", ["set_default_deployment", "unset_default_deployment"])
+def test_default_deployment_command_reports_error(
+        monkeypatch: pytest.MonkeyPatch, method: str,
+) -> None:
+    """默认部署命令以非零退出码报告服务拒绝的切换."""
+    module = importlib.import_module("datamind.cli.deployment.default")
+    service = MagicMock()
+    callback = AsyncMock(side_effect=DeploymentNotFoundError("部署不存在"))
+    setattr(service, method, callback)
+    console = configure_deployment_module(monkeypatch, module, service)
+    with pytest.raises(typer.Exit) as error:
+        getattr(module, method)(deployment_id="dep_test", output="text")
+    assert error.value.exit_code == 1
+    console.error.assert_called_once()

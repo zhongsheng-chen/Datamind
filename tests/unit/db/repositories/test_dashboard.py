@@ -53,6 +53,56 @@
     验证多字段优先级排序
   - test_search_variants:
     验证实验分组查询和排序
+  - test_search_routings_supports_version_id:
+    测试路由关键词查询包含关联部署的版本 ID
+  - test_search_routings_supports_route_name:
+    测试路由关键词查询包含路由名称
+  - test_search_deleted_versions:
+    测试回收站仅查询已逻辑删除版本
+  - test_search_deleted_models:
+    测试模型回收站仅查询整体逻辑删除的模型
+  - test_search_runtimes_returns_current_instances:
+    测试运行实例分页只返回状态活动且心跳有效的实例
+  - test_search_runtimes_sorts_by_stored_status:
+    测试运行实例按数据库中的运行状态排序
+  - test_search_runtimes_sorts_by_health_status:
+    测试运行实例按派生的健康状态排序
+  - test_search_records_supports_display_time_ranges:
+    测试时间范围兼容页面展示的日期时间格式
+  - test_search_records_supports_open_time_ranges:
+    测试时间范围支持省略起点或终点
+  - test_search_records_supports_lifecycle_times:
+    测试控制台页面支持附加生命周期时间字段
+  - test_search_records_rejects_invalid_time_range:
+    测试拒绝起止顺序错误的时间范围
+  - test_search_records_combines_keyword_and_field_query:
+    测试普通关键词可以和字段条件组合
+  - test_search_requests_supports_task_type:
+    测试 API 调用记录支持按任务类型查询
+  - test_request_queries_support_batch_index:
+    测试 API 调用列表和计数支持按批次位置精确查询
+  - test_request_queries_reject_invalid_batch_index:
+    测试批次位置拒绝非整数查询值
+  - test_request_queries_support_batch_index_range:
+    测试 API 调用列表支持按批次位置范围查询
+  - test_search_records_rejects_empty_field_value:
+    测试字段化查询拒绝空值
+  - test_search_records_preserves_plain_query_punctuation:
+    测试普通关键词保留引号类标点并继续模糊匹配
+  - test_search_records_filters_selected_identifiers:
+    测试查询记录可限定为用户选择的主键集合
+  - test_search_attempts_matches_shard_task_id:
+    测试通过分片任务 ID 查询所属执行尝试
+  - test_search_records_defaults_to_updated_time:
+    测试资源列表默认按照更新时间倒序排列
+  - test_search_records_rejects_unknown_sort_field:
+    测试拒绝未列入白名单的排序字段
+  - test_get_deployment_labels:
+    测试批量获取部署关联的模型、版本和发布信息
+  - test_get_request_details:
+    测试批量获取 API 调用的模型和决策详情
+  - test_get_decision_details:
+    测试批量获取决策对应的模型和主执行详情
 """
 
 from datetime import (
@@ -60,7 +110,10 @@ from datetime import (
     timedelta,
     timezone,
 )
-from typing import cast
+from typing import (
+    Any,
+    cast,
+)
 from unittest.mock import (
     AsyncMock,
     MagicMock,
@@ -69,11 +122,33 @@ from unittest.mock import (
 import pytest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import (
+    operators,
+    visitors,
+)
 
 from datamind.db.models import Shard
 from datamind.runtime.presence import RuntimePresence
 
 from datamind.db.repositories.dashboard import DashboardRepository
+
+
+def get_ilike_predicates(statement: Any) -> list[Any]:
+    """返回查询中的所有 ILIKE 谓词."""
+    predicates: list[Any] = []
+
+    def collect_predicate(expression: Any) -> None:
+        if expression.operator is operators.ilike_op:
+            predicates.append(expression)
+
+    visitors.traverse(
+        statement,
+        {},
+        {
+            "binary": collect_predicate,
+        },
+    )
+    return predicates
 
 
 def create_repository() -> tuple[DashboardRepository, AsyncMock]:
@@ -1103,7 +1178,7 @@ async def test_search_records_filters_batch_attempts() -> None:
 
     await repository.search_records(
         section="attempts",
-        query="batch_id:bat_test",
+        query="batch_id:bat_test%archive",
         limit=20,
         offset=0,
         sort_by="attempt_number",
@@ -1113,17 +1188,17 @@ async def test_search_records_filters_batch_attempts() -> None:
     awaited_call = execute.await_args
     assert awaited_call is not None
     statement = awaited_call.args[0]
-    sql = str(
-        statement.compile(
-            dialect=postgresql.dialect(),
-            compile_kwargs={
-                "literal_binds": True
-            },
-        )
+    compiled = statement.compile(
+        dialect=postgresql.dialect(),
     )
+    sql = str(compiled)
+    ilike_predicates = get_ilike_predicates(statement)
     assert "FROM attempts" in sql
     assert "attempts.batch_id ILIKE" in sql
-    assert "bat\\\\_test" in sql
+    assert r"bat\_test\%archive" in compiled.params.values()
+    assert len(ilike_predicates) == 1
+    assert ilike_predicates[0].modifiers["escape"] == "\\"
+    assert sql.count(" ESCAPE ") == len(ilike_predicates)
     assert (
         "ORDER BY attempts.attempt_number ASC NULLS LAST, "
         "attempts.attempt_id ASC"
@@ -1132,14 +1207,24 @@ async def test_search_records_filters_batch_attempts() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "query",
+    (
+        "query",
+        "expected_pattern",
+    ),
     [
-        "task_id:tsk_shard_test",
-        "tsk_shard_test",
+        (
+            "task_id:tsk_shard_test",
+            r"tsk\_shard\_test",
+        ),
+        (
+            "tsk_shard_test",
+            r"%tsk\_shard\_test%",
+        ),
     ],
 )
 async def test_search_attempts_matches_shard_task_id(
         query: str,
+        expected_pattern: str,
 ) -> None:
     """测试通过分片任务 ID 查询所属执行尝试."""
     repository, execute = create_repository()
@@ -1154,18 +1239,22 @@ async def test_search_attempts_matches_shard_task_id(
     awaited_call = execute.await_args
     assert awaited_call is not None
     statement = awaited_call.args[0]
-    sql = str(
-        statement.compile(
-            dialect=postgresql.dialect(),
-            compile_kwargs={
-                "literal_binds": True
-            },
-        )
+    compiled = statement.compile(
+        dialect=postgresql.dialect(),
     )
+    sql = str(compiled)
+    ilike_predicates = get_ilike_predicates(statement)
     assert "EXISTS (SELECT shards.shard_id" in sql
     assert "shards.attempt_id = attempts.attempt_id" in sql
+    assert "attempts.task_id ILIKE" in sql
     assert "shards.task_id ILIKE" in sql
-    assert "tsk\\\\_shard\\\\_test" in sql
+    assert list(compiled.params.values()).count(expected_pattern) >= 2
+    assert len(ilike_predicates) >= 2
+    assert all(
+        predicate.modifiers["escape"] == "\\"
+        for predicate in ilike_predicates
+    )
+    assert sql.count(" ESCAPE ") == len(ilike_predicates)
 
 
 @pytest.mark.asyncio

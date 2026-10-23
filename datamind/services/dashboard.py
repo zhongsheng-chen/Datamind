@@ -1956,6 +1956,7 @@ class DashboardService:
             "framework": deployment.framework,
             "rollout_type": deployment.rollout_type,
             "role": deployment.role,
+            "is_default": bool(getattr(deployment, "is_default", False)),
             "status": deployment.status,
             "threshold": getattr(
                 deployment,

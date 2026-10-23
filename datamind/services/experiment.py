@@ -23,7 +23,7 @@ from typing import Any
 
 import structlog
 
-from datamind.config import get_logging_config
+from datamind.config import get_common_config
 from datamind.constants import Environment
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
@@ -89,7 +89,7 @@ class ExperimentLifecycleService:
         resolved_strategy = AssignmentStrategy(
             strategy
         )
-        timezone_name = get_logging_config().timezone
+        timezone_name = get_common_config().timezone
         start = parse_datetime(
             effective_from,
             timezone_name=timezone_name,
@@ -290,7 +290,7 @@ class ExperimentLifecycleService:
                     raise InvalidExperimentConfigError("只有手动分配策略支持指定客户")
                 current_config.pop("manual_assignments", None)
 
-            timezone_name = get_logging_config().timezone
+            timezone_name = get_common_config().timezone
             start = (
                 parse_datetime(effective_from, timezone_name=timezone_name)
                 if effective_from is not None

@@ -15,7 +15,7 @@ from typing import Any
 
 import structlog
 
-from datamind.config import get_logging_config
+from datamind.config import get_common_config
 from datamind.db.core import UnitOfWork
 from datamind.constants import Environment
 from datamind.db.models.deployments import Deployment
@@ -51,7 +51,7 @@ def _parse_effective_window(
         effective_to: str | None,
 ) -> tuple[datetime | None, datetime | None]:
     """解析并校验路由生效区间."""
-    timezone_name = get_logging_config().timezone
+    timezone_name = get_common_config().timezone
     start = parse_datetime(
         effective_from,
         timezone_name=timezone_name,
@@ -321,12 +321,12 @@ class RoutingLifecycleService:
             if not isinstance(effective_from, _Unset):
                 start = parse_datetime(
                     effective_from,
-                    timezone_name=get_logging_config().timezone,
+                    timezone_name=get_common_config().timezone,
                 )
             if not isinstance(effective_to, _Unset):
                 end = parse_datetime(
                     effective_to,
-                    timezone_name=get_logging_config().timezone,
+                    timezone_name=get_common_config().timezone,
                 )
             if end is not None and start is not None and end <= start:
                 raise ValueError("失效时间必须晚于生效时间")

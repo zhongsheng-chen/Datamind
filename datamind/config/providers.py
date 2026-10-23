@@ -23,7 +23,7 @@ get_settings 负责缓存。
   service_config = get_service_config()
 
   print(auth_config.enabled)
-  print(service_config.environment)
+  print(service_config.port)
 """
 
 from typing import TypeVar
@@ -33,6 +33,7 @@ from pydantic_settings import BaseSettings
 from datamind.config.audit import AuditConfig
 from datamind.config.auth import AuthConfig
 from datamind.config.classification import ClassificationConfig
+from datamind.config.common import CommonConfig
 from datamind.config.console import ConsoleConfig
 from datamind.config.database import DatabaseConfig
 from datamind.config.initialization import InitializationConfig
@@ -66,6 +67,11 @@ def get_auth_config() -> AuthConfig:
 def get_classification_config() -> ClassificationConfig:
     """加载分类配置."""
     return _load_config(ClassificationConfig)
+
+
+def get_common_config() -> CommonConfig:
+    """加载应用通用配置."""
+    return _load_config(CommonConfig)
 
 
 def get_console_config() -> ConsoleConfig:
@@ -122,6 +128,7 @@ __all__ = [
     "get_audit_config",
     "get_auth_config",
     "get_classification_config",
+    "get_common_config",
     "get_console_config",
     "get_database_config",
     "get_initialization_config",

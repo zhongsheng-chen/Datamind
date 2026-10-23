@@ -191,6 +191,7 @@ export function createDeploymentDetailController({
           createDeploymentRolloutBadge,
         )],
         ["角色", formatBadgeValue(record.role, createDeploymentRoleBadge)],
+        ["默认部署", record.is_default ? "是" : "否"],
         ...(
           String(record.rollout_type || "").toLowerCase() !== "shadow"
           && String(record.role || "").toLowerCase() !== "shadow"
@@ -220,14 +221,16 @@ export function createDeploymentDetailController({
     buttons.push(runtimeButton);
 
     const actions = getRecordActions("deployments", record).filter(
-      (actionConfig) => ["edit", "enable", "disable"].includes(
+      (actionConfig) => ["edit", "enable", "disable", "set-default", "unset-default"].includes(
         actionConfig.action,
       ),
     );
     for (const actionConfig of actions) {
       const label = actionConfig.action === "edit"
         ? "编辑部署"
-        : `${actionConfig.label}部署`;
+        : ["set-default", "unset-default"].includes(actionConfig.action)
+          ? actionConfig.label
+          : `${actionConfig.label}部署`;
       const button = createDetailAction(
         label,
         actionConfig.action,

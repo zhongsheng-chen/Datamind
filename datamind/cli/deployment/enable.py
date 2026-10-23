@@ -42,7 +42,12 @@ def enable_deployment(
             help="输出格式：text / json"
         ),
 ):
-    """启用部署并启动运行实例."""
+    """启用部署.
+
+    启用后，运行实例将开始运行，已部署的模型将被加载。
+
+    启用部署不会自动将其设为默认部署。
+    """
 
     @audit(
         action="deploy.enable",

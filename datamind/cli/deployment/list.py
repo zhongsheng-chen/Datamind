@@ -19,7 +19,7 @@ from datamind.cli.output import CLIConsole
 from rich.table import Table
 
 from datamind.cli.common import cli_context
-from datamind.config import get_service_config
+from datamind.config import get_common_config
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories.deployment import DeploymentRepository
 from datamind.utils.datetime import (
@@ -93,7 +93,7 @@ def list_deployments(
         ),
 ):
     """列出部署."""
-    environment = get_service_config().environment.value
+    environment = get_common_config().environment.value
 
     async def _run():
         if output not in ("text", "json"):
@@ -156,6 +156,7 @@ def list_deployments(
                     "environment": deployment.environment,
                     "rollout_type": deployment.rollout_type,
                     "role": deployment.role,
+                    "is_default": bool(deployment.is_default),
                     "status": deployment.status,
                     "deployed_by": deployment.deployed_by,
                     "created_at": format_iso_utc(deployment.created_at),
@@ -202,6 +203,7 @@ def list_deployments(
         table.add_column("ENVIRONMENT")
         table.add_column("ROLLOUT TYPE")
         table.add_column("ROLE")
+        table.add_column("DEFAULT")
         table.add_column("STATUS")
         table.add_column("UPDATED AT")
 
@@ -217,6 +219,7 @@ def list_deployments(
                 item["environment"],
                 item["rollout_type"],
                 item["role"],
+                "yes" if item["is_default"] else "no",
                 item["status"],
                 format_datetime(parse_datetime(item["updated_at"])),
             ]

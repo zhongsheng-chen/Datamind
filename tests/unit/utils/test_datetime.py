@@ -3,10 +3,10 @@
 验证时区读取、日期时间解析、UTC 与本地时间转换和格式化行为。
 
 核心功能：
-  - test_get_timezone_defaults_to_utc:
-    验证未配置 TZ 时默认使用 UTC
+  - test_get_timezone_defaults_to_application_timezone:
+    验证未配置应用时区时默认使用 Asia/Shanghai
   - test_get_timezone_reads_environment_variable:
-    验证从 TZ 环境变量读取时区名称
+    验证从 DATAMIND_TIMEZONE 环境变量读取时区名称
   - test_get_timezone_rejects_invalid_timezone:
     验证非法时区名称抛出异常
   - test_parse_datetime_returns_none_for_none:
@@ -45,6 +45,10 @@
     验证无时区时间按 UTC 格式化
   - test_iso_format_and_parse_support_round_trip:
     验证 ISO 8601 UTC 格式化结果可以重新解析
+  - test_parse_datetime_uses_explicit_timezone_for_naive_value:
+    测试无时区输入按显式指定的本地时区解析
+  - test_parse_datetime_preserves_input_timezone_offset:
+    测试输入时区优先于无时区输入的默认时区
 """
 
 from datetime import (
@@ -52,9 +56,10 @@ from datetime import (
     timedelta,
     timezone,
 )
+from pydantic import ValidationError
+
 from zoneinfo import (
     ZoneInfo,
-    ZoneInfoNotFoundError,
 )
 
 import pytest
@@ -62,24 +67,33 @@ import pytest
 import datamind.utils.datetime as datetime_utils
 
 
-def test_get_timezone_defaults_to_utc(
+
+@pytest.fixture(autouse=True)
+def isolate_application_timezone(monkeypatch, tmp_path):
+    """隔离应用时区的环境变量和 .env 配置."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DATAMIND_ENVIRONMENT", "testing")
+    monkeypatch.delenv("DATAMIND_TIMEZONE", raising=False)
+
+
+def test_get_timezone_defaults_to_application_timezone(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试未配置 TZ 时默认使用 UTC."""
+    """测试未配置应用时区时默认使用 Asia/Shanghai."""
     monkeypatch.delenv(
-        "TZ",
+        "DATAMIND_TIMEZONE",
         raising=False,
     )
 
     result = datetime_utils.get_timezone()
 
-    assert result.key == "UTC"
+    assert result.key == "Asia/Shanghai"
 
 
 def test_get_timezone_reads_environment_variable(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试从 TZ 环境变量读取时区名称."""
+    """测试从 DATAMIND_TIMEZONE 环境变量读取时区名称."""
     requested_names: list[str] = []
 
     def create_zone_info(
@@ -94,7 +108,7 @@ def test_get_timezone_reads_environment_variable(
         )
 
     monkeypatch.setenv(
-        "TZ",
+        "DATAMIND_TIMEZONE",
         "Asia/Shanghai",
     )
     monkeypatch.setitem(
@@ -116,12 +130,12 @@ def test_get_timezone_rejects_invalid_timezone(
 ) -> None:
     """测试非法时区名称抛出异常."""
     monkeypatch.setenv(
-        "TZ",
+        "DATAMIND_TIMEZONE",
         "Invalid/Timezone",
     )
 
     with pytest.raises(
-            ZoneInfoNotFoundError
+            ValidationError
     ):
         datetime_utils.get_timezone()
 

@@ -23,6 +23,12 @@
     验证令牌异常可通过 TokenError 统一捕获
   - test_exception_class_default_messages:
     验证异常类默认消息定义
+  - test_access_token_errors_share_token_base:
+    测试访问令牌异常共享令牌基础异常
+  - test_refresh_token_errors_share_token_base:
+    测试刷新令牌异常共享令牌基础异常
+  - test_auth_error_preserves_exception_chaining:
+    测试认证异常支持标准异常链
 """
 
 import pytest
