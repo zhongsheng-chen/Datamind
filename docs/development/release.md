@@ -75,10 +75,10 @@ python -m scripts.verify_distributions \
 
 发布任务使用 GitHub Actions 的 `release` 环境。发布地址和用户名通过 Variables 配置，密码和令牌通过 Secrets 配置：
 
-| 类型 | 配置项 |
-|------|--------|
+| 类型      | 配置项                                                         |
+|-----------|----------------------------------------------------------------|
 | Variables | `TWINE_REPOSITORY_URL`、`TWINE_USERNAME`、`DOCKERHUB_USERNAME` |
-| Secrets | `TWINE_PASSWORD`、`DOCKERHUB_TOKEN` |
+| Secrets   | `TWINE_PASSWORD`、`DOCKERHUB_TOKEN`                            |
 
 在本地设置对应环境变量后，可检查配置是否完整、仓库地址格式是否正确：
 
@@ -103,7 +103,7 @@ python -m scripts.release prepare \
 - **Python 发行包**：构建并校验 Wheel 和 sdist，通过 Wheel Smoke 测试后，检查 Twine 配置并上传发行包。
 - **Docker 镜像**：并行构建 sklearn、xgboost、lightgbm、catboost 和 full 镜像。各任务先确认版本标签尚未使用，再构建镜像，通过 Docker Smoke 测试后推送。
 
-Python 发行包和全部版本镜像发布成功后，工作流将 full 镜像更新为 `latest`，随后创建 GitHub Release，并上传本次构建的 Wheel 和 sdist。
+Python 发行包和全部版本镜像发布成功后，工作流将 full 镜像更新为 `latest`，随后创建 GitHub Release，并上传本次构建的 Wheel 和 sdist。预发布版本会标记为 GitHub 预发布，Docker `latest` 同样更新。
 
 ## 失败处理
 
