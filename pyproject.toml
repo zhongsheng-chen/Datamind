@@ -6,7 +6,7 @@ backend-path = ["."]
 
 [project]
 name = "pydatamind"
-version = "0.1.0"
+version = "0.1.0rc1"
 description = "开放式模型服务管理平台"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
