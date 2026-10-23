@@ -40,6 +40,7 @@ from datamind.config.providers import (
 from datamind.constants import Environment
 from datamind.context.scope import context_scope
 from datamind.db.core import UnitOfWork
+from datamind.runtime.server.access import REQUEST_ID_SCOPE_KEY, USER_SCOPE_KEY
 from datamind.runtime.server.errors import (
     ServiceAuthenticationError,
     ServiceAuthenticationUnavailableError,
@@ -78,11 +79,13 @@ class RuntimeSecurity:
             request_id: str,
     ) -> AsyncIterator[RuntimeIdentity]:
         """认证请求并建立可信上下文."""
+        context.request.scope[REQUEST_ID_SCOPE_KEY] = request_id
         identity = await self.authenticate(
             context=context,
             permission=permission,
         )
         request = context.request
+        request.scope[USER_SCOPE_KEY] = identity.username
         client = request.client
         ip = (
             client.host

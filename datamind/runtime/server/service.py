@@ -63,6 +63,7 @@ from datamind.runtime.server.security import (
     RuntimeSecurity,
 )
 from datamind.runtime.server.authentication import auth_app
+from datamind.runtime.server.access import AccessLogMiddleware
 from datamind.runtime.server.cache import ServiceCacheEntry
 from datamind.runtime.server.control import RuntimeControlMixin
 from datamind.runtime.server.prediction import PredictionMixin
@@ -546,3 +547,6 @@ class DatamindRuntimeService(
             else 500
         )
         ctx.response.status_code = status_code
+
+
+DatamindRuntimeService.add_asgi_middleware(AccessLogMiddleware)
