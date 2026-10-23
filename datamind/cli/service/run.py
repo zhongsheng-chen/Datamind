@@ -13,6 +13,7 @@
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 import signal
@@ -20,6 +21,7 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
+from time import perf_counter
 from types import FrameType
 from typing import (
     Callable,
@@ -282,6 +284,12 @@ def run_service(
         settings.logging
     )
 
+    console_logs_info = (
+        settings.logging.enable_console
+        and getattr(logging, str(settings.logging.level).upper()) <= logging.INFO
+        and getattr(logging, str(settings.logging.console_level).upper()) <= logging.INFO
+    )
+
     service_config = settings.service
     expected_workers = int(service_config.workers)
 
@@ -379,6 +387,21 @@ def run_service(
         env["DATAMIND_SERVICE_READY_DIR"] = (
             str(current_ready_dir)
         )
+
+        startup_started = perf_counter()
+
+        print_http_server_summary(
+            console,
+            app_version=app_version,
+            environment=run_environment,
+            bind_address=build_bind_address(host=run_host, port=run_port),
+            access_url=build_http_url(host=run_host, port=run_port),
+            workers=expected_workers,
+            reload_enabled=reload_enabled,
+        )
+        logger.info("正在启动服务，等待 Worker 就绪")
+        if not console_logs_info:
+            console.info("正在启动服务，等待 Worker 就绪……")
 
         try:
             started_process = subprocess.Popen(
@@ -489,7 +512,7 @@ def run_service(
 
         service_started = True
 
-        logger.info(
+        logger.debug(
             "Datamind 服务启动完成",
             service_instance_id=current_service_instance_id,
             service_name=result["name"],
@@ -502,19 +525,17 @@ def run_service(
             pid=result["pid"],
         )
 
-        print_http_server_summary(
-            console,
-            app_version=result["version"],
-            environment=result["environment"],
-            bind_address=result["bind"],
-            access_url=result["url"],
+        logger.info(
+            "服务已就绪",
             workers=result["workers"],
-            reload_enabled=result["reload"],
-            pid=result["pid"],
+            startup_seconds=round(perf_counter() - startup_started, 2),
         )
-        console.print(
-            "Press Ctrl+C to stop\n"
-        )
+
+        if not console_logs_info:
+            console.info("服务已就绪。")
+
+        if console.is_terminal:
+            console.print("按 Ctrl+C 停止。")
 
         return result
 

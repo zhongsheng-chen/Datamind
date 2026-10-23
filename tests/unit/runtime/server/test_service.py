@@ -3,6 +3,8 @@
 验证服务生命周期、健康检查和通用安全执行行为。
 
 核心功能：
+  - test_runtime_service_registers_http_components:
+    验证服务入口保留认证接口与访问日志中间件
   - test_apply_response_status_maps_request_error:
     验证请求参数错误映射为 HTTP 400
   - test_apply_response_status_maps_error_types:
@@ -32,6 +34,24 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+
+def test_runtime_service_registers_http_components(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试显式创建的服务保留公开入口和 HTTP 组件."""
+    service_module = runtime_server.load_service_module(monkeypatch)
+    service = service_module.DatamindRuntimeService
+
+    assert service.import_string == (
+        "datamind.runtime.server.service:DatamindRuntimeService"
+    )
+    assert service.name == "datamind_runtime_service"
+    assert any(
+        app is service_module.auth_app and path == "/auth"
+        for app, path, _name in service.mount_apps
+    )
+    assert service.middlewares == [(service_module.AccessLogMiddleware, {})]
 
 
 def test_apply_response_status_maps_request_error(

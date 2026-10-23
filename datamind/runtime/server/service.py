@@ -256,7 +256,7 @@ class DatamindRuntimeService(
 
         self.task_publisher = TaskPublisher()
 
-        self._logger.info(
+        self._logger.debug(
             "运行时 Worker 初始化完成",
             worker_id=worker_id,
             environment=(
@@ -307,7 +307,7 @@ class DatamindRuntimeService(
 
         await self.reconciler.start()
 
-        self._logger.info(
+        self._logger.debug(
             "运行时 Worker 启动完成",
             worker_id=self.manager.worker_id,
             environment=(
