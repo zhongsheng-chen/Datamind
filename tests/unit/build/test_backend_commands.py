@@ -447,8 +447,8 @@ def test_release_distributions_preserve_build_identity(tmp_path: Path) -> None:
         BuildIdentity(commit=BUILD_COMMIT, build_date=BUILD_DATE),
     )
 
-    assert wheel.name == "pydatamind-0.1.0-py3-none-any.whl"
-    assert sdist.name == "pydatamind-0.1.0.tar.gz"
+    assert wheel.name == "pydatamind-0.1.0rc1-py3-none-any.whl"
+    assert sdist.name == "pydatamind-0.1.0rc1.tar.gz"
     assert source_metadata.read_bytes() == original_content
 
     migration_root = PROJECT_ROOT / "datamind" / "db" / "migrations"
