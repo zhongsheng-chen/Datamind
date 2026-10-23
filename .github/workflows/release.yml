@@ -378,4 +378,5 @@ jobs:
           "dist/${{ needs.prepare-release.outputs.sdist_name }}"
           --verify-tag
           --generate-notes
+          --prerelease=${{ contains(needs.prepare-release.outputs.version, 'a') || contains(needs.prepare-release.outputs.version, 'b') || contains(needs.prepare-release.outputs.version, 'rc') || contains(needs.prepare-release.outputs.version, 'dev') }}
           --title "Datamind ${{ needs.prepare-release.outputs.version }}"

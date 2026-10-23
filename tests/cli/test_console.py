@@ -232,6 +232,7 @@ def test_console_run_starts_bentoml_service(
         mock_console_readiness: MagicMock,
 ) -> None:
     """测试控制台命令启动独立 BentoML 服务."""
+    monkeypatch.setattr(run_module, "get_app_version", lambda: "0.1.0")
     process = MagicMock()
     process.pid = 4321
     process.wait.return_value = 0

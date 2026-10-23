@@ -350,6 +350,10 @@ def test_release_workflow_publishes_latest_after_release_artifacts() -> None:
     assert "latest-xgboost" not in workflow
     assert "latest-lightgbm" not in workflow
     assert "latest-catboost" not in workflow
+    assert "--prerelease=${{" in github_release_job
+    for marker in ("a", "b", "rc", "dev"):
+        assert f"contains(needs.prepare-release.outputs.version, '{marker}')" in github_release_job
+
     for dependency in (
         "prepare-release",
         "publish-python-distributions",
