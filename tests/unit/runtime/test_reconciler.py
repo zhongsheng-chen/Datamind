@@ -393,11 +393,20 @@ async def test_reconcile_isolates_control_failure(
         controls=[create_control()],
     )
     manager.load.side_effect = BackendError("load failed")
+    logger = MagicMock()
+    monkeypatch.setattr(reconciler, "_logger", logger)
 
     result = await reconciler.reconcile_once()
 
     assert result.failed == 1
     assert reconciler.get_applied_generation("dep_test") is None
+    logger.exception.assert_called_once()
+    logger.warning.assert_called_once_with(
+        "运行时状态协调完成",
+        worker_id="worker_test",
+        environment=Environment.PRODUCTION,
+        **result.to_dict(),
+    )
 
 
 @pytest.mark.asyncio

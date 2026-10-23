@@ -8,7 +8,17 @@
   - build_bind_address: 构建服务监听地址
   - build_http_url: 构建本地访问地址
   - print_startup_summary: 打印启动摘要
-  - print_http_server_summary: 打印 HTTP 服务启动摘要
+  - print_http_server_summary: 打印 HTTP 服务启动信息
+
+使用示例：
+  from rich.console import Console
+
+  from datamind.cli.branding import print_startup_summary
+
+  print_startup_summary(
+      Console(),
+      {"ENVIRONMENT": "development"},
+  )
 """
 
 from collections.abc import Mapping
@@ -147,10 +157,10 @@ def print_http_server_summary(
         bind_address: str,
         access_url: str,
         reload_enabled: bool,
-        pid: int,
+        pid: int | None = None,
         workers: int | None = None,
 ) -> None:
-    """打印 Datamind HTTP 服务的统一启动摘要."""
+    """打印 HTTP 服务启动信息."""
     details: dict[
         str,
         str | int | float | bool,
@@ -169,8 +179,10 @@ def print_http_server_summary(
             if reload_enabled
             else "disabled"
         ),
-        "PID": pid,
     })
+
+    if pid is not None:
+        details["PID"] = pid
 
     print_startup_summary(
         console,

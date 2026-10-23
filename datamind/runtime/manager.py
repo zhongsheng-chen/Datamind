@@ -128,13 +128,13 @@ class RuntimeManager:
 
         if previous_runtime is not None:
             if not force:
-                logger.info(
+                logger.debug(
                     "部署已加载，直接返回运行时模型",
                     deployment_id=deployment_id,
                 )
                 return previous_runtime
 
-        logger.info(
+        logger.debug(
             "开始加载运行时模型",
             deployment_id=deployment_id,
             operator=operator,
@@ -295,7 +295,7 @@ class RuntimeManager:
                         context=runtime_context,
                     )
 
-            logger.info(
+            logger.debug(
                 "运行时模型加载成功",
                 deployment_id=deployment_id,
                 model_id=model_id,
