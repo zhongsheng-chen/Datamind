@@ -29,6 +29,8 @@ run_module = importlib.import_module(
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("interactive", [False, True])
+@pytest.mark.parametrize("console_logs_info", [False, True])
 @pytest.mark.parametrize(
     ("environment", "arguments", "reload_enabled"),
     [
@@ -43,8 +45,15 @@ def test_service_run_does_not_authenticate_cli_user(
         environment: str,
         arguments: list[str],
         reload_enabled: bool,
+        interactive: bool,
+        console_logs_info: bool,
 ) -> None:
     """测试服务启动不执行用户认证."""
+    monkeypatch.setattr(
+        type(run_module.console),
+        "is_terminal",
+        property(lambda _console: interactive),
+    )
     async def reject_authentication(
             _context: object,
     ) -> None:
@@ -61,10 +70,18 @@ def test_service_run_does_not_authenticate_cli_user(
         return_value=process
     )
     structured_logger = MagicMock()
+    if console_logs_info:
+        structured_logger.info.side_effect = (
+            lambda message, **_fields: run_module.console.info(message)
+        )
     monkeypatch.setitem(vars(run_module), "logger", structured_logger)
 
     settings = SimpleNamespace(
-        logging=MagicMock(),
+        logging=SimpleNamespace(
+            enable_console=console_logs_info,
+            level="INFO",
+            console_level="INFO",
+        ),
         common=SimpleNamespace(environment=Environment(environment)),
         service=SimpleNamespace(
             name="datamind",
@@ -147,18 +164,36 @@ def test_service_run_does_not_authenticate_cli_user(
     assert "WORKERS" in result.output
     assert "RELOAD" in result.output
     assert ("enabled" if reload_enabled else "disabled") in result.output
-    assert "PID" in result.output
-    assert "12345" in result.output
-    assert "Press Ctrl+C to stop" in result.output
+    assert result.output.count("服务已就绪") == 1
+    assert result.output.count("正在启动服务，等待 Worker 就绪") == 1
+    assert ("按 Ctrl+C 停止。" in result.output) is interactive
+    assert "Press Ctrl+C to stop" not in result.output
+    assert result.output.index("Datamind") < result.output.index("正在启动服务")
+    assert result.output.index("正在启动服务") < result.output.index("服务已就绪")
+    assert result.output.count("Powered by") == 1
     command = popen.call_args.args[0]
     assert ("--reload" in command) is reload_enabled
     assert "--quiet" in command
+    startup_events = [
+        call
+        for call in structured_logger.info.call_args_list
+        if call.args == ("正在启动服务，等待 Worker 就绪",)
+    ]
+    assert len(startup_events) == 1
     completed_events = [
         call.kwargs
         for call in structured_logger.info.call_args_list
-        if call.args == ("Datamind 服务启动完成",)
+        if call.args == ("服务已就绪",)
     ]
     assert len(completed_events) == 1
-    assert completed_events[0]["service_instance_id"] == (
+    assert completed_events[0]["workers"] == 1
+    assert completed_events[0]["startup_seconds"] >= 0
+    startup_details = [
+        call.kwargs
+        for call in structured_logger.debug.call_args_list
+        if call.args == ("Datamind 服务启动完成",)
+    ]
+    assert startup_details[0]["pid"] == 12345
+    assert startup_details[0]["service_instance_id"] == (
         popen.call_args.kwargs["env"]["DATAMIND_SERVICE_INSTANCE_ID"]
     )

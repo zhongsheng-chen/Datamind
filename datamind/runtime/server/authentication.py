@@ -7,6 +7,16 @@
   - login: 使用本地用户名和密码登录
   - refresh: 续期并轮换刷新令牌
   - logout: 撤销刷新令牌
+
+使用示例：
+  import bentoml
+
+  from datamind.runtime.server.authentication import auth_app
+
+  @bentoml.service
+  @bentoml.asgi_app(auth_app, path="/auth")
+  class RuntimeService:
+      pass
 """
 
 from typing import TypeVar
@@ -34,6 +44,7 @@ from datamind.auth.schemas import (
     RefreshTokenRequest,
 )
 from datamind.db.core import UnitOfWork
+from datamind.runtime.server.access import REQUEST_ID_SCOPE_KEY
 from datamind.audit.enums import AuditSource
 from datamind.audit.recorder import AuditRecorder
 from datamind.context import (
@@ -128,6 +139,9 @@ def _request_id(
         request: Request,
 ) -> str:
     """读取可信长度的请求 ID，缺失时生成新 ID."""
+    scoped_request_id = request.scope.get(REQUEST_ID_SCOPE_KEY)
+    if isinstance(scoped_request_id, str):
+        return scoped_request_id
     request_id = request.headers.get(
         "x-request-id",
         "",
@@ -144,6 +158,9 @@ def _trace_id(
         request: Request,
 ) -> str:
     """读取 W3C 追踪 ID，缺失或无效时生成新 ID."""
+    scoped_trace_id = request.scope.get("trace_id")
+    if isinstance(scoped_trace_id, str) and is_valid_trace_id(scoped_trace_id):
+        return scoped_trace_id
     traceparent = request.headers.get(
         "traceparent",
         "",

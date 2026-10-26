@@ -63,6 +63,7 @@ from datamind.runtime.server.security import (
     RuntimeSecurity,
 )
 from datamind.runtime.server.authentication import auth_app
+from datamind.runtime.server.access import AccessLogMiddleware
 from datamind.runtime.server.cache import ServiceCacheEntry
 from datamind.runtime.server.control import RuntimeControlMixin
 from datamind.runtime.server.prediction import PredictionMixin
@@ -255,7 +256,7 @@ class DatamindRuntimeService(
 
         self.task_publisher = TaskPublisher()
 
-        self._logger.info(
+        self._logger.debug(
             "运行时 Worker 初始化完成",
             worker_id=worker_id,
             environment=(
@@ -306,7 +307,7 @@ class DatamindRuntimeService(
 
         await self.reconciler.start()
 
-        self._logger.info(
+        self._logger.debug(
             "运行时 Worker 启动完成",
             worker_id=self.manager.worker_id,
             environment=(
@@ -546,3 +547,6 @@ class DatamindRuntimeService(
             else 500
         )
         ctx.response.status_code = status_code
+
+
+DatamindRuntimeService.add_asgi_middleware(AccessLogMiddleware)

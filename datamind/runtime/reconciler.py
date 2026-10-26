@@ -305,7 +305,7 @@ class RuntimeReconciler:
             ),
         )
 
-        self._logger.info(
+        self._logger.debug(
             "运行时协调器启动成功",
             worker_id=self.worker_id,
             environment=self.environment,
@@ -426,7 +426,12 @@ class RuntimeReconciler:
                     or result.reloaded
                     or result.failed
             ):
-                self._logger.info(
+                log_result = (
+                    self._logger.warning
+                    if result.failed
+                    else self._logger.debug
+                )
+                log_result(
                     "运行时状态协调完成",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -612,7 +617,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                self._logger.info(
+                self._logger.debug(
                     "Worker 加载部署模型",
                     worker_id=self.worker_id,
                     environment=self.environment,
