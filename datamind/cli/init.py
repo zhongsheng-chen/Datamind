@@ -83,7 +83,7 @@ def initialize() -> None:
                 runner()
             )
     except AlreadyInitializedError:
-        logger.info(
+        logger.debug(
             "Datamind 已完成初始化，无需重复执行",
             status="skipped",
             **log_context,

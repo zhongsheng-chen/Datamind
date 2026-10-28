@@ -248,7 +248,7 @@ class InitializationService:
                 occurred_at=initialized_at,
             )
 
-        logger.info(
+        logger.debug(
             "Datamind 初始化完成",
             action="system.initialize",
             target_type="system",

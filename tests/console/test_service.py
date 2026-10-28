@@ -50,4 +50,4 @@ def test_console_service_initializes_logging(
     )
     worker_logger.bind.assert_any_call(service_instance_id="console-test")
     worker_logger.bind.assert_any_call(pid=service_module.os.getpid())
-    worker_logger.info.assert_called_once_with("管理控制台 Worker 初始化完成")
+    worker_logger.debug.assert_called_once_with("管理控制台 Worker 初始化完成")

@@ -364,7 +364,7 @@ def run_console(
                 code=return_code or 1
             )
 
-        logger.info(
+        logger.debug(
             "Datamind 管理控制台启动完成",
             elapsed_seconds=round(time.monotonic() - started_at, 2),
             **startup_context,

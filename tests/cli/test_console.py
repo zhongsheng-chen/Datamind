@@ -292,7 +292,7 @@ def test_console_run_starts_bentoml_service(
     completed_events = [
         keyword_arguments
         for positional_arguments, keyword_arguments
-        in structured_logger.info.call_args_list
+        in structured_logger.debug.call_args_list
         if positional_arguments == (
             "Datamind 管理控制台启动完成",
         )

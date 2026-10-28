@@ -43,4 +43,4 @@ class DatamindConsoleService:
         service_instance_id = os.environ.get("DATAMIND_SERVICE_INSTANCE_ID")
         if service_instance_id:
             logger = logger.bind(service_instance_id=service_instance_id)
-        logger.info("管理控制台 Worker 初始化完成")
+        logger.debug("管理控制台 Worker 初始化完成")

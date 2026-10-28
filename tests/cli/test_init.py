@@ -262,7 +262,7 @@ def test_init_renders_clean_database_error(
 @pytest.mark.parametrize(
     ("error", "level", "status", "exit_code"),
     [
-        (AlreadyInitializedError("already initialized"), "info", "skipped", 0),
+        (AlreadyInitializedError("already initialized"), "debug", "skipped", 0),
         (ValueError("sensitive-password"), "error", "failed", 1),
         (SQLAlchemyError("sensitive-connection"), "error", "failed", 1),
     ],

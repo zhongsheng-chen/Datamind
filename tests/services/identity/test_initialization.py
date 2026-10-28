@@ -161,7 +161,7 @@ async def test_initialize_reuses_request_context(
 
     for fields in (
         audit_repo.create_audit.call_args.kwargs,
-        service_logger.info.call_args.kwargs,
+        service_logger.debug.call_args.kwargs,
     ):
         assert fields["request_id"] == "req_cli"
         assert fields["trace_id"] == "a" * 32
@@ -222,8 +222,8 @@ async def test_initialize_creates_admin_identity(
     assert result.user_id == "usr_test"
     assert result.role_id == "rol_test"
     assert result.initialized_at == CURRENT_TIME
-    service_logger.info.assert_called_once()
-    log_fields = service_logger.info.call_args.kwargs
+    service_logger.debug.assert_called_once()
+    log_fields = service_logger.debug.call_args.kwargs
     audit_fields = audit_repo.create_audit.call_args.kwargs
     for key in ("request_id", "trace_id", "source", "user", "ip", "hostname"):
         assert log_fields[key] == audit_fields[key]
