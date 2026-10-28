@@ -9,6 +9,7 @@
   - test_non_http_scope_passes_through: 验证非 HTTP 调用透传
 """
 
+import logging
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -62,8 +63,9 @@ async def test_access_log_records_response(
         )
 
     assert response.status_code == status_code
-    logger.info.assert_called_once()
-    fields = logger.info.call_args.kwargs
+    logger.log.assert_called_once()
+    assert logger.log.call_args.args == (logging.INFO, "HTTP 请求完成")
+    fields = logger.log.call_args.kwargs
     assert fields["method"] == "POST"
     assert fields["path"] == "/predict"
     assert fields["status_code"] == status_code
@@ -71,8 +73,35 @@ async def test_access_log_records_response(
     assert fields["user"] == "admin"
     assert fields["response_completed"] is True
     assert fields["duration_ms"] >= 0
-    assert "secret" not in str(logger.info.call_args)
+    assert "secret" not in str(logger.log.call_args)
     assert get_context() == before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/health", "/ready"])
+@pytest.mark.parametrize("status_code", [200, 204, 400, 503])
+async def test_health_check_log_level(
+        monkeypatch: pytest.MonkeyPatch,
+        path: str,
+        status_code: int,
+) -> None:
+    """仅将成功完成的健康检查访问日志降为 DEBUG."""
+    logger = MagicMock()
+    monkeypatch.setattr(access, "logger", logger)
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        await JSONResponse({}, status_code=status_code)(scope, receive, send)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=access.AccessLogMiddleware(app)),
+        base_url="http://test",
+    ) as client:
+        await client.post(path)
+
+    level = logging.DEBUG if status_code < 300 else logging.INFO
+    logger.log.assert_called_once()
+    assert logger.log.call_args.args == (level, "HTTP 请求完成")
+    assert logger.log.call_args.kwargs["status_code"] == status_code
 
 
 @pytest.mark.asyncio
@@ -98,8 +127,8 @@ async def test_access_log_records_unhandled_exception(
         with pytest.raises(RuntimeError, match="failed"):
             await client.get("/predict")
 
-    assert logger.info.call_args.kwargs["status_code"] == 500
-    assert logger.info.call_args.kwargs["response_completed"] is False
+    assert logger.log.call_args.kwargs["status_code"] == 500
+    assert logger.log.call_args.kwargs["response_completed"] is False
     assert get_context() == before
 
 
@@ -113,7 +142,7 @@ async def test_streaming_response_logged_once_after_body(
 
     async def chunks() -> AsyncIterator[bytes]:
         yield b"first"
-        logger.info.assert_not_called()
+        logger.log.assert_not_called()
         yield b"second"
 
     async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -126,8 +155,8 @@ async def test_streaming_response_logged_once_after_body(
         response = await client.get("/stream")
 
     assert response.content == b"firstsecond"
-    logger.info.assert_called_once()
-    assert logger.info.call_args.kwargs["response_completed"] is True
+    logger.log.assert_called_once()
+    assert logger.log.call_args.kwargs["response_completed"] is True
 
 
 @pytest.mark.asyncio
@@ -150,4 +179,4 @@ async def test_non_http_scope_passes_through(
         AsyncMock(),
         AsyncMock(),
     )
-    logger.info.assert_not_called()
+    logger.log.assert_not_called()

@@ -14,6 +14,7 @@
   )
 """
 
+import logging
 from time import perf_counter
 from typing import Final
 
@@ -117,7 +118,14 @@ class AccessLogMiddleware:
             try:
                 await self.app(scope, receive, send_response)
             finally:
-                logger.info(
+                is_successful_probe = (
+                    completed
+                    and 200 <= status_code < 300
+                    and scope["path"] in {"/health", "/ready"}
+                )
+                level = logging.DEBUG if is_successful_probe else logging.INFO
+                logger.log(
+                    level,
                     "HTTP 请求完成" if completed else "HTTP 请求中断",
                     method=request.method,
                     path=scope["path"],
