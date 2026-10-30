@@ -67,6 +67,7 @@ nav:
       - Docker 部署: deployment/docker.md
       - 生产部署: deployment/production.md
       - 任务 Worker: deployment/worker.md
+      - 升级: deployment/upgrade.md
   - 参考手册:
       - 环境变量: reference/environment-variables.md
       - 预测 API: reference/runtime-api.md

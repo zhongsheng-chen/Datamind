@@ -1,6 +1,6 @@
 # Docker 部署
 
-本教程介绍如何使用 Docker Compose 部署 Datamind，包括环境配置、数据库初始化、服务启动和部署验证。
+本教程介绍如何使用 Docker Compose 部署 Datamind，包括环境配置、数据库初始化、服务启动和部署验证。如需升级现有部署，请参阅 [升级](upgrade.md)。
 
 ## 前置条件
 
@@ -94,7 +94,7 @@ Docker Compose 从 `.env.docker` 加载应用配置。各配置项的含义见[�
 
 ## 选择镜像
 
-Datamind 提供完整框架镜像和单框架镜像，可选镜像如下：
+Datamind 提供完整框架镜像和轻量镜像，可选镜像如下：
 
 - `docker.io/zhongshengchen/datamind:latest`
 - `docker.io/zhongshengchen/datamind:<version>`
@@ -103,30 +103,29 @@ Datamind 提供完整框架镜像和单框架镜像，可选镜像如下：
 - `docker.io/zhongshengchen/datamind:<version>-lightgbm`
 - `docker.io/zhongshengchen/datamind:<version>-catboost`
 
-设置部署使用的镜像标签：
+在现有 `.env.docker` 中设置需要使用的镜像仓库和版本标签：
 
-```bash
-export DATAMIND_IMAGE_TAG="<tag>"
+```dotenv
+DATAMIND_IMAGE_REPOSITORY=docker.io/zhongshengchen/datamind
+DATAMIND_IMAGE_TAG=<tag>
 ```
 
-将 `<tag>` 替换为所需标签，例如 `latest`、`0.1.0` 或 `0.1.0-sklearn`。
+将 `<tag>` 替换为具体版本标签，例如 `0.1.0` 或 `0.1.0-sklearn`。生产环境建议使用明确的版本标签，避免使用 `latest`。
 
-> **提示**
->
-> `latest` 始终指向最新稳定版本，生产环境建议使用固定版本标签。
+镜像可以从仓库拉取，也可离线导入。按照[准备镜像](upgrade.md#准备镜像)中的对应方式操作，并验证镜像配置。
 
 ## 数据库迁移与系统初始化
 
 执行数据库迁移：
 
 ```bash
-docker compose --profile setup run --rm migrate
+docker compose --env-file .env.docker --profile setup run --rm migrate
 ```
 
 首次部署还需初始化系统，创建管理员账户和内置角色：
 
 ```bash
-docker compose --profile setup run --rm init
+docker compose --env-file .env.docker --profile setup run --rm init
 ```
 
 ## 启动服务
@@ -134,21 +133,19 @@ docker compose --profile setup run --rm init
 在 `docker` 目录下启动服务：
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.docker up -d
 ```
-
-## 验证部署
 
 查看容器状态：
 
 ```bash
-docker compose ps
+docker compose --env-file .env.docker ps
 ```
 
 等待预测服务、管理控制台和任务 Worker 均显示为 `healthy`。如有服务未正常启动，可查看日志排查：
 
 ```bash
-docker compose logs --tail=100
+docker compose --env-file .env.docker logs --tail=100
 ```
 
 服务就绪后，可通过以下地址访问：
@@ -169,7 +166,7 @@ docker compose logs --tail=100
 在 `docker` 目录下停止应用服务：
 
 ```bash
-docker compose down
+docker compose --env-file .env.docker down
 ```
 
 如需同时停止基础设施，再执行：

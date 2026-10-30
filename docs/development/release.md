@@ -4,11 +4,13 @@
 
 ## 构建准备
 
-完成[开发环境](index.md)配置；如需构建镜像，还应安装并启动 Docker。在项目根目录安装构建与验证依赖：
+环境配置请参阅[开发环境](index.md)。在项目根目录运行：
 
 ```bash
 python -m pip install -e '.[test,release]'
 ```
+
+该命令以可编辑模式安装 Datamind，并安装构建和测试所需的依赖。
 
 ## 构建标识
 
@@ -23,31 +25,23 @@ export DATAMIND_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 ### Python 发行包
 
+安装 [Make](https://www.gnu.org/software/make/) 后，可运行以下命令构建发行包：
+
 ```bash
 make build
 ```
 
-该命令会安装前端依赖、构建管理控制台前端资源，并在 `dist/` 目录生成 Wheel 和 sdist 发行包。
+该命令会安装前端依赖、构建管理控制台前端资源，并在 `dist/` 目录生成 Wheel 和 sdist 发行包。未安装 Make 时，可依次执行以下等效命令：
+
+```bash
+npm ci
+npm run build:console
+python -m build
+```
 
 ### Docker 镜像
 
-构建默认镜像：
-
-```bash
-make build-docker
-```
-
-该命令构建包含全部模型框架的镜像，镜像名称为 `docker.io/zhongshengchen/datamind:<version>`。
-
-如需指定模型框架，可使用以下命令：
-
-```bash
-python -m scripts.build_docker --framework <framework>
-```
-
-该命令构建指定模型框架的镜像，镜像名称为 `docker.io/zhongshengchen/datamind:<version>-<framework>`。 更多参数见 `python -m scripts.build_docker --help`。
-
-也可以直接使用 `docker build`：
+安装并启动 [Docker](https://docs.docker.com/get-started/get-docker/)，然后运行以下命令构建镜像：
 
 ```bash
 docker build -f docker/Dockerfile -t datamind \
@@ -56,7 +50,53 @@ docker build -f docker/Dockerfile -t datamind \
   .
 ```
 
+该命令在本地生成 `datamind:latest` 镜像，不会推送到 Docker Hub。 Python 依赖默认从 PyPI 安装。如需使用其他镜像源，可通过 `--build-arg` 设置 `PIP_INDEX_URL`，例如[清华 PyPI 镜像源](https://pypi.tuna.tsinghua.edu.cn/simple)或[阿里云 PyPI 镜像源](https://developer.aliyun.com/mirror/pypi)。
+
+以下示例使用清华 PyPI 镜像源：
+
+```bash
+docker build -f docker/Dockerfile -t datamind \
+  --build-arg DATAMIND_BUILD_COMMIT \
+  --build-arg DATAMIND_BUILD_DATE \
+  --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+  .
+```
+
+如需指定模型框架，可通过 `DATAMIND_PYTHON_EXTRA` 构建参数设置：
+
+```bash
+docker build -f docker/Dockerfile -t datamind:sklearn \
+  --build-arg DATAMIND_BUILD_COMMIT \
+  --build-arg DATAMIND_BUILD_DATE \
+  --build-arg DATAMIND_PYTHON_EXTRA=sklearn \
+  .
+```
+
+### 构建脚本
+
+项目提供了构建脚本，也可通过 Make 构建镜像：
+
+```bash
+make build-docker
+```
+
+该命令构建包含全部模型框架的镜像，镜像名称为 `docker.io/zhongshengchen/datamind:<version>`。 如需指定模型框架，可使用以下命令：
+
+```bash
+make build-docker FRAMEWORK=<framework>
+```
+
+该命令构建指定模型框架的镜像，镜像名称为 `docker.io/zhongshengchen/datamind:<version>-<framework>`。 未安装 Make 时，可直接运行构建脚本：
+
+```bash
+python -m scripts.build_docker --framework <framework>
+```
+
+更多选项请参阅 `python -m scripts.build_docker --help`。
+
 ## 构建验证
+
+### Python 发行包
 
 使用构建时的提交 SHA 和构建时间验证发行包：
 
@@ -68,6 +108,18 @@ python -m scripts.verify_distributions \
 ```
 
 该命令检查 Wheel 和 sdist 的版本、文件及构建标识。
+
+### Docker 镜像
+
+检查本地镜像的构建标识：
+
+```bash
+docker image inspect datamind:latest --format '{{json .Config.Labels}}'
+```
+
+确认 `org.opencontainers.image.version`、`org.opencontainers.image.revision` 和 `org.opencontainers.image.created` 分别与本次构建的版本、提交 SHA 和构建时间一致。
+
+升级现有部署，请参阅[升级](../deployment/upgrade.md)。
 
 ## CI 发布流程
 

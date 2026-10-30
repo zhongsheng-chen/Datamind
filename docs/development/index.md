@@ -49,7 +49,7 @@ Windows PowerShell：
 python -m pip install -e ".[test]"
 ```
 
-涉及模型预测时，按框架安装对应依赖，例如 `.[test,sklearn]`；需要全部框架时使用 `.[test,full]`。构建与发布工具的安装方式请参阅[构建与 Release](release.md)。
+涉及模型预测时，按框架安装对应依赖，例如 `.[test,sklearn]`；需要全部框架时使用 `.[test,full]`。构建与发布工具的安装方式请参阅[构建与发布](release.md)。
 
 安装前端依赖并构建管理控制台：
 

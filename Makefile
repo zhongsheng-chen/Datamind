@@ -1,5 +1,6 @@
 PYTHON ?= python
 NPM ?= npm
+FRAMEWORK ?= full
 
 CLEAN_TARGETS := build dist datamind/console/dist $(wildcard *.egg-info)
 
@@ -40,7 +41,7 @@ build: build-console
 	$(PYTHON) -m build
 
 build-docker:
-	$(PYTHON) -m scripts.build_docker
+	$(PYTHON) -m scripts.build_docker --framework "$(FRAMEWORK)"
 
 clean:
 	$(RM) -r $(CLEAN_TARGETS)
