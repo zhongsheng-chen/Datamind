@@ -1854,7 +1854,7 @@ async def _record_authentication_event(
     await record_authentication_event(
         logger=logger,
         recorder=AuditRecorder(),
-        channel="控制台",
+        channel="console",
         action=action,
         actor_username=actor_username,
         target_id=target_id,

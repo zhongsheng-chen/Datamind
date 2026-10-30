@@ -358,8 +358,10 @@ async def test_authenticate_maps_permission_denied(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("datamind_trace_id", [None, "1" * 32])
 async def test_request_scope_establishes_trusted_context(
         monkeypatch: pytest.MonkeyPatch,
+        datamind_trace_id: str | None,
 ) -> None:
     """测试认证请求作用域建立并恢复可信上下文."""
     security = RuntimeSecurity()
@@ -379,9 +381,11 @@ async def test_request_scope_establishes_trusted_context(
     )
     context = ContextStub()
     context.request.scope = {
-        "trace_id": "trace_test",
+        "trace_id": "trace_test" if datamind_trace_id is None else 12345,
         "invalid": 100,
     }
+    if datamind_trace_id is not None:
+        context.request.scope[security_module.TRACE_ID_SCOPE_KEY] = datamind_trace_id
 
     async with security.request_scope(
             context=context,
@@ -393,7 +397,7 @@ async def test_request_scope_establishes_trusted_context(
         assert current_identity is identity
         assert request_context["user"] == "alice"
         assert request_context["ip"] == "127.0.0.1"
-        assert request_context["trace_id"] == "trace_test"
+        assert request_context["trace_id"] == (datamind_trace_id or "trace_test")
         assert request_context["request_id"] == "req_test"
 
     assert get_context().get("request_id") is None

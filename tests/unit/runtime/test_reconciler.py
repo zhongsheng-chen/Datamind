@@ -150,15 +150,15 @@ def test_reconciler_binds_service_identity(
     """测试协调器日志绑定调用方传入的实例标识."""
     manager = MagicMock()
     manager.worker_id = "worker_test"
-    monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "unrelated-instance")
+    monkeypatch.setenv("DATAMIND_SERVICE_ID", "unrelated-instance")
     reconciler = RuntimeReconciler(
         manager=manager,
         environment="testing",
-        service_instance_id="service-test",
+        service_id="service-test",
     )
 
     context = structlog.get_context(reconciler._logger)
-    assert context["service_instance_id"] == "service-test"
+    assert context["service_id"] == "service-test"
     assert context["worker_id"] == "worker_test"
     assert context["pid"] == reconciler_module.os.getpid()
 

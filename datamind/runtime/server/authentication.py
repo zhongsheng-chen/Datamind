@@ -44,13 +44,12 @@ from datamind.auth.schemas import (
     RefreshTokenRequest,
 )
 from datamind.db.core import UnitOfWork
-from datamind.runtime.server.access import REQUEST_ID_SCOPE_KEY
+from datamind.runtime.server.access import (
+    REQUEST_ID_SCOPE_KEY,
+    get_trace_id,
+)
 from datamind.audit.enums import AuditSource
 from datamind.audit.recorder import AuditRecorder
-from datamind.context import (
-    generate_trace_id,
-    is_valid_trace_id,
-)
 from datamind.context.keys import (
     HOSTNAME,
     IP,
@@ -154,34 +153,6 @@ def _request_id(
     )
 
 
-def _trace_id(
-        request: Request,
-) -> str:
-    """读取 W3C 追踪 ID，缺失或无效时生成新 ID."""
-    scoped_trace_id = request.scope.get("trace_id")
-    if isinstance(scoped_trace_id, str) and is_valid_trace_id(scoped_trace_id):
-        return scoped_trace_id
-    traceparent = request.headers.get(
-        "traceparent",
-        "",
-    ).strip().lower()
-    parts = traceparent.split("-")
-    trace_id = (
-        parts[1]
-        if len(parts) == 4 and is_valid_trace_id(parts[1])
-        else request.headers.get(
-            "x-trace-id",
-            "",
-        ).strip().lower()
-    )
-
-    return (
-        trace_id
-        if is_valid_trace_id(trace_id)
-        else generate_trace_id()
-    )
-
-
 def _authentication_context(
         request: Request,
         *,
@@ -193,7 +164,7 @@ def _authentication_context(
         SOURCE: AuditSource.HTTP,
         IP: _request_ip(request),
         REQUEST_ID: _request_id(request),
-        TRACE_ID: _trace_id(request),
+        TRACE_ID: get_trace_id(request),
         HOSTNAME: get_hostname(),
     }
 
@@ -214,7 +185,7 @@ async def _record_event(
     await record_authentication_event(
         logger=logger,
         recorder=AuditRecorder(),
-        channel="运行时",
+        channel="runtime",
         action=action,
         actor_username=actor_username,
         target_id=target_id,

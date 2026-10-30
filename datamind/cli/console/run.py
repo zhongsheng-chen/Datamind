@@ -275,10 +275,20 @@ def run_console(
         host=normalized_host,
         port=resolved_port,
     )
-    service_instance_id = uuid.uuid4().hex
+    service_id = uuid.uuid4().hex
     env = os.environ.copy()
-    env["DATAMIND_SERVICE_INSTANCE_ID"] = service_instance_id
+    env["DATAMIND_SERVICE_ID"] = service_id
     started_at = time.monotonic()
+
+    print_http_server_summary(
+        console,
+        app_version=app_version,
+        environment=environment,
+        bind_address=listen_address,
+        access_url=access_url,
+        reload_enabled=reload,
+    )
+    logger.info("正在启动管理控制台，等待服务就绪")
 
     try:
         process = subprocess.Popen(
@@ -289,7 +299,7 @@ def run_console(
     except OSError as exc:
         logger.error(
             "Datamind 管理控制台启动失败",
-            service_instance_id=service_instance_id,
+            service_id=service_id,
             service_name=CONSOLE_SERVICE_NAME,
             version=app_version,
             environment=environment,
@@ -309,7 +319,7 @@ def run_console(
         ) from None
 
     startup_context = {
-        "service_instance_id": service_instance_id,
+        "service_id": service_id,
         "service_name": CONSOLE_SERVICE_NAME,
         "version": app_version,
         "environment": environment,
@@ -369,14 +379,9 @@ def run_console(
             elapsed_seconds=round(time.monotonic() - started_at, 2),
             **startup_context,
         )
-        print_http_server_summary(
-            console,
-            app_version=app_version,
-            environment=environment,
-            bind_address=listen_address,
-            access_url=access_url,
-            reload_enabled=reload,
-            pid=process.pid,
+        logger.info(
+            "管理控制台已就绪",
+            startup_seconds=round(time.monotonic() - started_at, 2),
         )
         console.print(
             "Press Ctrl+C to stop\n"

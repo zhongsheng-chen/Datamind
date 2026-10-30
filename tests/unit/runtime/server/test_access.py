@@ -69,6 +69,7 @@ async def test_access_log_records_response(
     assert fields["method"] == "POST"
     assert fields["path"] == "/predict"
     assert fields["status_code"] == status_code
+    assert fields["trace_id"] == trace_id
     assert fields["request_id"] == "req_prediction"
     assert fields["user"] == "admin"
     assert fields["response_completed"] is True

@@ -23,7 +23,7 @@ def test_console_service_initializes_logging(
 ) -> None:
     """测试控制台服务使用统一配置初始化日志."""
     logging_config = MagicMock()
-    monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "console-test")
+    monkeypatch.setenv("DATAMIND_SERVICE_ID", "console-test")
     worker_logger = MagicMock()
     worker_logger.bind.return_value = worker_logger
     monkeypatch.setitem(
@@ -48,6 +48,6 @@ def test_console_service_initializes_logging(
     setup_logging.assert_called_once_with(
         logging_config
     )
-    worker_logger.bind.assert_any_call(service_instance_id="console-test")
+    worker_logger.bind.assert_any_call(service_id="console-test")
     worker_logger.bind.assert_any_call(pid=service_module.os.getpid())
     worker_logger.debug.assert_called_once_with("管理控制台 Worker 初始化完成")

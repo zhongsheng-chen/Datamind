@@ -27,6 +27,7 @@
     验证认证执行包装设置状态并记录审计
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -375,3 +376,30 @@ async def test_execute_secured_applies_status_and_records_audit(
     assert context.response.status_code == (
         200 if successful else 400
     )
+
+
+def test_worker_ready_marker_matches_cli_service_id(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+) -> None:
+    """Worker 写入的服务标识可被 CLI 读取，并隔离其他服务的就绪标记."""
+    from datamind.cli.service.run import _read_worker_ready_files
+
+    service_module = runtime_server.load_service_module(monkeypatch)
+    monkeypatch.setenv("DATAMIND_SERVICE_ID", "service-current")
+    monkeypatch.setenv("DATAMIND_SERVICE_READY_DIR", str(tmp_path))
+
+    service_module._write_worker_ready_marker(
+        worker_id="worker-test",
+        environment="testing",
+    )
+
+    assert _read_worker_ready_files(
+        ready_dir=tmp_path,
+        service_id="service-current",
+    ) == {"worker-test"}
+    assert _read_worker_ready_files(
+        ready_dir=tmp_path,
+        service_id="service-other",
+    ) == set()

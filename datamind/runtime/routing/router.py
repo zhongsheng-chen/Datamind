@@ -244,7 +244,7 @@ class RuntimeRouter:
 
         current_time = to_utc(now or datetime.now(timezone.utc))
 
-        logger.info(
+        logger.debug(
             "开始解析运行时路由",
             model_id=model_id,
             subject_key=subject_key,

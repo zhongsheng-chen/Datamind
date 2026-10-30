@@ -44,6 +44,7 @@ from click import unstyle
 from typer.testing import CliRunner
 
 import datamind.cli.console.run as run_module
+from datamind.cli.branding import print_http_server_summary
 from datamind.cli.main import app
 from datamind.constants import Environment
 
@@ -232,7 +233,7 @@ def test_console_run_starts_bentoml_service(
         mock_console_readiness: MagicMock,
 ) -> None:
     """测试控制台命令启动独立 BentoML 服务."""
-    monkeypatch.setattr(run_module, "get_app_version", lambda: "0.1.0")
+    monkeypatch.setitem(vars(run_module), "get_app_version", lambda: "0.1.0")
     process = MagicMock()
     process.pid = 4321
     process.wait.return_value = 0
@@ -240,6 +241,17 @@ def test_console_run_starts_bentoml_service(
         return_value=process
     )
     structured_logger = MagicMock()
+    phases = []
+
+    def print_summary(*args, **kwargs):
+        phases.append("summary")
+        print_http_server_summary(*args, **kwargs)
+
+    monkeypatch.setitem(vars(run_module), "print_http_server_summary", print_summary)
+    structured_logger.info.side_effect = lambda event, **_: phases.append(event)
+    mock_console_readiness.side_effect = lambda *args, **kwargs: (
+        phases.append("readiness") or True
+    )
     monkeypatch.setitem(
         vars(run_module.subprocess),
         "Popen",
@@ -284,11 +296,27 @@ def test_console_run_starts_bentoml_service(
     assert "http://127.0.0.1:3200" in output
     assert "RELOAD" in output
     assert "enabled" in output
-    assert "PID" in output
-    assert "4321" in output
+    assert "PID" not in output
     assert "STATUS" not in output
     assert "HEALTH" not in output
     assert "Press Ctrl+C to stop" in output
+    assert phases[:4] == [
+        "summary",
+        "正在启动管理控制台，等待服务就绪",
+        "readiness",
+        "管理控制台已就绪",
+    ]
+    startup_events = []
+    for arguments, keywords in structured_logger.info.call_args_list:
+        if arguments[0] in {
+            "正在启动管理控制台，等待服务就绪",
+            "管理控制台已就绪",
+        }:
+            startup_events.append((arguments[0], keywords))
+    assert startup_events == [
+        ("正在启动管理控制台，等待服务就绪", {}),
+        ("管理控制台已就绪", {"startup_seconds": ANY}),
+    ]
     completed_events = [
         keyword_arguments
         for positional_arguments, keyword_arguments
@@ -299,11 +327,11 @@ def test_console_run_starts_bentoml_service(
     ]
     assert len(completed_events) == 1
     completed_event = completed_events[0]
-    child_instance_id = popen.call_args.kwargs["env"]["DATAMIND_SERVICE_INSTANCE_ID"]
-    assert len(child_instance_id) == 32
+    child_service_id = popen.call_args.kwargs["env"]["DATAMIND_SERVICE_ID"]
+    assert len(child_service_id) == 32
     assert completed_event == {
         "elapsed_seconds": ANY,
-        "service_instance_id": child_instance_id,
+        "service_id": child_service_id,
         "service_name": "datamind_console_service",
         "version": "0.1.0",
         "environment": "development",
@@ -515,6 +543,8 @@ def test_console_run_rejects_startup_timeout(
     wait_until_ready = MagicMock(
         return_value=False
     )
+    structured_logger = MagicMock()
+    monkeypatch.setattr(run_module, "logger", structured_logger)
     monkeypatch.setitem(
         vars(run_module),
         "wait_for_console_ready",
@@ -531,7 +561,10 @@ def test_console_run_rejects_startup_timeout(
 
     assert result.exit_code == 1
     assert "等待服务就绪超时" in result.output
-    assert "Powered by Zhongsheng Chen" not in result.output
+    assert "Powered by Zhongsheng Chen" in result.output
+    structured_logger.info.assert_called_once_with(
+        "正在启动管理控制台，等待服务就绪"
+    )
     wait_until_ready.assert_called_once_with(
         process,
         "http://127.0.0.1:8701/ready",

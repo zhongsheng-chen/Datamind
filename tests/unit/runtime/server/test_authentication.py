@@ -19,6 +19,8 @@
     验证认证请求校验失败时返回 HTTP 400
   - test_login_reports_unavailable_auth_service:
     验证认证服务不可用时返回 HTTP 503
+  - test_login_and_access_share_trace_when_framework_overwrites_scope:
+    验证框架覆盖作用域后认证、审计和访问日志的链路追踪 ID 一致
 """
 
 from importlib import import_module
@@ -485,3 +487,65 @@ async def test_login_reports_unavailable_auth_service(
     assert audit_call.kwargs["status"] == "failed"
     auth_logger.error.assert_called_once()
     auth_logger.warning.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("headers, expected_trace_id", [
+    ({}, None),
+    ({"x-trace-id": "1" * 32}, "1" * 32),
+    ({"traceparent": "00-" + "2" * 32 + "-" + "3" * 16 + "-01",
+      "x-trace-id": "1" * 32}, "2" * 32),
+    ({"traceparent": "invalid", "x-trace-id": "invalid"}, None),
+])
+async def test_login_and_access_share_trace_when_framework_overwrites_scope(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        headers: dict[str, str],
+        expected_trace_id: str | None,
+) -> None:
+    """测试框架覆盖作用域后认证、审计和访问日志的链路追踪 ID 一致."""
+    from datamind.context import get_context, is_valid_trace_id
+    from datamind.context.scope import context_scope
+    from datamind.runtime.server import access
+
+    auth_service = MagicMock()
+    auth_service.login = AsyncMock(return_value=TokenResponse(
+        access_token="access-token",
+        refresh_token="refresh-token",
+        expires_in=1800,
+    ))
+    recorder, auth_logger = _install_auth_service(
+        runtime_server, monkeypatch, auth_service,
+    )
+    access_logger = MagicMock()
+    monkeypatch.setattr(access, "logger", access_logger)
+    authentication = _authentication_module()
+    before = get_context().copy()
+
+    async def framework_app(scope, receive, send):
+        # BentoML ServiceContext.in_request 会写入整数格式的 OpenTelemetry ID。
+        scope["trace_id"] = 12345
+        with context_scope(trace_id="f" * 32):
+            await authentication.auth_app(scope, receive, send)
+
+    async with AsyncClient(
+            transport=ASGITransport(app=access.AccessLogMiddleware(framework_app)),
+            base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/login",
+            json={"username": "alice", "password": "secret"},
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    auth_fields = auth_logger.info.call_args.kwargs
+    access_fields = access_logger.log.call_args.kwargs
+    audit_fields = recorder.record.await_args.kwargs["context"]
+    trace_id = auth_fields["trace_id"]
+    assert is_valid_trace_id(trace_id)
+    assert access_fields["trace_id"] == audit_fields["trace_id"] == trace_id
+    assert access_fields["request_id"] == auth_fields["request_id"]
+    if expected_trace_id is not None:
+        assert trace_id == expected_trace_id
+    assert get_context() == before

@@ -119,7 +119,7 @@ def test_service_run_does_not_authenticate_cli_user(
     monkeypatch.setitem(
         vars(run_module),
         "_build_ready_dir",
-        lambda _service_instance_id: (
+        lambda _service_id: (
             Path("runtime_ready_test")
         ),
     )
@@ -194,6 +194,6 @@ def test_service_run_does_not_authenticate_cli_user(
         if call.args == ("Datamind 服务启动完成",)
     ]
     assert startup_details[0]["pid"] == 12345
-    assert startup_details[0]["service_instance_id"] == (
-        popen.call_args.kwargs["env"]["DATAMIND_SERVICE_INSTANCE_ID"]
+    assert startup_details[0]["service_id"] == (
+        popen.call_args.kwargs["env"]["DATAMIND_SERVICE_ID"]
     )

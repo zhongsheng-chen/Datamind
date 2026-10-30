@@ -2457,7 +2457,7 @@ class PredictionMixin:
             )
         )
 
-        runtime_identity = id(
+        identity = id(
             runtime_model
         )
 
@@ -2468,8 +2468,8 @@ class PredictionMixin:
         if (
                 cached is not None
                 and cached.generation == generation
-                and cached.runtime_identity
-                == runtime_identity
+                and cached.identity
+                == identity
         ):
             return cached.service
 
@@ -2481,8 +2481,8 @@ class PredictionMixin:
             if (
                     cached is not None
                     and cached.generation == generation
-                    and cached.runtime_identity
-                    == runtime_identity
+                    and cached.identity
+                    == identity
             ):
                 return cached.service
 
@@ -2490,16 +2490,38 @@ class PredictionMixin:
                 runtime_model=runtime_model,
             )
 
-            self._service_cache[
-                deployment_id
-            ] = ServiceCacheEntry(
+            cache_entry = ServiceCacheEntry(
                 service=service,
                 generation=generation,
-                runtime_identity=runtime_identity,
+                identity=identity,
+            )
+            self._service_cache[deployment_id] = cache_entry
+
+            bound_context = structlog.get_context(
+                self._logger
+            )
+            log_context = {
+                "instance_id": cache_entry.instance_id,
+            }
+
+            if "service_id" in bound_context:
+                log_context["service_id"] = (
+                    bound_context["service_id"]
+                )
+
+            log_context.update(
+                bound_context
             )
 
-            self._logger.info(
-                "创建 Worker RuntimeService",
+            creation_logger = self._logger.try_unbind(
+                *bound_context
+            )
+            creation_logger = creation_logger.bind(
+                **log_context
+            )
+
+            creation_logger.debug(
+                "运行时服务实例已创建",
                 worker_id=self.manager.worker_id,
                 environment=(
                     common_config.environment

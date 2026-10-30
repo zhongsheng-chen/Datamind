@@ -9,11 +9,12 @@
   entry = ServiceCacheEntry(
       service=runtime_service,
       generation=1,
-      runtime_identity=id(runtime_model),
+      identity=id(runtime_model),
   )
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from uuid import uuid4
 
 from datamind.runtime.serving.base import BaseRuntimeService
 
@@ -25,9 +26,11 @@ class ServiceCacheEntry:
     属性：
         service: RuntimeService 实例
         generation: 创建服务时已应用的控制版本
-        runtime_identity: RuntimeModel 对象身份标识
+        identity: 创建服务时的模型对象标识
+        instance_id: 运行时服务实例的唯一标识
     """
 
     service: BaseRuntimeService
     generation: int | None
-    runtime_identity: int
+    identity: int
+    instance_id: str = field(default_factory=lambda: uuid4().hex)

@@ -61,10 +61,11 @@ async def record_authentication_event(
     )
     log(
         (
-            f"{channel}{operation_label}成功"
+            f"用户{operation_label}成功"
             if successful
-            else f"{channel}{operation_label}失败"
+            else f"用户{operation_label}失败"
         ),
+        channel=channel,
         action=action,
         status=str(status),
         status_code=status_code,

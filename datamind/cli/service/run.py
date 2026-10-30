@@ -66,12 +66,12 @@ class ServiceStartupResult(TypedDict):
 
 
 def _build_ready_dir(
-        service_instance_id: str,
+        service_id: str,
 ) -> Path:
     """构建 Worker 就绪标记目录.
 
     参数：
-        service_instance_id: 预测服务实例 ID
+        service_id: 预测服务实例 ID
 
     返回：
         Worker 就绪标记目录
@@ -80,7 +80,7 @@ def _build_ready_dir(
             Path(tempfile.gettempdir())
             / "datamind"
             / "runtime_ready"
-            / service_instance_id
+            / service_id
     )
 
 
@@ -123,13 +123,13 @@ def _cleanup_ready_dir(
 def _read_worker_ready_files(
         *,
         ready_dir: Path,
-        service_instance_id: str,
+        service_id: str,
 ) -> set[str]:
     """读取已就绪 Worker.
 
     参数：
         ready_dir: Worker 就绪标记目录
-        service_instance_id: 预测服务实例 ID
+        service_id: 预测服务实例 ID
 
     返回：
         已就绪 Worker ID 集合
@@ -153,7 +153,7 @@ def _read_worker_ready_files(
         ):
             continue
 
-        if record.get("service_instance_id") != service_instance_id:
+        if record.get("service_id") != service_id:
             continue
 
         if record.get("ready") is not True:
@@ -176,7 +176,7 @@ def _read_worker_ready_files(
 async def _wait_for_workers_ready(
         *,
         ready_dir: Path,
-        service_instance_id: str,
+        service_id: str,
         process: subprocess.Popen,
         expected_workers: int,
         timeout_seconds: float = 60.0,
@@ -186,7 +186,7 @@ async def _wait_for_workers_ready(
 
     参数：
         ready_dir: Worker 就绪标记目录
-        service_instance_id: 预测服务实例 ID
+        service_id: 预测服务实例 ID
         process: 预测服务子进程
         expected_workers: 预期 Worker 数量
         timeout_seconds: 等待超时时间
@@ -219,7 +219,7 @@ async def _wait_for_workers_ready(
 
         ready_workers = _read_worker_ready_files(
             ready_dir=ready_dir,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
         )
 
         current_worker_ids = tuple(
@@ -229,7 +229,7 @@ async def _wait_for_workers_ready(
         if current_worker_ids != last_worker_ids:
             logger.debug(
                 "等待 Datamind 服务 Worker 就绪",
-                service_instance_id=service_instance_id,
+                service_id=service_id,
                 ready_dir=str(ready_dir),
                 expected_workers=expected_workers,
                 ready_workers=len(ready_workers),
@@ -310,7 +310,7 @@ def run_service(
 
     process: subprocess.Popen | None = None
     ready_dir: Path | None = None
-    service_instance_id: str | None = None
+    service_id: str | None = None
     service_started = False
     stop_requested = False
 
@@ -325,7 +325,7 @@ def run_service(
         """启动预测服务子进程并等待 Worker 就绪."""
         nonlocal process
         nonlocal ready_dir
-        nonlocal service_instance_id
+        nonlocal service_id
         nonlocal service_started
 
         if not run_environment:
@@ -361,13 +361,13 @@ def run_service(
         if not verbose:
             command.append("--quiet")
 
-        current_service_instance_id: str = uuid.uuid4().hex
+        current_service_id: str = uuid.uuid4().hex
 
         current_ready_dir: Path = _build_ready_dir(
-            current_service_instance_id
+            current_service_id
         )
 
-        service_instance_id = current_service_instance_id
+        service_id = current_service_id
         ready_dir = current_ready_dir
 
         _prepare_ready_dir(
@@ -380,8 +380,8 @@ def run_service(
             run_environment
         )
 
-        env["DATAMIND_SERVICE_INSTANCE_ID"] = (
-            current_service_instance_id
+        env["DATAMIND_SERVICE_ID"] = (
+            current_service_id
         )
 
         env["DATAMIND_SERVICE_READY_DIR"] = (
@@ -459,7 +459,7 @@ def run_service(
             reload=result["reload"],
             verbose=verbose,
             service_target=SERVICE_TARGET,
-            service_instance_id=current_service_instance_id,
+            service_id=current_service_id,
             ready_dir=str(current_ready_dir),
             pid=result["pid"],
         )
@@ -467,7 +467,7 @@ def run_service(
         try:
             await _wait_for_workers_ready(
                 ready_dir=current_ready_dir,
-                service_instance_id=current_service_instance_id,
+                service_id=current_service_id,
                 process=started_process,
                 expected_workers=expected_workers,
             )
@@ -486,7 +486,7 @@ def run_service(
                 url=result["url"],
                 workers=result["workers"],
                 expected_workers=expected_workers,
-                service_instance_id=current_service_instance_id,
+                service_id=current_service_id,
                 ready_dir=str(current_ready_dir),
                 pid=result["pid"],
                 error=str(exc),
@@ -502,7 +502,7 @@ def run_service(
                 bind=result["bind"],
                 url=result["url"],
                 workers=result["workers"],
-                service_instance_id=current_service_instance_id,
+                service_id=current_service_id,
                 ready_dir=str(current_ready_dir),
                 pid=result["pid"],
                 error=str(exc),
@@ -514,7 +514,7 @@ def run_service(
 
         logger.debug(
             "Datamind 服务启动完成",
-            service_instance_id=current_service_instance_id,
+            service_id=current_service_id,
             service_name=result["name"],
             version=result["version"],
             environment=result["environment"],
@@ -564,7 +564,7 @@ def run_service(
             environment=environment,
             host=resolved_host,
             port=resolved_port,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
             pid=service_process.pid,
             return_code=return_code,
             stop_reason=stop_reason,
@@ -582,7 +582,7 @@ def run_service(
             environment=environment,
             host=resolved_host,
             port=resolved_port,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
             pid=service_process.pid,
             return_code=return_code,
         )
@@ -658,7 +658,7 @@ def run_service(
                         environment=environment,
                         host=resolved_host,
                         port=resolved_port,
-                        service_instance_id=service_instance_id,
+                        service_id=service_id,
                         pid=service_process.pid,
                         return_code=return_code,
                     )

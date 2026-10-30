@@ -186,7 +186,7 @@ class RuntimeReconciler:
                     DEFAULT_HEARTBEAT_INTERVAL_SECONDS
             ),
             operator: str = DEFAULT_OPERATOR,
-            service_instance_id: str | None = None,
+            service_id: str | None = None,
     ):
         """初始化运行时状态协调器.
 
@@ -206,7 +206,7 @@ class RuntimeReconciler:
             operator:
                 系统操作人，默认值为 system
 
-            service_instance_id:
+            service_id:
                 所属服务实例 ID（可选）
 
         异常：
@@ -238,9 +238,9 @@ class RuntimeReconciler:
             worker_id=manager.worker_id,
             pid=os.getpid(),
         )
-        if service_instance_id is not None:
+        if service_id is not None:
             self._logger = self._logger.bind(
-                service_instance_id=service_instance_id,
+                service_id=service_id,
             )
 
         self.environment = environment

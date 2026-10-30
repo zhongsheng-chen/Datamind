@@ -79,16 +79,16 @@ service_config = get_service_config()
 runtime_config = get_runtime_config()
 
 
-def _get_service_instance_id() -> str | None:
+def _get_service_id() -> str | None:
     """获取当前服务实例 ID."""
-    service_instance_id = os.environ.get(
-        "DATAMIND_SERVICE_INSTANCE_ID"
+    service_id = os.environ.get(
+        "DATAMIND_SERVICE_ID"
     )
 
-    if not service_instance_id:
+    if not service_id:
         return None
 
-    return service_instance_id
+    return service_id
 
 
 def _get_ready_dir() -> Path | None:
@@ -116,10 +116,10 @@ def _write_worker_ready_marker(
         worker_id: Worker ID
         environment: 服务运行环境
     """
-    service_instance_id = _get_service_instance_id()
+    service_id = _get_service_id()
     ready_dir = _get_ready_dir()
 
-    if service_instance_id is None or ready_dir is None:
+    if service_id is None or ready_dir is None:
         return
 
     ready_dir.mkdir(
@@ -128,7 +128,7 @@ def _write_worker_ready_marker(
     )
 
     record = {
-        "service_instance_id": service_instance_id,
+        "service_id": service_id,
         "worker_id": worker_id,
         "pid": os.getpid(),
         "environment": environment,
@@ -155,7 +155,7 @@ def _write_worker_ready_marker(
 
     logger.debug(
         "运行时 Worker 就绪标记写入完成",
-        service_instance_id=service_instance_id,
+        service_id=service_id,
         worker_id=worker_id,
         environment=environment,
         ready_file=str(marker_path),
@@ -207,14 +207,14 @@ class DatamindRuntimeService(
         setup_logging(get_logging_config())
 
         worker_id = _build_worker_id()
-        service_instance_id = _get_service_instance_id()
+        service_id = _get_service_id()
         self._logger = logger.bind(
             worker_id=worker_id,
             pid=os.getpid(),
         )
-        if service_instance_id is not None:
+        if service_id is not None:
             self._logger = self._logger.bind(
-                service_instance_id=service_instance_id,
+                service_id=service_id,
             )
 
         self.manager = RuntimeManager(
@@ -229,7 +229,7 @@ class DatamindRuntimeService(
 
         self.reconciler = RuntimeReconciler(
             manager=self.manager,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
             environment=(
                 common_config.environment
             ),
@@ -549,4 +549,6 @@ class DatamindRuntimeService(
         ctx.response.status_code = status_code
 
 
-DatamindRuntimeService.add_asgi_middleware(AccessLogMiddleware)
+DatamindRuntimeService.add_asgi_middleware(
+    AccessLogMiddleware,
+)
