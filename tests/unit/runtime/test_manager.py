@@ -545,7 +545,7 @@ async def test_model_result_logs_worker_generation_and_duration(monkeypatch, fai
                 await manager.load("dep_test")
                 await manager.load("dep_test")
     result = next(log for log in logs if log["event"] == (
-        "运行时模型加载失败" if failure else "运行时模型加载成功"
+        "模型加载失败" if failure else "模型加载成功"
     ))
     assert result["log_level"] == ("error" if failure else "info")
     for key, value in {"worker_id": "worker_test", "deployment_id": "dep_test",
@@ -573,7 +573,7 @@ async def test_reload_unload_log_single_final_info_with_context(monkeypatch):
             await manager.unload("dep_test")
             await manager.unload("dep_test")
     results = [log for log in logs if log["log_level"] == "info"]
-    assert [log["event"] for log in results] == ["运行时模型重载成功", "运行时模型卸载完成"]
+    assert [log["event"] for log in results] == ["模型重载成功", "模型卸载完成"]
     for log in results:
         assert log["worker_id"] == "worker_test"
         assert log["generation"] == 4
@@ -593,7 +593,7 @@ async def test_unload_failure_logs_error_and_preserves_exception(monkeypatch):
     with capture_logs() as logs:
         with pytest.raises(RuntimeError, match="database unavailable"):
             await manager.unload("dep_test")
-    error = next(log for log in logs if log["event"] == "运行时模型卸载失败")
+    error = next(log for log in logs if log["event"] == "模型卸载失败")
     assert error["log_level"] == "error"
     assert error["worker_id"] == "worker_test"
     assert error["model_id"] == "mdl_test"

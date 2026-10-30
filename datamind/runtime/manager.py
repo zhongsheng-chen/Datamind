@@ -1,11 +1,11 @@
 """运行时管理器.
 
-负责协调部署模型的加载、卸载与重载。
+负责加载、卸载与重载各部署绑定的模型。
 
 核心功能：
-  - load: 加载指定部署对应的模型
-  - unload: 卸载指定部署对应的模型
-  - reload: 重新加载指定部署对应的模型
+  - load: 加载指定部署绑定的模型
+  - unload: 卸载指定部署绑定的模型
+  - reload: 重新加载指定部署绑定的模型
   - get_status: 获取指定部署的运行状态
 
 使用示例：
@@ -87,7 +87,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """串行加载指定部署模型."""
+        """串行加载指定部署绑定的模型."""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
@@ -104,7 +104,7 @@ class RuntimeManager:
             operator: str = "system",
             force: bool = False,
     ) -> RuntimeModel:
-        """加载指定部署对应的模型.
+        """加载指定部署绑定的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -132,7 +132,7 @@ class RuntimeManager:
         if previous_runtime is not None:
             if not force:
                 logger.debug(
-                    "部署已加载，直接返回运行时模型",
+                    "模型已加载，直接返回",
                     deployment_id=deployment_id,
                 )
                 return previous_runtime
@@ -140,7 +140,7 @@ class RuntimeManager:
         started_at = perf_counter()
         operation_logger = self._operation_logger(deployment_id)
         operation_logger.debug(
-            "开始重载运行时模型" if force else "开始加载运行时模型",
+            "开始重载模型" if force else "开始加载模型",
             deployment_id=deployment_id,
             operator=operator,
             worker_id=self.worker_id,
@@ -301,7 +301,7 @@ class RuntimeManager:
                     )
 
             operation_logger.info(
-                "运行时模型重载成功" if force else "运行时模型加载成功",
+                "模型重载成功" if force else "模型加载成功",
                 duration_ms=round((perf_counter() - started_at) * 1000, 3),
                 environment=environment,
                 deployment_id=deployment_id,
@@ -350,7 +350,7 @@ class RuntimeManager:
                         )
 
             operation_logger.exception(
-                "运行时模型重载失败" if force else "运行时模型加载失败",
+                "模型重载失败" if force else "模型加载失败",
                 duration_ms=round((perf_counter() - started_at) * 1000, 3),
                 environment=environment,
                 model_id=model_id,
@@ -378,7 +378,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel | None:
-        """串行卸载指定部署模型."""
+        """串行卸载指定部署绑定的模型."""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
@@ -400,7 +400,7 @@ class RuntimeManager:
             return await self._unload_model(deployment_id, operator=operator)
         except Exception:
             self._operation_logger(deployment_id).exception(
-                "运行时模型卸载失败",
+                "模型卸载失败",
                 duration_ms=round((perf_counter() - started_at) * 1000, 3),
                 **({
                     "model_id": previous.model_id,
@@ -416,7 +416,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel | None:
-        """卸载指定部署对应的模型.
+        """卸载指定部署绑定的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -433,7 +433,7 @@ class RuntimeManager:
         started_at = perf_counter()
         operation_logger = self._operation_logger(deployment_id)
         operation_logger.debug(
-            "开始卸载运行时模型",
+            "开始卸载模型",
             deployment_id=deployment_id,
             operator=operator,
             worker_id=self.worker_id,
@@ -475,7 +475,7 @@ class RuntimeManager:
 
         log_result = operation_logger.info if runtime_model is not None else operation_logger.debug
         log_result(
-            "运行时模型卸载完成",
+            "模型卸载完成",
             deployment_id=deployment_id,
             unloaded=runtime_model is not None,
             duration_ms=round((perf_counter() - started_at) * 1000, 3),
@@ -494,7 +494,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """重新加载指定部署对应的模型.
+        """重新加载指定部署绑定的模型.
 
         参数：
             deployment_id: 部署 ID

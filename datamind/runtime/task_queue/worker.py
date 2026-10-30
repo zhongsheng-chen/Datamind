@@ -377,6 +377,7 @@ class RuntimeTaskWorker:
         ):
             logger.info(
                 "批量预测任务开始执行",
+                status="running",
                 batch_id=batch_id,
                 task_id=task_id,
                 worker_id=worker_id,

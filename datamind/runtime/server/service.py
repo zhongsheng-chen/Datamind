@@ -11,7 +11,7 @@
   - batch_status: 查询异步预测批次状态和结果
   - cancel_batch: 取消异步预测批次
   - retry_batch: 重新提交失败或已取消的预测批次
-  - reload: 请求重新加载部署模型
+  - reload: 提交模型重载请求
   - status: 查询部署控制状态和 Worker 运行状态
   - services: 查询当前 Worker 的运行时服务
   - health: 服务健康检查
@@ -300,7 +300,7 @@ class DatamindRuntimeService(
         except (SQLAlchemyError, OSError) as exc:
             # 首次协调失败不阻塞服务启动，后台循环将在依赖恢复后重试。
             self._logger.warning(
-                "运行时首次状态协调等待数据库恢复",
+                "首次状态协调等待数据库恢复",
                 worker_id=self.manager.worker_id,
                 environment=common_config.environment,
                 error=str(exc),
@@ -483,7 +483,8 @@ class DatamindRuntimeService(
                 response.get("success")
             )
             ctx.request.scope[RESULT_SCOPE_KEY] = {
-                "business_success": successful,
+                # success describes this operation, not the batch's eventual outcome.
+                **({"success": response["success"]} if isinstance(response.get("success"), bool) else {}),
                 **{
                     key: response[key]
                     for key in ("batch_id", "error_type", "submitted_count")

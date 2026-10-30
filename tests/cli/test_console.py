@@ -228,11 +228,16 @@ def test_wait_for_console_ready_reports_last_failure(
     connection.close.assert_called_once_with()
 
 
+@pytest.mark.parametrize("interactive", [False, True])
+@pytest.mark.parametrize("verbose", [False, True])
 def test_console_run_starts_bentoml_service(
         monkeypatch: pytest.MonkeyPatch,
         mock_console_readiness: MagicMock,
+        interactive: bool,
+        verbose: bool,
 ) -> None:
-    """测试控制台命令启动独立 BentoML 服务."""
+    """交互前台在就绪后提示一次，重定向及容器输出均不提示."""
+    monkeypatch.setattr(type(run_module.console), "is_terminal", property(lambda _c: interactive))
     monkeypatch.setitem(vars(run_module), "get_app_version", lambda: "0.1.0")
     process = MagicMock()
     process.pid = 4321
@@ -242,6 +247,15 @@ def test_console_run_starts_bentoml_service(
     )
     structured_logger = MagicMock()
     phases = []
+    original_print = run_module.console.print
+
+    def record_print(*args, **kwargs):
+        if args == ("按 Ctrl+C 停止服务",):
+            phases.append("hint")
+        return original_print(*args, **kwargs)
+
+    monkeypatch.setattr(run_module.console, "print", record_print)
+    process.wait.side_effect = lambda: phases.append("wait") or 0
 
     def print_summary(*args, **kwargs):
         phases.append("summary")
@@ -280,7 +294,7 @@ def test_console_run_starts_bentoml_service(
             "--reload",
             "--startup-timeout",
             "180",
-        ],
+        ] + (["--verbose"] if verbose else []),
     )
 
     assert result.exit_code == 0
@@ -299,7 +313,11 @@ def test_console_run_starts_bentoml_service(
     assert "PID" not in output
     assert "STATUS" not in output
     assert "HEALTH" not in output
-    assert "Press Ctrl+C to stop" in output
+    assert output.count("按 Ctrl+C 停止服务") == int(interactive)
+    assert "Press Ctrl+C to stop" not in output
+    if interactive:
+        assert phases.index("管理控制台已就绪") < phases.index("hint") < phases.index("wait")
+    assert "按 Ctrl+C" not in str(structured_logger.mock_calls)
     assert phases[:4] == [
         "summary",
         "正在启动管理控制台，等待服务就绪",
@@ -348,7 +366,7 @@ def test_console_run_starts_bentoml_service(
     popen.assert_called_once_with([
         "python-test",
         "-m",
-        "bentoml",
+        "datamind.cli.http_entrypoint",
         "serve",
         (
             "datamind.console.service:"
@@ -359,8 +377,7 @@ def test_console_run_starts_bentoml_service(
         "--port",
         "3200",
         "--reload",
-        "--quiet",
-    ], env=ANY, start_new_session=ANY)
+    ] + ([] if verbose else ["--quiet"]), env=ANY, start_new_session=ANY)
 
 
 @pytest.mark.parametrize("timeout_override", [None, 180])
@@ -413,7 +430,7 @@ def test_console_run_uses_configured_network(
     popen.assert_called_once_with([
         "python-test",
         "-m",
-        "bentoml",
+        "datamind.cli.http_entrypoint",
         "serve",
         (
             "datamind.console.service:"

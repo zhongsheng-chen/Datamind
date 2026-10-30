@@ -115,7 +115,7 @@ async def test_get_service_reconciles_and_caches_runtime_service(
     assert len(captured.calls) == 1
     call = captured.calls[0]
     assert call.method_name == "debug"
-    assert call.kwargs["event"] == "运行时服务实例已创建"
+    assert call.kwargs["event"] == "模型服务实例已创建"
     assert list(call.kwargs)[:4] == [
         "instance_id", "service_id", "worker_id", "pid",
     ]

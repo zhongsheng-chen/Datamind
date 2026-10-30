@@ -159,6 +159,35 @@ datamind runtime show <deployment_id>
 
 确认目标实例状态为 `running`，并发送预测请求验证模型可用。服务健康检查不能代替模型运行状态和预测结果验证。
 
+## 日志中的操作结果
+
+HTTP 完成日志的 `success` 来自当前接口操作的响应结果，不由 HTTP 状态码推断：
+
+- 实时预测：表示预测执行是否成功，与评分高低无关。
+- 批量提交：`success=True` 表示提交成功，HTTP 202 不代表批次已完成。
+- 状态查询：`success=True` 表示查询成功，即使查到的批次已经失败。
+- 尚无操作结果或不适用时省略 `success`，例如健康探针的访问日志。
+
+批量任务自身日志使用 `status`，并保留 `total_count`、`succeeded_count` 和 `failed_count`；
+HTTP 日志附带批次状态时使用 `batch_status`，HTTP 状态码始终使用 `status_code`。
+通过 `batch_id` 关联提交、查询和 Worker 执行，通过 `request_id` 定位一次 HTTP 调用。
+
+以下是省略时间戳和部分关联字段的文本日志示例：
+
+```text
+INFO     | 运行时服务已就绪 | workers=4
+INFO     | 模型加载成功 | worker_id=w1, deployment_id=dep1, version_id=ver1, generation=2, duration_ms=45.6
+DEBUG    | 主路由解析完成 | deployment_id=dep1, version_id=ver1, route_source=experiment, strategy=hash
+INFO     | 批量预测任务开始执行 | batch_id=bat1, status=running, total_count=24
+INFO     | 批量预测任务执行完成 | batch_id=bat1, status=partially_succeeded, total_count=24, succeeded_count=23, failed_count=1
+INFO     | HTTP 请求完成 | path=/predict/batch/status, status_code=200, success=True, batch_id=bat1, batch_status=partially_succeeded
+```
+
 ## 停止服务
 
-在终端按 `Ctrl+C` 停止服务。基础设施的停止方式，请参阅[Docker 部署](docker.md#停止服务)。
+交互式前台启动运行时或管理控制台时，就绪后仅提示一次“按 Ctrl+C 停止服务”。
+提示只写入终端，不写入结构化日志文件。常规容器运行、重定向输出等非交互式场景不显示提示；
+`--verbose` 保留第三方启动日志，但不重复输出停止提示。
+
+在前台终端按 `Ctrl+C` 停止服务。`docker logs -f` 中按 `Ctrl+C` 只结束日志跟踪，不会停止容器。
+容器及基础设施的停止方式，请参阅[Docker 部署](docker.md#停止服务)。

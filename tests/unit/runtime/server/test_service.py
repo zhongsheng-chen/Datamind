@@ -368,7 +368,7 @@ async def test_execute_secured_applies_status_and_records_audit(
     )
 
     assert result["success"] is successful
-    assert context.request.scope[service_module.RESULT_SCOPE_KEY]["business_success"] is successful
+    assert context.request.scope[service_module.RESULT_SCOPE_KEY]["success"] is successful
     handler.assert_awaited_once()
     runtime_server.get_audit_recorder(service).record.assert_awaited_once_with(
         action="runtime.reload",
@@ -425,5 +425,36 @@ async def test_batch_status_log_metadata_excludes_predictions(runtime_server, mo
         }),
     )
     assert context.request.scope[module.RESULT_SCOPE_KEY] == {
-        "business_success": True, "batch_id": "bat_stable", "batch_status": "partially_succeeded",
+        "success": True, "batch_id": "bat_stable", "batch_status": "partially_succeeded",
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response,expected", [
+    ({"success": True, "score": 1.0}, {"success": True}),
+    ({"success": False, "error_type": "ValueError"}, {"success": False, "error_type": "ValueError"}),
+    ({"success": True, "batch_id": "bat_test", "status": "queued", "submitted_count": 24},
+     {"success": True, "batch_id": "bat_test", "batch_status": "queued", "submitted_count": 24}),
+    ({"success": True, "batch_id": "bat_test", "status": "failed"},
+     {"success": True, "batch_id": "bat_test", "batch_status": "failed"}),
+    ({"success": False, "batch_id": "bat_test", "error_type": "BatchNotFoundError"},
+     {"success": False, "batch_id": "bat_test", "error_type": "BatchNotFoundError"}),
+    ({"status": "running"}, {}),
+])
+async def test_operation_success_log_semantics(runtime_server, monkeypatch, response, expected):
+    """评分、提交和查询沿用各自操作结果；无结果时不推断成功."""
+    module = runtime_server.load_service_module(monkeypatch)
+    service = runtime_server.create_service(module)
+    service.security = runtime_server.SecurityStub()
+    context = SimpleNamespace(response=SimpleNamespace(status_code=200), request=SimpleNamespace(scope={}))
+    before = response.copy()
+    result = await service._execute_secured(
+        ctx=context, permission="prediction.invoke", request_id="req_test",
+        handler=AsyncMock(return_value=response),
+    )
+    assert result is response
+    assert response == before
+    assert context.request.scope[module.RESULT_SCOPE_KEY] == expected
+    assert "business_success" not in context.request.scope[module.RESULT_SCOPE_KEY]
+    assert "status" not in context.request.scope[module.RESULT_SCOPE_KEY]
+

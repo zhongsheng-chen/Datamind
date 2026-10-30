@@ -242,7 +242,7 @@ def run_console(
     command = [
         sys.executable,
         "-m",
-        "bentoml",
+        "datamind.cli.http_entrypoint",
         "serve",
         CONSOLE_TARGET,
         "--host",
@@ -383,9 +383,8 @@ def run_console(
             "管理控制台已就绪",
             startup_seconds=round(time.monotonic() - started_at, 2),
         )
-        console.print(
-            "Press Ctrl+C to stop\n"
-        )
+        if console.is_terminal:
+            console.print("按 Ctrl+C 停止服务")
 
         return_code = process.wait()
     except KeyboardInterrupt:

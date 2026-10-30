@@ -402,7 +402,7 @@ async def test_reconcile_isolates_control_failure(
     assert reconciler.get_applied_generation("dep_test") is None
     logger.exception.assert_called_once()
     logger.warning.assert_called_once_with(
-        "运行时状态协调完成",
+        "状态协调完成",
         worker_id="worker_test",
         environment=Environment.PRODUCTION,
         **result.to_dict(),
@@ -613,7 +613,7 @@ async def test_normal_heartbeat_logs_debug_and_updated_record_count(monkeypatch)
     repo.get_deployment_runtime.return_value = SimpleNamespace(status="running")
     with capture_logs() as logs:
         await reconciler._heartbeat_loaded_runtimes([control])
-    heartbeat = next(log for log in logs if log["event"] == "运行时心跳更新完成")
+    heartbeat = next(log for log in logs if log["event"] == "心跳更新完成")
     assert heartbeat["log_level"] == "debug"
     assert heartbeat["updated_runtime_count"] == 1
     assert "heartbeat_count" not in heartbeat

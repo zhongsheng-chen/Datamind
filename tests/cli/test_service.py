@@ -166,12 +166,13 @@ def test_service_run_does_not_authenticate_cli_user(
     assert ("enabled" if reload_enabled else "disabled") in result.output
     assert result.output.count("运行时服务已就绪") == 1
     assert result.output.count("正在启动运行时服务，等待 Worker 就绪") == 1
-    assert ("按 Ctrl+C 停止。" in result.output) is interactive
+    assert result.output.count("按 Ctrl+C 停止服务") == int(interactive)
     assert "Press Ctrl+C to stop" not in result.output
     assert result.output.index("Datamind") < result.output.index("正在启动运行时服务")
     assert result.output.index("正在启动运行时服务") < result.output.index("运行时服务已就绪")
     assert result.output.count("Powered by") == 1
     command = popen.call_args.args[0]
+    assert command[:3] == [run_module.sys.executable, "-m", "datamind.cli.http_entrypoint"]
     assert ("--reload" in command) is reload_enabled
     assert "--quiet" in command
     startup_events = [

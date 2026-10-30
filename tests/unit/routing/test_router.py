@@ -964,7 +964,7 @@ async def test_route_result_logs_actual_strategy_without_sensitive_payload(inclu
     with capture_logs() as logs:
         await router.resolve(model_id="mdl_test", environment="development",
                              payload={"private-feature": 99}, include_shadows=include_shadows)
-    result = next(log for log in logs if log["event"] == "运行时主路由解析完成")
+    result = next(log for log in logs if log["event"] == "主路由解析完成")
     assert result["log_level"] == "debug"
     assert result["deployment_id"] == "dep_test"
     assert result["version_id"] == "ver_test"

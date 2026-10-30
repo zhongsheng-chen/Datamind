@@ -18,6 +18,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import uuid
 from pathlib import Path
@@ -346,7 +347,9 @@ def run_service(
         app_version = get_app_version()
 
         command: list[str] = [
-            "bentoml",
+            sys.executable,
+            "-m",
+            "datamind.cli.http_entrypoint",
             "serve",
             SERVICE_TARGET,
             "--host",
@@ -535,7 +538,7 @@ def run_service(
             console.info("运行时服务已就绪。")
 
         if console.is_terminal:
-            console.print("按 Ctrl+C 停止。")
+            console.print("按 Ctrl+C 停止服务")
 
         return result
 

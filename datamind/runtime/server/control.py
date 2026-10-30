@@ -83,7 +83,7 @@ class RuntimeControlMixin:
             request_id: str,
             operator: str,
     ) -> dict[str, Any]:
-        """请求重新加载部署模型.
+        """提交模型重载请求.
 
         只允许操作当前 Service environment
         对应的 Deployment。

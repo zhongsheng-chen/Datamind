@@ -69,6 +69,8 @@ async def test_access_log_records_response(
     assert fields["method"] == "POST"
     assert fields["path"] == "/predict"
     assert fields["status_code"] == status_code
+    assert "success" not in fields
+    assert "business_success" not in fields
     assert fields["trace_id"] == trace_id
     assert fields["request_id"] == "req_prediction"
     assert fields["user"] == "admin"
@@ -191,7 +193,7 @@ async def test_http_completion_distinguishes_business_failure(monkeypatch):
 
     async def app(scope, receive, send):
         scope[access.RESULT_SCOPE_KEY] = {
-            "business_success": True,
+            "success": True,
             "batch_id": "bat_test",
             "batch_status": "partially_succeeded",
         }
@@ -203,7 +205,7 @@ async def test_http_completion_distinguishes_business_failure(monkeypatch):
     logger.log.assert_called_once()
     fields = logger.log.call_args.kwargs
     assert fields["status_code"] == 200
-    assert fields["business_success"] is True
+    assert fields["success"] is True
     assert fields["batch_id"] == "bat_test"
     assert fields["batch_status"] == "partially_succeeded"
     assert "private" not in str(fields)

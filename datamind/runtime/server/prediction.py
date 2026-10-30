@@ -2530,7 +2530,7 @@ class PredictionMixin:
             )
 
             creation_logger.debug(
-                "运行时服务实例已创建",
+                "模型服务实例已创建",
                 worker_id=self.manager.worker_id,
                 environment=(
                     common_config.environment

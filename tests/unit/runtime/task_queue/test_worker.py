@@ -107,6 +107,8 @@ async def test_prepare_batch_creates_records_before_dispatch(
         lambda _s: attempt_repository,
     )
 
+    task_logger = MagicMock()
+    monkeypatch.setattr(worker_module, "logger", task_logger)
     count = await create_worker(service)._prepare_batch(
         batch_id="bat_test",
         task_id="tsk_test",
@@ -114,6 +116,10 @@ async def test_prepare_batch_creates_records_before_dispatch(
     )
 
     assert count == 2
+    task_logger.info.assert_called_once()
+    assert task_logger.info.call_args.args == ("批量预测任务开始执行",)
+    assert task_logger.info.call_args.kwargs["status"] == "running"
+    assert "batch_status" not in task_logger.info.call_args.kwargs
     attempt_repository.mark_started.assert_awaited_once_with(
         batch_id="bat_test",
         task_id="tsk_test",
@@ -280,6 +286,7 @@ async def test_batch_terminal_log_counts_duration_and_no_duplicate(monkeypatch, 
     assert terminal[0]["succeeded_count"] == succeeded
     assert terminal[0]["failed_count"] == failed
     assert terminal[0]["status"] == status
+    assert "batch_status" not in terminal[0]
     assert terminal[0]["duration_ms"] >= 0
 
 

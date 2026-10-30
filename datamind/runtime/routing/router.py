@@ -205,7 +205,7 @@ class RuntimeRouter:
         )
 
         logger.debug(
-            "运行时主路由解析完成",
+            "主路由解析完成",
             model_id=primary.model_id,
             deployment_id=primary.deployment_id,
             version_id=primary.version_id,
@@ -259,7 +259,7 @@ class RuntimeRouter:
         current_time = to_utc(now or datetime.now(timezone.utc))
 
         logger.debug(
-            "开始解析运行时路由",
+            "开始解析主路由",
             model_id=model_id,
             environment=environment,
             deployment_id=deployment_id,
