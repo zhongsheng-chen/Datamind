@@ -36,11 +36,9 @@ class DatamindConsoleService:
 
     def __init__(self) -> None:
         """初始化控制台日志."""
-        setup_logging(
-            get_logging_config()
-        )
-        logger = structlog.get_logger(__name__).bind(pid=os.getpid())
         service_id = os.environ.get("DATAMIND_SERVICE_ID")
+        setup_logging(get_logging_config(), service_id=service_id)
+        logger = structlog.get_logger(__name__).bind(pid=os.getpid())
         if service_id:
             logger = logger.bind(service_id=service_id)
         logger.debug("管理控制台 Worker 初始化完成")

@@ -46,7 +46,7 @@ def test_console_service_initializes_logging(
     service_module.DatamindConsoleService.inner()
 
     setup_logging.assert_called_once_with(
-        logging_config
+        logging_config, service_id="console-test"
     )
     worker_logger.bind.assert_any_call(service_id="console-test")
     worker_logger.bind.assert_any_call(pid=service_module.os.getpid())

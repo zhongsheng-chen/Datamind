@@ -183,6 +183,34 @@ INFO     | 批量预测任务执行完成 | batch_id=bat1, status=partially_succ
 INFO     | HTTP 请求完成 | path=/predict/batch/status, status_code=200, success=True, batch_id=bat1, batch_status=partially_succeeded
 ```
 
+## 第三方诊断日志
+
+运行时、管理控制台和批量/影子 Worker 在各自进程初始化日志组件。
+CVXPY 的原始 logger 为 `__cvxpy__`，其默认 stderr handler 不向 root 传播；
+应用直接接入该 logger，兼容 CVXPY 延迟导入时添加的默认 handler，避免同一记录重复输出。
+Python warnings 使用标准 `logging.captureWarnings(True)` 接入 `py.warnings`。
+既有 warnings 过滤规则、warnings-as-errors 和异常传播保持不变，不额外采样或跨 Worker 去重。
+
+接入后的文本第一行包含原始消息第一行、原始级别和 logger、真实 `pid`，以及可用的 `worker_id`、`service_id`。
+后续消息行、已有异常堆栈和 stack_info 保留顺序，不重复加前缀。
+JSON 沿用现有 `event` 字段保存完整多行消息，换行进行 JSON 转义，异常与堆栈分别保存在 `exception`、`stack` 中。
+消息格式化参数在消费时处理；同步和异步输出均保留完整 LogRecord 诊断内容。
+结构化敏感字段沿用既有脱敏机制，不将原始消息翻译或替换成摘要，不解析版本号等内容重建消息。
+
+```text
+2026-10-30T16:40:39+08:00 | WARNING | Encountered unexpected exception importing solver HIGHS: | logger=__cvxpy__, pid=187, worker_id=host-187
+ImportError('/usr/local/lib/python3.12/site-packages/highspy/_core.so: undefined symbol: _ZN5Highs13releaseMemoryEv')
+```
+
+接入只使用已有 handler/formatter，不接管 root logger 或其他依赖的输出策略。
+日志输出目标仍由配置控制；没有可用 handler 时不接管第三方输出。
+Celery 重定向 stdout 时，日志 handler 使用原始输出流，避免将已经格式化的 INFO/DEBUG 重发为 WARNING；
+不替换全局 stdout/stderr。原生库直接写入 stdout/stderr 的内容继续原样输出，初始化前的诊断不会重放。
+不同进程同时写入终端时，多行内容仍可能交错；格式统一不等于跨进程日志聚合。
+
+上述接入不修复 HIGHS 动态库或 scikit-learn 模型持久化的版本兼容性。
+CVXPY 自身只记录异常摘要时，不会凭空生成它未提供的调用栈。
+
 ## 停止服务
 
 交互式前台启动运行时或管理控制台时，就绪后仅提示一次“按 Ctrl+C 停止服务”。

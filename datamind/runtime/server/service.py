@@ -204,10 +204,9 @@ class DatamindRuntimeService(
             self,
     ):
         """初始化当前 Worker 服务状态."""
-        setup_logging(get_logging_config())
-
         worker_id = _build_worker_id()
         service_id = _get_service_id()
+        setup_logging(get_logging_config(), worker_id=worker_id, service_id=service_id)
         self._logger = logger.bind(
             worker_id=worker_id,
             pid=os.getpid(),

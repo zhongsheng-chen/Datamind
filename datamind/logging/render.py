@@ -40,6 +40,7 @@ Renderer = Callable[
 _PROCESSOR_META_KEYS: Final[tuple[str, ...]] = (
     "_record",
     "_from_structlog",
+    "_foreign",
 )
 
 
@@ -96,7 +97,22 @@ def text_renderer() -> Renderer:
             if value is not None and value != "":
                 columns.append(f"{key}={value}")
 
-        columns.append(str(event.pop("event", "")))
+        original_message = str(event.pop("event", ""))
+        foreign = event_dict.get("_foreign", False) or event_dict.get("_from_structlog") is False
+        details = ""
+        if foreign:
+            first_line, separator, continuation = original_message.partition("\n")
+            if first_line.endswith("\r") and separator:
+                first_line = first_line[:-1]
+                separator = "\r\n"
+            columns.append(first_line)
+            details = separator + continuation
+            for key in ("exception", "stack"):
+                detail = event.pop(key, None)
+                if detail:
+                    details += ("" if details.endswith("\n") else "\n") + str(detail)
+        else:
+            columns.append(original_message)
 
         message = " | ".join(columns)
 
@@ -107,7 +123,7 @@ def text_renderer() -> Renderer:
             )
             message = f"{message} | {fields}"
 
-        return message
+        return message + details
 
     return renderer
 

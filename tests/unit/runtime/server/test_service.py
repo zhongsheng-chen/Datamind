@@ -458,3 +458,19 @@ async def test_operation_success_log_semantics(runtime_server, monkeypatch, resp
     assert "business_success" not in context.request.scope[module.RESULT_SCOPE_KEY]
     assert "status" not in context.request.scope[module.RESULT_SCOPE_KEY]
 
+
+@pytest.mark.asyncio
+async def test_worker_logging_initialized_before_model_components(runtime_server, monkeypatch):
+    """运行时及 Celery 内嵌运行时均在组件创建前绑定真实 Worker 来源."""
+    module = runtime_server.load_service_module(monkeypatch)
+    monkeypatch.setenv("DATAMIND_SERVICE_ID", "actual-service")
+    expected_worker = module._build_worker_id()
+    order = []
+    setup = MagicMock(side_effect=lambda *a, **kw: order.append("logging"))
+    monkeypatch.setattr(module, "setup_logging", setup)
+    for name in ("RuntimeManager", "RuntimeRouter", "RuntimeControlService", "RuntimeSecurity",
+                 "RuntimeReconciler", "AuditRecorder", "PredictionExecutor", "TaskPublisher"):
+        monkeypatch.setattr(module, name, MagicMock(side_effect=lambda *a, **kw: order.append("component") or MagicMock()))
+    module.DatamindRuntimeService.inner()
+    assert setup.call_args.kwargs == {"worker_id": expected_worker, "service_id": "actual-service"}
+    assert order[0] == "logging"

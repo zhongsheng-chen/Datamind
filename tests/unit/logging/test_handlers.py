@@ -299,3 +299,45 @@ def test_async_handler_dispatches_log_record() -> None:
 
     assert len(output_handler.records) == 1
     assert output_handler.records[0].getMessage() == "异步日志测试"
+
+
+def test_async_handler_preserves_arguments_and_exception():
+    """异步队列不提前拼接或清空原始异常与消息参数."""
+    import sys
+    from unittest.mock import MagicMock
+
+    destination = MagicMock(spec=logging.Handler)
+    destination.level = logging.NOTSET
+    handler, listener = create_async_handler([destination])
+    try:
+        raise ValueError("original error")
+    except ValueError:
+        record = logging.LogRecord("__cvxpy__", logging.WARNING, __file__, 1,
+                                   "original %s\nsecond line", ("message",), sys.exc_info())
+    record.stack_info = "Stack (most recent call last):\noriginal stack"
+    before = record.__dict__.copy()
+    listener.start()
+    handler.handle(record)
+    listener.stop()
+    received = destination.handle.call_args.args[0]
+    assert received is not record
+    assert received.__dict__ == before
+    assert record.__dict__ == before
+
+
+def test_console_handler_avoids_celery_logging_proxy(monkeypatch):
+    """在 Celery 重定向 stdout 时仍向原始流输出，避免严重程度被改写."""
+    import io
+    from unittest.mock import MagicMock
+    from celery.utils.log import LoggingProxy
+
+    original_stream = io.StringIO()
+    proxy_logger = MagicMock()
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "stdout", LoggingProxy(proxy_logger, logging.WARNING))
+        patch.setattr(sys, "__stdout__", original_stream)
+        handler = create_console_handler(logging.Formatter("%(levelname)s %(message)s"))
+        handler.handle(logging.LogRecord("py.warnings", logging.INFO, __file__, 1, "original", (), None))
+        handler.close()
+    assert original_stream.getvalue() == "INFO original\n"
+    proxy_logger.log.assert_not_called()
