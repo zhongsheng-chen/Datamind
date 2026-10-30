@@ -38,6 +38,7 @@ logger = structlog.get_logger(__name__)
 REQUEST_ID_SCOPE_KEY: Final[str] = "datamind.request_id"
 TRACE_ID_SCOPE_KEY: Final[str] = "datamind.trace_id"
 USER_SCOPE_KEY: Final[str] = "datamind.user"
+RESULT_SCOPE_KEY: Final[str] = "datamind.result"
 
 
 def get_trace_id(
@@ -176,4 +177,5 @@ class AccessLogMiddleware:
                     request_id=scope[REQUEST_ID_SCOPE_KEY],
                     user=scope.get(USER_SCOPE_KEY),
                     response_completed=completed,
+                    **scope.get(RESULT_SCOPE_KEY, {}),
                 )

@@ -63,7 +63,7 @@ from datamind.runtime.server.security import (
     RuntimeSecurity,
 )
 from datamind.runtime.server.authentication import auth_app
-from datamind.runtime.server.access import AccessLogMiddleware
+from datamind.runtime.server.access import AccessLogMiddleware, RESULT_SCOPE_KEY
 from datamind.runtime.server.cache import ServiceCacheEntry
 from datamind.runtime.server.control import RuntimeControlMixin
 from datamind.runtime.server.prediction import PredictionMixin
@@ -219,6 +219,7 @@ class DatamindRuntimeService(
 
         self.manager = RuntimeManager(
             worker_id=worker_id,
+            service_id=service_id,
         )
 
         self.router = RuntimeRouter()
@@ -481,6 +482,16 @@ class DatamindRuntimeService(
             successful = bool(
                 response.get("success")
             )
+            ctx.request.scope[RESULT_SCOPE_KEY] = {
+                "business_success": successful,
+                **{
+                    key: response[key]
+                    for key in ("batch_id", "error_type", "submitted_count")
+                    if key in response
+                },
+                **({"batch_status": response["status"]} if "batch_id" in response and "status" in response else {}),
+            }
+
 
             if (
                     audit_action is not None

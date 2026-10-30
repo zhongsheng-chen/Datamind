@@ -181,3 +181,29 @@ async def test_non_http_scope_passes_through(
         AsyncMock(),
     )
     logger.log.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_http_completion_distinguishes_business_failure(monkeypatch):
+    """HTTP 200 和查询成功均不代表批次预测成功，也不输出响应明细."""
+    logger = MagicMock()
+    monkeypatch.setattr(access, "logger", logger)
+
+    async def app(scope, receive, send):
+        scope[access.RESULT_SCOPE_KEY] = {
+            "business_success": True,
+            "batch_id": "bat_test",
+            "batch_status": "partially_succeeded",
+        }
+        await JSONResponse({"features": "private"})(scope, receive, send)
+
+    async with AsyncClient(transport=ASGITransport(app=access.AccessLogMiddleware(app)),
+                           base_url="http://test") as client:
+        await client.post("/predict/batch/status")
+    logger.log.assert_called_once()
+    fields = logger.log.call_args.kwargs
+    assert fields["status_code"] == 200
+    assert fields["business_success"] is True
+    assert fields["batch_id"] == "bat_test"
+    assert fields["batch_status"] == "partially_succeeded"
+    assert "private" not in str(fields)

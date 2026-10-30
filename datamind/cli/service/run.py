@@ -213,7 +213,7 @@ async def _wait_for_workers_ready(
 
         if return_code is not None:
             raise RuntimeError(
-                "Datamind 服务子进程提前退出，"
+                "运行时服务子进程提前退出，"
                 f"退出码: {return_code}"
             )
 
@@ -228,7 +228,7 @@ async def _wait_for_workers_ready(
 
         if current_worker_ids != last_worker_ids:
             logger.debug(
-                "等待 Datamind 服务 Worker 就绪",
+                "正在等待运行时 Worker 就绪",
                 service_id=service_id,
                 ready_dir=str(ready_dir),
                 expected_workers=expected_workers,
@@ -243,7 +243,7 @@ async def _wait_for_workers_ready(
 
         if loop.time() >= deadline:
             raise TimeoutError(
-                "等待 Datamind 服务 Worker 启动超时: "
+                "等待运行时 Worker 启动超时: "
                 f"ready_workers={len(ready_workers)}, "
                 f"expected_workers={expected_workers}, "
                 f"ready_dir={ready_dir}"
@@ -399,9 +399,9 @@ def run_service(
             workers=expected_workers,
             reload_enabled=reload_enabled,
         )
-        logger.info("正在启动服务，等待 Worker 就绪")
+        logger.info("正在启动运行时服务，等待 Worker 就绪")
         if not console_logs_info:
-            console.info("正在启动服务，等待 Worker 就绪……")
+            console.info("正在启动运行时服务，等待 Worker 就绪……")
 
         try:
             started_process = subprocess.Popen(
@@ -415,7 +415,7 @@ def run_service(
             )
 
             logger.error(
-                "Datamind 服务启动失败",
+                "运行时服务启动失败",
                 service_name=service_name,
                 environment=run_environment,
                 host=run_host,
@@ -449,7 +449,7 @@ def run_service(
         }
 
         logger.debug(
-            "Datamind 服务子进程启动成功",
+            "运行时服务子进程已启动",
             service_name=result["name"],
             version=result["version"],
             environment=result["environment"],
@@ -479,7 +479,7 @@ def run_service(
             )
 
             logger.error(
-                "Datamind 服务启动失败",
+                "运行时服务启动失败",
                 service_name=result["name"],
                 environment=result["environment"],
                 bind=result["bind"],
@@ -496,7 +496,7 @@ def run_service(
 
         except RuntimeError as exc:
             logger.error(
-                "Datamind 服务启动失败",
+                "运行时服务启动失败",
                 service_name=result["name"],
                 environment=result["environment"],
                 bind=result["bind"],
@@ -513,7 +513,7 @@ def run_service(
         service_started = True
 
         logger.debug(
-            "Datamind 服务启动完成",
+            "运行时服务启动完成",
             service_id=current_service_id,
             service_name=result["name"],
             version=result["version"],
@@ -526,13 +526,13 @@ def run_service(
         )
 
         logger.info(
-            "服务已就绪",
+            "运行时服务已就绪",
             workers=result["workers"],
             startup_seconds=round(perf_counter() - startup_started, 2),
         )
 
         if not console_logs_info:
-            console.info("服务已就绪。")
+            console.info("运行时服务已就绪。")
 
         if console.is_terminal:
             console.print("按 Ctrl+C 停止。")
@@ -559,7 +559,7 @@ def run_service(
     ) -> None:
         """记录预测服务主动停止事件."""
         logger.info(
-            "Datamind 服务已停止",
+            "运行时服务已停止",
             service_name=configured_service_name,
             environment=environment,
             host=resolved_host,
@@ -577,7 +577,7 @@ def run_service(
     ) -> None:
         """记录预测服务进程自行退出事件."""
         logger.warning(
-            "Datamind 服务进程已退出",
+            "运行时服务进程已退出",
             service_name=configured_service_name,
             environment=environment,
             host=resolved_host,
@@ -653,7 +653,7 @@ def run_service(
 
                 if return_code != 0:
                     logger.error(
-                        "Datamind 服务异常退出",
+                        "运行时服务异常退出",
                         service_name=configured_service_name,
                         environment=environment,
                         host=resolved_host,

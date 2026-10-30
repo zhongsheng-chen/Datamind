@@ -38,6 +38,7 @@
 import asyncio
 import os
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 import structlog
@@ -234,6 +235,7 @@ class RuntimeReconciler:
             )
 
         self.manager = manager
+        self.service_id = service_id
         self._logger = logger.bind(
             worker_id=manager.worker_id,
             pid=os.getpid(),
@@ -372,11 +374,12 @@ class RuntimeReconciler:
 
             for control in controls:
                 try:
-                    action = (
-                        await self._reconcile_control(
-                            control
-                        )
-                    )
+                    with structlog.contextvars.bound_contextvars(
+                            generation=control.generation,
+                            environment=self.environment,
+                            **({"service_id": self.service_id} if self.service_id else {}),
+                    ):
+                        action = await self._reconcile_control(control)
 
                     result.record(
                         action
@@ -662,7 +665,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                self._logger.info(
+                self._logger.debug(
                     "Worker 重新加载部署模型",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -696,7 +699,7 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                self._logger.info(
+                self._logger.debug(
                     "Worker 卸载部署模型",
                     worker_id=self.worker_id,
                     environment=self.environment,
@@ -787,22 +790,31 @@ class RuntimeReconciler:
             self,
     ) -> None:
         """将当前环境中已失联的其他 Worker 实例收敛为失败."""
+        checked_at = datetime.now(timezone.utc)
+        presence = RuntimePresence.current(current_time=checked_at)
+        stale_details: list[dict] = []
         async with UnitOfWork() as uow:
             runtime_ids = await RuntimeRepository(
                 uow.session
             ).mark_stale_runtimes_failed(
                 environment=self.environment,
-                stale_before=RuntimePresence.current().stale_at,
+                stale_before=presence.stale_at,
+                stale_details=stale_details,
                 exclude_worker_id=self.worker_id,
             )
 
         if runtime_ids:
-            self._logger.warning(
+            self._logger.try_unbind("worker_id").warning(
                 "失联运行实例已标记为失败",
-                worker_id=self.worker_id,
+                observer_worker_id=self.worker_id,
                 environment=self.environment,
-                runtime_ids=runtime_ids,
+                checked_at=checked_at.isoformat(),
+                stale_before=presence.stale_at.isoformat(),
+                timeout_seconds=(checked_at - presence.stale_at).total_seconds(),
+                runtime_ids=runtime_ids[:10],
+                stale_runtimes=stale_details,
                 count=len(runtime_ids),
+                omitted_count=max(0, len(runtime_ids) - 10),
             )
 
     async def _heartbeat_loaded_runtimes(
@@ -829,7 +841,7 @@ class RuntimeReconciler:
         if not deployment_ids:
             return
 
-        heartbeat_count = 0
+        updated_runtime_count = 0
 
         async with UnitOfWork() as uow:
             repo = RuntimeRepository(
@@ -854,13 +866,13 @@ class RuntimeReconciler:
                     runtime
                 )
 
-                heartbeat_count += 1
+                updated_runtime_count += 1
 
         self._logger.debug(
             "运行时心跳更新完成",
             worker_id=self.worker_id,
             environment=self.environment,
-            heartbeat_count=heartbeat_count,
+            updated_runtime_count=updated_runtime_count,
         )
 
     @staticmethod

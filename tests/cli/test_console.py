@@ -220,7 +220,7 @@ def test_wait_for_console_ready_reports_last_failure(
         timeout_seconds=1,
     )
     structured_logger.warning.assert_called_once_with(
-        "Datamind 管理控制台就绪探测超时",
+        "管理控制台就绪探测超时",
         readiness_url="http://127.0.0.1:8701/ready",
         timeout_seconds=1,
         last_failure="OSError: connection refused",
@@ -322,7 +322,7 @@ def test_console_run_starts_bentoml_service(
         for positional_arguments, keyword_arguments
         in structured_logger.debug.call_args_list
         if positional_arguments == (
-            "Datamind 管理控制台启动完成",
+            "管理控制台启动完成",
         )
     ]
     assert len(completed_events) == 1
@@ -625,5 +625,5 @@ def test_console_run_stops_process_on_interrupt(
     )
 
     assert result.exit_code == 0
-    assert "Datamind 管理控制台已停止" in result.output
+    assert "管理控制台已停止" in result.output
     mock_console_stop.assert_called_once_with(process)

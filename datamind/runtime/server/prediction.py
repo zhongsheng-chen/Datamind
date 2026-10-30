@@ -31,7 +31,7 @@ from datamind.config import (
     get_common_config,
     get_service_config,
 )
-from datamind.context import get_context
+from datamind.context import context_scope, get_context
 from datamind.db.core import UnitOfWork
 from datamind.db.repositories import (
     AttemptRepository,
@@ -343,7 +343,7 @@ class PredictionMixin:
         response = await self._execute_secured(
             ctx=ctx,
             permission="prediction.invoke",
-            request_id=batch_id,
+            request_id=generate_random_id(prefix="req"),
             handler=lambda _identity: self._submit_batch(
                 request=request,
                 batch_id=batch_id,
@@ -430,6 +430,14 @@ class PredictionMixin:
                 "error_type": "TaskDispatchError",
             }
 
+        self._logger.info(
+            "批量预测任务已接收",
+            batch_id=batch_id,
+            task_id=task_id,
+            model_id=model_id,
+            total_count=len(request.instances),
+            status="queued",
+        )
         return {
             "success": True,
             "batch_id": batch_id,
@@ -735,121 +743,122 @@ class PredictionMixin:
                 item_started_at = time.perf_counter()
                 route: RouteResult | None = None
 
-                try:
-                    async with request_budget(
-                            service_config.timeout
-                    ) as budget:
-                        budget.enter_stage("routing")
-                        routing_plan = await self.router.resolve(
-                            model_id=model_id,
-                            environment=common_config.environment,
-                            subject_key=instance.subject_key,
-                            subject_type=instance.subject_type,
-                            payload=instance.features,
-                            deployment_id=request.deployment_id,
-                            include_shadows=runtime_config.shadow_enabled,
-                        )
-                        primary_route = routing_plan.primary
-                        route = primary_route
-                        service = await self._get_service(
-                            primary_route.deployment_id
-                        )
-                        budget.enter_stage("prediction")
-                        prediction = await asyncio.to_thread(
-                            service.predict,
-                            instance.features,
-                        )
-
-                    item_latency_ms = (
-                        time.perf_counter() - item_started_at
-                    ) * 1000
-                    response = build_prediction_response(
-                        prediction,
-                        request_id=request_id,
-                    )
-                    resolved_task_type = prediction.get(
-                        "task_type",
-                        prediction.get("service_type"),
-                    )
-
-                    if resolved_task_type is not None:
-                        current_task_type = str(resolved_task_type)
-                        if (
-                                task_type is not None
-                                and task_type != current_task_type
-                        ):
-                            raise RuntimeError(
-                                "同一模型的批量预测返回了不同任务类型"
+                with context_scope(request_id=request_id):
+                    try:
+                        async with request_budget(
+                                service_config.timeout
+                        ) as budget:
+                            budget.enter_stage("routing")
+                            routing_plan = await self.router.resolve(
+                                model_id=model_id,
+                                environment=common_config.environment,
+                                subject_key=instance.subject_key,
+                                subject_type=instance.subject_type,
+                                payload=instance.features,
+                                deployment_id=request.deployment_id,
+                                include_shadows=runtime_config.shadow_enabled,
                             )
-                        task_type = current_task_type
+                            primary_route = routing_plan.primary
+                            route = primary_route
+                            service = await self._get_service(
+                                primary_route.deployment_id
+                            )
+                            budget.enter_stage("prediction")
+                            prediction = await asyncio.to_thread(
+                                service.predict,
+                                instance.features,
+                            )
 
-                    result = ExecutionResult(
-                        plan=ExecutionPlan(
-                            route=routing_plan.primary,
-                            execution_type=ExecutionType.PRIMARY,
-                        ),
-                        prediction=prediction,
-                        latency_ms=item_latency_ms,
-                    )
-                    shadow_tasks = await self._record_batch_success(
-                        batch_id=batch_id,
-                        request_ids=[request_id],
-                        decision_ids=[generate_random_id(prefix="dcs")],
-                        results=[result],
-                        routing_plans=[routing_plan],
-                        instances=[instance],
-                        responses=[response],
-                        latency_ms=item_latency_ms,
-                        batch_indices=[index],
-                    )
-                    responses[index] = response
-                    await self._submit_shadow_predictions(shadow_tasks)
-                except (
-                        ServiceDeploymentNotFoundError,
-                        ServiceEnvironmentMismatchError,
-                        RuntimeRouteError,
-                        RequestTimeoutError,
-                        RuntimeError,
-                        TypeError,
-                        ValueError,
-                ) as exc:
-                    error_response = self._build_error_response(
-                        request_id=request_id,
-                        error=exc,
-                    )
-                    await self._record_batch_item_failure(
-                        request_id=request_id,
-                        batch_id=batch_id,
-                        batch_index=index,
-                        model_id=model_id,
-                        route=route,
-                        error=exc,
-                        response=error_response,
-                        latency_ms=(
+                        item_latency_ms = (
                             time.perf_counter() - item_started_at
-                        ) * 1000,
-                    )
-                    responses[index] = error_response
-                except Exception as exc:
-                    error_response = self._build_error_response(
-                        request_id=request_id,
-                        error=exc,
-                    )
-                    await self._record_batch_item_failure(
-                        request_id=request_id,
-                        batch_id=batch_id,
-                        batch_index=index,
-                        model_id=model_id,
-                        route=route,
-                        error=exc,
-                        response=error_response,
-                        latency_ms=(
-                            time.perf_counter() - item_started_at
-                        ) * 1000,
-                    )
-                    responses[index] = error_response
-                    if raise_errors:
-                        raise
+                        ) * 1000
+                        response = build_prediction_response(
+                            prediction,
+                            request_id=request_id,
+                        )
+                        resolved_task_type = prediction.get(
+                            "task_type",
+                            prediction.get("service_type"),
+                        )
+
+                        if resolved_task_type is not None:
+                            current_task_type = str(resolved_task_type)
+                            if (
+                                    task_type is not None
+                                    and task_type != current_task_type
+                            ):
+                                raise RuntimeError(
+                                    "同一模型的批量预测返回了不同任务类型"
+                                )
+                            task_type = current_task_type
+
+                        result = ExecutionResult(
+                            plan=ExecutionPlan(
+                                route=routing_plan.primary,
+                                execution_type=ExecutionType.PRIMARY,
+                            ),
+                            prediction=prediction,
+                            latency_ms=item_latency_ms,
+                        )
+                        shadow_tasks = await self._record_batch_success(
+                            batch_id=batch_id,
+                            request_ids=[request_id],
+                            decision_ids=[generate_random_id(prefix="dcs")],
+                            results=[result],
+                            routing_plans=[routing_plan],
+                            instances=[instance],
+                            responses=[response],
+                            latency_ms=item_latency_ms,
+                            batch_indices=[index],
+                        )
+                        responses[index] = response
+                        await self._submit_shadow_predictions(shadow_tasks)
+                    except (
+                            ServiceDeploymentNotFoundError,
+                            ServiceEnvironmentMismatchError,
+                            RuntimeRouteError,
+                            RequestTimeoutError,
+                            RuntimeError,
+                            TypeError,
+                            ValueError,
+                    ) as exc:
+                        error_response = self._build_error_response(
+                            request_id=request_id,
+                            error=exc,
+                        )
+                        await self._record_batch_item_failure(
+                            request_id=request_id,
+                            batch_id=batch_id,
+                            batch_index=index,
+                            model_id=model_id,
+                            route=route,
+                            error=exc,
+                            response=error_response,
+                            latency_ms=(
+                                time.perf_counter() - item_started_at
+                            ) * 1000,
+                        )
+                        responses[index] = error_response
+                    except Exception as exc:
+                        error_response = self._build_error_response(
+                            request_id=request_id,
+                            error=exc,
+                        )
+                        await self._record_batch_item_failure(
+                            request_id=request_id,
+                            batch_id=batch_id,
+                            batch_index=index,
+                            model_id=model_id,
+                            route=route,
+                            error=exc,
+                            response=error_response,
+                            latency_ms=(
+                                time.perf_counter() - item_started_at
+                            ) * 1000,
+                        )
+                        responses[index] = error_response
+                        if raise_errors:
+                            raise
 
             finalized_responses: list[dict[str, Any]] = []
             for index in selected_indices:
@@ -920,7 +929,7 @@ class PredictionMixin:
 
             self._logger.warning(
                 "批量预测请求处理失败",
-                request_id=batch_id,
+                batch_id=batch_id,
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
                 batch_size=len(request.instances),
@@ -960,7 +969,7 @@ class PredictionMixin:
 
             self._logger.exception(
                 "批量预测请求处理异常",
-                request_id=batch_id,
+                batch_id=batch_id,
                 model_name=request.model_name,
                 deployment_id=request.deployment_id,
                 batch_size=len(request.instances),

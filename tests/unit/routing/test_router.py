@@ -943,3 +943,32 @@ async def test_resolve_can_disable_shadow_resolution(
         primary=primary
     )
     routing_repo.list_enabled_routings.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_shadows", [False, True])
+async def test_route_result_logs_actual_strategy_without_sensitive_payload(include_shadows):
+    """路由完成包含实际实验策略与部署，不输出特征或主体."""
+    from unittest.mock import AsyncMock
+    from structlog.testing import capture_logs
+    from datamind.runtime.routing.router import RuntimeRouter, RouteResult
+
+    router = RuntimeRouter()
+    router._resolve_primary = AsyncMock(return_value=RouteResult(
+        model_id="mdl_test", version_id="ver_test", deployment_id="dep_test",
+        framework="sklearn", environment="development", source="experiment",
+        strategy="manual", experiment_id="exp_test", variant_id="var_test",
+        subject_key="private-subject",
+    ))
+    router._resolve_shadows = AsyncMock(return_value=[])
+    with capture_logs() as logs:
+        await router.resolve(model_id="mdl_test", environment="development",
+                             payload={"private-feature": 99}, include_shadows=include_shadows)
+    result = next(log for log in logs if log["event"] == "运行时主路由解析完成")
+    assert result["log_level"] == "debug"
+    assert result["deployment_id"] == "dep_test"
+    assert result["version_id"] == "ver_test"
+    assert result["experiment_id"] == "exp_test"
+    assert result["variant_id"] == "var_test"
+    assert result["strategy"] == "manual"
+    assert "private" not in str(logs)

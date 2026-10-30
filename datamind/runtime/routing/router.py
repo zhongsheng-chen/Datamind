@@ -204,6 +204,20 @@ class RuntimeRouter:
             now=current_time,
         )
 
+        logger.debug(
+            "运行时主路由解析完成",
+            model_id=primary.model_id,
+            deployment_id=primary.deployment_id,
+            version_id=primary.version_id,
+            environment=primary.environment,
+            route_source=primary.source,
+            strategy=primary.strategy,
+            experiment_id=primary.experiment_id,
+            variant_id=primary.variant_id,
+            assignment_id=primary.assignment_id,
+            routing_id=primary.routing_id,
+        )
+
         if not include_shadows:
             return RoutingPlan(
                 primary=primary
@@ -247,8 +261,6 @@ class RuntimeRouter:
         logger.debug(
             "开始解析运行时路由",
             model_id=model_id,
-            subject_key=subject_key,
-            subject_type=subject_type,
             environment=environment,
             deployment_id=deployment_id,
         )

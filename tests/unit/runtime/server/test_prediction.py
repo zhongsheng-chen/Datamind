@@ -2203,3 +2203,28 @@ async def test_retry_batch_uses_new_celery_task_id(
         batch_id="bat_test",
         task_id=batch.task_id,
     )
+
+
+@pytest.mark.asyncio
+async def test_batch_http_request_id_is_distinct_from_batch_id(runtime_server, monkeypatch):
+    """提交批次的 HTTP 请求标识不能复用跨进程批次标识."""
+    service_module = runtime_server.load_service_module(monkeypatch)
+    service = runtime_server.create_service(service_module)
+    captured = {}
+
+    async def secured(**kwargs):
+        captured["request_id"] = kwargs["request_id"]
+        return await kwargs["handler"](None)
+
+    async def submit(**kwargs):
+        captured["batch_id"] = kwargs["batch_id"]
+        return {"success": True, "batch_id": kwargs["batch_id"]}
+
+    service._execute_secured = secured
+    service._submit_batch = submit
+    context = SimpleNamespace(response=SimpleNamespace(status_code=200))
+    await service_module.DatamindRuntimeService.inner.predict_batch.func(service, request=MagicMock(), ctx=context)
+    assert captured["request_id"].startswith("req_")
+    assert captured["batch_id"].startswith("bat_")
+    assert captured["request_id"] != captured["batch_id"]
+    assert context.response.status_code == 202

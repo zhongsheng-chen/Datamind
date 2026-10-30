@@ -22,8 +22,13 @@
 
 import asyncio
 import threading
+from datetime import datetime, timezone
 from concurrent.futures import Future
 from typing import Any, Coroutine, cast
+
+import structlog
+
+from datamind.db.models.batches import Batch
 
 from datamind.context import context_scope, generate_trace_id
 from datamind.db.core import UnitOfWork
@@ -35,6 +40,31 @@ from datamind.db.repositories import (
 )
 from datamind.runtime.server.schemas import BatchPredictRequest
 from datamind.runtime.task_queue.errors import BatchCancelledError
+
+
+logger = structlog.get_logger(__name__)
+
+
+def _batch_result_fields(batch: Batch) -> dict[str, Any]:
+    """使用持久化时间及计数描述本次批次尝试，跨进程保持同一口径."""
+    fields = {
+        "batch_id": batch.batch_id,
+        "task_id": batch.task_id,
+        "status": batch.status,
+        "total_count": batch.total_count,
+        "succeeded_count": batch.succeeded_count,
+        "failed_count": batch.failed_count,
+        "source": "worker",
+    }
+    started_at = batch.started_at or batch.created_at
+    if started_at is not None:
+        fields["duration_basis"] = "started_at" if batch.started_at else "created_at"
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        fields["duration_ms"] = round(
+            (datetime.now(timezone.utc) - started_at).total_seconds() * 1000, 3,
+        )
+    return fields
 
 
 class RuntimeTaskWorker:
@@ -339,12 +369,20 @@ class RuntimeTaskWorker:
 
         with context_scope(
                 trace_id=generate_trace_id(),
-                request_id=batch_id,
+                request_id=None,
                 source="worker",
                 user=user,
                 ip=ip,
                 hostname=None,
         ):
+            logger.info(
+                "批量预测任务开始执行",
+                batch_id=batch_id,
+                task_id=task_id,
+                worker_id=worker_id,
+                total_count=len(request.instances),
+                attempt_number=batch.attempt_count,
+            )
             return await self._service.prepare_batch_task(
                 request=request,
                 batch_id=batch_id,
@@ -405,7 +443,7 @@ class RuntimeTaskWorker:
 
         with context_scope(
                 trace_id=generate_trace_id(),
-                request_id=batch_id,
+                request_id=None,
                 source="worker",
                 user=user,
                 ip=ip,
@@ -623,6 +661,10 @@ class RuntimeTaskWorker:
                     else None
                 ),
             )
+            fields = _batch_result_fields(batch)
+            fields["status"] = attempt_status
+
+        logger.info("批量预测任务执行完成", **fields)
 
     async def _execute_shadow(self, execution_id: str) -> None:
         """加载并执行影子预测任务."""
@@ -706,6 +748,10 @@ class RuntimeTaskWorker:
                 ),
                 error=error,
             )
+            batch = await repository.get_batch(batch_id)
+            fields = _batch_result_fields(batch) if batch is not None else {"batch_id": batch_id, "source": "worker"}
+
+        logger.error("批量预测任务执行失败", error=error, **fields)
 
     @staticmethod
     async def _build_batch_result(

@@ -549,3 +549,72 @@ async def test_reconciler_start_and_stop_are_idempotent(
     await reconciler.stop()
 
     assert reconciler.is_running is False
+
+
+@pytest.mark.asyncio
+async def test_stale_warning_distinguishes_observer_and_limits_details(monkeypatch):
+    """失联告警说明阈值、观察者和失联对象，限制历史记录列表大小."""
+    from datetime import datetime, timezone
+    from structlog.testing import capture_logs
+
+    reconciler, _, _, runtime_repo = configure_reconciler(monkeypatch, controls=[])
+
+    async def mark_stale(**kwargs):
+        kwargs["stale_details"].append({"runtime_id": "rtm_stale", "worker_id": "worker_old",
+                                        "last_heartbeat_at": datetime.now(timezone.utc).isoformat()})
+        return [f"rtm_{i}" for i in range(15)]
+
+    runtime_repo.mark_stale_runtimes_failed.side_effect = mark_stale
+    with capture_logs() as logs:
+        await reconciler._mark_stale_runtimes_failed()
+    result = next(log for log in logs if log["event"] == "失联运行实例已标记为失败")
+    assert result["log_level"] == "warning"
+    assert result["observer_worker_id"] == reconciler.worker_id
+    assert "worker_id" not in result
+    assert result["stale_runtimes"][0]["worker_id"] == "worker_old"
+    assert result["timeout_seconds"] > 0
+    assert datetime.fromisoformat(result["checked_at"]) > datetime.fromisoformat(result["stale_before"])
+    assert len(result["runtime_ids"]) == 10
+    assert result["count"] == 15
+    assert result["omitted_count"] == 5
+
+
+@pytest.mark.asyncio
+async def test_reconcile_model_operation_scopes_generation_and_service(monkeypatch):
+    """协调上下文仅在本次模型操作内生效，不污染后续请求."""
+    import structlog
+
+    reconciler, manager, _, _ = configure_reconciler(
+        monkeypatch, controls=[create_control(desired_status=RuntimeControlStatus.LOADED)],
+        local_loaded=False,
+    )
+    reconciler.service_id = "svc_test"
+    observed = []
+
+    async def load(**kwargs):
+        observed.append(structlog.contextvars.get_contextvars().copy())
+
+    manager.load.side_effect = load
+    previous = structlog.contextvars.get_contextvars().copy()
+    await reconciler.reconcile_once()
+    assert observed[0]["generation"] == 1
+    assert observed[0]["service_id"] == "svc_test"
+    assert observed[0]["environment"] == "production"
+    assert structlog.contextvars.get_contextvars() == previous
+
+
+@pytest.mark.asyncio
+async def test_normal_heartbeat_logs_debug_and_updated_record_count(monkeypatch):
+    """正常心跳的计数是更新记录数，不占用 INFO."""
+    from structlog.testing import capture_logs
+
+    control = create_control(desired_status=RuntimeControlStatus.LOADED)
+    reconciler, _, _, repo = configure_reconciler(monkeypatch, controls=[control], local_loaded=True)
+    repo.get_deployment_runtime.return_value = SimpleNamespace(status="running")
+    with capture_logs() as logs:
+        await reconciler._heartbeat_loaded_runtimes([control])
+    heartbeat = next(log for log in logs if log["event"] == "运行时心跳更新完成")
+    assert heartbeat["log_level"] == "debug"
+    assert heartbeat["updated_runtime_count"] == 1
+    assert "heartbeat_count" not in heartbeat
+    assert not any(log["log_level"] == "info" for log in logs)

@@ -164,12 +164,12 @@ def test_service_run_does_not_authenticate_cli_user(
     assert "WORKERS" in result.output
     assert "RELOAD" in result.output
     assert ("enabled" if reload_enabled else "disabled") in result.output
-    assert result.output.count("服务已就绪") == 1
-    assert result.output.count("正在启动服务，等待 Worker 就绪") == 1
+    assert result.output.count("运行时服务已就绪") == 1
+    assert result.output.count("正在启动运行时服务，等待 Worker 就绪") == 1
     assert ("按 Ctrl+C 停止。" in result.output) is interactive
     assert "Press Ctrl+C to stop" not in result.output
-    assert result.output.index("Datamind") < result.output.index("正在启动服务")
-    assert result.output.index("正在启动服务") < result.output.index("服务已就绪")
+    assert result.output.index("Datamind") < result.output.index("正在启动运行时服务")
+    assert result.output.index("正在启动运行时服务") < result.output.index("运行时服务已就绪")
     assert result.output.count("Powered by") == 1
     command = popen.call_args.args[0]
     assert ("--reload" in command) is reload_enabled
@@ -177,13 +177,13 @@ def test_service_run_does_not_authenticate_cli_user(
     startup_events = [
         call
         for call in structured_logger.info.call_args_list
-        if call.args == ("正在启动服务，等待 Worker 就绪",)
+        if call.args == ("正在启动运行时服务，等待 Worker 就绪",)
     ]
     assert len(startup_events) == 1
     completed_events = [
         call.kwargs
         for call in structured_logger.info.call_args_list
-        if call.args == ("服务已就绪",)
+        if call.args == ("运行时服务已就绪",)
     ]
     assert len(completed_events) == 1
     assert completed_events[0]["workers"] == 1
@@ -191,7 +191,7 @@ def test_service_run_does_not_authenticate_cli_user(
     startup_details = [
         call.kwargs
         for call in structured_logger.debug.call_args_list
-        if call.args == ("Datamind 服务启动完成",)
+        if call.args == ("运行时服务启动完成",)
     ]
     assert startup_details[0]["pid"] == 12345
     assert startup_details[0]["service_id"] == (

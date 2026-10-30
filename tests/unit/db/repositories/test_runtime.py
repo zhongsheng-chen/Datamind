@@ -595,7 +595,9 @@ async def test_mark_stale_runtimes_failed() -> None:
         list_result=[stale_runtime]
     )
 
+    details = []
     runtime_ids = await repository.mark_stale_runtimes_failed(
+        stale_details=details,
         environment="production",
         stale_before=CURRENT_TIME,
         exclude_worker_id="worker-current",
@@ -614,6 +616,9 @@ async def test_mark_stale_runtimes_failed() -> None:
     assert "runtimes.status IN ('starting', 'running', 'stopping')" in sql
     assert "coalesce(runtimes.last_heartbeat_at, runtimes.updated_at)" in sql
     assert "runtimes.worker_id != 'worker-current'" in sql
+    assert details[0]["worker_id"] == "worker-stale"
+    assert details[0]["previous_status"] == "running"
+    assert details[0]["activity_basis"] == "updated_at"
     assert runtime_ids == ["rtm_0123456789abcdef"]
     assert stale_runtime.status == "failed"
     assert stale_runtime.error == "运行实例心跳超时，Worker 已失联"

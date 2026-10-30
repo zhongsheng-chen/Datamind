@@ -106,7 +106,8 @@ def test_apply_response_status_maps_error_types(
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200)
+        response=SimpleNamespace(status_code=200),
+        request=SimpleNamespace(scope={}),
     )
 
     service._apply_response_status(
@@ -272,7 +273,8 @@ async def test_ready_returns_ready_when_database_is_available(
         runtime_server.FakeUnitOfWork,
     )
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200)
+        response=SimpleNamespace(status_code=200),
+        request=SimpleNamespace(scope={}),
     )
 
     result = await service.ready(context)
@@ -315,7 +317,8 @@ async def test_ready_returns_unavailable_when_database_fails(
         FailingUnitOfWork,
     )
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200)
+        response=SimpleNamespace(status_code=200),
+        request=SimpleNamespace(scope={}),
     )
 
     result = await service.ready(context)
@@ -345,7 +348,8 @@ async def test_execute_secured_applies_status_and_records_audit(
     service = runtime_server.create_service(service_module)
     service.security = runtime_server.SecurityStub()
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200)
+        response=SimpleNamespace(status_code=200),
+        request=SimpleNamespace(scope={}),
     )
     handler = AsyncMock(return_value={
         "success": successful,
@@ -364,6 +368,7 @@ async def test_execute_secured_applies_status_and_records_audit(
     )
 
     assert result["success"] is successful
+    assert context.request.scope[service_module.RESULT_SCOPE_KEY]["business_success"] is successful
     handler.assert_awaited_once()
     runtime_server.get_audit_recorder(service).record.assert_awaited_once_with(
         action="runtime.reload",
@@ -403,3 +408,22 @@ def test_worker_ready_marker_matches_cli_service_id(
         ready_dir=tmp_path,
         service_id="service-other",
     ) == set()
+
+
+@pytest.mark.asyncio
+async def test_batch_status_log_metadata_excludes_predictions(runtime_server, monkeypatch):
+    """批次查询成功与批次业务状态分别记录，响应明细不进入访问日志."""
+    module = runtime_server.load_service_module(monkeypatch)
+    service = runtime_server.create_service(module)
+    service.security = runtime_server.SecurityStub()
+    context = SimpleNamespace(response=SimpleNamespace(status_code=200), request=SimpleNamespace(scope={}))
+    await service._execute_secured(
+        ctx=context, permission="prediction.invoke", request_id="req_query",
+        handler=AsyncMock(return_value={
+            "success": True, "batch_id": "bat_stable", "status": "partially_succeeded",
+            "result": {"predictions": [{"features": "private", "score": 600}]},
+        }),
+    )
+    assert context.request.scope[module.RESULT_SCOPE_KEY] == {
+        "business_success": True, "batch_id": "bat_stable", "batch_status": "partially_succeeded",
+    }

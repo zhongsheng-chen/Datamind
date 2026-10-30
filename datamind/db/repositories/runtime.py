@@ -320,6 +320,7 @@ class RuntimeRepository(BaseRepository):
             environment: str,
             stale_before: datetime,
             exclude_worker_id: str | None = None,
+            stale_details: list[dict] | None = None,
     ) -> list[str]:
         """将指定环境中失联的活动实例标记为失败."""
         if not environment:
@@ -363,6 +364,28 @@ class RuntimeRepository(BaseRepository):
         runtimes = list(result.scalars().all())
 
         for runtime in runtimes:
+            if stale_details is not None and len(stale_details) < 10:
+                activity_at = (
+                    runtime.last_heartbeat_at or runtime.updated_at
+                    if runtime.status == "running"
+                    else runtime.updated_at
+                )
+                stale_details.append({
+                    "runtime_id": runtime.runtime_id,
+                    "worker_id": runtime.worker_id,
+                    "deployment_id": runtime.deployment_id,
+                    "previous_status": runtime.status,
+                    "last_heartbeat_at": (
+                        runtime.last_heartbeat_at.isoformat()
+                        if runtime.last_heartbeat_at else None
+                    ),
+                    "activity_at": activity_at.isoformat() if activity_at else None,
+                    "activity_basis": (
+                        "last_heartbeat_at"
+                        if runtime.status == "running" and runtime.last_heartbeat_at
+                        else "updated_at"
+                    ),
+                })
             self.mark_failed(
                 runtime,
                 error="运行实例心跳超时，Worker 已失联",
