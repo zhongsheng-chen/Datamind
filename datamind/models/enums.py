@@ -108,10 +108,10 @@ class RuntimeControlStatus(BaseEnum):
     应达到的期望运行状态。
 
     LOADED:
-        各 Worker 应加载该部署对应的模型。
+        各 Worker 应加载该部署绑定的模型。
 
     UNLOADED:
-        各 Worker 应卸载该部署对应的模型。
+        各 Worker 应卸载该部署绑定的模型。
 
     说明：
         该状态表示运行控制目标状态，

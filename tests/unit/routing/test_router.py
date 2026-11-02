@@ -521,7 +521,7 @@ async def test_resolve_uses_manual_deployment(
                 **vars(create_deployment("dep_manual")),
                 "model_id": "mdl_other",
             }),
-            "部署所属模型与请求模型不一致",
+            "部署绑定的模型与请求模型不一致",
         ),
         (
             SimpleNamespace(**{

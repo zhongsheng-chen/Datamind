@@ -345,7 +345,7 @@ class RuntimeRouter:
 
         if deployment.model_id != model_id:
             raise RuntimeRouteError(
-                "部署所属模型与请求模型不一致: "
+                "部署绑定的模型与请求模型不一致: "
                 f"model_id={model_id}, deployment_model_id={deployment.model_id}"
             )
 
@@ -435,7 +435,7 @@ class RuntimeRouter:
 
         if deployment.model_id != model_id:
             logger.warning(
-                "实验命中的部署所属模型与请求模型不一致，跳过实验路由",
+                "实验命中的部署绑定的模型与请求模型不一致，跳过实验路由",
                 model_id=model_id,
                 deployment_model_id=deployment.model_id,
                 deployment_id=deployment.deployment_id,

@@ -66,7 +66,7 @@
   - test_experiment_item_includes_variant_count:
     测试实验摘要包含分组数量和更新时间
   - test_variant_item_includes_experiment_and_model_labels:
-    测试分组摘要包含实验名称和部署模型版本
+    测试分组摘要包含实验名称和部署绑定的模型版本
   - test_variant_item_does_not_invent_experiment_allocation:
     测试实验分流配置缺失时不伪造默认值
   - test_request_item_includes_model_and_decision_details:
@@ -1964,7 +1964,7 @@ def test_experiment_item_includes_variant_count() -> None:
 
 
 def test_variant_item_includes_experiment_and_model_labels() -> None:
-    """测试分组摘要包含实验名称和部署模型版本."""
+    """测试分组摘要包含实验名称和部署绑定的模型版本."""
     variant = SimpleNamespace(
         variant_id="var_test",
         experiment_id="exp_test",

@@ -18,7 +18,7 @@
   - test_get_model_request_stats:
     验证模型调用统计查询
   - test_get_experiment_labels:
-    验证实验模型信息查询
+    验证实验绑定的模型信息查询
   - test_get_variant_labels:
     验证分组实验和模型信息查询
   - test_get_batch_deployment_stats:
@@ -98,7 +98,7 @@
   - test_search_records_rejects_unknown_sort_field:
     测试拒绝未列入白名单的排序字段
   - test_get_deployment_labels:
-    测试批量获取部署关联的模型、版本和发布信息
+    测试批量获取部署绑定的模型、版本和发布信息
   - test_get_request_details:
     测试批量获取 API 调用的模型和决策详情
   - test_get_decision_details:
@@ -1361,7 +1361,7 @@ async def test_get_version_labels() -> None:
 
 @pytest.mark.asyncio
 async def test_get_deployment_labels() -> None:
-    """测试批量获取部署关联的模型、版本和发布信息."""
+    """测试批量获取部署绑定的模型、版本和发布信息."""
     repository, execute = create_repository()
     effective_from = datetime(
         2026,
@@ -1467,7 +1467,7 @@ async def test_get_request_details() -> None:
 
 @pytest.mark.asyncio
 async def test_get_experiment_labels() -> None:
-    """测试批量获取实验模型名称."""
+    """测试批量获取实验绑定的模型名称."""
     repository, execute = create_repository()
     execute.return_value.mappings.return_value.all.return_value = [
         {

@@ -2456,7 +2456,7 @@ class PredictionMixin:
             )
 
             raise RuntimeError(
-                "当前 Worker 尚未加载部署模型: "
+                "当前 Worker 尚未加载该模型: "
                 f"{deployment_id}"
             )
 

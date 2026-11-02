@@ -150,7 +150,7 @@ async def test_get_service_rejects_unloaded_runtime(
 
     with pytest.raises(
             RuntimeError,
-            match="当前 Worker 尚未加载部署模型",
+            match="当前 Worker 尚未加载该模型",
     ):
         await service._get_service("dep_test")
 
