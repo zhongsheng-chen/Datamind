@@ -136,11 +136,14 @@ def create_renderer_spies(
 @pytest.fixture(autouse=True)
 def reset_logging_state() -> Iterator[None]:
     """在每个测试前后清理日志系统."""
+    original_config = structlog.get_config().copy()
     logging_setup.shutdown_logging()
 
-    yield
-
-    logging_setup.shutdown_logging()
+    try:
+        yield
+    finally:
+        logging_setup.shutdown_logging()
+        structlog.configure(**original_config)
 
 
 def test_logger_factory_uses_default_name() -> None:

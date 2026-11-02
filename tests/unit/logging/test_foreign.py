@@ -9,6 +9,7 @@ import sys
 import warnings
 
 import pytest
+import structlog
 
 from datamind.config.logging import LoggingConfig
 from datamind.logging.setup import setup_logging, shutdown_logging
@@ -28,9 +29,13 @@ WARNING = (
 @pytest.fixture(autouse=True)
 def reset_foreign_logging():
     """只恢复接入拥有的配置，避免影响其他测试的警告捕获."""
+    original_config = structlog.get_config().copy()
     shutdown_logging()
-    yield
-    shutdown_logging()
+    try:
+        yield
+    finally:
+        shutdown_logging()
+        structlog.configure(**original_config)
 
 
 def configure(tmp_path, fmt="json", **kwargs):
