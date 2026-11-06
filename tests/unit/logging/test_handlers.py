@@ -17,6 +17,10 @@
     验证创建异步队列日志 handler
   - test_async_handler_dispatches_log_record:
     验证异步日志 handler 将日志记录交给输出 handler
+  - test_async_handler_preserves_arguments_and_exception:
+    验证异步队列保留原始消息参数和异常信息
+  - test_console_handler_avoids_celery_logging_proxy:
+    验证 Celery 重定向标准输出时仍使用原始流并保留日志级别
 """
 
 import logging
@@ -302,7 +306,7 @@ def test_async_handler_dispatches_log_record() -> None:
 
 
 def test_async_handler_preserves_arguments_and_exception():
-    """异步队列不提前拼接或清空原始异常与消息参数."""
+    """测试异步队列保留原始消息参数和异常信息."""
     import sys
     from unittest.mock import MagicMock
 
@@ -326,7 +330,7 @@ def test_async_handler_preserves_arguments_and_exception():
 
 
 def test_console_handler_avoids_celery_logging_proxy(monkeypatch):
-    """在 Celery 重定向 stdout 时仍向原始流输出，避免严重程度被改写."""
+    """测试 Celery 重定向标准输出时仍使用原始流并保留日志级别."""
     import io
     from unittest.mock import MagicMock
     from celery.utils.log import LoggingProxy
