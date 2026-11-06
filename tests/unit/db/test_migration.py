@@ -41,7 +41,7 @@ def test_upgrade_runs_from_any_directory(
     migration.upgrade_database()
 
     sql = output.getvalue()
-    for table_name in ("users", "systems"):
+    for table_name in ("organizations", "departments", "users", "systems"):
         assert f"CREATE TABLE {table_name}" in sql
 
 
@@ -79,7 +79,7 @@ def test_downgrade_runs_from_any_directory(
     migration.downgrade_database("base")
 
     sql = output.getvalue()
-    for table_name in ("users", "systems"):
+    for table_name in ("organizations", "departments", "users", "systems"):
         assert f"DROP TABLE {table_name}" in sql
 
 

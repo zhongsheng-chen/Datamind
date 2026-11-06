@@ -53,6 +53,8 @@ export function createResourceListController({
   isExportInProgress,
   maxSortFields,
   modelUsagePanel,
+  organizationPanel,
+  renderOrganizationPage,
   navigateToExperimentVariants,
   navigateToModelVersions,
   navigateToSection,
@@ -129,6 +131,17 @@ export function createResourceListController({
       "overview-active",
       state.active === "overview",
     );
+    if (organizationPanel) organizationPanel.hidden = state.active !== "organizations";
+    if (state.active === "organizations") {
+      dataPanel.hidden = true;
+      summaryGrid.hidden = true;
+      trendPanel.hidden = true;
+      modelUsagePanel.hidden = true;
+      tableControls.setQueryAvailable(false);
+      document.querySelector("#page-title").textContent = "机构与部门";
+      void renderOrganizationPage().catch(error => toast(error.message));
+      return;
+    }
     dataPanel.classList.remove("access-empty");
   
     tableContainer.replaceChildren();

@@ -50,7 +50,7 @@ nav:
       - 路由命令: cli/routing.md
       - 实验命令: cli/experiment.md
       - 分组命令: cli/variant.md
-      - 用户与角色命令: cli/identity.md
+      - 身份管理命令: cli/identity.md
       - 预测服务命令: cli/service.md
       - 任务 Worker 命令: cli/worker.md
       - 控制台命令: cli/console.md

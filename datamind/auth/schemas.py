@@ -72,7 +72,10 @@
   )
 """
 
-from typing import Literal
+from typing import (
+    Any,
+    Literal,
+)
 
 from pydantic import (
     BaseModel,
@@ -245,7 +248,10 @@ class AccessTokenClaims(
 class AuthenticatedUser(
     AuthSchema
 ):
-    """已认证用户信息."""
+    """已认证用户信息.
+
+    actor 保存审计操作人快照，仅在服务端使用，不参与序列化。
+    """
 
     user_id: str = Field(
         ...,
@@ -283,6 +289,13 @@ class AuthenticatedUser(
     roles: list[str] = Field(
         default_factory=list,
         description="角色名称列表",
+    )
+
+    actor: dict[str, Any] = Field(
+        default_factory=dict,
+        exclude=True,
+        repr=False,
+        description="审计操作人快照",
     )
 
     permissions: list[str] = Field(

@@ -72,6 +72,7 @@
         <span>DATAMIND</span>
       </div>
       <nav id="navigation" class="navigation" aria-label="控制台导航"></nav>
+      <div id="management-entry" class="management-entry" hidden></div>
       <div class="sidebar-footer">
         <button id="console-home-button" class="console-home-button" type="button" aria-label="返回控制台首页">
           <span class="pulse-dot"></span>
@@ -121,11 +122,7 @@
                 <span>账户安全</span>
                 <button id="change-password-button" type="button">修改密码</button>
               </div>
-              <div id="account-management" class="account-management" hidden>
-                <span>访问管理</span>
-                <button type="button" data-account-section="users">用户管理</button>
-                <button type="button" data-account-section="roles">角色管理</button>
-              </div>
+              <div id="account-management" class="account-management" hidden></div>
               <button id="logout-button" class="account-logout" type="button">退出登录</button>
             </div>
           </div>
@@ -133,6 +130,7 @@
       </header>
 
       <main class="content">
+        <nav id="management-tabs" class="management-tabs" aria-label="管理页面" hidden></nav>
         <section id="summary-grid" class="overview-metrics" aria-label="API 调用核心指标"></section>
 
         <section id="request-trend" class="trend-panel" hidden>
@@ -216,6 +214,7 @@
           </div>
           <div id="table-container" class="table-container"></div>
         </section>
+        <section id="organization-page" class="organization-page" aria-label="机构与部门" hidden></section>
       </main>
     </div>
   </div>

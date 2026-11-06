@@ -4,15 +4,19 @@
 
 核心功能：
   - test_creation_logs_after_commit:
-    验证创建完成日志仅在提交成功后记录
+    验证创建日志关联请求且仅在事务提交成功后报告完成
   - test_identity_list_logs_at_debug:
-    验证身份列表查询使用调试日志
+    验证用户和角色列表查询只记录调试日志
   - test_create_user_creates_identity_and_initial_grants:
     验证创建用户及初始角色授予
   - test_create_user_restores_deleted_user:
     验证重新创建已删除用户时恢复原记录
   - test_create_role_rejects_builtin_role:
-    验证普通身份管理不能创建内置角色
+    验证自定义角色不能使用内置名称，包括去除首尾空白后的名称
+  - test_role_result_marks_builtin_role:
+    验证角色结果标识内置管理员角色
+  - test_role_result_uses_current_builtin_description:
+    验证内置角色读取统一说明，自定义角色保留存储描述和权限
   - test_create_role_restores_deleted_role:
     验证重新创建已删除角色时恢复原记录
   - test_create_role_rejects_unsupported_permission:
@@ -31,20 +35,12 @@
     验证启用命令提示重新创建已删除用户
   - test_delete_user_revokes_grants_and_sessions:
     验证逻辑删除用户并撤销授权和会话
+  - test_delete_user_accepts_missing_reason:
+    验证逻辑删除用户允许省略删除原因
   - test_delete_user_rejects_builtin_administrator:
     验证不能删除系统初始化创建的管理员账户
   - test_disable_user_rejects_builtin_administrator:
     验证不能停用系统初始化创建的管理员账户
-  - test_update_user_replaces_profile:
-    验证更新用户名、显示名称和邮箱
-  - test_update_user_replaces_roles:
-    验证编辑用户时替换角色授予
-  - test_update_builtin_user_rejects_identity_changes:
-    验证内置管理员账户的身份字段保持不变
-  - test_update_builtin_user_requires_administrator_role:
-    验证内置管理员账户必须保留管理员角色
-  - test_change_password_verifies_current_password:
-    验证当前用户修改密码并撤销登录会话
   - test_disable_user_preserves_last_administrator:
     验证保护最后一个系统管理员
   - test_grant_role_reactivates_existing_grant:
@@ -55,20 +51,33 @@
     验证不能撤销最后一个有效管理员的角色
   - test_delete_role_rejects_reserved_or_assigned_role:
     验证系统角色和仍被授予的角色不能删除
+  - test_delete_role_accepts_missing_reason:
+    验证逻辑删除角色允许省略删除原因
+  - test_update_user_replaces_profile:
+    验证更新用户名、显示名称和邮箱
+  - test_update_user_replaces_roles:
+    验证编辑用户时替换角色授予
+  - test_update_builtin_user_rejects_identity_changes:
+    验证内置管理员账户的用户名和显示名称保持不变
+  - test_update_builtin_user_requires_administrator_role:
+    验证内置管理员账户不能取消 administrator 角色
+  - test_change_password_verifies_current_password:
+    验证当前用户修改密码并撤销登录会话
   - test_update_role_replaces_description_and_permissions:
     验证更新普通角色描述与权限
-  - test_role_result_marks_builtin_role:
-    测试角色结果标识内置管理员角色
-  - test_delete_user_accepts_missing_reason:
-    测试逻辑删除用户允许省略删除原因
-  - test_delete_role_accepts_missing_reason:
-    测试逻辑删除角色允许省略删除原因
+  - test_builtin_roles_reject_changes:
+    验证内置角色的资料、权限及生命周期均受到保护
+  - test_existing_custom_role_keeps_its_identity:
+    验证旧版本同名自定义角色不会被标为内置或覆盖原权限
+  - test_create_user_combines_builtin_roles:
+    验证创建用户时直接组合内置查看者与审计员角色
 """
 
 from datetime import (
     datetime,
     timezone,
 )
+from typing import Any
 from unittest.mock import (
     ANY,
     AsyncMock,
@@ -81,6 +90,12 @@ import datamind.services.identity as identity_module
 from datamind.audit.enums import AuditSource
 from datamind.context.core import get_context
 from datamind.context.scope import context_scope
+from datamind.constants.identity import (
+    BUILTIN_ROLE_DESCRIPTIONS,
+    BUILTIN_ROLE_NAMES,
+    BUILTIN_ROLE_PERMISSIONS,
+    SYSTEM_BOOTSTRAP_ACTOR,
+)
 from datamind.db.models.grants import Grant
 from datamind.db.models.roles import Role
 from datamind.db.models.users import User
@@ -452,14 +467,17 @@ async def test_create_user_restores_deleted_user(
 
 
 @pytest.mark.asyncio
-async def test_create_role_rejects_builtin_role() -> None:
-    """测试 administrator 只能由系统初始化创建."""
+@pytest.mark.parametrize("name", sorted(BUILTIN_ROLE_NAMES))
+async def test_create_role_rejects_builtin_role(
+        name: str,
+) -> None:
+    """测试自定义角色不能使用内置名称，包括去除首尾空白后的名称."""
     with pytest.raises(
             IdentityConflictError,
             match="只能由 datamind init 创建",
     ):
         await IdentityService().create_role(
-            name="administrator",
+            name=f" {name} ",
             permissions=[
                 "*"
             ],
@@ -483,6 +501,29 @@ def test_role_result_marks_builtin_role() -> None:
 
     assert builtin["is_builtin"] is True
     assert ordinary["is_builtin"] is False
+
+
+@pytest.mark.parametrize("name", sorted(BUILTIN_ROLE_NAMES))
+@pytest.mark.parametrize("builtin", [False, True])
+def test_role_result_uses_current_builtin_description(
+        name: str,
+        builtin: bool,
+) -> None:
+    """测试内置角色读取统一说明，自定义角色保留存储描述和权限."""
+    role = create_role(
+        name=name,
+        description="历史角色说明",
+        created_by=SYSTEM_BOOTSTRAP_ACTOR if builtin else "usr_custom",
+    )
+    result = IdentityService._role_result(role)
+    expected_builtin = builtin or name == "administrator"
+    assert result["description"] == (
+        BUILTIN_ROLE_DESCRIPTIONS[name]
+        if expected_builtin
+        else "历史角色说明"
+    )
+    assert role.description == "历史角色说明"
+    assert result["permissions"] == ["model.read"]
 
 
 @pytest.mark.asyncio
@@ -619,17 +660,21 @@ async def test_disable_role_deactivates_role(
 
 
 @pytest.mark.asyncio
-async def test_disable_role_rejects_builtin_role() -> None:
+async def test_disable_role_rejects_builtin_role(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """测试不能停用系统保留角色."""
-    with pytest.raises(
-            IdentityConflictError,
-            match="系统保留角色",
-    ):
+    _, role_repo, _, _, _ = configure_service(monkeypatch)
+    role_repo.get_role = AsyncMock(return_value=create_role(name="administrator"))
+
+    with pytest.raises(IdentityConflictError, match="系统保留角色"):
         await IdentityService().disable_role(
             name="administrator",
             operator_id="usr_admin",
             operator="admin",
         )
+
+    role_repo.deactivate_role.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1074,6 +1119,9 @@ async def test_delete_role_rejects_reserved_or_assigned_role(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试系统角色和仍被授予的角色不能删除."""
+    _, role_repo, _, _, _ = configure_service(monkeypatch)
+    role_repo.get_role = AsyncMock(return_value=create_role(name="administrator"))
+
     with pytest.raises(
             IdentityConflictError,
             match="系统保留角色",
@@ -1491,3 +1539,100 @@ async def test_update_role_replaces_description_and_permissions(
     audit_call = audit_repo.create_audit.call_args
     assert audit_call.kwargs["action"] == "role.update"
     assert audit_call.kwargs["operation"] == "update"
+
+
+@pytest.mark.parametrize("name", sorted(BUILTIN_ROLE_NAMES))
+@pytest.mark.parametrize("operation", ["update_role", "disable_role", "delete_role"])
+@pytest.mark.asyncio
+async def test_builtin_roles_reject_changes(
+        monkeypatch: pytest.MonkeyPatch,
+        name: str,
+        operation: str,
+) -> None:
+    """测试内置角色的资料、权限及生命周期均受到保护."""
+    _, role_repo, grant_repo, _, audit_repo = configure_service(monkeypatch)
+    role_repo.get_role = AsyncMock(return_value=create_role(
+        name=name,
+        created_by="system:bootstrap",
+    ))
+    arguments: dict[str, Any] = {
+        "name": name,
+        "operator_id": "usr_admin",
+        "operator": "admin",
+    }
+
+    if operation == "update_role":
+        arguments.update(description="改为可写角色", permissions=["model.write"])
+
+    with pytest.raises(IdentityConflictError, match="系统保留角色"):
+        await getattr(IdentityService(), operation)(**arguments)
+
+    role_repo.replace_permissions.assert_not_called()
+    role_repo.replace_description.assert_not_called()
+    role_repo.deactivate_role.assert_not_called()
+    role_repo.mark_deleted.assert_not_called()
+    grant_repo.list_active_grants.assert_not_called()
+    audit_repo.create_audit.assert_not_called()
+
+
+@pytest.mark.parametrize("name", ["editor", "viewer", "invoker", "auditor"])
+@pytest.mark.asyncio
+async def test_existing_custom_role_keeps_its_identity(
+        monkeypatch: pytest.MonkeyPatch,
+        name: str,
+) -> None:
+    """测试旧版本同名自定义角色不会被标为内置或覆盖原权限."""
+    _, role_repo, _, _, _ = configure_service(monkeypatch)
+    role = create_role(name=name, created_by="usr_admin", permissions=["model.read"])
+    role_repo.get_role = AsyncMock(return_value=role)
+
+    result = await IdentityService().update_role(
+        name=name,
+        description="自定义角色",
+        permissions=["deployment.read"],
+        operator_id="usr_admin",
+        operator="admin",
+    )
+
+    assert result["is_builtin"] is False
+    role_repo.replace_permissions.assert_called_once_with(
+        role,
+        permissions=["deployment.read"],
+        updated_by="usr_admin",
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_user_combines_builtin_roles(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试创建用户时直接组合内置查看者与审计员角色."""
+    user_repo, role_repo, grant_repo, _, _ = configure_service(monkeypatch)
+    user_repo.get_user = AsyncMock(return_value=None)
+    user_repo.create_user.return_value = create_user()
+    roles = {
+        name: create_role(
+            role_id=f"rol_{name}",
+            name=name,
+            permissions=list(BUILTIN_ROLE_PERMISSIONS[name]),
+            created_by="system:bootstrap",
+        )
+        for name in ("viewer", "auditor")
+    }
+    role_repo.get_role = AsyncMock(side_effect=lambda **kwargs: roles[kwargs["name"]])
+
+    result = await IdentityService().create_user(
+        username="alice",
+        password="secret",
+        role_names=["viewer", "auditor"],
+        operator_id="usr_admin",
+        operator="admin",
+    )
+
+    assert result["roles"] == ["auditor", "viewer"]
+    assert grant_repo.create_grant.call_count == 2
+    assert {
+        call.kwargs["role_id"]
+        for call in grant_repo.create_grant.call_args_list
+    } == {"rol_viewer", "rol_auditor"}
+    role_repo.create_role.assert_not_called()

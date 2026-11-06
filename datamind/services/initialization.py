@@ -1,6 +1,6 @@
 """系统初始化服务.
 
-在单个事务中创建部署时指定的首个管理员、内置系统管理员角色、
+在单个事务中创建部署时指定的首个管理员、内置角色、
 角色授予和初始化审计记录。
 
 核心功能：
@@ -32,8 +32,9 @@ from datamind.audit.enums import (
 from datamind.auth.password import hash_password
 from datamind.constants.identity import (
     ADMINISTRATOR_DISPLAY_NAME,
-    ADMINISTRATOR_PERMISSIONS,
     ADMINISTRATOR_ROLE_NAME,
+    BUILTIN_ROLE_DESCRIPTIONS,
+    BUILTIN_ROLE_PERMISSIONS,
     SYSTEM_BOOTSTRAP_ACTOR,
 )
 from datamind.context import generate_trace_id
@@ -104,7 +105,7 @@ class InitializationService:
     ) -> InitializationResult:
         """一次性初始化系统.
 
-        创建首个管理员、拥有全部权限的 administrator 角色及角色授予，
+        创建内置角色，并仅为首个管理员授予 administrator 角色，
         同时写入初始化状态和审计记录。所有变更由同一个工作单元提交。
 
         参数：
@@ -118,7 +119,7 @@ class InitializationService:
             系统初始化结果
 
         异常：
-            InitializationError: 已存在用户或系统管理员角色
+            InitializationError: 已存在用户或与内置角色同名的记录
             AlreadyInitializedError: 系统已经完成初始化
             ValueError: 用户名、密码或时间不合法
         """
@@ -170,14 +171,15 @@ class InitializationService:
                     "检测到已有用户，拒绝初始化"
                 )
 
-            existing_role = await role_repo.get_role(
-                name=ADMINISTRATOR_ROLE_NAME
-            )
-
-            if existing_role is not None:
-                raise InitializationError(
-                    "administrator 角色已经存在，拒绝初始化"
+            for name in BUILTIN_ROLE_PERMISSIONS:
+                existing_role = await role_repo.get_role(
+                    name=name,
                 )
+
+                if existing_role is not None:
+                    raise InitializationError(
+                        f"{name} 角色已经存在，拒绝初始化"
+                    )
 
             user_id = generate_random_id(
                 prefix="usr"
@@ -197,15 +199,18 @@ class InitializationService:
             )
             user.password_changed_at = initialized_at
 
-            role_repo.create_role(
-                role_id=role_id,
-                name=ADMINISTRATOR_ROLE_NAME,
-                description="系统管理员角色",
-                permissions=list(
-                    ADMINISTRATOR_PERMISSIONS
-                ),
-                created_by=SYSTEM_ACTOR,
-            )
+            for name, permissions in BUILTIN_ROLE_PERMISSIONS.items():
+                role_repo.create_role(
+                    role_id=(
+                        role_id
+                        if name == ADMINISTRATOR_ROLE_NAME
+                        else generate_random_id(prefix="rol")
+                    ),
+                    name=name,
+                    description=BUILTIN_ROLE_DESCRIPTIONS[name],
+                    permissions=list(permissions),
+                    created_by=SYSTEM_ACTOR,
+                )
 
             grant_repo.create_grant(
                 grant_id=generate_random_id(

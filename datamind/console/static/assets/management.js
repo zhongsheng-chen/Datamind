@@ -1,3 +1,9 @@
+import { createOrganizationPage } from "./organization/page.js";
+import {
+  bindUserOrganizationOptions,
+  userOrganizationFields,
+} from "./organization/forms.js";
+
 import {
   appendChoiceField,
   appendFormSection,
@@ -35,6 +41,7 @@ import {
 
 /**
  * @typedef {Object} ManagementRoleOption
+ * @property {boolean} is_builtin
  * @property {string} name
  * @property {string | null} description
  */
@@ -95,6 +102,7 @@ export function createResourceManager({
   let managementOptionsRequest = null;
   /** @type {(() => void) | null} */
   let closeActiveActionMenu = null;
+  let organizationPage = null;
 
   function getCreateResource() {
     if (state.selectedExperimentId !== null) return "variants";
@@ -1348,7 +1356,8 @@ export function createResourceManager({
 
   async function openUserCreateDialog() {
     const options = await getManagementOptions();
-    createManagementDialog({
+    const directory = await request("directory");
+    const dialog = createManagementDialog({
       title: "创建用户",
       description: "创建本地用户并分配角色。",
       submitLabel: "创建用户",
@@ -1356,6 +1365,7 @@ export function createResourceManager({
         { name: "username", label: "用户名", required: true },
         { name: "display_name", label: "显示名称" },
         { name: "email", label: "邮箱", type: "email" },
+        ...userOrganizationFields(directory),
         { name: "password", label: "初始密码", type: "password", required: true },
         {
           name: "roles",
@@ -1373,10 +1383,16 @@ export function createResourceManager({
           username: optionalValue(formData, "username"),
           display_name: optionalValue(formData, "display_name"),
           email: optionalValue(formData, "email"),
+          employee_number: optionalValue(formData, "employee_number"),
+          organization_id: optionalValue(formData, "organization_id"),
+          department_id: optionalValue(formData, "department_id"),
           password: optionalValue(formData, "password"),
           roles: formData.getAll("roles").map(String),
         }),
       }),
+    });
+    bindUserOrganizationOptions(dialog, directory, {
+      request, createDialog: createManagementDialog, toast,
     });
   }
 
@@ -2156,6 +2172,7 @@ export function createResourceManager({
 
   async function openUserEditDialog(record) {
     const options = await getManagementOptions();
+    const directory = await request("directory");
     const builtin = Boolean(record.is_builtin);
     const assignedRoles = Array.isArray(record.roles)
       ? record.roles.map(String)
@@ -2163,7 +2180,7 @@ export function createResourceManager({
     const effectiveRoles = builtin && !assignedRoles.includes("administrator")
       ? ["administrator", ...assignedRoles]
       : assignedRoles;
-    createManagementDialog({
+    const dialog = createManagementDialog({
       title: "编辑用户资料",
       description: "修改用户资料及角色分配。",
       submitLabel: "保存修改",
@@ -2171,6 +2188,7 @@ export function createResourceManager({
         { name: "username", label: "用户名", required: true, value: record.username, readonly: builtin },
         { name: "display_name", label: "显示名称", value: record.display_name || "", readonly: builtin },
         { name: "email", label: "邮箱", type: "email", value: record.email || "" },
+        ...userOrganizationFields(directory, record),
         {
           name: "roles",
           label: "角色",
@@ -2191,6 +2209,9 @@ export function createResourceManager({
             username: optionalValue(formData, "username"),
             display_name: optionalValue(formData, "display_name"),
             email: optionalValue(formData, "email"),
+            employee_number: optionalValue(formData, "employee_number"),
+            organization_id: optionalValue(formData, "organization_id"),
+            department_id: optionalValue(formData, "department_id"),
             roles: formData.getAll("roles").map(String),
           }),
         },
@@ -2201,6 +2222,9 @@ export function createResourceManager({
           await onAccessChanged();
         }
       },
+    });
+    bindUserOrganizationOptions(dialog, directory, {
+      request, createDialog: createManagementDialog, toast,
     });
   }
 
@@ -2326,6 +2350,17 @@ export function createResourceManager({
     appendManagementHeader,
     getRecordActions,
     openDeploymentCreateDialog,
+    renderOrganizationPage: (container) => {
+      organizationPage ??= createOrganizationPage({
+        container, request, createDialog: createManagementDialog, toast,
+      });
+      return organizationPage.show();
+    },
+    refreshOrganizationPage: () => organizationPage?.refresh(),
+    resetOrganizationPage: () => {
+      organizationPage?.destroy();
+      organizationPage = null;
+    },
     openVersionCreateDialog: (model) => openModelRegistrationDialog(model),
     runRecordAction,
     updateCreateButton,

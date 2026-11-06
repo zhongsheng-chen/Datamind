@@ -47,7 +47,10 @@ async def test_request_context_matches_audit(
 ) -> None:
     """测试日志与审计使用相同上下文且异常后恢复外层上下文."""
     console = importlib.import_module("datamind.console.app")
-    user = SimpleNamespace(username="admin")
+    user = SimpleNamespace(
+        username="admin",
+        actor={},
+    )
     monkeypatch.setitem(
         vars(console.browser_auth),
         "authenticate",

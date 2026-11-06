@@ -30,6 +30,8 @@
     验证可选字段允许省略
   - test_role_repr:
     验证角色字符串表示
+  - test_role_builtin_identity:
+    验证内置身份同时考虑保留名称和创建来源，兼容原管理员角色
 """
 
 from typing import Any
@@ -557,3 +559,31 @@ def test_role_repr() -> None:
     assert "permissions" not in representation
     assert "model.*" not in representation
     assert "系统管理员" not in representation
+
+
+@pytest.mark.parametrize(
+    "name, creator, expected",
+    [
+        ("administrator", "system:bootstrap", True),
+        ("administrator", None, True),
+        ("editor", "system:bootstrap", True),
+        ("viewer", "system:bootstrap", True),
+        ("invoker", "system:bootstrap", True),
+        ("auditor", "system:bootstrap", True),
+        ("viewer", "usr_admin", False),
+        ("viewer", None, False),
+        ("model-reader", "system:bootstrap", False),
+    ],
+)
+def test_role_builtin_identity(
+        name: str,
+        creator: str | None,
+        expected: bool,
+) -> None:
+    """测试内置身份同时考虑保留名称和创建来源，兼容原管理员角色."""
+    role = Role(name=name)
+
+    if creator is not None:
+        role.created_by = creator
+
+    assert role.is_builtin is expected

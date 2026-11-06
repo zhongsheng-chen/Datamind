@@ -64,11 +64,17 @@ class UserPatch:
         username: 登录用户名
         display_name: 用户显示名称
         email: 用户邮箱
+        employee_number: 工号
+        organization_id: 所属机构 ID
+        department_id: 所属部门 ID
     """
 
     username: str | None = None
     display_name: str | None = None
     email: str | None = None
+    employee_number: str | None = None
+    organization_id: str | None = None
+    department_id: str | None = None
 
 
 class UserRepository(BaseRepository):
@@ -80,6 +86,7 @@ class UserRepository(BaseRepository):
             user_id: str | None = None,
             username: str | None = None,
             email: str | None = None,
+            employee_number: str | None = None,
     ) -> User | None:
         """获取单个用户.
 
@@ -87,6 +94,7 @@ class UserRepository(BaseRepository):
             user_id: 用户 ID（可选）
             username: 登录用户名（可选）
             email: 用户邮箱（可选）
+            employee_number: 工号（可选）
 
         返回：
             用户对象，不存在时返回 None
@@ -100,12 +108,13 @@ class UserRepository(BaseRepository):
                 user_id,
                 username,
                 email,
+                employee_number,
             )
         ]
 
         if sum(conditions) != 1:
             raise ValueError(
-                "user_id、username、email 必须且只能提供一个"
+                "user_id、username、email、employee_number 必须且只能提供一个"
             )
 
         stmt = select(
@@ -122,9 +131,14 @@ class UserRepository(BaseRepository):
                 User.username == username
             )
 
-        else:
+        elif email is not None:
             stmt = stmt.where(
                 User.email == email
+            )
+
+        else:
+            stmt = stmt.where(
+                User.employee_number == employee_number
             )
 
         result = await self.session.execute(
@@ -212,6 +226,9 @@ class UserRepository(BaseRepository):
             password_hash: str,
             display_name: str | None = None,
             email: str | None = None,
+            employee_number: str | None = None,
+            organization_id: str | None = None,
+            department_id: str | None = None,
             status: UserStatus = UserStatus.ACTIVE,
             is_break_glass: bool = False,
             created_by: str | None = None,
@@ -224,6 +241,9 @@ class UserRepository(BaseRepository):
             password_hash: 密码哈希
             display_name: 用户显示名称（可选）
             email: 用户邮箱（可选）
+            employee_number: 工号（可选）
+            organization_id: 所属机构 ID（可选）
+            department_id: 所属部门 ID（可选）
             status: 用户状态
             is_break_glass: 是否为本地应急账户
             created_by: 创建用户 ID（可选）
@@ -246,6 +266,15 @@ class UserRepository(BaseRepository):
 
         if email is not None:
             new_user.email = email
+
+        if employee_number is not None:
+            new_user.employee_number = employee_number
+
+        if organization_id is not None:
+            new_user.organization_id = organization_id
+
+        if department_id is not None:
+            new_user.department_id = department_id
 
         if created_by is not None:
             new_user.created_by = created_by
@@ -302,6 +331,7 @@ class UserRepository(BaseRepository):
             username: str,
             display_name: str | None,
             email: str | None,
+            organization_profile: dict[str, str | None] | None = None,
             updated_by: str | None = None,
     ) -> User:
         """替换用户资料.
@@ -311,14 +341,25 @@ class UserRepository(BaseRepository):
             username: 新用户名
             display_name: 新显示名称
             email: 新邮箱
+            organization_profile: 组织信息（可选）
             updated_by: 更新用户 ID（可选）
 
         返回：
             更新后的用户对象
+
+        说明：
+            组织信息仅更新指定字段，未指定的字段保持不变，值为 None 时清空。
         """
         user.username = username
         user.display_name = display_name
         user.email = email
+
+        for field, value in (organization_profile or {}).items():
+            setattr(
+                user,
+                field,
+                value,
+            )
 
         if updated_by is not None:
             user.updated_by = updated_by

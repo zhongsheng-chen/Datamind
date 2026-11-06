@@ -6,6 +6,7 @@ import {
   filterModelTypes,
   normalizeChoice,
   optionalValue,
+  roleOptions,
   taskTypeOptionsByModelType,
 } from "../../datamind/console/static/assets/management/forms.js";
 
@@ -57,5 +58,26 @@ describe("management form rules", () => {
   it("returns an empty datetime value for invalid input", () => {
     expect(datetimeLocalValue("")).toBe("");
     expect(datetimeLocalValue("not-a-date")).toBe("");
+  });
+});
+
+
+describe("角色选择说明", () => {
+  it("内置角色保留原名称、说明和提交标识", () => {
+    const names = ["administrator", "editor", "viewer", "invoker", "auditor"];
+    const roles = names.map((name) => ({ name, is_builtin: true, description: "权限范围说明" }));
+    expect(roleOptions(roles)).toEqual(names.map((name) => ({
+      value: name, label: name, description: "权限范围说明",
+    })));
+  });
+
+  it("自定义角色及历史同名角色保留名称和说明", () => {
+    expect(roleOptions([
+      { name: "自定义角色", is_builtin: false, description: "自定义权限" },
+      { name: "editor", is_builtin: false, description: "历史角色说明" },
+    ])).toEqual([
+      { value: "自定义角色", label: "自定义角色", description: "自定义权限" },
+      { value: "editor", label: "editor", description: "历史角色说明" },
+    ]);
   });
 });

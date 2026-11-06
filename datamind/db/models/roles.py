@@ -37,6 +37,11 @@ from sqlalchemy.dialects.postgresql import (
     TEXT,
 )
 
+from datamind.constants.identity import (
+    ADMINISTRATOR_ROLE_NAME,
+    BUILTIN_ROLE_NAMES,
+    SYSTEM_BOOTSTRAP_ACTOR,
+)
 from datamind.db.core import (
     Base,
     IdMixin,
@@ -170,6 +175,19 @@ class Role(
         nullable=True,
         comment="逻辑删除原因",
     )
+
+    @property
+    def is_builtin(
+            self,
+    ) -> bool:
+        """判断是否为内置角色."""
+        return (
+            self.name == ADMINISTRATOR_ROLE_NAME
+            or (
+                self.name in BUILTIN_ROLE_NAMES
+                and self.created_by == SYSTEM_BOOTSTRAP_ACTOR
+            )
+        )
 
     def __repr__(
             self,

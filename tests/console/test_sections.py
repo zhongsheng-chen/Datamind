@@ -38,6 +38,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.auth.schemas import AuthenticatedUser
+from datamind.constants.identity import BUILTIN_ROLE_DESCRIPTIONS
 from tests.console._app_support import app_module, create_user
 
 
@@ -54,15 +55,17 @@ async def test_management_options_return_selectable_catalogs(
             ]
         }
     )
+    role_options = [
+        {"name": name, "description": description, "is_builtin": True}
+        for name, description in BUILTIN_ROLE_DESCRIPTIONS.items()
+    ]
+    role_options.append({
+        "name": "model-reader",
+        "description": "模型只读角色",
+        "is_builtin": False,
+    })
     identity_service = MagicMock()
-    identity_service.list_roles = AsyncMock(
-        return_value=[
-            {
-                "name": "developer",
-                "description": "开发人员",
-            }
-        ]
-    )
+    identity_service.list_roles = AsyncMock(return_value=role_options)
     monkeypatch.setitem(
         vars(app_module),
         "_authenticate",
@@ -104,12 +107,7 @@ async def test_management_options_return_selectable_catalogs(
     assert routing_rules["schema"]["examples"] == [routing_rules["example"]]
     assert payload["permissions"][0] == "*"
     assert "model.read" in payload["permissions"]
-    assert payload["roles"] == [
-        {
-            "name": "developer",
-            "description": "开发人员",
-        }
-    ]
+    assert payload["roles"] == role_options
     identity_service.list_roles.assert_awaited_once_with(
         status=app_module.RoleStatus.ACTIVE,
         limit=1000,

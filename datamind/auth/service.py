@@ -1,7 +1,7 @@
 """认证服务.
 
-整合本地认证、用户、角色、角色授予和刷新令牌仓储，
-提供登录、令牌续期、退出登录和访问令牌认证能力。
+负责本地用户认证与令牌管理，
+提供登录、令牌续期、退出登录和访问令牌校验功能。
 
 核心功能：
   - AuthService.login: 使用本地用户名和密码登录
@@ -95,6 +95,10 @@ from datamind.auth.token import (
     verify_refresh_token,
 )
 from datamind.db.models.users import User
+from datamind.db.repositories.organization import (
+    OrganizationCatalog,
+    OrganizationRepository,
+)
 from datamind.db.repositories import (
     GrantRepository,
     RoleRepository,
@@ -740,7 +744,23 @@ class AuthService:
             )
         )
 
+        catalog = (
+            await OrganizationRepository(
+                self.user_repo.session
+            ).catalog()
+            if getattr(
+                user,
+                "organization_id",
+                None,
+            )
+            else OrganizationCatalog(
+                [],
+                [],
+            )
+        )
+
         return AuthenticatedUser(
+            actor=catalog.profile(user),
             user_id=user.user_id,
             username=user.username,
             display_name=user.display_name,

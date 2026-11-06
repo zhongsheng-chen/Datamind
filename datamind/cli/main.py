@@ -43,6 +43,7 @@ from datamind.cli.role import app as role_app
 from datamind.cli.runtime import app as runtime_app
 from datamind.cli.service import app as service_app
 from datamind.cli.user import app as user_app
+from datamind.cli.organization import department_app, organization_app
 from datamind.cli.worker import app as worker_app
 from datamind.config import get_logging_config
 from datamind.logging import setup_logging
@@ -104,6 +105,8 @@ app.add_typer(service_app, name="service")
 app.add_typer(worker_app, name="worker")
 app.add_typer(runtime_app, name="runtime")
 app.add_typer(user_app, name="user")
+app.add_typer(organization_app, name="organization")
+app.add_typer(department_app, name="department")
 app.add_typer(role_app, name="role")
 app.add_typer(console_app, name="console")
 app.add_typer(db_app, name="db")

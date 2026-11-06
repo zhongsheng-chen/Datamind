@@ -21,6 +21,7 @@ from typing import Any
 
 import structlog
 
+from datamind.audit.actor import actor_snapshot
 from datamind.audit.event import AuditEvent
 from datamind.audit.policy import AuditFailureMode
 from datamind.audit.sanitizer import (
@@ -111,6 +112,11 @@ class AuditRecorder:
 
         if context:
             ctx.update(context)
+
+        actor = actor_snapshot()
+
+        if actor and "actor" not in ctx:
+            ctx["actor"] = actor
 
         trace_id = ctx.get(TRACE_ID)
         request_id = ctx.get(REQUEST_ID)

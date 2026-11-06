@@ -26,13 +26,14 @@ from typing import Any
 
 from datamind.auth.permissions import has_permission
 from datamind.constants.identity import (
-    BUILTIN_ROLE_NAMES,
+    BUILTIN_ROLE_DESCRIPTIONS,
     SYSTEM_BOOTSTRAP_ACTOR,
 )
 from datamind.constants.permissions import (
     SUPPORTED_PERMISSIONS,
 )
 from datamind.db.core import UnitOfWork
+from datamind.db.models.roles import Role
 from datamind.db.repositories import (
     AuditRepository,
     DashboardRepository,
@@ -51,6 +52,7 @@ from datamind.db.repositories import (
     VersionRepository,
 )
 from datamind.runtime.presence import RuntimePresence
+from datamind.services.organization import attach_user_profiles
 from datamind.utils.datetime import format_iso_utc
 from datamind.utils.sorting import (
     encode_sort_specs,
@@ -556,6 +558,12 @@ class DashboardService:
                     user.user_id
                     for user in users
                 )
+
+                await attach_user_profiles(
+                    uow.session,
+                    users,
+                )
+
                 sections["users"] = [
                     self._user_item(
                         user,
@@ -1352,6 +1360,12 @@ class DashboardService:
                 ]
             elif section == "users":
                 page_records = records
+
+                await attach_user_profiles(
+                    uow.session,
+                    page_records,
+                )
+
                 user_roles = await dashboard_repo.get_user_roles(
                     user.user_id
                     for user in page_records
@@ -2714,6 +2728,26 @@ class DashboardService:
             "username": user.username,
             "display_name": user.display_name,
             "email": user.email,
+            "employee_number": getattr(
+                user,
+                "employee_number",
+                None,
+            ),
+            "organization_id": getattr(
+                user,
+                "organization_id",
+                None,
+            ),
+            "department_id": getattr(
+                user,
+                "department_id",
+                None,
+            ),
+            **getattr(
+                user,
+                "organization_profile",
+                {},
+            ),
             "status": user.status,
             "is_builtin": (
                 user.created_by
@@ -2733,7 +2767,7 @@ class DashboardService:
 
     @staticmethod
     def _role_item(
-            role: Any,
+            role: Role,
     ) -> dict[str, Any]:
         """转换角色摘要."""
         permissions = role.permissions
@@ -2751,10 +2785,12 @@ class DashboardService:
         return {
             "role_id": role.role_id,
             "name": role.name,
-            "description": role.description,
-            "is_builtin": (
-                role.name in BUILTIN_ROLE_NAMES
+            "description": (
+                BUILTIN_ROLE_DESCRIPTIONS[role.name]
+                if role.is_builtin
+                else role.description
             ),
+            "is_builtin": role.is_builtin,
             "permissions": permission_items,
             "effective_permissions": effective_permissions,
             "status": role.status,

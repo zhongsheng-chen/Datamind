@@ -90,7 +90,9 @@ from unittest.mock import (
 import pytest
 
 import datamind.services.dashboard as dashboard_module
+from datamind.constants.identity import BUILTIN_ROLE_DESCRIPTIONS
 from datamind.runtime.presence import RuntimePresence
+from datamind.db.models.roles import Role
 from datamind.services.dashboard import DashboardService
 
 
@@ -535,7 +537,7 @@ def test_build_request_trend_preserves_outcomes() -> None:
 
 def test_role_item_marks_builtin_role() -> None:
     """测试控制台角色摘要标识内置角色."""
-    role = SimpleNamespace(
+    role = Role(
         role_id="rol_admin",
         name="administrator",
         description="管理员角色",
@@ -551,6 +553,7 @@ def test_role_item_marks_builtin_role() -> None:
         role
     )
 
+    assert result["description"] == BUILTIN_ROLE_DESCRIPTIONS["administrator"]
     assert result["is_builtin"] is True
     assert result["permissions"] == [
         "*"

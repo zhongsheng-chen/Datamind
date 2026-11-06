@@ -5,7 +5,7 @@
 
 核心功能：
   - test_get_user_queries_by_single_condition:
-    验证按用户 ID、用户名或邮箱查询
+    验证按用户 ID、用户名、邮箱或工号查询
   - test_get_user_rejects_invalid_conditions:
     验证查询条件必须且只能提供一个
   - test_list_users_builds_filtered_query:
@@ -18,14 +18,8 @@
     验证用户资料更新和认证来源转换
   - test_replace_profile:
     验证完整替换用户资料并支持清空可选字段
-  - test_update_password:
-    验证密码哈希和修改时间更新
-  - test_user_status_transitions:
-    验证启用、停用、锁定和解锁
   - test_restore_user:
     验证恢复逻辑删除用户
-  - test_record_login_success:
-    验证登录成功状态记录
   - test_record_login_failure:
     验证登录失败次数递增
   - test_get_user_returns_none_when_not_found:
@@ -200,10 +194,7 @@ def compile_statement(
             {
                 "user_id": "usr_0123456789abcdef",
             },
-            (
-                "users.user_id = "
-                "'usr_0123456789abcdef'"
-            ),
+            "users.user_id = 'usr_0123456789abcdef'",
         ),
         (
             {
@@ -213,12 +204,15 @@ def compile_statement(
         ),
         (
             {
+                "employee_number": "001234",
+            },
+            "users.employee_number = '001234'",
+        ),
+        (
+            {
                 "email": "alice@example.com",
             },
-            (
-                "users.email = "
-                "'alice@example.com'"
-            ),
+            "users.email = 'alice@example.com'",
         ),
     ],
 )
@@ -226,7 +220,7 @@ async def test_get_user_queries_by_single_condition(
         arguments: dict[str, str],
         expected_condition: str,
 ) -> None:
-    """测试按用户 ID、用户名或邮箱查询."""
+    """测试按用户 ID、用户名、邮箱或工号查询."""
     expected_user = create_user()
     repository, _, execute = create_repository(
         scalar_result=expected_user
@@ -263,6 +257,10 @@ async def test_get_user_queries_by_single_condition(
             "username": "alice",
         },
         {
+            "username": "alice",
+            "employee_number": "001234",
+        },
+        {
             "user_id": "usr_1",
             "email": "alice@example.com",
         },
@@ -286,7 +284,7 @@ async def test_get_user_rejects_invalid_conditions(
     with pytest.raises(
             ValueError,
             match=(
-                "user_id、username、email "
+                "user_id、username、email、employee_number "
                 "必须且只能提供一个"
             ),
     ):

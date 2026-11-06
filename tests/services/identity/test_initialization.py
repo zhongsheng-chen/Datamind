@@ -13,8 +13,8 @@
     验证初始化只能执行一次
   - test_initialize_rejects_existing_users:
     验证已有用户时拒绝初始化
-  - test_initialize_rejects_existing_admin_role:
-    验证角色冲突时拒绝初始化
+  - test_initialize_rejects_existing_builtin_name:
+    验证任一内置名称冲突时拒绝初始化
   - test_initialize_validates_credentials_and_time:
     验证初始化参数
 """
@@ -35,6 +35,10 @@ import datamind.services.initialization as initialization_module
 from datamind.audit.enums import (
     AuditSource,
     AuditStatus,
+)
+from datamind.constants.identity import (
+    BUILTIN_ROLE_DESCRIPTIONS,
+    BUILTIN_ROLE_PERMISSIONS,
 )
 from datamind.db.models.roles import Role
 from datamind.db.models.system import SystemState
@@ -111,6 +115,8 @@ def configure_service(
     grant_repo = MagicMock()
     audit_repo = MagicMock()
 
+    role_ids = iter(["rol_test", "rol_editor", "rol_viewer", "rol_invoker", "rol_auditor"])
+
     replacements = {
         "UnitOfWork": FakeUnitOfWork,
         "SystemStateRepository": lambda _session: state_repo,
@@ -120,7 +126,7 @@ def configure_service(
         "AuditRepository": lambda _session: audit_repo,
         "hash_password": lambda _password: "password-hash",
         "generate_random_id": (
-            lambda *, prefix: f"{prefix}_test"
+            lambda *, prefix: next(role_ids) if prefix == "rol" else f"{prefix}_test"
         ),
         "generate_trace_id": lambda: TRACE_ID,
     }
@@ -238,15 +244,18 @@ async def test_initialize_creates_admin_identity(
     )
     created_user = user_repo.create_user.return_value
     assert created_user.password_changed_at == CURRENT_TIME
-    role_repo.create_role.assert_called_once_with(
-        role_id="rol_test",
-        name="administrator",
-        description="系统管理员角色",
-        permissions=[
-            "*"
-        ],
-        created_by="system:bootstrap",
-    )
+    role_calls = role_repo.create_role.call_args_list
+    assert len(role_calls) == 5
+    assert {call.kwargs["name"] for call in role_calls} == set(BUILTIN_ROLE_PERMISSIONS)
+    assert len({call.kwargs["role_id"] for call in role_calls}) == 5
+
+    for call in role_calls:
+        fields = call.kwargs
+        name = fields["name"]
+        assert fields["permissions"] == list(BUILTIN_ROLE_PERMISSIONS[name])
+        assert fields["description"] == BUILTIN_ROLE_DESCRIPTIONS[name]
+        assert fields["created_by"] == "system:bootstrap"
+
     grant_repo.create_grant.assert_called_once_with(
         grant_id="grt_test",
         user_id="usr_test",
@@ -343,8 +352,10 @@ async def test_initialize_rejects_existing_users(
 
 
 @pytest.mark.asyncio
-async def test_initialize_rejects_existing_admin_role(
+@pytest.mark.parametrize("name", BUILTIN_ROLE_PERMISSIONS)
+async def test_initialize_rejects_existing_builtin_name(
         monkeypatch: pytest.MonkeyPatch,
+        name: str,
 ) -> None:
     """测试角色冲突时拒绝初始化."""
     state = SystemState(
@@ -353,26 +364,32 @@ async def test_initialize_rejects_existing_admin_role(
     )
     role = Role(
         role_id="rol_existing",
-        name="administrator",
+        name=name,
         permissions=[
             "*"
         ],
         status="active",
     )
-    configure_service(
+    _, user_repo, role_repo, grant_repo, _ = configure_service(
         monkeypatch,
         state=state,
         role=role,
     )
 
+    role_repo.get_role.side_effect = lambda **kwargs: role if kwargs["name"] == name else None
+
     with pytest.raises(
             InitializationError,
-            match="administrator 角色已经存在",
+            match=f"{name} 角色已经存在",
     ):
         await InitializationService().initialize(
             username="admin",
             password="secret",
         )
+
+    user_repo.create_user.assert_not_called()
+    role_repo.create_role.assert_not_called()
+    grant_repo.create_grant.assert_not_called()
 
 
 @pytest.mark.parametrize(

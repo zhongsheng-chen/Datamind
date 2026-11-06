@@ -15,7 +15,11 @@
  * }} 概览页渲染入口
  */
 export function createDashboardController({
-  accountSectionKeys,
+  managementSectionKeys,
+  managementEntry,
+  managementTabs,
+  accountManagement,
+  closeAccountMenu,
   canViewOverview,
   formatCompactPercentage,
   formatDuration,
@@ -30,7 +34,7 @@ export function createDashboardController({
   navigateToSection,
   navigation,
   recentModelUsageContent,
-  renderAccountManagement,
+  hasCapability,
   sections,
   sidebar,
   state,
@@ -44,13 +48,14 @@ export function createDashboardController({
   trendRangeSelector,
   trendVolumeTotal,
 }) {
+  let lastManagementSection = null;
+
   function renderNavigation() {
     const snapshot = state.snapshot;
   
     if (snapshot === null) return;
   
     navigation.replaceChildren();
-    renderAccountManagement();
   
     if (canViewOverview(snapshot)) {
       const overviewButton = document.createElement("button");
@@ -67,7 +72,7 @@ export function createDashboardController({
     }
   
     for (const [key, config] of Object.entries(sections)) {
-      if (!snapshot.access[key] || accountSectionKeys.has(key)) continue;
+      if (!snapshot.access[key] || managementSectionKeys.has(key)) continue;
       const button = document.createElement("button");
       button.type = "button";
       button.className = `nav-button${state.active === key ? " active" : ""}`;
@@ -93,6 +98,65 @@ export function createDashboardController({
       });
       navigation.append(button);
     }
+
+    const managementPages = [
+      ["users", "用户管理", "users.manage"],
+      ["roles", "角色管理", "roles.manage"],
+      ["organizations", "机构与部门", "users.manage"],
+    ].filter(([section, _label, capability]) => (
+      hasCapability(capability) && (section === "organizations" || snapshot.access[section])
+    ));
+    const inManagement = managementPages.some(([section]) => section === state.active);
+    if (inManagement) lastManagementSection = state.active;
+    const navigate = section => {
+      closeAccountMenu();
+      navigateToSection(section);
+      sidebar.classList.remove("open");
+    };
+    managementEntry.replaceChildren();
+    managementEntry.hidden = !managementPages.length;
+    if (managementPages.length) {
+      const entry = document.createElement("button");
+      entry.type = "button";
+      entry.className = `nav-button management-entry-button${inManagement ? " active" : ""}`;
+      const icon = document.createElement("span");
+      icon.className = "management-entry-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="m9.5 3-.6 2.2-1.7 1-2.2-.6L2.5 10l1.6 1.6v1.8L2.5 15 5 19.4l2.2-.6 1.7 1 .6 2.2h5l.6-2.2 1.7-1 2.2.6 2.5-4.4-1.6-1.6v-1.8l1.6-1.6L19 5.6l-2.2.6-1.7-1L14.5 3z"/><circle cx="12" cy="12.5" r="3"/></svg>';
+      const label = document.createElement("span");
+      label.textContent = "管理";
+      entry.append(label, icon);
+      if (inManagement) entry.setAttribute("aria-current", "location");
+      entry.addEventListener("click", () => {
+        const previous = managementPages.find(([section]) => section === lastManagementSection);
+        navigate((previous || managementPages[0])[0]);
+      });
+      managementEntry.append(entry);
+    }
+    managementTabs.replaceChildren();
+    managementTabs.hidden = !inManagement;
+    accountManagement.replaceChildren();
+    const accountHeading = document.createElement("span");
+    accountHeading.textContent = "访问控制";
+    accountManagement.append(accountHeading);
+    for (const [section, label] of managementPages) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = `management-tab${state.active === section ? " active" : ""}`;
+      tab.textContent = label;
+      tab.dataset.managementSection = section;
+      if (state.active === section) tab.setAttribute("aria-current", "page");
+      tab.addEventListener("click", () => navigate(section));
+      managementTabs.append(tab);
+      if (section === "organizations") continue;
+      const shortcut = document.createElement("button");
+      shortcut.type = "button";
+      shortcut.textContent = label;
+      shortcut.dataset.accountSection = section;
+      shortcut.addEventListener("click", () => navigate(section));
+      accountManagement.append(shortcut);
+    }
+    accountManagement.hidden = !accountManagement.querySelector("button");
   }
   
   function renderSummary() {
