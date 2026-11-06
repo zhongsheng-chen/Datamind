@@ -25,12 +25,29 @@
     验证数据库不可用时 Worker 返回未就绪
   - test_execute_secured_applies_status_and_records_audit:
     验证认证执行包装设置状态并记录审计
+  - test_worker_ready_marker_matches_cli_service_id:
+    验证 Worker 就绪标记可由命令行读取，并按服务标识隔离
+  - test_batch_status_log_metadata_excludes_predictions:
+    验证批次查询日志区分查询结果与业务状态，且不包含响应明细
+  - test_operation_success_log_semantics:
+    验证评分、提交和查询分别记录操作结果，缺少结果时不推断成功
+  - test_worker_logging_initialized_before_model_components:
+    验证独立及 Celery 内嵌运行时均在创建组件前绑定真实 Worker 来源
+  - test_shutdown_acknowledges_only_successful_cleanup:
+    验证卸载成功后才回报关闭完成
+  - test_stop_request_triggers_local_server_shutdown:
+    验证停止请求触发本地正常退出
+  - test_startup_during_stop_does_not_load_models:
+    验证停止期间创建的 Worker 不再加载模型
 """
 
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+)
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
@@ -41,7 +58,9 @@ def test_runtime_service_registers_http_components(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试显式创建的服务保留公开入口和 HTTP 组件."""
-    service_module = runtime_server.load_service_module(monkeypatch)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
     service = service_module.DatamindRuntimeService
 
     assert service.import_string == (
@@ -61,15 +80,15 @@ def test_apply_response_status_maps_request_error(
 ) -> None:
     """测试请求参数错误映射为 HTTP 400."""
     service_module = runtime_server.load_service_module(
-        monkeypatch
+        monkeypatch,
     )
     service = runtime_server.create_service(
-        service_module
+        service_module,
     )
     context = SimpleNamespace(
         response=SimpleNamespace(
-            status_code=200
-        )
+            status_code=200,
+        ),
     )
 
     service._apply_response_status(
@@ -103,11 +122,19 @@ def test_apply_response_status_maps_error_types(
         expected_status: int,
 ) -> None:
     """测试错误类型映射为对应 HTTP 状态."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200),
-        request=SimpleNamespace(scope={}),
+        response=SimpleNamespace(
+            status_code=200,
+        ),
+        request=SimpleNamespace(
+            scope={},
+        ),
     )
 
     service._apply_response_status(
@@ -124,8 +151,12 @@ async def test_startup_reconciles_and_marks_worker_ready(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试 Worker 启动时首次协调并写入就绪标记."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     result = MagicMock()
     result.to_dict.return_value = {
         "checked": 1,
@@ -155,10 +186,14 @@ async def test_startup_keeps_worker_alive_until_database_recovers(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试数据库晚启动时 Worker 进入后台重试而不是退出."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     service.reconciler.reconcile_once.side_effect = SQLAlchemyError(
-        "database unavailable"
+        "database unavailable",
     )
     write_marker = MagicMock()
     runtime_server.patch_server_dependency(
@@ -184,10 +219,14 @@ async def test_startup_keeps_worker_alive_on_native_connection_refusal(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试 asyncpg 原生连接拒绝不会终止 Worker."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     service.reconciler.reconcile_once.side_effect = ConnectionRefusedError(
-        "database unavailable"
+        "database unavailable",
     )
     write_marker = MagicMock()
     runtime_server.patch_server_dependency(
@@ -212,8 +251,12 @@ async def test_shutdown_stops_models_and_clears_cache(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试 Worker 关闭时停止协调器、卸载模型并清理缓存."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     service.manager.registry.all.return_value = [
         SimpleNamespace(deployment_id="dep_1"),
         SimpleNamespace(deployment_id="dep_2"),
@@ -237,13 +280,19 @@ def test_health_returns_worker_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试健康检查返回 Worker 当前状态."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     service.manager.registry.__len__.return_value = 2
-    runtime_server.get_service_cache(service).update({
-        "dep_1": object(),
-        "dep_2": object(),
-    })
+    runtime_server.get_service_cache(service).update(
+        {
+            "dep_1": object(),
+            "dep_2": object(),
+        },
+    )
 
     result = service.health()
 
@@ -264,8 +313,12 @@ async def test_ready_returns_ready_when_database_is_available(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试数据库和协调器可用时 Worker 就绪."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     runtime_server.patch_server_dependency(
         monkeypatch,
         service_module,
@@ -273,8 +326,12 @@ async def test_ready_returns_ready_when_database_is_available(
         runtime_server.FakeUnitOfWork,
     )
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200),
-        request=SimpleNamespace(scope={}),
+        response=SimpleNamespace(
+            status_code=200,
+        ),
+        request=SimpleNamespace(
+            scope={},
+        ),
     )
 
     result = await service.ready(context)
@@ -300,13 +357,19 @@ async def test_ready_returns_unavailable_when_database_fails(
         database_error: Exception,
 ) -> None:
     """测试数据库不可用时 Worker 返回未就绪."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
 
     class FailingUnitOfWork(runtime_server.FakeUnitOfWork):
         """数据库查询失败的工作单元."""
 
-        async def __aenter__(self) -> "FailingUnitOfWork":
+        async def __aenter__(
+                self,
+        ) -> "FailingUnitOfWork":
             self.session.execute.side_effect = database_error
             return self
 
@@ -317,8 +380,12 @@ async def test_ready_returns_unavailable_when_database_fails(
         FailingUnitOfWork,
     )
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200),
-        request=SimpleNamespace(scope={}),
+        response=SimpleNamespace(
+            status_code=200,
+        ),
+        request=SimpleNamespace(
+            scope={},
+        ),
     )
 
     result = await service.ready(context)
@@ -344,18 +411,28 @@ async def test_execute_secured_applies_status_and_records_audit(
         expected_error: str | None,
 ) -> None:
     """测试认证执行包装设置状态并记录审计."""
-    service_module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(service_module)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
     service.security = runtime_server.SecurityStub()
     context = SimpleNamespace(
-        response=SimpleNamespace(status_code=200),
-        request=SimpleNamespace(scope={}),
+        response=SimpleNamespace(
+            status_code=200,
+        ),
+        request=SimpleNamespace(
+            scope={},
+        ),
     )
-    handler = AsyncMock(return_value={
-        "success": successful,
-        "error": "request failed" if not successful else None,
-        "error_type": "ValueError" if not successful else None,
-    })
+    handler = AsyncMock(
+        return_value={
+            "success": successful,
+            "error": "request failed" if not successful else None,
+            "error_type": "ValueError" if not successful else None,
+        },
+    )
 
     result = await service._execute_secured(
         ctx=context,
@@ -368,7 +445,10 @@ async def test_execute_secured_applies_status_and_records_audit(
     )
 
     assert result["success"] is successful
-    assert context.request.scope[service_module.RESULT_SCOPE_KEY]["success"] is successful
+    assert (
+        context.request.scope[service_module.RESULT_SCOPE_KEY]["success"]
+        is successful
+    )
     handler.assert_awaited_once()
     runtime_server.get_audit_recorder(service).record.assert_awaited_once_with(
         action="runtime.reload",
@@ -388,10 +468,12 @@ def test_worker_ready_marker_matches_cli_service_id(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """Worker 写入的服务标识可被 CLI 读取，并隔离其他服务的就绪标记."""
+    """测试 Worker 就绪标记可由命令行读取，并按服务标识隔离."""
     from datamind.cli.service.run import _read_worker_ready_files
 
-    service_module = runtime_server.load_service_module(monkeypatch)
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
     monkeypatch.setenv("DATAMIND_SERVICE_ID", "service-current")
     monkeypatch.setenv("DATAMIND_SERVICE_READY_DIR", str(tmp_path))
 
@@ -411,47 +493,128 @@ def test_worker_ready_marker_matches_cli_service_id(
 
 
 @pytest.mark.asyncio
-async def test_batch_status_log_metadata_excludes_predictions(runtime_server, monkeypatch):
-    """批次查询成功与批次业务状态分别记录，响应明细不进入访问日志."""
-    module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(module)
-    service.security = runtime_server.SecurityStub()
-    context = SimpleNamespace(response=SimpleNamespace(status_code=200), request=SimpleNamespace(scope={}))
-    await service._execute_secured(
-        ctx=context, permission="prediction.invoke", request_id="req_query",
-        handler=AsyncMock(return_value={
-            "success": True, "batch_id": "bat_stable", "status": "partially_succeeded",
-            "result": {"predictions": [{"features": "private", "score": 600}]},
-        }),
+async def test_batch_status_log_metadata_excludes_predictions(
+        runtime_server,
+        monkeypatch,
+):
+    """测试批次查询日志区分查询结果与业务状态，且不包含响应明细."""
+    module = runtime_server.load_service_module(
+        monkeypatch,
     )
+    service = runtime_server.create_service(
+        module,
+    )
+    service.security = runtime_server.SecurityStub()
+    context = SimpleNamespace(
+        response=SimpleNamespace(
+            status_code=200,
+        ),
+        request=SimpleNamespace(
+            scope={},
+        ),
+    )
+
+    await service._execute_secured(
+        ctx=context,
+        permission="prediction.invoke",
+        request_id="req_query",
+        handler=AsyncMock(
+            return_value={
+                "success": True,
+                "batch_id": "bat_stable",
+                "status": "partially_succeeded",
+                "result": {
+                    "predictions": [
+                        {
+                            "features": "private",
+                            "score": 600,
+                        },
+                    ],
+                },
+            },
+        ),
+    )
+
     assert context.request.scope[module.RESULT_SCOPE_KEY] == {
-        "success": True, "batch_id": "bat_stable", "batch_status": "partially_succeeded",
+        "success": True,
+        "batch_id": "bat_stable",
+        "batch_status": "partially_succeeded",
     }
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("response,expected", [
-    ({"success": True, "score": 1.0}, {"success": True}),
-    ({"success": False, "error_type": "ValueError"}, {"success": False, "error_type": "ValueError"}),
-    ({"success": True, "batch_id": "bat_test", "status": "queued", "submitted_count": 24},
-     {"success": True, "batch_id": "bat_test", "batch_status": "queued", "submitted_count": 24}),
-    ({"success": True, "batch_id": "bat_test", "status": "failed"},
-     {"success": True, "batch_id": "bat_test", "batch_status": "failed"}),
-    ({"success": False, "batch_id": "bat_test", "error_type": "BatchNotFoundError"},
-     {"success": False, "batch_id": "bat_test", "error_type": "BatchNotFoundError"}),
-    ({"status": "running"}, {}),
-])
-async def test_operation_success_log_semantics(runtime_server, monkeypatch, response, expected):
-    """评分、提交和查询沿用各自操作结果；无结果时不推断成功."""
-    module = runtime_server.load_service_module(monkeypatch)
-    service = runtime_server.create_service(module)
+@pytest.mark.parametrize(
+    "response,expected",
+    [
+        ({"success": True, "score": 1.0}, {"success": True}),
+        (
+            {"success": False, "error_type": "ValueError"},
+            {"success": False, "error_type": "ValueError"},
+        ),
+        (
+            {
+                "success": True,
+                "batch_id": "bat_test",
+                "status": "queued",
+                "submitted_count": 24,
+            },
+            {
+                "success": True,
+                "batch_id": "bat_test",
+                "batch_status": "queued",
+                "submitted_count": 24,
+            },
+        ),
+        (
+            {"success": True, "batch_id": "bat_test", "status": "failed"},
+            {"success": True, "batch_id": "bat_test", "batch_status": "failed"},
+        ),
+        (
+            {
+                "success": False,
+                "batch_id": "bat_test",
+                "error_type": "BatchNotFoundError",
+            },
+            {
+                "success": False,
+                "batch_id": "bat_test",
+                "error_type": "BatchNotFoundError",
+            },
+        ),
+        ({"status": "running"}, {}),
+    ],
+)
+async def test_operation_success_log_semantics(
+        runtime_server,
+        monkeypatch,
+        response,
+        expected,
+):
+    """测试评分、提交和查询分别记录操作结果，缺少结果时不推断成功."""
+    module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        module,
+    )
     service.security = runtime_server.SecurityStub()
-    context = SimpleNamespace(response=SimpleNamespace(status_code=200), request=SimpleNamespace(scope={}))
+    context = SimpleNamespace(
+        response=SimpleNamespace(
+            status_code=200,
+        ),
+        request=SimpleNamespace(
+            scope={},
+        ),
+    )
     before = response.copy()
+
     result = await service._execute_secured(
-        ctx=context, permission="prediction.invoke", request_id="req_test",
+        ctx=context,
+        permission="prediction.invoke",
+        request_id="req_test",
         handler=AsyncMock(return_value=response),
     )
+
     assert result is response
     assert response == before
     assert context.request.scope[module.RESULT_SCOPE_KEY] == expected
@@ -460,17 +623,172 @@ async def test_operation_success_log_semantics(runtime_server, monkeypatch, resp
 
 
 @pytest.mark.asyncio
-async def test_worker_logging_initialized_before_model_components(runtime_server, monkeypatch):
-    """运行时及 Celery 内嵌运行时均在组件创建前绑定真实 Worker 来源."""
-    module = runtime_server.load_service_module(monkeypatch)
+async def test_worker_logging_initialized_before_model_components(
+        runtime_server,
+        monkeypatch,
+):
+    """测试独立及 Celery 内嵌运行时均在创建组件前绑定真实 Worker 来源."""
+    module = runtime_server.load_service_module(
+        monkeypatch,
+    )
     monkeypatch.setenv("DATAMIND_SERVICE_ID", "actual-service")
     expected_worker = module._build_worker_id()
     order = []
-    setup = MagicMock(side_effect=lambda *a, **kw: order.append("logging"))
-    monkeypatch.setattr(module, "setup_logging", setup)
-    for name in ("RuntimeManager", "RuntimeRouter", "RuntimeControlService", "RuntimeSecurity",
-                 "RuntimeReconciler", "AuditRecorder", "PredictionExecutor", "TaskPublisher"):
-        monkeypatch.setattr(module, name, MagicMock(side_effect=lambda *a, **kw: order.append("component") or MagicMock()))
+    setup = MagicMock(
+        side_effect=lambda *a, **kw: order.append("logging"),
+    )
+    monkeypatch.setitem(
+        vars(module),
+        "setup_logging",
+        setup,
+    )
+
+    for name in (
+        "RuntimeManager",
+        "RuntimeRouter",
+        "RuntimeControlService",
+        "RuntimeSecurity",
+        "RuntimeReconciler",
+        "AuditRecorder",
+        "PredictionExecutor",
+        "TaskPublisher",
+    ):
+        monkeypatch.setattr(
+            module,
+            name,
+            MagicMock(
+                side_effect=lambda *a, **kw: order.append("component") or MagicMock(),
+            ),
+        )
+
     module.DatamindRuntimeService.inner()
-    assert setup.call_args.kwargs == {"worker_id": expected_worker, "service_id": "actual-service"}
+
+    assert setup.call_args.kwargs == {
+        "worker_id": expected_worker,
+        "service_id": "actual-service",
+    }
     assert order[0] == "logging"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unload_failed", [False, True])
+async def test_shutdown_acknowledges_only_successful_cleanup(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        unload_failed: bool,
+) -> None:
+    """验证完成卸载后才回报，卸载失败时不误报正常关闭."""
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "_get_ready_dir",
+        lambda: tmp_path,
+    )
+    service.manager.registry.all.return_value = [
+        SimpleNamespace(
+            deployment_id="dep_1",
+        ),
+    ]
+
+    if unload_failed:
+        service.manager.unload.side_effect = RuntimeError(
+            "unload failed",
+        )
+
+    await service.shutdown()
+
+    marker = tmp_path / f"{service.manager.worker_id}.stopped"
+
+    assert marker.exists() is not unload_failed
+    service.manager.unload.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_stop_request_triggers_local_server_shutdown(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+) -> None:
+    """验证本地停止请求触发当前 Worker 的正常服务退出信号."""
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
+    raise_signal = MagicMock()
+    monkeypatch.setitem(
+        vars(service_module),
+        "signal",
+        SimpleNamespace(
+            raise_signal=raise_signal,
+            SIGTERM=15,
+        ),
+    )
+    (tmp_path / "stop.request").touch()
+
+    await service._watch_stop_request(
+        tmp_path,
+    )
+
+    raise_signal.assert_called_once_with(
+        15,
+    )
+
+
+@pytest.mark.asyncio
+async def test_startup_during_stop_does_not_load_models(
+        runtime_server: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+) -> None:
+    """验证监督进程重启的 Worker 遇到停止请求后不再加载模型."""
+    import asyncio
+
+    service_module = runtime_server.load_service_module(
+        monkeypatch,
+    )
+    service = runtime_server.create_service(
+        service_module,
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "sys",
+        SimpleNamespace(
+            platform="win32",
+        ),
+    )
+    monkeypatch.setitem(
+        vars(service_module),
+        "_get_ready_dir",
+        lambda: tmp_path,
+    )
+    raise_signal = MagicMock()
+    monkeypatch.setitem(
+        vars(service_module),
+        "signal",
+        SimpleNamespace(
+            raise_signal=raise_signal,
+            SIGTERM=15,
+        ),
+    )
+    (tmp_path / "stop.request").touch()
+
+    await service.startup()
+    await asyncio.sleep(
+        0,
+    )
+
+    service.reconciler.reconcile_once.assert_not_awaited()
+    service.reconciler.start.assert_not_awaited()
+    raise_signal.assert_called_once_with(
+        15,
+    )
+
+    await service.shutdown()

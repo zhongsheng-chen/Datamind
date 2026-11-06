@@ -27,6 +27,8 @@
 import asyncio
 import json
 import os
+import signal
+import sys
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
@@ -110,12 +112,7 @@ def _write_worker_ready_marker(
         worker_id: str,
         environment: str,
 ) -> None:
-    """写入 Worker 就绪标记.
-
-    参数：
-        worker_id: Worker ID
-        environment: 服务运行环境
-    """
+    """写入 Worker 就绪标记."""
     service_id = _get_service_id()
     ready_dir = _get_ready_dir()
 
@@ -163,14 +160,7 @@ def _write_worker_ready_marker(
 
 
 def _build_worker_id() -> str:
-    """生成当前 Worker 标识.
-
-    使用主机名和进程 ID 组合，
-    保证同一服务实例中的 Worker 标识不同。
-
-    返回：
-        Worker ID
-    """
+    """生成当前 Worker 标识."""
     hostname = (
             socket.gethostname().strip()
             or "worker"
@@ -247,6 +237,7 @@ class DatamindRuntimeService(
         ] = {}
 
         self._service_lock = asyncio.Lock()
+        self._stop_monitor: asyncio.Task[None] | None = None
 
         self._audit_recorder = AuditRecorder()
 
@@ -283,6 +274,11 @@ class DatamindRuntimeService(
           - 执行当前环境首次状态协调
           - 启动后台协调循环
         """
+        ready_dir = _get_ready_dir()
+        if sys.platform == "win32" and ready_dir is not None:
+            self._stop_monitor = asyncio.create_task(self._watch_stop_request(ready_dir))
+            if (ready_dir / "stop.request").exists():
+                return
         result: dict[str, int] = {
             "checked": 0,
             "loaded": 0,
@@ -321,6 +317,15 @@ class DatamindRuntimeService(
             environment=common_config.environment,
         )
 
+    @staticmethod
+    async def _watch_stop_request(
+            ready_dir: Path,
+    ) -> None:
+        """监听 Worker 停止请求."""
+        while not (ready_dir / "stop.request").exists():
+            await asyncio.sleep(0.1)
+        signal.raise_signal(signal.SIGTERM)
+
     @bentoml.on_shutdown
     async def shutdown(
             self,
@@ -332,7 +337,15 @@ class DatamindRuntimeService(
           - 卸载当前 Worker 已加载模型
           - 清理 RuntimeService 缓存
         """
+        monitor = self._stop_monitor
+        if monitor is not None:
+            monitor.cancel()
+            try:
+                await monitor
+            except asyncio.CancelledError:
+                pass
         await self.reconciler.stop()
+        cleanup_complete = True
 
         deployment_ids = [
             runtime_model.deployment_id
@@ -352,6 +365,7 @@ class DatamindRuntimeService(
                     SQLAlchemyError,
                     RuntimeError,
             ) as exc:
+                cleanup_complete = False
                 self._logger.exception(
                     "Worker 关闭时卸载模型失败",
                     worker_id=self.manager.worker_id,
@@ -363,6 +377,11 @@ class DatamindRuntimeService(
                 )
 
         self._service_cache.clear()
+        ready_dir = _get_ready_dir()
+        if cleanup_complete and ready_dir is not None:
+            ready_dir.mkdir(parents=True, exist_ok=True)
+            (ready_dir / f"{self.manager.worker_id}.stopped").touch()
+            (ready_dir / f"{self.manager.worker_id}.json").unlink(missing_ok=True)
 
         self._logger.info(
             "运行时 Worker 已关闭",
@@ -560,6 +579,7 @@ class DatamindRuntimeService(
         ctx.response.status_code = status_code
 
 
+# noinspection PyUnresolvedReferences
 DatamindRuntimeService.add_asgi_middleware(
     AccessLogMiddleware,
 )

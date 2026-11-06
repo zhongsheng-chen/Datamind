@@ -144,13 +144,18 @@ def stop_console_process(
     """停止当前命令创建的进程树，并有界等待退出."""
     try:
         if sys.platform == "win32":
-            subprocess.run(
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                check=True,
-                capture_output=True,
-                timeout=_STOP_TIMEOUT_SECONDS,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    check=True,
+                    capture_output=True,
+                    timeout=_STOP_TIMEOUT_SECONDS,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            except subprocess.CalledProcessError as exc:
+                if exc.returncode != 128 or process.poll() is None:
+                    raise
+                return True
         else:
             os.killpg(process.pid, signal.SIGTERM)
 

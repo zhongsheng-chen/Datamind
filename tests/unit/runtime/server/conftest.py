@@ -83,6 +83,7 @@ def create_service(
         service_class
     )
     service._logger = MagicMock()
+    service._stop_monitor = None
     service.manager = MagicMock()
     service.manager.worker_id = "worker_test"
     service.manager.registry.all.return_value = []

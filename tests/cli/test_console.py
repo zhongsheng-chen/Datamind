@@ -7,6 +7,8 @@
     验证启动超时参数范围
   - test_stop_console_process_on_windows:
     验证 Windows 定向清理进程树
+  - test_stop_console_process_handles_windows_exit_race:
+    验证 Windows 退出竞态及真实清理错误
   - test_stop_console_process_reports_failure:
     验证清理失败可见
   - test_stop_console_process_on_posix:
@@ -18,7 +20,7 @@
   - test_wait_for_console_ready_reports_last_failure:
     验证超时日志保留失败原因
   - test_console_run_starts_bentoml_service:
-    验证启动控制台服务
+    验证交互前台仅在服务就绪后显示一次提示，重定向和容器输出不显示提示
   - test_console_run_uses_configured_network:
     验证读取控制台网络配置
   - test_console_run_rejects_startup_timeout:
@@ -236,8 +238,7 @@ def test_console_run_starts_bentoml_service(
         interactive: bool,
         verbose: bool,
 ) -> None:
-    """交互前台在就绪后提示一次，重定向及容器输出均不提示."""
-    monkeypatch.setattr(type(run_module.console), "is_terminal", property(lambda _c: interactive))
+    """测试交互前台仅在服务就绪后显示一次提示，重定向和容器输出不显示提示."""
     monkeypatch.setitem(vars(run_module), "get_app_version", lambda: "0.1.0")
     process = MagicMock()
     process.pid = 4321
@@ -254,7 +255,10 @@ def test_console_run_starts_bentoml_service(
             phases.append("hint")
         return original_print(*args, **kwargs)
 
-    monkeypatch.setattr(run_module.console, "print", record_print)
+    console = MagicMock(wraps=run_module.console)
+    console.is_terminal = interactive
+    console.print.side_effect = record_print
+    monkeypatch.setitem(vars(run_module), "console", console)
     process.wait.side_effect = lambda: phases.append("wait") or 0
 
     def print_summary(*args, **kwargs):
@@ -498,6 +502,30 @@ def test_stop_console_process_on_windows(monkeypatch: pytest.MonkeyPatch) -> Non
         creationflags=0x08000000,
     )
     process.wait.assert_called_once_with(timeout=10)
+
+
+@pytest.mark.parametrize(
+    ("return_code", "process_return_code", "expected"),
+    [(128, 0, True), (128, None, False), (1, 0, False)],
+)
+def test_stop_console_process_handles_windows_exit_race(
+        monkeypatch: pytest.MonkeyPatch,
+        return_code: int,
+        process_return_code: int | None,
+        expected: bool,
+) -> None:
+    """测试清理时进程已退出的竞态及真实清理错误."""
+    process = MagicMock(pid=4321)
+    process.poll.return_value = process_return_code
+    terminate_tree = MagicMock(
+        side_effect=run_module.subprocess.CalledProcessError(return_code, "taskkill"),
+    )
+    monkeypatch.setitem(vars(run_module.sys), "platform", "win32")
+    monkeypatch.setitem(vars(run_module.subprocess), "run", terminate_tree)
+    monkeypatch.setitem(vars(run_module.subprocess), "CREATE_NO_WINDOW", 0x08000000)
+
+    assert STOP_CONSOLE_PROCESS(process) is expected
+    process.wait.assert_not_called()
 
 
 def test_stop_console_process_reports_failure(monkeypatch: pytest.MonkeyPatch) -> None:
