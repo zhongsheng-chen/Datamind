@@ -18,7 +18,7 @@
   - test_resolve_uses_only_explicit_default:
     验证默认流量仅选择显式指定的主部署
   - test_resolve_routes_to_challenger_without_default:
-    验证候选部署仍可通过显式路由承接流量
+    验证候选部署可接收匹配路由的请求，但不能作为默认部署
   - test_resolve_includes_independently_matched_shadow:
     验证路由结果包含独立匹配的影子部署
   - test_routing_effective_window_controls_eligibility:
@@ -47,6 +47,8 @@
     测试影子路由不参与主路由流量分配
   - test_resolve_can_disable_shadow_resolution:
     测试配置关闭时不查询影子路由
+  - test_route_result_logs_actual_strategy_without_sensitive_payload:
+    验证路由完成日志包含实际策略与部署，不包含特征或主体信息
 """
 
 from datetime import datetime, timedelta, timezone
@@ -756,7 +758,7 @@ async def test_resolve_uses_only_explicit_default(
 async def test_resolve_routes_to_challenger_without_default(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """候选部署可通过匹配路由接收请求，但不能作为默认部署."""
+    """测试候选部署可接收匹配路由的请求，但不能作为默认部署."""
     candidate = create_deployment("dep_candidate")
     router, deployment_repo, routing_repo, _ = configure_router(monkeypatch)
     routing_repo.list_enabled_routings.return_value = [
@@ -948,7 +950,7 @@ async def test_resolve_can_disable_shadow_resolution(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("include_shadows", [False, True])
 async def test_route_result_logs_actual_strategy_without_sensitive_payload(include_shadows):
-    """路由完成包含实际实验策略与部署，不输出特征或主体."""
+    """测试路由完成日志包含实际策略与部署，不包含特征或主体信息."""
     from unittest.mock import AsyncMock
     from structlog.testing import capture_logs
     from datamind.runtime.routing.router import RuntimeRouter, RouteResult

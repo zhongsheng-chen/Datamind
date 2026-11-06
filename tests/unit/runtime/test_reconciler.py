@@ -39,12 +39,29 @@
     验证心跳失败不影响协调过程
   - test_reconciler_start_and_stop_are_idempotent:
     验证协调器启停操作具有幂等性
+  - test_stale_warning_distinguishes_observer_and_limits_details:
+    验证失联告警包含阈值、观察者和失联对象，并限制历史记录列表大小
+  - test_reconcile_model_operation_scopes_generation_and_service:
+    验证协调操作的代次和服务上下文仅在当前操作内生效
+  - test_normal_heartbeat_does_not_log_success:
+    验证正常心跳更新不输出成功日志
+  - test_heartbeat_failure_logs_are_rate_limited:
+    验证首次失败保留堆栈、同类重复失败每分钟汇总
+  - test_heartbeat_changed_error_is_logged_immediately:
+    验证错误变化立即记录新堆栈
+  - test_heartbeat_recovery_is_logged_once_and_resets_failures:
+    验证恢复仅记录一次，下一轮故障重新完整记录
+  - test_heartbeat_cancellation_preserves_failure_state:
+    验证取消任务不记录失败或误报恢复
 """
 
 import asyncio
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+)
 
 import pytest
 import structlog
@@ -55,6 +72,7 @@ from datamind.constants import Environment
 from datamind.models.enums import RuntimeControlStatus
 from datamind.models.errors import BackendError
 from datamind.runtime.reconciler import (
+    ControlSnapshot,
     ReconcileResult,
     RuntimeReconciler,
 )
@@ -63,13 +81,20 @@ from datamind.runtime.reconciler import (
 class FakeUnitOfWork:
     """运行时协调器测试工作单元."""
 
-    def __init__(self) -> None:
+    def __init__(
+            self,
+    ) -> None:
         self.session = MagicMock()
 
-    async def __aenter__(self) -> "FakeUnitOfWork":
+    async def __aenter__(
+            self,
+    ) -> "FakeUnitOfWork":
         return self
 
-    async def __aexit__(self, *_args: object) -> bool:
+    async def __aexit__(
+            self,
+            *_args: object,
+    ) -> bool:
         return False
 
 
@@ -108,15 +133,15 @@ def configure_reconciler(
     manager.unload = AsyncMock()
     control_repo = MagicMock()
     control_repo.list_controls = AsyncMock(
-        return_value=controls or []
+        return_value=controls or [],
     )
     runtime_repo = MagicMock()
     runtime_repo.get_deployment_runtime = AsyncMock(
-        return_value=None
+        return_value=None,
     )
     runtime_repo.set_applied_generation = AsyncMock()
     runtime_repo.mark_stale_runtimes_failed = AsyncMock(
-        return_value=[]
+        return_value=[],
     )
     monkeypatch.setitem(
         vars(reconciler_module),
@@ -166,7 +191,7 @@ def test_reconciler_binds_service_identity(
 def test_reconcile_result_records_actions() -> None:
     """测试协调结果记录各类动作."""
     result = ReconcileResult(
-        checked=4
+        checked=4,
     )
 
     for action in (
@@ -240,7 +265,7 @@ async def test_reconcile_loads_missing_deployment(
     result = await reconciler.reconcile_once()
 
     control_repo.list_controls.assert_awaited_once_with(
-        environment=Environment.PRODUCTION
+        environment=Environment.PRODUCTION,
     )
     manager.load.assert_awaited_once_with(
         deployment_id="dep_test",
@@ -446,13 +471,15 @@ async def test_reconcile_heartbeats_loaded_runtime(
     """测试到达心跳间隔后更新已加载运行记录."""
     reconciler, _, _, runtime_repo = configure_reconciler(
         monkeypatch,
-        controls=[create_control(
-            desired_status=RuntimeControlStatus.LOADED
-        )],
+        controls=[
+            create_control(
+                desired_status=RuntimeControlStatus.LOADED,
+            ),
+        ],
         local_loaded=True,
     )
     runtime = SimpleNamespace(
-        status="running"
+        status="running",
     )
     runtime_repo.get_deployment_runtime.return_value = runtime
     monkeypatch.setattr(
@@ -465,7 +492,7 @@ async def test_reconcile_heartbeats_loaded_runtime(
     await reconciler.reconcile_once()
 
     runtime_repo.heartbeat.assert_called_once_with(
-        runtime
+        runtime,
     )
     runtime_repo.mark_stale_runtimes_failed.assert_awaited_once()
     cleanup_arguments = (
@@ -513,7 +540,7 @@ async def test_heartbeat_failure_does_not_fail_reconciliation(
         local_loaded=True,
     )
     runtime_repo.get_deployment_runtime.side_effect = SQLAlchemyError(
-        "database unavailable"
+        "database unavailable",
     )
 
     result = await reconciler.reconcile_once()
@@ -528,10 +555,10 @@ async def test_reconciler_start_and_stop_are_idempotent(
 ) -> None:
     """测试后台协调循环可幂等启动和停止."""
     reconciler, _, _, _ = configure_reconciler(
-        monkeypatch
+        monkeypatch,
     )
     reconcile_once = AsyncMock(
-        return_value=ReconcileResult()
+        return_value=ReconcileResult(),
     )
     monkeypatch.setattr(
         reconciler,
@@ -552,51 +579,79 @@ async def test_reconciler_start_and_stop_are_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_stale_warning_distinguishes_observer_and_limits_details(monkeypatch):
-    """失联告警说明阈值、观察者和失联对象，限制历史记录列表大小."""
-    from datetime import datetime, timezone
+async def test_stale_warning_distinguishes_observer_and_limits_details(
+        monkeypatch,
+):
+    """测试失联告警包含阈值、观察者和失联对象，并限制历史记录列表大小."""
+    from datetime import (
+        datetime,
+        timezone,
+    )
     from structlog.testing import capture_logs
 
-    reconciler, _, _, runtime_repo = configure_reconciler(monkeypatch, controls=[])
+    reconciler, _, _, runtime_repo = configure_reconciler(
+        monkeypatch,
+        controls=[],
+    )
 
-    async def mark_stale(**kwargs):
-        kwargs["stale_details"].append({"runtime_id": "rtm_stale", "worker_id": "worker_old",
-                                        "last_heartbeat_at": datetime.now(timezone.utc).isoformat()})
+    async def mark_stale(
+            **kwargs,
+    ):
+        kwargs["stale_details"].append(
+            {
+                "runtime_id": "rtm_stale",
+                "worker_id": "worker_old",
+                "last_heartbeat_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
         return [f"rtm_{i}" for i in range(15)]
 
     runtime_repo.mark_stale_runtimes_failed.side_effect = mark_stale
+
     with capture_logs() as logs:
         await reconciler._mark_stale_runtimes_failed()
+
     result = next(log for log in logs if log["event"] == "失联运行实例已标记为失败")
+
     assert result["log_level"] == "warning"
     assert result["observer_worker_id"] == reconciler.worker_id
     assert "worker_id" not in result
     assert result["stale_runtimes"][0]["worker_id"] == "worker_old"
     assert result["timeout_seconds"] > 0
-    assert datetime.fromisoformat(result["checked_at"]) > datetime.fromisoformat(result["stale_before"])
+    assert (
+        datetime.fromisoformat(result["checked_at"])
+        > datetime.fromisoformat(result["stale_before"])
+    )
     assert len(result["runtime_ids"]) == 10
     assert result["count"] == 15
     assert result["omitted_count"] == 5
 
 
 @pytest.mark.asyncio
-async def test_reconcile_model_operation_scopes_generation_and_service(monkeypatch):
-    """协调上下文仅在本次模型操作内生效，不污染后续请求."""
+async def test_reconcile_model_operation_scopes_generation_and_service(
+        monkeypatch,
+):
+    """测试协调操作的代次和服务上下文仅在当前操作内生效."""
     import structlog
 
     reconciler, manager, _, _ = configure_reconciler(
-        monkeypatch, controls=[create_control(desired_status=RuntimeControlStatus.LOADED)],
+        monkeypatch,
+        controls=[create_control(desired_status=RuntimeControlStatus.LOADED)],
         local_loaded=False,
     )
     reconciler.service_id = "svc_test"
     observed = []
 
-    async def load(**kwargs):
+    async def load(
+            **_kwargs: Any,
+    ) -> None:
         observed.append(structlog.contextvars.get_contextvars().copy())
 
     manager.load.side_effect = load
     previous = structlog.contextvars.get_contextvars().copy()
+
     await reconciler.reconcile_once()
+
     assert observed[0]["generation"] == 1
     assert observed[0]["service_id"] == "svc_test"
     assert observed[0]["environment"] == "production"
@@ -604,17 +659,214 @@ async def test_reconcile_model_operation_scopes_generation_and_service(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_normal_heartbeat_logs_debug_and_updated_record_count(monkeypatch):
-    """正常心跳的计数是更新记录数，不占用 INFO."""
+async def test_normal_heartbeat_does_not_log_success(
+        monkeypatch,
+):
+    """测试正常心跳更新不输出成功日志."""
     from structlog.testing import capture_logs
 
-    control = create_control(desired_status=RuntimeControlStatus.LOADED)
-    reconciler, _, _, repo = configure_reconciler(monkeypatch, controls=[control], local_loaded=True)
-    repo.get_deployment_runtime.return_value = SimpleNamespace(status="running")
+    control = create_control(
+        desired_status=RuntimeControlStatus.LOADED,
+    )
+    reconciler, _, _, repo = configure_reconciler(
+        monkeypatch,
+        controls=[control],
+        local_loaded=True,
+    )
+    repo.get_deployment_runtime.return_value = SimpleNamespace(
+        status="running",
+    )
+    snapshot = ControlSnapshot(
+        deployment_id=control.deployment_id,
+        environment=control.environment,
+        desired_status=RuntimeControlStatus.LOADED,
+        generation=control.generation,
+        updated_by=control.updated_by,
+    )
+
     with capture_logs() as logs:
-        await reconciler._heartbeat_loaded_runtimes([control])
-    heartbeat = next(log for log in logs if log["event"] == "心跳更新完成")
-    assert heartbeat["log_level"] == "debug"
-    assert heartbeat["updated_runtime_count"] == 1
-    assert "heartbeat_count" not in heartbeat
-    assert not any(log["log_level"] == "info" for log in logs)
+        await reconciler._heartbeat_loaded_runtimes(
+            [snapshot],
+        )
+
+    repo.heartbeat.assert_called_once()
+    assert logs == []
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_failure_logs_are_rate_limited(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证正常调度不变，重复错误被限频但失败次数完整累计."""
+    reconciler, _, _, _ = configure_reconciler(
+        monkeypatch,
+    )
+    clock = SimpleNamespace(now=100.0)
+    monkeypatch.setitem(
+        vars(reconciler_module),
+        "time",
+        SimpleNamespace(
+            monotonic=lambda: clock.now,
+        ),
+    )
+    reconciler._logger = MagicMock()
+    reconciler._heartbeat_loaded_runtimes = AsyncMock(
+        side_effect=SQLAlchemyError(
+            "database unavailable",
+        ),
+    )
+
+    for now in [100.0, 102.0, 159.0, 160.0]:
+        clock.now = now
+        await reconciler._heartbeat_if_due(
+            [],
+        )
+
+    reconciler._logger.exception.assert_called_once_with(
+        "心跳更新失败",
+        environment="production",
+        error="database unavailable",
+        error_type="SQLAlchemyError",
+        failure_count=1,
+        duration_seconds=0.0,
+    )
+    reconciler._logger.error.assert_called_once_with(
+        "心跳更新持续失败",
+        environment="production",
+        error="database unavailable",
+        error_type="SQLAlchemyError",
+        failure_count=4,
+        duration_seconds=60.0,
+    )
+    assert reconciler._heartbeat_loaded_runtimes.await_count == 4
+    assert reconciler._last_heartbeat_at == 0.0
+    reconciler._logger.info.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_changed_error_is_logged_immediately(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证异常类型或消息变化时，即使未到一分钟也保留新错误堆栈."""
+    reconciler, _, _, _ = configure_reconciler(
+        monkeypatch,
+    )
+    monkeypatch.setitem(
+        vars(reconciler_module),
+        "time",
+        SimpleNamespace(
+            monotonic=lambda: 100.0,
+        ),
+    )
+    reconciler._logger = MagicMock()
+    reconciler._heartbeat_loaded_runtimes = AsyncMock(
+        side_effect=[
+            SQLAlchemyError("unavailable"),
+            SQLAlchemyError("permission denied"),
+            RuntimeError("permission denied"),
+        ],
+    )
+
+    for _ in range(3):
+        await reconciler._heartbeat_if_due(
+            [],
+        )
+
+    assert reconciler._logger.exception.call_count == 3
+    assert reconciler._heartbeat_failure_count == 3
+    reconciler._logger.error.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_recovery_is_logged_once_and_resets_failures(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证恢复完成后清空故障状态，再次失败不会被上次故障限频."""
+    reconciler, _, _, _ = configure_reconciler(
+        monkeypatch,
+    )
+    clock = SimpleNamespace(now=100.0)
+    monkeypatch.setitem(
+        vars(reconciler_module),
+        "time",
+        SimpleNamespace(
+            monotonic=lambda: clock.now,
+        ),
+    )
+    reconciler._logger = MagicMock()
+    reconciler._heartbeat_loaded_runtimes = AsyncMock(
+        side_effect=SQLAlchemyError(
+            "unavailable",
+        ),
+    )
+    reconciler._mark_stale_runtimes_failed = AsyncMock()
+
+    await reconciler._heartbeat_if_due(
+        [],
+    )
+
+    reconciler._heartbeat_loaded_runtimes.side_effect = None
+    clock.now = 110.0
+    await reconciler._heartbeat_if_due(
+        [],
+    )
+
+    reconciler._logger.info.assert_called_once_with(
+        "心跳更新已恢复",
+        environment="production",
+        failure_count=1,
+        duration_seconds=10.0,
+    )
+    assert reconciler._heartbeat_failure_count == 0
+    assert reconciler._heartbeat_failure_started_at is None
+    assert reconciler._last_heartbeat_error is None
+
+    clock.now = 140.0
+    await reconciler._heartbeat_if_due(
+        [],
+    )
+    assert reconciler._logger.info.call_count == 1
+
+    clock.now = 170.0
+    reconciler._heartbeat_loaded_runtimes.side_effect = SQLAlchemyError("unavailable")
+    await reconciler._heartbeat_if_due(
+        [],
+    )
+    assert reconciler._logger.exception.call_count == 2
+    assert reconciler._logger.exception.call_args.kwargs["failure_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_cancellation_preserves_failure_state(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """验证取消操作直接传播，故障状态不被误判为恢复."""
+    reconciler, _, _, _ = configure_reconciler(
+        monkeypatch,
+    )
+    monkeypatch.setitem(
+        vars(reconciler_module),
+        "time",
+        SimpleNamespace(
+            monotonic=lambda: 100.0,
+        ),
+    )
+    reconciler._logger = MagicMock()
+    reconciler._heartbeat_loaded_runtimes = AsyncMock(
+        side_effect=SQLAlchemyError(
+            "unavailable",
+        ),
+    )
+    await reconciler._heartbeat_if_due(
+        [],
+    )
+    reconciler._heartbeat_loaded_runtimes.side_effect = asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await reconciler._heartbeat_if_due(
+            [],
+        )
+
+    assert reconciler._heartbeat_failure_count == 1
+    assert reconciler._logger.exception.call_count == 1
+    reconciler._logger.info.assert_not_called()

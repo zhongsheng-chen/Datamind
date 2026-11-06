@@ -4,6 +4,7 @@
 
 核心功能：
   - create_routing: 创建路由规则
+  - update_routing: 更新路由规则
   - enable_routing: 启用路由规则
   - disable_routing: 禁用路由规则
   - delete_routing: 逻辑删除路由规则
@@ -253,10 +254,17 @@ class RoutingLifecycleService:
 
             routing.rules_metadata = self._make_rules_metadata(rules, rules_metadata)
             result = self._routing_result(routing)
-            return MutationResult(
+            mutation = MutationResult(
                 result,
                 after=result,
             )
+
+        logger.info(
+            "创建路由成功",
+            routing_id=mutation["routing_id"],
+            deployment_id=mutation["deployment_id"],
+        )
+        return mutation
 
     async def enable_routing(
             self,
@@ -362,11 +370,18 @@ class RoutingLifecycleService:
             if not isinstance(effective_to, _Unset):
                 routing.effective_to = end
             result = self._routing_result(routing)
-            return MutationResult.changed(
+            mutation = MutationResult.changed(
                 result,
                 before=before,
                 after=result,
             )
+
+        logger.info(
+            "更新路由成功",
+            routing_id=mutation["routing_id"],
+            deployment_id=mutation["deployment_id"],
+        )
+        return mutation
 
     async def disable_routing(
             self,
@@ -431,7 +446,7 @@ class RoutingLifecycleService:
                     updated_by=updated_by,
                 )
 
-            return MutationResult(
+            mutation = MutationResult(
                 self._routing_result(routing),
                 before={
                     "enabled": previous_enabled,
@@ -440,6 +455,13 @@ class RoutingLifecycleService:
                     "enabled": bool(routing.enabled),
                 },
             )
+
+        logger.info(
+            "启用路由成功" if enabled else "停用路由成功",
+            routing_id=mutation["routing_id"],
+            deployment_id=mutation["deployment_id"],
+        )
+        return mutation
 
     @staticmethod
     def _make_rules_metadata(
@@ -513,21 +535,23 @@ class RoutingLifecycleService:
                 deletion_reason=reason,
             )
 
-            logger.info(
-                "删除路由成功",
-                routing_id=routing_id,
-            )
-
             result = {
                 "routing_id": routing.routing_id,
                 "deployment_id": routing.deployment_id,
                 "action": "delete_routing",
             }
-            return MutationResult(
+            mutation = MutationResult(
                 result,
                 before={"deleted": False},
                 after={"deleted": True},
             )
+
+        logger.info(
+            "删除路由成功",
+            routing_id=mutation["routing_id"],
+            deployment_id=mutation["deployment_id"],
+        )
+        return mutation
 
     async def restore_routing(
             self,
@@ -570,19 +594,21 @@ class RoutingLifecycleService:
                 restored_by=restored_by,
             )
 
-            logger.info(
-                "恢复路由成功",
-                routing_id=routing_id,
-            )
-
             result = {
                 "routing_id": routing.routing_id,
                 "deployment_id": routing.deployment_id,
                 "enabled": routing.enabled,
                 "action": "restore_routing",
             }
-            return MutationResult(
+            mutation = MutationResult(
                 result,
                 before={"deleted": True},
                 after={"deleted": False},
             )
+
+        logger.info(
+            "恢复路由成功",
+            routing_id=mutation["routing_id"],
+            deployment_id=mutation["deployment_id"],
+        )
+        return mutation

@@ -69,12 +69,18 @@
     测试 Broker 不可用时仍返回已经持久化的取消状态
   - test_retry_batch_uses_new_celery_task_id:
     测试业务重试不会复用可能已被撤销的 Celery 任务 ID
+  - test_batch_http_request_id_is_distinct_from_batch_id:
+    验证批次提交的 HTTP 请求标识与跨进程批次标识不同
 """
 
 import asyncio
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+    call,
+)
 
 import pytest
 
@@ -85,8 +91,14 @@ from datamind.models.enums import (
     ExecutionType,
 )
 from datamind.models.errors import RuntimeRouteError
-from datamind.runtime.executor import ExecutionPlan, ExecutionResult
-from datamind.runtime.routing import RouteResult, RoutingPlan
+from datamind.runtime.executor import (
+    ExecutionPlan,
+    ExecutionResult,
+)
+from datamind.runtime.routing import (
+    RouteResult,
+    RoutingPlan,
+)
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
     PredictRequest,
@@ -117,7 +129,10 @@ async def test_predict_timeout_records_failure(
     service._submit_shadow_predictions = AsyncMock()
     service.executor.execute.return_value = SimpleNamespace(prediction={"score": 1})
 
-    async def wait_for_cancellation(*_args: Any, **_kwargs: Any) -> None:
+    async def wait_for_cancellation(
+            *_args: Any,
+            **_kwargs: Any,
+    ) -> None:
         await asyncio.Event().wait()
 
     blocked = {
@@ -180,7 +195,10 @@ async def test_batch_timeout_isolated_per_item(runtime_server: Any,
     service._record_batch_success = AsyncMock()
     service._record_batch_item_failure = AsyncMock()
 
-    async def wait_for_cancellation(*_args: Any, **_kwargs: Any) -> None:
+    async def wait_for_cancellation(
+            *_args: Any,
+            **_kwargs: Any,
+    ) -> None:
         await asyncio.Event().wait()
 
     monkeypatch.setattr(
@@ -227,7 +245,9 @@ async def test_failure_finalization_is_bounded(runtime_server: Any,
     )
     service = runtime_server.create_service(service_module)
 
-    async def wait_for_cancellation(**_kwargs: Any) -> None:
+    async def wait_for_cancellation(
+            **_kwargs: Any,
+    ) -> None:
         await asyncio.Event().wait()
 
     service._mark_request_failed = AsyncMock(side_effect=wait_for_cancellation)
@@ -349,8 +369,20 @@ async def test_predict_batch_records_each_request_and_decision(
     service._prepare_batch_request_records.assert_awaited_once()
     assert service._record_batch_success.await_count == 2
     assert result["predictions"] == [
-        {"success": True, "task_type": "scoring", "score": 680.0, **runtime_server.create_score_details(680.0), "request_id": "req_1"},
-        {"success": True, "task_type": "scoring", "score": 720.0, **runtime_server.create_score_details(720.0), "request_id": "req_2"},
+        {
+            "success": True,
+            "task_type": "scoring",
+            "score": 680.0,
+            **runtime_server.create_score_details(680.0),
+            "request_id": "req_1",
+        },
+        {
+            "success": True,
+            "task_type": "scoring",
+            "score": 720.0,
+            **runtime_server.create_score_details(720.0),
+            "request_id": "req_2",
+        },
     ]
     assert [
         item.kwargs["request_ids"]
@@ -395,21 +427,25 @@ async def test_execute_routed_batch_groups_deployments_and_restores_order(
         for value in (10, 20, 30)
     ]
     service_a = SimpleNamespace(
-        predict_batch=MagicMock(return_value={
-            "task_type": "classification",
-            "predictions": [
-                {"prediction": 0},
-                {"prediction": 1},
-            ],
-        })
+        predict_batch=MagicMock(
+            return_value={
+                "task_type": "classification",
+                "predictions": [
+                    {"prediction": 0},
+                    {"prediction": 1},
+                ],
+            },
+        )
     )
     service_b = SimpleNamespace(
-        predict_batch=MagicMock(return_value={
-            "task_type": "classification",
-            "predictions": [
-                {"prediction": 1},
-            ],
-        })
+        predict_batch=MagicMock(
+            return_value={
+                "task_type": "classification",
+                "predictions": [
+                    {"prediction": 1},
+                ],
+            },
+        )
     )
     services = {
         "dep_a": service_a,
@@ -2206,24 +2242,37 @@ async def test_retry_batch_uses_new_celery_task_id(
 
 
 @pytest.mark.asyncio
-async def test_batch_http_request_id_is_distinct_from_batch_id(runtime_server, monkeypatch):
-    """提交批次的 HTTP 请求标识不能复用跨进程批次标识."""
+async def test_batch_http_request_id_is_distinct_from_batch_id(
+        runtime_server,
+        monkeypatch,
+):
+    """测试批次提交的 HTTP 请求标识与跨进程批次标识不同."""
     service_module = runtime_server.load_service_module(monkeypatch)
     service = runtime_server.create_service(service_module)
     captured = {}
 
-    async def secured(**kwargs):
+    async def secured(
+            **kwargs,
+    ):
         captured["request_id"] = kwargs["request_id"]
         return await kwargs["handler"](None)
 
-    async def submit(**kwargs):
+    async def submit(
+            **kwargs,
+    ):
         captured["batch_id"] = kwargs["batch_id"]
         return {"success": True, "batch_id": kwargs["batch_id"]}
 
     service._execute_secured = secured
     service._submit_batch = submit
     context = SimpleNamespace(response=SimpleNamespace(status_code=200))
-    await service_module.DatamindRuntimeService.inner.predict_batch.func(service, request=MagicMock(), ctx=context)
+
+    await service_module.DatamindRuntimeService.inner.predict_batch.func(
+        service,
+        request=MagicMock(),
+        ctx=context,
+    )
+
     assert captured["request_id"].startswith("req_")
     assert captured["batch_id"].startswith("bat_")
     assert captured["request_id"] != captured["batch_id"]
