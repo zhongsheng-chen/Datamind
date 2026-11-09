@@ -56,9 +56,7 @@ def create_engine_mock() -> tuple[
 ]:
     """创建异步引擎测试替身."""
     dispose = AsyncMock()
-    engine = MagicMock(
-        spec=AsyncEngine
-    )
+    engine = MagicMock(spec=AsyncEngine)
     engine.dispose = dispose
 
     return (
@@ -83,12 +81,8 @@ def test_create_engine_uses_database_config(
         pool_recycle=1800,
         echo=True,
     )
-    get_database_config = MagicMock(
-        return_value=database_config
-    )
-    create_async_engine = MagicMock(
-        return_value=engine
-    )
+    get_database_config = MagicMock(return_value=database_config)
+    create_async_engine = MagicMock(return_value=engine)
 
     monkeypatch.setitem(
         vars(engine_module),
@@ -124,9 +118,7 @@ def test_get_engine_creates_singleton(
 ) -> None:
     """测试首次获取时创建引擎并缓存."""
     engine, _ = create_engine_mock()
-    create_engine = MagicMock(
-        return_value=engine
-    )
+    create_engine = MagicMock(return_value=engine)
 
     monkeypatch.setattr(
         engine_module,

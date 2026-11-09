@@ -90,20 +90,20 @@ npm run watch:console
 
 ## 项目结构
 
-| 路径                        | 职责                            |
-|-----------------------------|---------------------------------|
-| `datamind/cli/`             | Typer 命令入口                  |
-| `datamind/services/`        | 管理服务与资源约束              |
-| `datamind/runtime/`         | 路由、加载、预测与任务执行      |
-| `datamind/models/`          | 模型检查、Schema 与模型文件处理 |
-| `datamind/config/`          | 配置与校验                      |
-| `datamind/db/`              | 数据模型、Repository 与迁移     |
-| `datamind/ab_test/`         | 分配、指标与分析                |
-| `datamind/console/`         | Console 后端与前端源码          |
-| `tests/`、`frontend-tests/` | 后端与前端测试                  |
-| `scripts/`                  | 构建、发布、验证与文档生成入口  |
-| `build_support/`            | 构建和发布支持工具              |
-| `doc_support/`              | 参考文档生成逻辑、模板及元数据  |
+| 路径 | 职责 |
+| --- | --- |
+| `datamind/cli/` | Typer 命令入口 |
+| `datamind/services/` | 管理服务与资源约束 |
+| `datamind/runtime/` | 路由、加载、预测与任务执行 |
+| `datamind/models/` | 模型检查、Schema 与模型文件处理 |
+| `datamind/config/` | 配置与校验 |
+| `datamind/db/` | 数据模型、Repository 与迁移 |
+| `datamind/ab_test/` | 分配、指标与分析 |
+| `datamind/console/` | Console 后端与前端源码 |
+| `tests/`、`frontend-tests/` | 后端与前端测试 |
+| `scripts/` | 构建、发布、验证与文档生成入口 |
+| `build_support/` | 构建和发布支持工具 |
+| `doc_support/` | 参考文档生成逻辑、模板及元数据 |
 
 ## 开发指南
 

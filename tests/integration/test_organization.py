@@ -102,9 +102,10 @@ async def create_directory() -> tuple[dict, dict, dict]:
 async def test_user_organization_profile_lifecycle(
         datamind_database,
 ) -> None:
-    """验证创建用户、字段保留、跨机构拒绝和显式清空."""
+    """测试创建用户、字段保留、跨机构拒绝和显式清空."""
     first, second, department = await create_directory()
     service = IdentityService()
+
     created = await service.create_user(
         username="alice",
         password="secret-password",
@@ -168,9 +169,10 @@ async def test_user_organization_profile_lifecycle(
 async def test_concurrent_department_moves_cannot_create_cycle(
         datamind_database,
 ) -> None:
-    """验证两个同级部门交叉移动时，行锁保证组织结构不会形成循环."""
+    """测试两个同级部门交叉移动时，行锁保证组织结构不会形成循环."""
     organization, _, first = await create_directory()
     service = OrganizationService()
+
     second = await service.save_department(
         organization_id=organization["organization_id"],
         code="FINANCE",
@@ -209,8 +211,9 @@ async def test_concurrent_department_moves_cannot_create_cycle(
 async def test_audit_preserves_actor_organization(
         datamind_database,
 ) -> None:
-    """验证审计保留操作时的工号、用户 ID 和部门名称."""
+    """测试审计保留操作时的工号、用户 ID 和部门名称."""
     organization, _, department = await create_directory()
+
     user = await IdentityService().create_user(
         username="alice",
         password="secret-password",
@@ -266,8 +269,9 @@ async def test_audit_preserves_actor_organization(
 async def test_database_rejects_cross_organization_department(
         datamind_database,
 ) -> None:
-    """验证绕过服务直接写入时，数据库也会拒绝跨机构的用户部门."""
+    """测试绕过服务直接写入时，数据库也会拒绝跨机构的用户部门."""
     _, second, department = await create_directory()
+
     with pytest.raises(IntegrityError):
         async with UnitOfWork() as uow:
             uow.session.add(
@@ -286,10 +290,11 @@ async def test_database_rejects_cross_organization_department(
 async def test_optional_codes_and_sibling_name_constraints(
         datamind_database,
 ) -> None:
-    """验证业务编码可选，根部门和同级部门不能重名，不同分支可以同名."""
+    """测试业务编码可选，根部门和同级部门不能重名，不同分支可以同名."""
     from datamind.services.errors import IdentityConflictError
 
     service = OrganizationService()
+
     organization = await service.save_organization(name="总行")
 
     assert organization["code"] is None
@@ -317,6 +322,7 @@ async def test_optional_codes_and_sibling_name_constraints(
         name="运营组",
         code="OPERATIONS",
     )
+
     with pytest.raises(IdentityConflictError):
         await service.save_department(
             organization_id=organization["organization_id"],
@@ -357,6 +363,7 @@ async def test_delete_empty_directory_and_preserve_audit(datamind_database):
     """测试删除空部门和机构后保留删除前路径及历史审计快照."""
     service = OrganizationService()
     organization, empty, parent = await create_directory()
+
     child = await service.save_department(
         organization_id=organization["organization_id"],
         parent_id=parent["department_id"],
@@ -372,10 +379,13 @@ async def test_delete_empty_directory_and_preserve_audit(datamind_database):
         )
 
     deleted = await service.delete_department(department_id=child["department_id"])
+
     assert [node["name"] for node in deleted["path"]] == ["人力资源部", "招聘组"]
+
     await service.delete_department(department_id=parent["department_id"])
     await service.delete_organization(organization_id=organization["organization_id"])
     await service.delete_organization(organization_id=empty["organization_id"])
+
     assert await service.catalog() == {"organizations": [], "departments": []}
     async with UnitOfWork() as uow:
         records = (
@@ -423,12 +433,15 @@ async def test_delete_rejects_assigned_inactive_user(datamind_database):
             )
         )
     service = OrganizationService()
+
     with pytest.raises(IdentityConflictError, match="用户"):
         await service.delete_department(department_id=department["department_id"])
     async with UnitOfWork() as uow:
         user = await UserRepository(uow.session).get_user(username="assigned")
         user.department_id = None
+
     await service.delete_department(department_id=department["department_id"])
+
     with pytest.raises(IdentityConflictError, match="用户"):
         await service.delete_organization(
             organization_id=organization["organization_id"],
@@ -436,6 +449,7 @@ async def test_delete_rejects_assigned_inactive_user(datamind_database):
     async with UnitOfWork() as uow:
         user = await UserRepository(uow.session).get_user(username="assigned")
         user.organization_id = None
+
     await service.delete_organization(organization_id=organization["organization_id"])
 
 
@@ -477,6 +491,7 @@ async def test_concurrent_delete_and_child_creation(datamind_database):
         )
         == 1
     )
+
     directory = await service.catalog()
     ids = {item["department_id"] for item in directory["departments"]}
     assert all(
@@ -527,6 +542,7 @@ async def test_disabled_organization_preserves_users_and_blocks_new_links(
     organization, _, department = await create_directory()
     service = OrganizationService()
     identity = IdentityService()
+
     await identity.create_user(
         username="existing",
         password="secret-password",
@@ -551,6 +567,7 @@ async def test_disabled_organization_preserves_users_and_blocks_new_links(
         operator_id="system",
         operator="system",
     )
+
     assert updated["department_id"] == department["department_id"]
     assert updated["employee_number"] == "00123"
     assert updated["department_path"][0]["name"] == "人力资源部"
@@ -567,7 +584,9 @@ async def test_disabled_organization_preserves_users_and_blocks_new_links(
             organization_id=organization["organization_id"],
             name="新增部门",
         )
+
     directory = await service.catalog()
+
     assert (
         next(
             item
@@ -576,6 +595,7 @@ async def test_disabled_organization_preserves_users_and_blocks_new_links(
         )["is_available"]
         is False
     )
+
     await service.set_organization_active(
         organization_id=organization["organization_id"],
         is_active=True,
@@ -613,12 +633,14 @@ async def test_disabled_parent_applies_to_descendants_and_allows_transfer(
     """测试停用上级后阻止新增关联但允许用户调出，重新启用时保留下级停用状态."""
     organization, _, parent = await create_directory()
     service = OrganizationService()
+
     child = await service.save_department(
         organization_id=organization["organization_id"],
         parent_id=parent["department_id"],
         name="招聘组",
     )
     identity = IdentityService()
+
     await identity.create_user(
         username="existing",
         password="secret-password",
@@ -631,6 +653,7 @@ async def test_disabled_parent_applies_to_descendants_and_allows_transfer(
         department_id=parent["department_id"],
         is_active=False,
     )
+
     with pytest.raises(ValueError, match="已停用"):
         await identity.create_user(
             username="new",
@@ -646,6 +669,7 @@ async def test_disabled_parent_applies_to_descendants_and_allows_transfer(
             parent_id=child["department_id"],
             name="校园招聘小组",
         )
+
     updated = await identity.update_user(
         username="existing",
         new_username="existing",
@@ -654,7 +678,9 @@ async def test_disabled_parent_applies_to_descendants_and_allows_transfer(
         operator_id="system",
         operator="system",
     )
+
     assert updated["department_id"] is None
+
     await service.set_department_active(
         department_id=child["department_id"],
         is_active=False,
@@ -668,6 +694,7 @@ async def test_disabled_parent_applies_to_descendants_and_allows_transfer(
     assert departments[parent["department_id"]]["is_available"] is True
     assert departments[child["department_id"]]["is_active"] is False
     assert departments[child["department_id"]]["is_available"] is False
+
     await service.delete_department(department_id=child["department_id"])
 
 
@@ -762,6 +789,7 @@ async def test_employee_number_rejects_duplicate_assignment(
     """测试工号全局唯一，停用或已删除用户的工号仍受保护."""
     first, second, _ = await create_directory()
     service = IdentityService()
+
     owner = await service.create_user(
         username="alice",
         password="secret-password",
@@ -815,6 +843,7 @@ async def test_employee_number_can_be_kept_cleared_and_reassigned(
 ) -> None:
     """测试原工号可保留，清空后可授予其他用户，且前导零保持不变."""
     service = IdentityService()
+
     await service.create_user(
         username="alice",
         password="secret-password",
@@ -835,6 +864,7 @@ async def test_employee_number_can_be_kept_cleared_and_reassigned(
         operator_id="system",
         operator="system",
     )
+
     assert retained["employee_number"] == "001234"
 
     omitted = await service.update_user(
@@ -844,6 +874,7 @@ async def test_employee_number_can_be_kept_cleared_and_reassigned(
         operator_id="system",
         operator="system",
     )
+
     assert omitted["employee_number"] == "001234"
 
     cleared = await service.update_user(
@@ -981,6 +1012,7 @@ async def test_restored_user_can_keep_its_employee_number(
 ) -> None:
     """测试恢复已删除用户时可保留原有工号."""
     service = IdentityService()
+
     first = await service.create_user(
         username="alice",
         password="secret-password",
@@ -1008,9 +1040,10 @@ async def test_restored_user_can_keep_its_employee_number(
 
 @pytest.mark.asyncio
 async def test_directory_order_is_persistent_and_scoped(datamind_database) -> None:
-    """验证排序持久化、同级范围、边界与新增末尾行为."""
+    """测试排序持久化、同级范围、边界与新增末尾行为."""
     service = OrganizationService()
     first, second, parent = await create_directory()
+
     sibling = await service.save_department(organization_id=first["organization_id"], name="财务部")
     child = await service.save_department(
         organization_id=first["organization_id"], parent_id=parent["department_id"], name="招聘组",
@@ -1018,6 +1051,7 @@ async def test_directory_order_is_persistent_and_scoped(datamind_database) -> No
     await service.move(resource="organization", target_id=second["organization_id"], direction="up")
     await service.move(resource="department", target_id=sibling["department_id"], direction="up")
     directory = await service.catalog()
+
     assert [item["organization_id"] for item in directory["organizations"]] == [
         second["organization_id"], first["organization_id"],
     ]
@@ -1028,9 +1062,11 @@ async def test_directory_order_is_persistent_and_scoped(datamind_database) -> No
         await service.move(resource="department", target_id=child["department_id"], direction="up")
     with pytest.raises(ValueError, match="边界"):
         await service.move(resource="organization", target_id=second["organization_id"], direction="up")
+
     await service.move(resource="department", target_id=sibling["department_id"], direction="down")
     added = await service.save_department(organization_id=first["organization_id"], name="信息科技部")
     directory = await service.catalog()
+
     assert [item["department_id"] for item in directory["departments"]] == [
         parent["department_id"], child["department_id"], sibling["department_id"], added["department_id"],
     ]
@@ -1042,14 +1078,16 @@ async def test_directory_order_is_persistent_and_scoped(datamind_database) -> No
 
 @pytest.mark.asyncio
 async def test_concurrent_directory_reordering_keeps_unique_positions(datamind_database) -> None:
-    """验证并发排序与新增串行化，顺序不丢失、不重复."""
+    """测试并发排序与新增串行化，顺序不丢失、不重复."""
     service = OrganizationService()
     first, second, _ = await create_directory()
     results = await asyncio.gather(
         service.move(resource="organization", target_id=second["organization_id"], direction="up"),
         service.save_organization(name="第三机构"),
     )
+
     directory = await service.catalog()
+
     assert [item["organization_id"] for item in directory["organizations"]] == [
         second["organization_id"], first["organization_id"], results[1]["organization_id"],
     ]

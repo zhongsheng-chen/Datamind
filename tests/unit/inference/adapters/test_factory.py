@@ -26,7 +26,7 @@
   - test_register_adapter_rejects_invalid_adapter_class:
     验证适配器类必须继承基础适配器
   - test_get_adapter_class_reports_missing_framework_dependency:
-    测试缺少框架依赖时返回明确安装建议
+    验证缺少框架依赖时返回明确安装建议
 """
 
 from collections.abc import Iterator

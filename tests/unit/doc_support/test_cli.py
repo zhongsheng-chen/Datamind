@@ -4,19 +4,19 @@
 
 核心功能：
   - test_walk_reads_typer_nested_commands:
-    遍历 Typer 实际生成的命令树，保留分组路径和叶子命令
+    验证遍历 Typer 命令树时保留分组路径和叶子命令
   - test_command_source_excludes_other_functions:
-    命令保留嵌套函数的信息，同时排除同文件中的其他函数
+    验证命令源码提取保留嵌套函数信息并排除同文件中的其他函数
   - test_cli_parameter_rows_formats_choices:
-    参数选项为空时保留类型，存在选项时显示可选值
+    验证参数无选项时保留类型，有选项时显示可选值
   - test_cli_parameter_rows_formats_enum_choices:
-    枚举选项显示实际值，保留可重复参数标记
+    验证枚举选项显示实际值并保留可重复参数标记
   - test_render_cli_command_uses_extracted_metadata:
-    渲染只依赖传入元数据，无参数命令不生成空表格
+    验证命令渲染使用传入元数据，无参数时不生成空表格
   - test_render_cli_description_formats_note:
-    注意事项生成提示块，后续正文保持独立段落
+    验证注意事项生成提示块，后续正文保留独立段落
   - test_render_cli_command_deduplicates_constraints:
-    参数范围和必选组合只说明一次
+    验证参数范围和必选组合仅说明一次
 """
 
 from collections.abc import Callable
@@ -40,7 +40,7 @@ from doc_support.cli import (
 
 
 def test_walk_reads_typer_nested_commands() -> None:
-    """遍历 Typer 实际生成的命令树，保留分组路径和叶子命令."""
+    """测试遍历 Typer 命令树时保留分组路径和叶子命令."""
     app = typer.Typer()
     group = typer.Typer()
     app.add_typer(group, name="model")
@@ -61,7 +61,7 @@ def test_command_source_excludes_other_functions(
     monkeypatch: pytest.MonkeyPatch,
     load_source: Callable[[Path], ModuleType],
 ) -> None:
-    """命令保留嵌套函数的信息，同时排除同文件中的其他函数."""
+    """测试命令源码提取保留嵌套函数信息并排除同文件中的其他函数."""
     source = tmp_path / "commands.py"
     source.write_text(
         """def helper():
@@ -105,9 +105,10 @@ def other():
     [(None, "字符串"), ([], "字符串"), (["first", "second"], "first/second")],
 )
 def test_cli_parameter_rows_formats_choices(
-    choices: list[str] | None, expected: str
+    choices: list[str] | None,
+    expected: str,
 ) -> None:
-    """参数选项为空时保留类型，存在选项时显示可选值."""
+    """测试参数无选项时保留类型，有选项时显示可选值."""
     parameter = SimpleNamespace(
         opts=["--mode"],
         param_type_name="option",
@@ -120,7 +121,7 @@ def test_cli_parameter_rows_formats_choices(
 
 
 def test_cli_parameter_rows_formats_enum_choices() -> None:
-    """枚举选项显示实际值，保留可重复参数标记."""
+    """测试枚举选项显示实际值并保留可重复参数标记."""
 
     class Mode(Enum):
         FIRST = "first"
@@ -140,7 +141,7 @@ def test_cli_parameter_rows_formats_enum_choices() -> None:
 
 
 def test_render_cli_command_uses_extracted_metadata() -> None:
-    """渲染只依赖传入元数据，无参数命令不生成空表格."""
+    """测试命令渲染使用传入元数据，无参数时不生成空表格."""
     command = SimpleNamespace(
         help="查看模型。\n\n输出：\n    未指定版本时返回版本列表。", params=[]
     )
@@ -164,7 +165,7 @@ def test_render_cli_command_uses_extracted_metadata() -> None:
 
 
 def test_render_cli_description_formats_note() -> None:
-    """注意事项生成提示块，后续正文保持独立段落."""
+    """测试注意事项生成提示块，后续正文保留独立段落."""
     description = """将数据库降级到指定迁移版本.
 
     指定迁移版本号可降级到对应版本。
@@ -186,7 +187,7 @@ def test_render_cli_description_formats_note() -> None:
 
 
 def test_render_cli_command_deduplicates_constraints() -> None:
-    """参数范围和必选组合只说明一次."""
+    """测试参数范围和必选组合仅说明一次."""
     app = typer.Typer()
     group = typer.Typer()
     app.add_typer(group, name="model")

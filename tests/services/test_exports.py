@@ -8,9 +8,9 @@
   - test_all_declared_exports_are_available:
     验证声明的公共对象均可从包级访问
   - test_service_error_exports_expected_public_api:
-    测试服务异常模块公开完整且准确的 API
+    验证服务异常模块公开完整且准确的 API
   - test_all_declared_error_exports_are_available:
-    测试异常模块声明的对象均可访问
+    验证异常模块声明的对象均可访问
 """
 
 import datamind.services as services

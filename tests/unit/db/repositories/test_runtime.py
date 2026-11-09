@@ -6,16 +6,10 @@
 核心功能：
   - test_get_runtime:
     验证按运行 ID 查询
-  - test_get_deployment_runtime:
-    验证按部署和 Worker 查询
-  - test_list_runtimes:
-    验证框架、状态、操作人筛选和分页
   - test_list_running_runtimes:
     验证获取已加载运行记录
   - test_mark_stale_runtimes_failed:
     验证失联活动实例自动收敛为失败
-  - test_runtime_patch:
-    验证更新结构和框架枚举
   - test_create_runtime:
     验证创建运行记录并设置 unloaded 状态
   - test_update_runtime:
@@ -24,56 +18,50 @@
     验证持久化已应用控制版本号
   - test_mark_starting:
     验证标记加载中
-  - test_mark_running:
-    验证标记已加载
-  - test_mark_stopped:
-    验证标记已卸载
   - test_mark_failed:
     验证标记加载失败
-  - test_heartbeat:
-    验证更新运行心跳
   - test_get_runtime_returns_none_when_not_found:
-    测试运行记录不存在时返回 None
+    验证运行记录不存在时返回 None
   - test_get_deployment_runtime_uses_default_worker:
-    测试按部署 ID 和默认 Worker 查询
+    验证按部署 ID 和默认 Worker 查询
   - test_get_deployment_runtime_uses_custom_worker:
-    测试按部署 ID 和指定 Worker 查询
+    验证按部署 ID 和指定 Worker 查询
   - test_list_runtimes_without_filters:
-    测试无筛选时返回全部记录并按时间倒序
+    验证无筛选时返回全部记录并按时间倒序
   - test_list_runtimes_applies_filters_and_pagination:
-    测试框架、状态、操作人筛选和分页
+    验证框架、状态、操作人筛选和分页
   - test_list_runtimes_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_list_runtimes_rejects_negative_pagination:
-    测试拒绝负数分页参数
+    验证拒绝负数分页参数
   - test_runtime_patch_fields_and_defaults:
-    测试更新结构字段和默认值
+    验证更新结构字段和默认值
   - test_runtime_patch_accepts_framework_enum:
-    测试更新结构接受框架枚举
+    验证更新结构接受框架枚举
   - test_create_runtime_uses_optional_defaults:
-    测试创建运行记录的可选默认值
+    验证创建运行记录的可选默认值
   - test_update_runtime_ignores_none_fields:
-    测试值为 None 的字段不会覆盖原值
+    验证值为 None 的字段不会覆盖原值
   - test_mark_starting_accepts_empty_operator:
-    测试加载中状态允许写入空字符串操作人
+    验证加载中状态允许写入空字符串操作人
   - test_mark_running_with_explicit_time:
-    测试标记已加载并同步首次心跳时间
+    验证标记已加载并同步首次心跳时间
   - test_mark_running_uses_current_time:
-    测试未提供时间时使用同一个当前时间
+    验证未提供时间时使用同一个当前时间
   - test_mark_running_accepts_empty_operator:
-    测试已加载状态允许写入空字符串操作人
+    验证已加载状态允许写入空字符串操作人
   - test_mark_stopped_with_explicit_time:
-    测试标记已卸载并记录控制版本
+    验证标记已卸载并记录控制版本
   - test_mark_stopped_uses_current_time:
-    测试未提供卸载时间时使用当前时间
+    验证未提供卸载时间时使用当前时间
   - test_mark_stopped_accepts_empty_operator:
-    测试卸载状态允许写入空字符串操作人
+    验证卸载状态允许写入空字符串操作人
   - test_mark_failed_accepts_empty_operator:
-    测试失败状态允许写入空字符串操作人
+    验证失败状态允许写入空字符串操作人
   - test_heartbeat_with_explicit_time:
-    测试使用指定时间更新运行心跳
+    验证使用指定时间更新运行心跳
   - test_heartbeat_uses_current_time:
-    测试未提供时间时使用当前 UTC 时间
+    验证未提供时间时使用当前 UTC 时间
 """
 
 from dataclasses import fields
@@ -191,14 +179,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -596,6 +580,7 @@ async def test_mark_stale_runtimes_failed() -> None:
     )
 
     details = []
+
     runtime_ids = await repository.mark_stale_runtimes_failed(
         stale_details=details,
         environment="production",
@@ -622,6 +607,7 @@ async def test_mark_stale_runtimes_failed() -> None:
     assert runtime_ids == ["rtm_0123456789abcdef"]
     assert stale_runtime.status == "failed"
     assert stale_runtime.error == "运行实例心跳超时，Worker 已失联"
+
 
 def test_runtime_patch_fields_and_defaults() -> None:
     """测试更新结构字段和默认值."""
@@ -732,9 +718,7 @@ def test_create_runtime() -> None:
         },
     )
 
-    add.assert_called_once_with(
-        runtime
-    )
+    add.assert_called_once_with(runtime)
     assert runtime.runtime_id == (
         "rtm_0123456789abcdef"
     )
@@ -778,9 +762,7 @@ def test_create_runtime_uses_optional_defaults() -> None:
         framework=Framework.SKLEARN,
     )
 
-    add.assert_called_once_with(
-        runtime
-    )
+    add.assert_called_once_with(runtime)
     assert runtime.framework == "sklearn"
     assert runtime.status == "stopped"
     assert runtime.worker_id == "default"
@@ -967,6 +949,8 @@ def test_mark_running_uses_current_time(
         runtime.last_heartbeat_at
         == CURRENT_TIME
     )
+
+
 def test_mark_running_accepts_empty_operator() -> None:
     """测试已加载状态允许写入空字符串操作人."""
     repository, _, _ = create_repository()
@@ -1125,6 +1109,7 @@ def test_heartbeat_with_explicit_time() -> None:
         runtime.last_heartbeat_at
         == CURRENT_TIME
     )
+
 
 def test_heartbeat_uses_current_time(
         monkeypatch: pytest.MonkeyPatch,

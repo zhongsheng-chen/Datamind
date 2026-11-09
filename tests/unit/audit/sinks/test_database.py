@@ -140,9 +140,7 @@ async def test_database_sink_recovers_from_concurrent_insert(
         {},
         RuntimeError("duplicate audit_id"),
     )
-    write_once = AsyncMock(
-        side_effect=error
-    )
+    write_once = AsyncMock(side_effect=error)
     monkeypatch.setattr(
         DatabaseAuditSink,
         "_write_once",
@@ -150,14 +148,13 @@ async def test_database_sink_recovers_from_concurrent_insert(
     )
 
     event = create_event()
+
     result = await DatabaseAuditSink().write(
         event
     )
 
     assert result is existing
-    write_once.assert_awaited_once_with(
-        event
-    )
+    write_once.assert_awaited_once_with(event)
 
 
 @pytest.mark.asyncio
@@ -173,9 +170,7 @@ async def test_database_sink_reraises_unresolved_integrity_error(
     monkeypatch.setattr(
         DatabaseAuditSink,
         "_write_once",
-        AsyncMock(
-            side_effect=error
-        ),
+        AsyncMock(side_effect=error),
     )
 
     with pytest.raises(

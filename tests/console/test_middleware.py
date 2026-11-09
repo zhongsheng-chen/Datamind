@@ -12,7 +12,7 @@
   - test_security_headers_adds_hsts_only_for_https:
     验证 HSTS 使用条件
   - test_http_audit_context_generates_missing_identifiers:
-    测试控制台为缺失标识的 HTTP 审计补全上下文
+    验证控制台为缺失标识的 HTTP 审计补全上下文
 """
 
 import asyncio

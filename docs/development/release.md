@@ -127,10 +127,10 @@ docker image inspect datamind:latest --format '{{json .Config.Labels}}'
 
 发布任务使用 GitHub Actions 的 `release` 环境。发布地址和用户名通过 Variables 配置，密码和令牌通过 Secrets 配置：
 
-| 类型      | 配置项                                                         |
-|-----------|----------------------------------------------------------------|
+| 类型 | 配置项 |
+| --- | --- |
 | Variables | `TWINE_REPOSITORY_URL`、`TWINE_USERNAME`、`DOCKERHUB_USERNAME` |
-| Secrets   | `TWINE_PASSWORD`、`DOCKERHUB_TOKEN`                            |
+| Secrets | `TWINE_PASSWORD`、`DOCKERHUB_TOKEN` |
 
 在本地设置对应环境变量后，可检查配置是否完整、仓库地址格式是否正确：
 

@@ -155,12 +155,12 @@ datamind console run
 
 Datamind 当前支持分类与评分两类任务，并兼容多种主流 Python 机器学习框架。
 
-| 机器学习框架     | 分类 | 评分 |
-|------------------|:----:|:----:|
-| **scikit-learn** |  ✓  |  ✓  |
-| **XGBoost**      |  ✓  |  —   |
-| **LightGBM**     |  ✓  |  —   |
-| **CatBoost**     |  ✓  |  —   |
+| 机器学习框架 | 分类 | 评分 |
+| --- | :---: | :---: |
+| **scikit-learn** | ✓ | ✓ |
+| **XGBoost** | ✓ | — |
+| **LightGBM** | ✓ | — |
+| **CatBoost** | ✓ | — |
 
 - **分类任务**：支持 `sklearn.linear_model.LogisticRegression`、`sklearn.tree.DecisionTreeClassifier` 和 `sklearn.ensemble.RandomForestClassifier`，并兼容 `XGBoost`、`LightGBM` 与 `CatBoost`，返回分类标签与预测概率。
 - **评分任务**：支持以 `sklearn.linear_model.LogisticRegression` 为估计器的 `optbinning.Scorecard`，返回违约概率、总评分与特征分。

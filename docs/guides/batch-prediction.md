@@ -118,12 +118,12 @@ curl -sS http://127.0.0.1:8700/predict/batch/status \
 
 通过响应中的 `status` 查看执行进度。批次结束后，该字段为以下状态之一：
 
-| 状态                  | 含义                   |
-|-----------------------|------------------------|
-| `succeeded`           | 全部实例预测成功       |
-| `partially_succeeded` | 部分实例预测成功       |
-| `failed`              | 批次执行或任务投递失败 |
-| `cancelled`           | 批次已取消             |
+| 状态 | 含义 |
+| --- | --- |
+| `succeeded` | 全部实例预测成功 |
+| `partially_succeeded` | 部分实例预测成功 |
+| `failed` | 批次执行或任务投递失败 |
+| `cancelled` | 批次已取消 |
 
 查询响应中的 `result.predictions` 包含各输入实例的预测结果和错误信息；结果尚未生成时，响应不包含 `result`。也可在管理控制台的**批量任务**中查看批次和执行记录。
 
@@ -153,14 +153,14 @@ curl -sS http://127.0.0.1:8700/predict/batch/retry \
 
 取消和重试的行为取决于批次状态：
 
-| 当前状态                        | 取消                                    | 重试     |
-|---------------------------------|-----------------------------------------|----------|
-| `queued`、`retrying`            | 转为 `cancelled`                        | 不允许   |
-| `running`                       | 转为 `cancelling`，等待 Worker 协作停止 | 不允许   |
-| `cancelling`                    | 保持当前状态                            | 不允许   |
-| `cancelled`                     | 保持当前状态                            | 重新排队 |
-| `partially_succeeded`、`failed` | 不允许                                  | 重新排队 |
-| `succeeded`                     | 不允许                                  | 不允许   |
+| 当前状态 | 取消 | 重试 |
+| --- | --- | --- |
+| `queued`、`retrying` | 转为 `cancelled` | 不允许 |
+| `running` | 转为 `cancelling`，等待 Worker 协作停止 | 不允许 |
+| `cancelling` | 保持当前状态 | 不允许 |
+| `cancelled` | 保持当前状态 | 重新排队 |
+| `partially_succeeded`、`failed` | 不允许 | 重新排队 |
+| `succeeded` | 不允许 | 不允许 |
 
 - **取消**：不会强制中断正在执行的模型计算，需继续查询以确认取消完成。已成功的结果会保留。
 - **重试**：沿用原 `batch_id`，仅处理尚未成功的实例。重试成功返回 HTTP 202，后续仍需查询执行结果。

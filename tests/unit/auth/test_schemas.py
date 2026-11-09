@@ -28,7 +28,7 @@
   - test_removed_provider_fields_are_rejected:
     验证已移除的认证来源字段不再被接受
   - test_logout_result_preserves_user_identity:
-    测试退出结果携带撤销状态和用户身份
+    验证退出结果携带撤销状态和用户身份
 """
 
 import pytest

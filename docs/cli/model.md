@@ -14,19 +14,19 @@
 datamind model register <name> [OPTIONS]
 ```
 
-| 参数                    | 类型   | 必需 | 默认值   | 说明                  |
-|-------------------------|--------|------|----------|-----------------------|
-| `<name>`                | 字符串 | 是   | `—`      | 模型名称              |
-| `--version`             | 字符串 | 是   | `—`      | 模型版本              |
-| `--display-name`        | 字符串 | 否   | `null`   | 模型显示名称          |
-| `--model-path`          | 字符串 | 是   | `—`      | 模型文件路径          |
-| `--framework`           | 字符串 | 是   | `—`      | 模型框架              |
-| `--model-type`          | 字符串 | 是   | `—`      | 模型类型              |
-| `--task-type`           | 字符串 | 是   | `—`      | 任务类型              |
-| `--description`         | 字符串 | 否   | `null`   | 模型描述              |
-| `--version-description` | 字符串 | 否   | `null`   | 模型版本描述          |
-| `--force`               | 布尔   | 否   | `false`  | 强制重新注册已有版本  |
-| `--format`              | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 是 | `—` | 模型名称 |
+| `--version` | 字符串 | 是 | `—` | 模型版本 |
+| `--display-name` | 字符串 | 否 | `null` | 模型显示名称 |
+| `--model-path` | 字符串 | 是 | `—` | 模型文件路径 |
+| `--framework` | 字符串 | 是 | `—` | 模型框架 |
+| `--model-type` | 字符串 | 是 | `—` | 模型类型 |
+| `--task-type` | 字符串 | 是 | `—` | 任务类型 |
+| `--description` | 字符串 | 否 | `null` | 模型描述 |
+| `--version-description` | 字符串 | 否 | `null` | 模型版本描述 |
+| `--force` | 布尔 | 否 | `false` | 强制重新注册已有版本 |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`model.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/model/register.py)
 
@@ -40,17 +40,17 @@ datamind model register <name> [OPTIONS]
 datamind model list [OPTIONS]
 ```
 
-| 参数                 | 类型   | 必需 | 默认值   | 说明                                                                                                        |
-|----------------------|--------|------|----------|-------------------------------------------------------------------------------------------------------------|
-| `--status`           | 字符串 | 否   | `null`   | 按模型状态过滤，可选值：active / deprecated / inactive / archived                                           |
-| `--framework`        | 字符串 | 否   | `null`   | 按模型框架过滤，可选值：sklearn / xgboost / lightgbm / catboost                                             |
-| `--model-type`       | 字符串 | 否   | `null`   | 按模型类型过滤，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost |
-| `--task-type`        | 字符串 | 否   | `null`   | 按任务类型过滤，可选值：classification / scoring                                                            |
-| `--created-by`       | 字符串 | 否   | `null`   | 按创建人过滤                                                                                                |
-| `--format`           | 字符串 | 否   | `"text"` | 输出格式：text / json                                                                                       |
-| `--limit`            | 整数   | 否   | `10`     | 返回记录数量限制。必须大于 0                                                                                |
-| `--offset`           | 整数   | 否   | `0`      | 分页偏移量。不能小于 0                                                                                      |
-| `--include-archived` | 布尔   | 否   | `false`  | 包含已归档的模型，默认不显示                                                                                |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `--status` | 字符串 | 否 | `null` | 按模型状态过滤，可选值：active / deprecated / inactive / archived |
+| `--framework` | 字符串 | 否 | `null` | 按模型框架过滤，可选值：sklearn / xgboost / lightgbm / catboost |
+| `--model-type` | 字符串 | 否 | `null` | 按模型类型过滤，可选值：logistic_regression / decision_tree / random_forest / xgboost / lightgbm / catboost |
+| `--task-type` | 字符串 | 否 | `null` | 按任务类型过滤，可选值：classification / scoring |
+| `--created-by` | 字符串 | 否 | `null` | 按创建人过滤 |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
+| `--limit` | 整数 | 否 | `10` | 返回记录数量限制。必须大于 0 |
+| `--offset` | 整数 | 否 | `0` | 分页偏移量。不能小于 0 |
+| `--include-archived` | 布尔 | 否 | `false` | 包含已归档的模型，默认不显示 |
 
 权限：`model.read` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/model/list.py)
 
@@ -64,14 +64,14 @@ datamind model list [OPTIONS]
 datamind model show [<name>] [OPTIONS]
 ```
 
-| 参数                 | 类型   | 必需 | 默认值   | 说明                  |
-|----------------------|--------|------|----------|-----------------------|
-| `<name>`             | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`         | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`          | 字符串 | 否   | `null`   | 模型版本号            |
-| `--version-id`       | 字符串 | 否   | `null`   | 版本 ID               |
-| `--include-archived` | 布尔   | 否   | `false`  | 是否包含归档版本      |
-| `--format`           | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 模型版本号 |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID |
+| `--include-archived` | 布尔 | 否 | `false` | 是否包含归档版本 |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 参数组合：
 
@@ -92,13 +92,13 @@ datamind model show [<name>] [OPTIONS]
 datamind model activate [<name>] [OPTIONS]
 ```
 
-| 参数           | 类型   | 必需 | 默认值   | 说明                  |
-|----------------|--------|------|----------|-----------------------|
-| `<name>`       | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`   | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`    | 字符串 | 否   | `null`   | 模型版本号            |
-| `--version-id` | 字符串 | 否   | `null`   | 版本 ID               |
-| `--format`     | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 模型版本号 |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 参数组合：
 
@@ -119,13 +119,13 @@ datamind model activate [<name>] [OPTIONS]
 datamind model deactivate [<name>] [OPTIONS]
 ```
 
-| 参数           | 类型   | 必需 | 默认值   | 说明                  |
-|----------------|--------|------|----------|-----------------------|
-| `<name>`       | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`   | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`    | 字符串 | 否   | `null`   | 模型版本号            |
-| `--version-id` | 字符串 | 否   | `null`   | 版本 ID               |
-| `--format`     | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 模型版本号 |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 参数组合：
 
@@ -146,13 +146,13 @@ datamind model deactivate [<name>] [OPTIONS]
 datamind model deprecate [<name>] [OPTIONS]
 ```
 
-| 参数           | 类型   | 必需 | 默认值   | 说明                  |
-|----------------|--------|------|----------|-----------------------|
-| `<name>`       | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`   | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`    | 字符串 | 否   | `null`   | 模型版本号            |
-| `--version-id` | 字符串 | 否   | `null`   | 版本 ID               |
-| `--format`     | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 模型版本号 |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 参数组合：
 
@@ -171,15 +171,15 @@ datamind model deprecate [<name>] [OPTIONS]
 datamind model delete [<name>] [OPTIONS]
 ```
 
-| 参数           | 类型   | 必需 | 默认值   | 说明                  |
-|----------------|--------|------|----------|-----------------------|
-| `<name>`       | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`   | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`    | 字符串 | 否   | `null`   | 版本号（可选）        |
-| `--version-id` | 字符串 | 否   | `null`   | 版本 ID（可选）       |
-| `--reason`     | 字符串 | 否   | `null`   | 删除原因              |
-| `--yes`        | 布尔   | 否   | `false`  | 跳过确认              |
-| `--format`     | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 版本号（可选） |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID（可选） |
+| `--reason` | 字符串 | 否 | `null` | 删除原因 |
+| `--yes` | 布尔 | 否 | `false` | 跳过确认 |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`model.delete` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/model/delete.py)
 
@@ -193,13 +193,13 @@ datamind model delete [<name>] [OPTIONS]
 datamind model restore [<name>] [OPTIONS]
 ```
 
-| 参数           | 类型   | 必需 | 默认值   | 说明                  |
-|----------------|--------|------|----------|-----------------------|
-| `<name>`       | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`   | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`    | 字符串 | 否   | `null`   | 版本号                |
-| `--version-id` | 字符串 | 否   | `null`   | 版本 ID               |
-| `--format`     | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 版本号 |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`model.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/model/restore.py)
 
@@ -213,14 +213,14 @@ datamind model restore [<name>] [OPTIONS]
 datamind model purge [<name>] [OPTIONS]
 ```
 
-| 参数           | 类型   | 必需 | 默认值   | 说明                  |
-|----------------|--------|------|----------|-----------------------|
-| `<name>`       | 字符串 | 否   | `null`   | 模型名称              |
-| `--model-id`   | 字符串 | 否   | `null`   | 模型 ID               |
-| `--version`    | 字符串 | 否   | `null`   | 版本号                |
-| `--version-id` | 字符串 | 否   | `null`   | 版本 ID               |
-| `--reason`     | 字符串 | 否   | `null`   | 永久删除原因          |
-| `--yes`        | 布尔   | 否   | `false`  | 跳过不可逆操作确认    |
-| `--format`     | 字符串 | 否   | `"text"` | 输出格式：text / json |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `<name>` | 字符串 | 否 | `null` | 模型名称 |
+| `--model-id` | 字符串 | 否 | `null` | 模型 ID |
+| `--version` | 字符串 | 否 | `null` | 版本号 |
+| `--version-id` | 字符串 | 否 | `null` | 版本 ID |
+| `--reason` | 字符串 | 否 | `null` | 永久删除原因 |
+| `--yes` | 布尔 | 否 | `false` | 跳过不可逆操作确认 |
+| `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`model.delete` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/model/purge.py)

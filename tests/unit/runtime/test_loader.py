@@ -44,9 +44,7 @@ def test_loader_uses_default_dependencies(
     """测试已有 Bento 模型不要求对象存储在启动时可用."""
     storage = MagicMock()
     backend = MagicMock()
-    get_storage = MagicMock(
-        return_value=storage,
-    )
+    get_storage = MagicMock(return_value=storage)
     expected = object()
     backend.load.return_value = expected
     monkeypatch.setitem(
@@ -81,9 +79,7 @@ def test_loader_initializes_storage_after_bento_model_miss(
     """测试 Bento 模型缺失时才连接对象存储."""
     storage = MagicMock()
     storage.load_by_key.return_value = b"model-data"
-    get_storage = MagicMock(
-        return_value=storage,
-    )
+    get_storage = MagicMock(return_value=storage)
     backend = MagicMock()
     loaded_model = object()
     backend.load.side_effect = [
@@ -109,9 +105,7 @@ def test_loader_initializes_storage_after_bento_model_miss(
 
     assert result is loaded_model
     get_storage.assert_called_once_with()
-    storage.load_by_key.assert_called_once_with(
-        "models/mdl/ver/art/model.pkl",
-    )
+    storage.load_by_key.assert_called_once_with("models/mdl/ver/art/model.pkl")
 
 
 def test_loader_retries_storage_after_dependency_recovers(
@@ -160,9 +154,7 @@ def test_loader_retries_storage_after_dependency_recovers(
 
     assert result is loaded_model
     assert get_storage.call_count == 2
-    storage.load_by_key.assert_called_once_with(
-        "models/mdl/ver/art/model.pkl",
-    )
+    storage.load_by_key.assert_called_once_with("models/mdl/ver/art/model.pkl")
 
 
 def test_load_returns_existing_bento_model() -> None:
@@ -199,9 +191,7 @@ def test_load_materializes_missing_bento_model(
         loaded_model,
     ]
     artifact_model = object()
-    load_artifact = MagicMock(
-        return_value=artifact_model,
-    )
+    load_artifact = MagicMock(return_value=artifact_model)
     monkeypatch.setattr(
         ModelArtifactLoader,
         "load",
@@ -218,9 +208,7 @@ def test_load_materializes_missing_bento_model(
     )
 
     assert result is loaded_model
-    storage.load_by_key.assert_called_once_with(
-        "models/mdl/ver/art/model.pkl",
-    )
+    storage.load_by_key.assert_called_once_with("models/mdl/ver/art/model.pkl")
     load_artifact.assert_called_once_with(
         framework="sklearn",
         data=b"model-data",
@@ -393,9 +381,7 @@ def test_load_logs_failed_stage_without_masking_error(
     monkeypatch.setitem(
         vars(loader_module),
         "perf_counter",
-        MagicMock(
-            side_effect=[0.0, 0.01, 0.02, 0.05],
-        ),
+        MagicMock(side_effect=[0.0, 0.01, 0.02, 0.05]),
     )
 
     with capture_logs() as logs, pytest.raises(StorageConnectionError) as raised:

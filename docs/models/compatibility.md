@@ -4,12 +4,12 @@
 
 ## 框架、模型类型与文件格式
 
-| 框架     | 模型类型                   | 文件格式                     |
-|----------|----------------------------|------------------------------|
-| sklearn  | 逻辑回归、决策树、随机森林 | `.pkl`、`.pickle`、`.joblib` |
-| xgboost  | XGBoost                    | `.json`、`.ubj`、`.model`    |
-| lightgbm | LightGBM                   | `.txt`、`.model`             |
-| catboost | CatBoost                   | `.cbm`                       |
+| 框架 | 模型类型 | 文件格式 |
+| --- | --- | --- |
+| sklearn | 逻辑回归、决策树、随机森林 | `.pkl`、`.pickle`、`.joblib` |
+| xgboost | XGBoost | `.json`、`.ubj`、`.model` |
+| lightgbm | LightGBM | `.txt`、`.model` |
+| catboost | CatBoost | `.cbm` |
 
 > **提示**
 >
@@ -28,13 +28,13 @@
 
 注册时，平台读取模型的特征名称及顺序，生成输入 Schema。
 
-| 模型              | 特征名称来源                      |
-|-------------------|-----------------------------------|
-| scikit-learn 模型 | `feature_names_in_`               |
-| 评分卡模型        | `binning_process_.variable_names` |
-| XGBoost 模型      | `feature_names`                   |
-| LightGBM 模型     | `feature_name()`                  |
-| CatBoost 模型     | `feature_names_`                  |
+| 模型 | 特征名称来源 |
+| --- | --- |
+| scikit-learn 模型 | `feature_names_in_` |
+| 评分卡模型 | `binning_process_.variable_names` |
+| XGBoost 模型 | `feature_names` |
+| LightGBM 模型 | `feature_name()` |
+| CatBoost 模型 | `feature_names_` |
 
 > **提示**
 >
@@ -44,12 +44,12 @@
 
 训练完成后，按模型框架选择保存方式：
 
-| 模型                          | 保存方式                                                                       |
-|-------------------------------|--------------------------------------------------------------------------------|
-| scikit-learn 模型、评分卡模型 | 使用 `joblib.dump` 保存                                                        |
-| XGBoost 模型                  | 使用 `save_model` 保存                                                         |
-| LightGBM 模型                 | 使用 `save_model`（原生接口）或 `booster_.save_model`（scikit-learn 接口）保存 |
-| CatBoost 模型                 | 使用 `save_model` 保存                                                         |
+| 模型 | 保存方式 |
+| --- | --- |
+| scikit-learn 模型、评分卡模型 | 使用 `joblib.dump` 保存 |
+| XGBoost 模型 | 使用 `save_model` 保存 |
+| LightGBM 模型 | 使用 `save_model`（原生接口）或 `booster_.save_model`（scikit-learn 接口）保存 |
+| CatBoost 模型 | 使用 `save_model` 保存 |
 
 > **提示**
 >
@@ -61,13 +61,13 @@
 
 请保持训练与运行环境的依赖版本兼容，并在部署前验证模型能否正常加载和预测。
 
-| 依赖         | 版本要求     |
-|--------------|--------------|
-| scikit-learn | `>=1.6`      |
-| XGBoost      | `>=2.0`      |
-| LightGBM     | `>=4.0`      |
-| CatBoost     | `>=1.2`      |
-| optbinning   | `>=1.0,<2.0` |
+| 依赖 | 版本要求 |
+| --- | --- |
+| scikit-learn | `>=1.6` |
+| XGBoost | `>=2.0` |
+| LightGBM | `>=4.0` |
+| CatBoost | `>=1.2` |
+| optbinning | `>=1.0,<2.0` |
 
 上述版本要求用于安装依赖，模型能否正常运行仍需验证。具体要求以 `pyproject.toml` 为准。
 

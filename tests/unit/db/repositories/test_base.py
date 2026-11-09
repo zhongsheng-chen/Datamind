@@ -53,9 +53,7 @@ def create_repository(
     flush = AsyncMock()
     refresh = AsyncMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.add = add
     session_mock.add_all = add_all
     session_mock.delete = delete
@@ -113,9 +111,7 @@ def test_add() -> None:
         model
     )
 
-    add.assert_called_once_with(
-        model
-    )
+    add.assert_called_once_with(model)
 
 
 def test_add_all() -> None:
@@ -138,9 +134,7 @@ def test_add_all() -> None:
         models
     )
 
-    add_all.assert_called_once_with(
-        models
-    )
+    add_all.assert_called_once_with(models)
 
 
 def test_add_all_preserves_iterable() -> None:
@@ -170,9 +164,7 @@ def test_add_all_preserves_iterable() -> None:
         iterable
     )
 
-    add_all.assert_called_once_with(
-        iterable
-    )
+    add_all.assert_called_once_with(iterable)
 
 
 @pytest.mark.asyncio
@@ -193,9 +185,7 @@ async def test_delete() -> None:
         model
     )
 
-    delete.assert_awaited_once_with(
-        model
-    )
+    delete.assert_awaited_once_with(model)
 
 
 @pytest.mark.asyncio
@@ -234,6 +224,4 @@ async def test_refresh() -> None:
         model
     )
 
-    refresh.assert_awaited_once_with(
-        model
-    )
+    refresh.assert_awaited_once_with(model)

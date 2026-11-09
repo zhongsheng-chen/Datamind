@@ -302,6 +302,7 @@ def test_wheel_installs_and_serves_console(
     )
     assert import_result.exit_code == 0, import_result.error_output
     assert "datamind" in import_result.output
+
     help_result = wheel_command(
         [str(datamind), "--help"],
         cwd=tmp_path,
@@ -318,6 +319,7 @@ def test_wheel_installs_and_serves_console(
         timeout=90,
     )
     assert version_result.exit_code == 0, version_result.error_output
+
     expected_version = (
         f"commit {short_commit(build_commit)}, "
         f"built {build_date}"

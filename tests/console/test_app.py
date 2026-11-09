@@ -47,9 +47,7 @@ def replace_unit_of_work(
     unit_of_work = MagicMock()
     unit_of_work.__aenter__ = AsyncMock(return_value=unit_of_work)
     unit_of_work.__aexit__ = AsyncMock(return_value=False)
-    unit_of_work.session.execute = AsyncMock(
-        side_effect=execute_error,
-    )
+    unit_of_work.session.execute = AsyncMock(side_effect=execute_error)
     monkeypatch.setitem(
         vars(app_module),
         "UnitOfWork",

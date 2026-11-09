@@ -106,9 +106,7 @@ async def test_get_service_reconciles_and_caches_runtime_service(
     assert first is runtime_service
     assert second is runtime_service
     service.reconciler.reconcile_once.assert_awaited_once()
-    factory.assert_called_once_with(
-        runtime_model=runtime_model
-    )
+    factory.assert_called_once_with(runtime_model=runtime_model)
     cache_entry = runtime_server.get_service_cache(service)["dep_test"]
     instance_id = cache_entry.instance_id
     assert len(instance_id) == 32
@@ -127,6 +125,7 @@ async def test_get_service_reconciles_and_caches_runtime_service(
     service.manager.registry.get.side_effect = None
     service.manager.registry.get.return_value = runtime_model
     service.reconciler.get_applied_generation.return_value = 3
+
     await service._get_service("dep_test")
     replacement = runtime_server.get_service_cache(service)["dep_test"]
     assert replacement.instance_id != instance_id

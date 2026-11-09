@@ -8,52 +8,46 @@
     验证按角色 ID 或名称查询
   - test_get_role_rejects_invalid_conditions:
     验证查询条件必须且只能提供一个
-  - test_list_roles_builds_query:
-    验证角色列表筛选、排序和分页
   - test_list_active_roles_delegates_to_list_roles:
     验证活跃角色列表复用通用查询
-  - test_role_patch:
-    验证角色更新结构
   - test_create_role:
     验证创建角色
   - test_update_role:
     验证角色基础信息更新
   - test_replace_permissions:
     验证替换和清空角色权限
-  - test_role_status_transitions:
-    验证角色启用和停用
   - test_restore_role:
     验证恢复已逻辑删除的角色
   - test_get_role_returns_none_when_not_found:
-    测试角色不存在时返回 None
+    验证角色不存在时返回 None
   - test_list_roles_uses_default_order_and_limit:
-    测试角色列表默认排序和数量限制
+    验证角色列表默认排序和数量限制
   - test_list_roles_builds_filtered_query:
-    测试角色列表筛选、排序和分页
+    验证角色列表筛选、排序和分页
   - test_list_roles_allows_unlimited_query:
-    测试角色列表允许不设置分页
+    验证角色列表允许不设置分页
   - test_role_patch_uses_slots_and_defaults:
-    测试角色更新结构默认值和 slots
+    验证角色更新结构默认值和 slots
   - test_create_role_uses_defaults:
-    测试创建角色默认状态和可选字段
+    验证创建角色默认状态和可选字段
   - test_create_inactive_role:
-    测试创建停用角色时转换枚举值
+    验证创建停用角色时转换枚举值
   - test_update_role_ignores_none_fields:
-    测试角色更新忽略值为 None 的字段
+    验证角色更新忽略值为 None 的字段
   - test_replace_permissions_with_empty_list:
-    测试使用空列表移除全部权限
+    验证使用空列表移除全部权限
   - test_replace_permissions_with_none:
-    测试使用 None 清空角色权限配置
+    验证使用 None 清空角色权限配置
   - test_activate_role:
-    测试启用角色
+    验证启用角色
   - test_deactivate_role:
-    测试停用角色
+    验证停用角色
   - test_replace_description_allows_clearing:
-    测试角色描述可以更新或清空
+    验证角色描述可以更新或清空
   - test_mark_deleted_role:
-    测试逻辑删除角色并保留授权历史
+    验证逻辑删除角色并保留授权历史
   - test_role_status_update_preserves_existing_updated_by:
-    测试未提供更新人时保留原更新人
+    验证未提供更新人时保留原更新人
 """
 
 from datetime import (
@@ -145,12 +139,8 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
-    session = MagicMock(
-        spec=AsyncSession
-    )
+    execute = AsyncMock(return_value=result)
+    session = MagicMock(spec=AsyncSession)
     session.execute = execute
 
     repository = RoleRepository(
@@ -385,9 +375,7 @@ async def test_list_active_roles_delegates_to_list_roles(
         create_role()
     ]
     repository, _, _ = create_repository()
-    list_roles = AsyncMock(
-        return_value=roles
-    )
+    list_roles = AsyncMock(return_value=roles)
 
     monkeypatch.setattr(
         repository,
@@ -437,9 +425,7 @@ def test_create_role() -> None:
         created_by="usr_admin",
     )
 
-    session.add.assert_called_once_with(
-        role
-    )
+    session.add.assert_called_once_with(role)
     assert role.role_id == "rol_0123456789abcdef"
     assert role.name == "admin"
     assert role.description == "系统管理员"
@@ -458,9 +444,7 @@ def test_create_role_uses_defaults() -> None:
         name="reader",
     )
 
-    session.add.assert_called_once_with(
-        role
-    )
+    session.add.assert_called_once_with(role)
     assert role.description is None
     assert role.permissions is None
     assert role.status == "active"

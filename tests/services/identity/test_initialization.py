@@ -92,16 +92,10 @@ def configure_service(
 ]:
     """配置系统初始化服务仓储替身."""
     state_repo = MagicMock()
-    state_repo.get_or_create_state = AsyncMock(
-        return_value=state
-    )
-    state_repo.get_state = AsyncMock(
-        return_value=state
-    )
+    state_repo.get_or_create_state = AsyncMock(return_value=state)
+    state_repo.get_state = AsyncMock(return_value=state)
     user_repo = MagicMock()
-    user_repo.list_users = AsyncMock(
-        return_value=users or []
-    )
+    user_repo.list_users = AsyncMock(return_value=users or [])
     user_repo.create_user.return_value = User(
         user_id="usr_test",
         username="admin",
@@ -109,9 +103,7 @@ def configure_service(
         status="active",
     )
     role_repo = MagicMock()
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
     grant_repo = MagicMock()
     audit_repo = MagicMock()
 
@@ -188,9 +180,7 @@ async def test_is_initialized_reads_system_state(
     )
 
     assert await InitializationService.is_initialized() is True
-    state_repo.get_state.assert_awaited_once_with(
-        system_id="datamind"
-    )
+    state_repo.get_state.assert_awaited_once_with(system_id="datamind")
 
 
 @pytest.mark.asyncio
@@ -244,6 +234,7 @@ async def test_initialize_creates_admin_identity(
     )
     created_user = user_repo.create_user.return_value
     assert created_user.password_changed_at == CURRENT_TIME
+
     role_calls = role_repo.create_role.call_args_list
     assert len(role_calls) == 5
     assert {call.kwargs["name"] for call in role_calls} == set(BUILTIN_ROLE_PERMISSIONS)

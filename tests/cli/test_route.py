@@ -90,16 +90,10 @@ def configure_module(
 ) -> tuple[MagicMock, MagicMock, MagicMock]:
     """配置路由命令依赖."""
     routing_repo = MagicMock()
-    routing_repo.get_routing = AsyncMock(
-        return_value=create_route()
-    )
-    routing_repo.list_routings = AsyncMock(
-        return_value=[create_route()]
-    )
+    routing_repo.get_routing = AsyncMock(return_value=create_route())
+    routing_repo.list_routings = AsyncMock(return_value=[create_route()])
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        return_value=create_deployment()
-    )
+    deployment_repo.get_deployment = AsyncMock(return_value=create_deployment())
     console = MagicMock()
     namespace = vars(module)
     monkeypatch.setitem(namespace, "UnitOfWork", FakeUnitOfWork)

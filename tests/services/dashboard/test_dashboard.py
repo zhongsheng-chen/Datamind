@@ -24,55 +24,55 @@
   - test_decision_item_includes_trace_and_route_details:
     验证决策执行详情
   - test_build_request_trend_preserves_outcomes:
-    测试 API 调用趋势区分成功和失败次数
+    验证 API 调用趋势区分成功和失败次数
   - test_role_item_marks_builtin_role:
-    测试控制台角色摘要标识内置角色
+    验证控制台角色摘要标识内置角色
   - test_resolve_request_trend_period:
-    测试趋势时间范围映射到固定聚合粒度
+    验证趋势时间范围映射到固定聚合粒度
   - test_resolve_request_trend_period_rejects_unknown_range:
-    测试拒绝不支持的趋势时间范围
+    验证拒绝不支持的趋势时间范围
   - test_build_request_summary_calculates_core_metrics:
-    测试 API 调用核心指标计算成功率和周期变化
+    验证 API 调用核心指标计算成功率和周期变化
   - test_build_model_usage_calculates_recent_metrics:
-    测试模型调用概况计算最近表现和累计调用量
+    验证模型调用概况计算最近表现和累计调用量
   - test_get_model_versions_supports_recycle_bin:
-    测试模型版本分页可以仅返回逻辑删除记录
+    验证模型版本分页可以仅返回逻辑删除记录
   - test_get_model_versions_rejects_invalid_page:
-    测试模型版本分页拒绝非法页码
+    验证模型版本分页拒绝非法页码
   - test_get_experiment_variants_searches_and_sorts:
-    测试实验分组查询和排序在数据库分页前完成
+    验证实验分组查询和排序在数据库分页前完成
   - test_get_experiment_variants_supports_recycle_bin:
-    测试实验详情中的分组回收站仅查询已删除记录
+    验证实验详情中的分组回收站仅查询已删除记录
   - test_get_section_searches_by_keyword:
-    测试页面查询使用规范化关键词和统一分页
+    验证页面查询使用规范化关键词和统一分页
   - test_get_section_returns_deleted_versions:
-    测试全局版本回收站仅返回已逻辑删除版本
+    验证全局版本回收站仅返回已逻辑删除版本
   - test_get_section_returns_deleted_models:
-    测试模型回收站仅返回整体逻辑删除的模型
+    验证模型回收站仅返回整体逻辑删除的模型
   - test_get_section_filters_selected_records:
-    测试页面查询可限定为待导出的已选记录
+    验证页面查询可限定为待导出的已选记录
   - test_get_section_sorts_before_pagination:
-    测试页面排序由数据库查询在分页前完成
+    验证页面排序由数据库查询在分页前完成
   - test_get_section_normalizes_multiple_sort_fields:
-    测试页面查询规范化多字段排序参数
+    验证页面查询规范化多字段排序参数
   - test_deployment_item_includes_model_labels:
-    测试部署摘要包含模型名称和版本号
+    验证部署摘要包含模型名称和版本号
   - test_routing_item_uses_current_deployment_release_values:
-    测试路由摘要以关联部署的当前发布信息为准
+    验证路由摘要以关联部署的当前发布信息为准
   - test_runtime_item_includes_deployment_labels:
-    测试运行实例摘要包含模型和部署角色
+    验证运行实例摘要包含模型和部署角色
   - test_runtime_item_reports_unhealthy_worker:
-    测试过期心跳仅影响健康状态并格式化 Worker 名称
+    验证过期心跳仅影响健康状态并格式化 Worker 名称
   - test_experiment_item_includes_variant_count:
-    测试实验摘要包含分组数量和更新时间
+    验证实验摘要包含分组数量和更新时间
   - test_variant_item_includes_experiment_and_model_labels:
-    测试分组摘要包含实验名称和部署绑定的模型版本
+    验证分组摘要包含实验名称和部署绑定的模型版本
   - test_variant_item_does_not_invent_experiment_allocation:
-    测试实验分流配置缺失时不伪造默认值
+    验证实验分流配置缺失时不伪造默认值
   - test_request_item_includes_model_and_decision_details:
-    测试 API 调用摘要包含模型、决策和预测详情
+    验证 API 调用摘要包含模型、决策和预测详情
   - test_batch_item_includes_progress_and_payload:
-    测试批次摘要包含进度、请求负载和执行结果
+    验证批次摘要包含进度、请求负载和执行结果
 """
 
 from datetime import (
@@ -140,69 +140,25 @@ def install_repositories(
         "UserRepository": MagicMock(),
         "RoleRepository": MagicMock(),
     }
-    repositories["MetadataRepository"].list_models = AsyncMock(
-        return_value=[]
-    )
-    repositories["MetadataRepository"].get_model = AsyncMock(
-        return_value=None
-    )
-    repositories["VersionRepository"].list_versions = AsyncMock(
-        return_value=[]
-    )
-    repositories["VersionRepository"].get_version = AsyncMock(
-        return_value=None
-    )
-    repositories["ScorecardRepository"].get_scorecard = AsyncMock(
-        return_value=None
-    )
-    repositories["DashboardRepository"].get_counts = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].count_records = AsyncMock(
-        return_value=3
-    )
-    repositories["DashboardRepository"].search_records = AsyncMock(
-        return_value=[]
-    )
-    repositories["DashboardRepository"].get_deployment_labels = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_version_labels = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_experiment_labels = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_variant_labels = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_request_details = AsyncMock(
-        return_value={}
-    )
-    repositories[
-        "DashboardRepository"
-    ].get_batch_deployment_stats = AsyncMock(
-        return_value={}
-    )
-    repositories[
-        "DashboardRepository"
-    ].get_attempt_shard_details = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_decision_details = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_execution_details = AsyncMock(
-        return_value={}
-    )
-    repositories[
-        "DashboardRepository"
-    ].get_decision_executions = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_request_trend = AsyncMock(
-        return_value=[]
-    )
+    repositories["MetadataRepository"].list_models = AsyncMock(return_value=[])
+    repositories["MetadataRepository"].get_model = AsyncMock(return_value=None)
+    repositories["VersionRepository"].list_versions = AsyncMock(return_value=[])
+    repositories["VersionRepository"].get_version = AsyncMock(return_value=None)
+    repositories["ScorecardRepository"].get_scorecard = AsyncMock(return_value=None)
+    repositories["DashboardRepository"].get_counts = AsyncMock(return_value={})
+    repositories["DashboardRepository"].count_records = AsyncMock(return_value=3)
+    repositories["DashboardRepository"].search_records = AsyncMock(return_value=[])
+    repositories["DashboardRepository"].get_deployment_labels = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_version_labels = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_experiment_labels = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_variant_labels = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_request_details = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_batch_deployment_stats = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_attempt_shard_details = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_decision_details = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_execution_details = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_decision_executions = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_request_trend = AsyncMock(return_value=[])
     repositories["DashboardRepository"].get_request_metrics = AsyncMock(
         return_value={
             "request_count": 0,
@@ -213,54 +169,22 @@ def install_repositories(
             "previous_request_count": 0,
         }
     )
-    repositories["DashboardRepository"].get_model_request_stats = AsyncMock(
-        return_value=[]
-    )
-    repositories["DashboardRepository"].get_variant_counts = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].get_user_roles = AsyncMock(
-        return_value={}
-    )
-    repositories["DashboardRepository"].search_variants = AsyncMock(
-        return_value=[]
-    )
-    repositories["DeploymentRepository"].list_deployments = AsyncMock(
-        return_value=[]
-    )
-    repositories["RoutingRepository"].list_routings = AsyncMock(
-        return_value=[]
-    )
-    repositories["RuntimeRepository"].list_runtimes = AsyncMock(
-        return_value=[]
-    )
-    repositories["RequestRepository"].list_requests = AsyncMock(
-        return_value=[]
-    )
-    repositories["DecisionRepository"].list_decisions = AsyncMock(
-        return_value=[]
-    )
-    repositories["ExecutionRepository"].list_executions = AsyncMock(
-        return_value=[]
-    )
-    repositories["ExperimentRepository"].list_experiments = AsyncMock(
-        return_value=[]
-    )
-    repositories["ExperimentRepository"].get_experiment = AsyncMock(
-        return_value=None
-    )
-    repositories["VariantRepository"].list_variants = AsyncMock(
-        return_value=[]
-    )
-    repositories["AuditRepository"].list_audits = AsyncMock(
-        return_value=[]
-    )
-    repositories["UserRepository"].list_users = AsyncMock(
-        return_value=[]
-    )
-    repositories["RoleRepository"].list_roles = AsyncMock(
-        return_value=[]
-    )
+    repositories["DashboardRepository"].get_model_request_stats = AsyncMock(return_value=[])
+    repositories["DashboardRepository"].get_variant_counts = AsyncMock(return_value={})
+    repositories["DashboardRepository"].get_user_roles = AsyncMock(return_value={})
+    repositories["DashboardRepository"].search_variants = AsyncMock(return_value=[])
+    repositories["DeploymentRepository"].list_deployments = AsyncMock(return_value=[])
+    repositories["RoutingRepository"].list_routings = AsyncMock(return_value=[])
+    repositories["RuntimeRepository"].list_runtimes = AsyncMock(return_value=[])
+    repositories["RequestRepository"].list_requests = AsyncMock(return_value=[])
+    repositories["DecisionRepository"].list_decisions = AsyncMock(return_value=[])
+    repositories["ExecutionRepository"].list_executions = AsyncMock(return_value=[])
+    repositories["ExperimentRepository"].list_experiments = AsyncMock(return_value=[])
+    repositories["ExperimentRepository"].get_experiment = AsyncMock(return_value=None)
+    repositories["VariantRepository"].list_variants = AsyncMock(return_value=[])
+    repositories["AuditRepository"].list_audits = AsyncMock(return_value=[])
+    repositories["UserRepository"].list_users = AsyncMock(return_value=[])
+    repositories["RoleRepository"].list_roles = AsyncMock(return_value=[])
 
     monkeypatch.setitem(
         vars(dashboard_module),
@@ -405,18 +329,18 @@ async def test_snapshot_serializes_authorized_records(
     ].get_counts.return_value = {
         "models": 1,
         "versions": 1,
-            "deployments": 0,
-            "routings": 0,
-            "runtimes": 0,
-            "requests": 0,
-            "decisions": 0,
-            "executions": 0,
-            "experiments": 0,
-            "variants": 0,
-            "audits": 33,
-            "users": 0,
-            "roles": 0,
-        }
+        "deployments": 0,
+        "routings": 0,
+        "runtimes": 0,
+        "requests": 0,
+        "decisions": 0,
+        "executions": 0,
+        "experiments": 0,
+        "variants": 0,
+        "audits": 33,
+        "users": 0,
+        "roles": 0,
+    }
 
     result = await DashboardService().snapshot(
         permissions=["*"],
@@ -1409,9 +1333,7 @@ async def test_get_section_returns_page(
         if repository_name != "DashboardRepository":
             method.assert_not_awaited()
     else:
-        method.assert_awaited_once_with(
-            **expected_arguments
-        )
+        method.assert_awaited_once_with(**expected_arguments)
     assert result["items"][0][identifier] == getattr(
         record,
         identifier,

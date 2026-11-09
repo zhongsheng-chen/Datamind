@@ -14,7 +14,7 @@
   - test_runtime_config_is_frozen:
     验证运行时配置不可修改
   - test_runtime_config_ignores_extra_fields:
-    测试忽略未声明的额外字段
+    验证忽略未声明的额外字段
 """
 
 import os

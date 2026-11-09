@@ -14,15 +14,15 @@
   - test_match_supports_value_operators:
     验证值比较操作符
   - test_match_rejects_unknown_rule_shape:
-    测试未知条件结构不会默认命中
+    验证未知条件结构不会默认命中
   - test_metadata_only_rules_match:
-    测试受支持的路由元信息不作为过滤条件
+    验证受支持的路由元信息不作为过滤条件
   - test_validate_accepts_empty_conditions:
-    测试空条件数组表示不进行过滤
+    验证空条件数组表示不进行过滤
   - test_match_resolves_array_index_and_missing_path:
-    测试数组索引和缺失字段路径
+    验证数组索引和缺失字段路径
   - test_match_supports_existence_operators:
-    测试字段存在性和空值操作符
+    验证字段存在性和空值操作符
 """
 
 from typing import Any

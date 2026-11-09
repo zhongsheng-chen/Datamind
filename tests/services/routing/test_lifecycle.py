@@ -114,9 +114,7 @@ async def test_primary_routing_allocation_over_100_percent_is_rejected(
         ],
     )
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        return_value=existing_deployment,
-    )
+    deployment_repo.get_deployment = AsyncMock(return_value=existing_deployment)
 
     with pytest.raises(ValueError, match="达到 110.00%"):
         await validate_routing_allocation(
@@ -219,22 +217,14 @@ async def test_routing_success_log_requires_committed_transaction(
         else None
     )
     repository = MagicMock()
-    repository.get_routing = AsyncMock(
-        return_value=routing,
-    )
-    repository.list_routings = AsyncMock(
-        return_value=[],
-    )
+    repository.get_routing = AsyncMock(return_value=routing)
+    repository.list_routings = AsyncMock(return_value=[])
     repository.create_routing.return_value = routing
     deployments = MagicMock()
-    deployments.get_deployment = AsyncMock(
-        return_value=create_deployment("dep_test"),
-    )
+    deployments.get_deployment = AsyncMock(return_value=create_deployment("dep_test"))
     lifecycle_logger = MagicMock()
     uow = MagicMock()
-    uow.__aenter__ = AsyncMock(
-        return_value=uow,
-    )
+    uow.__aenter__ = AsyncMock(return_value=uow)
 
     async def commit(
             *_arguments: object,
@@ -244,9 +234,7 @@ async def test_routing_success_log_requires_committed_transaction(
             raise RuntimeError("commit failed")
         return False
 
-    uow.__aexit__ = AsyncMock(
-        side_effect=commit,
-    )
+    uow.__aexit__ = AsyncMock(side_effect=commit)
     monkeypatch.setitem(
         vars(routing_module),
         "UnitOfWork",

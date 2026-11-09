@@ -9,8 +9,6 @@
     验证主入口列出全部命令组
   - test_main_version_reports_build_identity:
     验证版本命令仅为正式构建展示 Commit 与 Build Date
-  - test_init_help_lists_initialization_options:
-    验证系统初始化命令可用
   - test_main_help_lists_session_commands:
     验证顶层登录会话命令可用
   - test_identity_help_lists_management_commands:
@@ -18,13 +16,13 @@
   - test_business_command_help_is_available:
     验证全部业务命令能够生成帮助信息
   - test_service_and_runtime_commands_have_separate_responsibilities:
-    测试服务进程与运行状态命令边界清晰
+    验证服务进程与运行状态命令边界清晰
   - test_cli_uses_configured_service_environment:
-    测试单环境 CLI 不公开环境参数
+    验证单环境 CLI 不公开环境参数
   - test_init_help_does_not_list_credential_options:
-    测试系统初始化命令不公开管理员凭据参数
+    验证系统初始化命令不公开管理员凭据参数
   - test_removed_feedback_command_is_unavailable:
-    测试 CLI 不再公开业务结果提交入口
+    验证 CLI 不再公开业务结果提交入口
 """
 
 from unittest.mock import MagicMock
@@ -187,9 +185,7 @@ def test_main_initializes_configured_logging(
 
     main_module.main()
 
-    setup_logging.assert_called_once_with(
-        logging_config
-    )
+    setup_logging.assert_called_once_with(logging_config)
 
 
 def test_main_help_lists_command_groups() -> None:
@@ -267,8 +263,6 @@ def test_main_help_lists_session_commands() -> None:
         assert command in result.stdout
 
 
-
-
 def test_identity_help_lists_management_commands() -> None:
     """测试用户和角色命令列出完整管理操作."""
     user_result = runner.invoke(
@@ -332,5 +326,6 @@ def test_business_command_help_is_available(
 def test_removed_feedback_command_is_unavailable() -> None:
     """测试 CLI 不再公开业务结果提交入口."""
     result = runner.invoke(app, ["outcome", "--help"])
+
     assert result.exit_code != 0
     assert "No such command" in result.output

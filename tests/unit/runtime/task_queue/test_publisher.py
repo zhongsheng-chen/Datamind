@@ -10,7 +10,7 @@
   - test_revoke_delegates_to_celery_control:
     验证任务撤销委托给 Celery 控制面
   - test_submit_batch_chunk_uses_batch_queue:
-    测试批量分片带全局下标范围发布
+    验证批量分片带全局下标范围发布
 """
 
 from unittest.mock import MagicMock, patch
@@ -104,6 +104,4 @@ def test_revoke_delegates_to_celery_control() -> None:
     ):
         TaskPublisher.revoke("tsk_test")
 
-    celery_app.control.revoke.assert_called_once_with(
-        "tsk_test"
-    )
+    celery_app.control.revoke.assert_called_once_with("tsk_test")

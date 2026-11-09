@@ -361,13 +361,9 @@ async def test_create_user_creates_identity_and_initial_grants(
     )
     user = create_user()
     role = create_role()
-    user_repo.get_user = AsyncMock(
-        return_value=None
-    )
+    user_repo.get_user = AsyncMock(return_value=None)
     user_repo.create_user.return_value = user
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
 
     result = await IdentityService().create_user(
         username=" analyst ",
@@ -421,15 +417,9 @@ async def test_create_user_restores_deleted_user(
     grant = create_grant(
         status="revoked"
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
-    grant_repo.get_grant = AsyncMock(
-        return_value=grant
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    role_repo.get_role = AsyncMock(return_value=role)
+    grant_repo.get_grant = AsyncMock(return_value=grant)
 
     result = await IdentityService().create_user(
         username="analyst",
@@ -541,9 +531,7 @@ async def test_create_role_restores_deleted_role(
         deleted_by="usr_admin",
         deletion_reason="角色停用",
     )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
 
     result = await IdentityService().create_role(
         name="developer",
@@ -611,9 +599,7 @@ async def test_enable_role_activates_role(
         name="developer",
         status="inactive",
     )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
 
     result = await IdentityService().enable_role(
         name="developer",
@@ -640,9 +626,7 @@ async def test_disable_role_deactivates_role(
     role = create_role(
         name="developer"
     )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
 
     result = await IdentityService().disable_role(
         name="developer",
@@ -692,12 +676,8 @@ async def test_reset_password_revokes_existing_sessions(
         monkeypatch
     )
     user = create_user()
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    token_repo.revoke_user_tokens = AsyncMock(
-        return_value=[]
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    token_repo.revoke_user_tokens = AsyncMock(return_value=[])
 
     result = await IdentityService().reset_password(
         username="analyst",
@@ -728,9 +708,7 @@ async def test_disable_user_rejects_current_operator(
     user_repo, _, _, _, _ = configure_service(
         monkeypatch
     )
-    user_repo.get_user = AsyncMock(
-        return_value=create_user()
-    )
+    user_repo.get_user = AsyncMock(return_value=create_user())
 
     with pytest.raises(
             IdentityConflictError,
@@ -787,9 +765,7 @@ async def test_delete_user_revokes_grants_and_sessions(
     )
     user = create_user()
     grant = create_grant()
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
     role_repo.get_role = AsyncMock(
         side_effect=[
             None,
@@ -806,9 +782,7 @@ async def test_delete_user_revokes_grants_and_sessions(
             ],
         ]
     )
-    token_repo.revoke_user_tokens = AsyncMock(
-        return_value=[]
-    )
+    token_repo.revoke_user_tokens = AsyncMock(return_value=[])
 
     result = await IdentityService().delete_user(
         username="analyst",
@@ -846,21 +820,15 @@ async def test_delete_user_accepts_missing_reason(
         monkeypatch
     )
     user = create_user()
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    role_repo.get_role = AsyncMock(
-        return_value=None
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    role_repo.get_role = AsyncMock(return_value=None)
     grant_repo.list_active_grants = AsyncMock(
         side_effect=[
             [],
             [],
         ]
     )
-    token_repo.revoke_user_tokens = AsyncMock(
-        return_value=[]
-    )
+    token_repo.revoke_user_tokens = AsyncMock(return_value=[])
 
     await IdentityService().delete_user(
         username="analyst",
@@ -958,15 +926,9 @@ async def test_disable_user_preserves_last_administrator(
         user_id="usr_admin",
         role_id="rol_admin",
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
-    grant_repo.get_grant = AsyncMock(
-        return_value=grant
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    role_repo.get_role = AsyncMock(return_value=role)
+    grant_repo.get_grant = AsyncMock(return_value=grant)
     grant_repo.list_active_grants = AsyncMock(
         return_value=[
             grant
@@ -997,15 +959,9 @@ async def test_grant_role_reactivates_existing_grant(
     grant = create_grant(
         status="revoked"
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
-    grant_repo.get_grant = AsyncMock(
-        return_value=grant
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    role_repo.get_role = AsyncMock(return_value=role)
+    grant_repo.get_grant = AsyncMock(return_value=grant)
 
     result = await IdentityService().grant_role(
         username="analyst",
@@ -1040,15 +996,9 @@ async def test_grant_role_allows_administrator(
     grant = create_grant(
         role_id=role.role_id
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
-    grant_repo.get_grant = AsyncMock(
-        return_value=None
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    role_repo.get_role = AsyncMock(return_value=role)
+    grant_repo.get_grant = AsyncMock(return_value=None)
     grant_repo.create_grant.return_value = grant
 
     result = await IdentityService().grant_role(
@@ -1085,15 +1035,9 @@ async def test_revoke_role_preserves_last_administrator(
         user_id=user.user_id,
         role_id=role.role_id,
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
-    grant_repo.get_grant = AsyncMock(
-        return_value=grant
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    role_repo.get_role = AsyncMock(return_value=role)
+    grant_repo.get_grant = AsyncMock(return_value=grant)
     grant_repo.list_active_grants = AsyncMock(
         return_value=[
             grant
@@ -1136,9 +1080,7 @@ async def test_delete_role_rejects_reserved_or_assigned_role(
     _, role_repo, grant_repo, _, _ = configure_service(
         monkeypatch
     )
-    role_repo.get_role = AsyncMock(
-        return_value=create_role()
-    )
+    role_repo.get_role = AsyncMock(return_value=create_role())
     grant_repo.list_active_grants = AsyncMock(
         return_value=[
             create_grant()
@@ -1166,12 +1108,8 @@ async def test_delete_role_accepts_missing_reason(
         monkeypatch
     )
     role = create_role()
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
-    grant_repo.list_active_grants = AsyncMock(
-        return_value=[]
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
+    grant_repo.list_active_grants = AsyncMock(return_value=[])
 
     await IdentityService().delete_role(
         name="model-reader",
@@ -1208,9 +1146,7 @@ async def test_update_user_replaces_profile(
             None,
         ]
     )
-    grant_repo.list_active_grants = AsyncMock(
-        return_value=[]
-    )
+    grant_repo.list_active_grants = AsyncMock(return_value=[])
 
     result = await IdentityService(
         audit_source=AuditSource.HTTP,
@@ -1306,9 +1242,7 @@ async def test_update_user_replaces_roles(
 
         return None
 
-    role_repo.get_role = AsyncMock(
-        side_effect=get_role
-    )
+    role_repo.get_role = AsyncMock(side_effect=get_role)
     grant_repo.list_active_grants = AsyncMock(
         side_effect=[
             [
@@ -1319,9 +1253,7 @@ async def test_update_user_replaces_roles(
             ],
         ]
     )
-    grant_repo.get_grant = AsyncMock(
-        return_value=None
-    )
+    grant_repo.get_grant = AsyncMock(return_value=None)
 
     result = await IdentityService().update_user(
         username="analyst",
@@ -1386,9 +1318,7 @@ async def test_update_builtin_user_rejects_identity_changes(
             identity_module.SYSTEM_BOOTSTRAP_ACTOR
         ),
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
 
     with pytest.raises(
             IdentityConflictError,
@@ -1420,9 +1350,7 @@ async def test_update_builtin_user_requires_administrator_role(
             identity_module.SYSTEM_BOOTSTRAP_ACTOR
         ),
     )
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
 
     with pytest.raises(
             IdentityConflictError,
@@ -1458,12 +1386,8 @@ async def test_change_password_verifies_current_password(
         monkeypatch
     )
     user = create_user()
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
-    token_repo.revoke_user_tokens = AsyncMock(
-        return_value=[]
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
+    token_repo.revoke_user_tokens = AsyncMock(return_value=[])
     monkeypatch.setitem(
         vars(identity_module),
         "verify_password",
@@ -1506,9 +1430,7 @@ async def test_update_role_replaces_description_and_permissions(
     role = create_role(
         name="developer"
     )
-    role_repo.get_role = AsyncMock(
-        return_value=role
-    )
+    role_repo.get_role = AsyncMock(return_value=role)
 
     result = await IdentityService().update_role(
         name="developer",

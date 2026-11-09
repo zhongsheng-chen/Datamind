@@ -151,6 +151,7 @@ async def test_runtime_manager_loads_reuses_and_unloads_deployment(
     )
 
     probability = loaded.model.predict_proba([[0.75, 1.25]])[0, 1]
+
     status = await manager.get_status(deployment["deployment_id"])
 
     assert 0.0 <= probability <= 1.0
@@ -241,4 +242,5 @@ async def test_runtime_manager_reports_missing_or_invalid_artifact(
     assert deployment["deployment_id"] not in manager.registry
 
     status = await manager.get_status(deployment["deployment_id"])
+
     assert status["runtime"]["status"] == "failed"

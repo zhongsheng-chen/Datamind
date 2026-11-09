@@ -132,17 +132,11 @@ def configure_reconciler(
     manager.reload = AsyncMock()
     manager.unload = AsyncMock()
     control_repo = MagicMock()
-    control_repo.list_controls = AsyncMock(
-        return_value=controls or [],
-    )
+    control_repo.list_controls = AsyncMock(return_value=controls or [])
     runtime_repo = MagicMock()
-    runtime_repo.get_deployment_runtime = AsyncMock(
-        return_value=None,
-    )
+    runtime_repo.get_deployment_runtime = AsyncMock(return_value=None)
     runtime_repo.set_applied_generation = AsyncMock()
-    runtime_repo.mark_stale_runtimes_failed = AsyncMock(
-        return_value=[],
-    )
+    runtime_repo.mark_stale_runtimes_failed = AsyncMock(return_value=[])
     monkeypatch.setitem(
         vars(reconciler_module),
         "UnitOfWork",
@@ -334,7 +328,9 @@ async def test_reconcile_restarts_changed_generation(
         controls=[control],
         local_loaded=True,
     )
+
     await reconciler.reconcile_once()
+
     control.generation = 2
     control_repo.list_controls.return_value = [control]
 
@@ -491,9 +487,7 @@ async def test_reconcile_heartbeats_loaded_runtime(
     await reconciler.reconcile_once()
     await reconciler.reconcile_once()
 
-    runtime_repo.heartbeat.assert_called_once_with(
-        runtime,
-    )
+    runtime_repo.heartbeat.assert_called_once_with(runtime)
     runtime_repo.mark_stale_runtimes_failed.assert_awaited_once()
     cleanup_arguments = (
         runtime_repo.mark_stale_runtimes_failed.await_args
@@ -557,9 +551,7 @@ async def test_reconciler_start_and_stop_are_idempotent(
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
     )
-    reconcile_once = AsyncMock(
-        return_value=ReconcileResult(),
-    )
+    reconcile_once = AsyncMock(return_value=ReconcileResult())
     monkeypatch.setattr(
         reconciler,
         "reconcile_once",
@@ -697,7 +689,7 @@ async def test_normal_heartbeat_does_not_log_success(
 async def test_heartbeat_failure_logs_are_rate_limited(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证正常调度不变，重复错误被限频但失败次数完整累计."""
+    """测试正常调度不变，重复错误被限频但失败次数完整累计."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
     )
@@ -747,7 +739,7 @@ async def test_heartbeat_failure_logs_are_rate_limited(
 async def test_heartbeat_changed_error_is_logged_immediately(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证异常类型或消息变化时，即使未到一分钟也保留新错误堆栈."""
+    """测试异常类型或消息变化时，即使未到一分钟也保留新错误堆栈."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
     )
@@ -781,7 +773,7 @@ async def test_heartbeat_changed_error_is_logged_immediately(
 async def test_heartbeat_recovery_is_logged_once_and_resets_failures(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证恢复完成后清空故障状态，再次失败不会被上次故障限频."""
+    """测试恢复完成后清空故障状态，再次失败不会被上次故障限频."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
     )
@@ -807,6 +799,7 @@ async def test_heartbeat_recovery_is_logged_once_and_resets_failures(
 
     reconciler._heartbeat_loaded_runtimes.side_effect = None
     clock.now = 110.0
+
     await reconciler._heartbeat_if_due(
         [],
     )
@@ -822,16 +815,20 @@ async def test_heartbeat_recovery_is_logged_once_and_resets_failures(
     assert reconciler._last_heartbeat_error is None
 
     clock.now = 140.0
+
     await reconciler._heartbeat_if_due(
         [],
     )
+
     assert reconciler._logger.info.call_count == 1
 
     clock.now = 170.0
     reconciler._heartbeat_loaded_runtimes.side_effect = SQLAlchemyError("unavailable")
+
     await reconciler._heartbeat_if_due(
         [],
     )
+
     assert reconciler._logger.exception.call_count == 2
     assert reconciler._logger.exception.call_args.kwargs["failure_count"] == 1
 
@@ -840,7 +837,7 @@ async def test_heartbeat_recovery_is_logged_once_and_resets_failures(
 async def test_heartbeat_cancellation_preserves_failure_state(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证取消操作直接传播，故障状态不被误判为恢复."""
+    """测试取消操作直接传播，故障状态不被误判为恢复."""
     reconciler, _, _, _ = configure_reconciler(
         monkeypatch,
     )
@@ -857,6 +854,7 @@ async def test_heartbeat_cancellation_preserves_failure_state(
             "unavailable",
         ),
     )
+
     await reconciler._heartbeat_if_due(
         [],
     )

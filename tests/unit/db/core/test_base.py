@@ -10,7 +10,9 @@
   - test_base_uses_shared_metadata:
     验证声明式基类使用共享元数据
   - test_models_are_registered_in_shared_metadata:
-    验证模型表注册到共享元数据
+    验证父子模型共享隔离的测试元数据
+  - test_model_metadata_is_isolated:
+    验证临时模型不会注册到业务共享元数据
   - test_primary_key_naming:
     验证主键名称
   - test_unique_constraint_naming:
@@ -25,7 +27,6 @@
     验证检查约束必须显式命名
 """
 
-from collections.abc import Iterator
 from typing import (
     TypeAlias,
     overload,
@@ -53,8 +54,15 @@ from datamind.db.core.base import (
 )
 
 
+class IsolatedBase(Base):
+    """隔离测试模型的声明式基类."""
+
+    __abstract__ = True
+    metadata = MetaData(naming_convention=naming_convention)
+
+
 class BaseParentModel(
-    Base
+    IsolatedBase
 ):
     """命名约定测试父模型."""
 
@@ -92,7 +100,7 @@ class BaseParentModel(
 
 
 class BaseChildModel(
-    Base
+    IsolatedBase
 ):
     """命名约定测试子模型."""
 
@@ -137,22 +145,6 @@ PARENT_TABLE = get_table(
 CHILD_TABLE = get_table(
     BaseChildModel.__table__
 )
-
-
-@pytest.fixture(
-    scope="module",
-    autouse=True,
-)
-def cleanup_test_tables() -> Iterator[None]:
-    """测试完成后移除共享元数据中的临时表."""
-    yield
-
-    metadata.remove(
-        CHILD_TABLE
-    )
-    metadata.remove(
-        PARENT_TABLE
-    )
 
 
 @overload
@@ -266,22 +258,29 @@ def test_base_uses_shared_metadata() -> None:
 
 
 def test_models_are_registered_in_shared_metadata() -> None:
-    """测试模型表注册到共享元数据."""
-    assert PARENT_TABLE.metadata is metadata
-    assert CHILD_TABLE.metadata is metadata
+    """测试父子模型共享隔离的测试元数据."""
+    assert PARENT_TABLE.metadata is IsolatedBase.metadata
+    assert CHILD_TABLE.metadata is IsolatedBase.metadata
 
     assert (
-        metadata.tables[
+        IsolatedBase.metadata.tables[
             "test_base_parents"
         ]
         is PARENT_TABLE
     )
     assert (
-        metadata.tables[
+        IsolatedBase.metadata.tables[
             "test_base_children"
         ]
         is CHILD_TABLE
     )
+
+
+def test_model_metadata_is_isolated() -> None:
+    """测试临时模型不会注册到业务共享元数据."""
+    assert IsolatedBase.metadata is not metadata
+    assert "test_base_parents" not in metadata.tables
+    assert "test_base_children" not in metadata.tables
 
 
 def test_primary_key_naming() -> None:

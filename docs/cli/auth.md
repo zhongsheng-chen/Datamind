@@ -14,9 +14,9 @@
 datamind login [OPTIONS]
 ```
 
-| 参数         | 类型   | 必需 | 默认值 | 说明       |
-|--------------|--------|------|--------|------------|
-| `--username` | 字符串 | 否   | `null` | 登录用户名 |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `--username` | 字符串 | 否 | `null` | 登录用户名 |
 
 权限：无需资源权限 · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/auth/login.py)
 

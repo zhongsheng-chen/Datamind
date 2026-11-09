@@ -1,6 +1,6 @@
 """第三方日志接入测试.
 
-验证第三方日志与警告内容保留、重复接入和进程来源识别。
+验证第三方日志与警告内容保留、重复接入、状态清理和进程来源识别。
 
 核心功能：
   - test_foreign_multiline_and_record_are_preserved:
@@ -9,6 +9,8 @@
     验证日志经过队列和格式化后保留异常、堆栈及 WARNING 级别
   - test_delayed_cvxpy_handler_and_reinitialization_do_not_duplicate:
     验证延迟导入追加处理器和重复初始化均不增加日志副本
+  - test_delayed_cvxpy_handler_cleanup_survives_assertion_failure:
+    验证断言失败后恢复原有日志状态并关闭测试创建的处理器
   - test_no_new_sampling_or_cross_worker_deduplication:
     验证应用启用采样时仍保留各 Worker 发出的第三方诊断
   - test_warning_original_message_source_and_filters:
@@ -208,26 +210,72 @@ def test_delayed_cvxpy_handler_and_reinitialization_do_not_duplicate(
     logger = logging.getLogger("__cvxpy__")
     original_handlers = logger.handlers.copy()
     original_propagate = logger.propagate
-    path = configure(tmp_path)
     raw = io.StringIO()
     default_handler = logging.StreamHandler(raw)
-    logger.addHandler(default_handler)  # CVXPY settings 在导入时执行此操作。
-    logger.propagate = False
-    logger.warning("first event")
-    configure(tmp_path)
-    logger.warning("second event")
-    output = finish(path)
 
-    assert raw.getvalue() == ""
-    assert [json.loads(line)["event"] for line in output.splitlines()] == [
-        "first event",
-        "second event",
-    ]
+    try:
+        path = configure(tmp_path)
+        logger.addHandler(default_handler)  # CVXPY settings 在导入时执行此操作。
+        logger.propagate = False
+        logger.warning("first event")
+        configure(tmp_path)
+        logger.warning("second event")
+        output = finish(path)
+
+        assert raw.getvalue() == ""
+        assert [json.loads(line)["event"] for line in output.splitlines()] == [
+            "first event",
+            "second event",
+        ]
+        assert logger.propagate == original_propagate
+        assert logger.handlers == original_handlers + [default_handler]
+    finally:
+        try:
+            shutdown_logging()
+        finally:
+            logger.handlers = original_handlers
+            logger.propagate = original_propagate
+            default_handler.close()
+
+
+def test_delayed_cvxpy_handler_cleanup_survives_assertion_failure(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试断言失败后恢复原有日志状态并关闭测试创建的处理器."""
+    logger = logging.getLogger("__cvxpy__")
+    original_handlers = logger.handlers.copy()
+    original_propagate = logger.propagate
+    original_finish = finish
+    add_handler = logger.addHandler
+    created_handlers: list[logging.Handler] = []
+    closed_handlers: list[logging.Handler] = []
+
+    def remember_handler(handler: logging.Handler) -> None:
+        created_handlers.append(handler)
+        original_close = handler.close
+
+        def close_handler() -> None:
+            closed_handlers.append(handler)
+            original_close()
+
+        monkeypatch.setattr(handler, "close", close_handler)
+        add_handler(handler)
+
+    def finish_without_events(path: Path) -> str:
+        original_finish(path)
+        return ""
+
+    monkeypatch.setattr(logger, "addHandler", remember_handler)
+    monkeypatch.setitem(globals(), "finish", finish_without_events)
+
+    with pytest.raises(AssertionError):
+        test_delayed_cvxpy_handler_and_reinitialization_do_not_duplicate(tmp_path)
+
+    assert len(created_handlers) == 1
+    assert closed_handlers == created_handlers
+    assert logger.handlers == original_handlers
     assert logger.propagate == original_propagate
-    assert logger.handlers == original_handlers + [default_handler]
-
-    logger.removeHandler(default_handler)
-    default_handler.close()
 
 
 def test_no_new_sampling_or_cross_worker_deduplication(
@@ -326,6 +374,7 @@ def test_inherited_parent_worker_identity_is_not_fabricated(
         None,
     )
     record.process = os.getpid() + 100000
+
     logger.handle(record)
     event = json.loads(finish(path))
 
@@ -368,6 +417,7 @@ setup_logging(config, worker_id=f"child-{os.getpid()}")
 logging.getLogger("__cvxpy__").warning("original first line\\noriginal detail")
 shutdown_logging()
 """
+
     result = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True,
@@ -413,6 +463,7 @@ def test_original_log_record_custom_level_is_preserved(
         ("original",),
         None,
     )
+
     logger.handle(record)
     event = json.loads(finish(path))
 

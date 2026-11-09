@@ -12,7 +12,7 @@
   - test_validate_accepts_distinct_active_deployments:
     验证接受不同且可用的分组部署
   - test_validate_rejects_shadow_deployment:
-    测试实验分组不能绑定影子部署
+    验证实验分组不能绑定影子部署
 """
 
 from datetime import (
@@ -250,9 +250,7 @@ async def test_validate_accepts_distinct_active_deployments() -> None:
         ),
     }
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        side_effect=deployments.get
-    )
+    deployment_repo.get_deployment = AsyncMock(side_effect=deployments.get)
 
     await start_module._validate_active_variant_deployments(
         deployment_repo=deployment_repo,

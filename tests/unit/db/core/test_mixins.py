@@ -19,34 +19,45 @@
   - test_mixin_model_primary_key_name:
     验证主键名称遵循元数据命名约定
   - test_mixin_model_uses_base_metadata:
-    验证临时模型使用共享元数据
+    验证混入模型使用隔离测试基类的元数据
+  - test_mixin_model_metadata_is_isolated:
+    验证混入模型不会注册到业务共享元数据
   - test_mixin_model_constructor:
     验证混入模型可以正常构造
 """
 
-from collections.abc import Iterator
 from typing import Any
 
-import pytest
 from sqlalchemy import (
     BigInteger,
     Column,
     DateTime,
+    MetaData,
     String,
     Table,
 )
 
-from datamind.db.core.base import Base
+from datamind.db.core.base import (
+    Base,
+    naming_convention,
+)
 from datamind.db.core.mixins import (
     IdMixin,
     TimestampMixin,
 )
 
 
+class IsolatedBase(Base):
+    """隔离测试模型的声明式基类."""
+
+    __abstract__ = True
+    metadata = MetaData(naming_convention=naming_convention)
+
+
 class MixinTestModel(
     IdMixin,
     TimestampMixin,
-    Base,
+    IsolatedBase,
 ):
     """混入类映射测试模型."""
 
@@ -73,19 +84,6 @@ def get_table(
 MIXIN_TABLE = get_table(
     MixinTestModel.__table__
 )
-
-
-@pytest.fixture(
-    scope="module",
-    autouse=True,
-)
-def cleanup_test_table() -> Iterator[None]:
-    """测试完成后移除共享元数据中的临时表."""
-    yield
-
-    Base.metadata.remove(
-        MIXIN_TABLE
-    )
 
 
 def normalize_default(
@@ -215,14 +213,20 @@ def test_mixin_model_primary_key_name() -> None:
 
 
 def test_mixin_model_uses_base_metadata() -> None:
-    """测试临时模型使用共享元数据."""
-    assert MIXIN_TABLE.metadata is Base.metadata
+    """测试混入模型使用隔离测试基类的元数据."""
+    assert MIXIN_TABLE.metadata is IsolatedBase.metadata
     assert (
-        Base.metadata.tables[
+        IsolatedBase.metadata.tables[
             "test_mixin_models"
         ]
         is MIXIN_TABLE
     )
+
+
+def test_mixin_model_metadata_is_isolated() -> None:
+    """测试混入模型不会注册到业务共享元数据."""
+    assert MIXIN_TABLE.metadata is not Base.metadata
+    assert "test_mixin_models" not in Base.metadata.tables
 
 
 # noinspection PyUnreachableCode

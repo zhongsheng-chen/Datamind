@@ -6,14 +6,8 @@
 核心功能：
   - test_get_request:
     验证按请求 ID 查询
-  - test_list_requests:
-    验证请求字段筛选、排序和分页
   - test_list_batch_requests:
     验证按批次位置获取请求记录
-  - test_list_recent_requests:
-    验证最近请求默认数量限制
-  - test_list_model_requests:
-    验证获取指定模型请求
   - test_create_request:
     验证创建请求并设置 received 状态
   - test_mark_success:
@@ -22,48 +16,46 @@
     验证标记请求处理失败
   - test_reset_for_retry:
     验证批次请求重试前恢复待处理状态
-  - test_request_latency:
-    验证处理耗时不能为负数
   - test_get_request_returns_none_when_not_found:
-    测试请求记录不存在时返回 None
+    验证请求记录不存在时返回 None
   - test_list_requests_without_filters:
-    测试无筛选时返回全部请求并按创建时间倒序
+    验证无筛选时返回全部请求并按创建时间倒序
   - test_list_requests_applies_filters_and_pagination:
-    测试请求字段筛选、排序和分页
+    验证请求字段筛选、排序和分页
   - test_list_requests_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_list_methods_reject_negative_pagination:
-    测试请求列表方法拒绝负数分页参数
+    验证请求列表方法拒绝负数分页参数
   - test_list_recent_requests_uses_default_limit:
-    测试最近请求默认返回 100 条
+    验证最近请求默认返回 100 条
   - test_list_recent_requests_accepts_custom_pagination:
-    测试最近请求支持自定义分页
+    验证最近请求支持自定义分页
   - test_list_model_requests_uses_default_limit:
-    测试模型请求默认返回 100 条
+    验证模型请求默认返回 100 条
   - test_list_model_requests_accepts_custom_pagination:
-    测试模型请求支持自定义分页
+    验证模型请求支持自定义分页
   - test_create_request_allows_optional_fields:
-    测试创建请求时允许省略可选字段
+    验证创建请求时允许省略可选字段
   - test_create_request_allows_unresolved_model:
-    测试模型解析前可保存原始请求
+    验证模型解析前可保存原始请求
   - test_create_request_accepts_non_negative_latency:
-    测试创建请求接受非负耗时
+    验证创建请求接受非负耗时
   - test_create_request_rejects_negative_latency:
-    测试创建请求拒绝负数耗时
+    验证创建请求拒绝负数耗时
   - test_mark_success_preserves_latency_when_omitted:
-    测试成功时未提供耗时则保留原值
+    验证成功时未提供耗时则保留原值
   - test_mark_success_accepts_zero_latency:
-    测试成功状态允许零耗时
+    验证成功状态允许零耗时
   - test_mark_success_rejects_negative_latency_without_mutation:
-    测试成功状态拒绝负数耗时且不修改对象
+    验证成功状态拒绝负数耗时且不修改对象
   - test_mark_failed_preserves_latency_when_omitted:
-    测试失败时未提供耗时则保留原值
+    验证失败时未提供耗时则保留原值
   - test_mark_failed_accepts_empty_error:
-    测试失败状态允许明确写入空错误信息
+    验证失败状态允许明确写入空错误信息
   - test_reset_for_retry_rejects_success:
-    测试成功的批次请求不能进入重试流程
+    验证成功的批次请求不能进入重试流程
   - test_mark_failed_rejects_negative_latency_without_mutation:
-    测试失败状态拒绝负数耗时且不修改对象
+    验证失败状态拒绝负数耗时且不修改对象
 """
 
 from typing import (
@@ -138,14 +130,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -529,9 +517,7 @@ def test_create_request() -> None:
         ip="127.0.0.1",
     )
 
-    add.assert_called_once_with(
-        request
-    )
+    add.assert_called_once_with(request)
     assert request.request_id == (
         "req_0123456789abcdef"
     )
@@ -562,9 +548,7 @@ def test_create_request_allows_optional_fields() -> None:
         model_id="mdl_minimum",
     )
 
-    add.assert_called_once_with(
-        request
-    )
+    add.assert_called_once_with(request)
     assert request.payload is None
     assert request.model_name is None
     assert request.response is None
@@ -614,9 +598,7 @@ def test_create_request_accepts_non_negative_latency(
         latency_ms=latency_ms,
     )
 
-    add.assert_called_once_with(
-        request
-    )
+    add.assert_called_once_with(request)
     assert request.latency_ms == latency_ms
 
 
@@ -812,6 +794,7 @@ async def test_list_batch_requests() -> None:
     result = await repository.list_batch_requests("bat_test")
 
     assert result == requests
+
     statement = execute.await_args_list[0].args[0]
     compiled = str(
         statement.compile(

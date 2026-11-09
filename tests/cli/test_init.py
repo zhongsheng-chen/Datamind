@@ -291,6 +291,7 @@ def test_init_records_outcome_logs(
     result = runner.invoke(app, ["init"])
 
     assert result.exit_code == exit_code
+
     log = getattr(init_logger, level)
     log.assert_called_once()
     fields = log.call_args.kwargs

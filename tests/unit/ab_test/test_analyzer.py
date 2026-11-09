@@ -4,15 +4,15 @@
 
 核心功能：
   - test_analyze_uses_original_decisions_and_executions:
-    测试产生请求后即可分析，不需要额外结果提交
+    验证产生请求后即可分析，不需要额外结果提交
   - test_analyze_empty_experiment:
-    测试无决策时返回空指标与提示
+    验证无决策时返回空指标与提示
   - test_analyze_variant:
-    测试单个分组按决策关联主执行
+    验证单个分组按决策关联主执行
   - test_analyze_rejects_invalid_configuration:
-    测试不存在的资源及非法配置被拒绝
+    验证不存在的资源及非法配置被拒绝
   - test_missing_baseline_data_does_not_block_other_groups:
-    测试基准无决策时其他分组仍可分析
+    验证基准无决策时其他分组仍可分析
 """
 
 from types import SimpleNamespace
@@ -47,7 +47,9 @@ def analyzer():
 async def test_analyze_uses_original_decisions_and_executions():
     """测试产生请求后即可分析，不需要额外结果提交."""
     service, _, _, decisions, executions = analyzer()
+
     result = await service.analyze_experiment(experiment_id="exp")
+
     assert result.decision_count == 1
     assert result.metrics.variants["control"].success_rate == 1.0
     assert result.to_dict()["decision_count"] == 1
@@ -60,7 +62,9 @@ async def test_analyze_empty_experiment():
     """测试无决策时返回空指标与提示."""
     service, _, _, decisions, _ = analyzer()
     decisions.list_experiment_decisions.return_value = []
+
     result = await service.analyze_experiment(experiment_id="exp")
+
     assert result.decision_count == 0 and result.metrics.variants == {}
     assert result.warnings
 
@@ -69,13 +73,23 @@ async def test_analyze_empty_experiment():
 async def test_analyze_variant():
     """测试单个分组按决策关联主执行."""
     service, *_ = analyzer()
+
     result = await service.analyze_variant(variant_id="control")
+
     assert result["decision_count"] == 1
     assert result["metrics"]["average_score"] == 600.0
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("case", ["missing_experiment", "no_variants", "invalid_baseline", "invalid_strategy"])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing_experiment",
+        "no_variants",
+        "invalid_baseline",
+        "invalid_strategy",
+    ],
+)
 async def test_analyze_rejects_invalid_configuration(case):
     """测试不存在的资源及非法配置被拒绝."""
     service, experiments, variants, *_ = analyzer()
@@ -94,7 +108,9 @@ async def test_missing_baseline_data_does_not_block_other_groups():
     service, _, _, decisions, executions = analyzer()
     decisions.list_experiment_decisions.return_value = [decision("d2", "treatment")]
     executions.list_experiment_executions.return_value = [execution("d2")]
+
     result = await service.analyze_experiment(experiment_id="exp")
+
     assert result.baseline_variant_id == "control"
     assert result.metrics.variants["treatment"].total_count == 1
     assert result.metrics.comparisons == {} and result.warnings

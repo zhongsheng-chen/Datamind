@@ -97,6 +97,7 @@ async def test_update_routing_passes_patch(
     )
 
     payload = RoutingUpdateRequest.model_validate(rules_update)
+
     result = await RoutingLifecycleService().update_routing(
         routing_id="rtn_test",
         name="scorecard-route-v2",
@@ -214,14 +215,10 @@ async def test_update_variant_checks_sibling_weight(
         config={},
     )
     experiment_repository = MagicMock()
-    experiment_repository.get_experiment = AsyncMock(
-        return_value=experiment
-    )
+    experiment_repository.get_experiment = AsyncMock(return_value=experiment)
     variant_repository = MagicMock()
     variant_repository.get_variant = AsyncMock(return_value=variant)
-    variant_repository.list_variants = AsyncMock(
-        return_value=[variant, sibling]
-    )
+    variant_repository.list_variants = AsyncMock(return_value=[variant, sibling])
     monkeypatch.setitem(vars(experiment_module), "UnitOfWork", FakeUnitOfWork)
     monkeypatch.setitem(
         vars(experiment_module),
@@ -235,6 +232,7 @@ async def test_update_variant_checks_sibling_weight(
     )
 
     payload = VariantUpdateRequest.model_validate(config_update)
+
     result = await ExperimentLifecycleService().update_variant(
         variant_id="var_test",
         weight=0.6,

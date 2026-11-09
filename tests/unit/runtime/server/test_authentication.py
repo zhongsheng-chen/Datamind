@@ -176,6 +176,7 @@ async def test_login_returns_tokens_without_cache(
     }
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["pragma"] == "no-cache"
+
     awaited_call = auth_service.login.await_args
     assert awaited_call is not None
     login_request = awaited_call.args[0]
@@ -211,9 +212,7 @@ async def test_login_hides_authentication_failure(
 ) -> None:
     """测试登录失败不暴露账户状态."""
     auth_service = MagicMock()
-    auth_service.login = AsyncMock(
-        side_effect=InvalidCredentialsError()
-    )
+    auth_service.login = AsyncMock(side_effect=InvalidCredentialsError())
     audit_recorder, auth_logger = _install_auth_service(
         runtime_server,
         monkeypatch,
@@ -238,6 +237,7 @@ async def test_login_hides_authentication_failure(
     assert response.json() == {
         "error": "用户名或密码错误"
     }
+
     audit_call = audit_recorder.record.await_args
     assert audit_call is not None
     assert audit_call.kwargs["action"] == "auth.login"
@@ -292,6 +292,7 @@ async def test_refresh_rotates_tokens(
     assert response.json()["refresh_token"] == (
         "new-refresh-token"
     )
+
     awaited_call = auth_service.refresh.await_args
     assert awaited_call is not None
     refresh_request = awaited_call.args[0]
@@ -308,9 +309,7 @@ async def test_refresh_hides_invalid_token_details(
 ) -> None:
     """测试刷新失败返回统一认证错误."""
     auth_service = MagicMock()
-    auth_service.refresh = AsyncMock(
-        side_effect=InvalidRefreshTokenError()
-    )
+    auth_service.refresh = AsyncMock(side_effect=InvalidRefreshTokenError())
     _install_auth_service(
         runtime_server,
         monkeypatch,
@@ -446,9 +445,7 @@ async def test_login_reports_unavailable_auth_service(
         monkeypatch,
         authentication,
         "create_auth_service",
-        MagicMock(
-            side_effect=AuthError()
-        ),
+        MagicMock(side_effect=AuthError()),
     )
     runtime_server.patch_server_dependency(
         monkeypatch,
@@ -481,6 +478,7 @@ async def test_login_reports_unavailable_auth_service(
     assert response.json() == {
         "error": "认证服务暂不可用"
     }
+
     audit_call = audit_recorder.record.await_args
     assert audit_call is not None
     assert audit_call.kwargs["action"] == "auth.login"
@@ -490,13 +488,16 @@ async def test_login_reports_unavailable_auth_service(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("headers, expected_trace_id", [
-    ({}, None),
-    ({"x-trace-id": "1" * 32}, "1" * 32),
-    ({"traceparent": "00-" + "2" * 32 + "-" + "3" * 16 + "-01",
-      "x-trace-id": "1" * 32}, "2" * 32),
-    ({"traceparent": "invalid", "x-trace-id": "invalid"}, None),
-])
+@pytest.mark.parametrize(
+    "headers, expected_trace_id",
+    [
+        ({}, None),
+        ({"x-trace-id": "1" * 32}, "1" * 32),
+        ({"traceparent": "00-" + "2" * 32 + "-" + "3" * 16 + "-01",
+          "x-trace-id": "1" * 32}, "2" * 32),
+        ({"traceparent": "invalid", "x-trace-id": "invalid"}, None),
+    ],
+)
 async def test_login_and_access_share_trace_when_framework_overwrites_scope(
         runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
@@ -539,6 +540,7 @@ async def test_login_and_access_share_trace_when_framework_overwrites_scope(
         )
 
     assert response.status_code == 200
+
     auth_fields = auth_logger.info.call_args.kwargs
     access_fields = access_logger.log.call_args.kwargs
     audit_fields = recorder.record.await_args.kwargs["context"]

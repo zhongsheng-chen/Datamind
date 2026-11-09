@@ -38,7 +38,7 @@ from tests.console._app_support import (
 async def test_directory_read_does_not_require_csrf(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证已授权用户可直接读取目录，无需写操作的 CSRF 令牌."""
+    """测试已授权用户可直接读取目录，无需写操作的 CSRF 令牌."""
     user = create_user().model_copy(
         update={"permissions": ["identity.manage"]},
     )
@@ -73,7 +73,7 @@ async def test_directory_read_does_not_require_csrf(
 async def test_directory_requires_identity_permission(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证普通模型使用者不能读取或修改组织目录."""
+    """测试普通模型使用者不能读取或修改组织目录."""
     user = create_user().model_copy(
         update={"permissions": ["model.read"]},
     )
@@ -108,7 +108,7 @@ async def test_directory_requires_identity_permission(
 async def test_directory_write_requires_csrf(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证身份管理员的写操作仍需有效 CSRF 令牌."""
+    """测试身份管理员的写操作仍需有效 CSRF 令牌."""
     user = create_user().model_copy(
         update={"permissions": ["identity.manage"]},
     )
@@ -151,7 +151,7 @@ async def test_user_update_preserves_explicit_profile_fields(
         monkeypatch: pytest.MonkeyPatch,
         profile: dict[str, str | None],
 ) -> None:
-    """验证 PATCH 将显式设置或清空的组织字段传递给身份服务."""
+    """测试 PATCH 将显式设置或清空的组织字段传递给身份服务."""
     user = create_user().model_copy(
         update={"permissions": ["identity.manage"]},
     )
@@ -215,9 +215,7 @@ async def test_directory_delete_authorization_and_conflicts(
         update={"permissions": permissions},
     )
 
-    operation = AsyncMock(
-        return_value={key: "test-id", "name": "待删除"},
-    )
+    operation = AsyncMock(return_value={key: "test-id", "name": "待删除"})
 
     if access == "conflict":
         operation.side_effect = IdentityConflictError("仍有关联用户")
@@ -370,9 +368,7 @@ async def test_directory_reorder_authorization(
             ),
         },
     )
-    operation = AsyncMock(
-        return_value={key: "test-id", "sort_order": 2},
-    )
+    operation = AsyncMock(return_value={key: "test-id", "sort_order": 2})
     target = "datamind.console.app.OrganizationService.move"
     monkeypatch.setattr(
         "datamind.console.app._authenticate",

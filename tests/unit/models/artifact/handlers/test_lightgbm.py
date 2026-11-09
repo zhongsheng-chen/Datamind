@@ -37,6 +37,4 @@ def test_load_lightgbm_decodes_model_text(
     )
 
     assert result is expected
-    booster_factory.assert_called_once_with(
-        model_str="model text"
-    )
+    booster_factory.assert_called_once_with(model_str="model text")

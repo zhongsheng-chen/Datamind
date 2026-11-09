@@ -32,7 +32,7 @@
   - test_console_run_stops_process_on_interrupt:
     验证中断处理
   - test_console_run_verbose_preserves_bentoml_logs:
-    测试详细模式不抑制 BentoML 日志
+    验证详细模式不抑制 BentoML 日志
 """
 
 from types import SimpleNamespace
@@ -93,9 +93,7 @@ def mock_console_readiness(
         monkeypatch: pytest.MonkeyPatch,
 ) -> MagicMock:
     """替换管理控制台服务就绪检查."""
-    wait_until_ready = MagicMock(
-        return_value=True
-    )
+    wait_until_ready = MagicMock(return_value=True)
     monkeypatch.setitem(
         vars(run_module),
         "wait_for_console_ready",
@@ -111,14 +109,10 @@ def test_wait_for_console_ready_uses_direct_http_connection(
     """测试就绪检查直接连接管理控制台."""
     process = MagicMock()
     process.poll.return_value = None
-    response = MagicMock(
-        status=200
-    )
+    response = MagicMock(status=200)
     connection = MagicMock()
     connection.getresponse.return_value = response
-    connection_factory = MagicMock(
-        return_value=connection
-    )
+    connection_factory = MagicMock(return_value=connection)
     monkeypatch.setitem(
         vars(run_module.time),
         "monotonic",
@@ -160,17 +154,13 @@ def test_wait_for_console_ready_rejects_non_ready_response(
         None,
         1,
     ]
-    response = MagicMock(
-        status=404
-    )
+    response = MagicMock(status=404)
     connection = MagicMock()
     connection.getresponse.return_value = response
     monkeypatch.setitem(
         vars(run_module),
         "HTTPConnection",
-        MagicMock(
-            return_value=connection
-        ),
+        MagicMock(return_value=connection),
     )
     monkeypatch.setitem(
         vars(run_module.time),
@@ -243,9 +233,7 @@ def test_console_run_starts_bentoml_service(
     process = MagicMock()
     process.pid = 4321
     process.wait.return_value = 0
-    popen = MagicMock(
-        return_value=process
-    )
+    popen = MagicMock(return_value=process)
     structured_logger = MagicMock()
     phases = []
     original_print = run_module.console.print
@@ -328,6 +316,7 @@ def test_console_run_starts_bentoml_service(
         "readiness",
         "管理控制台已就绪",
     ]
+
     startup_events = []
     for arguments, keywords in structured_logger.info.call_args_list:
         if arguments[0] in {
@@ -339,6 +328,7 @@ def test_console_run_starts_bentoml_service(
         ("正在启动管理控制台，等待服务就绪", {}),
         ("管理控制台已就绪", {"startup_seconds": ANY}),
     ]
+
     completed_events = [
         keyword_arguments
         for positional_arguments, keyword_arguments
@@ -397,9 +387,7 @@ def test_console_run_uses_configured_network(
     mock_console_settings.console.startup_timeout = 240
     process = MagicMock()
     process.wait.return_value = 0
-    popen = MagicMock(
-        return_value=process
-    )
+    popen = MagicMock(return_value=process)
     monkeypatch.setitem(
         vars(run_module.subprocess),
         "Popen",
@@ -454,9 +442,7 @@ def test_console_run_verbose_preserves_bentoml_logs(
     """测试详细模式不抑制 BentoML 日志."""
     process = MagicMock()
     process.wait.return_value = 0
-    popen = MagicMock(
-        return_value=process
-    )
+    popen = MagicMock(return_value=process)
     monkeypatch.setitem(
         vars(run_module.subprocess),
         "Popen",
@@ -473,6 +459,7 @@ def test_console_run_verbose_preserves_bentoml_logs(
     )
 
     assert result.exit_code == 0
+
     command = popen.call_args.args[0]
     assert "--quiet" not in command
 
@@ -481,6 +468,7 @@ def test_console_run_verbose_preserves_bentoml_logs(
 def test_console_run_rejects_invalid_timeout(timeout: str) -> None:
     """测试启动等待时间必须在支持范围内."""
     result = runner.invoke(app, ["console", "run", "--startup-timeout", timeout])
+
     assert result.exit_code == 2
     assert "--startup-timeout" in unstyle(result.output)
 
@@ -581,13 +569,9 @@ def test_console_run_rejects_startup_timeout(
     monkeypatch.setitem(
         vars(run_module.subprocess),
         "Popen",
-        MagicMock(
-            return_value=process
-        ),
+        MagicMock(return_value=process),
     )
-    wait_until_ready = MagicMock(
-        return_value=False
-    )
+    wait_until_ready = MagicMock(return_value=False)
     structured_logger = MagicMock()
     monkeypatch.setattr(run_module, "logger", structured_logger)
     monkeypatch.setitem(
@@ -607,9 +591,7 @@ def test_console_run_rejects_startup_timeout(
     assert result.exit_code == 1
     assert "等待服务就绪超时" in result.output
     assert "Powered by Zhongsheng Chen" in result.output
-    structured_logger.info.assert_called_once_with(
-        "正在启动管理控制台，等待服务就绪"
-    )
+    structured_logger.info.assert_called_once_with("正在启动管理控制台，等待服务就绪")
     wait_until_ready.assert_called_once_with(
         process,
         "http://127.0.0.1:8701/ready",
@@ -627,9 +609,7 @@ def test_console_run_propagates_process_error(
     monkeypatch.setitem(
         vars(run_module.subprocess),
         "Popen",
-        MagicMock(
-            return_value=process
-        ),
+        MagicMock(return_value=process),
     )
 
     result = runner.invoke(
@@ -656,9 +636,7 @@ def test_console_run_stops_process_on_interrupt(
     monkeypatch.setitem(
         vars(run_module.subprocess),
         "Popen",
-        MagicMock(
-            return_value=process
-        ),
+        MagicMock(return_value=process),
     )
 
     result = runner.invoke(

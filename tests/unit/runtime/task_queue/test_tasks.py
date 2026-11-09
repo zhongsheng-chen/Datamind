@@ -69,9 +69,27 @@ def test_execute_batch_dispatches_non_overlapping_chunks(
         worker_id="worker-a",
     )
     assert publisher.submit_batch_chunk.call_args_list == [
-        call(batch_id="bat_test", shard_id="shd_1", task_id="tsk_1", start_index=0, end_index=20),
-        call(batch_id="bat_test", shard_id="shd_2", task_id="tsk_2", start_index=20, end_index=40),
-        call(batch_id="bat_test", shard_id="shd_3", task_id="tsk_3", start_index=40, end_index=45),
+        call(
+            batch_id="bat_test",
+            shard_id="shd_1",
+            task_id="tsk_1",
+            start_index=0,
+            end_index=20,
+        ),
+        call(
+            batch_id="bat_test",
+            shard_id="shd_2",
+            task_id="tsk_2",
+            start_index=20,
+            end_index=40,
+        ),
+        call(
+            batch_id="bat_test",
+            shard_id="shd_3",
+            task_id="tsk_3",
+            start_index=40,
+            end_index=45,
+        ),
     ]
     worker.register_batch_shards.assert_called_once_with(
         batch_id="bat_test",

@@ -8,8 +8,6 @@
     验证按分配 ID 查询
   - test_get_subject_assignment:
     验证获取主体在实验中的固定分配
-  - test_list_assignments:
-    验证分配策略、主体字段、排序和分页
   - test_list_experiment_assignments:
     验证获取实验分配记录
   - test_list_variant_assignments:
@@ -18,34 +16,30 @@
     验证获取主体参与的实验分配记录
   - test_create_assignment:
     验证创建实验分配记录
-  - test_get_or_create_assignment:
-    验证原子获取或创建固定分配
-  - test_create_assignment_weight:
-    验证分配权重范围
   - test_get_assignment_returns_none_when_not_found:
-    测试分配记录不存在时返回 None
+    验证分配记录不存在时返回 None
   - test_get_subject_assignment_returns_none:
-    测试主体没有固定分配时返回 None
+    验证主体没有固定分配时返回 None
   - test_list_assignments_without_filters:
-    测试无筛选时返回全部记录并按时间倒序
+    验证无筛选时返回全部记录并按时间倒序
   - test_list_assignments_applies_filters_and_pagination:
-    测试策略、主体字段、普通字段筛选和分页
+    验证策略、主体字段、普通字段筛选和分页
   - test_list_assignments_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_list_methods_reject_negative_pagination:
-    测试分配列表方法拒绝负数分页参数
+    验证分配列表方法拒绝负数分页参数
   - test_create_assignment_uses_optional_defaults:
-    测试创建分配记录的默认策略和当前时间
+    验证创建分配记录的默认策略和当前时间
   - test_create_assignment_accepts_boundary_weight:
-    测试分配权重边界值有效
+    验证分配权重边界值有效
   - test_create_assignment_accepts_none_weight:
-    测试分配权重允许为空
+    验证分配权重允许为空
   - test_create_assignment_rejects_invalid_weight:
-    测试创建时拒绝非法分配权重
+    验证创建时拒绝非法分配权重
   - test_get_or_create_assignment_returns_created_record:
-    测试原子写入成功时返回新固定分配
+    验证原子写入成功时返回新固定分配
   - test_get_or_create_assignment_returns_concurrent_record:
-    测试并发冲突时返回数据库中的已有固定分配
+    验证并发冲突时返回数据库中的已有固定分配
 """
 
 from datetime import (
@@ -147,14 +141,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -608,9 +598,7 @@ def test_create_assignment() -> None:
         assigned_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        assignment
-    )
+    add.assert_called_once_with(assignment)
     assert assignment.assignment_id == (
         "asn_0123456789abcdef"
     )
@@ -668,9 +656,7 @@ def test_create_assignment_uses_optional_defaults(
         subject_key="customer_minimum",
     )
 
-    add.assert_called_once_with(
-        assignment
-    )
+    add.assert_called_once_with(assignment)
     assert assignment.subject_type is None
     assert assignment.strategy == "hash"
     assert assignment.bucket is None
@@ -701,9 +687,7 @@ def test_create_assignment_accepts_boundary_weight(
         assigned_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        assignment
-    )
+    add.assert_called_once_with(assignment)
     assert assignment.weight == weight
 
 
@@ -721,9 +705,7 @@ def test_create_assignment_accepts_none_weight() -> None:
         assigned_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        assignment
-    )
+    add.assert_called_once_with(assignment)
     assert assignment.weight is None
 
 
@@ -802,9 +784,7 @@ async def test_get_or_create_assignment_returns_concurrent_record() -> None:
     select_result = MagicMock()
     select_result.scalar_one_or_none.return_value = existing
     session_mock = MagicMock(spec=AsyncSession)
-    session_mock.execute = AsyncMock(
-        side_effect=[insert_result, select_result]
-    )
+    session_mock.execute = AsyncMock(side_effect=[insert_result, select_result])
     repository = AssignmentRepository(
         cast(AsyncSession, session_mock)
     )

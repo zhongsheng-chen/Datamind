@@ -67,7 +67,7 @@ def create_catalog() -> OrganizationCatalog:
 
 
 def test_department_path_preserves_identity_snapshot() -> None:
-    """验证名称修改后，已生成的用户身份快照保持原值."""
+    """测试名称修改后，已生成的用户身份快照保持原值."""
     catalog = create_catalog()
     user = User(
         user_id="usr_alice",
@@ -109,7 +109,7 @@ def test_department_path_preserves_identity_snapshot() -> None:
 def test_department_parent_rejects_cycles(
         parent_id: str,
 ) -> None:
-    """验证禁止自身或下级部门作为上级部门."""
+    """测试禁止自身或下级部门作为上级部门."""
     with pytest.raises(
         ValueError,
         match="自身或下级部门",
@@ -132,7 +132,7 @@ def test_department_parent_rejects_cycles(
 def test_department_parent_rejects_other_organization(
         parent_id: str,
 ) -> None:
-    """验证不存在或属于其他机构的上级部门被拒绝."""
+    """测试不存在或属于其他机构的上级部门被拒绝."""
     catalog = create_catalog()
     catalog.organizations["org_branch"] = Organization(
         organization_id="org_branch", code="BRANCH", name="分行",
@@ -143,6 +143,7 @@ def test_department_parent_rejects_other_organization(
         code="HR",
         name="人力资源部",
     )
+
     with pytest.raises(
         ValueError,
         match="不属于该机构",
@@ -187,7 +188,7 @@ async def test_profile_requires_matching_organization(
         profile: dict[str, str | None],
         error: str,
 ) -> None:
-    """验证用户的机构和部门存在且相互匹配."""
+    """测试用户的机构和部门存在且相互匹配."""
     repo = SimpleNamespace(
         get_organization=AsyncMock(
             return_value=None
@@ -202,6 +203,7 @@ async def test_profile_requires_matching_organization(
         "datamind.services.organization.OrganizationRepository",
         lambda _session: repo,
     )
+
     with pytest.raises(
         ValueError,
         match=error,
@@ -219,7 +221,7 @@ async def test_profile_requires_matching_organization(
 def test_organization_code_requires_valid_text(
         value: str,
 ) -> None:
-    """验证业务编码非空且不超过字段上限."""
+    """测试业务编码非空且不超过字段上限."""
     with pytest.raises(ValueError):
         OrganizationService._required_text(
             value,

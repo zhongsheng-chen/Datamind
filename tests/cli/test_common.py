@@ -22,7 +22,7 @@
   - test_cli_context_allows_development_maintenance_mode:
     验证开发环境关闭认证时允许本地维护
   - test_cli_context_requires_login_without_credentials:
-    测试认证开启且没有本地凭据时要求登录
+    验证认证开启且没有本地凭据时要求登录
 """
 
 from types import SimpleNamespace
@@ -142,9 +142,7 @@ async def test_cli_context_uses_configured_logging(
     ):
         pass
 
-    setup_logging.assert_called_once_with(
-        logging_config
-    )
+    setup_logging.assert_called_once_with(logging_config)
 
 
 @pytest.mark.asyncio
@@ -215,9 +213,7 @@ async def test_cli_context_uses_authenticated_identity(
             "req_"
         )
 
-    service.authenticate_access_token.assert_awaited_once_with(
-        "access-token"
-    )
+    service.authenticate_access_token.assert_awaited_once_with("access-token")
     store_factory.assert_not_called()
 
 
@@ -233,9 +229,7 @@ async def test_cli_context_uses_stored_credentials(
         ],
     )
     service = MagicMock()
-    service.authenticate_access_token = AsyncMock(
-        return_value=authenticated_user
-    )
+    service.authenticate_access_token = AsyncMock(return_value=authenticated_user)
     store = MagicMock()
     store.load.return_value = CLICredentials(
         access_token="stored-access-token",
@@ -264,9 +258,7 @@ async def test_cli_context_uses_stored_credentials(
     ) as context:
         assert context.user == "alice"
 
-    service.authenticate_access_token.assert_awaited_once_with(
-        "stored-access-token"
-    )
+    service.authenticate_access_token.assert_awaited_once_with("stored-access-token")
     service.refresh.assert_not_called()
 
 
@@ -293,9 +285,7 @@ async def test_cli_context_refreshes_expired_access_token(
             authenticated_user,
         ]
     )
-    service.refresh = AsyncMock(
-        return_value=refreshed_tokens
-    )
+    service.refresh = AsyncMock(return_value=refreshed_tokens)
     store = MagicMock()
     store.load.return_value = CLICredentials(
         access_token="expired-access-token",
@@ -335,9 +325,7 @@ async def test_cli_context_refreshes_expired_access_token(
         "hostname": "host",
         "user_agent": "datamind-cli",
     }
-    store.save.assert_called_once_with(
-        refreshed_tokens
-    )
+    store.save.assert_called_once_with(refreshed_tokens)
 
 
 @pytest.mark.parametrize(
@@ -355,9 +343,7 @@ async def test_cli_context_reports_database_connection_failure(
 ) -> None:
     """测试数据库不可用时返回清晰提示并保留登录凭据."""
     service = MagicMock()
-    service.authenticate_access_token = AsyncMock(
-        side_effect=error
-    )
+    service.authenticate_access_token = AsyncMock(side_effect=error)
     store = MagicMock()
     store.load.return_value = CLICredentials(
         access_token="stored-access-token",

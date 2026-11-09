@@ -47,9 +47,7 @@ def create_engine_mock() -> AsyncEngine:
     """创建异步数据库引擎测试替身."""
     return cast(
         AsyncEngine,
-        MagicMock(
-            spec=AsyncEngine
-        ),
+        MagicMock(spec=AsyncEngine),
     )
 
 
@@ -58,9 +56,7 @@ def create_session_factory_mock(
     """创建异步会话工厂测试替身."""
     return cast(
         async_sessionmaker[AsyncSession],
-        MagicMock(
-            spec=async_sessionmaker
-        ),
+        MagicMock(spec=async_sessionmaker),
     )
 
 
@@ -72,12 +68,8 @@ def test_get_session_factory_creates_factory(
     session_factory = (
         create_session_factory_mock()
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
-    async_sessionmaker_mock = MagicMock(
-        return_value=session_factory
-    )
+    get_engine = MagicMock(return_value=engine)
+    async_sessionmaker_mock = MagicMock(return_value=session_factory)
 
     monkeypatch.setitem(
         vars(session_module),
@@ -114,12 +106,8 @@ def test_get_session_factory_returns_cached_factory(
     session_factory = (
         create_session_factory_mock()
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
-    async_sessionmaker_mock = MagicMock(
-        return_value=session_factory
-    )
+    get_engine = MagicMock(return_value=engine)
+    async_sessionmaker_mock = MagicMock(return_value=session_factory)
 
     monkeypatch.setitem(
         vars(session_module),
@@ -207,9 +195,7 @@ def test_get_session_factory_recreates_after_reset(
     second_factory = (
         create_session_factory_mock()
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
     async_sessionmaker_mock = MagicMock(
         side_effect=[
             first_factory,

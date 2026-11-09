@@ -57,12 +57,8 @@ def create_repository(
     """创建系统状态仓储及异步会话替身."""
     result = MagicMock()
     result.scalar_one_or_none.return_value = state
-    execute = AsyncMock(
-        return_value=result
-    )
-    session = MagicMock(
-        spec=AsyncSession
-    )
+    execute = AsyncMock(return_value=result)
+    session = MagicMock(spec=AsyncSession)
     session.execute = execute
 
     return (

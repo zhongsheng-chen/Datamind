@@ -98,19 +98,19 @@ datamind login --username admin
 启动预测服务：
 
 ```bash
-datamind service run
+datamind service run --host 127.0.0.1 --port 8700
 ```
 
 在另一个终端启动管理控制台：
 
 ```bash
-datamind console run
+datamind console run --host 127.0.0.1 --port 8701
 ```
 
 使用批量预测或影子预测时，启动任务 Worker：
 
 ```bash
-datamind worker run
+datamind worker run --role all
 ```
 
 服务启动后，打开[管理控制台](http://127.0.0.1:8701)，使用初始化时创建的管理员账户登录。具体操作请参阅[管理控制台](../guides/console.md)。

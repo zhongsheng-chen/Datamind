@@ -120,6 +120,7 @@ async def test_prepare_batch_creates_records_before_dispatch(
 
     task_logger = MagicMock()
     monkeypatch.setattr(worker_module, "logger", task_logger)
+
     count = await create_worker(service)._prepare_batch(
         batch_id="bat_test",
         task_id="tsk_test",

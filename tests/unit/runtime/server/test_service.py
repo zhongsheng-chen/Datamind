@@ -634,9 +634,7 @@ async def test_worker_logging_initialized_before_model_components(
     monkeypatch.setenv("DATAMIND_SERVICE_ID", "actual-service")
     expected_worker = module._build_worker_id()
     order = []
-    setup = MagicMock(
-        side_effect=lambda *a, **kw: order.append("logging"),
-    )
+    setup = MagicMock(side_effect=lambda *a, **kw: order.append("logging"))
     monkeypatch.setitem(
         vars(module),
         "setup_logging",
@@ -678,7 +676,7 @@ async def test_shutdown_acknowledges_only_successful_cleanup(
         tmp_path: Path,
         unload_failed: bool,
 ) -> None:
-    """验证完成卸载后才回报，卸载失败时不误报正常关闭."""
+    """测试完成卸载后才回报，卸载失败时不误报正常关闭."""
     service_module = runtime_server.load_service_module(
         monkeypatch,
     )
@@ -715,7 +713,7 @@ async def test_stop_request_triggers_local_server_shutdown(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """验证本地停止请求触发当前 Worker 的正常服务退出信号."""
+    """测试本地停止请求触发当前 Worker 的正常服务退出信号."""
     service_module = runtime_server.load_service_module(
         monkeypatch,
     )
@@ -737,9 +735,7 @@ async def test_stop_request_triggers_local_server_shutdown(
         tmp_path,
     )
 
-    raise_signal.assert_called_once_with(
-        15,
-    )
+    raise_signal.assert_called_once_with(15)
 
 
 @pytest.mark.asyncio
@@ -748,7 +744,7 @@ async def test_startup_during_stop_does_not_load_models(
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
 ) -> None:
-    """验证监督进程重启的 Worker 遇到停止请求后不再加载模型."""
+    """测试监督进程重启的 Worker 遇到停止请求后不再加载模型."""
     import asyncio
 
     service_module = runtime_server.load_service_module(
@@ -787,8 +783,6 @@ async def test_startup_during_stop_does_not_load_models(
 
     service.reconciler.reconcile_once.assert_not_awaited()
     service.reconciler.start.assert_not_awaited()
-    raise_signal.assert_called_once_with(
-        15,
-    )
+    raise_signal.assert_called_once_with(15)
 
     await service.shutdown()

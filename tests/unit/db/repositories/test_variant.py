@@ -6,60 +6,54 @@
 核心功能：
   - test_get_variant:
     验证按实验分组 ID 查询
-  - test_list_variants:
-    验证状态、对照组、排序和分页
   - test_list_active_variants:
     验证获取启用的实验分组
   - test_get_control_variant:
     验证获取启用的实验对照组
-  - test_variant_patch:
-    验证更新结构字段
   - test_create_variant:
     验证创建实验分组和权重校验
   - test_update_variant:
     验证普通实验分组字段更新
-  - test_variant_lifecycle:
-    验证启用、停用和归档状态管理
   - test_get_variant_returns_none_when_not_found:
-    测试实验分组不存在时返回 None
+    验证实验分组不存在时返回 None
   - test_list_variants_without_filters:
-    测试无筛选时返回全部分组并按时间倒序
+    验证无筛选时返回全部分组并按时间倒序
   - test_list_variants_applies_filters_and_pagination:
-    测试状态、对照组、普通字段筛选和分页
+    验证状态、对照组、普通字段筛选和分页
   - test_list_variants_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_list_variants_rejects_negative_pagination:
-    测试拒绝负数分页参数
+    验证拒绝负数分页参数
   - test_get_control_variant_returns_none:
-    测试没有启用对照组时返回 None
+    验证没有启用对照组时返回 None
   - test_variant_patch_fields_and_defaults:
-    测试更新结构字段和默认值
+    验证更新结构字段和默认值
   - test_create_variant_uses_optional_defaults:
-    测试创建实验分组的可选默认值
+    验证创建实验分组的可选默认值
   - test_create_variant_accepts_boundary_weight:
-    测试实验分组权重边界值有效
+    验证实验分组权重边界值有效
   - test_create_variant_rejects_invalid_weight:
-    测试创建时拒绝非法权重
+    验证创建时拒绝非法权重
   - test_update_variant_ignores_none_fields:
-    测试值为 None 的字段不会覆盖原值
+    验证值为 None 的字段不会覆盖原值
   - test_update_variant_accepts_false_and_empty_strings:
-    测试 False 和空字符串作为明确更新值写入对象
+    验证 False 和空字符串作为明确更新值写入对象
   - test_update_variant_rejects_invalid_weight:
-    测试更新时拒绝非法权重且不修改其他字段
+    验证更新时拒绝非法权重且不修改其他字段
   - test_activate_variant:
-    测试从 inactive 状态启用实验分组
+    验证从 inactive 状态启用实验分组
   - test_deactivate_variant:
-    测试从 active 状态停用实验分组
+    验证从 active 状态停用实验分组
   - test_archive_variant:
-    测试 active 和 inactive 状态可以归档
+    验证 active 和 inactive 状态可以归档
   - test_variant_lifecycle_is_idempotent:
-    测试重复设置相同状态保持幂等
+    验证重复设置相同状态保持幂等
   - test_variant_lifecycle_accepts_empty_operator:
-    测试生命周期方法允许写入空字符串操作人
+    验证生命周期方法允许写入空字符串操作人
   - test_archived_variant_rejects_state_change:
-    测试归档实验分组不能重新启用或停用
+    验证归档实验分组不能重新启用或停用
   - test_variant_lifecycle_rejects_unknown_status:
-    测试未知状态不能进入生命周期管理
+    验证未知状态不能进入生命周期管理
 """
 
 from dataclasses import fields
@@ -140,14 +134,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -549,9 +539,7 @@ def test_create_variant() -> None:
         created_by="creator",
     )
 
-    add.assert_called_once_with(
-        variant
-    )
+    add.assert_called_once_with(variant)
     assert variant.variant_id == (
         "var_0123456789abcdef"
     )
@@ -587,9 +575,7 @@ def test_create_variant_uses_optional_defaults() -> None:
         weight=0.0,
     )
 
-    add.assert_called_once_with(
-        variant
-    )
+    add.assert_called_once_with(variant)
     assert variant.weight == 0.0
     assert variant.is_control is False
     assert variant.status == str(
@@ -621,9 +607,7 @@ def test_create_variant_accepts_boundary_weight(
         weight=weight,
     )
 
-    add.assert_called_once_with(
-        variant
-    )
+    add.assert_called_once_with(variant)
     assert variant.weight == weight
 
 

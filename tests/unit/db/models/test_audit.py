@@ -12,7 +12,7 @@
   - test_audit_column_comments:
     验证字段注释
   - test_audit_optional_json_uses_sql_null:
-    测试可选 JSON 字段将 Python None 写为 SQL NULL
+    验证可选 JSON 字段将 Python None 写为 SQL NULL
 """
 
 from sqlalchemy import (

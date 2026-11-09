@@ -4,44 +4,36 @@
 辅助列表方法，以及不可变审计记录的创建和字段校验。
 
 核心功能：
-  - test_list_audits:
-    验证审计字段筛选、排序和分页
   - test_list_entity_history:
     验证实体变更历史按时间升序排列
-  - test_list_failed_operations:
-    验证获取失败操作记录
-  - test_list_user_actions:
-    验证获取用户操作记录
   - test_get_by_audit_id:
     验证按唯一审计 ID 获取记录
   - test_create_audit:
     验证创建审计日志
-  - test_create_audit_enum_values:
-    验证来源和状态枚举写入
   - test_list_audits_without_filters:
-    测试无筛选时返回全部日志并按时间倒序
+    验证无筛选时返回全部日志并按时间倒序
   - test_list_audits_applies_filters_and_pagination:
-    测试全部审计字段筛选、排序和分页
+    验证全部审计字段筛选、排序和分页
   - test_list_audits_orders_ascending:
-    测试审计日志支持按时间升序排列
+    验证审计日志支持按时间升序排列
   - test_list_audits_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_list_methods_reject_negative_pagination:
-    测试审计列表方法拒绝负数分页参数
+    验证审计列表方法拒绝负数分页参数
   - test_list_failed_operations_uses_default_limit:
-    测试失败操作默认返回 100 条
+    验证失败操作默认返回 100 条
   - test_list_failed_operations_accepts_custom_pagination:
-    测试失败操作支持自定义分页
+    验证失败操作支持自定义分页
   - test_list_user_actions_uses_default_limit:
-    测试用户操作默认返回 100 条
+    验证用户操作默认返回 100 条
   - test_list_user_actions_accepts_custom_pagination:
-    测试用户操作支持自定义分页
+    验证用户操作支持自定义分页
   - test_create_audit_uses_optional_defaults:
-    测试创建审计日志的默认状态和当前时间
+    验证创建审计日志的默认状态和当前时间
   - test_create_audit_accepts_valid_sources:
-    测试创建审计日志接受全部合法来源
+    验证创建审计日志接受全部合法来源
   - test_create_audit_accepts_valid_statuses:
-    测试创建审计日志接受全部合法状态
+    验证创建审计日志接受全部合法状态
 """
 
 from datetime import (
@@ -153,14 +145,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -647,9 +635,7 @@ def test_create_audit() -> None:
         occurred_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        audit
-    )
+    add.assert_called_once_with(audit)
     assert audit.audit_id == (
         "aud_0123456789abcdef"
     )
@@ -723,9 +709,7 @@ def test_create_audit_uses_optional_defaults(
         source=AuditSource.SYSTEM,
     )
 
-    add.assert_called_once_with(
-        audit
-    )
+    add.assert_called_once_with(audit)
     assert audit.source == "system"
     assert audit.trace_id is None
     assert audit.request_id is None
@@ -763,9 +747,7 @@ def test_create_audit_accepts_valid_sources(
         occurred_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        audit
-    )
+    add.assert_called_once_with(audit)
     assert audit.source == str(
         source
     )
@@ -795,9 +777,7 @@ def test_create_audit_accepts_valid_statuses(
         occurred_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        audit
-    )
+    add.assert_called_once_with(audit)
     assert audit.status == str(
         status
     )

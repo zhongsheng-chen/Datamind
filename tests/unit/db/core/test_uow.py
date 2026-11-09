@@ -67,9 +67,7 @@ def session_resources() -> tuple[
     rollback = AsyncMock()
     close = AsyncMock()
 
-    session = MagicMock(
-        spec=AsyncSession
-    )
+    session = MagicMock(spec=AsyncSession)
     session.commit = commit
     session.rollback = rollback
     session.close = close
@@ -101,9 +99,7 @@ def session_factory_resources(
     session = session_resources[
         0
     ]
-    factory_mock = MagicMock(
-        return_value=session
-    )
+    factory_mock = MagicMock(return_value=session)
     session_factory = cast(
         async_sessionmaker[AsyncSession],
         factory_mock,
@@ -127,9 +123,7 @@ def patch_session_factory(
     session_factory, factory_mock = (
         session_factory_resources
     )
-    get_session_factory = MagicMock(
-        return_value=session_factory
-    )
+    get_session_factory = MagicMock(return_value=session_factory)
 
     monkeypatch.setitem(
         vars(uow_module),

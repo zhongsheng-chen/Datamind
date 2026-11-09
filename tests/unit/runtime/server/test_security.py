@@ -16,15 +16,15 @@
   - test_security_documentation_lists_public_components:
     验证核心功能列出安全模块公共组件
   - test_extract_bearer_token_rejects_invalid_header:
-    测试拒绝非法 Authorization 头
+    验证拒绝非法 Authorization 头
   - test_authenticate_accepts_administrator_permission:
-    测试系统管理员通配权限可调用预测接口
+    验证系统管理员通配权限可调用预测接口
   - test_authenticate_maps_invalid_access_token:
-    测试认证异常转换为服务认证错误
+    验证认证异常转换为服务认证错误
   - test_authenticate_maps_permission_denied:
-    测试权限不足转换为服务授权错误
+    验证权限不足转换为服务授权错误
   - test_request_scope_handles_missing_client:
-    测试请求未提供客户端地址时上下文 IP 为空
+    验证请求未提供客户端地址时上下文 IP 为空
 """
 
 from types import SimpleNamespace
@@ -193,9 +193,7 @@ async def test_authenticate_validates_required_permission(
         permissions=["prediction.invoke"],
     )
     service = MagicMock()
-    service.authenticate_access_token = AsyncMock(
-        return_value=user
-    )
+    service.authenticate_access_token = AsyncMock(return_value=user)
     require_permission = MagicMock()
     context = ContextStub()
     context.request.headers[
@@ -342,9 +340,7 @@ async def test_authenticate_maps_permission_denied(
     monkeypatch.setitem(
         vars(security_module),
         "require_permission",
-        MagicMock(
-            side_effect=PermissionDeniedError()
-        ),
+        MagicMock(side_effect=PermissionDeniedError()),
     )
 
     with pytest.raises(
@@ -371,9 +367,7 @@ async def test_request_scope_establishes_trusted_context(
         permissions=("prediction.invoke",),
         authenticated=True,
     )
-    authenticate = AsyncMock(
-        return_value=identity
-    )
+    authenticate = AsyncMock(return_value=identity)
     monkeypatch.setattr(
         security,
         "authenticate",

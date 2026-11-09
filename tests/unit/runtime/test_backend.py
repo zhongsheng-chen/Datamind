@@ -96,6 +96,4 @@ def test_load_delegates_to_framework_backend(
     )
 
     assert result is expected
-    framework_backend.load_model.assert_called_once_with(
-        "scorecard:test"
-    )
+    framework_backend.load_model.assert_called_once_with("scorecard:test")

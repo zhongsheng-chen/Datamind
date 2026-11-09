@@ -72,10 +72,12 @@ async def test_mark_started_records_worker() -> None:
     """测试分片进入运行状态并记录 Worker."""
     shard = create_shard()
     repository, _ = create_repository(shard)
+
     result = await repository.mark_started(
         shard_id="shd_test",
         worker_id="worker-a",
     )
+
     assert result is shard
     assert shard.status == "running"
     assert shard.worker_id == "worker-a"
@@ -87,10 +89,12 @@ async def test_mark_finished_records_terminal_state() -> None:
     """测试分片进入最终状态并记录完成时间."""
     shard = create_shard(status="running")
     repository, _ = create_repository(shard)
+
     result = await repository.mark_finished(
         shard_id="shd_test",
         status="succeeded",
     )
+
     assert result is shard
     assert shard.status == "succeeded"
     assert str(shard.finished_at) == "statement_timestamp()"

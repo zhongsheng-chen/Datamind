@@ -9,36 +9,28 @@
     验证按用户和角色查询
   - test_get_grant_rejects_invalid_conditions:
     验证查询条件组合
-  - test_list_grants_builds_query:
-    验证授予列表筛选、排序和分页
   - test_list_active_grants_delegates_to_list_grants:
     验证有效授予列表复用通用查询
-  - test_create_grant:
-    验证创建角色授予记录
-  - test_activate_grant:
-    验证重新激活角色授予
-  - test_revoke_grant:
-    验证撤销角色授予
   - test_grant_status_operations_use_current_utc_time:
     验证状态操作默认使用当前 UTC 时间
   - test_get_grant_returns_none_when_not_found:
-    测试角色授予不存在时返回 None
+    验证角色授予不存在时返回 None
   - test_list_grants_uses_default_order_and_limit:
-    测试角色授予列表默认排序和数量限制
+    验证角色授予列表默认排序和数量限制
   - test_list_grants_builds_filtered_query:
-    测试授予列表筛选、排序和分页
+    验证授予列表筛选、排序和分页
   - test_list_grants_allows_unlimited_query:
-    测试授予列表允许不设置分页
+    验证授予列表允许不设置分页
   - test_create_grant_uses_defaults:
-    测试创建默认有效角色授予
+    验证创建默认有效角色授予
   - test_create_grant_with_explicit_values:
-    测试创建指定状态和授予时间的记录
+    验证创建指定状态和授予时间的记录
   - test_activate_grant_with_explicit_time:
-    测试使用指定时间重新激活角色授予
+    验证使用指定时间重新激活角色授予
   - test_activate_grant_allows_empty_granted_by:
-    测试重新激活时允许不记录授予用户
+    验证重新激活时允许不记录授予用户
   - test_revoke_grant_with_explicit_time:
-    测试使用指定时间撤销角色授予
+    验证使用指定时间撤销角色授予
 """
 
 from datetime import (
@@ -124,12 +116,8 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
-    session = MagicMock(
-        spec=AsyncSession
-    )
+    execute = AsyncMock(return_value=result)
+    session = MagicMock(spec=AsyncSession)
     session.execute = execute
 
     repository = GrantRepository(
@@ -399,9 +387,7 @@ async def test_list_active_grants_delegates_to_list_grants(
         create_grant()
     ]
     repository, _, _ = create_repository()
-    list_grants = AsyncMock(
-        return_value=grants
-    )
+    list_grants = AsyncMock(return_value=grants)
 
     monkeypatch.setattr(
         repository,
@@ -437,9 +423,7 @@ def test_create_grant_uses_defaults() -> None:
         role_id="rol_0123456789abcdef",
     )
 
-    session.add.assert_called_once_with(
-        grant
-    )
+    session.add.assert_called_once_with(grant)
     assert grant.grant_id == (
         "grt_0123456789abcdef"
     )
@@ -466,9 +450,7 @@ def test_create_grant_with_explicit_values() -> None:
         granted_at=CURRENT_TIME,
     )
 
-    session.add.assert_called_once_with(
-        grant
-    )
+    session.add.assert_called_once_with(grant)
     assert grant.status == "revoked"
     assert grant.granted_by == "usr_admin"
     assert grant.granted_at == CURRENT_TIME

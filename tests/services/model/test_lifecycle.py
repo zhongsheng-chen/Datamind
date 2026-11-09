@@ -38,11 +38,11 @@
   - test_lifecycle_rejects_missing_version:
     验证版本操作要求模型版本存在
   - test_activate_model_version_by_version_id:
-    测试仅凭版本 ID 激活模型版本
+    验证仅凭版本 ID 激活模型版本
   - test_archive_model_version:
-    测试归档未激活的模型版本
+    验证归档未激活的模型版本
   - test_archive_model_and_remaining_versions:
-    测试归档模型时级联归档尚未归档的版本
+    验证归档模型时级联归档尚未归档的版本
 """
 
 from types import SimpleNamespace
@@ -245,6 +245,7 @@ async def test_activate_audit_records_only_status_changes(
         version_status=version_status,
         deployments=[],
     )
+
     result = await ModelLifecycleService().activate(
         model_id="mdl_test", version_id="ver_test",
     )
@@ -339,12 +340,8 @@ async def test_activate_model_version_by_version_id(
     )
 
     version_record = version_repo.get_version.return_value
-    version_repo.get_version.assert_awaited_once_with(
-        "ver_test"
-    )
-    resolver.resolve_model.assert_awaited_once_with(
-        model_id="mdl_test",
-    )
+    version_repo.get_version.assert_awaited_once_with("ver_test")
+    resolver.resolve_model.assert_awaited_once_with(model_id="mdl_test")
     resolver.resolve_version.assert_not_awaited()
     assert version_record.status == "active"
     assert version_record.updated_by == "operator"
@@ -414,6 +411,7 @@ async def test_deactivate_model(
     assert model.updated_by == "operator"
     assert result["model_status"] == "inactive"
     assert result["deactivated_version_count"] == 2
+
     active_versions = version_repo.list_versions.return_value
     assert all(
         version_record.status == "inactive"
@@ -536,9 +534,7 @@ async def test_deprecate_model(
     deployment_repo.list_active_deployments.assert_awaited_once_with(
         model_id="mdl_test",
     )
-    version_repo.list_versions.assert_awaited_once_with(
-        model_id="mdl_test",
-    )
+    version_repo.list_versions.assert_awaited_once_with(model_id="mdl_test")
     assert version_repo.deprecate_version.call_count == 2
 
 
@@ -621,6 +617,7 @@ async def test_archive_model_version(
         return version_record
 
     version_repo.archive_version.side_effect = archive_version
+
     result = await ModelLifecycleService().archive(
         version_id="ver_test",
         updated_by="operator",

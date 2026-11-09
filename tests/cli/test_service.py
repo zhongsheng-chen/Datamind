@@ -23,17 +23,16 @@
     验证新 Worker 的回报不能替代原 Worker 的关闭结果
 """
 
-from pathlib import Path
-from types import SimpleNamespace
 import asyncio
+import importlib
 import signal
 import subprocess
-
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import (
     AsyncMock,
     MagicMock,
 )
-import importlib
 
 import pytest
 from typer.testing import CliRunner
@@ -41,7 +40,6 @@ from typer.testing import CliRunner
 import datamind.cli.common as common_module
 from datamind.cli.main import app
 from datamind.constants import Environment
-
 
 run_module = importlib.import_module(
     "datamind.cli.service.run"
@@ -74,6 +72,7 @@ def test_service_run_does_not_authenticate_cli_user(
         "_force_terminal",
         interactive,
     )
+
     async def reject_authentication(
             _context: object,
     ) -> None:
@@ -81,14 +80,10 @@ def test_service_run_does_not_authenticate_cli_user(
             "service run 不应进入 CLI 认证上下文"
         )
 
-    process = MagicMock(
-        pid=12345,
-    )
+    process = MagicMock(pid=12345)
     process.wait.return_value = 0
     process.poll.return_value = 0
-    popen = MagicMock(
-        return_value=process
-    )
+    popen = MagicMock(return_value=process)
     structured_logger = MagicMock()
     if console_logs_info:
         structured_logger.info.side_effect = (
@@ -192,10 +187,12 @@ def test_service_run_does_not_authenticate_cli_user(
         assert result.output.index("Datamind") < result.output.index("正在启动运行时服务")
         assert result.output.index("正在启动运行时服务") < result.output.index("运行时服务已就绪")
     assert result.output.count("Powered by") == 1
+
     command = popen.call_args.args[0]
     assert command[:3] == [run_module.sys.executable, "-m", "datamind.cli.http_entrypoint"]
     assert ("--reload" in command) is reload_enabled
     assert "--quiet" in command
+
     startup_events = [
         call
         for call in structured_logger.info.call_args_list
@@ -210,6 +207,7 @@ def test_service_run_does_not_authenticate_cli_user(
     assert len(completed_events) == 1
     assert completed_events[0]["workers"] == 1
     assert completed_events[0]["startup_seconds"] >= 0
+
     startup_details = [
         call.kwargs
         for call in structured_logger.debug.call_args_list
@@ -226,7 +224,7 @@ def test_service_ctrl_c_stops_owned_tree(
         monkeypatch: pytest.MonkeyPatch,
         stage: str,
 ) -> None:
-    """验证 Ctrl+C 不产生 Abort，且启动中和运行中都清理进程树."""
+    """测试 Ctrl+C 不产生 Abort，且启动中和运行中都清理进程树."""
     settings = SimpleNamespace(
         logging=SimpleNamespace(),
         common=SimpleNamespace(environment=Environment.DEVELOPMENT),
@@ -264,14 +262,18 @@ def test_service_ctrl_c_stops_owned_tree(
 
     monkeypatch.setitem(vars(run_module), "_wait_for_workers_ready", ready)
     monkeypatch.setitem(vars(run_module), "_wait_for_process_exit", wait)
+
     result = runner.invoke(app, ["service", "run"])
+
     assert result.exit_code == 0, result.output
     assert "Aborted!" not in result.output
+
     cleanup.assert_called_once()
     assert cleanup.call_args.args == (process,)
     assert cleanup.call_args.kwargs["expected_workers"] == 1
     process.terminate.assert_not_called()
     assert signal.getsignal(signal.SIGINT) is original_handler
+
     stopped = [call for call in structured_logger.info.call_args_list if call.args == ("运行时服务已停止",)]
     assert len(stopped) == 1
     assert stopped[0].kwargs["stop_reason"] == (
@@ -281,17 +283,20 @@ def test_service_ctrl_c_stops_owned_tree(
 
 @pytest.mark.asyncio
 async def test_process_exit_wait_remains_interruptible() -> None:
-    """验证没有无限期阻塞等待，停止请求无需终端输入即可被处理."""
+    """测试没有无限期阻塞等待，停止请求无需终端输入即可被处理."""
     process = MagicMock()
     process.poll.return_value = None
     stop = asyncio.Event()
     asyncio.get_running_loop().call_later(0.02, stop.set)
+
     result = await asyncio.wait_for(
         run_module._wait_for_process_exit(process, stop.is_set),
         timeout=1,
     )
+
     assert result is None
     process.wait.assert_not_called()
+
     process.poll.return_value = 7
     assert await run_module._wait_for_process_exit(process, lambda: False) == 7
 
@@ -301,34 +306,38 @@ def test_windows_stop_cleans_process_tree(
         monkeypatch: pytest.MonkeyPatch,
         outcome: str,
 ) -> None:
-    """验证 taskkill 精确清理拥有的进程树，只有已退出竞争被忽略."""
+    """测试 taskkill 精确清理拥有的进程树，只有已退出竞争被忽略."""
     monkeypatch.setitem(vars(run_module.sys), "platform", "win32")
     monkeypatch.setitem(vars(subprocess), "CREATE_NO_WINDOW", 0x08000000)
     process = MagicMock(pid=12345)
     process.poll.return_value = 0 if outcome == "already_exited" else None
     process.wait.return_value = 0
     stop = MagicMock()
+
     if outcome != "success":
         stop.side_effect = subprocess.CalledProcessError(128, "taskkill")
     monkeypatch.setitem(vars(run_module.subprocess), "run", stop)
+
     if outcome == "failed":
         with pytest.raises(subprocess.CalledProcessError):
             run_module._stop_service_process(process)
     else:
         assert run_module._stop_service_process(process) == 0
         process.wait.assert_called_once_with(timeout=10)
+
     assert stop.call_args.args[0] == ["taskkill", "/PID", "12345", "/T", "/F"]
     assert stop.call_args.kwargs["timeout"] == 10
 
 
 def test_posix_stop_escalates_after_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证进程组先收到 SIGTERM，超时后收到 SIGKILL，等待始终有界."""
+    """测试进程组先收到 SIGTERM，超时后收到 SIGKILL，等待始终有界."""
     monkeypatch.setitem(vars(run_module.sys), "platform", "linux")
     monkeypatch.setitem(vars(signal), "SIGKILL", 9)
     kill = MagicMock()
     monkeypatch.setitem(vars(run_module.os), "killpg", kill)
     process = MagicMock(pid=12345)
     process.wait.side_effect = [subprocess.TimeoutExpired("service", 10), -9]
+
     assert run_module._stop_service_process(process) == -9
     assert [call.args for call in kill.call_args_list] == [
         (12345, signal.SIGTERM), (12345, signal.SIGKILL),
@@ -340,7 +349,7 @@ def test_worker_shutdown_waits_for_every_acknowledgement(
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证已关闭 Worker 数量不足时继续等待，停止请求先于回报写入."""
+    """测试已关闭 Worker 数量不足时继续等待，停止请求先于回报写入."""
     process = MagicMock()
     process.poll.return_value = None
     sleeps = []
@@ -351,14 +360,16 @@ def test_worker_shutdown_waits_for_every_acknowledgement(
         (tmp_path / f"worker_{len(sleeps)}.stopped").touch()
 
     monkeypatch.setitem(vars(run_module), "time", SimpleNamespace(monotonic=lambda: 0.0, sleep=acknowledge))
+
     assert run_module._wait_for_worker_shutdown(process, tmp_path, 2)
     assert len(sleeps) == 2
 
 
 def test_worker_shutdown_timeout_is_bounded(tmp_path: Path) -> None:
-    """验证 Worker 未完成清理时可在超时后执行强制兜底."""
+    """测试 Worker 未完成清理时可在超时后执行强制兜底."""
     process = MagicMock()
     process.poll.return_value = None
+
     assert not run_module._wait_for_worker_shutdown(process, tmp_path, 1, timeout_seconds=0)
     assert (tmp_path / "stop.request").exists()
 
@@ -369,7 +380,7 @@ def test_windows_stop_requests_worker_cleanup_before_tree_termination(
         tmp_path: Path,
         complete: bool,
 ) -> None:
-    """验证先等关闭钩子，之后清理监督进程，超时有明确告警."""
+    """测试先等关闭钩子，之后清理监督进程，超时有明确告警."""
     monkeypatch.setitem(vars(run_module.sys), "platform", "win32")
     monkeypatch.setitem(vars(subprocess), "CREATE_NO_WINDOW", 0x08000000)
     process = MagicMock(pid=12345)
@@ -382,19 +393,22 @@ def test_windows_stop_requests_worker_cleanup_before_tree_termination(
     monkeypatch.setitem(vars(run_module), "_wait_for_worker_shutdown", graceful)
     monkeypatch.setitem(vars(run_module.subprocess), "run", terminate)
     monkeypatch.setitem(vars(run_module), "logger", structured_logger)
+
     assert run_module._stop_service_process(process, ready_dir=tmp_path, expected_workers=4) == 0
     assert events == ["workers", "supervisor"]
+
     graceful.assert_called_once_with(process, tmp_path, 4)
     assert structured_logger.warning.call_count == int(not complete)
-
 
 
 def test_replacement_worker_cannot_acknowledge_failed_cleanup(
         tmp_path: Path,
 ) -> None:
-    """验证重启 Worker 的回报不能替代原 Worker 的卸载结果."""
+    """测试重启 Worker 的回报不能替代原 Worker 的卸载结果."""
     (tmp_path / "original_worker.json").write_text("{}")
     (tmp_path / "replacement_worker.stopped").touch()
+
     process = MagicMock()
     process.poll.return_value = None
+
     assert not run_module._wait_for_worker_shutdown(process, tmp_path, 1, timeout_seconds=0)

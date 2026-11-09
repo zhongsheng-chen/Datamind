@@ -10,70 +10,62 @@
     验证按模型名称查询并去除首尾空格
   - test_get_model_rejects_invalid_conditions:
     验证查询条件必须且只能提供一个
-  - test_list_models:
-    验证归档可见性、状态筛选、排序和分页
   - test_list_models_rejects_negative_pagination:
     验证拒绝负数分页参数
   - test_list_active_models:
     验证活跃模型列表
-  - test_metadata_patch:
-    验证更新结构和模型相关常量枚举
   - test_create_model:
     验证创建模型并设置 inactive 状态
-  - test_update_model:
-    验证普通元数据字段更新
   - test_mark_deleted:
     验证标记模型已删除
   - test_archive_model:
     验证允许的归档状态迁移
-  - test_archive_model_rejects_invalid_transition:
-    验证拒绝非法归档状态迁移
   - test_activate_model:
     验证从 inactive 激活模型
   - test_activate_model_rejects_invalid_transition:
     验证归档模型不能重新激活
   - test_get_model_returns_none_when_not_found:
-    测试模型不存在时返回 None
+    验证模型不存在时返回 None
   - test_list_models_excludes_archived_by_default:
-    测试模型列表默认排除归档模型
+    验证模型列表默认排除归档模型
   - test_list_models_includes_archived_when_requested:
-    测试显式请求时包含归档模型
+    验证显式请求时包含归档模型
   - test_list_models_status_overrides_archive_filter:
-    测试显式状态过滤优先于默认归档排除
+    验证显式状态过滤优先于默认归档排除
   - test_list_models_applies_filters_and_pagination:
-    测试列表筛选、状态、排序和分页
+    验证列表筛选、状态、排序和分页
   - test_list_models_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_metadata_patch_fields_and_defaults:
-    测试更新结构仅包含普通元数据字段
+    验证更新结构仅包含普通元数据字段
   - test_metadata_patch_accepts_constant_enums:
-    测试更新结构接受模型相关常量枚举
+    验证更新结构接受模型相关常量枚举
   - test_create_model_allows_optional_fields:
-    测试创建模型时允许省略可选字段
+    验证创建模型时允许省略可选字段
   - test_update_model_updates_non_none_fields:
-    测试更新所有非空普通元数据字段
+    验证更新所有非空普通元数据字段
   - test_update_model_ignores_none_fields:
-    测试值为 None 的字段不会覆盖原值
+    验证值为 None 的字段不会覆盖原值
   - test_update_model_accepts_empty_strings:
-    测试空字符串作为明确更新值写入对象
+    验证空字符串作为明确更新值写入对象
   - test_archive_model_without_operator:
-    测试未提供操作人时不覆盖审计字段
+    验证未提供操作人时不覆盖审计字段
   - test_archive_model_accepts_empty_operator:
-    测试空字符串操作人会写入归档审计字段
+    验证空字符串操作人会写入归档审计字段
   - test_archive_model_is_idempotent:
-    测试重复归档不会修改时间和审计信息
+    验证重复归档不会修改时间和审计信息
   - test_archive_model_rejects_active_status:
-    测试 active 状态不能直接归档
+    验证 active 状态不能直接归档
   - test_activate_model_without_operator:
-    测试激活时未提供操作人则保留原值
+    验证激活时未提供操作人则保留原值
   - test_activate_model_accepts_empty_operator:
-    测试空字符串操作人会写入更新字段
+    验证空字符串操作人会写入更新字段
   - test_activate_model_is_idempotent:
-    测试重复激活不会修改更新人
+    验证重复激活不会修改更新人
   - test_lifecycle_methods_reject_unknown_status:
-    测试未知状态字符串不能进入生命周期迁移
+    验证未知状态字符串不能进入生命周期迁移
   - test_restore_model:
-    测试恢复逻辑删除模型并重置为 inactive
+    验证恢复逻辑删除模型并重置为 inactive
 """
 
 from dataclasses import fields
@@ -175,14 +167,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -683,9 +671,7 @@ def test_create_model() -> None:
         updated_by="operator",
     )
 
-    add.assert_called_once_with(
-        metadata
-    )
+    add.assert_called_once_with(metadata)
     assert metadata.model_id == (
         "mdl_0123456789abcdef"
     )
@@ -718,9 +704,7 @@ def test_create_model_allows_optional_fields() -> None:
         framework=Framework.SKLEARN,
     )
 
-    add.assert_called_once_with(
-        metadata
-    )
+    add.assert_called_once_with(metadata)
     assert metadata.status == str(
         MetadataStatus.INACTIVE
     )

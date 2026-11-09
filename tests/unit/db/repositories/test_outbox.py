@@ -47,12 +47,8 @@ def create_repository(
         result: MagicMock,
 ) -> tuple[OutboxRepository, AsyncMock]:
     """创建控制台事件仓储及会话替身."""
-    execute = AsyncMock(
-        return_value=result
-    )
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    execute = AsyncMock(return_value=result)
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session = cast(
         AsyncSession,

@@ -600,6 +600,7 @@ async def test_reload_unload_log_single_final_info_with_context(
     loader = MagicMock()
     loader.load.return_value = object()
     manager, *_ = configure_manager(monkeypatch, loader=loader)
+
     await manager.load("dep_test")
 
     with structlog.contextvars.bound_contextvars(generation=4):
@@ -627,6 +628,7 @@ async def test_unload_failure_logs_error_and_preserves_exception(
     from structlog.testing import capture_logs
 
     manager, repo, *_ = configure_manager(monkeypatch, loader=MagicMock())
+
     await manager.load("dep_test")
     repo.get_deployment_runtime.side_effect = RuntimeError("database unavailable")
 

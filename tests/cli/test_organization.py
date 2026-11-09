@@ -151,7 +151,7 @@ def test_directory_commands_use_identity_permission(
         method: str,
         expected: dict[str, str],
 ) -> None:
-    """验证组织命令要求身份管理权限，并正确传递所属机构和上级部门."""
+    """测试组织命令要求身份管理权限，并正确传递所属机构和上级部门."""
     service = MagicMock()
     record: dict[str, Any] = {
         "organization_id": "org_hq",
@@ -198,7 +198,7 @@ def test_directory_commands_use_identity_permission(
 def test_update_user_only_passes_selected_profile(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证仅修改工号时，不覆盖机构、部门、用户名和显示名称."""
+    """测试仅修改工号时，不覆盖机构、部门、用户名和显示名称."""
     service = SimpleNamespace(
         get_user=AsyncMock(
             return_value={
@@ -240,7 +240,7 @@ def test_update_user_only_passes_selected_profile(
 def test_create_user_passes_employee_and_organization(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """验证工号前导零、所属机构和部门通过 CLI 传递给身份服务."""
+    """测试工号前导零、所属机构和部门通过 CLI 传递给身份服务."""
     service = SimpleNamespace(
         create_user=AsyncMock(return_value={"user_id": "usr_alice"}),
     )
@@ -313,7 +313,7 @@ async def test_user_organization_names_resolve_within_organization(
         arguments: dict,
         expected: dict,
 ) -> None:
-    """验证完整部门路径按所属机构解析，支持沿用机构及显式清空."""
+    """测试完整部门路径按所属机构解析，支持沿用机构及显式清空."""
     service = SimpleNamespace(catalog=AsyncMock(return_value=organization_directory))
     monkeypatch.setattr(
         "datamind.cli.organization.OrganizationService",
@@ -342,7 +342,7 @@ async def test_user_organization_names_resolve_within_organization(
 async def test_user_organization_rejects_name_and_id_together(
         arguments: dict,
 ) -> None:
-    """验证同一组织字段不能同时使用名称和内部 ID."""
+    """测试同一组织字段不能同时使用名称和内部 ID."""
     with pytest.raises(
         ValueError,
         match="不能同时指定",
@@ -440,7 +440,7 @@ def test_department_commands_resolve_names(
         arguments: list[str],
         expected: dict[str, str | None],
 ) -> None:
-    """验证机构、上级部门和修改目标按名称或路径解析为内部 ID."""
+    """测试机构、上级部门和修改目标按名称或路径解析为内部 ID."""
     catalog = organization_directory
     name = expected["name"]
     assert name is not None
@@ -515,7 +515,7 @@ def test_department_rejects_ambiguous_or_missing_organization(
         selectors: list[str],
         error: str,
 ) -> None:
-    """验证机构必填且同一资源不能同时使用名称和 ID."""
+    """测试机构必填且同一资源不能同时使用名称和 ID."""
     service = SimpleNamespace(save_department=AsyncMock())
     monkeypatch.setattr(
         "datamind.cli.organization.cli_context",
@@ -561,7 +561,7 @@ def test_department_path_disambiguates_duplicate_names(
         reference: str,
         expected: str,
 ) -> None:
-    """验证不同分支的同名部门通过完整路径精确选择."""
+    """测试不同分支的同名部门通过完整路径精确选择."""
     retail = department_record("dpt_retail", "个人金融部", "RETAIL")
     corporate = department_record("dpt_corporate", "公司金融部", "CORPORATE")
     catalog: dict[str, list[dict[str, Any]]] = {
@@ -606,7 +606,7 @@ def test_department_path_disambiguates_duplicate_names(
 
 
 def test_department_selection_does_not_match_business_code() -> None:
-    """验证日常名称选择不会被同名业务编码误导."""
+    """测试日常名称选择不会被同名业务编码误导."""
     # HR 既是第一个部门的编码，也是另一个部门的合法名称，刻意构造冲突边界。
     catalog: dict[str, list[dict[str, Any]]] = {
         "organizations": [
@@ -634,7 +634,7 @@ def test_department_selection_does_not_match_business_code() -> None:
 
 
 def test_duplicate_organization_names_require_explicit_id() -> None:
-    """验证同名机构不会自动匹配第一条记录."""
+    """测试同名机构不会自动匹配第一条记录."""
     catalog: dict[str, list[dict[str, Any]]] = {
         "organizations": [
             {
@@ -650,6 +650,7 @@ def test_duplicate_organization_names_require_explicit_id() -> None:
         ],
         "departments": [],
     }
+
     with pytest.raises(
         ValueError,
         match="同名机构",

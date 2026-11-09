@@ -12,8 +12,6 @@
     验证本地认证成功并返回统一身份
   - test_authenticate_rejects_missing_user:
     验证用户不存在时拒绝认证
-  - test_authenticate_rejects_non_local_user:
-    验证非本地认证用户拒绝密码登录
   - test_authenticate_validates_user_status:
     验证停用、锁定和未知状态用户
   - test_authenticate_unlocks_expired_lock:
@@ -31,11 +29,11 @@
   - test_authenticate_rejects_naive_current_time:
     验证拒绝不包含时区的当前时间
   - test_local_provider_config_uses_defaults:
-    测试本地认证配置默认值
+    验证本地认证配置默认值
   - test_authenticate_does_not_disclose_disabled_user_for_wrong_password:
-    测试密码错误时不暴露用户停用状态
+    验证密码错误时不暴露用户停用状态
   - test_authenticate_preserves_password_changed_at:
-    测试升级密码哈希时保留原密码变更时间
+    验证升级密码哈希时保留原密码变更时间
 """
 
 from datetime import (
@@ -109,9 +107,7 @@ def create_user_repo(
 ) -> MagicMock:
     """创建用户仓储测试替身."""
     user_repo = MagicMock()
-    user_repo.get_user = AsyncMock(
-        return_value=user
-    )
+    user_repo.get_user = AsyncMock(return_value=user)
 
     return user_repo
 
@@ -249,9 +245,7 @@ async def test_authenticate_returns_identity(
         current_time=CURRENT_TIME,
     )
 
-    user_repo.get_user.assert_awaited_once_with(
-        username="alice"
-    )
+    user_repo.get_user.assert_awaited_once_with(username="alice")
     user_repo.record_login_success.assert_called_once_with(
         user,
         logged_in_at=CURRENT_TIME,
@@ -367,9 +361,7 @@ async def test_authenticate_validates_user_status(
     provider = LocalAuthProvider(
         user_repo=user_repo
     )
-    verify_password = MagicMock(
-        return_value=True
-    )
+    verify_password = MagicMock(return_value=True)
 
     monkeypatch.setitem(
         vars(local_module),
@@ -475,9 +467,7 @@ async def test_authenticate_unlocks_expired_lock(
         current_time=CURRENT_TIME,
     )
 
-    user_repo.unlock_user.assert_called_once_with(
-        user
-    )
+    user_repo.unlock_user.assert_called_once_with(user)
     user_repo.record_login_success.assert_called_once_with(
         user,
         logged_in_at=CURRENT_TIME,
@@ -567,9 +557,7 @@ async def test_authenticate_records_login_failure(
             current_time=CURRENT_TIME,
         )
 
-    user_repo.record_login_failure.assert_called_once_with(
-        user
-    )
+    user_repo.record_login_failure.assert_called_once_with(user)
     assert user.failed_login_count == 3
     user_repo.lock_user.assert_not_called()
     user_repo.record_login_success.assert_not_called()
@@ -628,9 +616,7 @@ async def test_authenticate_locks_user_at_failure_threshold(
             current_time=CURRENT_TIME,
         )
 
-    user_repo.record_login_failure.assert_called_once_with(
-        user
-    )
+    user_repo.record_login_failure.assert_called_once_with(user)
     assert user.failed_login_count == 5
     user_repo.lock_user.assert_called_once_with(
         user,
@@ -779,12 +765,8 @@ async def test_authenticate_skips_password_hash_upgrade(
             )
         ),
     )
-    needs_rehash = MagicMock(
-        return_value=needs_upgrade
-    )
-    hash_password = MagicMock(
-        return_value="new-password-hash"
-    )
+    needs_rehash = MagicMock(return_value=needs_upgrade)
+    hash_password = MagicMock(return_value="new-password-hash")
 
     monkeypatch.setitem(
         vars(local_module),
@@ -817,9 +799,7 @@ async def test_authenticate_skips_password_hash_upgrade(
     ] is False
 
     if upgrade_password_hash:
-        needs_rehash.assert_called_once_with(
-            user.password_hash
-        )
+        needs_rehash.assert_called_once_with(user.password_hash)
     else:
         needs_rehash.assert_not_called()
 

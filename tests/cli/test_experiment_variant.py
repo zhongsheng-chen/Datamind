@@ -12,9 +12,9 @@
   - test_activate_rejects_other_active_variant:
     验证启用分组拒绝与其他启用分组共用部署
   - test_add_accepts_incomplete_active_weight_sum:
-    测试草稿阶段允许启用权重总和暂时小于 1
+    验证草稿阶段允许启用权重总和暂时小于 1
   - test_add_skips_weight_sum_for_manual_strategy:
-    测试手动分配策略不限制分组权重总和
+    验证手动分配策略不限制分组权重总和
 """
 
 import pytest
