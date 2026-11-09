@@ -3,6 +3,8 @@
 使用隔离的 PostgreSQL Schema，验证组织资料、用户归属和并发部门变更。
 
 核心功能：
+  - test_user_creation_audit_matches_persisted_timestamps:
+    验证创建和恢复用户的审计时间与数据库一致
   - test_user_organization_profile_lifecycle:
     验证资料创建、部分修改和清空
   - test_concurrent_department_moves_cannot_create_cycle:
@@ -70,6 +72,7 @@ from datamind.db.repositories.user import UserRepository
 from datamind.services.errors import IdentityConflictError
 from datamind.services.identity import IdentityService
 from datamind.services.organization import OrganizationService
+from datamind.utils.datetime import format_iso_utc
 
 
 pytestmark = pytest.mark.integration
@@ -96,6 +99,52 @@ async def create_directory() -> tuple[dict, dict, dict]:
         second,
         department,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("restore_existing", [False, True])
+async def test_user_creation_audit_matches_persisted_timestamps(
+        datamind_database,
+        restore_existing: bool,
+) -> None:
+    """测试创建和恢复用户时审计快照保留数据库生成的时间."""
+    service = IdentityService()
+    arguments = {
+        "username": "audit-user",
+        "password": "secret-password",
+        "operator_id": "system",
+        "operator": "system",
+    }
+    if restore_existing:
+        await service.create_user(**arguments)
+        await service.delete_user(
+            username="audit-user",
+            operator_id="system",
+            operator="system",
+        )
+
+    created = await service.create_user(**arguments)
+    action = "user.restore" if restore_existing else "user.create"
+
+    async with UnitOfWork() as uow:
+        result = await uow.session.execute(
+            select(User).where(User.user_id == created["user_id"])
+        )
+        user = result.scalar_one()
+        result = await uow.session.execute(
+            select(Audit).where(
+                Audit.target_id == created["user_id"],
+                Audit.action == action,
+            )
+        )
+        audit = result.scalar_one()
+
+        assert user is not None
+        for field in ("created_at", "updated_at"):
+            expected = format_iso_utc(getattr(user, field))
+            assert expected is not None
+            assert created[field] == expected
+            assert audit.after[field] == expected
 
 
 @pytest.mark.asyncio

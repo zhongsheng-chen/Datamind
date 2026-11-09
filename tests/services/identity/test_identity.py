@@ -118,6 +118,8 @@ class FakeUnitOfWork:
 
     def __init__(self) -> None:
         self.session = MagicMock()
+        self.session.flush = AsyncMock()
+        self.session.refresh = AsyncMock()
 
     async def __aenter__(self) -> "FakeUnitOfWork":
         return self

@@ -372,6 +372,9 @@ class IdentityService:
                         granted_at=now,
                     )
 
+            await uow.session.flush()
+            await uow.session.refresh(user)
+
             await attach_user_profiles(
                 uow.session,
                 [user],
