@@ -270,6 +270,10 @@ class RuntimeReconciler:
         self._reconcile_lock = asyncio.Lock()
 
         self._last_heartbeat_at = 0.0
+        self._cleanup_not_before = time.monotonic() + 3 * self.heartbeat_interval_seconds
+        self._cycle_failure_started_at: float | None = None
+        self._cycle_failure_count = 0
+        self._cycle_failure_log_at = 0.0
         self._heartbeat_failure_started_at: float | None = None
         self._heartbeat_failure_count = 0
         self._last_heartbeat_failure_log_at = 0.0
@@ -487,8 +491,20 @@ class RuntimeReconciler:
     ) -> None:
         """运行后台协调循环."""
         while not self._stop_event.is_set():
+            delay = self.interval_seconds
             try:
                 await self.reconcile_once()
+                if self._cycle_failure_started_at is not None:
+                    now = time.monotonic()
+                    self._cleanup_not_before = now + 3 * self.heartbeat_interval_seconds
+                    self._logger.info(
+                        "状态协调已恢复",
+                        failure_count=self._cycle_failure_count,
+                        duration_seconds=round(now - self._cycle_failure_started_at, 3),
+                        environment=self.environment,
+                    )
+                    self._cycle_failure_started_at = None
+                    self._cycle_failure_count = 0
 
             except asyncio.CancelledError:
                 raise
@@ -499,17 +515,57 @@ class RuntimeReconciler:
                     RuntimeError,
                     ValueError,
             ) as exc:
-                self._logger.exception(
-                    "状态协调周期执行失败",
-                    worker_id=self.worker_id,
-                    environment=self.environment,
-                    error=str(exc),
+                now = time.monotonic()
+                first_failure = (
+                    self._cycle_failure_started_at is None
+                )
+
+                if first_failure:
+                    self._cycle_failure_started_at = now
+
+                self._cycle_failure_count += 1
+                self._cleanup_not_before = (
+                    now
+                    + 3 * self.heartbeat_interval_seconds
+                )
+
+                if (
+                        first_failure
+                        or now - self._cycle_failure_log_at >= 60
+                ):
+                    log = (
+                        self._logger.exception
+                        if first_failure
+                        else self._logger.error
+                    )
+
+                    log(
+                        (
+                            "状态协调周期执行失败"
+                            if first_failure
+                            else "状态协调持续失败"
+                        ),
+                        worker_id=self.worker_id,
+                        environment=self.environment,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                        failure_count=self._cycle_failure_count,
+                    )
+                    self._cycle_failure_log_at = now
+
+                delay = max(
+                    self.interval_seconds,
+                    min(
+                        30.0,
+                        self.interval_seconds
+                        * 2 ** min(self._cycle_failure_count, 10),
+                    ),
                 )
 
             try:
                 await asyncio.wait_for(
                     self._stop_event.wait(),
-                    timeout=self.interval_seconds,
+                    timeout=delay,
                 )
 
             except asyncio.TimeoutError:
@@ -779,17 +835,31 @@ class RuntimeReconciler:
             await self._heartbeat_loaded_runtimes(
                 controls,
             )
-            await self._mark_stale_runtimes_failed()
+
+            if (
+                    self._heartbeat_failure_started_at is not None
+                    or self._cycle_failure_started_at is not None
+            ):
+                self._cleanup_not_before = (
+                    now
+                    + 3 * self.heartbeat_interval_seconds
+                )
+
+            if now >= self._cleanup_not_before:
+                await self._mark_stale_runtimes_failed()
 
             self._last_heartbeat_at = now
 
-            if self._heartbeat_failure_started_at is not None:
+            if (
+                    self._heartbeat_failure_started_at is not None
+            ):
                 self._logger.info(
                     "心跳更新已恢复",
                     environment=self.environment,
                     failure_count=self._heartbeat_failure_count,
                     duration_seconds=round(
-                        time.monotonic() - self._heartbeat_failure_started_at,
+                        time.monotonic()
+                        - self._heartbeat_failure_started_at,
                         3,
                     ),
                 )
@@ -803,6 +873,7 @@ class RuntimeReconciler:
             raise
 
         except (
+                OSError,
                 SQLAlchemyError,
                 RuntimeError,
         ) as exc:
@@ -816,7 +887,15 @@ class RuntimeReconciler:
     ) -> None:
         """记录心跳更新失败."""
         now = time.monotonic()
-        signature = (type(error), str(error))
+
+        self._cleanup_not_before = (
+            now
+            + 3 * self.heartbeat_interval_seconds
+        )
+        signature = (
+            type(error),
+            str(error),
+        )
 
         if self._heartbeat_failure_started_at is None:
             self._heartbeat_failure_started_at = now

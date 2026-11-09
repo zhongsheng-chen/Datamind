@@ -15,6 +15,7 @@
 """
 
 import asyncio
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import (
@@ -58,6 +59,15 @@ class ConsoleEventBroker:
         self._wake_event = asyncio.Event()
         self._last_event_id: int | None = None
         self._last_cleanup_at: datetime | None = None
+        self._failure_logs: dict[str, float] = {}
+
+    def _warn_unavailable(self, message: str, error: Exception) -> None:
+        """同一通道的持续断连每分钟最多记录一次."""
+        now = time.monotonic()
+        previous = self._failure_logs.get(message)
+        if previous is None or now - previous >= 60:
+            logger.warning(message, error=str(error), error_type=type(error).__name__)
+            self._failure_logs[message] = now
 
     async def start(self) -> None:
         """启动 PostgreSQL 通知监听任务."""
@@ -126,9 +136,9 @@ class ConsoleEventBroker:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.warning(
+                self._warn_unavailable(
                     "控制台实时通知连接异常",
-                    error=str(exc),
+                    exc,
                 )
                 await self._poll_safely()
                 await asyncio.sleep(
@@ -151,6 +161,9 @@ class ConsoleEventBroker:
                 listener,
             )
             await self._initialize_cursor()
+
+            if self._failure_logs.pop("控制台实时通知连接异常", None) is not None:
+                logger.info("控制台实时通知连接已恢复")
 
             while True:
                 try:
@@ -233,10 +246,13 @@ class ConsoleEventBroker:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.warning(
+            self._warn_unavailable(
                 "控制台事件回放暂不可用",
-                error=str(exc),
+                exc,
             )
+        else:
+            if self._failure_logs.pop("控制台事件回放暂不可用", None) is not None:
+                logger.info("控制台事件回放已恢复")
 
     async def _cleanup_if_due(self) -> None:
         """定期清理超过保留期的事件."""

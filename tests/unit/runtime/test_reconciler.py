@@ -53,6 +53,10 @@
     验证恢复仅记录一次，下一轮故障重新完整记录
   - test_heartbeat_cancellation_preserves_failure_state:
     验证取消任务不记录失败或误报恢复
+  - test_cleanup_waits_for_peer_heartbeats_after_start_and_recovery:
+    验证启动和断连恢复后更新自身心跳并延迟清理其他 Worker
+  - test_cycle_outage_backs_off_limits_logs_and_recovers:
+    验证协调循环断连后退避重试、日志限频及恢复后重置
 """
 
 import asyncio
@@ -478,6 +482,7 @@ async def test_reconcile_heartbeats_loaded_runtime(
         status="running",
     )
     runtime_repo.get_deployment_runtime.return_value = runtime
+    reconciler._cleanup_not_before = 0.0
     monkeypatch.setattr(
         reconciler_module.time,
         "monotonic",
@@ -868,3 +873,106 @@ async def test_heartbeat_cancellation_preserves_failure_state(
     assert reconciler._heartbeat_failure_count == 1
     assert reconciler._logger.exception.call_count == 1
     reconciler._logger.info.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_waits_for_peer_heartbeats_after_start_and_recovery(
+        monkeypatch,
+):
+    """测试启动和断连恢复后更新自身心跳并延迟清理其他 Worker."""
+    clock = [100.0]
+    monkeypatch.setattr(
+        reconciler_module.time,
+        "monotonic",
+        lambda: clock[0],
+    )
+
+    reconciler, _, _, _ = configure_reconciler(
+        monkeypatch
+    )
+    reconciler._heartbeat_loaded_runtimes = AsyncMock()
+    reconciler._mark_stale_runtimes_failed = AsyncMock()
+
+    await reconciler._heartbeat_if_due([])
+
+    reconciler._mark_stale_runtimes_failed.assert_not_awaited()
+
+    clock[0] = 191.0
+    await reconciler._heartbeat_if_due([])
+
+    assert reconciler._mark_stale_runtimes_failed.await_count == 1
+
+    clock[0] = 222.0
+    reconciler._heartbeat_loaded_runtimes.side_effect = ConnectionRefusedError(
+        "offline"
+    )
+    await reconciler._heartbeat_if_due([])
+
+    clock[0] = 400.0
+    reconciler._heartbeat_loaded_runtimes.side_effect = None
+    await reconciler._heartbeat_if_due([])
+
+    assert reconciler._mark_stale_runtimes_failed.await_count == 1
+
+    clock[0] = 491.0
+    await reconciler._heartbeat_if_due([])
+
+    assert reconciler._mark_stale_runtimes_failed.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_cycle_outage_backs_off_limits_logs_and_recovers(
+        monkeypatch,
+):
+    """测试协调循环断连后退避重试、日志限频及恢复后重置."""
+    clock = [100.0]
+    monkeypatch.setattr(
+        reconciler_module.time,
+        "monotonic",
+        lambda: clock[0],
+    )
+
+    reconciler, _, _, _ = configure_reconciler(
+        monkeypatch
+    )
+    reconciler._logger = MagicMock()
+    reconciler.reconcile_once = AsyncMock(
+        side_effect=[
+            ConnectionRefusedError("offline"),
+            ConnectionRefusedError("offline"),
+            ConnectionRefusedError("offline"),
+            ReconcileResult(),
+        ]
+    )
+    delays = []
+
+    async def advance(
+            waiter,
+            *,
+            timeout,
+    ):
+        waiter.close()
+        delays.append(timeout)
+        clock[0] += 31
+
+        if len(delays) == 4:
+            reconciler._stop_event.set()
+            return
+
+        raise asyncio.TimeoutError
+
+    monkeypatch.setattr(
+        "datamind.runtime.reconciler.asyncio.wait_for",
+        advance,
+    )
+
+    await reconciler._run_loop()
+
+    assert delays == [.02, .04, .08, .01]
+    reconciler._logger.exception.assert_called_once()
+    reconciler._logger.error.assert_called_once()
+    reconciler._logger.info.assert_called_once()
+
+    assert reconciler._cycle_failure_count == 0
+
+    assert reconciler._cleanup_not_before > clock[0]

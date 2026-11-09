@@ -45,6 +45,8 @@
     验证事件查询取消时等待数据库清理完成
   - test_event_cursor_and_sse_encoding_helpers:
     验证事件游标解析和 SSE 消息编码
+  - test_replay_failure_logs_are_limited_and_recovery_resets:
+    验证回放断连日志限频、恢复通知及恢复后重新记录故障
 """
 
 import asyncio
@@ -804,3 +806,59 @@ def test_event_cursor_and_sse_encoding_helpers() -> None:
     )
 
     assert message == 'event: authentication\ndata: {"status":"expired"}\n\n'
+
+
+@pytest.mark.asyncio
+async def test_replay_failure_logs_are_limited_and_recovery_resets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试回放断连日志限频、恢复通知及恢复后重新记录故障."""
+    module = importlib.import_module(
+        "datamind.console.events"
+    )
+    clock = [100.0]
+    monkeypatch.setattr(
+        "datamind.console.events.time.monotonic",
+        lambda: clock[0],
+    )
+
+    log = MagicMock()
+    monkeypatch.setitem(
+        vars(module),
+        "logger",
+        log,
+    )
+
+    broker = ConsoleEventBroker()
+    broker._poll_once = AsyncMock(
+        side_effect=ConnectionRefusedError(
+            "offline"
+        )
+    )
+
+    await broker._poll_safely()
+
+    clock[0] = 110.0
+    await broker._poll_safely()
+
+    assert log.warning.call_count == 1
+
+    clock[0] = 161.0
+    await broker._poll_safely()
+
+    assert log.warning.call_count == 2
+
+    broker._poll_once.side_effect = None
+    await broker._poll_safely()
+    await broker._poll_safely()
+
+    log.info.assert_called_once_with(
+        "控制台事件回放已恢复"
+    )
+
+    broker._poll_once.side_effect = ConnectionRefusedError(
+        "offline again"
+    )
+    await broker._poll_safely()
+
+    assert log.warning.call_count == 3

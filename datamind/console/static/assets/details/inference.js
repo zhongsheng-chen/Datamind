@@ -640,7 +640,8 @@ export function createInferenceDetailController({
         ["总数", record.total_count],
         ["已完成", record.completed_count],
         ["成功", record.succeeded_count],
-        ["失败", record.failed_count],
+        [record.status === "cancelled" || record.status === "cancelling"
+          ? "失败（含取消项）" : "失败", record.failed_count],
         ["执行次数", record.attempt_count],
         ["重试次数", record.retry_count],
         ["提交用户", record.user],

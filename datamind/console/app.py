@@ -30,7 +30,7 @@ from typing import (
 import structlog
 from pydantic import ValidationError
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.applications import Starlette
 from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
@@ -94,6 +94,7 @@ from datamind.console.exports import (
     export_filename as _export_filename,
 )
 from datamind.console.middleware import (
+    DependencyUnavailableMiddleware,
     RequestContextMiddleware,
     security_headers,
 )
@@ -1914,6 +1915,15 @@ def _write_error_response(
             status_code=400,
         )
 
+    if (
+            isinstance(error, IntegrityError)
+            and getattr(error.orig, "sqlstate", None) == "23505"
+    ):
+        return _error_response(
+            "资源已存在，请调整名称或关联关系后重试",
+            status_code=409,
+        )
+
     if isinstance(
             error,
             SQLAlchemyError,
@@ -2551,35 +2561,69 @@ async def _directory(
         return await _directory_read(
             request
         )
+
     user, denied = await _authorize_write(
         request,
         permission="identity.manage",
     )
+
     if denied is not None or user is None:
         return denied or _error_response(
             "尚未登录",
             status_code=401,
         )
+
     service = OrganizationService(
         audit_context=_http_audit_context(
             request,
             user=user,
         )
     )
+
     try:
         action = request.url.path.rsplit("/", 1)[-1]
-        if request.method == "POST" and action == "move":
+
+        if (
+                request.method == "POST"
+                and action == "move"
+        ):
             payload = await request.json()
+
             if not isinstance(payload, dict):
-                raise ValueError("排序参数必须为对象")
+                raise ValueError(
+                    "排序参数必须为对象"
+                )
+
+            direction = payload.get("direction")
+
+            if not isinstance(direction, str):
+                raise ValueError(
+                    "排序方向必须为字符串"
+                )
+
             is_organization = "organization_id" in request.path_params
+
             result = await service.move(
-                resource="organization" if is_organization else "department",
-                target_id=request.path_params["organization_id" if is_organization else "department_id"],
-                direction=payload.get("direction"),
+                resource=(
+                    "organization"
+                    if is_organization
+                    else "department"
+                ),
+                target_id=request.path_params[
+                    "organization_id"
+                    if is_organization
+                    else "department_id"
+                ],
+                direction=direction,
             )
-            return JSONResponse(result)
-        if request.method == "POST" and action in ("enable", "disable"):
+
+            return JSONResponse(
+                result
+            )
+        if (
+                request.method == "POST"
+                and action in ("enable", "disable")
+        ):
             if "organization_id" in request.path_params:
                 result = await service.set_organization_active(
                     organization_id=request.path_params["organization_id"],
@@ -2590,7 +2634,11 @@ async def _directory(
                     department_id=request.path_params["department_id"],
                     is_active=action == "enable",
                 )
-            return JSONResponse(result)
+
+            return JSONResponse(
+                result
+            )
+
         if request.method == "DELETE":
             if "organization_id" in request.path_params:
                 result = await service.delete_organization(
@@ -2600,13 +2648,19 @@ async def _directory(
                 result = await service.delete_department(
                     department_id=request.path_params["department_id"],
                 )
-            return JSONResponse(result)
+
+            return JSONResponse(
+                result
+            )
+
         if request.url.path.startswith("/api/organizations"):
             organization = OrganizationRequest.model_validate(
                 await request.json()
             )
             result = await service.save_organization(
-                **organization.model_dump(exclude_unset=True),
+                **organization.model_dump(
+                    exclude_unset=True
+                ),
                 organization_id=request.path_params.get(
                     "organization_id"
                 ),
@@ -2616,15 +2670,23 @@ async def _directory(
                 await request.json()
             )
             result = await service.save_department(
-                **department.model_dump(exclude_unset=True),
+                **department.model_dump(
+                    exclude_unset=True
+                ),
                 department_id=request.path_params.get(
                     "department_id"
                 ),
             )
+
         return JSONResponse(
             result,
-            status_code=201 if request.method == "POST" else 200,
+            status_code=(
+                201
+                if request.method == "POST"
+                else 200
+            ),
         )
+
     except (
             ValueError,
             ValidationError,
@@ -2646,28 +2708,37 @@ async def _update_user(
     )
 
     if denied is not None or user is None:
-        return denied or _error_response("尚未登录", status_code=401)
+        return denied or _error_response(
+            "尚未登录",
+            status_code=401,
+        )
 
     try:
         payload = UserUpdateRequest.model_validate(
             await request.json()
         )
+
         identity_service = _identity_service_for_request(
             request,
             user=user,
         )
+
         profile_fields = {
             "employee_number",
             "organization_id",
             "department_id",
         }
+
         profile = payload.model_dump(
             include=profile_fields,
             exclude_unset=True,
         )
-        profile_arguments = {
-            "organization_profile": profile,
-        } if profile else {}
+
+        profile_arguments = (
+            {"organization_profile": profile}
+            if profile
+            else {}
+        )
 
         result = await identity_service.update_user(
             username=request.path_params["username"],
@@ -2679,14 +2750,20 @@ async def _update_user(
             operator_id=user.user_id,
             operator=user.username,
         )
-        return JSONResponse(result)
+
+        return JSONResponse(
+            result
+        )
+
     except (
             ValidationError,
             ValueError,
             IdentityError,
             SQLAlchemyError,
     ) as error:
-        return _write_error_response(error)
+        return _write_error_response(
+            error
+        )
 
 
 async def _update_role(
@@ -2970,6 +3047,11 @@ def _request_context_middleware(
     )
 
 
+def _dependency_unavailable_middleware(app: ASGIApp, /) -> ASGIApp:
+    """创建控制台依赖连接异常处理中间件."""
+    return DependencyUnavailableMiddleware(app)
+
+
 console_app = Starlette(
     debug=False,
     lifespan=_lifespan,
@@ -2979,7 +3061,8 @@ console_app = Starlette(
         ),
         Middleware(
             _security_headers_middleware
-        )
+        ),
+        Middleware(_dependency_unavailable_middleware),
     ],
     routes=create_routes(
         ConsoleHandlers(
