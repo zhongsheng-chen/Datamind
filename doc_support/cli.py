@@ -17,17 +17,11 @@ import ast
 import inspect
 import re
 import textwrap
-from collections.abc import (
-    Iterable,
-    Iterator,
-)
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import (
-    Any,
-    cast,
-)
+from typing import Any, cast
 
 import typer
 
@@ -185,7 +179,7 @@ def command_source(
 def cli_parameter_rows(
         command: Any,
 ) -> list[tuple[str, ...]]:
-    """从 Click 参数定义中提取名称、类型、默认值和说明.
+    """从 CLI 参数定义中提取名称、类型、默认值和说明.
 
     参数：
         command: 待提取参数定义的 CLI 命令
@@ -201,26 +195,31 @@ def cli_parameter_rows(
         if param.param_type_name == "argument":
             opts = "<" + param.name + ">"
 
-        type_name = getattr(param.type, "name", "text")
-        kind = {
-            "text": "字符串",
-            "integer": "整数",
-            "float": "数值",
-            "boolean": "布尔",
-            "path": "路径",
-            "integer range": "整数范围",
-        }.get(type_name, type_name)
-        choices = getattr(param.type, "choices", None)
+        descriptor = param.type_descriptor
+        type_name: str = param.display_type(
+            typer.Context(command)
+        ).removeprefix("<").removesuffix(">")
+        if descriptor.is_list:
+            type_name = type_name.removeprefix("list[").removesuffix("]")
 
-        if isinstance(choices, Iterable) and choices:
+        kind: str = {
+            "str": "字符串",
+            "int": "整数",
+            "float": "数值",
+            "bool": "布尔",
+            "path": "路径",
+            "int range": "整数范围",
+        }.get(type_name, type_name)
+
+        if descriptor.choices:
             kind = "/".join(
                 str(cast(Any, choice.value))
                 if isinstance(choice, Enum)
                 else str(choice)
-                for choice in choices
+                for choice in descriptor.choices
             )
 
-        if getattr(param, "multiple", False):
+        if descriptor.is_list:
             kind += "（可重复）"
 
         default = "—" if param.required else value_text(param.default)

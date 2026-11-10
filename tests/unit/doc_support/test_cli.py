@@ -7,6 +7,8 @@
     验证遍历 Typer 命令树时保留分组路径和叶子命令
   - test_command_source_excludes_other_functions:
     验证命令源码提取保留嵌套函数信息并排除同文件中的其他函数
+  - test_cli_parameter_rows_reads_typer_types:
+    验证 Typer 参数类型、枚举、范围与可重复标记
   - test_cli_parameter_rows_formats_choices:
     验证参数无选项时保留类型，有选项时显示可选值
   - test_cli_parameter_rows_formats_enum_choices:
@@ -100,6 +102,48 @@ def other():
     )
 
 
+def test_cli_parameter_rows_reads_typer_types() -> None:
+    """测试 Typer 参数类型、枚举、范围与可重复标记."""
+
+    class Mode(str, Enum):
+        FIRST = "first"
+        SECOND = "second"
+
+    app = typer.Typer(add_completion=False)
+
+    @app.command()
+    def show(
+            name: str,
+            count: int = 1,
+            ratio: float = 1.0,
+            enabled: bool = False,
+            path: Path = Path("model.pkl"),
+            mode: Mode = Mode.FIRST,
+            roles: list[Mode] = typer.Option([Mode.FIRST]),
+            limit: int = typer.Option(1, min=0, max=10),
+    ) -> None:
+        """显示参数."""
+        del name, count, ratio, enabled, path, mode, roles, limit
+
+    rows = {
+        row[0]: row[1:]
+        for row in cli_parameter_rows(typer.main.get_command(app))
+    }
+
+    assert {name: row[0] for name, row in rows.items()} == {
+        "`<name>`": "字符串",
+        "`--count`": "整数",
+        "`--ratio`": "数值",
+        "`--enabled/--no-enabled`": "布尔",
+        "`--path`": "路径",
+        "`--mode`": "first/second",
+        "`--roles`": "first/second（可重复）",
+        "`--limit`": "整数范围",
+    }
+    assert rows["`<name>`"][1] == "是"
+    assert rows["`--count`"][:3] == ("整数", "否", "`1`")
+
+
 @pytest.mark.parametrize(
     "choices, expected",
     [(None, "字符串"), ([], "字符串"), (["first", "second"], "first/second")],
@@ -112,11 +156,18 @@ def test_cli_parameter_rows_formats_choices(
     parameter = SimpleNamespace(
         opts=["--mode"],
         param_type_name="option",
-        type=SimpleNamespace(name="text", choices=choices),
+        type_descriptor=SimpleNamespace(is_list=False, choices=choices),
+        display_type=lambda _context: "<str>",
         required=False,
         default="first",
     )
-    rows = cli_parameter_rows(SimpleNamespace(params=[parameter]))
+    command = SimpleNamespace(
+        params=[parameter],
+        allow_extra_args=False,
+        allow_interspersed_args=True,
+        ignore_unknown_options=False,
+    )
+    rows = cli_parameter_rows(command)
     assert rows[0][1] == expected
 
 
@@ -130,12 +181,18 @@ def test_cli_parameter_rows_formats_enum_choices() -> None:
     parameter = SimpleNamespace(
         opts=["--mode"],
         param_type_name="option",
-        type=SimpleNamespace(name="choice", choices=list(Mode)),
+        type_descriptor=SimpleNamespace(is_list=True, choices=list(Mode)),
+        display_type=lambda _context: "<list[first|second]>",
         required=False,
         default=Mode.FIRST,
-        multiple=True,
     )
-    rows = cli_parameter_rows(SimpleNamespace(params=[parameter]))
+    command = SimpleNamespace(
+        params=[parameter],
+        allow_extra_args=False,
+        allow_interspersed_args=True,
+        ignore_unknown_options=False,
+    )
+    rows = cli_parameter_rows(command)
     assert rows[0][1] == "first/second（可重复）"
     assert rows[0][3] == '`"first"`'
 
