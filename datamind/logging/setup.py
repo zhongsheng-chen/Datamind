@@ -29,6 +29,7 @@ from structlog.typing import Processor
 
 from datamind.config import get_common_config
 from datamind.config.logging import LoggingConfig
+from datamind.logging.foreign import ForeignLogging, foreign_context
 from datamind.logging.handlers import (
     create_async_handler,
     create_console_handler,
@@ -49,6 +50,7 @@ from datamind.logging.render import (
 _LOG_LISTENER: QueueListener | None = None
 _LOG_HANDLERS: list[logging.Handler] = []
 _ROOT_HANDLERS: list[logging.Handler] = []
+_FOREIGN_LOGGING: ForeignLogging | None = None
 
 
 def _logger_factory(
@@ -97,6 +99,11 @@ def shutdown_logging() -> None:
     global _LOG_LISTENER
     global _LOG_HANDLERS
     global _ROOT_HANDLERS
+    global _FOREIGN_LOGGING
+
+    if _FOREIGN_LOGGING is not None:
+        _FOREIGN_LOGGING.close()
+        _FOREIGN_LOGGING = None
 
     datamind_logger = logging.getLogger("datamind")
     root_logger = logging.getLogger()
@@ -128,6 +135,9 @@ def shutdown_logging() -> None:
 
 def setup_logging(
         config: LoggingConfig,
+        *,
+        worker_id: str | None = None,
+        service_id: str | None = None,
 ) -> None:
     """初始化日志系统.
 
@@ -137,6 +147,7 @@ def setup_logging(
     global _LOG_LISTENER
     global _LOG_HANDLERS
     global _ROOT_HANDLERS
+    global _FOREIGN_LOGGING
 
     shutdown_logging()
 
@@ -168,14 +179,14 @@ def setup_logging(
         ]
     )
 
+    masking_processor = None
     if config.mask_sensitive:
-        processors.append(
-            mask_sensitive(
-                mask_char=config.mask_char,
-                prefix=config.unmasked_prefix,
-                suffix=config.unmasked_suffix,
-            )
+        masking_processor = mask_sensitive(
+            mask_char=config.mask_char,
+            prefix=config.unmasked_prefix,
+            suffix=config.unmasked_suffix,
         )
+        processors.append(masking_processor)
 
     processors.append(
         structlog.processors.format_exc_info
@@ -204,10 +215,20 @@ def setup_logging(
         cache_logger_on_first_use=False,
     )
 
-    # 第三方 LogRecord 已完成级别过滤，跳过首个 filter_by_level。
+    # 第三方记录沿用原 logger 的级别过滤，不应用应用日志采样。
+    foreign_processors: list[Processor] = [
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        foreign_context(worker_id=worker_id, service_id=service_id),
+        add_timestamp(get_common_config().timezone, config.date_format),
+        add_context(),
+    ]
+    if masking_processor is not None:
+        foreign_processors.append(masking_processor)
+    foreign_processors.append(structlog.processors.format_exc_info)
     formatter = structlog.stdlib.ProcessorFormatter(
         processor=renderer,
-        foreign_pre_chain=processors[1:],
+        foreign_pre_chain=foreign_processors,
     )
 
     output_handlers: list[logging.Handler] = []
@@ -265,3 +286,5 @@ def setup_logging(
         _LOG_LISTENER = None
         _LOG_HANDLERS = output_handlers.copy()
         datamind_logger.handlers = output_handlers
+
+    _FOREIGN_LOGGING = ForeignLogging(datamind_logger.handlers) if datamind_logger.handlers else None

@@ -10,6 +10,8 @@
     验证业务异常触发完整事务回滚
   - test_repository_commit_enforces_unique_constraint:
     验证 Repository 写入受 PostgreSQL 唯一约束保护
+  - test_default_deployment_switch_is_persisted_and_environment_scoped:
+    验证默认切换跨事务持久化、保留新旧部署启用状态且不影响其他环境
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from datamind.db.repositories import (
     VersionRepository,
 )
 from datamind.models.enums import ExecutionStatus, ExecutionType
+from datamind.services.deployment import DeploymentLifecycleService
 
 
 pytestmark = pytest.mark.integration
@@ -208,3 +211,82 @@ async def test_repository_commit_enforces_unique_constraint(
         model = await MetadataRepository(uow.session).get_model(name=duplicate_name)
 
     assert model is None
+
+
+@pytest.mark.asyncio
+async def test_default_deployment_switch_is_persisted_and_environment_scoped(
+    datamind_database: AsyncEngine,
+) -> None:
+    """测试服务切换默认部署后新事务读取到正确标记、启用状态及环境隔离."""
+    del datamind_database
+    identifiers = resource_ids()
+    model_name = f"default-switch-{identifiers['model']}"
+    old_id = f"{identifiers['deployment']}_old"
+    new_id = f"{identifiers['deployment']}_new"
+    other_id = f"{identifiers['deployment']}_other"
+
+    async with UnitOfWork() as uow:
+        MetadataRepository(uow.session).create_model(
+            model_id=identifiers["model"],
+            name=model_name,
+            model_type=ModelType.LOGISTIC_REGRESSION,
+            task_type=TaskType.CLASSIFICATION,
+            framework=Framework.SKLEARN,
+        )
+        VersionRepository(uow.session).create_version(
+            version_id=identifiers["version"],
+            model_id=identifiers["model"],
+            version="1.0.0",
+            framework=Framework.SKLEARN,
+            bento_tag=f"{model_name}:latest",
+            model_path="s3://integration/model.pkl",
+            model_key="integration/model.pkl",
+            current_artifact_id=identifiers["artifact"],
+            artifact_sha256="a" * 64,
+            artifact_digest="b" * 64,
+        )
+        repository = DeploymentRepository(uow.session)
+
+        for deployment_id, environment, is_default in (
+            (old_id, Environment.PRODUCTION, True),
+            (new_id, Environment.PRODUCTION, False),
+            (other_id, Environment.STAGING, True),
+        ):
+            deployment = repository.create_deployment(
+                deployment_id=deployment_id,
+                model_id=identifiers["model"],
+                version_id=identifiers["version"],
+                framework=Framework.SKLEARN,
+                environment=environment,
+                role="champion",
+                rollout_type="full",
+            )
+            repository.activate_deployment(deployment)
+            deployment.is_default = is_default
+
+    result = await DeploymentLifecycleService().set_default_deployment(
+        deployment_id=new_id,
+        updated_by="integration-test",
+    )
+
+    assert result["deployment_id"] == new_id
+    assert result["previous_deployment_id"] == old_id
+    assert result["is_default"] is True
+
+    async with UnitOfWork() as uow:
+        repository = DeploymentRepository(uow.session)
+        old = await repository.get_deployment(old_id)
+        new = await repository.get_deployment(new_id)
+        other = await repository.get_deployment(other_id)
+
+        assert old is not None
+        assert new is not None
+        assert other is not None
+        assert old.is_default is False
+        assert new.is_default is True
+        assert old.status == new.status == "active"
+        assert old.role == new.role == "champion"
+        assert old.environment == new.environment == Environment.PRODUCTION.value
+        assert other.is_default is True
+        assert other.status == "active"
+        assert other.environment == Environment.STAGING.value

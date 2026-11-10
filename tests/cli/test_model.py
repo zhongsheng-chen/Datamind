@@ -578,4 +578,3 @@ def test_register_renders_clean_business_error(
         "注册新版本时不能修改模型描述"
     ) in result.output
     assert "Traceback" not in result.output
-

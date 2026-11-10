@@ -56,9 +56,7 @@ async def test_resolve_model_prioritizes_model_id() -> None:
     )
 
     assert result is model
-    metadata_repo.get_model.assert_awaited_once_with(
-        model_id="mdl_test"
-    )
+    metadata_repo.get_model.assert_awaited_once_with(model_id="mdl_test")
 
 
 @pytest.mark.asyncio
@@ -142,9 +140,7 @@ async def test_resolve_version_prioritizes_version_id() -> None:
     )
 
     assert result is version
-    version_repo.get_version.assert_awaited_once_with(
-        "ver_test"
-    )
+    version_repo.get_version.assert_awaited_once_with("ver_test")
     version_repo.list_versions.assert_not_awaited()
 
 

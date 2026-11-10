@@ -2,10 +2,10 @@
 
 本页介绍评分与分类任务的预测输入和结果。注册模型时，通过 `task_type` 指定任务类型；预测输入须与模型的训练特征一致。
 
-| 任务             | 模型                                             | 结果                                   |
-|------------------|--------------------------------------------------|----------------------------------------|
-| `scoring`        | `optbinning.Scorecard`                           | 违约概率、信用评分、特征评分与阈值决策 |
-| `classification` | sklearn / XGBoost / LightGBM / CatBoost 分类模型 | 类别、概率与阈值判断                   |
+| 任务 | 模型 | 结果 |
+| --- | --- | --- |
+| `scoring` | `optbinning.Scorecard` | 违约概率、信用评分、特征评分与阈值决策 |
+| `classification` | sklearn / XGBoost / LightGBM / CatBoost 分类模型 | 类别、概率与阈值判断 |
 
 支持的模型与文件格式见[模型兼容性](../models/compatibility.md)。
 

@@ -89,7 +89,6 @@ def create_config(
     return IsolatedServiceConfig(**config_kwargs)
 
 
-
 def test_service_config_default_optional_values() -> None:
     """测试服务可选参数默认值."""
     config = create_config()
@@ -272,8 +271,6 @@ def test_service_config_rejects_invalid_numeric_values(
                 field: value,
             }
         )
-
-
 
 
 def test_service_config_ignores_extra_fields() -> None:

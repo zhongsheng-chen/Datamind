@@ -130,7 +130,7 @@ def wait_for_console_ready(
         )
 
     logger.warning(
-        "Datamind 管理控制台就绪探测超时",
+        "管理控制台就绪探测超时",
         readiness_url=access_url,
         timeout_seconds=timeout_seconds,
         last_failure=last_failure,
@@ -144,13 +144,18 @@ def stop_console_process(
     """停止当前命令创建的进程树，并有界等待退出."""
     try:
         if sys.platform == "win32":
-            subprocess.run(
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                check=True,
-                capture_output=True,
-                timeout=_STOP_TIMEOUT_SECONDS,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    check=True,
+                    capture_output=True,
+                    timeout=_STOP_TIMEOUT_SECONDS,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            except subprocess.CalledProcessError as exc:
+                if exc.returncode != 128 or process.poll() is None:
+                    raise
+                return True
         else:
             os.killpg(process.pid, signal.SIGTERM)
 
@@ -168,7 +173,7 @@ def stop_console_process(
         return True
     except (OSError, subprocess.SubprocessError) as exc:
         logger.error(
-            "Datamind 管理控制台进程树清理失败",
+            "管理控制台进程树清理失败",
             pid=process.pid,
             error_type=type(exc).__name__,
         )
@@ -242,7 +247,7 @@ def run_console(
     command = [
         sys.executable,
         "-m",
-        "bentoml",
+        "datamind.cli.http_entrypoint",
         "serve",
         CONSOLE_TARGET,
         "--host",
@@ -275,10 +280,20 @@ def run_console(
         host=normalized_host,
         port=resolved_port,
     )
-    service_instance_id = uuid.uuid4().hex
+    service_id = uuid.uuid4().hex
     env = os.environ.copy()
-    env["DATAMIND_SERVICE_INSTANCE_ID"] = service_instance_id
+    env["DATAMIND_SERVICE_ID"] = service_id
     started_at = time.monotonic()
+
+    print_http_server_summary(
+        console,
+        app_version=app_version,
+        environment=environment,
+        bind_address=listen_address,
+        access_url=access_url,
+        reload_enabled=reload,
+    )
+    logger.info("正在启动管理控制台，等待服务就绪")
 
     try:
         process = subprocess.Popen(
@@ -288,8 +303,8 @@ def run_console(
         )
     except OSError as exc:
         logger.error(
-            "Datamind 管理控制台启动失败",
-            service_instance_id=service_instance_id,
+            "管理控制台启动失败",
+            service_id=service_id,
             service_name=CONSOLE_SERVICE_NAME,
             version=app_version,
             environment=environment,
@@ -301,7 +316,7 @@ def run_console(
             error=str(exc),
         )
         console.error(
-            "Datamind 管理控制台启动失败："
+            "管理控制台启动失败："
             "无法启动 BentoML"
         )
         raise typer.Exit(
@@ -309,7 +324,7 @@ def run_console(
         ) from None
 
     startup_context = {
-        "service_instance_id": service_instance_id,
+        "service_id": service_id,
         "service_name": CONSOLE_SERVICE_NAME,
         "version": app_version,
         "environment": environment,
@@ -319,7 +334,7 @@ def run_console(
         "pid": process.pid,
     }
     logger.debug(
-        "Datamind 管理控制台子进程已启动",
+        "管理控制台子进程已启动",
         verbose=verbose,
         service_target=CONSOLE_TARGET,
         **startup_context,
@@ -337,14 +352,14 @@ def run_console(
                 elapsed_seconds = round(time.monotonic() - started_at, 2)
                 cleanup_complete = stop_console_process(process)
                 logger.error(
-                    "Datamind 管理控制台启动超时",
+                    "管理控制台启动超时",
                     timeout_seconds=resolved_startup_timeout,
                     elapsed_seconds=elapsed_seconds,
                     cleanup_complete=cleanup_complete,
                     **startup_context,
                 )
                 console.error(
-                    "Datamind 管理控制台启动失败："
+                    "管理控制台启动失败："
                     f"等待服务就绪超时（{resolved_startup_timeout} 秒）。"
                     "可使用 --startup-timeout 调整等待时间，"
                     "或使用 --verbose 查看启动日志。"
@@ -356,7 +371,7 @@ def run_console(
                 )
 
             logger.error(
-                "Datamind 管理控制台启动前异常退出",
+                "管理控制台启动前异常退出",
                 return_code=return_code,
                 **startup_context,
             )
@@ -364,48 +379,42 @@ def run_console(
                 code=return_code or 1
             )
 
-        logger.info(
-            "Datamind 管理控制台启动完成",
+        logger.debug(
+            "管理控制台启动完成",
             elapsed_seconds=round(time.monotonic() - started_at, 2),
             **startup_context,
         )
-        print_http_server_summary(
-            console,
-            app_version=app_version,
-            environment=environment,
-            bind_address=listen_address,
-            access_url=access_url,
-            reload_enabled=reload,
-            pid=process.pid,
+        logger.info(
+            "管理控制台已就绪",
+            startup_seconds=round(time.monotonic() - started_at, 2),
         )
-        console.print(
-            "Press Ctrl+C to stop\n"
-        )
+        if console.is_terminal:
+            console.print("按 Ctrl+C 停止服务")
 
         return_code = process.wait()
     except KeyboardInterrupt:
         if not stop_console_process(process):
-            console.error("Datamind 管理控制台停止失败，请检查后台进程。")
+            console.error("管理控制台停止失败，请检查后台进程。")
             raise typer.Exit(code=1) from None
         return_code = process.returncode
         logger.info(
-            "Datamind 管理控制台已停止",
+            "管理控制台已停止",
             return_code=return_code,
             **startup_context,
         )
-        console.warning("\nDatamind 管理控制台已停止")
+        console.warning("\n管理控制台已停止")
         return
 
     if return_code == 0:
         logger.info(
-            "Datamind 管理控制台进程已退出",
+            "管理控制台进程已退出",
             return_code=return_code,
             **startup_context,
         )
         return
 
     logger.error(
-        "Datamind 管理控制台异常退出",
+        "管理控制台异常退出",
         return_code=return_code,
         **startup_context,
     )

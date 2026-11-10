@@ -18,9 +18,9 @@
   - test_execution_validation:
     验证执行参数和状态迁移约束
   - test_mark_failed_supports_terminal_statuses:
-    测试未成功执行可以进入各类终态
+    验证未成功执行可以进入各类终态
   - test_list_experiment_executions_joins_original_decision:
-    测试按原始决策筛选实验，并仅查询主执行
+    验证按原始决策筛选实验，并仅查询主执行
 """
 
 from datetime import (
@@ -95,13 +95,9 @@ def create_repository(
         else []
     )
     result.scalars.return_value = scalar_collection
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
     session = cast(
@@ -151,9 +147,11 @@ async def test_get_execution() -> None:
     repository, execute, _ = create_repository(
         scalar_result=expected
     )
+
     result = await repository.get_execution(
         expected.execution_id
     )
+
     assert result is expected
     sql = compile_statement(
         get_executed_statement(execute)
@@ -170,6 +168,7 @@ async def test_list_executions() -> None:
     repository, execute, _ = create_repository(
         list_result=expected
     )
+
     result = await repository.list_executions(
         decision_id="dcs_0123456789abcdef",
         deployment_id="dep_0123456789abcdef",
@@ -178,7 +177,9 @@ async def test_list_executions() -> None:
         limit=20,
         offset=10,
     )
+
     assert result == expected
+
     sql = compile_statement(
         get_executed_statement(execute)
     )
@@ -208,9 +209,7 @@ def test_create_execution() -> None:
         latency_ms=8.5,
         started_at=CURRENT_TIME,
     )
-    add.assert_called_once_with(
-        execution
-    )
+    add.assert_called_once_with(execution)
     assert execution.execution_type == "primary"
     assert execution.status == "success"
     assert execution.finished_at is not None
@@ -345,6 +344,7 @@ def test_reset_for_retry_validation(
 def test_execution_validation() -> None:
     """测试执行参数和状态迁移约束."""
     repository, _, _ = create_repository()
+
     with pytest.raises(
             ValueError,
             match="probability",
@@ -382,6 +382,7 @@ async def test_list_experiment_executions_joins_original_decision() -> None:
     rows = await ExecutionRepository(session).list_experiment_executions("exp_test")
 
     assert rows == [row]
+
     statement = session.execute.call_args.args[0]
     sql = str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
     assert "JOIN decisions ON executions.decision_id = decisions.decision_id" in sql

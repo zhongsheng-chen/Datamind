@@ -36,6 +36,8 @@
   )
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import (
     datetime,
     timezone,
@@ -43,7 +45,9 @@ from datetime import (
 from typing import Any
 
 import structlog
+from sqlalchemy.exc import IntegrityError
 
+from datamind.audit.actor import actor_snapshot
 from datamind.audit.enums import (
     AuditSource,
     AuditStatus,
@@ -59,6 +63,7 @@ from datamind.auth.password import (
     verify_password,
 )
 from datamind.constants.identity import (
+    BUILTIN_ROLE_DESCRIPTIONS,
     ADMINISTRATOR_ROLE_NAME,
     BUILTIN_ROLE_NAMES,
     SYSTEM_BOOTSTRAP_ACTOR,
@@ -89,11 +94,32 @@ from datamind.services.errors import (
     RoleNotFoundError,
     UserNotFoundError,
 )
+from datamind.services.organization import (
+    OrganizationService,
+    attach_user_profiles,
+)
 from datamind.utils import generate_random_id
 from datamind.utils.datetime import format_iso_utc
 
 
 logger = structlog.get_logger(__name__)
+
+
+@asynccontextmanager
+async def _user_transaction() -> AsyncIterator[UnitOfWork]:
+    """提交用户写入，并将并发工号冲突转换为业务错误."""
+    try:
+        async with UnitOfWork() as uow:
+            yield uow
+    except IntegrityError as error:
+        original_error = error.orig
+
+        if original_error is None or "uk_users_employee_number" not in str(original_error):
+            raise
+
+        raise IdentityConflictError(
+            "工号已被使用"
+        ) from error
 
 
 class IdentityService:
@@ -129,6 +155,9 @@ class IdentityService:
             display_name: str | None = None,
             email: str | None = None,
             role_names: list[str] | None = None,
+            employee_number: str | None = None,
+            organization_id: str | None = None,
+            department_id: str | None = None,
     ) -> dict[str, Any]:
         """创建用户并授予角色."""
         logger.info(
@@ -145,6 +174,31 @@ class IdentityService:
         self._validate_password(
             password
         )
+
+        profile = {
+            "employee_number": self._nullable_text(
+                employee_number,
+                "工号",
+                maximum=64,
+            ),
+            "organization_id": self._nullable_text(
+                organization_id,
+                "机构 ID",
+                maximum=64,
+            ),
+            "department_id": self._nullable_text(
+                department_id,
+                "部门 ID",
+                maximum=64,
+            ),
+        }
+
+        profile_arguments = {
+            key: value
+            for key, value in profile.items()
+            if value is not None
+        }
+
         normalized_roles = self._normalize_permissions(
             role_names or []
         )
@@ -152,7 +206,7 @@ class IdentityService:
             timezone.utc
         )
 
-        async with UnitOfWork() as uow:
+        async with _user_transaction() as uow:
             user_repo = UserRepository(
                 uow.session
             )
@@ -181,6 +235,29 @@ class IdentityService:
                 raise IdentityConflictError(
                     f"用户名已存在: {normalized_username}"
                 )
+
+            normalized_employee_number = profile["employee_number"]
+
+            if isinstance(normalized_employee_number, str):
+                employee_owner = await user_repo.get_user(
+                    employee_number=normalized_employee_number,
+                )
+
+                if (
+                        employee_owner is not None
+                        and (
+                            existing_user is None
+                            or employee_owner.user_id != existing_user.user_id
+                        )
+                ):
+                    raise IdentityConflictError(
+                        f"工号已被使用: {normalized_employee_number}"
+                    )
+
+            await OrganizationService.validate_profile(
+                uow.session,
+                profile,
+            )
 
             normalized_email = self._optional_text(
                 email,
@@ -227,6 +304,7 @@ class IdentityService:
                     display_name=normalized_display_name,
                     email=normalized_email,
                     created_by=operator_id,
+                    **profile_arguments,
                 )
                 user.password_changed_at = now
                 audit_action = "user.create"
@@ -243,6 +321,7 @@ class IdentityService:
                     patch=UserPatch(
                         display_name=normalized_display_name,
                         email=normalized_email,
+                        **profile,
                     ),
                     updated_by=operator_id,
                 )
@@ -292,6 +371,14 @@ class IdentityService:
                         granted_by=operator_id,
                         granted_at=now,
                     )
+
+            await uow.session.flush()
+            await uow.session.refresh(user)
+
+            await attach_user_profiles(
+                uow.session,
+                [user],
+            )
 
             result = self._user_result(
                 user,
@@ -369,6 +456,11 @@ class IdentityService:
                 )
             ][offset:offset + limit]
 
+            await attach_user_profiles(
+                uow.session,
+                visible_users,
+            )
+
             return [
                 self._user_result(
                     user,
@@ -409,6 +501,11 @@ class IdentityService:
                 include_deleted=include_deleted,
             )
 
+            await attach_user_profiles(
+                uow.session,
+                [user],
+            )
+
             return self._user_result(
                 user,
                 roles=await self._user_role_names(
@@ -428,10 +525,11 @@ class IdentityService:
             display_name: str | None = None,
             email: str | None = None,
             role_names: list[str] | None = None,
+            organization_profile: dict[str, str | None] | None = None,
     ) -> dict[str, Any]:
         """更新用户名、显示名称、邮箱和角色.
 
-        系统初始化创建的内置管理员账户只允许修改邮箱和附加角色，
+        系统初始化创建的内置管理员账户允许修改邮箱、组织资料和附加角色，
         其用户名、显示名称和 administrator 角色保持不变。
         """
         logger.info(
@@ -469,7 +567,7 @@ class IdentityService:
             else None
         )
 
-        async with UnitOfWork() as uow:
+        async with _user_transaction() as uow:
             user_repo = UserRepository(
                 uow.session
             )
@@ -523,15 +621,85 @@ class IdentityService:
                 grant_repo=grant_repo,
                 role_repo=role_repo,
             )
+
+            await attach_user_profiles(
+                uow.session,
+                [user],
+            )
+
             before = self._user_result(
                 user,
                 roles=current_role_names,
             )
+
+            profile_updates: dict[str, str | None] = {}
+
+            if organization_profile is not None:
+                labels = {
+                    "employee_number": "工号",
+                    "organization_id": "机构 ID",
+                    "department_id": "部门 ID",
+                }
+
+                for key, value in organization_profile.items():
+                    if key not in labels:
+                        raise ValueError(
+                            "未知用户组织字段"
+                        )
+
+                    profile_updates[key] = self._nullable_text(
+                        value,
+                        labels[key],
+                        maximum=64,
+                    )
+
+                profile = {
+                    key: getattr(
+                        user,
+                        key,
+                        None,
+                    )
+                    for key in labels
+                }
+                profile.update(
+                    profile_updates
+                )
+
+                employee_number = profile_updates.get("employee_number")
+
+                if isinstance(employee_number, str):
+                    employee_owner = await user_repo.get_user(
+                        employee_number=employee_number,
+                    )
+
+                    if (
+                            employee_owner is not None
+                            and employee_owner.user_id != user.user_id
+                    ):
+                        raise IdentityConflictError(
+                            f"工号已被使用: {employee_number}"
+                        )
+
+                await OrganizationService.validate_profile(
+                    uow.session,
+                    profile,
+                    current_profile=before,
+                )
+
+            profile_arguments = (
+                {
+                    "organization_profile": profile_updates,
+                }
+                if organization_profile is not None
+                else {}
+            )
+
             user_repo.replace_profile(
                 user,
                 username=normalized_new_username,
                 display_name=normalized_display_name,
                 email=normalized_email,
+                **profile_arguments,
                 updated_by=operator_id,
             )
 
@@ -547,6 +715,11 @@ class IdentityService:
                 )
             else:
                 result_role_names = current_role_names
+
+            await attach_user_profiles(
+                uow.session,
+                [user],
+            )
 
             result = self._user_result(
                 user,
@@ -673,6 +846,7 @@ class IdentityService:
                 role_repo=role_repo,
                 grant_repo=grant_repo,
             )
+
             before = self._user_result(
                 user
             )
@@ -908,6 +1082,12 @@ class IdentityService:
                 role_repo=role_repo,
                 grant_repo=grant_repo,
             )
+
+            await attach_user_profiles(
+                uow.session,
+                [user],
+            )
+
             before = self._user_result(
                 user,
                 roles=await self._user_role_names(
@@ -937,6 +1117,12 @@ class IdentityService:
                 deleted_by=operator_id,
                 deletion_reason=deletion_reason,
             )
+
+            await attach_user_profiles(
+                uow.session,
+                [user],
+            )
+
             result = self._user_result(
                 user,
                 roles=[],
@@ -1193,10 +1379,6 @@ class IdentityService:
         self._validate_role_permissions(
             normalized_permissions
         )
-        self._reject_builtin_role_action(
-            role_name=normalized_name,
-            operation="修改",
-        )
 
         async with UnitOfWork() as uow:
             role_repo = RoleRepository(
@@ -1208,6 +1390,10 @@ class IdentityService:
             role = await self._require_role(
                 role_repo,
                 name=normalized_name,
+            )
+            self._reject_builtin_role_action(
+                role=role,
+                operation="修改",
             )
             before = self._role_result(
                 role
@@ -1304,10 +1490,6 @@ class IdentityService:
             "角色名称",
             maximum=64,
         )
-        self._reject_builtin_role_action(
-            role_name=normalized_name,
-            operation="停用",
-        )
 
         async with UnitOfWork() as uow:
             role_repo = RoleRepository(
@@ -1319,6 +1501,10 @@ class IdentityService:
             role = await self._require_role(
                 role_repo,
                 name=normalized_name,
+            )
+            self._reject_builtin_role_action(
+                role=role,
+                operation="停用",
             )
             before = self._role_result(
                 role
@@ -1538,10 +1724,6 @@ class IdentityService:
             "角色名称",
             maximum=64,
         )
-        self._reject_builtin_role_action(
-            role_name=normalized_name,
-            operation="删除",
-        )
 
         async with UnitOfWork() as uow:
             role_repo = RoleRepository(
@@ -1556,6 +1738,10 @@ class IdentityService:
             role = await self._require_role(
                 role_repo,
                 name=normalized_name,
+            )
+            self._reject_builtin_role_action(
+                role=role,
+                operation="删除",
             )
             grants = await grant_repo.list_active_grants(
                 role_id=role.role_id,
@@ -1917,13 +2103,13 @@ class IdentityService:
     @staticmethod
     def _reject_builtin_role_action(
             *,
-            role_name: str,
+            role: Role,
             operation: str,
     ) -> None:
-        """拒绝停用或删除内置角色."""
-        if role_name in BUILTIN_ROLE_NAMES:
+        """拒绝修改、停用或删除内置角色."""
+        if role.is_builtin:
             raise IdentityConflictError(
-                f"{role_name} 为系统保留角色，"
+                f"{role.name} 为系统保留角色，"
                 f"不能{operation}"
             )
 
@@ -1952,6 +2138,26 @@ class IdentityService:
             "username": user.username,
             "display_name": user.display_name,
             "email": user.email,
+            "employee_number": getattr(
+                user,
+                "employee_number",
+                None,
+            ),
+            "organization_id": getattr(
+                user,
+                "organization_id",
+                None,
+            ),
+            "department_id": getattr(
+                user,
+                "department_id",
+                None,
+            ),
+            **getattr(
+                user,
+                "organization_profile",
+                {},
+            ),
             "status": user.status,
             "is_builtin": (
                 user.created_by
@@ -1987,10 +2193,12 @@ class IdentityService:
         return {
             "role_id": role.role_id,
             "name": role.name,
-            "description": role.description,
-            "is_builtin": (
-                role.name in BUILTIN_ROLE_NAMES
+            "description": (
+                BUILTIN_ROLE_DESCRIPTIONS[role.name]
+                if role.is_builtin
+                else role.description
             ),
+            "is_builtin": role.is_builtin,
             "permissions": (
                 list(
                     permissions
@@ -2030,6 +2238,15 @@ class IdentityService:
         audit_context = dict(
             self._audit_context
         )
+
+        actor = actor_snapshot()
+
+        if actor and actor.get("username") == operator:
+            audit_context.setdefault(
+                "actor",
+                actor,
+            )
+
         sanitized_context = sanitize_audit_mapping(
             context
         )

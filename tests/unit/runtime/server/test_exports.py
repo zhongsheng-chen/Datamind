@@ -10,7 +10,7 @@
   - test_core_functions_document_all_exports:
     验证核心功能完整列出公共 API
   - test_removed_feedback_schema_is_unavailable:
-    测试运行服务不再导出业务结果请求模型
+    验证运行服务不再导出业务结果请求模型
 """
 
 import datamind.runtime.server as server

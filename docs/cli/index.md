@@ -6,21 +6,21 @@
 
 ## 命令分组
 
-| 命令组                        | 命令                                                       | 用途                           |
-|-------------------------------|------------------------------------------------------------|--------------------------------|
-| [初始化命令](system.md)       | `datamind init`                                            | 初始化系统                     |
-| [数据库命令](db.md)           | `datamind db`                                              | 升级和降级数据库               |
-| [认证命令](auth.md)           | `datamind login`<br>`datamind logout`<br>`datamind whoami` | 登录、退出登录和查看当前身份   |
-| [模型命令](model.md)          | `datamind model`                                           | 注册模型和管理模型版本         |
-| [部署命令](deployment.md)     | `datamind deployment`                                      | 创建部署和管理部署状态         |
-| [路由命令](routing.md)        | `datamind route`                                           | 管理路由规则和配置流量比例     |
-| [实验命令](experiment.md)     | `datamind experiment`                                      | 管理 A/B 测试和分析实验结果    |
-| [分组命令](variant.md)        | `datamind experiment variant`                              | 管理实验分组和配置分流权重     |
-| [用户与角色命令](identity.md) | `datamind user`<br>`datamind role`                         | 管理用户、角色和权限           |
-| [预测服务命令](service.md)    | `datamind service`                                         | 启动预测服务和检查就绪状态     |
-| [任务 Worker 命令](worker.md) | `datamind worker`                                          | 启动任务 Worker 和检查就绪状态 |
-| [控制台命令](console.md)      | `datamind console`                                         | 启动管理控制台和检查就绪状态   |
-| [运行实例命令](runtime.md)    | `datamind runtime`                                         | 查询运行实例及模型加载状态     |
+| 命令组 | 命令 | 用途 |
+| --- | --- | --- |
+| [初始化命令](system.md) | `datamind init` | 初始化系统 |
+| [数据库命令](db.md) | `datamind db` | 升级和降级数据库结构 |
+| [认证命令](auth.md) | `datamind login`<br>`datamind logout`<br>`datamind whoami` | 登录、退出登录和查看当前身份 |
+| [模型命令](model.md) | `datamind model` | 管理模型及其版本 |
+| [部署命令](deployment.md) | `datamind deployment` | 管理模型部署及其运行状态 |
+| [路由命令](routing.md) | `datamind route` | 管理路由规则与流量分配 |
+| [实验命令](experiment.md) | `datamind experiment` | 管理 A/B 测试并分析实验结果 |
+| [分组命令](variant.md) | `datamind experiment variant` | 管理实验分组与分流权重 |
+| [身份管理命令](identity.md) | `datamind user`<br>`datamind organization`<br>`datamind department`<br>`datamind role` | 管理用户、组织结构与访问权限 |
+| [预测服务命令](service.md) | `datamind service` | 启动预测服务并检查就绪状态 |
+| [任务 Worker 命令](worker.md) | `datamind worker` | 启动任务 Worker 并检查就绪状态 |
+| [控制台命令](console.md) | `datamind console` | 启动管理控制台并检查就绪状态 |
+| [运行实例命令](runtime.md) | `datamind runtime` | 查询运行实例及模型加载状态 |
 
 ## 查看帮助
 

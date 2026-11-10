@@ -25,9 +25,9 @@
   - test_shutdown_logging_clears_global_state:
     验证关闭日志系统后清理全局状态
   - test_setup_logging_captures_foreign_exception_via_root:
-    测试第三方 logger 的原生异常记录直接写入文件
+    验证第三方 logger 的原生异常记录直接写入文件
   - test_setup_logging_applies_console_level:
-    测试控制台和文件分别使用各自的日志阈值
+    验证控制台和文件分别使用各自的日志阈值
 """
 
 import logging
@@ -136,11 +136,14 @@ def create_renderer_spies(
 @pytest.fixture(autouse=True)
 def reset_logging_state() -> Iterator[None]:
     """在每个测试前后清理日志系统."""
+    original_config = structlog.get_config().copy()
     logging_setup.shutdown_logging()
 
-    yield
-
-    logging_setup.shutdown_logging()
+    try:
+        yield
+    finally:
+        logging_setup.shutdown_logging()
+        structlog.configure(**original_config)
 
 
 def test_logger_factory_uses_default_name() -> None:

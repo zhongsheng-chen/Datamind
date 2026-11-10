@@ -15,6 +15,8 @@ import datamind.db.models as models
 EXPECTED_EXPORTS = {
     "SystemState",
     "User",
+    "Organization",
+    "Department",
     "Role",
     "Grant",
     "Token",

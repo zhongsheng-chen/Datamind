@@ -14,31 +14,31 @@
   - test_session_returns_authenticated_user:
     验证会话用户查询
   - test_login_reports_unavailable_user_status:
-    测试密码正确时返回明确的用户不可用状态
+    验证密码正确时返回明确的用户不可用状态
   - test_login_reports_unavailable_database:
-    测试登录在数据库异常时返回服务不可用
+    验证登录在数据库异常时返回服务不可用
   - test_login_without_refresh_token_clears_refresh_cookie:
-    测试无刷新令牌的登录会话清理旧 Cookie
+    验证无刷新令牌的登录会话清理旧 Cookie
   - test_refresh_requires_refresh_cookie:
-    测试缺少刷新令牌时返回未登录且不记录续期警告
+    验证缺少刷新令牌时返回未登录且不记录续期警告
   - test_refresh_reports_unavailable_database:
-    测试会话续期在数据库异常时返回服务不可用
+    验证会话续期在数据库异常时返回服务不可用
   - test_logout_ignores_revocation_failure:
-    测试令牌撤销失败时仍完成本地退出
+    验证令牌撤销失败时仍完成本地退出
   - test_session_rejects_invalid_access_token:
-    测试会话接口拒绝无效访问令牌
+    验证会话接口拒绝无效访问令牌
   - test_session_requires_login:
-    测试会话接口拒绝未登录请求
+    验证会话接口拒绝未登录请求
   - test_session_restores_missing_csrf_cookie:
-    测试有效会话自动补发缺失的 CSRF Cookie
+    验证有效会话自动补发缺失的 CSRF Cookie
   - test_login_creates_http_only_session:
-    测试本地账户登录创建 HttpOnly 浏览器会话
+    验证本地账户登录创建 HttpOnly 浏览器会话
   - test_change_password_is_available_without_admin_permission:
-    测试普通登录用户可以修改自己的密码
+    验证普通登录用户可以修改自己的密码
   - test_user_payload_exposes_write_capabilities:
-    测试当前会话返回基于权限计算的管理能力
+    验证当前会话返回基于权限计算的管理能力
   - test_console_data_endpoints_require_login:
-    测试控制台数据接口统一要求登录
+    验证控制台数据接口统一要求登录
 """
 
 import importlib
@@ -197,6 +197,7 @@ async def test_login_rejects_invalid_credentials(
     warning_call = auth_logger.warning.call_args
     assert warning_call.kwargs["user"] == "anonymous"
     assert warning_call.kwargs["attempted_username"] == "unregistered_user"
+
     recorded = f"{audit_call!r}{auth_logger.warning.call_args!r}"
     assert "wrong" not in recorded
 
@@ -395,6 +396,7 @@ async def test_refresh_rotates_session_cookies(
     assert any(
         "datamind_console_refresh=new-refresh-token" in cookie for cookie in cookies
     )
+
     refresh_call = service.refresh.await_args
     assert refresh_call is not None
     refresh_request = refresh_call.args[0]
@@ -510,6 +512,7 @@ async def test_logout_revokes_refresh_token(
         )
 
     assert response.status_code == 204
+
     logout_call = service.logout.await_args
     assert logout_call is not None
     logout_request = logout_call.args[0]

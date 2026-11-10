@@ -14,7 +14,7 @@
   - test_record_returns_when_disabled:
     验证关闭审计
   - test_record_rejects_action_without_operation:
-    测试记录器拒绝缺少操作名称的 action
+    验证记录器拒绝缺少操作名称的 action
 """
 
 from typing import Any

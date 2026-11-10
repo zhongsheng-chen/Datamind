@@ -12,9 +12,9 @@
   - test_static_files_preserves_access_restrictions:
     验证静态资源访问限制
   - test_console_build_serves_fingerprinted_assets:
-    测试构建入口、资源及子路径部署使用正确的缓存策略
+    验证构建入口、资源及子路径部署使用正确的缓存策略
   - test_console_page_requires_build:
-    测试缺少构建产物时返回明确提示而不回退到源码
+    验证缺少构建产物时返回明确提示而不回退到源码
 """
 
 import re

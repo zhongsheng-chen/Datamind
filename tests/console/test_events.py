@@ -14,37 +14,39 @@
   - test_stop_is_idempotent:
     验证未启动时可以安全停止
   - test_initialize_cursor_reads_latest_event_once:
-    测试初始化游标只读取一次最新事件
+    验证初始化游标只读取一次最新事件
   - test_cleanup_removes_expired_events_once_per_interval:
-    测试过期事件清理受时间间隔限制
+    验证过期事件清理受时间间隔限制
   - test_poll_safely_suppresses_replay_error:
-    测试安全轮询吞掉普通回放异常
+    验证安全轮询吞掉普通回放异常
   - test_poll_safely_preserves_cancellation:
-    测试安全轮询继续传播任务取消
+    验证安全轮询继续传播任务取消
   - test_receive_notification_broadcasts_latest_cursor:
-    测试数据库通知广播最新事件游标
+    验证数据库通知广播最新事件游标
   - test_receive_notification_wakes_polling_for_invalid_payload:
-    测试无效通知仍唤醒数据库轮询
+    验证无效通知仍唤醒数据库轮询
   - test_run_polls_during_notification_reconnect:
-    测试通知异常后轮询事件并重新连接
+    验证通知异常后轮询事件并重新连接
   - test_get_notification_dsn_supports_postgresql_only:
-    测试通知连接地址仅支持 PostgreSQL
+    验证通知连接地址仅支持 PostgreSQL
   - test_stream_events_starts_with_consistent_sync:
-    测试首次连接从最新游标执行一致性同步
+    验证首次连接从最新游标执行一致性同步
   - test_stream_events_filters_topics_by_permission:
-    测试事件流只推送当前用户有权查看的主题
+    验证事件流只推送当前用户有权查看的主题
   - test_events_streams_only_granted_topics:
-    测试事件接口仅建立有权限主题的事件流
+    验证事件接口仅建立有权限主题的事件流
   - test_stream_events_reports_expired_session:
-    测试事件流定期校验并报告登录会话过期
+    验证事件流定期校验并报告登录会话过期
   - test_stream_events_sends_heartbeat_for_valid_session:
-    测试有效会话在空闲时接收 SSE 心跳
+    验证有效会话在空闲时接收 SSE 心跳
   - test_event_repository_helpers:
-    测试事件游标范围和增量事件查询
+    验证事件游标范围和增量事件查询
   - test_event_query_waits_for_cleanup_when_cancelled:
-    测试事件查询取消时等待数据库清理完成
+    验证事件查询取消时等待数据库清理完成
   - test_event_cursor_and_sse_encoding_helpers:
-    测试事件游标解析和 SSE 消息编码
+    验证事件游标解析和 SSE 消息编码
+  - test_replay_failure_logs_are_limited_and_recovery_resets:
+    验证回放断连日志限频、恢复通知及恢复后重新记录故障
 """
 
 import asyncio
@@ -804,3 +806,59 @@ def test_event_cursor_and_sse_encoding_helpers() -> None:
     )
 
     assert message == 'event: authentication\ndata: {"status":"expired"}\n\n'
+
+
+@pytest.mark.asyncio
+async def test_replay_failure_logs_are_limited_and_recovery_resets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试回放断连日志限频、恢复通知及恢复后重新记录故障."""
+    module = importlib.import_module(
+        "datamind.console.events"
+    )
+    clock = [100.0]
+    monkeypatch.setattr(
+        "datamind.console.events.time.monotonic",
+        lambda: clock[0],
+    )
+
+    log = MagicMock()
+    monkeypatch.setitem(
+        vars(module),
+        "logger",
+        log,
+    )
+
+    broker = ConsoleEventBroker()
+    broker._poll_once = AsyncMock(
+        side_effect=ConnectionRefusedError(
+            "offline"
+        )
+    )
+
+    await broker._poll_safely()
+
+    clock[0] = 110.0
+    await broker._poll_safely()
+
+    assert log.warning.call_count == 1
+
+    clock[0] = 161.0
+    await broker._poll_safely()
+
+    assert log.warning.call_count == 2
+
+    broker._poll_once.side_effect = None
+    await broker._poll_safely()
+    await broker._poll_safely()
+
+    log.info.assert_called_once_with(
+        "控制台事件回放已恢复"
+    )
+
+    broker._poll_once.side_effect = ConnectionRefusedError(
+        "offline again"
+    )
+    await broker._poll_safely()
+
+    assert log.warning.call_count == 3

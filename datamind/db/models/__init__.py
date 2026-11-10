@@ -5,6 +5,8 @@
 核心功能：
   - SystemState: 系统初始化状态表
   - User: 用户表
+  - Organization: 机构表
+  - Department: 部门表
   - Role: 角色表
   - Grant: 角色授予表
   - Token: 认证令牌表
@@ -47,6 +49,8 @@
 
 from datamind.db.models.system import SystemState
 from datamind.db.models.users import User
+from datamind.db.models.organizations import Organization
+from datamind.db.models.departments import Department
 from datamind.db.models.roles import Role
 from datamind.db.models.grants import Grant
 from datamind.db.models.tokens import Token
@@ -74,6 +78,8 @@ from datamind.db.models.outbox import OutboxEvent
 __all__ = [
     "SystemState",
     "User",
+    "Organization",
+    "Department",
     "Role",
     "Grant",
     "Token",

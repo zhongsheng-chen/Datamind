@@ -24,6 +24,8 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -78,6 +80,18 @@ class User(
                 "email IS NOT NULL"
             ),
         ),
+        Index(
+            "uk_users_employee_number",
+            "employee_number",
+            unique=True,
+            postgresql_where=text(
+                "employee_number IS NOT NULL"
+            ),
+        ),
+        CheckConstraint(
+            "employee_number IS NULL OR btrim(employee_number) <> ''",
+            name="employee_number_not_blank",
+        ),
         CheckConstraint(
             (
                 "status IN ("
@@ -109,6 +123,15 @@ class User(
             ),
             name="email_not_blank",
         ),
+        CheckConstraint(
+            "department_id IS NULL OR organization_id IS NOT NULL",
+            name="department_requires_organization",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "department_id"],
+            ["departments.organization_id", "departments.department_id"],
+            name="fk_users_department_organization",
+        ),
     )
 
     user_id = Column(
@@ -139,6 +162,29 @@ class User(
         String(254),
         nullable=True,
         comment="用户邮箱",
+    )
+
+    employee_number = Column(
+        String(64),
+        nullable=True,
+        comment="工号",
+    )
+
+    organization_id = Column(
+        String(64),
+        ForeignKey(
+            "organizations.organization_id"
+        ),
+        nullable=True,
+        index=True,
+        comment="所属机构 ID",
+    )
+
+    department_id = Column(
+        String(64),
+        nullable=True,
+        index=True,
+        comment="所属部门 ID",
     )
 
     status = Column(

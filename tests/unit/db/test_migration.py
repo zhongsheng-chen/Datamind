@@ -23,9 +23,10 @@ import datamind.db.migration as migration
 
 
 def test_upgrade_runs_from_any_directory(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    """验证在任意工作目录中使用安装包内的迁移脚本生成升级 SQL."""
+    """测试在任意工作目录中使用安装包内的迁移脚本生成升级 SQL."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv(
         "DATAMIND_DATABASE_URL", "postgresql+asyncpg://user:p%25ss@localhost/db",
@@ -41,12 +42,12 @@ def test_upgrade_runs_from_any_directory(
     migration.upgrade_database()
 
     sql = output.getvalue()
-    for table_name in ("users", "systems"):
+    for table_name in ("organizations", "departments", "users", "systems"):
         assert f"CREATE TABLE {table_name}" in sql
 
 
 def test_migration_hides_connection_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
-    """验证升级失败时错误消息不暴露数据库凭据."""
+    """测试升级失败时错误消息不暴露数据库凭据."""
     monkeypatch.setattr(
         migration.command,
         "upgrade",
@@ -61,9 +62,10 @@ def test_migration_hides_connection_secrets(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_downgrade_runs_from_any_directory(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    """验证在任意工作目录中使用安装包内的迁移脚本生成降级 SQL."""
+    """测试在任意工作目录中使用安装包内的迁移脚本生成降级 SQL."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv(
         "DATAMIND_DATABASE_URL", "postgresql+asyncpg://user:p%25ss@localhost/db",
@@ -79,17 +81,19 @@ def test_downgrade_runs_from_any_directory(
     migration.downgrade_database("base")
 
     sql = output.getvalue()
-    for table_name in ("users", "systems"):
+    for table_name in ("organizations", "departments", "users", "systems"):
         assert f"DROP TABLE {table_name}" in sql
 
 
 def test_downgrade_hides_connection_secrets(monkeypatch) -> None:
-    """验证降级失败时错误消息不暴露数据库凭据."""
+    """测试降级失败时错误消息不暴露数据库凭据."""
     monkeypatch.setattr(
         migration.command, "downgrade",
         Mock(side_effect=OSError("postgresql://user:secret-password@host/db")),
     )
+
     with pytest.raises(migration.MigrationError) as caught:
         migration.downgrade_database("-1")
+
     assert "secret-password" not in str(caught.value)
     assert "数据库降级失败" in str(caught.value)

@@ -27,12 +27,24 @@
     验证缺少运行记录时返回空状态
   - test_manager_rejects_empty_deployment_id:
     验证运行时管理器拒绝空部署 ID
+  - test_model_result_logs_worker_generation_and_duration:
+    验证模型加载与失败日志关联实际 Worker、代次和耗时，且不重复记录 INFO
+  - test_reload_unload_log_single_final_info_with_context:
+    验证重载和卸载仅在最终结果记录 INFO，幂等卸载保持 DEBUG
+  - test_unload_failure_logs_error_and_preserves_exception:
+    验证卸载失败时记录模型信息和耗时，并原样传播异常
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import (
+    datetime,
+    timezone,
+)
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+)
 
 import pytest
 
@@ -59,7 +71,10 @@ class FakeUnitOfWork:
     async def __aenter__(self) -> "FakeUnitOfWork":
         return self
 
-    async def __aexit__(self, *_args: object) -> bool:
+    async def __aexit__(
+            self,
+            *_args: object,
+    ) -> bool:
         return False
 
 
@@ -522,3 +537,109 @@ async def test_manager_rejects_empty_deployment_id(
             match="deployment_id 不能为空",
     ):
         await getattr(manager, operation)("")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [False, True])
+async def test_model_result_logs_worker_generation_and_duration(
+        monkeypatch,
+        failure,
+):
+    """测试模型加载与失败日志关联实际 Worker、代次和耗时，且不重复记录 INFO."""
+    import structlog
+    from structlog.testing import capture_logs
+
+    loader = MagicMock()
+    loader.load.return_value = object()
+
+    if failure:
+        loader.load.side_effect = RuntimeError("artifact unavailable")
+
+    manager, *_ = configure_manager(monkeypatch, loader=loader)
+
+    with structlog.contextvars.bound_contextvars(generation=3, service_id="svc_test"):
+        with capture_logs() as logs:
+            if failure:
+                with pytest.raises(BackendError):
+                    await manager.load("dep_test")
+            else:
+                await manager.load("dep_test")
+                await manager.load("dep_test")
+
+    result = next(
+        log
+        for log in logs
+        if log["event"] == ("模型加载失败" if failure else "模型加载成功")
+    )
+
+    assert result["log_level"] == ("error" if failure else "info")
+
+    for key, value in {
+        "worker_id": "worker_test",
+        "deployment_id": "dep_test",
+        "model_id": "mdl_test",
+        "version_id": "ver_test",
+        "generation": 3,
+        "service_id": "svc_test",
+        "environment": "production",
+    }.items():
+        assert result[key] == value
+
+    assert result["duration_ms"] >= 0
+    assert len([log for log in logs if log["log_level"] == "info"]) == (0 if failure else 1)
+
+
+@pytest.mark.asyncio
+async def test_reload_unload_log_single_final_info_with_context(
+        monkeypatch,
+):
+    """测试重载和卸载仅在最终结果记录 INFO，幂等卸载保持 DEBUG."""
+    import structlog
+    from structlog.testing import capture_logs
+
+    loader = MagicMock()
+    loader.load.return_value = object()
+    manager, *_ = configure_manager(monkeypatch, loader=loader)
+
+    await manager.load("dep_test")
+
+    with structlog.contextvars.bound_contextvars(generation=4):
+        with capture_logs() as logs:
+            await manager.reload("dep_test")
+            await manager.unload("dep_test")
+            await manager.unload("dep_test")
+
+    results = [log for log in logs if log["log_level"] == "info"]
+    assert [log["event"] for log in results] == ["模型重载成功", "模型卸载完成"]
+
+    for log in results:
+        assert log["worker_id"] == "worker_test"
+        assert log["generation"] == 4
+        assert log["model_id"] == "mdl_test"
+        assert log["version_id"] == "ver_test"
+        assert log["duration_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_unload_failure_logs_error_and_preserves_exception(
+        monkeypatch,
+):
+    """测试卸载失败时记录模型信息和耗时，并原样传播异常."""
+    from structlog.testing import capture_logs
+
+    manager, repo, *_ = configure_manager(monkeypatch, loader=MagicMock())
+
+    await manager.load("dep_test")
+    repo.get_deployment_runtime.side_effect = RuntimeError("database unavailable")
+
+    with capture_logs() as logs:
+        with pytest.raises(RuntimeError, match="database unavailable"):
+            await manager.unload("dep_test")
+
+    error = next(log for log in logs if log["event"] == "模型卸载失败")
+
+    assert error["log_level"] == "error"
+    assert error["worker_id"] == "worker_test"
+    assert error["model_id"] == "mdl_test"
+    assert error["version_id"] == "ver_test"
+    assert error["duration_ms"] >= 0

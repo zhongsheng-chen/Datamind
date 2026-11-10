@@ -62,9 +62,7 @@ def test_healthcheck_targets_current_container_and_role(
     )
 
     assert healthcheck_module.is_worker_ready()
-    inspect.assert_called_once_with(
-        timeout=2.0,
-    )
+    inspect.assert_called_once_with(timeout=2.0)
 
 
 def test_healthcheck_rejects_other_worker_reply(

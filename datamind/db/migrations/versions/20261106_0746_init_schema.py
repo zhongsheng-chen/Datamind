@@ -1,8 +1,8 @@
 """init schema.
 
-Revision ID: b57a8690ef45
+Revision ID: 61f4cd5e0ab9
 Revises:
-Create Date: 2026-10-12 15:49:23.207492+00:00
+Create Date: 2026-11-06 07:46:27.878197+00:00
 
 说明：
 本文件由 Alembic 自动生成，请谨慎修改。
@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision = 'b57a8690ef45'
+revision = '61f4cd5e0ab9'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -418,6 +418,21 @@ def upgrade() -> None:
     op.create_index('idx_metadata_task_type', 'metadata', ['task_type'], unique=False)
     op.create_index('uk_metadata_model_id', 'metadata', ['model_id'], unique=True)
     op.create_index('uk_metadata_name', 'metadata', ['name'], unique=True)
+    op.create_table('organizations',
+    sa.Column('organization_id', sa.String(length=64), nullable=False, comment='机构 ID'),
+    sa.Column('code', sa.String(length=64), nullable=True, comment='机构编码'),
+    sa.Column('name', sa.String(length=128), nullable=False, comment='机构名称'),
+    sa.Column('sort_order', sa.Integer(), server_default='0', nullable=False, comment='排序值'),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False, comment='是否启用'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint("btrim(name) <> ''", name=op.f('ck_organizations_name_not_blank')),
+    sa.CheckConstraint("code IS NULL OR btrim(code) <> ''", name=op.f('ck_organizations_code_not_blank')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_organizations')),
+    sa.UniqueConstraint('code', name=op.f('uq_organizations_code')),
+    sa.UniqueConstraint('organization_id', name=op.f('uq_organizations_organization_id'))
+    )
     op.create_table('outbox',
     sa.Column('event_id', sa.BigInteger(), autoincrement=True, nullable=False, comment='事件游标'),
     sa.Column('topic', sa.String(length=32), nullable=False, comment='控制台数据主题'),
@@ -643,39 +658,6 @@ def upgrade() -> None:
     op.create_index('idx_tokens_user_status', 'tokens', ['user_id', 'status'], unique=False)
     op.create_index('uk_tokens_token_hash', 'tokens', ['token_hash'], unique=True)
     op.create_index('uk_tokens_token_id', 'tokens', ['token_id'], unique=True)
-    op.create_table('users',
-    sa.Column('user_id', sa.String(length=64), nullable=False, comment='用户 ID，用户的唯一标识'),
-    sa.Column('username', sa.String(length=64), nullable=False, comment='登录用户名'),
-    sa.Column('password_hash', sa.String(length=512), nullable=False, comment='密码哈希'),
-    sa.Column('display_name', sa.String(length=128), nullable=True, comment='用户显示名称'),
-    sa.Column('email', sa.String(length=254), nullable=True, comment='用户邮箱'),
-    sa.Column('status', sa.String(length=20), server_default=sa.text("'active'"), nullable=False, comment='用户状态，可选值：active / disabled / locked'),
-    sa.Column('is_break_glass', sa.Boolean(), server_default=sa.text('false'), nullable=False, comment='是否为本地应急账户'),
-    sa.Column('failed_login_count', sa.Integer(), server_default=sa.text('0'), nullable=False, comment='连续登录失败次数'),
-    sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True, comment='临时锁定截止时间'),
-    sa.Column('last_login_at', sa.DateTime(timezone=True), nullable=True, comment='最近登录时间'),
-    sa.Column('password_changed_at', sa.DateTime(timezone=True), nullable=True, comment='最近密码修改时间'),
-    sa.Column('created_by', sa.String(length=64), nullable=True, comment='创建用户 ID'),
-    sa.Column('updated_by', sa.String(length=64), nullable=True, comment='更新用户 ID'),
-    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='逻辑删除时间'),
-    sa.Column('deleted_by', sa.String(length=64), nullable=True, comment='逻辑删除操作人'),
-    sa.Column('deletion_reason', sa.TEXT(), nullable=True, comment='逻辑删除原因'),
-    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
-    sa.CheckConstraint("btrim(password_hash) <> ''", name=op.f('ck_users_password_hash_not_blank')),
-    sa.CheckConstraint("btrim(username) <> ''", name=op.f('ck_users_username_not_blank')),
-    sa.CheckConstraint("email IS NULL OR btrim(email) <> ''", name=op.f('ck_users_email_not_blank')),
-    sa.CheckConstraint("status IN ('active', 'disabled', 'locked')", name=op.f('ck_users_status_valid')),
-    sa.CheckConstraint('failed_login_count >= 0', name=op.f('ck_users_failed_login_count_non_negative')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_users'))
-    )
-    op.create_index('idx_users_created_at', 'users', ['created_at'], unique=False)
-    op.create_index('idx_users_deleted_at', 'users', ['deleted_at'], unique=False)
-    op.create_index('idx_users_status', 'users', ['status'], unique=False)
-    op.create_index('uk_users_email', 'users', ['email'], unique=True, postgresql_where=sa.text('email IS NOT NULL'))
-    op.create_index('uk_users_user_id', 'users', ['user_id'], unique=True)
-    op.create_index('uk_users_username', 'users', ['username'], unique=True)
     op.create_table('variants',
     sa.Column('variant_id', sa.String(length=64), nullable=False, comment='实验分组 ID，实验分组的唯一标识'),
     sa.Column('experiment_id', sa.String(length=64), nullable=False, comment='实验 ID'),
@@ -752,12 +734,95 @@ def upgrade() -> None:
     op.create_index('idx_versions_status', 'versions', ['status'], unique=False)
     op.create_index('uk_versions_model_id_version', 'versions', ['model_id', 'version'], unique=True)
     op.create_index('uk_versions_version_id', 'versions', ['version_id'], unique=True)
+    op.create_table('departments',
+    sa.Column('department_id', sa.String(length=64), nullable=False, comment='部门 ID'),
+    sa.Column('organization_id', sa.String(length=64), nullable=False, comment='所属机构 ID'),
+    sa.Column('parent_id', sa.String(length=64), nullable=True, comment='上级部门 ID'),
+    sa.Column('code', sa.String(length=64), nullable=True, comment='部门编码'),
+    sa.Column('name', sa.String(length=128), nullable=False, comment='部门名称'),
+    sa.Column('sort_order', sa.Integer(), server_default='0', nullable=False, comment='排序值'),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False, comment='是否启用'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint("btrim(name) <> ''", name=op.f('ck_departments_name_not_blank')),
+    sa.CheckConstraint("code IS NULL OR btrim(code) <> ''", name=op.f('ck_departments_code_not_blank')),
+    sa.CheckConstraint('parent_id IS NULL OR parent_id <> department_id', name=op.f('ck_departments_parent_not_self')),
+    sa.ForeignKeyConstraint(['organization_id', 'parent_id'], ['departments.organization_id', 'departments.department_id'], name='fk_departments_parent_organization'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.organization_id'], name=op.f('fk_departments_organization_id_organizations')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_departments')),
+    sa.UniqueConstraint('department_id', name=op.f('uq_departments_department_id')),
+    sa.UniqueConstraint('organization_id', 'code', name='uq_departments_org_code'),
+    sa.UniqueConstraint('organization_id', 'department_id', name='uq_departments_org_id')
+    )
+    op.create_index(op.f('ix_departments_organization_id'), 'departments', ['organization_id'], unique=False)
+    op.create_index(op.f('ix_departments_parent_id'), 'departments', ['parent_id'], unique=False)
+    op.create_index('uk_departments_root_name', 'departments', ['organization_id', 'name'], unique=True, postgresql_where=sa.text('parent_id IS NULL'))
+    op.create_index('uk_departments_sibling_name', 'departments', ['organization_id', 'parent_id', 'name'], unique=True, postgresql_where=sa.text('parent_id IS NOT NULL'))
+    op.create_table('users',
+    sa.Column('user_id', sa.String(length=64), nullable=False, comment='用户 ID，用户的唯一标识'),
+    sa.Column('username', sa.String(length=64), nullable=False, comment='登录用户名'),
+    sa.Column('password_hash', sa.String(length=512), nullable=False, comment='密码哈希'),
+    sa.Column('display_name', sa.String(length=128), nullable=True, comment='用户显示名称'),
+    sa.Column('email', sa.String(length=254), nullable=True, comment='用户邮箱'),
+    sa.Column('employee_number', sa.String(length=64), nullable=True, comment='工号'),
+    sa.Column('organization_id', sa.String(length=64), nullable=True, comment='所属机构 ID'),
+    sa.Column('department_id', sa.String(length=64), nullable=True, comment='所属部门 ID'),
+    sa.Column('status', sa.String(length=20), server_default=sa.text("'active'"), nullable=False, comment='用户状态，可选值：active / disabled / locked'),
+    sa.Column('is_break_glass', sa.Boolean(), server_default=sa.text('false'), nullable=False, comment='是否为本地应急账户'),
+    sa.Column('failed_login_count', sa.Integer(), server_default=sa.text('0'), nullable=False, comment='连续登录失败次数'),
+    sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True, comment='临时锁定截止时间'),
+    sa.Column('last_login_at', sa.DateTime(timezone=True), nullable=True, comment='最近登录时间'),
+    sa.Column('password_changed_at', sa.DateTime(timezone=True), nullable=True, comment='最近密码修改时间'),
+    sa.Column('created_by', sa.String(length=64), nullable=True, comment='创建用户 ID'),
+    sa.Column('updated_by', sa.String(length=64), nullable=True, comment='更新用户 ID'),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='逻辑删除时间'),
+    sa.Column('deleted_by', sa.String(length=64), nullable=True, comment='逻辑删除操作人'),
+    sa.Column('deletion_reason', sa.TEXT(), nullable=True, comment='逻辑删除原因'),
+    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False, comment='自增主键 ID'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='创建时间'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='更新时间'),
+    sa.CheckConstraint("btrim(password_hash) <> ''", name=op.f('ck_users_password_hash_not_blank')),
+    sa.CheckConstraint("btrim(username) <> ''", name=op.f('ck_users_username_not_blank')),
+    sa.CheckConstraint("email IS NULL OR btrim(email) <> ''", name=op.f('ck_users_email_not_blank')),
+    sa.CheckConstraint("employee_number IS NULL OR btrim(employee_number) <> ''", name=op.f('ck_users_employee_number_not_blank')),
+    sa.CheckConstraint("status IN ('active', 'disabled', 'locked')", name=op.f('ck_users_status_valid')),
+    sa.CheckConstraint('department_id IS NULL OR organization_id IS NOT NULL', name=op.f('ck_users_department_requires_organization')),
+    sa.CheckConstraint('failed_login_count >= 0', name=op.f('ck_users_failed_login_count_non_negative')),
+    sa.ForeignKeyConstraint(['organization_id', 'department_id'], ['departments.organization_id', 'departments.department_id'], name='fk_users_department_organization'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.organization_id'], name=op.f('fk_users_organization_id_organizations')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_users'))
+    )
+    op.create_index('idx_users_created_at', 'users', ['created_at'], unique=False)
+    op.create_index('idx_users_deleted_at', 'users', ['deleted_at'], unique=False)
+    op.create_index('idx_users_status', 'users', ['status'], unique=False)
+    op.create_index(op.f('ix_users_department_id'), 'users', ['department_id'], unique=False)
+    op.create_index(op.f('ix_users_organization_id'), 'users', ['organization_id'], unique=False)
+    op.create_index('uk_users_email', 'users', ['email'], unique=True, postgresql_where=sa.text('email IS NOT NULL'))
+    op.create_index('uk_users_employee_number', 'users', ['employee_number'], unique=True, postgresql_where=sa.text('employee_number IS NOT NULL'))
+    op.create_index('uk_users_user_id', 'users', ['user_id'], unique=True)
+    op.create_index('uk_users_username', 'users', ['username'], unique=True)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """回滚数据库结构（downgrade）."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index('uk_users_username', table_name='users')
+    op.drop_index('uk_users_user_id', table_name='users')
+    op.drop_index('uk_users_employee_number', table_name='users', postgresql_where=sa.text('employee_number IS NOT NULL'))
+    op.drop_index('uk_users_email', table_name='users', postgresql_where=sa.text('email IS NOT NULL'))
+    op.drop_index(op.f('ix_users_organization_id'), table_name='users')
+    op.drop_index(op.f('ix_users_department_id'), table_name='users')
+    op.drop_index('idx_users_status', table_name='users')
+    op.drop_index('idx_users_deleted_at', table_name='users')
+    op.drop_index('idx_users_created_at', table_name='users')
+    op.drop_table('users')
+    op.drop_index('uk_departments_sibling_name', table_name='departments', postgresql_where=sa.text('parent_id IS NOT NULL'))
+    op.drop_index('uk_departments_root_name', table_name='departments', postgresql_where=sa.text('parent_id IS NULL'))
+    op.drop_index(op.f('ix_departments_parent_id'), table_name='departments')
+    op.drop_index(op.f('ix_departments_organization_id'), table_name='departments')
+    op.drop_table('departments')
     op.drop_index('uk_versions_version_id', table_name='versions')
     op.drop_index('uk_versions_model_id_version', table_name='versions')
     op.drop_index('idx_versions_status', table_name='versions')
@@ -776,13 +841,6 @@ def downgrade() -> None:
     op.drop_index('idx_variants_deleted_at', table_name='variants')
     op.drop_index('idx_variants_created_at', table_name='variants')
     op.drop_table('variants')
-    op.drop_index('uk_users_username', table_name='users')
-    op.drop_index('uk_users_user_id', table_name='users')
-    op.drop_index('uk_users_email', table_name='users', postgresql_where=sa.text('email IS NOT NULL'))
-    op.drop_index('idx_users_status', table_name='users')
-    op.drop_index('idx_users_deleted_at', table_name='users')
-    op.drop_index('idx_users_created_at', table_name='users')
-    op.drop_table('users')
     op.drop_index('uk_tokens_token_id', table_name='tokens')
     op.drop_index('uk_tokens_token_hash', table_name='tokens')
     op.drop_index('idx_tokens_user_status', table_name='tokens')
@@ -838,6 +896,7 @@ def downgrade() -> None:
     op.drop_index('idx_outbox_topic_event_id', table_name='outbox')
     op.drop_index('idx_outbox_occurred_at', table_name='outbox')
     op.drop_table('outbox')
+    op.drop_table('organizations')
     op.drop_index('uk_metadata_name', table_name='metadata')
     op.drop_index('uk_metadata_model_id', table_name='metadata')
     op.drop_index('idx_metadata_task_type', table_name='metadata')

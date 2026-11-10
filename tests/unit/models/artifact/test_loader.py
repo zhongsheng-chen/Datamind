@@ -8,7 +8,7 @@
   - test_load_rejects_unsupported_framework:
     验证拒绝不支持的模型框架
   - test_load_reports_missing_framework_dependency:
-    测试模型加载缺少可选依赖时返回明确安装建议
+    验证模型加载缺少可选依赖时返回明确安装建议
 """
 
 from unittest.mock import Mock
@@ -45,9 +45,7 @@ def test_load_dispatches_to_registered_handler(
     )
 
     assert result is expected
-    handler.assert_called_once_with(
-        b"model data"
-    )
+    handler.assert_called_once_with(b"model data")
 
 
 def test_load_rejects_unsupported_framework() -> None:

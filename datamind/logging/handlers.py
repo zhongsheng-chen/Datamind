@@ -30,6 +30,7 @@
 """
 
 import logging
+from copy import copy
 import sys
 from logging.handlers import (
     QueueHandler,
@@ -98,9 +99,12 @@ def create_console_handler(
     返回：
         控制台日志 handler
     """
-    handler = logging.StreamHandler(
-        sys.stdout
-    )
+    stream = sys.stdout
+    celery_log = sys.modules.get("celery.utils.log")
+    if celery_log is not None and isinstance(stream, celery_log.LoggingProxy) and sys.__stdout__ is not None:
+        # 避免 Celery LoggingProxy 将已格式化日志重发为 WARNING。
+        stream = sys.__stdout__
+    handler = logging.StreamHandler(stream)
     handler.setFormatter(
         formatter
     )
@@ -121,9 +125,7 @@ def create_async_handler(
     """
     log_queue: Queue[logging.LogRecord] = Queue()
 
-    queue_handler = QueueHandler(
-        log_queue
-    )
+    queue_handler = _PreservingQueueHandler(log_queue)
     listener = QueueListener(
         log_queue,
         *handlers,
@@ -131,3 +133,11 @@ def create_async_handler(
     )
 
     return queue_handler, listener
+
+
+class _PreservingQueueHandler(QueueHandler):
+    """同进程队列不提前格式化记录，保留多行消息、参数与异常."""
+
+    def prepare(self, record: logging.LogRecord) -> logging.LogRecord:
+        """复制记录供异步消费，不清空 exc_info/stack_info/args."""
+        return copy(record)

@@ -145,9 +145,7 @@ def test_create_auth_service_builds_local_dependencies(
             "GrantRepository",
             "TokenRepository",
     ):
-        repository = MagicMock(
-            name=name
-        )
+        repository = MagicMock(name=name)
         repositories[name] = repository
         monkeypatch.setitem(
             vars(factory_module),

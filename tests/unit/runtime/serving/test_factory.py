@@ -50,12 +50,8 @@ def install_service_factories(
         monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[MagicMock, MagicMock]:
     """安装具体运行时服务工厂替身."""
-    classification_factory = MagicMock(
-        return_value=MagicMock()
-    )
-    scoring_factory = MagicMock(
-        return_value=MagicMock()
-    )
+    classification_factory = MagicMock(return_value=MagicMock())
+    scoring_factory = MagicMock(return_value=MagicMock())
     monkeypatch.setitem(
         vars(factory_module),
         "_classification_service_type",

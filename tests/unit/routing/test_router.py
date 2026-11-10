@@ -18,35 +18,37 @@
   - test_resolve_uses_only_explicit_default:
     验证默认流量仅选择显式指定的主部署
   - test_resolve_routes_to_challenger_without_default:
-    验证候选部署仍可通过显式路由承接流量
+    验证候选部署可接收匹配路由的请求，但不能作为默认部署
   - test_resolve_includes_independently_matched_shadow:
     验证路由结果包含独立匹配的影子部署
   - test_routing_effective_window_controls_eligibility:
-    测试路由仅在自身生效区间内参与流量分配
+    验证路由仅在自身生效区间内参与流量分配
   - test_routing_ratio_preserves_default_traffic:
-    测试未进入灰度比例时交给默认部署
+    验证未进入灰度比例时交给默认部署
   - test_routing_ratio_selects_candidate:
-    测试进入灰度比例时命中候选部署
+    验证进入灰度比例时命中候选部署
   - test_routing_rejects_total_ratio_above_one:
-    测试拒绝启用路由总占比超过 1
+    验证拒绝启用路由总占比超过 1
   - test_route_result_converts_to_dict:
-    测试路由结果完整转换为字典
+    验证路由结果完整转换为字典
   - test_resolve_rejects_missing_required_parameter:
-    测试路由解析拒绝空模型或环境
+    验证路由解析拒绝空模型或环境
   - test_resolve_rejects_invalid_manual_deployment:
-    测试显式部署拒绝不存在、模型不符或不可用状态
+    验证显式部署拒绝不存在、模型不符或不可用状态
   - test_resolve_rejects_ineffective_manual_deployment:
-    测试显式部署拒绝尚未生效或已经失效的部署
+    验证显式部署拒绝尚未生效或已经失效的部署
   - test_resolve_wraps_ab_test_assignment_error:
-    测试 A/B 实验参数错误转换为路由错误
+    验证 A/B 实验参数错误转换为路由错误
   - test_invalid_ab_test_deployment_falls_back:
-    测试实验部署失效时回滚分配并回退默认部署
+    验证实验部署失效时回滚分配并回退默认部署
   - test_resolve_rejects_missing_available_deployment:
-    测试没有实验、路由和默认部署时抛出路由错误
+    验证没有实验、路由和默认部署时抛出路由错误
   - test_resolve_skips_shadow_routing_for_primary_result:
-    测试影子路由不参与主路由流量分配
+    验证影子路由不参与主路由流量分配
   - test_resolve_can_disable_shadow_resolution:
-    测试配置关闭时不查询影子路由
+    验证配置关闭时不查询影子路由
+  - test_route_result_logs_actual_strategy_without_sensitive_payload:
+    验证路由完成日志包含实际策略与部署，不包含特征或主体信息
 """
 
 from datetime import datetime, timedelta, timezone
@@ -166,9 +168,7 @@ def configure_router(
     routing_repo = AsyncMock()
     routing_repo.list_enabled_routings.return_value = []
     engine = MagicMock()
-    engine.assign = AsyncMock(
-        return_value=ab_result
-    )
+    engine.assign = AsyncMock(return_value=ab_result)
     monkeypatch.setitem(
         vars(router_module),
         "UnitOfWork",
@@ -375,7 +375,15 @@ async def test_routing_rejects_total_ratio_above_one(
 
 
 @pytest.mark.parametrize("subject_key", [None, "", "customer_10001"])
-@pytest.mark.parametrize("field", ["subject_key", "customer_id", "order_id", "application_id"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "subject_key",
+        "customer_id",
+        "order_id",
+        "application_id",
+    ],
+)
 @pytest.mark.parametrize("shadow", [False, True])
 @pytest.mark.asyncio
 async def test_routing_uses_explicit_subject_key(
@@ -501,9 +509,7 @@ async def test_resolve_uses_manual_deployment(
     )
     result = plan.primary
 
-    deployment_repo.get_deployment.assert_awaited_once_with(
-        "dep_manual"
-    )
+    deployment_repo.get_deployment.assert_awaited_once_with("dep_manual")
     engine_assign.assert_not_awaited()
     assert result.deployment_id == "dep_manual"
     assert result.source == str(DecisionStrategy.MANUAL)
@@ -521,7 +527,7 @@ async def test_resolve_uses_manual_deployment(
                 **vars(create_deployment("dep_manual")),
                 "model_id": "mdl_other",
             }),
-            "部署所属模型与请求模型不一致",
+            "部署绑定的模型与请求模型不一致",
         ),
         (
             SimpleNamespace(**{
@@ -756,7 +762,7 @@ async def test_resolve_uses_only_explicit_default(
 async def test_resolve_routes_to_challenger_without_default(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """候选部署可通过匹配路由接收请求，但不能作为默认部署."""
+    """测试候选部署可接收匹配路由的请求，但不能作为默认部署."""
     candidate = create_deployment("dep_candidate")
     router, deployment_repo, routing_repo, _ = configure_router(monkeypatch)
     routing_repo.list_enabled_routings.return_value = [
@@ -876,9 +882,7 @@ async def test_resolve_includes_independently_matched_shadow(
         routing
     ]
     deployment_repo.get_deployment.return_value = shadow
-    resolve = AsyncMock(
-        return_value=primary
-    )
+    resolve = AsyncMock(return_value=primary)
     monkeypatch.setattr(
         router,
         "_resolve_primary",
@@ -943,3 +947,32 @@ async def test_resolve_can_disable_shadow_resolution(
         primary=primary
     )
     routing_repo.list_enabled_routings.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_shadows", [False, True])
+async def test_route_result_logs_actual_strategy_without_sensitive_payload(include_shadows):
+    """测试路由完成日志包含实际策略与部署，不包含特征或主体信息."""
+    from unittest.mock import AsyncMock
+    from structlog.testing import capture_logs
+    from datamind.runtime.routing.router import RuntimeRouter, RouteResult
+
+    router = RuntimeRouter()
+    router._resolve_primary = AsyncMock(return_value=RouteResult(
+        model_id="mdl_test", version_id="ver_test", deployment_id="dep_test",
+        framework="sklearn", environment="development", source="experiment",
+        strategy="manual", experiment_id="exp_test", variant_id="var_test",
+        subject_key="private-subject",
+    ))
+    router._resolve_shadows = AsyncMock(return_value=[])
+    with capture_logs() as logs:
+        await router.resolve(model_id="mdl_test", environment="development",
+                             payload={"private-feature": 99}, include_shadows=include_shadows)
+    result = next(log for log in logs if log["event"] == "主路由解析完成")
+    assert result["log_level"] == "debug"
+    assert result["deployment_id"] == "dep_test"
+    assert result["version_id"] == "ver_test"
+    assert result["experiment_id"] == "exp_test"
+    assert result["variant_id"] == "var_test"
+    assert result["strategy"] == "manual"
+    assert "private" not in str(logs)

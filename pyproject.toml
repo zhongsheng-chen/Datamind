@@ -6,7 +6,7 @@ backend-path = ["."]
 
 [project]
 name = "pydatamind"
-version = "0.1.0rc2"
+version = "0.1.0"
 description = "开放式模型服务管理平台"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -22,7 +22,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 
 dependencies = [
-    "typer>=0.12.0",
+    "typer>=0.29.0",
     "rich>=13.0.0",
     "bentoml>=1.4.39",
     "sqlalchemy[asyncio]>=2.0.0",

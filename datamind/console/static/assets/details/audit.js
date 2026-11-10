@@ -17,6 +17,15 @@ import {
 } from "./common.js";
 
 /**
+ * @typedef {Object} AuditActor
+ * @property {string} user_id 用户 ID
+ * @property {string|null} display_name 用户显示名称
+ * @property {string|null} employee_number 工号
+ * @property {string|null} organization_name 所属机构名称
+ * @property {Array.<{name: string}>} department_path 部门路径
+ */
+
+/**
  * 创建审计记录详情控制器。
  *
  * 详情呈现审计主体、变更内容、请求上下文和目标资源。
@@ -131,6 +140,17 @@ export function createAuditDetailController({
         ["发生时间", formatTime(record.occurred_at)],
       ], dialog, "info", appendRequestDetail),
     );
+    /** @type {AuditActor|null|undefined} */
+    const actor = record.context?.actor;
+    if (actor) {
+      body.append(createDetailSection("操作人身份", [
+        ["用户 ID", actor.user_id],
+        ["姓名", actor.display_name],
+        ["工号", actor.employee_number],
+        ["所属机构", actor.organization_name],
+        ["部门路径", (actor.department_path || []).map((item) => item.name).join(" / ")],
+      ], dialog, "user", appendRequestDetail));
+    }
     if (record.error) body.append(createErrorDetailSection(record.error));
     if (record.before !== null || record.after !== null) {
       body.append(createChangeSection(record.before, record.after));

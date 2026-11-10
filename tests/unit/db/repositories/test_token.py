@@ -10,54 +10,42 @@
     验证查询条件必须且只能提供一个
   - test_get_token_can_lock_record_for_update:
     验证刷新令牌轮换查询可以锁定记录
-  - test_list_tokens_builds_query:
-    验证令牌列表筛选、排序和分页
-  - test_list_active_tokens:
-    验证有效令牌查询
-  - test_create_token:
-    验证创建刷新令牌记录
-  - test_record_token_use:
-    验证记录刷新令牌使用时间
-  - test_revoke_token:
-    验证撤销刷新令牌
   - test_revoke_token_is_idempotent:
     验证重复撤销不会覆盖原撤销信息
   - test_revoke_user_tokens:
     验证撤销用户的全部有效刷新令牌
-  - test_token_time_operations_use_current_utc_time:
-    验证默认时间统一使用当前 UTC 时间
   - test_get_token_returns_none_when_not_found:
-    测试刷新令牌不存在时返回 None
+    验证刷新令牌不存在时返回 None
   - test_list_tokens_uses_default_order_and_limit:
-    测试令牌列表默认排序和数量限制
+    验证令牌列表默认排序和数量限制
   - test_list_tokens_builds_filtered_query:
-    测试令牌列表筛选、排序和分页
+    验证令牌列表筛选、排序和分页
   - test_list_tokens_uses_strict_expires_after:
-    测试过期时间下限使用严格大于条件
+    验证过期时间下限使用严格大于条件
   - test_list_tokens_allows_unlimited_query:
-    测试令牌列表允许不设置分页
+    验证令牌列表允许不设置分页
   - test_list_active_tokens_delegates_to_list_tokens:
-    测试有效令牌查询复用通用查询
+    验证有效令牌查询复用通用查询
   - test_list_active_tokens_uses_current_utc_time:
-    测试有效令牌查询默认使用当前 UTC 时间
+    验证有效令牌查询默认使用当前 UTC 时间
   - test_create_token_uses_defaults:
-    测试创建默认有效刷新令牌
+    验证创建默认有效刷新令牌
   - test_create_token_with_client_information:
-    测试创建包含客户端信息的刷新令牌
+    验证创建包含客户端信息的刷新令牌
   - test_record_token_use_with_explicit_time:
-    测试使用指定时间记录刷新令牌使用时间
+    验证使用指定时间记录刷新令牌使用时间
   - test_record_token_use_uses_current_utc_time:
-    测试记录使用时间默认使用当前 UTC 时间
+    验证记录使用时间默认使用当前 UTC 时间
   - test_revoke_token_with_explicit_values:
-    测试使用指定信息撤销刷新令牌
+    验证使用指定信息撤销刷新令牌
   - test_revoke_token_allows_optional_metadata:
-    测试撤销令牌时允许不提供撤销人和原因
+    验证撤销令牌时允许不提供撤销人和原因
   - test_revoke_token_uses_current_utc_time:
-    测试撤销令牌默认使用当前 UTC 时间
+    验证撤销令牌默认使用当前 UTC 时间
   - test_revoke_user_tokens_returns_empty_list:
-    测试用户没有有效令牌时返回空列表
+    验证用户没有有效令牌时返回空列表
   - test_revoke_user_tokens_uses_single_current_time:
-    测试批量撤销默认使用同一个当前 UTC 时间
+    验证批量撤销默认使用同一个当前 UTC 时间
 """
 
 from datetime import (
@@ -159,12 +147,8 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
-    session = MagicMock(
-        spec=AsyncSession
-    )
+    execute = AsyncMock(return_value=result)
+    session = MagicMock(spec=AsyncSession)
     session.execute = execute
 
     repository = TokenRepository(
@@ -467,9 +451,7 @@ async def test_list_active_tokens_delegates_to_list_tokens(
         create_token()
     ]
     repository, _, _ = create_repository()
-    list_tokens = AsyncMock(
-        return_value=tokens
-    )
+    list_tokens = AsyncMock(return_value=tokens)
 
     monkeypatch.setattr(
         repository,
@@ -515,9 +497,7 @@ async def test_list_active_tokens_uses_current_utc_time(
             )
 
     repository, _, _ = create_repository()
-    list_tokens = AsyncMock(
-        return_value=[]
-    )
+    list_tokens = AsyncMock(return_value=[])
 
     monkeypatch.setitem(
         vars(token_module),
@@ -555,9 +535,7 @@ def test_create_token_uses_defaults() -> None:
         expires_at=EXPIRES_AT,
     )
 
-    session.add.assert_called_once_with(
-        token
-    )
+    session.add.assert_called_once_with(token)
     assert token.token_id == (
         "tok_0123456789abcdef"
     )
@@ -587,9 +565,7 @@ def test_create_token_with_client_information() -> None:
         user_agent="Datamind CLI",
     )
 
-    session.add.assert_called_once_with(
-        token
-    )
+    session.add.assert_called_once_with(token)
     assert token.ip == "192.168.1.100"
     assert token.hostname == "client"
     assert token.user_agent == "Datamind CLI"
@@ -766,9 +742,7 @@ async def test_revoke_user_tokens(
         ),
     ]
     repository, _, _ = create_repository()
-    list_tokens = AsyncMock(
-        return_value=tokens
-    )
+    list_tokens = AsyncMock(return_value=tokens)
     revoke_token = MagicMock(
         side_effect=(
             lambda token_record, **kwargs: token_record
@@ -816,9 +790,7 @@ async def test_revoke_user_tokens_returns_empty_list(
 ) -> None:
     """测试用户没有有效令牌时返回空列表."""
     repository, _, _ = create_repository()
-    list_tokens = AsyncMock(
-        return_value=[]
-    )
+    list_tokens = AsyncMock(return_value=[])
     revoke_token = MagicMock()
 
     monkeypatch.setattr(
@@ -870,9 +842,7 @@ async def test_revoke_user_tokens_uses_single_current_time(
         ),
     ]
     repository, _, _ = create_repository()
-    list_tokens = AsyncMock(
-        return_value=tokens
-    )
+    list_tokens = AsyncMock(return_value=tokens)
     revoke_token = MagicMock(
         side_effect=(
             lambda token_record, **kwargs: token_record

@@ -33,9 +33,9 @@ python examples/scorecard/train.py --random-seed 43 --n-jobs 1 --output examples
 
 训练完成后，模型文件将保存到 `examples/scorecard/artifacts/` 目录下。通过[管理控制台](../guides/console.md#模型管理)将两个模型分别注册为 `scorecard-demo` 的主版本和候选版本：
 
-| 模型文件                | 版本    | 描述     |
-|-------------------------|---------|----------|
-| `scorecard_demo_v1.pkl` | `1.0.0` | 主版本   |
+| 模型文件 | 版本 | 描述 |
+| --- | --- | --- |
+| `scorecard_demo_v1.pkl` | `1.0.0` | 主版本 |
 | `scorecard_demo_v2.pkl` | `1.1.0` | 候选版本 |
 
 完成模型注册后，按照[快速上手](../getting-started/quickstart.md)激活并部署主版本，验证评分结果。若已训练并注册候选版本，可通过[金丝雀发布](../deployment/canary.md)或 [A/B 测试](../experiments/index.md)比较两个版本。
@@ -66,13 +66,13 @@ python examples/classification/catboost/train.py --output examples/classificatio
 
 `examples/classification/` 目录还提供以下训练示例，均使用与 CatBoost 示例相同的合成交易数据：
 
-| 模型     | 框架         | 脚本目录               |
-|----------|--------------|------------------------|
+| 模型 | 框架 | 脚本目录 |
+| --- | --- | --- |
 | 逻辑回归 | scikit-learn | `logistic_regression/` |
-| 决策树   | scikit-learn | `decision_tree/`       |
-| 随机森林 | scikit-learn | `random_forest/`       |
-| XGBoost  | XGBoost      | `xgboost/`             |
-| LightGBM | LightGBM     | `lightgbm/`            |
+| 决策树 | scikit-learn | `decision_tree/` |
+| 随机森林 | scikit-learn | `random_forest/` |
+| XGBoost | XGBoost | `xgboost/` |
+| LightGBM | LightGBM | `lightgbm/` |
 
 按照[安装](../getting-started/installation.md)中的说明安装所需的框架依赖，再运行 `train.py` 训练模型。如需查看训练参数，可使用 `--help`，例如：
 

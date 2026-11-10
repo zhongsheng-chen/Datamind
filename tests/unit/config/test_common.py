@@ -99,6 +99,7 @@ def test_invalid_timezone_rejected(
 ) -> None:
     """测试拒绝空字符串和无效时区名称."""
     monkeypatch.setenv("DATAMIND_TIMEZONE", value)
+
     with pytest.raises(ValidationError):
         get_common_config()
 
@@ -111,6 +112,7 @@ def test_shared_timezone_for_input_and_display(
     parsed = parse_datetime("2026-10-01T00:00:00", timezone_name=get_common_config().timezone)
     assert parsed == datetime(2026, 9, 30, 15, tzinfo=timezone.utc)
     assert format_datetime(parsed) == "2026-10-01 00:00:00"
+
     explicit = parse_datetime("2026-10-01T00:00:00+08:00", timezone_name=get_common_config().timezone)
     assert explicit == datetime(2026, 9, 30, 16, tzinfo=timezone.utc)
 
@@ -148,13 +150,23 @@ def test_application_environment_required(
 ) -> None:
     """测试运行环境必须显式配置."""
     monkeypatch.delenv("DATAMIND_ENVIRONMENT")
+
     with pytest.raises(ValidationError) as error:
         get_common_config()
+
     assert error.value.errors()[0]["loc"] == ("environment",)
     assert error.value.errors()[0]["type"] == "missing"
 
 
-@pytest.mark.parametrize("environment", ["development", "testing", "staging", "production"])
+@pytest.mark.parametrize(
+    "environment",
+    [
+        "development",
+        "testing",
+        "staging",
+        "production",
+    ],
+)
 def test_application_environment_values(
         monkeypatch: pytest.MonkeyPatch,
         environment: str,
@@ -178,5 +190,6 @@ def test_unknown_environment_rejected(
 ) -> None:
     """测试拒绝未知运行环境."""
     monkeypatch.setenv("DATAMIND_ENVIRONMENT", "unknown")
+
     with pytest.raises(ValidationError):
         get_common_config()

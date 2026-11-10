@@ -5,7 +5,7 @@
 
 核心功能：
   - test_get_user_queries_by_single_condition:
-    验证按用户 ID、用户名或邮箱查询
+    验证按用户 ID、用户名、邮箱或工号查询
   - test_get_user_rejects_invalid_conditions:
     验证查询条件必须且只能提供一个
   - test_list_users_builds_filtered_query:
@@ -18,46 +18,40 @@
     验证用户资料更新和认证来源转换
   - test_replace_profile:
     验证完整替换用户资料并支持清空可选字段
-  - test_update_password:
-    验证密码哈希和修改时间更新
-  - test_user_status_transitions:
-    验证启用、停用、锁定和解锁
   - test_restore_user:
     验证恢复逻辑删除用户
-  - test_record_login_success:
-    验证登录成功状态记录
   - test_record_login_failure:
     验证登录失败次数递增
   - test_get_user_returns_none_when_not_found:
-    测试用户不存在时返回 None
+    验证用户不存在时返回 None
   - test_list_users_uses_default_order_and_limit:
-    测试用户列表默认排序和数量限制
+    验证用户列表默认排序和数量限制
   - test_list_users_allows_unlimited_query:
-    测试用户列表允许不设置分页
+    验证用户列表允许不设置分页
   - test_user_patch_uses_slots_and_defaults:
-    测试用户更新结构默认值和 slots
+    验证用户更新结构默认值和 slots
   - test_update_user_ignores_none_fields:
-    测试用户更新忽略值为 None 的字段
+    验证用户更新忽略值为 None 的字段
   - test_update_password_with_explicit_time:
-    测试使用指定时间更新密码哈希
+    验证使用指定时间更新密码哈希
   - test_update_password_uses_current_utc_time:
-    测试未指定时间时使用当前 UTC 时间
+    验证未指定时间时使用当前 UTC 时间
   - test_activate_user:
-    测试启用用户并清除锁定状态
+    验证启用用户并清除锁定状态
   - test_disable_user:
-    测试停用用户并清除临时锁定时间
+    验证停用用户并清除临时锁定时间
   - test_mark_deleted_user:
-    测试逻辑删除用户并保留身份记录
+    验证逻辑删除用户并保留身份记录
   - test_lock_user:
-    测试锁定用户
+    验证锁定用户
   - test_unlock_user:
-    测试解锁用户并清除失败次数
+    验证解锁用户并清除失败次数
   - test_status_update_preserves_existing_updated_by:
-    测试未提供更新人时保留原更新人
+    验证未提供更新人时保留原更新人
   - test_record_login_success_with_explicit_time:
-    测试记录登录成功并清除失败次数
+    验证记录登录成功并清除失败次数
   - test_record_login_success_uses_current_utc_time:
-    测试未指定登录时间时使用当前 UTC 时间
+    验证未指定登录时间时使用当前 UTC 时间
 """
 
 from datetime import (
@@ -153,12 +147,8 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
-    session = MagicMock(
-        spec=AsyncSession
-    )
+    execute = AsyncMock(return_value=result)
+    session = MagicMock(spec=AsyncSession)
     session.execute = execute
 
     repository = UserRepository(
@@ -200,10 +190,7 @@ def compile_statement(
             {
                 "user_id": "usr_0123456789abcdef",
             },
-            (
-                "users.user_id = "
-                "'usr_0123456789abcdef'"
-            ),
+            "users.user_id = 'usr_0123456789abcdef'",
         ),
         (
             {
@@ -213,12 +200,15 @@ def compile_statement(
         ),
         (
             {
+                "employee_number": "001234",
+            },
+            "users.employee_number = '001234'",
+        ),
+        (
+            {
                 "email": "alice@example.com",
             },
-            (
-                "users.email = "
-                "'alice@example.com'"
-            ),
+            "users.email = 'alice@example.com'",
         ),
     ],
 )
@@ -226,7 +216,7 @@ async def test_get_user_queries_by_single_condition(
         arguments: dict[str, str],
         expected_condition: str,
 ) -> None:
-    """测试按用户 ID、用户名或邮箱查询."""
+    """测试按用户 ID、用户名、邮箱或工号查询."""
     expected_user = create_user()
     repository, _, execute = create_repository(
         scalar_result=expected_user
@@ -263,6 +253,10 @@ async def test_get_user_queries_by_single_condition(
             "username": "alice",
         },
         {
+            "username": "alice",
+            "employee_number": "001234",
+        },
+        {
             "user_id": "usr_1",
             "email": "alice@example.com",
         },
@@ -286,7 +280,7 @@ async def test_get_user_rejects_invalid_conditions(
     with pytest.raises(
             ValueError,
             match=(
-                "user_id、username、email "
+                "user_id、username、email、employee_number "
                 "必须且只能提供一个"
             ),
     ):
@@ -415,9 +409,7 @@ async def test_list_active_users_delegates_to_list_users(
         create_user()
     ]
     repository, _, _ = create_repository()
-    list_users = AsyncMock(
-        return_value=users
-    )
+    list_users = AsyncMock(return_value=users)
 
     monkeypatch.setattr(
         repository,
@@ -466,9 +458,7 @@ def test_create_user() -> None:
         created_by="usr_admin",
     )
 
-    session.add.assert_called_once_with(
-        user
-    )
+    session.add.assert_called_once_with(user)
     assert user.user_id == "usr_0123456789abcdef"
     assert user.username == "alice"
     assert user.password_hash == "argon2-password-hash"

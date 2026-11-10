@@ -505,6 +505,9 @@ const sections = {
       ["username", "用户名"],
       ["display_name", "显示名称"],
       ["email", "邮箱", "blank"],
+      ["employee_number", "工号", "blank"],
+      ["organization_name", "所属机构", "blank"],
+      ["department_name", "所属部门", "blank"],
       ["roles", "角色", "list"],
       ["status", "状态", "status"],
       ["last_login_at", "最近登录", "time"],
@@ -686,6 +689,7 @@ const tableContainer = /** @type {HTMLElement} */ (
   document.querySelector("#table-container")
 );
 const dataPanel = document.querySelector(".data-panel");
+const organizationPanel = document.querySelector("#organization-page");
 const sidebar = document.querySelector(".sidebar");
 const backButton = document.querySelector("#back-button");
 const resourceViewToggle = document.querySelector("#resource-view-toggle");
@@ -724,9 +728,8 @@ const account = document.querySelector(".account");
 const accountMenuButton = document.querySelector("#account-menu-button");
 const accountMenu = document.querySelector("#account-menu");
 const accountRoleList = document.querySelector("#account-role-list");
-const accountManagement = document.querySelector("#account-management");
 const changePasswordButton = document.querySelector("#change-password-button");
-const accountSectionKeys = new Set(["users", "roles"]);
+const managementSectionKeys = new Set(["users", "roles"]);
 const tableControls = createTableControls({
   container: tableContainer,
   queryForm: searchForm,
@@ -784,7 +787,11 @@ const presentationController = createPresentationController({
   toast,
 });
 const dashboardController = createDashboardController({
-  accountSectionKeys,
+  managementSectionKeys,
+  managementEntry: document.querySelector("#management-entry"),
+  managementTabs: document.querySelector("#management-tabs"),
+  accountManagement: document.querySelector("#account-management"),
+  closeAccountMenu: () => setAccountMenuOpen(false),
   canViewOverview,
   formatCompactPercentage,
   formatDuration,
@@ -799,7 +806,7 @@ const dashboardController = createDashboardController({
   navigateToSection: navigationController.navigateToSection,
   navigation,
   recentModelUsageContent,
-  renderAccountManagement,
+  hasCapability,
   sections,
   sidebar,
   state,
@@ -829,6 +836,8 @@ const resourceListController = createResourceListController({
   createSortHeader: presentationController.createSortHeader,
   dashboardView,
   dataPanel,
+  organizationPanel,
+  renderOrganizationPage: () => managementController.renderOrganizationPage(organizationPanel),
   defaultPageSize,
   deletedModelVersionColumns,
   deletedSectionColumns,
@@ -1273,25 +1282,8 @@ function renderAccount(user) {
   }
 }
 
-function renderAccountManagement() {
-  const capabilityBySection = {
-    users: "users.manage",
-    roles: "roles.manage",
-  };
-  let visibleCount = 0;
-
-  for (const button of accountManagement.querySelectorAll("[data-account-section]")) {
-    const section = button.dataset.accountSection;
-    const capability = section ? capabilityBySection[section] : null;
-    const visible = Boolean(capability && hasCapability(capability));
-    button.hidden = !visible;
-    if (visible) visibleCount += 1;
-  }
-
-  accountManagement.hidden = visibleCount === 0;
-}
-
 function showLogin(message = "") {
+  managementController.resetOrganizationPage();
   document.documentElement.classList.remove("auth-pending");
   setAccountMenuOpen(false);
   stopAutoRefresh();
@@ -1405,6 +1397,10 @@ async function refreshOverview(silent) {
 }
 
 async function refreshVisiblePage() {
+  if (state.active === "organizations") {
+    await managementController.refreshOrganizationPage();
+    return;
+  }
   if (tableControls.hasQueryDraft()) return;
 
   if (state.selectedModelId !== null) {
@@ -1583,7 +1579,9 @@ function canViewOverview(snapshot) {
  * @returns {string[]} 可访问的资源分区标识
  */
 function getAvailableSections(snapshot) {
-  return Object.keys(sections).filter((key) => snapshot.access[key]);
+  const available = Object.keys(sections).filter((key) => snapshot.access[key]);
+  if (hasCapability("users.manage")) available.push("organizations");
+  return available;
 }
 
 function resetDetailRoute() {
@@ -1675,24 +1673,6 @@ loginForm.addEventListener("submit", async (event) => {
 
 accountMenuButton.addEventListener("click", () => {
   setAccountMenuOpen(accountMenu.hidden);
-});
-accountManagement.addEventListener("click", (event) => {
-  const target = event.target;
-
-  if (!(target instanceof Element)) return;
-
-  const button = target.closest("[data-account-section]");
-
-  if (!(button instanceof HTMLButtonElement)) return;
-
-  const section = button.dataset.accountSection;
-
-  if (!section) return;
-
-  if (!hasCapability(`${section}.manage`)) return;
-
-  setAccountMenuOpen(false);
-  navigationController.navigateToSection(section);
 });
 document.addEventListener("click", (event) => {
   const target = event.target;

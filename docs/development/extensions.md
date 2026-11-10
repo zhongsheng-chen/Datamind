@@ -6,15 +6,15 @@
 
 代码按请求入口、业务服务、数据访问和模型执行等职责组织。扩展功能时，可通过下表查找相关模块；涉及多个入口的业务规则应统一放在服务层，由 CLI 和管理控制台共同调用。
 
-| 修改内容                         | 实现位置                   |
-|----------------------------------|----------------------------|
-| 命令和终端输出                   | `datamind/cli/`            |
-| 管理控制台请求与响应             | `datamind/console/`        |
-| 模型、部署、路由和实验等业务操作 | `datamind/services/`       |
-| 数据模型、数据访问和事务         | `datamind/db/`             |
-| 模型文件加载和输入结构提取       | `datamind/models/`         |
-| 框架推理适配                     | `datamind/core/inference/` |
-| 运行实例、模型加载和任务执行     | `datamind/runtime/`        |
+| 修改内容 | 实现位置 |
+| --- | --- |
+| 命令和终端输出 | `datamind/cli/` |
+| 管理控制台请求与响应 | `datamind/console/` |
+| 模型、部署、路由和实验等业务操作 | `datamind/services/` |
+| 数据模型、数据访问和事务 | `datamind/db/` |
+| 模型文件加载和输入结构提取 | `datamind/models/` |
+| 框架推理适配 | `datamind/core/inference/` |
+| 运行实例、模型加载和任务执行 | `datamind/runtime/` |
 
 ## 新增业务功能
 

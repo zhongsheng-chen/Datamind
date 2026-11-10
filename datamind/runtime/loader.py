@@ -21,13 +21,39 @@
   )
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from time import perf_counter
 from typing import Any
 
+import structlog
+
 from bentoml.exceptions import BentoMLException, NotFound
+from structlog.typing import FilteringBoundLogger
 
 from datamind.models.artifact import ModelArtifactLoader
 from datamind.runtime.backend import BentoBackend
 from datamind.storage import Storage, get_storage
+
+
+logger = structlog.get_logger(__name__)
+
+
+@contextmanager
+def _log_stage_duration(
+        stage_logger: FilteringBoundLogger,
+        stage: str,
+) -> Iterator[None]:
+    """记录模型加载阶段耗时."""
+    started_at = perf_counter()
+    try:
+        yield
+    finally:
+        stage_logger.debug(
+            "模型加载耗时",
+            stage=stage,
+            duration_ms=round((perf_counter() - started_at) * 1000, 3),
+        )
 
 
 class ModelLoader:
@@ -81,44 +107,53 @@ class ModelLoader:
                 "model_key 不能为空"
             )
 
-        try:
-            return self._backend.load(
-                framework=framework,
-                tag=bento_tag,
-            )
-        except NotFound:
-            pass
-
-        if self._storage is None:
-            self._storage = get_storage()
-
-        data = self._storage.load_by_key(
-            model_key
-        )
-        model = ModelArtifactLoader.load(
+        stage_logger = logger.bind(
             framework=framework,
-            data=data,
+            bento_tag=bento_tag,
+            model_key=model_key,
         )
-
         try:
-            self._backend.save(
-                name=bento_tag,
-                framework=framework,
-                model=model,
-                labels={
-                    "model_key": model_key,
-                },
-            )
-        except BentoMLException as save_error:
-            try:
+            with _log_stage_duration(stage_logger, "bento_load"):
                 return self._backend.load(
                     framework=framework,
                     tag=bento_tag,
                 )
+        except NotFound:
+            pass
+
+        with _log_stage_duration(stage_logger, "storage_load"):
+            if self._storage is None:
+                self._storage = get_storage()
+            data = self._storage.load_by_key(model_key)
+
+        with _log_stage_duration(stage_logger, "artifact_load"):
+            model = ModelArtifactLoader.load(
+                framework=framework,
+                data=data,
+            )
+
+        try:
+            with _log_stage_duration(stage_logger, "bento_save"):
+                self._backend.save(
+                    name=bento_tag,
+                    framework=framework,
+                    model=model,
+                    labels={
+                        "model_key": model_key,
+                    },
+                )
+        except BentoMLException as save_error:
+            try:
+                with _log_stage_duration(stage_logger, "bento_reload"):
+                    return self._backend.load(
+                        framework=framework,
+                        tag=bento_tag,
+                    )
             except NotFound:
                 raise save_error
 
-        return self._backend.load(
-            framework=framework,
-            tag=bento_tag,
-        )
+        with _log_stage_duration(stage_logger, "bento_reload"):
+            return self._backend.load(
+                framework=framework,
+                tag=bento_tag,
+            )

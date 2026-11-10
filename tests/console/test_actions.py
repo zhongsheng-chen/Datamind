@@ -16,7 +16,7 @@
   - test_dispatch_batch_actions:
     验证批次取消和重试动作分派到批次生命周期服务
   - test_dispatch_default_deployment_actions:
-    验证默认部署动作分派到显式切换服务
+    验证控制台默认部署操作调用独立的流量切换服务
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -103,9 +103,7 @@ async def test_dispatch_restore_actions(
 async def test_dispatch_version_purge_keeps_reason() -> None:
     """测试版本永久清理交由删除服务并保留原因."""
     service = MagicMock()
-    service.purge = AsyncMock(
-        return_value={"version_id": "ver_test"}
-    )
+    service.purge = AsyncMock(return_value={"version_id": "ver_test"})
 
     await dispatch_resource_action(
         **_arguments(
@@ -215,9 +213,7 @@ async def test_dispatch_model_lifecycle_actions_use_model_id(
 async def test_dispatch_variant_toggle_maps_active_flag() -> None:
     """测试分组启停动作统一映射为活动状态."""
     service = MagicMock()
-    service.set_variant_active = AsyncMock(
-        return_value={"variant_id": "var_test"}
-    )
+    service.set_variant_active = AsyncMock(return_value={"variant_id": "var_test"})
 
     await dispatch_resource_action(
         **_arguments(
@@ -258,23 +254,26 @@ async def test_dispatch_batch_actions(
     )
 
     assert result["batch_id"] == "bat_test"
-    getattr(service, action).assert_awaited_once_with(
-        batch_id="bat_test"
-    )
+    getattr(service, action).assert_awaited_once_with(batch_id="bat_test")
 
 
-@pytest.mark.parametrize("action, method", [
-    ("set-default", "set_default_deployment"),
-    ("unset-default", "unset_default_deployment"),
-])
+@pytest.mark.parametrize(
+    "action, method",
+    [
+        ("set-default", "set_default_deployment"),
+        ("unset-default", "unset_default_deployment"),
+    ],
+)
 @pytest.mark.asyncio
 async def test_dispatch_default_deployment_actions(action: str, method: str) -> None:
-    """控制台默认部署操作调用独立的流量切换服务."""
+    """测试控制台默认部署操作调用独立的流量切换服务."""
     service = MagicMock()
     callback = AsyncMock(return_value={"deployment_id": "dep_test"})
     setattr(service, method, callback)
+
     result = await dispatch_resource_action(**_arguments(
         action=action, deployment_factory=lambda: service,
     ))
+
     callback.assert_awaited_once_with(deployment_id="dep_test", updated_by="operator")
     assert result["deployment_id"] == "dep_test"

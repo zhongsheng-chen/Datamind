@@ -42,29 +42,19 @@ def create_health_resources() -> tuple[
 ]:
     """创建健康检查所需的引擎和连接替身."""
     execute = AsyncMock()
-    connection = MagicMock(
-        spec=AsyncConnection
-    )
+    connection = MagicMock(spec=AsyncConnection)
     connection.execute = execute
 
-    enter = AsyncMock(
-        return_value=connection
-    )
-    exit_context = AsyncMock(
-        return_value=False
-    )
+    enter = AsyncMock(return_value=connection)
+    exit_context = AsyncMock(return_value=False)
     connection_context = MagicMock()
     connection_context.__aenter__ = enter
     connection_context.__aexit__ = (
         exit_context
     )
 
-    connect = MagicMock(
-        return_value=connection_context
-    )
-    engine = MagicMock(
-        spec=AsyncEngine
-    )
+    connect = MagicMock(return_value=connection_context)
+    engine = MagicMock(spec=AsyncEngine)
     engine.connect = connect
 
     return (
@@ -102,9 +92,7 @@ async def test_health_check_success(
         enter,
         exit_context,
     ) = create_health_resources()
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
     perf_counter = MagicMock(
         side_effect=[
             100.0,
@@ -165,6 +153,7 @@ async def test_health_check_success(
     assert str(
         statement
     ) == "SELECT 1"
+
     enter_awaited_call = enter.await_args
     assert enter_awaited_call is not None
 
@@ -260,9 +249,7 @@ async def test_health_check_connection_error(
     enter.side_effect = ConnectionError(
         "database unavailable"
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
     perf_counter = MagicMock(
         side_effect=[
             20.0,
@@ -327,9 +314,7 @@ async def test_health_check_execute_error(
     execute.side_effect = RuntimeError(
         "query failed"
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
     perf_counter = MagicMock(
         side_effect=[
             30.0,
@@ -404,9 +389,7 @@ async def test_health_check_rounds_latency(
         _,
         _,
     ) = create_health_resources()
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
     perf_counter = MagicMock(
         side_effect=[
             50.0,

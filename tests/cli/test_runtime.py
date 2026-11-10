@@ -128,9 +128,7 @@ def test_runtime_query_reports_business_error(
 ) -> None:
     """测试运行状态查询命令处理业务异常."""
     controller = MagicMock()
-    method = AsyncMock(
-        side_effect=error
-    )
+    method = AsyncMock(side_effect=error)
     setattr(
         controller,
         service_method,

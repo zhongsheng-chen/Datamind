@@ -96,6 +96,7 @@ async def test_reload_returns_validation_error(
             "部署环境与当前服务环境不一致"
         )
     )
+
     result = await service._reload(
         request=ControlRequest(
             deployment_id="dep_test"
@@ -191,9 +192,7 @@ async def test_validate_service_environment_rejects_invalid_deployment(
     """测试服务环境校验拒绝无效部署."""
     service_module = runtime_server.load_service_module(monkeypatch)
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        return_value=deployment
-    )
+    deployment_repo.get_deployment = AsyncMock(return_value=deployment)
     runtime_server.install_repositories(
         service_module,
         monkeypatch,
@@ -232,6 +231,4 @@ async def test_validate_service_environment_accepts_current_environment(
         deployment_id="dep_test"
     )
 
-    deployment_repo.get_deployment.assert_awaited_once_with(
-        "dep_test"
-    )
+    deployment_repo.get_deployment.assert_awaited_once_with("dep_test")

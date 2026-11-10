@@ -1,9 +1,9 @@
 """运行时控制服务.
 
-负责部署重载和运行状态查询。
+负责提交模型重载请求和查询部署运行状态。
 
 核心功能：
-  - reload: 请求重新加载部署模型
+  - reload: 提交模型重载请求
   - get_status: 查询部署运行状态
   - list_services: 查询运行服务列表
 
@@ -50,7 +50,7 @@ logger = structlog.get_logger(__name__)
 class RuntimeControlService:
     """运行时控制服务.
 
-    负责提交部署重载请求，并查询各 Worker 的实际运行状态。
+    负责提交模型重载请求，并查询各 Worker 的实际运行状态。
     """
 
     async def reload(
@@ -59,7 +59,7 @@ class RuntimeControlService:
             deployment_id: str,
             operator: str = "system",
     ) -> dict[str, Any]:
-        """请求重新加载部署模型.
+        """提交模型重载请求.
 
         保持 desired_status 为 loaded，
         通过递增 generation 通知所属环境的所有 Worker
@@ -86,8 +86,8 @@ class RuntimeControlService:
             ValueError:
                 当前期望状态不是 loaded
         """
-        logger.info(
-            "开始提交模型重新加载控制请求",
+        logger.debug(
+            "开始提交模型重载请求",
             deployment_id=deployment_id,
             operator=operator,
         )
@@ -137,7 +137,7 @@ class RuntimeControlService:
             )
 
         logger.info(
-            "模型重新加载控制请求提交完成",
+            "模型重载请求已提交",
             deployment_id=deployment_id,
             environment=control_info["environment"],
             operator=operator,

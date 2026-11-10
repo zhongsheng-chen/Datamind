@@ -10,6 +10,8 @@
   - RoutingCreateRequest: 路由创建参数
   - ExperimentCreateRequest: 实验创建参数
   - VariantCreateRequest: 分组创建参数
+  - OrganizationRequest: 机构创建与修改参数
+  - DepartmentRequest: 部门创建与修改参数
   - UserCreateRequest: 用户创建参数
   - UserUpdateRequest: 用户更新参数
   - RoleCreateRequest: 角色创建参数
@@ -203,6 +205,9 @@ class UserCreateRequest(_ConsoleRequest):
     password: str = Field(min_length=1, max_length=1024)
     display_name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=254)
+    employee_number: str | None = Field(default=None, max_length=64)
+    organization_id: str | None = Field(default=None, max_length=64)
+    department_id: str | None = Field(default=None, max_length=64)
     roles: list[str] = Field(default_factory=list, max_length=100)
 
     @field_validator("roles")
@@ -230,6 +235,9 @@ class UserUpdateRequest(_ConsoleRequest):
     username: str = Field(min_length=1, max_length=64)
     display_name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=254)
+    employee_number: str | None = Field(default=None, max_length=64)
+    organization_id: str | None = Field(default=None, max_length=64)
+    department_id: str | None = Field(default=None, max_length=64)
     roles: list[str] | None = Field(default=None, max_length=100)
 
     @field_validator("roles")
@@ -304,3 +312,17 @@ class ResourceActionRequest(_ConsoleRequest):
     """资源操作参数."""
 
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class OrganizationRequest(_ConsoleRequest):
+    """机构创建与修改参数."""
+
+    code: str | None = Field(default=None, max_length=64)
+    name: str = Field(min_length=1, max_length=128)
+
+
+class DepartmentRequest(OrganizationRequest):
+    """部门创建与修改参数."""
+
+    organization_id: str = Field(min_length=1, max_length=64)
+    parent_id: str | None = Field(default=None, max_length=64)

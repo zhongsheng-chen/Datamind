@@ -10,8 +10,14 @@
 
 from collections.abc import Callable
 
+from sqlalchemy.exc import (
+    InterfaceError,
+    OperationalError,
+    TimeoutError as PoolTimeoutError,
+)
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
+from starlette.responses import JSONResponse
 from starlette.types import (
     ASGIApp,
     Message,
@@ -21,6 +27,43 @@ from starlette.types import (
 )
 
 from datamind.context.scope import context_scope
+
+
+class DependencyUnavailableMiddleware:
+    """将数据库连接中断转换为可重试的 503 响应."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        """保存下游应用."""
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """响应发送前转换连接异常，发送后保留原始异常."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def track_send(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, track_send)
+        except (OSError, OperationalError, InterfaceError, PoolTimeoutError) as exc:
+            if isinstance(exc, OSError) and not (
+                isinstance(exc, (ConnectionError, TimeoutError))
+                or getattr(exc, "winerror", None) in {64, 121, 1225}
+            ):
+                raise
+            if started:
+                raise
+            await JSONResponse(
+                {"error": "数据库连接暂不可用，请稍后重试"},
+                status_code=503,
+                headers={"Retry-After": "5"},
+            )(scope, receive, send)
 
 
 class RequestContextMiddleware:

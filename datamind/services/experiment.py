@@ -417,7 +417,7 @@ class ExperimentLifecycleService:
 
         if deployment.model_id != experiment.model_id:
             raise InvalidExperimentConfigError(
-                "部署所属模型与实验模型不一致"
+                "部署绑定的模型与实验绑定的模型不一致"
             )
 
         if deployment.environment != experiment.environment:
@@ -789,7 +789,7 @@ class ExperimentLifecycleService:
 
             if deployment.model_id != experiment.model_id:
                 raise InvalidExperimentConfigError(
-                    "实验分组绑定的部署所属模型与实验模型不一致: "
+                    "部署绑定的模型与实验绑定的模型不一致: "
                     f"{variant.variant_id}"
                 )
 

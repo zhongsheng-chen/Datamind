@@ -30,13 +30,16 @@ from contextlib import (
     AbstractContextManager,
     contextmanager,
 )
+from contextvars import Token
 from types import TracebackType
+from typing import Any
 
 import structlog
 import typer
 from pydantic import SecretStr
 from sqlalchemy.exc import SQLAlchemyError
 
+from datamind.audit.actor import current_actor
 from datamind.auth.errors import (
     AuthenticationRequiredError,
     AuthError,
@@ -124,6 +127,7 @@ class CLIContext:
         self.scope: AbstractContextManager[None] | None = None
 
         self.authenticated_user: AuthenticatedUser | None = None
+        self._actor_token: Token[dict[str, Any] | None] | None = None
 
     async def __aenter__(self):
         """进入上下文.
@@ -190,6 +194,11 @@ class CLIContext:
                 code=1
             ) from None
 
+        actor = getattr(self.authenticated_user, "actor", None)
+
+        if isinstance(actor, dict) and actor:
+            self._actor_token = current_actor.set(actor)
+
         update_context(
             user=self.user,
         )
@@ -197,12 +206,14 @@ class CLIContext:
         return self
 
     async def _authenticate(self) -> None:
-        """认证 CLI 操作人.
+        """认证命令行操作人.
 
-        开发和测试环境允许在认证关闭时使用本地维护模式，
-        预发布和生产环境必须启用认证。启用认证后，优先使用
-        DATAMIND_ACCESS_TOKEN；未提供时使用本地 CLI 登录凭据。
-        本地访问令牌失效时，使用刷新令牌续期并保存新凭据。
+        开发和测试环境关闭认证时，使用本地维护模式；
+        预发布和生产环境必须启用认证。
+
+        启用认证后，优先使用 DATAMIND_ACCESS_TOKEN，
+        否则使用命令行登录凭据。登录凭据中的访问令牌过期时，
+        自动通过刷新令牌续期并保存新凭据。
         """
         auth_config = self.settings.auth
         environment = self.settings.common.environment
@@ -368,6 +379,10 @@ class CLIContext:
             tb: TracebackType | None,
     ) -> None:
         """关闭并清除当前 CLI 命令上下文."""
+        if self._actor_token is not None:
+            current_actor.reset(self._actor_token)
+            self._actor_token = None
+
         if self.scope is None:
             return
 

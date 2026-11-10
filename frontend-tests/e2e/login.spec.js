@@ -73,6 +73,8 @@ test("只读用户看不到未授权的管理操作", async ({ page }) => {
   await expect(page.locator("#create-button")).toBeHidden();
 
   await page.locator("#account-menu-button").click();
-  await expect(page.locator("#account-management")).toBeHidden();
+  await expect(page.locator("#management-entry")).toBeHidden();
+  await expect(page.locator("#management-tabs")).toBeHidden();
+  await expect(page.locator("#account-menu").getByRole("button", { name: "用户管理", exact: true })).toHaveCount(0);
   await expect(page.locator("#change-password-button")).toBeVisible();
 });

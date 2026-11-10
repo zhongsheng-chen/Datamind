@@ -68,21 +68,21 @@ curl -i http://127.0.0.1:8700/auth/logout \
 
 ## 接口与权限
 
-| 路径                    | 输入                                                              | 权限                | 返回                                         |
-|-------------------------|-------------------------------------------------------------------|---------------------|----------------------------------------------|
-| `/auth/login`           | `username`、`password`                                            | 无需访问令牌        | 访问令牌                                     |
-| `/auth/refresh`         | `refresh_token`                                                   | 无需访问令牌        | 新的访问令牌和刷新令牌                       |
-| `/auth/logout`          | `refresh_token`                                                   | 无需访问令牌        | HTTP 204，无响应体                           |
-| `/predict`              | [PredictRequest](runtime-schemas.md#predictrequest)               | `prediction.invoke` | 主预测结果和 `request_id`                    |
-| `/predict/batch`        | [BatchPredictRequest](runtime-schemas.md#batchpredictrequest)     | `prediction.invoke` | HTTP 202、`batch_id` 和排队状态              |
-| `/predict/batch/status` | [BatchReferenceRequest](runtime-schemas.md#batchreferencerequest) | `prediction.invoke` | 批次状态、执行统计及可用结果                 |
-| `/predict/batch/cancel` | [BatchReferenceRequest](runtime-schemas.md#batchreferencerequest) | `prediction.invoke` | 取消请求后的批次状态                         |
-| `/predict/batch/retry`  | [BatchReferenceRequest](runtime-schemas.md#batchreferencerequest) | `prediction.invoke` | HTTP 202、重新排队后的状态                   |
-| `/admin/reload`         | [ControlRequest](runtime-schemas.md#controlrequest)               | `runtime.manage`    | 重载请求受理结果和控制状态                   |
-| `/admin/status`         | [DeploymentRequest](runtime-schemas.md#deploymentrequest)         | `runtime.read`      | 控制状态、各运行实例及当前 Worker 的本地状态 |
-| `/admin/services`       | 空 JSON 对象 `{}`                                                 | `runtime.read`      | 当前预测服务 Worker 已加载的服务信息         |
-| `/health`               | 空 JSON 对象 `{}`                                                 | 无需认证            | 健康状态及当前 Worker 信息                   |
-| `/ready`                | 空 JSON 对象 `{}`                                                 | 无需认证            | 就绪状态及检查结果                           |
+| 路径 | 输入 | 权限 | 返回 |
+| --- | --- | --- | --- |
+| `/auth/login` | `username`、`password` | 无需访问令牌 | 访问令牌 |
+| `/auth/refresh` | `refresh_token` | 无需访问令牌 | 新的访问令牌和刷新令牌 |
+| `/auth/logout` | `refresh_token` | 无需访问令牌 | HTTP 204，无响应体 |
+| `/predict` | [PredictRequest](runtime-schemas.md#predictrequest) | `prediction.invoke` | 主预测结果和 `request_id` |
+| `/predict/batch` | [BatchPredictRequest](runtime-schemas.md#batchpredictrequest) | `prediction.invoke` | HTTP 202、`batch_id` 和排队状态 |
+| `/predict/batch/status` | [BatchReferenceRequest](runtime-schemas.md#batchreferencerequest) | `prediction.invoke` | 批次状态、执行统计及可用结果 |
+| `/predict/batch/cancel` | [BatchReferenceRequest](runtime-schemas.md#batchreferencerequest) | `prediction.invoke` | 取消请求后的批次状态 |
+| `/predict/batch/retry` | [BatchReferenceRequest](runtime-schemas.md#batchreferencerequest) | `prediction.invoke` | HTTP 202、重新排队后的状态 |
+| `/admin/reload` | [ControlRequest](runtime-schemas.md#controlrequest) | `runtime.manage` | 重载请求受理结果和控制状态 |
+| `/admin/status` | [DeploymentRequest](runtime-schemas.md#deploymentrequest) | `runtime.read` | 控制状态、各运行实例及当前 Worker 的本地状态 |
+| `/admin/services` | 空 JSON 对象 `{}` | `runtime.read` | 当前预测服务 Worker 已加载的服务信息 |
+| `/health` | 空 JSON 对象 `{}` | 无需认证 | 健康状态及当前 Worker 信息 |
+| `/ready` | 空 JSON 对象 `{}` | 无需认证 | 就绪状态及检查结果 |
 
 ## 健康与就绪探针
 
@@ -124,37 +124,37 @@ curl -fsS -X POST http://127.0.0.1:8700/ready \
 
 成功响应包含以下公共字段：
 
-| 字段         | 类型    | 说明                                      |
-|--------------|---------|-------------------------------------------|
-| `success`    | boolean | 本次预测是否成功                          |
-| `task_type`  | string  | 任务类型：`classification` 或 `scoring`   |
-| `request_id` | string  | 预测请求 ID，用于关联请求、决策和执行记录 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 本次预测是否成功 |
+| `task_type` | string | 任务类型：`classification` 或 `scoring` |
+| `request_id` | string | 预测请求 ID，用于关联请求、决策和执行记录 |
 
 除公共字段外，响应还包含对应任务的预测结果。
 
 **分类任务**
 
-| 字段          | 类型    | 说明                                      |
-|---------------|---------|-------------------------------------------|
-| `prediction`  | integer | 根据分类阈值确定的类别，取值为 `0` 或 `1` |
-| `label`       | string  | 与预测类别对应的标签，由模型配置定义      |
-| `probability` | number  | 正类概率                                  |
-| `threshold`   | number  | 分类阈值                                  |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `prediction` | integer | 根据分类阈值确定的类别，取值为 `0` 或 `1` |
+| `label` | string | 与预测类别对应的标签，由模型配置定义 |
+| `probability` | number | 正类概率 |
+| `threshold` | number | 分类阈值 |
 
 **评分任务**
 
-| 字段                       | 类型         | 说明                                        |
-|----------------------------|--------------|---------------------------------------------|
-| `score`                    | number       | 评分结果                                    |
-| `probability`              | number       | 正类概率，具体业务含义由模型定义            |
-| `decision`                 | string       | 评分达到阈值时为 `approve`，否则为 `reject` |
-| `threshold`                | number       | 评分阈值                                    |
-| `score_intercept`          | number       | 评分截距                                    |
-| `features`                 | object       | 以特征名为键的逐特征评分明细                |
-| `features.<特征名>.value`  | 任意 JSON 值 | 输入特征值                                  |
-| `features.<特征名>.bin`    | string       | 特征所属分箱                                |
-| `features.<特征名>.woe`    | number       | 模型使用的 WoE 值                           |
-| `features.<特征名>.points` | number       | 该特征对应的评分                            |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `score` | number | 评分结果 |
+| `probability` | number | 正类概率，具体业务含义由模型定义 |
+| `decision` | string | 评分达到阈值时为 `approve`，否则为 `reject` |
+| `threshold` | number | 评分阈值 |
+| `score_intercept` | number | 评分截距 |
+| `features` | object | 以特征名为键的逐特征评分明细 |
+| `features.<特征名>.value` | 任意 JSON 值 | 输入特征值 |
+| `features.<特征名>.bin` | string | 特征所属分箱 |
+| `features.<特征名>.woe` | number | 模型使用的 WoE 值 |
+| `features.<特征名>.points` | number | 该特征对应的评分 |
 
 请求与响应示例请参阅[评分与分类](../guides/scoring-and-classification.md)，失败响应请参阅[错误处理](#错误处理)。
 
@@ -166,13 +166,13 @@ curl -fsS -X POST http://127.0.0.1:8700/ready \
 
 提交成功返回 HTTP 202，响应包含以下字段：
 
-| 字段              | 类型    | 说明                          |
-|-------------------|---------|-------------------------------|
-| `success`         | boolean | 批次是否提交成功              |
-| `batch_id`        | string  | 批次 ID，用于查询、取消和重试 |
-| `status`          | string  | 提交成功时为 `queued`         |
-| `submitted_count` | integer | 提交的实例数                  |
-| `status_url`      | string  | 批次查询接口路径              |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 批次是否提交成功 |
+| `batch_id` | string | 批次 ID，用于查询、取消和重试 |
+| `status` | string | 提交成功时为 `queued` |
+| `submitted_count` | integer | 提交的实例数 |
+| `status_url` | string | 批次查询接口路径 |
 
 响应示例：
 
@@ -194,48 +194,48 @@ curl -fsS -X POST http://127.0.0.1:8700/ready \
 
 **响应字段**
 
-| 字段              | 类型           | 说明                                         |
-|-------------------|----------------|----------------------------------------------|
-| `success`         | boolean        | 本次查询是否成功，不代表批次中的预测全部成功 |
-| `batch_id`        | string         | 批次 ID                                      |
-| `status`          | string         | 当前批次状态，见下表                         |
-| `total_count`     | integer        | 实例总数                                     |
-| `completed_count` | integer        | 已完成的实例数                               |
-| `succeeded_count` | integer        | 预测成功的实例数                             |
-| `failed_count`    | integer        | 预测失败的实例数                             |
-| `attempt_count`   | integer        | 执行尝试次数                                 |
-| `created_at`      | string         | 批次创建时间                                 |
-| `started_at`      | string 或 null | 本次执行开始时间，尚未开始时为 `null`        |
-| `finished_at`     | string 或 null | 本次执行结束时间，尚未结束时为 `null`        |
-| `error`           | string         | 批次错误信息，仅在存在错误时返回             |
-| `result`          | object         | 批次预测结果，仅在结果已生成时返回           |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 本次查询是否成功，不代表批次中的预测全部成功 |
+| `batch_id` | string | 批次 ID |
+| `status` | string | 当前批次状态，见下表 |
+| `total_count` | integer | 实例总数 |
+| `completed_count` | integer | 已完成的实例数 |
+| `succeeded_count` | integer | 预测成功的实例数 |
+| `failed_count` | integer | 预测失败的实例数 |
+| `attempt_count` | integer | 执行尝试次数 |
+| `created_at` | string | 批次创建时间 |
+| `started_at` | string 或 null | 本次执行开始时间，尚未开始时为 `null` |
+| `finished_at` | string 或 null | 本次执行结束时间，尚未结束时为 `null` |
+| `error` | string | 批次错误信息，仅在存在错误时返回 |
+| `result` | object | 批次预测结果，仅在结果已生成时返回 |
 
 **批次状态**
 
-| `status`              | 含义                   |
-|-----------------------|------------------------|
-| `queued`              | 等待执行               |
-| `running`             | 执行中                 |
-| `retrying`            | 等待自动重试           |
-| `cancelling`          | 等待取消完成           |
-| `succeeded`           | 全部实例预测成功       |
-| `partially_succeeded` | 部分实例预测成功       |
-| `failed`              | 批次执行或任务投递失败 |
-| `cancelled`           | 批次已取消             |
+| `status` | 含义 |
+| --- | --- |
+| `queued` | 等待执行 |
+| `running` | 执行中 |
+| `retrying` | 等待自动重试 |
+| `cancelling` | 等待取消完成 |
+| `succeeded` | 全部实例预测成功 |
+| `partially_succeeded` | 部分实例预测成功 |
+| `failed` | 批次执行或任务投递失败 |
+| `cancelled` | 批次已取消 |
 
 **预测结果**
 
 结果生成后，响应通过 `result` 对象返回以下字段：
 
-| 字段              | 类型    | 说明                                                                                    |
-|-------------------|---------|-----------------------------------------------------------------------------------------|
-| `success`         | boolean | 结果中的实例是否全部预测成功                                                            |
-| `task_type`       | string  | 任务类型，存在时返回                                                                    |
-| `count`           | integer | 结果中的实例数                                                                          |
-| `succeeded_count` | integer | 结果中预测成功的实例数                                                                  |
-| `failed_count`    | integer | 结果中预测失败的实例数                                                                  |
-| `predictions`     | array   | 逐条预测结果；成功项结构见[单条预测](#单条预测)，失败项包含 `success: false` 和错误信息 |
-| `batch_id`        | string  | 批次 ID                                                                                 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 结果中的实例是否全部预测成功 |
+| `task_type` | string | 任务类型，存在时返回 |
+| `count` | integer | 结果中的实例数 |
+| `succeeded_count` | integer | 结果中预测成功的实例数 |
+| `failed_count` | integer | 结果中预测失败的实例数 |
+| `predictions` | array | 逐条预测结果；成功项结构见[单条预测](#单条预测)，失败项包含 `success: false` 和错误信息 |
+| `batch_id` | string | 批次 ID |
 
 批次执行成功后，接口返回的响应示例如下：
 
@@ -279,12 +279,12 @@ curl -fsS -X POST http://127.0.0.1:8700/ready \
 
 取消成功返回 HTTP 200，重试成功返回 HTTP 202，响应结构均与[查询批次](#查询批次)一致。各状态下的操作结果如下：
 
-| 操作     | 可接受状态                                   | 结果                                        |
-|----------|----------------------------------------------|---------------------------------------------|
-| 取消     | `queued`、`retrying`                         | 直接进入 `cancelled`                        |
-| 取消     | `running`                                    | 进入 `cancelling`，等待任务 Worker 协作停止 |
-| 重复取消 | `cancelling`、`cancelled`                    | 保持当前状态                                |
-| 重试     | `partially_succeeded`、`failed`、`cancelled` | 使用原 `batch_id` 重新排队                  |
+| 操作 | 可接受状态 | 结果 |
+| --- | --- | --- |
+| 取消 | `queued`、`retrying` | 直接进入 `cancelled` |
+| 取消 | `running` | 进入 `cancelling`，等待任务 Worker 协作停止 |
+| 重复取消 | `cancelling`、`cancelled` | 保持当前状态 |
+| 重试 | `partially_succeeded`、`failed`、`cancelled` | 使用原 `batch_id` 重新排队 |
 
 当前状态不允许取消或重试时，返回 HTTP 409。重试保留已成功实例的结果，仅处理尚未成功的实例。
 
@@ -329,18 +329,18 @@ curl -sS http://127.0.0.1:8700/admin/reload \
 
 通过 `POST /admin/status` 查询部署的运行状态，请求字段及载荷示例请参阅[DeploymentRequest](runtime-schemas.md#deploymentrequest)。
 
-| 字段                             | 类型            | 说明                                                  |
-|----------------------------------|-----------------|-------------------------------------------------------|
-| `success`                        | boolean         | 本次查询是否成功                                      |
-| `request_id`                     | string          | 本次查询的请求 ID                                     |
-| `deployment_id`                  | string          | 部署 ID                                               |
-| `environment`                    | string          | 预测服务的运行环境                                    |
-| `control`                        | object 或 null  | 共享的期望运行状态，无控制记录时为 `null`             |
-| `control.generation`             | integer         | 当前控制代次                                          |
-| `runtimes`                       | array           | 数据库记录的各预测服务 Worker 的运行实例状态          |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 本次查询是否成功 |
+| `request_id` | string | 本次查询的请求 ID |
+| `deployment_id` | string | 部署 ID |
+| `environment` | string | 预测服务的运行环境 |
+| `control` | object 或 null | 共享的期望运行状态，无控制记录时为 `null` |
+| `control.generation` | integer | 当前控制代次 |
+| `runtimes` | array | 数据库记录的各预测服务 Worker 的运行实例状态 |
 | `runtimes[*].applied_generation` | integer 或 null | 对应运行实例已应用的控制代次，尚未应用时可能为 `null` |
-| `local`                          | object          | 本次请求命中的 Worker 的本地运行状态                  |
-| `local_generation`               | integer 或 null | 本次请求命中的 Worker 已应用的控制代次                |
+| `local` | object | 本次请求命中的 Worker 的本地运行状态 |
+| `local_generation` | integer 或 null | 本次请求命中的 Worker 已应用的控制代次 |
 
 查询示例：
 
@@ -466,15 +466,15 @@ curl -sS http://127.0.0.1:8700/admin/services \
 
 响应包含以下字段：
 
-| 字段                  | 类型    | 说明                                 |
-|-----------------------|---------|--------------------------------------|
-| `worker_id`           | string  | Worker ID                            |
-| `environment`         | string  | 运行环境                             |
-| `runtime_count`       | integer | 已注册的运行实例数                   |
-| `service_cache_count` | integer | 缓存的服务数                         |
-| `applied_generations` | object  | 已应用的部署控制代次，以部署 ID 为键 |
-| `runtimes`            | array   | 运行实例快照                         |
-| `services`            | array   | 已缓存的服务信息                     |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `worker_id` | string | Worker ID |
+| `environment` | string | 运行环境 |
+| `runtime_count` | integer | 已注册的运行实例数 |
+| `service_cache_count` | integer | 缓存的服务数 |
+| `applied_generations` | object | 已应用的部署控制代次，以部署 ID 为键 |
+| `runtimes` | array | 运行实例快照 |
+| `services` | array | 已缓存的服务信息 |
 
 ## 错误处理
 
@@ -491,15 +491,15 @@ curl -sS http://127.0.0.1:8700/admin/services \
 
 参数校验和认证失败时，响应结构可能与上述示例不同。客户端应先检查 HTTP 状态码，再读取响应中的错误信息。
 
-| HTTP 状态 | 常见原因                                                 | 处理建议                                   |
-|-----------|----------------------------------------------------------|--------------------------------------------|
-| 400       | 请求字段、模型名、路由或普通业务参数非法                 | 检查请求字段、模型、规则和部署可用性       |
-| 401       | 缺少、过期或无效的认证凭据                               | 重新登录或刷新令牌                         |
-| 403       | 当前身份缺少接口要求的权限                               | 为角色授予精确权限                         |
-| 404       | 部署或批次不存在                                         | 检查 ID 和服务环境                         |
-| 409       | 部署环境、部署状态或批次状态冲突                         | 检查当前环境和资源状态，满足操作条件后重试 |
-| 503       | Broker 投递失败、服务未就绪，或预发布/生产环境未启用认证 | 检查 Redis、数据库、认证配置和相关进程     |
-| 504       | 预测超过服务超时预算                                     | 检查模型耗时和服务超时配置                 |
-| 500       | 未映射的服务异常                                         | 保留追踪 ID 并检查服务日志                 |
+| HTTP 状态 | 常见原因 | 处理建议 |
+| --- | --- | --- |
+| 400 | 请求字段、模型名、路由或普通业务参数非法 | 检查请求字段、模型、规则和部署可用性 |
+| 401 | 缺少、过期或无效的认证凭据 | 重新登录或刷新令牌 |
+| 403 | 当前身份缺少接口要求的权限 | 为角色授予精确权限 |
+| 404 | 部署或批次不存在 | 检查 ID 和服务环境 |
+| 409 | 部署环境、部署状态或批次状态冲突 | 检查当前环境和资源状态，满足操作条件后重试 |
+| 503 | Broker 投递失败、服务未就绪，或预发布/生产环境未启用认证 | 检查 Redis、数据库、认证配置和相关进程 |
+| 504 | 预测超过服务超时预算 | 检查模型耗时和服务超时配置 |
+| 500 | 未映射的服务异常 | 保留追踪 ID 并检查服务日志 |
 
 自动化处理应依据 HTTP 状态码和 `error_type`，避免依赖错误消息文本。

@@ -191,9 +191,7 @@ def create_service(
     role_repo = MagicMock()
     role_repo.get_role = AsyncMock()
     grant_repo = MagicMock()
-    grant_repo.list_active_grants = AsyncMock(
-        return_value=[]
-    )
+    grant_repo.list_active_grants = AsyncMock(return_value=[])
     token_repo = MagicMock()
     token_repo.get_token = AsyncMock()
 
@@ -276,6 +274,7 @@ async def test_login_issues_tokens(
         refresh_token="new-refresh-token",
         expires_in=1800,
     )
+
     credentials, authenticated_at = provider.calls[0]
     assert credentials.username == "alice"
     assert credentials.password == "P@ssw1rd"

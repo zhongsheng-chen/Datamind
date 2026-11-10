@@ -38,35 +38,35 @@
   - test_enable_does_not_restore_disabled_routings:
     验证重新启用部署不会自动恢复路由
   - test_create_shadow_deployment_passes_normalized_values:
-    测试创建影子部署并传递规范化发布参数
+    验证创建影子部署并传递规范化发布参数
   - test_validate_release_mode_rejects_invalid_combinations:
-    测试拒绝不合法的发布方式和部署角色组合
+    验证拒绝不合法的发布方式和部署角色组合
   - test_enable_deployment_reuses_runtime_control:
-    测试重新启用部署时复用运行控制记录
+    验证重新启用部署时复用运行控制记录
   - test_enable_rejects_missing_model:
-    测试模型不存在时拒绝启用部署
+    验证模型不存在时拒绝启用部署
   - test_disable_rejects_missing_deployment:
-    测试禁用不存在的部署时报错
+    验证禁用不存在的部署时报错
   - test_update_deployment_normalizes_release_values:
-    测试仅允许编辑停用部署并规范化发布参数
+    验证仅允许编辑停用部署并规范化发布参数
   - test_update_deployment_to_full_sets_routing_to_100_percent:
-    测试切换为全量发布时同步固定现有路由比例
+    验证切换为全量发布时同步固定现有路由比例
   - test_update_deployment_rejects_active_deployment:
-    测试启用状态部署必须先停用再编辑
+    验证启用状态部署必须先停用再编辑
   - test_disable_rejects_missing_model:
-    测试模型不存在时拒绝禁用部署
+    验证模型不存在时拒绝禁用部署
   - test_enable_allows_multiple_champions:
-    验证启用部署不改变默认流量
+    验证启用新的主部署仅加载模型，不改变默认流量目标
   - test_set_default_switches_without_disabling_deployments:
-    验证显式切换不改变部署状态
+    验证切换默认流量目标时调用仓储且不执行部署启停
   - test_set_default_rejects_ineligible_deployment:
-    验证默认部署角色与状态要求
+    验证默认流量目标仅允许选择已启用的非影子主部署
   - test_set_default_rejects_ineffective_deployment:
-    验证默认部署有效期要求
+    验证有效期未开始或已结束的部署不能设为默认部署
   - test_unset_default_keeps_deployment_enabled:
-    验证取消默认部署不影响启用状态
+    验证取消当前部署的默认标记时保留其启用状态
   - test_set_default_rechecks_deleted_target:
-    验证取得模型锁后重新检查目标部署
+    验证等待模型锁后目标已删除时拒绝切换默认部署
 """
 
 from datetime import datetime, timedelta, timezone
@@ -159,21 +159,15 @@ def configure_service(
         else None
     )
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        return_value=deployment
-    )
+    deployment_repo.get_deployment = AsyncMock(return_value=deployment)
     deployment_repo.lock_model = AsyncMock()
     deployment_repo.set_default_deployment = AsyncMock(return_value=None)
     deployment_repo.create_deployment.return_value = (
         deployment or create_deployment()
     )
     resolver = MagicMock()
-    resolver.resolve_model = AsyncMock(
-        return_value=model
-    )
-    resolver.resolve_version = AsyncMock(
-        return_value=version
-    )
+    resolver.resolve_model = AsyncMock(return_value=model)
+    resolver.resolve_version = AsyncMock(return_value=version)
 
     if not model_exists:
         resolver.resolve_model.side_effect = (
@@ -189,17 +183,13 @@ def configure_service(
             )
         )
     control_repo = MagicMock()
-    control_repo.get_deployment_control = AsyncMock(
-        return_value=control
-    )
+    control_repo.get_deployment_control = AsyncMock(return_value=control)
     control_repo.create_control.return_value = SimpleNamespace(
         desired_status="unloaded",
         generation=1,
     )
     experiment_repo = MagicMock()
-    experiment_repo.get_running_experiment = AsyncMock(
-        return_value=running_experiment
-    )
+    experiment_repo.get_running_experiment = AsyncMock(return_value=running_experiment)
     variant_repo = MagicMock()
     variant_repo.list_variants = AsyncMock(
         return_value=(
@@ -833,9 +823,7 @@ async def test_update_deployment_normalizes_release_values(
         deployment_id="dep_test",
     )
     routing_repo = MagicMock()
-    routing_repo.list_routings = AsyncMock(
-        return_value=[routing]
-    )
+    routing_repo.list_routings = AsyncMock(return_value=[routing])
     monkeypatch.setitem(
         vars(deployment_module),
         "RoutingRepository",
@@ -895,9 +883,7 @@ async def test_update_deployment_to_full_sets_routing_to_100_percent(
         deployment_id="dep_test",
     )
     routing_repo = MagicMock()
-    routing_repo.list_routings = AsyncMock(
-        return_value=[routing]
-    )
+    routing_repo.list_routings = AsyncMock(return_value=[routing])
     monkeypatch.setitem(
         vars(deployment_module),
         "RoutingRepository",
@@ -960,9 +946,11 @@ async def test_disable_rejects_missing_model(
 
 @pytest.mark.asyncio
 async def test_enable_allows_multiple_champions(monkeypatch: pytest.MonkeyPatch) -> None:
-    """启用新的主部署只加载模型，不改变默认流量目标."""
+    """测试启用新的主部署仅加载模型，不改变默认流量目标."""
     repo, _, _, _ = configure_service(monkeypatch, deployment=create_deployment())
+
     await DeploymentLifecycleService().enable_deployment(deployment_id="dep_test")
+
     repo.activate_deployment.assert_called_once()
     repo.set_default_deployment.assert_not_awaited()
     repo.lock_model.assert_not_awaited()
@@ -972,7 +960,7 @@ async def test_enable_allows_multiple_champions(monkeypatch: pytest.MonkeyPatch)
 async def test_set_default_switches_without_disabling_deployments(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """显式切换默认流量目标，不改变新旧部署的启用状态."""
+    """测试切换默认流量目标时调用仓储且不执行部署启停."""
     deployment = create_deployment(status="active")
     repo, control, _, _ = configure_service(monkeypatch, deployment=deployment)
     repo.set_default_deployment.return_value = "dep_old"
@@ -991,31 +979,41 @@ async def test_set_default_switches_without_disabling_deployments(
     control.set_loaded.assert_not_called()
 
 
-@pytest.mark.parametrize("status, role, rollout", [
-    ("inactive", "champion", "full"),
-    ("active", "challenger", "canary"),
-    ("active", "shadow", "shadow"),
-])
+@pytest.mark.parametrize(
+    "status, role, rollout",
+    [
+        ("inactive", "champion", "full"),
+        ("active", "challenger", "canary"),
+        ("active", "shadow", "shadow"),
+        ("active", "champion", "shadow"),
+    ],
+)
 @pytest.mark.asyncio
 async def test_set_default_rejects_ineligible_deployment(
-        monkeypatch: pytest.MonkeyPatch, status: str, role: str, rollout: str,
+        monkeypatch: pytest.MonkeyPatch,
+        status: str,
+        role: str,
+        rollout: str,
 ) -> None:
-    """默认流量目标必须是已启用的非影子主部署."""
+    """测试默认流量目标仅允许选择已启用的非影子主部署."""
     deployment = create_deployment(status=status)
     deployment.role = role
     deployment.rollout_type = rollout
     repo, _, _, _ = configure_service(monkeypatch, deployment=deployment)
+
     with pytest.raises(InvalidDeploymentStateError, match="已启用的 champion"):
         await DeploymentLifecycleService().set_default_deployment(deployment_id="dep_test")
+
     repo.set_default_deployment.assert_not_awaited()
 
 
 @pytest.mark.parametrize("future", [False, True])
 @pytest.mark.asyncio
 async def test_set_default_rejects_ineffective_deployment(
-        monkeypatch: pytest.MonkeyPatch, future: bool,
+        monkeypatch: pytest.MonkeyPatch,
+        future: bool,
 ) -> None:
-    """默认部署不能处于未开始或已结束的有效期."""
+    """测试有效期未开始或已结束的部署不能设为默认部署."""
     deployment = create_deployment(status="active")
     now = datetime.now(timezone.utc)
     if future:
@@ -1023,18 +1021,22 @@ async def test_set_default_rejects_ineffective_deployment(
     else:
         deployment.effective_to = now - timedelta(days=1)
     repo, _, _, _ = configure_service(monkeypatch, deployment=deployment)
+
     with pytest.raises(InvalidDeploymentStateError, match="有效期"):
         await DeploymentLifecycleService().set_default_deployment(deployment_id="dep_test")
+
     repo.set_default_deployment.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_unset_default_keeps_deployment_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    """取消默认流量目标不会停用部署或影响其他默认部署."""
+    """测试取消当前部署的默认标记时保留其启用状态."""
     deployment = create_deployment(status="active")
     deployment.is_default = True
     repo, _, _, _ = configure_service(monkeypatch, deployment=deployment)
+
     result = await DeploymentLifecycleService().unset_default_deployment(deployment_id="dep_test")
+
     assert result["is_default"] is False
     assert deployment.is_default is False
     assert deployment.status == "active"
@@ -1043,10 +1045,12 @@ async def test_unset_default_keeps_deployment_enabled(monkeypatch: pytest.Monkey
 
 @pytest.mark.asyncio
 async def test_set_default_rechecks_deleted_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    """等待模型锁后，目标已删除时拒绝切换默认部署."""
+    """测试等待模型锁后目标已删除时拒绝切换默认部署."""
     deployment = create_deployment(status="active")
     repo, _, _, _ = configure_service(monkeypatch, deployment=deployment)
     repo.get_deployment.side_effect = [deployment, None]
+
     with pytest.raises(DeploymentNotFoundError):
         await DeploymentLifecycleService().set_default_deployment(deployment_id="dep_test")
+
     repo.set_default_deployment.assert_not_awaited()

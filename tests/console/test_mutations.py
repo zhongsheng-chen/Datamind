@@ -4,23 +4,25 @@
 
 核心功能：
   - test_create_deployment_requires_csrf_and_permission:
-    测试部署创建同时校验写权限和 CSRF 令牌
+    验证部署创建同时校验写权限和 CSRF 令牌
+  - test_create_routing_distinguishes_conflicts_from_outages:
+    验证路由创建区分资源冲突与数据库不可用且不泄露内部信息
   - test_register_model_uploads_model_file:
-    测试模型注册接口接收并解析 Schema 文件
+    验证模型注册接口接收并解析 Schema 文件
   - test_update_model_information:
-    测试模型显示名称和描述更新接口
+    验证模型显示名称和描述更新接口
   - test_update_version_information:
-    测试模型版本说明更新接口
+    验证模型版本说明更新接口
   - test_identity_manager_updates_user_and_role:
-    测试身份管理员更新用户资料和角色权限
+    验证身份管理员更新用户资料和角色权限
   - test_version_restore_and_purge_actions:
-    测试控制台接入版本恢复和永久清理服务
+    验证控制台接入版本恢复和永久清理服务
   - test_model_lifecycle_action_is_exposed_over_http:
-    测试模型生命周期动作可通过统一管理接口调用
+    验证模型生命周期动作可通过统一管理接口调用
   - test_routing_enable_audit_records_state_change:
-    测试路由启用审计仅记录状态变化
+    验证路由启用审计仅记录状态变化
   - test_batch_action_is_exposed_over_http:
-    测试批次取消和重试可通过统一管理接口调用
+    验证批次取消和重试可通过统一管理接口调用
 """
 
 import json
@@ -28,6 +30,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from datamind.auth.schemas import AuthenticatedUser
 from datamind.audit.enums import AuditSource
@@ -161,6 +164,91 @@ async def test_create_deployment_requires_csrf_and_permission(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error_type", "sqlstate", "expected_status"),
+    [
+        (IntegrityError, "23505", 409),
+        (IntegrityError, "23502", 503),
+        (IntegrityError, "23503", 503),
+        (IntegrityError, "23514", 503),
+        (IntegrityError, None, 503),
+        (OperationalError, "08006", 503),
+    ],
+)
+async def test_create_routing_distinguishes_conflicts_from_outages(
+        monkeypatch: pytest.MonkeyPatch,
+        error_type: type[IntegrityError] | type[OperationalError],
+        sqlstate: str | None,
+        expected_status: int,
+) -> None:
+    """测试路由创建区分资源冲突与数据库不可用且不泄露内部信息."""
+    user = create_user().model_copy(
+        update={"permissions": ["routing.write"]}
+    )
+    original_error = RuntimeError(
+        "database internal detail"
+    )
+    if sqlstate is not None:
+        setattr(original_error, "sqlstate", sqlstate)
+
+    service = MagicMock()
+    service.create_routing = AsyncMock(
+        side_effect=error_type(
+            None,
+            {"secret": "private-value"},
+            original_error,
+        )
+    )
+    audit_recorder = MagicMock()
+    audit_recorder.record = AsyncMock()
+
+    monkeypatch.setitem(
+        vars(app_module),
+        "_authenticate",
+        AsyncMock(return_value=user),
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "RoutingLifecycleService",
+        lambda: service,
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "AuditRecorder",
+        lambda: audit_recorder,
+    )
+    monkeypatch.setitem(
+        vars(app_module),
+        "_service_environment",
+        lambda: "testing",
+    )
+
+    async with AsyncClient(
+            transport=ASGITransport(app=app_module.console_app),
+            base_url="http://testserver",
+    ) as client:
+        client.cookies.set("datamind_console_csrf", "csrf-token")
+        response = await client.post(
+            "/api/routings",
+            json={"name": "existing-route", "deployment_id": "dep_test"},
+            headers={
+                "Origin": "http://testserver",
+                "X-CSRF-Token": "csrf-token",
+            },
+        )
+
+    assert response.status_code == expected_status
+    assert response.json() == {
+        "error": (
+            "资源已存在，请调整名称或关联关系后重试"
+            if expected_status == 409 else "管理操作暂不可用"
+        )
+    }
+    service.create_routing.assert_awaited_once()
+    audit_recorder.record.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_register_model_uploads_model_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -232,6 +320,7 @@ async def test_register_model_uploads_model_file(
         )
 
     assert response.status_code == 201
+
     register_call = service.register.await_args
     assert register_call is not None
     register_kwargs = register_call.kwargs
@@ -727,6 +816,7 @@ async def test_batch_action_is_exposed_over_http(
 
     assert response.status_code == 200
     assert response.json()["batch_id"] == "bat_test"
+
     expected_arguments = {"batch_id": "bat_test"}
     getattr(service, action).assert_awaited_once_with(**expected_arguments)
     audit.assert_awaited_once()

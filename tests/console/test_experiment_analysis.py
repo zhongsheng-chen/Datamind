@@ -32,7 +32,7 @@ async def test_experiment_analysis_contract(
         error: Exception | None,
         status: int,
 ) -> None:
-    """验证分析接口鉴权、基准传递及错误响应."""
+    """测试分析接口鉴权、基准传递及错误响应."""
     if permission is None:
         user = None
     else:

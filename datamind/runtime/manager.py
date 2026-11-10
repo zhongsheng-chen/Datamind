@@ -1,11 +1,11 @@
 """运行时管理器.
 
-负责协调部署模型的加载、卸载与重载。
+负责加载、卸载与重载各部署绑定的模型。
 
 核心功能：
-  - load: 加载指定部署对应的模型
-  - unload: 卸载指定部署对应的模型
-  - reload: 重新加载指定部署对应的模型
+  - load: 加载指定部署绑定的模型
+  - unload: 卸载指定部署绑定的模型
+  - reload: 重新加载指定部署绑定的模型
   - get_status: 获取指定部署的运行状态
 
 使用示例：
@@ -25,6 +25,7 @@
 """
 
 import asyncio
+from time import perf_counter
 from typing import Any
 
 import structlog
@@ -64,6 +65,7 @@ class RuntimeManager:
             loader: ModelLoader | None = None,
             registry: RuntimeRegistry | None = None,
             worker_id: str = DEFAULT_WORKER_ID,
+            service_id: str | None = None,
     ):
         """初始化运行时管理器.
 
@@ -74,6 +76,7 @@ class RuntimeManager:
         """
         self.loader = loader or ModelLoader()
         self.registry = registry or RuntimeRegistry()
+        self.service_id = service_id
         self.worker_id = worker_id
         self._operation_locks: dict[str, asyncio.Lock] = {}
         self._operation_locks_guard = asyncio.Lock()
@@ -84,7 +87,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """串行加载指定部署模型."""
+        """串行加载指定部署绑定的模型."""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
@@ -101,7 +104,7 @@ class RuntimeManager:
             operator: str = "system",
             force: bool = False,
     ) -> RuntimeModel:
-        """加载指定部署对应的模型.
+        """加载指定部署绑定的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -129,13 +132,15 @@ class RuntimeManager:
         if previous_runtime is not None:
             if not force:
                 logger.debug(
-                    "部署已加载，直接返回运行时模型",
+                    "模型已加载，直接返回",
                     deployment_id=deployment_id,
                 )
                 return previous_runtime
 
-        logger.debug(
-            "开始加载运行时模型",
+        started_at = perf_counter()
+        operation_logger = self._operation_logger(deployment_id)
+        operation_logger.debug(
+            "开始重载模型" if force else "开始加载模型",
             deployment_id=deployment_id,
             operator=operator,
             worker_id=self.worker_id,
@@ -295,8 +300,10 @@ class RuntimeManager:
                         context=runtime_context,
                     )
 
-            logger.debug(
-                "运行时模型加载成功",
+            operation_logger.info(
+                "模型重载成功" if force else "模型加载成功",
+                duration_ms=round((perf_counter() - started_at) * 1000, 3),
+                environment=environment,
                 deployment_id=deployment_id,
                 model_id=model_id,
                 version_id=version_id,
@@ -342,8 +349,11 @@ class RuntimeManager:
                             },
                         )
 
-            logger.exception(
-                "运行时模型加载失败",
+            operation_logger.exception(
+                "模型重载失败" if force else "模型加载失败",
+                duration_ms=round((perf_counter() - started_at) * 1000, 3),
+                environment=environment,
+                model_id=model_id,
                 deployment_id=deployment_id,
                 version_id=version_id,
                 bento_tag=bento_tag,
@@ -368,7 +378,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel | None:
-        """串行卸载指定部署模型."""
+        """串行卸载指定部署绑定的模型."""
         operation_lock = await self._get_operation_lock(deployment_id)
 
         async with operation_lock:
@@ -383,7 +393,30 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel | None:
-        """卸载指定部署对应的模型.
+        """记录卸载异常，并保持原有异常传播语义."""
+        started_at = perf_counter()
+        previous = self.registry.get(deployment_id, touch=False)
+        try:
+            return await self._unload_model(deployment_id, operator=operator)
+        except Exception:
+            self._operation_logger(deployment_id).exception(
+                "模型卸载失败",
+                duration_ms=round((perf_counter() - started_at) * 1000, 3),
+                **({
+                    "model_id": previous.model_id,
+                    "version_id": previous.version_id,
+                    "environment": previous.metadata.get("environment"),
+                } if previous is not None else {}),
+            )
+            raise
+
+    async def _unload_model(
+            self,
+            deployment_id: str,
+            *,
+            operator: str = "system",
+    ) -> RuntimeModel | None:
+        """卸载指定部署绑定的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -397,8 +430,10 @@ class RuntimeManager:
         """
         self._validate_required("deployment_id", deployment_id)
 
-        logger.info(
-            "开始卸载运行时模型",
+        started_at = perf_counter()
+        operation_logger = self._operation_logger(deployment_id)
+        operation_logger.debug(
+            "开始卸载模型",
             deployment_id=deployment_id,
             operator=operator,
             worker_id=self.worker_id,
@@ -438,10 +473,17 @@ class RuntimeManager:
                     },
                 )
 
-        logger.info(
-            "运行时模型卸载完成",
+        log_result = operation_logger.info if runtime_model is not None else operation_logger.debug
+        log_result(
+            "模型卸载完成",
             deployment_id=deployment_id,
             unloaded=runtime_model is not None,
+            duration_ms=round((perf_counter() - started_at) * 1000, 3),
+            **({
+                "model_id": runtime_model.model_id,
+                "version_id": runtime_model.version_id,
+                "environment": runtime_model.metadata.get("environment"),
+            } if runtime_model is not None else {}),
         )
 
         return runtime_model
@@ -452,7 +494,7 @@ class RuntimeManager:
             *,
             operator: str = "system",
     ) -> RuntimeModel:
-        """重新加载指定部署对应的模型.
+        """重新加载指定部署绑定的模型.
 
         参数：
             deployment_id: 部署 ID
@@ -568,6 +610,21 @@ class RuntimeManager:
             started_by=operator,
             context={
                 "worker_id": self.worker_id,
+            },
+        )
+
+    def _operation_logger(self, deployment_id: str):
+        """关联当前 Worker 及协调操作的实际上下文."""
+        context = structlog.contextvars.get_contextvars()
+        if self.service_id is not None:
+            context = {**context, "service_id": self.service_id}
+        return logger.bind(
+            worker_id=self.worker_id,
+            deployment_id=deployment_id,
+            **{
+                key: context[key]
+                for key in ("generation", "service_id", "environment")
+                if context.get(key) is not None
             },
         )
 

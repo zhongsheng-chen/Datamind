@@ -83,6 +83,7 @@ def create_service(
         service_class
     )
     service._logger = MagicMock()
+    service._stop_monitor = None
     service.manager = MagicMock()
     service.manager.worker_id = "worker_test"
     service.manager.registry.all.return_value = []
@@ -92,12 +93,8 @@ def create_service(
     service.manager.unload = AsyncMock()
     service.router = MagicMock()
     service.router.resolve = AsyncMock()
-    service._resolve_model_id = AsyncMock(
-        return_value="mdl_test"
-    )
-    service._load_batch_success_responses = AsyncMock(
-        return_value={}
-    )
+    service._resolve_model_id = AsyncMock(return_value="mdl_test")
+    service._load_batch_success_responses = AsyncMock(return_value={})
     service.executor = MagicMock()
     service.executor.execute = AsyncMock()
     service.controller = MagicMock()
@@ -205,9 +202,7 @@ def install_repositories(
             request_repository.list_batch_requests,
             AsyncMock,
     ):
-        request_repository.list_batch_requests = AsyncMock(
-            return_value=[]
-        )
+        request_repository.list_batch_requests = AsyncMock(return_value=[])
 
     if not isinstance(
             deployment_repository.get_deployment,

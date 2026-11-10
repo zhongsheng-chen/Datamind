@@ -30,7 +30,7 @@ from typing import (
 import structlog
 from pydantic import ValidationError
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.applications import Starlette
 from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
@@ -94,6 +94,7 @@ from datamind.console.exports import (
     export_filename as _export_filename,
 )
 from datamind.console.middleware import (
+    DependencyUnavailableMiddleware,
     RequestContextMiddleware,
     security_headers,
 )
@@ -114,12 +115,14 @@ from datamind.runtime.routing.schema import (
 )
 from datamind.runtime.task_queue import TaskDispatchError
 from datamind.console.schemas import (
+    DepartmentRequest,
     DeploymentCreateRequest,
     DeploymentUpdateRequest,
     ExperimentCreateRequest,
     ExperimentUpdateRequest,
     ModelRegistrationMetadata,
     ModelUpdateRequest,
+    OrganizationRequest,
     VersionUpdateRequest,
     PasswordChangeRequest,
     PasswordResetRequest,
@@ -140,6 +143,7 @@ from datamind.models.errors import (
 from datamind.models.artifact.formats import (
     artifact_extension_capabilities,
 )
+from datamind.services.organization import OrganizationService
 from datamind.services import (
     BatchLifecycleService,
     DashboardService,
@@ -528,6 +532,7 @@ async def _management_options(
             {
                 "name": role["name"],
                 "description": role.get("description"),
+                "is_builtin": role.get("is_builtin", False),
             }
             for role in role_records
         ]
@@ -1722,10 +1727,14 @@ def _http_audit_context(
         user: AuthenticatedUser,
 ) -> dict[str, object]:
     """构建已认证用户的控制台 HTTP 审计上下文."""
-    return _http_actor_context(
+    context = _http_actor_context(
         request,
         username=user.username,
     )
+    if user.actor:
+        context["actor"] = user.actor
+
+    return context
 
 
 def _http_request_id(
@@ -1854,7 +1863,7 @@ async def _record_authentication_event(
     await record_authentication_event(
         logger=logger,
         recorder=AuditRecorder(),
-        channel="控制台",
+        channel="console",
         action=action,
         actor_username=actor_username,
         target_id=target_id,
@@ -1904,6 +1913,15 @@ def _write_error_response(
         return _error_response(
             str(error),
             status_code=400,
+        )
+
+    if (
+            isinstance(error, IntegrityError)
+            and getattr(error.orig, "sqlstate", None) == "23505"
+    ):
+        return _error_response(
+            "资源已存在，请调整名称或关联关系后重试",
+            status_code=409,
         )
 
     if isinstance(
@@ -2499,6 +2517,187 @@ async def _update_variant(request: Request) -> JSONResponse:
         return _write_error_response(error)
 
 
+async def _directory_read(
+        request: Request,
+) -> JSONResponse:
+    """查询组织目录."""
+    user = await _authenticate(
+        request
+    )
+    if user is None:
+        return _error_response(
+            "尚未登录",
+            status_code=401,
+        )
+
+    if not has_permission(
+            granted_permissions=user.permissions,
+            required_permission="identity.manage",
+    ):
+        return _error_response(
+            "没有执行该操作的权限",
+            status_code=403,
+        )
+    try:
+        result = await OrganizationService().catalog()
+        return JSONResponse(
+            result
+        )
+    except (
+            ValueError,
+            IdentityError,
+            SQLAlchemyError,
+    ) as error:
+        return _write_error_response(
+            error
+        )
+
+
+async def _directory(
+        request: Request,
+) -> JSONResponse:
+    """查询或维护组织资料，写操作复用身份管理权限和 CSRF 保护."""
+    if request.method == "GET":
+        return await _directory_read(
+            request
+        )
+
+    user, denied = await _authorize_write(
+        request,
+        permission="identity.manage",
+    )
+
+    if denied is not None or user is None:
+        return denied or _error_response(
+            "尚未登录",
+            status_code=401,
+        )
+
+    service = OrganizationService(
+        audit_context=_http_audit_context(
+            request,
+            user=user,
+        )
+    )
+
+    try:
+        action = request.url.path.rsplit("/", 1)[-1]
+
+        if (
+                request.method == "POST"
+                and action == "move"
+        ):
+            payload = await request.json()
+
+            if not isinstance(payload, dict):
+                raise ValueError(
+                    "排序参数必须为对象"
+                )
+
+            direction = payload.get("direction")
+
+            if not isinstance(direction, str):
+                raise ValueError(
+                    "排序方向必须为字符串"
+                )
+
+            is_organization = "organization_id" in request.path_params
+
+            result = await service.move(
+                resource=(
+                    "organization"
+                    if is_organization
+                    else "department"
+                ),
+                target_id=request.path_params[
+                    "organization_id"
+                    if is_organization
+                    else "department_id"
+                ],
+                direction=direction,
+            )
+
+            return JSONResponse(
+                result
+            )
+        if (
+                request.method == "POST"
+                and action in ("enable", "disable")
+        ):
+            if "organization_id" in request.path_params:
+                result = await service.set_organization_active(
+                    organization_id=request.path_params["organization_id"],
+                    is_active=action == "enable",
+                )
+            else:
+                result = await service.set_department_active(
+                    department_id=request.path_params["department_id"],
+                    is_active=action == "enable",
+                )
+
+            return JSONResponse(
+                result
+            )
+
+        if request.method == "DELETE":
+            if "organization_id" in request.path_params:
+                result = await service.delete_organization(
+                    organization_id=request.path_params["organization_id"],
+                )
+            else:
+                result = await service.delete_department(
+                    department_id=request.path_params["department_id"],
+                )
+
+            return JSONResponse(
+                result
+            )
+
+        if request.url.path.startswith("/api/organizations"):
+            organization = OrganizationRequest.model_validate(
+                await request.json()
+            )
+            result = await service.save_organization(
+                **organization.model_dump(
+                    exclude_unset=True
+                ),
+                organization_id=request.path_params.get(
+                    "organization_id"
+                ),
+            )
+        else:
+            department = DepartmentRequest.model_validate(
+                await request.json()
+            )
+            result = await service.save_department(
+                **department.model_dump(
+                    exclude_unset=True
+                ),
+                department_id=request.path_params.get(
+                    "department_id"
+                ),
+            )
+
+        return JSONResponse(
+            result,
+            status_code=(
+                201
+                if request.method == "POST"
+                else 200
+            ),
+        )
+
+    except (
+            ValueError,
+            ValidationError,
+            IdentityError,
+            SQLAlchemyError,
+    ) as error:
+        return _write_error_response(
+            error
+        )
+
+
 async def _update_user(
         request: Request,
 ) -> JSONResponse:
@@ -2509,33 +2708,62 @@ async def _update_user(
     )
 
     if denied is not None or user is None:
-        return denied or _error_response("尚未登录", status_code=401)
+        return denied or _error_response(
+            "尚未登录",
+            status_code=401,
+        )
 
     try:
         payload = UserUpdateRequest.model_validate(
             await request.json()
         )
+
         identity_service = _identity_service_for_request(
             request,
             user=user,
         )
+
+        profile_fields = {
+            "employee_number",
+            "organization_id",
+            "department_id",
+        }
+
+        profile = payload.model_dump(
+            include=profile_fields,
+            exclude_unset=True,
+        )
+
+        profile_arguments = (
+            {"organization_profile": profile}
+            if profile
+            else {}
+        )
+
         result = await identity_service.update_user(
             username=request.path_params["username"],
             new_username=payload.username,
+            **profile_arguments,
             display_name=payload.display_name,
             email=payload.email,
             role_names=payload.roles,
             operator_id=user.user_id,
             operator=user.username,
         )
-        return JSONResponse(result)
+
+        return JSONResponse(
+            result
+        )
+
     except (
             ValidationError,
             ValueError,
             IdentityError,
             SQLAlchemyError,
     ) as error:
-        return _write_error_response(error)
+        return _write_error_response(
+            error
+        )
 
 
 async def _update_role(
@@ -2819,6 +3047,11 @@ def _request_context_middleware(
     )
 
 
+def _dependency_unavailable_middleware(app: ASGIApp, /) -> ASGIApp:
+    """创建控制台依赖连接异常处理中间件."""
+    return DependencyUnavailableMiddleware(app)
+
+
 console_app = Starlette(
     debug=False,
     lifespan=_lifespan,
@@ -2828,7 +3061,8 @@ console_app = Starlette(
         ),
         Middleware(
             _security_headers_middleware
-        )
+        ),
+        Middleware(_dependency_unavailable_middleware),
     ],
     routes=create_routes(
         ConsoleHandlers(
@@ -2841,9 +3075,8 @@ console_app = Starlette(
             session=_session,
             overview=_overview,
             management_options=_management_options,
-            model_registration_target=(
-                _model_registration_target
-            ),
+            directory=_directory,
+            model_registration_target=_model_registration_target,
             model_detail=_model_detail,
             version_detail=_version_detail,
             create_model=_create_model,
@@ -2864,9 +3097,7 @@ console_app = Starlette(
             resource_action=_resource_action,
             model_versions_export=_model_versions_export,
             model_versions=_model_versions,
-            experiment_variants_export=(
-                _experiment_variants_export
-            ),
+            experiment_variants_export=_experiment_variants_export,
             create_variant=_create_variant,
             update_variant=_update_variant,
             experiment_variants=_experiment_variants,

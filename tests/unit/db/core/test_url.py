@@ -33,9 +33,7 @@ def test_get_db_url(
     database_config = SimpleNamespace(
         url=DATABASE_URL
     )
-    get_database_config = MagicMock(
-        return_value=database_config
-    )
+    get_database_config = MagicMock(return_value=database_config)
 
     monkeypatch.setitem(
         vars(url_module),
@@ -99,9 +97,7 @@ def test_get_db_url_does_not_modify_value(
     database_config = SimpleNamespace(
         url=configured_url
     )
-    get_database_config = MagicMock(
-        return_value=database_config
-    )
+    get_database_config = MagicMock(return_value=database_config)
 
     monkeypatch.setitem(
         vars(url_module),

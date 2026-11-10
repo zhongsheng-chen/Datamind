@@ -64,7 +64,7 @@ datamind deployment enable <deployment_id>
 datamind deployment list
 ```
 
-启用部署后，预测服务会在启动时加载模型。部署配置与实际加载状态的区别，请参阅[部署与运行](../deployment/index.md)。
+启用部署后，各预测服务 Worker 会异步加载部署绑定的模型。部署配置与实际加载状态的区别，请参阅[部署与运行](../deployment/index.md)。
 
 ## 步骤 3：设置默认部署
 

@@ -19,8 +19,6 @@
     验证存在活动部署时拒绝删除版本
   - test_purge_allows_missing_reason:
     验证永久清理原因可以省略
-  - test_purge_rejects_loaded_runtime:
-    验证存在已加载运行实例时拒绝永久清理
   - test_request_purge_builds_artifact_targets:
     验证持久化模型或版本清理请求
   - test_record_purge_result_updates_artifact:
@@ -30,19 +28,19 @@
   - test_restore_model_rejects_permanently_purged_versions:
     验证模型版本均已永久清理时拒绝恢复模型
   - test_delete_last_active_version_deactivates_model:
-    测试删除最后一个激活版本时同步停用模型
+    验证删除最后一个激活版本时同步停用模型
   - test_purge_rejects_running_runtime:
-    测试仍有已加载运行实例时拒绝永久清理
+    验证仍有已加载运行实例时拒绝永久清理
   - test_request_purge_requires_logical_deletion:
-    测试永久清理要求目标已完成逻辑删除
+    验证永久清理要求目标已完成逻辑删除
   - test_request_purge_rejects_missing_artifacts:
-    测试版本缺少制品记录时拒绝永久清理
+    验证版本缺少制品记录时拒绝永久清理
   - test_record_purge_result_rejects_missing_artifact:
-    测试清理结果找不到制品记录时抛出异常
+    验证清理结果找不到制品记录时抛出异常
   - test_restore_version_requires_restorable_artifact:
-    测试恢复版本要求逻辑删除状态和完整当前制品
+    验证恢复版本要求逻辑删除状态和完整当前制品
   - test_purge_ignores_absent_optional_objects:
-    测试清理时忽略空 Schema 键和不存在的 BentoML 模型
+    验证清理时忽略空 Schema 键和不存在的 BentoML 模型
 """
 
 from datetime import (
@@ -88,27 +86,15 @@ def configure_repositories(
     """配置删除服务仓储替身."""
     metadata_repo = MagicMock()
     version_repo = MagicMock()
-    version_repo.get_version = AsyncMock(
-        return_value=version_record
-    )
-    version_repo.list_versions = AsyncMock(
-        return_value=versions or []
-    )
+    version_repo.get_version = AsyncMock(return_value=version_record)
+    version_repo.list_versions = AsyncMock(return_value=versions or [])
     artifact_repo = MagicMock()
-    artifact_repo.get_current_artifact = AsyncMock(
-        return_value=artifact
-    )
+    artifact_repo.get_current_artifact = AsyncMock(return_value=artifact)
     deployment_repo = MagicMock()
-    deployment_repo.list_active_deployments = AsyncMock(
-        return_value=[]
-    )
+    deployment_repo.list_active_deployments = AsyncMock(return_value=[])
     resolver = MagicMock()
-    resolver.resolve_model = AsyncMock(
-        return_value=metadata
-    )
-    resolver.resolve_version = AsyncMock(
-        return_value=version_record
-    )
+    resolver.resolve_model = AsyncMock(return_value=metadata)
+    resolver.resolve_version = AsyncMock(return_value=version_record)
 
     monkeypatch.setitem(
         vars(deleter_module),
@@ -204,9 +190,7 @@ async def test_delete_version(
 
     assert result["action"] == "delete_version"
     assert result["deletion_id"] == "del_test"
-    version_repo.get_version.assert_awaited_once_with(
-        "ver_test"
-    )
+    version_repo.get_version.assert_awaited_once_with("ver_test")
     version_repo.mark_deleted.assert_called_once()
 
 
@@ -432,9 +416,7 @@ async def test_restore_model_rejects_permanently_purged_versions(
             operator="operator",
         )
 
-    artifact_repo.get_current_artifact.assert_awaited_once_with(
-        "ver_test"
-    )
+    artifact_repo.get_current_artifact.assert_awaited_once_with("ver_test")
     version_repo.restore_version.assert_not_called()
     metadata_repo.restore_model.assert_not_called()
 
@@ -581,9 +563,7 @@ async def test_purge_deletes_storage_and_bento_artifacts(
         key="models/model.pkl",
         strict=False,
     )
-    delete_model.assert_called_once_with(
-        bento_model.tag
-    )
+    delete_model.assert_called_once_with(bento_model.tag)
     record_result.assert_awaited_once_with(
         artifact_id="art_test",
         error=None,
@@ -764,9 +744,7 @@ async def test_request_purge_builds_artifact_targets(
         ]
     )
     runtime_repo = MagicMock()
-    runtime_repo.list_runtimes = AsyncMock(
-        return_value=[]
-    )
+    runtime_repo.list_runtimes = AsyncMock(return_value=[])
     monkeypatch.setitem(
         vars(deleter_module),
         "RuntimeRepository",
@@ -900,13 +878,9 @@ async def test_request_purge_rejects_missing_artifacts(
         metadata=metadata,
         version_record=version_record,
     )
-    artifact_repo.list_artifacts = AsyncMock(
-        return_value=[]
-    )
+    artifact_repo.list_artifacts = AsyncMock(return_value=[])
     runtime_repo = MagicMock()
-    runtime_repo.list_runtimes = AsyncMock(
-        return_value=[]
-    )
+    runtime_repo.list_runtimes = AsyncMock(return_value=[])
     monkeypatch.setitem(
         vars(deleter_module),
         "RuntimeRepository",
@@ -946,9 +920,7 @@ async def test_record_purge_result_updates_artifact(
         artifact_id="art_test"
     )
     repository = MagicMock()
-    repository.get_artifact = AsyncMock(
-        return_value=artifact
-    )
+    repository.get_artifact = AsyncMock(return_value=artifact)
     monkeypatch.setitem(
         vars(deleter_module),
         "UnitOfWork",
@@ -986,9 +958,7 @@ async def test_record_purge_result_rejects_missing_artifact(
 ) -> None:
     """测试清理结果找不到制品记录时抛出异常."""
     repository = MagicMock()
-    repository.get_artifact = AsyncMock(
-        return_value=None
-    )
+    repository.get_artifact = AsyncMock(return_value=None)
     monkeypatch.setitem(
         vars(deleter_module),
         "UnitOfWork",
@@ -1098,9 +1068,7 @@ async def test_restore_version_requires_restorable_artifact(
 ) -> None:
     """测试恢复版本要求逻辑删除状态和完整当前制品."""
     repository = MagicMock()
-    repository.get_current_artifact = AsyncMock(
-        return_value=artifact
-    )
+    repository.get_current_artifact = AsyncMock(return_value=artifact)
     version_record = Version(
         version_id="ver_test",
     )

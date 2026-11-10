@@ -34,6 +34,7 @@ async def test_budget_is_shared() -> None:
         async with request_budget(0.01) as budget:
             budget.enter_stage("prediction")
             await asyncio.Event().wait()
+
     assert caught.value.stage == "prediction"
     assert caught.value.seconds == 0.01
 
@@ -42,9 +43,11 @@ async def test_budget_is_shared() -> None:
 async def test_budget_preserves_dependency_timeout() -> None:
     """测试预算未耗尽时保留下游原始异常."""
     failure = TimeoutError("database timeout")
+
     with pytest.raises(TimeoutError) as caught:
         async with request_budget(1):
             raise failure
+
     assert caught.value is failure
 
 
@@ -62,4 +65,5 @@ async def test_budget_checks_synchronous_work() -> None:
     with pytest.raises(RequestTimeoutError) as caught:
         async with request_budget(0) as budget:
             budget.enter_stage("persistence")
+
     assert caught.value.stage == "request"

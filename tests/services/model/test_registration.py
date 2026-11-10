@@ -113,6 +113,7 @@ async def test_register_rejects_invalid_semantic_version(
         "get_storage",
         MagicMock(),
     )
+
     with pytest.raises(
             ValueError,
             match=(
@@ -141,6 +142,7 @@ async def test_register_rejects_invalid_model_name(
         "get_storage",
         MagicMock(),
     )
+
     with pytest.raises(
             ValueError,
             match="无效的模型名称",
@@ -189,9 +191,7 @@ async def test_register_creates_model_version_and_artifact(
         )
     )
     version_repo = MagicMock()
-    version_repo.get_version_for_update = AsyncMock(
-        return_value=None
-    )
+    version_repo.get_version_for_update = AsyncMock(return_value=None)
     version_repo.create_version.side_effect = (
         lambda **values: SimpleNamespace(**values)
     )
@@ -343,17 +343,11 @@ async def test_register_returns_unchanged_for_same_digest(
         digest="same-digest",
     )
     metadata_repo = MagicMock()
-    metadata_repo.get_model = AsyncMock(
-        return_value=metadata
-    )
+    metadata_repo.get_model = AsyncMock(return_value=metadata)
     version_repo = MagicMock()
-    version_repo.get_version_for_update = AsyncMock(
-        return_value=version_record
-    )
+    version_repo.get_version_for_update = AsyncMock(return_value=version_record)
     artifact_repo = MagicMock()
-    artifact_repo.get_current_artifact = AsyncMock(
-        return_value=artifact
-    )
+    artifact_repo.get_current_artifact = AsyncMock(return_value=artifact)
 
     monkeypatch.setitem(
         vars(register_module),
@@ -463,6 +457,7 @@ def test_save_artifact_registers_rollback_cleanup(
     )
 
     assert key == "models/model.pkl"
+
     rollback_call = uow.on_rollback.call_args
     assert rollback_call is not None
     callback = rollback_call.args[0]
@@ -516,9 +511,7 @@ async def test_register_rejects_existing_version(
     storage = MagicMock()
     backend = MagicMock()
     metadata_repo = MagicMock()
-    metadata_repo.get_model = AsyncMock(
-        return_value=SimpleNamespace(status="active")
-    )
+    metadata_repo.get_model = AsyncMock(return_value=SimpleNamespace(status="active"))
     version_repo = MagicMock()
     version_repo.get_version_for_update = AsyncMock(
         return_value=SimpleNamespace(
@@ -748,14 +741,12 @@ async def test_register_force_creates_new_artifact_revision(
         current,
         retired_by=None,
     )
-    deployment_repo.list_deployments.assert_awaited_once_with(
-        version_id="ver_test"
-    )
+    deployment_repo.list_deployments.assert_awaited_once_with(version_id="ver_test")
     assert storage.save.call_count == 1
     saved_call = storage.save.call_args
     assert saved_call is not None
     assert saved_call.args[:4] == (
-            "scorecard",
+        "scorecard",
         "1.0.0",
         "art_new",
         "model.pkl",
@@ -1093,8 +1084,6 @@ def test_delete_bento_model_is_idempotent(
     )
 
     if matching_model:
-        delete_model.assert_called_once_with(
-            model.tag
-        )
+        delete_model.assert_called_once_with(model.tag)
     else:
         delete_model.assert_not_called()

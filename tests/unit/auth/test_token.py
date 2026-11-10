@@ -16,10 +16,6 @@
     验证拒绝不包含时区的签发时间
   - test_decode_access_token_returns_valid_claims:
     验证正确解析访问令牌
-  - test_decode_access_token_rejects_invalid_tokens:
-    验证拒绝空令牌、签名错误、过期和格式无效令牌
-  - test_decode_access_token_rejects_invalid_claims:
-    验证拒绝缺少声明、用户 ID 无效和令牌类型错误
   - test_decode_access_token_validates_parameters:
     验证访问令牌解析参数校验
   - test_generate_refresh_token_creates_unique_urlsafe_tokens:
@@ -30,28 +26,26 @@
     验证拒绝空刷新令牌
   - test_verify_refresh_token_accepts_matching_token:
     验证匹配的刷新令牌
-  - test_verify_refresh_token_rejects_invalid_values:
-    验证拒绝不匹配或参数为空的刷新令牌
   - test_create_access_token_reports_all_reserved_claims:
-    测试保留声明冲突信息按名称排序
+    验证保留声明冲突信息按名称排序
   - test_decode_access_token_rejects_empty_or_invalid_token:
-    测试拒绝空令牌和格式无效令牌
+    验证拒绝空令牌和格式无效令牌
   - test_decode_access_token_rejects_wrong_signature:
-    测试拒绝签名密钥错误的令牌
+    验证拒绝签名密钥错误的令牌
   - test_decode_access_token_rejects_wrong_algorithm:
-    测试拒绝签名算法不匹配的令牌
+    验证拒绝签名算法不匹配的令牌
   - test_decode_access_token_rejects_expired_token:
-    测试拒绝已过期访问令牌
+    验证拒绝已过期访问令牌
   - test_decode_access_token_rejects_missing_claims:
-    测试拒绝缺少必需声明的令牌
+    验证拒绝缺少必需声明的令牌
   - test_decode_access_token_rejects_invalid_user_id:
-    测试拒绝用户 ID 无效的令牌
+    验证拒绝用户 ID 无效的令牌
   - test_decode_access_token_rejects_invalid_token_type:
-    测试拒绝类型错误的令牌
+    验证拒绝类型错误的令牌
   - test_verify_refresh_token_rejects_non_matching_token:
-    测试拒绝不匹配的刷新令牌
+    验证拒绝不匹配的刷新令牌
   - test_verify_refresh_token_rejects_empty_values:
-    测试刷新令牌或哈希为空时校验失败
+    验证刷新令牌或哈希为空时校验失败
 """
 
 from datetime import (

@@ -4,11 +4,11 @@
 
 核心功能：
   - test_api_field_description_uses_source_metadata:
-    测试根据请求模型元数据生成 API 字段说明
+    验证根据请求模型元数据生成 API 字段说明
   - test_new_undocumented_api_field_fails_generation:
-    测试请求字段缺少说明时生成失败
+    验证请求字段缺少说明时生成失败
   - test_api_table_escapes_union_and_multiline_description_once:
-    可空类型中的竖线与多行说明不会破坏 Markdown 表格
+    验证可空类型中的竖线和多行说明不会破坏 Markdown 表格
 """
 
 import pytest
@@ -49,7 +49,7 @@ def test_new_undocumented_api_field_fails_generation() -> None:
 
 
 def test_api_table_escapes_union_and_multiline_description_once() -> None:
-    """可空类型中的竖线与多行说明不会破坏 Markdown 表格."""
+    """测试可空类型中的竖线和多行说明不会破坏 Markdown 表格."""
 
     class Request(BaseModel):
         value: str | None = Field(default=None, description="first | second\nnext")

@@ -6,38 +6,26 @@
 核心功能：
   - test_get_decision:
     验证按请求 ID 查询决策结果
-  - test_list_decisions:
-    验证决策来源、主体字段、排序和分页
-  - test_list_model_decisions:
-    验证获取模型决策记录
-  - test_list_deployment_decisions:
-    验证获取部署决策记录
-  - test_list_experiment_decisions:
-    验证获取实验决策记录
-  - test_list_variant_decisions:
-    验证获取实验分组决策记录
   - test_create_decision:
     验证创建决策记录
-  - test_create_decision_validation:
-    验证权重范围
   - test_get_decision_returns_none_when_not_found:
-    测试请求没有决策结果时返回 None
+    验证请求没有决策结果时返回 None
   - test_list_decisions_without_filters:
-    测试无筛选时返回全部决策并按时间倒序
+    验证无筛选时返回全部决策并按时间倒序
   - test_list_decisions_applies_filters_and_pagination:
-    测试决策来源、主体字段、普通字段筛选和分页
+    验证决策来源、主体字段、普通字段筛选和分页
   - test_list_decisions_applies_zero_pagination:
-    测试零值分页参数仍会应用
+    验证零值分页参数仍会应用
   - test_list_methods_reject_negative_pagination:
-    测试决策列表方法拒绝负数分页参数
+    验证决策列表方法拒绝负数分页参数
   - test_specialized_list_methods:
-    测试辅助列表方法应用对应筛选条件
+    验证辅助列表方法应用对应筛选条件
   - test_create_decision_uses_optional_defaults:
-    测试创建决策时允许省略可选字段并使用当前时间
+    验证创建决策时允许省略可选字段并使用当前时间
   - test_create_decision_accepts_boundary_values:
-    测试数值字段边界值有效
+    验证数值字段边界值有效
   - test_create_decision_rejects_invalid_values:
-    测试创建决策时拒绝非法数值
+    验证创建决策时拒绝非法数值
 """
 
 from datetime import (
@@ -147,14 +135,10 @@ def create_repository(
         scalar_collection
     )
 
-    execute = AsyncMock(
-        return_value=result
-    )
+    execute = AsyncMock(return_value=result)
     add = MagicMock()
 
-    session_mock = MagicMock(
-        spec=AsyncSession
-    )
+    session_mock = MagicMock(spec=AsyncSession)
     session_mock.execute = execute
     session_mock.add = add
 
@@ -611,9 +595,7 @@ def test_create_decision() -> None:
         decided_at=EARLIER_TIME,
     )
 
-    add.assert_called_once_with(
-        decision
-    )
+    add.assert_called_once_with(decision)
     assert decision.decision_id == (
         "dcs_0123456789abcdef"
     )
@@ -690,9 +672,7 @@ def test_create_decision_uses_optional_defaults(
         source=DecisionStrategy.DEPLOYMENT,
     )
 
-    add.assert_called_once_with(
-        decision
-    )
+    add.assert_called_once_with(decision)
     assert decision.source == "deployment"
     assert decision.deployment_id is None
     assert decision.experiment_id is None
@@ -746,9 +726,7 @@ def test_create_decision_accepts_boundary_values(
         **arguments
     )
 
-    add.assert_called_once_with(
-        decision
-    )
+    add.assert_called_once_with(decision)
     assert getattr(
         decision,
         field_name,

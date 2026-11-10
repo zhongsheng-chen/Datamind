@@ -17,6 +17,10 @@
     验证创建异步队列日志 handler
   - test_async_handler_dispatches_log_record:
     验证异步日志 handler 将日志记录交给输出 handler
+  - test_async_handler_preserves_arguments_and_exception:
+    验证异步队列保留原始消息参数和异常信息
+  - test_console_handler_avoids_celery_logging_proxy:
+    验证 Celery 重定向标准输出时仍使用原始流并保留日志级别
 """
 
 import logging
@@ -299,3 +303,45 @@ def test_async_handler_dispatches_log_record() -> None:
 
     assert len(output_handler.records) == 1
     assert output_handler.records[0].getMessage() == "异步日志测试"
+
+
+def test_async_handler_preserves_arguments_and_exception():
+    """测试异步队列保留原始消息参数和异常信息."""
+    import sys
+    from unittest.mock import MagicMock
+
+    destination = MagicMock(spec=logging.Handler)
+    destination.level = logging.NOTSET
+    handler, listener = create_async_handler([destination])
+    try:
+        raise ValueError("original error")
+    except ValueError:
+        record = logging.LogRecord("__cvxpy__", logging.WARNING, __file__, 1,
+                                   "original %s\nsecond line", ("message",), sys.exc_info())
+    record.stack_info = "Stack (most recent call last):\noriginal stack"
+    before = record.__dict__.copy()
+    listener.start()
+    handler.handle(record)
+    listener.stop()
+    received = destination.handle.call_args.args[0]
+    assert received is not record
+    assert received.__dict__ == before
+    assert record.__dict__ == before
+
+
+def test_console_handler_avoids_celery_logging_proxy(monkeypatch):
+    """测试 Celery 重定向标准输出时仍使用原始流并保留日志级别."""
+    import io
+    from unittest.mock import MagicMock
+    from celery.utils.log import LoggingProxy
+
+    original_stream = io.StringIO()
+    proxy_logger = MagicMock()
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "stdout", LoggingProxy(proxy_logger, logging.WARNING))
+        patch.setattr(sys, "__stdout__", original_stream)
+        handler = create_console_handler(logging.Formatter("%(levelname)s %(message)s"))
+        handler.handle(logging.LogRecord("py.warnings", logging.INFO, __file__, 1, "original", (), None))
+        handler.close()
+    assert original_stream.getvalue() == "INFO original\n"
+    proxy_logger.log.assert_not_called()

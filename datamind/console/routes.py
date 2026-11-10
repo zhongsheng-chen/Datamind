@@ -71,6 +71,7 @@ class ConsoleHandlers:
     section_export: RouteHandler
     section: RouteHandler
     events: RouteHandler
+    directory: RouteHandler | None = None
 
 
 def create_routes(
@@ -79,7 +80,26 @@ def create_routes(
         static_dir: Path,
 ) -> list[BaseRoute]:
     """创建管理控制台路由表."""
+    directory_routes = (
+        [
+            Route("/api/organizations/{organization_id:str}/move", handlers.directory, methods=["POST"]),
+            Route("/api/departments/{department_id:str}/move", handlers.directory, methods=["POST"]),
+            Route("/api/organizations/{organization_id:str}/enable", handlers.directory, methods=["POST"]),
+            Route("/api/organizations/{organization_id:str}/disable", handlers.directory, methods=["POST"]),
+            Route("/api/departments/{department_id:str}/enable", handlers.directory, methods=["POST"]),
+            Route("/api/departments/{department_id:str}/disable", handlers.directory, methods=["POST"]),
+            Route("/api/directory", handlers.directory, methods=["GET"]),
+            Route("/api/organizations", handlers.directory, methods=["POST"]),
+            Route("/api/organizations/{organization_id:str}", handlers.directory, methods=["PATCH", "DELETE"]),
+            Route("/api/departments", handlers.directory, methods=["POST"]),
+            Route("/api/departments/{department_id:str}", handlers.directory, methods=["PATCH", "DELETE"]),
+        ]
+        if handlers.directory is not None
+        else []
+    )
+
     return [
+        *directory_routes,
         Route("/health", handlers.health, methods=["GET"]),
         Route("/ready", handlers.ready, methods=["GET"]),
         Route("/", handlers.page, methods=["GET"]),
@@ -88,85 +108,25 @@ def create_routes(
         Route("/api/logout", handlers.logout, methods=["POST"]),
         Route("/api/session", handlers.session, methods=["GET"]),
         Route("/api/overview", handlers.overview, methods=["GET"]),
-        Route(
-            "/api/management/options",
-            handlers.management_options,
-            methods=["GET"],
-        ),
-        Route(
-            "/api/models/registration-target",
-            handlers.model_registration_target,
-            methods=["GET"],
-        ),
-        Route(
-            "/api/models/{model_id:str}/detail",
-            handlers.model_detail,
-            methods=["GET"],
-        ),
-        Route(
-            "/api/versions/{version_id:str}/detail",
-            handlers.version_detail,
-            methods=["GET"],
-        ),
+        Route("/api/management/options", handlers.management_options, methods=["GET"]),
+        Route("/api/models/registration-target", handlers.model_registration_target, methods=["GET"]),
+        Route("/api/models/{model_id:str}/detail", handlers.model_detail, methods=["GET"]),
+        Route("/api/versions/{version_id:str}/detail", handlers.version_detail, methods=["GET"]),
         Route("/api/models", handlers.create_model, methods=["POST"]),
-        Route(
-            "/api/models/{model_id:str}",
-            handlers.update_model,
-            methods=["PATCH"],
-        ),
-        Route(
-            "/api/versions/{version_id:str}",
-            handlers.update_version,
-            methods=["PATCH"],
-        ),
-        Route(
-            "/api/deployments",
-            handlers.create_deployment,
-            methods=["POST"],
-        ),
-        Route(
-            "/api/deployments/{deployment_id:str}",
-            handlers.update_deployment,
-            methods=["PATCH"],
-        ),
+        Route("/api/models/{model_id:str}", handlers.update_model, methods=["PATCH"]),
+        Route("/api/versions/{version_id:str}", handlers.update_version, methods=["PATCH"]),
+        Route("/api/deployments", handlers.create_deployment, methods=["POST"]),
+        Route("/api/deployments/{deployment_id:str}", handlers.update_deployment, methods=["PATCH"]),
         Route("/api/routings", handlers.create_routing, methods=["POST"]),
-        Route(
-            "/api/routings/{routing_id:str}",
-            handlers.update_routing,
-            methods=["PATCH"],
-        ),
-        Route(
-            "/api/experiments",
-            handlers.create_experiment,
-            methods=["POST"],
-        ),
-        Route(
-            "/api/experiments/{experiment_id:str}",
-            handlers.update_experiment,
-            methods=["PATCH"],
-        ),
+        Route("/api/routings/{routing_id:str}", handlers.update_routing, methods=["PATCH"]),
+        Route("/api/experiments", handlers.create_experiment, methods=["POST"]),
+        Route("/api/experiments/{experiment_id:str}", handlers.update_experiment, methods=["PATCH"]),
         Route("/api/users", handlers.create_user, methods=["POST"]),
-        Route(
-            "/api/users/{username:str}",
-            handlers.update_user,
-            methods=["PATCH"],
-        ),
+        Route("/api/users/{username:str}", handlers.update_user, methods=["PATCH"]),
         Route("/api/roles", handlers.create_role, methods=["POST"]),
-        Route(
-            "/api/roles/{name:str}",
-            handlers.update_role,
-            methods=["PATCH"],
-        ),
-        Route(
-            "/api/account/password",
-            handlers.change_password,
-            methods=["POST"],
-        ),
-        Route(
-            "/api/users/{username:str}/reset-password",
-            handlers.reset_user_password,
-            methods=["POST"],
-        ),
+        Route("/api/roles/{name:str}", handlers.update_role, methods=["PATCH"]),
+        Route("/api/account/password", handlers.change_password, methods=["POST"]),
+        Route("/api/users/{username:str}/reset-password", handlers.reset_user_password, methods=["POST"]),
         Route(
             "/api/actions/{resource:str}/{identifier:str}/{action:str}",
             handlers.resource_action,
@@ -177,46 +137,18 @@ def create_routes(
             handlers.model_versions_export,
             methods=["GET", "POST"],
         ),
-        Route(
-            "/api/models/{model_id:str}/versions",
-            handlers.model_versions,
-            methods=["GET"],
-        ),
-        Route(
-            "/api/experiments/{experiment_id:str}/analysis",
-            handlers.experiment_analysis,
-            methods=["GET"],
-        ),
+        Route("/api/models/{model_id:str}/versions", handlers.model_versions, methods=["GET"]),
+        Route("/api/experiments/{experiment_id:str}/analysis", handlers.experiment_analysis, methods=["GET"]),
         Route(
             "/api/experiments/{experiment_id:str}/variants/export",
             handlers.experiment_variants_export,
             methods=["GET", "POST"],
         ),
-        Route(
-            "/api/experiments/{experiment_id:str}/variants",
-            handlers.create_variant,
-            methods=["POST"],
-        ),
-        Route(
-            "/api/variants/{variant_id:str}",
-            handlers.update_variant,
-            methods=["PATCH"],
-        ),
-        Route(
-            "/api/experiments/{experiment_id:str}/variants",
-            handlers.experiment_variants,
-            methods=["GET"],
-        ),
-        Route(
-            "/api/sections/{section:str}/export",
-            handlers.section_export,
-            methods=["GET", "POST"],
-        ),
-        Route(
-            "/api/sections/{section:str}",
-            handlers.section,
-            methods=["GET"],
-        ),
+        Route("/api/experiments/{experiment_id:str}/variants", handlers.create_variant, methods=["POST"]),
+        Route("/api/variants/{variant_id:str}", handlers.update_variant, methods=["PATCH"]),
+        Route("/api/experiments/{experiment_id:str}/variants", handlers.experiment_variants, methods=["GET"]),
+        Route("/api/sections/{section:str}/export", handlers.section_export, methods=["GET", "POST"]),
+        Route("/api/sections/{section:str}", handlers.section, methods=["GET"]),
         Route("/api/events", handlers.events, methods=["GET"]),
         Mount(
             "/assets",

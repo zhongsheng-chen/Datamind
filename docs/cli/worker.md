@@ -14,10 +14,10 @@
 datamind worker run [OPTIONS]
 ```
 
-| 参数            | 类型             | 必需 | 默认值 | 说明                           |
-|-----------------|------------------|------|--------|--------------------------------|
-| `--role`        | all/batch/shadow | 否   | `null` | 处理的任务类型，默认使用配置值 |
-| `--concurrency` | 整数范围         | 否   | `null` | Worker 并发数，默认使用配置值  |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `--role` | all/batch/shadow | 否 | `null` | 处理的任务类型，默认使用配置值 |
+| `--concurrency` | 整数范围 | 否 | `null` | Worker 并发数，默认使用配置值 |
 
 权限：无需资源权限 · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/worker/run.py)
 

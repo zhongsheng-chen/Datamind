@@ -12,15 +12,15 @@
   - test_auth_commands_render_clean_error:
     验证认证失败不显示 traceback
   - test_login_revokes_previous_session_before_saving_new_session:
-    测试登录成功后撤销并替换已有本地会话
+    验证登录成功后撤销并替换已有本地会话
   - test_login_replaces_invalid_stored_session:
-    测试已有凭据损坏时仍可保存新的登录会话
+    验证已有凭据损坏时仍可保存新的登录会话
   - test_login_failure_preserves_previous_session:
-    测试新登录失败时不撤销或覆盖已有会话
+    验证新登录失败时不撤销或覆盖已有会话
   - test_whoami_does_not_expose_format_option:
-    测试身份查询仅提供文本输出
+    验证身份查询仅提供文本输出
   - test_whoami_renders_clean_error:
-    测试身份查询失败时不显示 traceback
+    验证身份查询失败时不显示 traceback
 """
 
 from collections.abc import AsyncIterator
@@ -205,9 +205,7 @@ def test_login_saves_session_without_rendering_tokens(
     """测试登录保存会话且不显示令牌."""
     tokens = create_tokens()
     service = MagicMock()
-    service.login = AsyncMock(
-        return_value=tokens
-    )
+    service.login = AsyncMock(return_value=tokens)
     store = MagicMock()
     store.load.return_value = None
     install_auth_service(
@@ -248,9 +246,7 @@ def test_login_saves_session_without_rendering_tokens(
     assert "访问令牌有效期" not in result.output
     assert "access-token" not in result.output
     assert "refresh-token" not in result.output
-    store.save.assert_called_once_with(
-        tokens
-    )
+    store.save.assert_called_once_with(tokens)
     login_call = service.login.await_args
     assert login_call is not None
     request = login_call.args[0]
@@ -283,6 +279,7 @@ def test_login_saves_session_without_rendering_tokens(
     assert success_context["source"] == "cli"
     assert success_context["ip"] == "127.0.0.1"
     assert success_context["hostname"] == "datamind-host"
+
     login_complete = login_module.logger.info.call_args_list[-1]
     assert login_complete.kwargs["action"] == "auth.login"
     assert login_complete.kwargs["status"] == "success"
@@ -295,9 +292,7 @@ def test_login_revokes_previous_session_before_saving_new_session(
     """测试登录成功后撤销并替换已有本地会话."""
     tokens = create_tokens()
     service = MagicMock()
-    service.login = AsyncMock(
-        return_value=tokens
-    )
+    service.login = AsyncMock(return_value=tokens)
     service.logout = AsyncMock(
         return_value=LogoutResult(
             revoked=True,
@@ -340,18 +335,15 @@ def test_login_revokes_previous_session_before_saving_new_session(
     )
 
     assert result.exit_code == 0
+
     logout_call = service.logout.await_args
     assert logout_call is not None
     request = logout_call.args[0]
     assert request.refresh_token.get_secret_value() == (
         "refresh-token"
     )
-    store.save.assert_called_once_with(
-        tokens
-    )
-    service.authenticate_access_token.assert_awaited_once_with(
-        "access-token"
-    )
+    store.save.assert_called_once_with(tokens)
+    service.authenticate_access_token.assert_awaited_once_with("access-token")
     assert log_contexts[0]["user"] == "current-user"
     assert log_contexts[1]["user"] == "alice"
     login_module.logger.debug.assert_called_once_with(
@@ -366,9 +358,7 @@ def test_login_replaces_invalid_stored_session(
     """测试已有凭据损坏时仍可保存新的登录会话."""
     tokens = create_tokens()
     service = MagicMock()
-    service.login = AsyncMock(
-        return_value=tokens
-    )
+    service.login = AsyncMock(return_value=tokens)
     store = MagicMock()
     store.load.side_effect = CredentialError(
         "CLI 凭据文件格式无效"
@@ -396,9 +386,7 @@ def test_login_replaces_invalid_stored_session(
 
     assert result.exit_code == 0
     service.logout.assert_not_called()
-    store.save.assert_called_once_with(
-        tokens
-    )
+    store.save.assert_called_once_with(tokens)
 
 
 def test_login_failure_preserves_previous_session(
@@ -501,6 +489,7 @@ def test_whoami_uses_cli_context(
     assert log_contexts[0]["request_id"] == (
         log_contexts[1]["request_id"]
     )
+
     whoami_start = (
         whoami_module.logger.info.call_args_list[0]
     )
@@ -568,6 +557,7 @@ def test_logout_revokes_and_clears_session(
 
     assert result.exit_code == 0
     assert "已退出登录" in result.output
+
     logout_call = service.logout.await_args
     assert logout_call is not None
     request = logout_call.args[0]
@@ -590,9 +580,7 @@ def test_logout_revokes_and_clears_session(
     assert log_contexts[0]["source"] == "cli"
     assert log_contexts[0]["user"] == "current-user"
     assert log_contexts[1]["user"] == "current-user"
-    logout_module.logger.debug.assert_called_once_with(
-        "开始 CLI 退出登录"
-    )
+    logout_module.logger.debug.assert_called_once_with("开始 CLI 退出登录")
     logout_complete = (
         logout_module.logger.info.call_args_list[-1]
     )
@@ -693,6 +681,7 @@ def test_auth_commands_render_clean_error(
     assert request_id.startswith("req_")
     assert log_contexts[0]["source"] == "cli"
     assert log_contexts[0]["user"] == "current-user"
+
     failure_log = command_module.logger.warning.call_args
     expected_action = (
         "auth.login"

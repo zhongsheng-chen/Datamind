@@ -58,23 +58,29 @@
   - test_resolve_model_id_uses_model_name:
     验证运行时按公开模型名称解析内部模型 ID
   - test_submit_batch_persists_before_publishing:
-    测试异步批次先持久化再发布轻量级引用消息
+    验证异步批次先持久化再发布轻量级引用消息
   - test_submit_batch_rejects_unknown_model_before_persisting:
-    测试批量提交在模型不存在时返回请求错误且不创建批次
+    验证批量提交在模型不存在时返回请求错误且不创建批次
   - test_get_batch_status_returns_persisted_result:
-    测试批次状态查询以 PostgreSQL 记录为准
+    验证批次状态查询以 PostgreSQL 记录为准
   - test_cancel_batch_records_request_and_revokes_task:
-    测试取消同时更新业务状态并撤销 Celery 任务
+    验证取消同时更新业务状态并撤销 Celery 任务
   - test_cancel_batch_keeps_persisted_state_when_revoke_fails:
-    测试 Broker 不可用时仍返回已经持久化的取消状态
+    验证 Broker 不可用时仍返回已经持久化的取消状态
   - test_retry_batch_uses_new_celery_task_id:
-    测试业务重试不会复用可能已被撤销的 Celery 任务 ID
+    验证业务重试不会复用可能已被撤销的 Celery 任务 ID
+  - test_batch_http_request_id_is_distinct_from_batch_id:
+    验证批次提交的 HTTP 请求标识与跨进程批次标识不同
 """
 
 import asyncio
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+    call,
+)
 
 import pytest
 
@@ -85,8 +91,14 @@ from datamind.models.enums import (
     ExecutionType,
 )
 from datamind.models.errors import RuntimeRouteError
-from datamind.runtime.executor import ExecutionPlan, ExecutionResult
-from datamind.runtime.routing import RouteResult, RoutingPlan
+from datamind.runtime.executor import (
+    ExecutionPlan,
+    ExecutionResult,
+)
+from datamind.runtime.routing import (
+    RouteResult,
+    RoutingPlan,
+)
 from datamind.runtime.server.schemas import (
     BatchPredictRequest,
     PredictRequest,
@@ -117,7 +129,10 @@ async def test_predict_timeout_records_failure(
     service._submit_shadow_predictions = AsyncMock()
     service.executor.execute.return_value = SimpleNamespace(prediction={"score": 1})
 
-    async def wait_for_cancellation(*_args: Any, **_kwargs: Any) -> None:
+    async def wait_for_cancellation(
+            *_args: Any,
+            **_kwargs: Any,
+    ) -> None:
         await asyncio.Event().wait()
 
     blocked = {
@@ -126,15 +141,18 @@ async def test_predict_timeout_records_failure(
         "persistence": service._record_prediction_success,
     }[stage]
     blocked.side_effect = wait_for_cancellation
+
     response = await service._predict(
         request=PredictRequest(
             model_name="scorecard", features={"age": 35},
         ),
         request_id="req_timeout",
     )
+
     assert response["success"] is False
     assert response["error_type"] == "RequestTimeoutError"
     assert stage in response["error"]
+
     ctx = SimpleNamespace(response=SimpleNamespace(status_code=200))
     service._apply_response_status(ctx=ctx, response=response)
     assert ctx.response.status_code == 504
@@ -148,7 +166,8 @@ async def test_predict_timeout_records_failure(
 
 
 @pytest.mark.asyncio
-async def test_batch_timeout_isolated_per_item(runtime_server: Any,
+async def test_batch_timeout_isolated_per_item(
+        runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试单条预测超时只标记当前条目并继续执行批次."""
@@ -173,20 +192,22 @@ async def test_batch_timeout_isolated_per_item(runtime_server: Any,
         ),
         shadows=(),
     )
-    service._prepare_batch_request_records = AsyncMock(
-        return_value=["req_1", "req_2"]
-    )
+    service._prepare_batch_request_records = AsyncMock(return_value=["req_1", "req_2"])
     service._mark_batch_failed = AsyncMock()
     service._record_batch_success = AsyncMock()
     service._record_batch_item_failure = AsyncMock()
 
-    async def wait_for_cancellation(*_args: Any, **_kwargs: Any) -> None:
+    async def wait_for_cancellation(
+            *_args: Any,
+            **_kwargs: Any,
+    ) -> None:
         await asyncio.Event().wait()
 
     monkeypatch.setattr(
         "datamind.runtime.server.prediction.asyncio.to_thread",
         wait_for_cancellation,
     )
+
     response = await service.execute_batch_task(
         request=BatchPredictRequest(
             model_name="scorecard",
@@ -201,6 +222,7 @@ async def test_batch_timeout_isolated_per_item(runtime_server: Any,
         ),
         batch_id="req_batch",
     )
+
     assert response["success"] is False
     assert response["succeeded_count"] == 0
     assert response["failed_count"] == 2
@@ -214,7 +236,8 @@ async def test_batch_timeout_isolated_per_item(runtime_server: Any,
 
 
 @pytest.mark.asyncio
-async def test_failure_finalization_is_bounded(runtime_server: Any,
+async def test_failure_finalization_is_bounded(
+        runtime_server: Any,
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试失败记录阻塞时结束等待并记录异常."""
@@ -227,7 +250,9 @@ async def test_failure_finalization_is_bounded(runtime_server: Any,
     )
     service = runtime_server.create_service(service_module)
 
-    async def wait_for_cancellation(**_kwargs: Any) -> None:
+    async def wait_for_cancellation(
+            **_kwargs: Any,
+    ) -> None:
         await asyncio.Event().wait()
 
     service._mark_request_failed = AsyncMock(side_effect=wait_for_cancellation)
@@ -269,9 +294,7 @@ async def test_predict_batch_records_each_request_and_decision(
         ]),
     )
     service._validate_service_environment = AsyncMock()
-    service._get_service = AsyncMock(
-        return_value=runtime_service
-    )
+    service._get_service = AsyncMock(return_value=runtime_service)
     route = RouteResult(
         model_id="mdl_test",
         version_id="ver_test",
@@ -291,9 +314,7 @@ async def test_predict_batch_records_each_request_and_decision(
         primary=route,
         shadows=(),
     )
-    service._prepare_batch_request_records = AsyncMock(
-        return_value=["req_1", "req_2"]
-    )
+    service._prepare_batch_request_records = AsyncMock(return_value=["req_1", "req_2"])
     service._record_batch_success = AsyncMock(return_value=())
     service._mark_batch_failed = AsyncMock()
     identifiers = iter((
@@ -337,28 +358,44 @@ async def test_predict_batch_records_each_request_and_decision(
         "request_id",
     ]
     assert result["batch_id"] == "batch_test"
+
+    route_calls = service.router.resolve.await_args_list
+    success_calls = service._record_batch_success.await_args_list
+
     assert service.router.resolve.await_count == 2
     assert [
         route_call.kwargs["subject_key"]
-        for route_call in service.router.resolve.await_args_list
+        for route_call in route_calls
     ] == ["customer_1", "customer_2"]
     assert [
         route_call.kwargs["payload"]
-        for route_call in service.router.resolve.await_args_list
+        for route_call in route_calls
     ] == [{"age": 35}, {"age": 45}]
     service._prepare_batch_request_records.assert_awaited_once()
     assert service._record_batch_success.await_count == 2
     assert result["predictions"] == [
-        {"success": True, "task_type": "scoring", "score": 680.0, **runtime_server.create_score_details(680.0), "request_id": "req_1"},
-        {"success": True, "task_type": "scoring", "score": 720.0, **runtime_server.create_score_details(720.0), "request_id": "req_2"},
+        {
+            "success": True,
+            "task_type": "scoring",
+            "score": 680.0,
+            **runtime_server.create_score_details(680.0),
+            "request_id": "req_1",
+        },
+        {
+            "success": True,
+            "task_type": "scoring",
+            "score": 720.0,
+            **runtime_server.create_score_details(720.0),
+            "request_id": "req_2",
+        },
     ]
     assert [
         item.kwargs["request_ids"]
-        for item in service._record_batch_success.await_args_list
+        for item in success_calls
     ] == [["req_1"], ["req_2"]]
     assert [
         item.kwargs["batch_indices"]
-        for item in service._record_batch_success.await_args_list
+        for item in success_calls
     ] == [[0], [1]]
 
 
@@ -395,21 +432,25 @@ async def test_execute_routed_batch_groups_deployments_and_restores_order(
         for value in (10, 20, 30)
     ]
     service_a = SimpleNamespace(
-        predict_batch=MagicMock(return_value={
-            "task_type": "classification",
-            "predictions": [
-                {"prediction": 0},
-                {"prediction": 1},
-            ],
-        })
+        predict_batch=MagicMock(
+            return_value={
+                "task_type": "classification",
+                "predictions": [
+                    {"prediction": 0},
+                    {"prediction": 1},
+                ],
+            },
+        )
     )
     service_b = SimpleNamespace(
-        predict_batch=MagicMock(return_value={
-            "task_type": "classification",
-            "predictions": [
-                {"prediction": 1},
-            ],
-        })
+        predict_batch=MagicMock(
+            return_value={
+                "task_type": "classification",
+                "predictions": [
+                    {"prediction": 1},
+                ],
+            },
+        )
     )
     services = {
         "dep_a": service_a,
@@ -438,8 +479,6 @@ async def test_execute_routed_batch_groups_deployments_and_restores_order(
     service_b.predict_batch.assert_called_once_with([
         {"value": 20},
     ])
-
-
 
 
 @pytest.mark.asyncio
@@ -510,9 +549,7 @@ async def test_predict_records_successful_decision(
         ),
         features={"age": 35},
     )
-    service._record_prediction_success = AsyncMock(
-        return_value=(shadow_task,)
-    )
+    service._record_prediction_success = AsyncMock(return_value=(shadow_task,))
     service._mark_prediction_failed = AsyncMock()
     runtime_server.patch_server_dependency(
         monkeypatch,
@@ -540,9 +577,7 @@ async def test_predict_records_successful_decision(
     for key, value in runtime_server.create_score_details(720.0).items():
         assert result[key] == value
     service._create_request_record.assert_awaited_once()
-    service._resolve_model_id.assert_awaited_once_with(
-        model_name="scorecard"
-    )
+    service._resolve_model_id.assert_awaited_once_with(model_name="scorecard")
     assert (
         service.router.resolve.await_args.kwargs["model_id"]
         == "mdl_test"
@@ -696,9 +731,7 @@ async def test_predict_batch_allows_partial_success(
         ]),
     )
     service._validate_service_environment = AsyncMock()
-    service._get_service = AsyncMock(
-        return_value=runtime_service
-    )
+    service._get_service = AsyncMock(return_value=runtime_service)
     service.router.resolve.return_value = SimpleNamespace(
         primary=RouteResult(
             model_id="mdl_test",
@@ -711,9 +744,7 @@ async def test_predict_batch_allows_partial_success(
         ),
         shadows=(),
     )
-    service._prepare_batch_request_records = AsyncMock(
-        return_value=["req_1", "req_2"]
-    )
+    service._prepare_batch_request_records = AsyncMock(return_value=["req_1", "req_2"])
     service._record_batch_success = AsyncMock(return_value=())
     service._record_batch_item_failure = AsyncMock()
     service._mark_batch_failed = AsyncMock()
@@ -755,9 +786,7 @@ async def test_predict_batch_handles_invalid_feature_type(
     service = runtime_server.create_service(service_module)
     runtime_service = SimpleNamespace(
         model_id="mdl_test",
-        predict=MagicMock(side_effect=TypeError(
-            "特征 annual_income 必须是数值"
-        )),
+        predict=MagicMock(side_effect=TypeError("特征 annual_income 必须是数值")),
     )
     service._validate_service_environment = AsyncMock()
     service._get_service = AsyncMock(return_value=runtime_service)
@@ -773,9 +802,7 @@ async def test_predict_batch_handles_invalid_feature_type(
         ),
         shadows=(),
     )
-    service._prepare_batch_request_records = AsyncMock(
-        return_value=["req_1"]
-    )
+    service._prepare_batch_request_records = AsyncMock(return_value=["req_1"])
     service._mark_batch_failed = AsyncMock()
     service._record_batch_item_failure = AsyncMock()
     service._record_batch_success = AsyncMock(return_value=())
@@ -898,9 +925,7 @@ async def test_prepare_batch_request_records_reuses_failed_requests(
             status="failed",
         ),
     ]
-    request_repo.list_batch_requests = AsyncMock(
-        return_value=requests
-    )
+    request_repo.list_batch_requests = AsyncMock(return_value=requests)
 
     request_ids = await service_module.DatamindRuntimeService.inner._prepare_batch_request_records(
         batch_id="batch_test",
@@ -930,9 +955,7 @@ async def test_record_batch_success_creates_decisions(
     service = runtime_server.create_service(service_module)
     request_record = object()
     request_repo = MagicMock()
-    request_repo.get_request = AsyncMock(
-        return_value=request_record
-    )
+    request_repo.get_request = AsyncMock(return_value=request_record)
     decision_repo = MagicMock()
     execution_repo = MagicMock()
     runtime_server.install_repositories(
@@ -1023,12 +1046,14 @@ async def test_record_batch_success_creates_decisions(
     assert decision["experiment_id"] == "exp_test"
     assert decision["variant_id"] == "var_test"
     assert decision["assignment_id"] == "asn_test"
+
     recorded_call = request_repo.mark_success.call_args
     assert recorded_call is not None
     assert list(recorded_call.kwargs["response"]) == [
         "success", "score", "probability", "decision", "score_intercept",
         "features", "request_id",
     ]
+
     execution = execution_repo.create_execution.call_args_list[0].kwargs
     assert execution["decision_id"] == "dcs_1"
     assert execution["model_id"] == "mdl_test"
@@ -1181,6 +1206,7 @@ async def test_record_batch_item_failure_creates_failed_execution(
     assert decision["request_id"] == "req_1"
     assert decision["context"]["batch_id"] == "batch_test"
     assert decision["context"]["batch_index"] == 1
+
     execution = execution_repo.create_execution.call_args.kwargs
     assert execution["execution_id"] == "exe_failed"
     assert execution["decision_id"] == "dcs_failed"
@@ -1231,9 +1257,7 @@ async def test_mark_batch_failed_updates_existing_records(
     service_module = runtime_server.load_service_module(monkeypatch)
     request_record = SimpleNamespace(status=record_status)
     request_repo = MagicMock()
-    request_repo.get_request = AsyncMock(
-        side_effect=[request_record, None]
-    )
+    request_repo.get_request = AsyncMock(side_effect=[request_record, None])
     runtime_server.install_repositories(
         service_module,
         monkeypatch,
@@ -1278,9 +1302,7 @@ async def test_create_and_mark_single_request_record(
     service_module = runtime_server.load_service_module(monkeypatch)
     request_record = SimpleNamespace(status=record_status)
     request_repo = MagicMock()
-    request_repo.get_request = AsyncMock(
-        return_value=request_record
-    )
+    request_repo.get_request = AsyncMock(return_value=request_record)
     runtime_server.install_repositories(
         service_module,
         monkeypatch,
@@ -1344,9 +1366,7 @@ async def test_record_prediction_success_creates_decision(
     service = runtime_server.create_service(service_module)
     request_record = object()
     request_repo = MagicMock()
-    request_repo.get_request = AsyncMock(
-        return_value=request_record
-    )
+    request_repo.get_request = AsyncMock(return_value=request_record)
     decision_repo = MagicMock()
     execution_repo = MagicMock()
     runtime_server.install_repositories(
@@ -1445,6 +1465,7 @@ async def test_record_prediction_success_creates_decision(
         "environment": "testing",
         "worker_id": "worker_test",
     }
+
     executions = [
         execution_call.kwargs
         for execution_call in execution_repo.create_execution.call_args_list
@@ -1554,9 +1575,7 @@ async def test_record_shadow_success_updates_execution(
     service = runtime_server.create_service(service_module)
     execution = MagicMock()
     execution_repo = MagicMock()
-    execution_repo.get_execution = AsyncMock(
-        return_value=execution
-    )
+    execution_repo.get_execution = AsyncMock(return_value=execution)
     runtime_server.install_repositories(
         service_module,
         monkeypatch,
@@ -1600,9 +1619,7 @@ async def test_record_shadow_success_updates_execution(
         ),
     )
 
-    execution_repo.get_execution.assert_awaited_once_with(
-        "exe_shadow"
-    )
+    execution_repo.get_execution.assert_awaited_once_with("exe_shadow")
     updated = execution_repo.mark_success.call_args.kwargs
     assert updated["prediction"] == {
         "score": 710,
@@ -1661,9 +1678,7 @@ async def test_execute_shadow_records_success_without_response(
         task
     )
 
-    service._record_shadow_running.assert_awaited_once_with(
-        task
-    )
+    service._record_shadow_running.assert_awaited_once_with(task)
     service.executor.execute.assert_awaited_once_with(
         plan=plan,
         features={"age": 35},
@@ -1723,6 +1738,7 @@ async def test_execute_shadow_isolates_failure_and_writes_audit(
         ExecutionStatus.FAILED
     )
     assert failure.kwargs["error"] == "shadow unavailable"
+
     audit = runtime_server.get_audit_recorder(service)
     audit.record.assert_awaited_once_with(
         action="prediction.shadow",
@@ -1804,6 +1820,7 @@ async def test_mark_prediction_failed_handles_persistence_error(
         },
         latency_ms=10.0,
     )
+
     service._mark_request_failed.assert_not_awaited()
 
     await service._mark_prediction_failed(
@@ -1816,6 +1833,7 @@ async def test_mark_prediction_failed_handles_persistence_error(
         },
         latency_ms=10.0,
     )
+
     service._mark_request_failed.assert_awaited_once()
 
 
@@ -1875,9 +1893,7 @@ async def test_resolve_model_id_uses_model_name(
             model_id="mdl_test"
         )
     )
-    repository_factory = MagicMock(
-        return_value=repo
-    )
+    repository_factory = MagicMock(return_value=repo)
     runtime_server.patch_server_dependency(
         monkeypatch,
         service_module,
@@ -1899,9 +1915,7 @@ async def test_resolve_model_id_uses_model_name(
     )
 
     assert model_id == "mdl_test"
-    repo.get_model.assert_awaited_once_with(
-        name="scorecard"
-    )
+    repo.get_model.assert_awaited_once_with(name="scorecard")
 
 
 @pytest.mark.asyncio
@@ -1946,6 +1960,7 @@ async def test_submit_batch_persists_before_publishing(
         "submitted_count": 2,
         "status_url": "/predict/batch/status",
     }
+
     created = repository.create_batch.call_args.kwargs
     assert created["batch_id"] == "bat_test"
     assert created["model_id"] == "mdl_test"
@@ -1956,9 +1971,7 @@ async def test_submit_batch_persists_before_publishing(
         task_id=created["task_id"],
         attempt_number=1,
     )
-    service._resolve_model_id.assert_awaited_once_with(
-        model_name="scorecard",
-    )
+    service._resolve_model_id.assert_awaited_once_with(model_name="scorecard")
     service.task_publisher.submit_batch.assert_called_once_with(
         batch_id="bat_test",
         task_id=created["task_id"],
@@ -2000,6 +2013,7 @@ async def test_submit_batch_rejects_unknown_model_before_persisting(
         "error": "模型不存在: missing-model",
         "error_type": "ValueError",
     }
+
     ctx = SimpleNamespace(response=SimpleNamespace(status_code=200))
     service._apply_response_status(ctx=ctx, response=result)
     assert ctx.response.status_code == 400
@@ -2203,3 +2217,41 @@ async def test_retry_batch_uses_new_celery_task_id(
         batch_id="bat_test",
         task_id=batch.task_id,
     )
+
+
+@pytest.mark.asyncio
+async def test_batch_http_request_id_is_distinct_from_batch_id(
+        runtime_server,
+        monkeypatch,
+):
+    """测试批次提交的 HTTP 请求标识与跨进程批次标识不同."""
+    service_module = runtime_server.load_service_module(monkeypatch)
+    service = runtime_server.create_service(service_module)
+    captured = {}
+
+    async def secured(
+            **kwargs,
+    ):
+        captured["request_id"] = kwargs["request_id"]
+        return await kwargs["handler"](None)
+
+    async def submit(
+            **kwargs,
+    ):
+        captured["batch_id"] = kwargs["batch_id"]
+        return {"success": True, "batch_id": kwargs["batch_id"]}
+
+    service._execute_secured = secured
+    service._submit_batch = submit
+    context = SimpleNamespace(response=SimpleNamespace(status_code=200))
+
+    await service_module.DatamindRuntimeService.inner.predict_batch.func(
+        service,
+        request=MagicMock(),
+        ctx=context,
+    )
+
+    assert captured["request_id"].startswith("req_")
+    assert captured["batch_id"].startswith("bat_")
+    assert captured["request_id"] != captured["batch_id"]
+    assert context.response.status_code == 202

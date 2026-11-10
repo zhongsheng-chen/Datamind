@@ -18,9 +18,9 @@
   - test_permanent_error_does_not_retry:
     验证永久错误不重试
   - test_record_overrides_default_failure_mode:
-    测试单次记录可以覆盖默认失败策略
+    验证单次记录可以覆盖默认失败策略
   - test_transient_error_returns_after_retries_exhausted:
-    测试 Fail-open 在瞬时错误重试耗尽后返回失败
+    验证 Fail-open 在瞬时错误重试耗尽后返回失败
 """
 
 from unittest.mock import (
@@ -107,7 +107,9 @@ def create_service(
 async def test_record_success() -> None:
     """测试成功写入返回成功结果."""
     sink = SinkStub([Audit()])
+
     result = await create_service(sink).record(create_event())
+
     assert result.recorded is True
     assert sink.calls == 1
 
@@ -133,7 +135,9 @@ async def test_disabled_service_skips_sink() -> None:
 async def test_open_mode_returns_failure() -> None:
     """测试 Fail-open 返回失败结果."""
     sink = SinkStub([ValueError("invalid")])
+
     result = await create_service(sink).record(create_event())
+
     assert result.recorded is False
     assert result.error == "invalid"
     assert sink.calls == 1
@@ -147,6 +151,7 @@ async def test_closed_mode_raises() -> None:
         sink,
         failure_mode=AuditFailureMode.CLOSED,
     )
+
     with pytest.raises(AuditWriteError, match="invalid"):
         await service.record(create_event())
 
@@ -177,7 +182,9 @@ async def test_transient_error_retries() -> None:
     """测试瞬时数据库错误进行重试."""
     error = OperationalError("sql", {}, RuntimeError("offline"))
     sink = SinkStub([error, Audit()])
+
     result = await create_service(sink).record(create_event())
+
     assert result.recorded is True
     assert sink.calls == 2
 
@@ -254,6 +261,8 @@ async def test_transient_error_returns_after_retries_exhausted() -> None:
 async def test_permanent_error_does_not_retry() -> None:
     """测试永久错误不进行重试."""
     sink = SinkStub([ValueError("invalid")])
+
     result = await create_service(sink).record(create_event())
+
     assert result.recorded is False
     assert sink.calls == 1

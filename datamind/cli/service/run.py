@@ -13,12 +13,13 @@
 
 import asyncio
 import json
-import logging
 import os
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from time import perf_counter
@@ -30,16 +31,18 @@ from typing import (
 
 import structlog
 import typer
-from datamind.cli.output import CLIConsole
-
 from datamind.cli.branding import (
     build_bind_address,
     build_http_url,
     get_app_version,
     print_http_server_summary,
 )
+from datamind.cli.output import CLIConsole
 from datamind.config import get_settings
-from datamind.logging import setup_logging, shutdown_logging
+from datamind.logging import (
+    setup_logging,
+    shutdown_logging,
+)
 
 app = typer.Typer(help="运行预测服务命令")
 console = CLIConsole()
@@ -66,32 +69,21 @@ class ServiceStartupResult(TypedDict):
 
 
 def _build_ready_dir(
-        service_instance_id: str,
+        service_id: str,
 ) -> Path:
-    """构建 Worker 就绪标记目录.
-
-    参数：
-        service_instance_id: 预测服务实例 ID
-
-    返回：
-        Worker 就绪标记目录
-    """
+    """构建 Worker 就绪标记目录."""
     return (
-            Path(tempfile.gettempdir())
-            / "datamind"
-            / "runtime_ready"
-            / service_instance_id
+        Path(tempfile.gettempdir())
+        / "datamind"
+        / "runtime_ready"
+        / service_id
     )
 
 
 def _prepare_ready_dir(
         ready_dir: Path,
 ) -> None:
-    """准备 Worker 就绪标记目录.
-
-    参数：
-        ready_dir: Worker 就绪标记目录
-    """
+    """准备 Worker 就绪标记目录."""
     shutil.rmtree(
         ready_dir,
         ignore_errors=True,
@@ -106,11 +98,7 @@ def _prepare_ready_dir(
 def _cleanup_ready_dir(
         ready_dir: Path | None,
 ) -> None:
-    """清理 Worker 就绪标记目录.
-
-    参数：
-        ready_dir: Worker 就绪标记目录
-    """
+    """清理 Worker 就绪标记目录."""
     if ready_dir is None:
         return
 
@@ -123,17 +111,9 @@ def _cleanup_ready_dir(
 def _read_worker_ready_files(
         *,
         ready_dir: Path,
-        service_instance_id: str,
+        service_id: str,
 ) -> set[str]:
-    """读取已就绪 Worker.
-
-    参数：
-        ready_dir: Worker 就绪标记目录
-        service_instance_id: 预测服务实例 ID
-
-    返回：
-        已就绪 Worker ID 集合
-    """
+    """读取已就绪 Worker."""
     worker_ids: set[str] = set()
 
     if not ready_dir.exists():
@@ -143,8 +123,8 @@ def _read_worker_ready_files(
         try:
             record = json.loads(
                 marker_path.read_text(
-                    encoding="utf-8"
-                )
+                    encoding="utf-8",
+                ),
             )
 
         except (
@@ -153,21 +133,21 @@ def _read_worker_ready_files(
         ):
             continue
 
-        if record.get("service_instance_id") != service_instance_id:
+        if record.get("service_id") != service_id:
             continue
 
         if record.get("ready") is not True:
             continue
 
         worker_id = record.get(
-            "worker_id"
+            "worker_id",
         )
 
         if not worker_id:
             continue
 
         worker_ids.add(
-            str(worker_id)
+            str(worker_id),
         )
 
     return worker_ids
@@ -176,60 +156,48 @@ def _read_worker_ready_files(
 async def _wait_for_workers_ready(
         *,
         ready_dir: Path,
-        service_instance_id: str,
+        service_id: str,
         process: subprocess.Popen,
         expected_workers: int,
         timeout_seconds: float = 60.0,
         interval_seconds: float = 0.5,
+        should_stop: Callable[[], bool] | None = None,
 ) -> set[str]:
-    """等待全部 Worker 就绪.
-
-    参数：
-        ready_dir: Worker 就绪标记目录
-        service_instance_id: 预测服务实例 ID
-        process: 预测服务子进程
-        expected_workers: 预期 Worker 数量
-        timeout_seconds: 等待超时时间
-        interval_seconds: 探测间隔
-
-    返回：
-        已就绪 Worker ID 集合
-
-    异常：
-        RuntimeError: 预测服务子进程提前退出
-        TimeoutError: 等待 Worker 就绪超时
-    """
+    """等待全部 Worker 就绪."""
     loop = asyncio.get_running_loop()
 
     deadline = (
-            loop.time()
-            + timeout_seconds
+        loop.time()
+        + timeout_seconds
     )
 
     last_worker_ids: tuple[str, ...] | None = None
 
     while True:
+        if should_stop is not None and should_stop():
+            raise asyncio.CancelledError
+
         return_code = process.poll()
 
         if return_code is not None:
             raise RuntimeError(
-                "Datamind 服务子进程提前退出，"
-                f"退出码: {return_code}"
+                "运行时服务子进程提前退出，"
+                f"退出码: {return_code}",
             )
 
         ready_workers = _read_worker_ready_files(
             ready_dir=ready_dir,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
         )
 
         current_worker_ids = tuple(
-            sorted(ready_workers)
+            sorted(ready_workers),
         )
 
         if current_worker_ids != last_worker_ids:
             logger.debug(
-                "等待 Datamind 服务 Worker 就绪",
-                service_instance_id=service_instance_id,
+                "正在等待运行时 Worker 就绪",
+                service_id=service_id,
                 ready_dir=str(ready_dir),
                 expected_workers=expected_workers,
                 ready_workers=len(ready_workers),
@@ -243,14 +211,154 @@ async def _wait_for_workers_ready(
 
         if loop.time() >= deadline:
             raise TimeoutError(
-                "等待 Datamind 服务 Worker 启动超时: "
+                "等待运行时 Worker 启动超时: "
                 f"ready_workers={len(ready_workers)}, "
                 f"expected_workers={expected_workers}, "
-                f"ready_dir={ready_dir}"
+                f"ready_dir={ready_dir}",
             )
 
         await asyncio.sleep(
-            interval_seconds
+            interval_seconds,
+        )
+
+
+async def _wait_for_process_exit(
+        process: subprocess.Popen,
+        should_stop: Callable[[], bool],
+) -> int | None:
+    """等待子进程退出."""
+    while not should_stop():
+        return_code = process.poll()
+
+        if return_code is not None:
+            return return_code
+
+        await asyncio.sleep(
+            0.1,
+        )
+
+    return None
+
+
+def _wait_for_worker_shutdown(
+        process: subprocess.Popen,
+        ready_dir: Path,
+        expected_workers: int,
+        timeout_seconds: float = 30.0,
+) -> bool:
+    """等待 Worker 关闭."""
+    ready_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    expected_worker_ids = {
+        marker.stem
+        for marker in ready_dir.glob("*.json")
+    }
+
+    (ready_dir / "stop.request").touch()
+
+    deadline = time.monotonic() + timeout_seconds
+
+    while True:
+        stopped_worker_ids = {
+            marker.stem
+            for marker in ready_dir.glob("*.stopped")
+        }
+
+        if (
+                len(stopped_worker_ids) >= expected_workers
+                and expected_worker_ids <= stopped_worker_ids
+        ):
+            return True
+
+        if (
+                process.poll() is not None
+                or time.monotonic() >= deadline
+        ):
+            return False
+
+        time.sleep(
+            0.1,
+        )
+
+
+def _stop_service_process(
+        process: subprocess.Popen,
+        *,
+        ready_dir: Path | None = None,
+        expected_workers: int = 0,
+) -> int | None:
+    """停止预测服务进程树."""
+    if sys.platform == "win32":
+        if (
+                ready_dir is not None
+                and expected_workers > 0
+                and process.poll() is None
+        ):
+            complete = _wait_for_worker_shutdown(
+                process,
+                ready_dir,
+                expected_workers,
+            )
+
+            if not complete and process.poll() is None:
+                logger.warning(
+                    "运行时 Worker 停止超时，将强制清理进程树",
+                    pid=process.pid,
+                    expected_workers=expected_workers,
+                    stopped_workers=len(list(ready_dir.glob("*.stopped"))),
+                )
+
+        try:
+            subprocess.run(
+                [
+                    "taskkill",
+                    "/PID",
+                    str(process.pid),
+                    "/T",
+                    "/F",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+
+        except subprocess.CalledProcessError as error:
+            if error.returncode != 128 or process.poll() is None:
+                raise
+    else:
+        try:
+            os.killpg(
+                process.pid,
+                signal.SIGTERM,
+            )
+
+        except ProcessLookupError:
+            pass
+
+    try:
+        return process.wait(
+            timeout=10,
+        )
+
+    except subprocess.TimeoutExpired:
+        if sys.platform == "win32":
+            raise
+
+        try:
+            os.killpg(
+                process.pid,
+                signal.SIGKILL,
+            )
+
+        except ProcessLookupError:
+            pass
+
+        return process.wait(
+            timeout=10,
         )
 
 
@@ -259,17 +367,17 @@ def run_service(
         host: str | None = typer.Option(
             None,
             "--host",
-            help="监听地址，默认 0.0.0.0"
+            help="监听地址，默认 0.0.0.0",
         ),
         port: int | None = typer.Option(
             None,
             "--port",
-            help="监听端口，默认 8700"
+            help="监听端口，默认 8700",
         ),
         reload: bool = typer.Option(
             False,
             "--reload",
-            help="代码变更后自动重载"
+            help="代码变更后自动重载",
         ),
         verbose: bool = typer.Option(
             False,
@@ -281,13 +389,7 @@ def run_service(
     settings = get_settings()
 
     setup_logging(
-        settings.logging
-    )
-
-    console_logs_info = (
-        settings.logging.enable_console
-        and getattr(logging, str(settings.logging.level).upper()) <= logging.INFO
-        and getattr(logging, str(settings.logging.console_level).upper()) <= logging.INFO
+        settings.logging,
     )
 
     service_config = settings.service
@@ -310,7 +412,7 @@ def run_service(
 
     process: subprocess.Popen | None = None
     ready_dir: Path | None = None
-    service_instance_id: str | None = None
+    service_id: str | None = None
     service_started = False
     stop_requested = False
 
@@ -325,28 +427,30 @@ def run_service(
         """启动预测服务子进程并等待 Worker 就绪."""
         nonlocal process
         nonlocal ready_dir
-        nonlocal service_instance_id
+        nonlocal service_id
         nonlocal service_started
 
         if not run_environment:
             raise typer.BadParameter(
-                "DATAMIND_ENVIRONMENT 不能为空"
+                "DATAMIND_ENVIRONMENT 不能为空",
             )
 
         if not run_host:
             raise typer.BadParameter(
-                "--host 不能为空"
+                "--host 不能为空",
             )
 
         if not 1 <= run_port <= 65535:
             raise typer.BadParameter(
-                "--port 必须在 1 到 65535 之间"
+                "--port 必须在 1 到 65535 之间",
             )
 
         app_version = get_app_version()
 
         command: list[str] = [
-            "bentoml",
+            sys.executable,
+            "-m",
+            "datamind.cli.http_entrypoint",
             "serve",
             SERVICE_TARGET,
             "--host",
@@ -361,17 +465,17 @@ def run_service(
         if not verbose:
             command.append("--quiet")
 
-        current_service_instance_id: str = uuid.uuid4().hex
+        current_service_id: str = uuid.uuid4().hex
 
         current_ready_dir: Path = _build_ready_dir(
-            current_service_instance_id
+            current_service_id,
         )
 
-        service_instance_id = current_service_instance_id
+        service_id = current_service_id
         ready_dir = current_ready_dir
 
         _prepare_ready_dir(
-            current_ready_dir
+            current_ready_dir,
         )
 
         env = os.environ.copy()
@@ -380,8 +484,8 @@ def run_service(
             run_environment
         )
 
-        env["DATAMIND_SERVICE_INSTANCE_ID"] = (
-            current_service_instance_id
+        env["DATAMIND_SERVICE_ID"] = (
+            current_service_id
         )
 
         env["DATAMIND_SERVICE_READY_DIR"] = (
@@ -394,28 +498,38 @@ def run_service(
             console,
             app_version=app_version,
             environment=run_environment,
-            bind_address=build_bind_address(host=run_host, port=run_port),
-            access_url=build_http_url(host=run_host, port=run_port),
+            bind_address=build_bind_address(
+                host=run_host,
+                port=run_port,
+            ),
+            access_url=build_http_url(
+                host=run_host,
+                port=run_port,
+            ),
             workers=expected_workers,
             reload_enabled=reload_enabled,
         )
-        logger.info("正在启动服务，等待 Worker 就绪")
-        if not console_logs_info:
-            console.info("正在启动服务，等待 Worker 就绪……")
+        logger.info("正在启动运行时服务，等待 Worker 就绪")
 
         try:
             started_process = subprocess.Popen(
                 command,
                 env=env,
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP
+                    if sys.platform == "win32"
+                    else 0
+                ),
+                start_new_session=sys.platform != "win32",
             )
 
         except FileNotFoundError:
             _cleanup_ready_dir(
-                current_ready_dir
+                current_ready_dir,
             )
 
             logger.error(
-                "Datamind 服务启动失败",
+                "运行时服务启动失败",
                 service_name=service_name,
                 environment=run_environment,
                 host=run_host,
@@ -449,7 +563,7 @@ def run_service(
         }
 
         logger.debug(
-            "Datamind 服务子进程启动成功",
+            "运行时服务子进程已启动",
             service_name=result["name"],
             version=result["version"],
             environment=result["environment"],
@@ -459,7 +573,7 @@ def run_service(
             reload=result["reload"],
             verbose=verbose,
             service_target=SERVICE_TARGET,
-            service_instance_id=current_service_instance_id,
+            service_id=current_service_id,
             ready_dir=str(current_ready_dir),
             pid=result["pid"],
         )
@@ -467,26 +581,24 @@ def run_service(
         try:
             await _wait_for_workers_ready(
                 ready_dir=current_ready_dir,
-                service_instance_id=current_service_instance_id,
+                service_id=current_service_id,
                 process=started_process,
                 expected_workers=expected_workers,
+                should_stop=lambda: stop_requested,
             )
 
         except TimeoutError as exc:
-            started_process.terminate()
-            await asyncio.to_thread(
-                started_process.wait
-            )
+            await _stop_process(started_process)
 
             logger.error(
-                "Datamind 服务启动失败",
+                "运行时服务启动失败",
                 service_name=result["name"],
                 environment=result["environment"],
                 bind=result["bind"],
                 url=result["url"],
                 workers=result["workers"],
                 expected_workers=expected_workers,
-                service_instance_id=current_service_instance_id,
+                service_id=current_service_id,
                 ready_dir=str(current_ready_dir),
                 pid=result["pid"],
                 error=str(exc),
@@ -496,13 +608,13 @@ def run_service(
 
         except RuntimeError as exc:
             logger.error(
-                "Datamind 服务启动失败",
+                "运行时服务启动失败",
                 service_name=result["name"],
                 environment=result["environment"],
                 bind=result["bind"],
                 url=result["url"],
                 workers=result["workers"],
-                service_instance_id=current_service_instance_id,
+                service_id=current_service_id,
                 ready_dir=str(current_ready_dir),
                 pid=result["pid"],
                 error=str(exc),
@@ -513,8 +625,8 @@ def run_service(
         service_started = True
 
         logger.debug(
-            "Datamind 服务启动完成",
-            service_instance_id=current_service_instance_id,
+            "运行时服务启动完成",
+            service_id=current_service_id,
             service_name=result["name"],
             version=result["version"],
             environment=result["environment"],
@@ -526,16 +638,13 @@ def run_service(
         )
 
         logger.info(
-            "服务已就绪",
+            "运行时服务已就绪",
             workers=result["workers"],
             startup_seconds=round(perf_counter() - startup_started, 2),
         )
 
-        if not console_logs_info:
-            console.info("服务已就绪。")
-
         if console.is_terminal:
-            console.print("按 Ctrl+C 停止。")
+            console.print("按 Ctrl+C 停止服务")
 
         return result
 
@@ -543,13 +652,10 @@ def run_service(
             _signum: int,
             _frame: FrameType | None,
     ) -> None:
-        """记录用户停止请求并通知子进程停止."""
+        """记录停止请求."""
         nonlocal stop_requested
 
         stop_requested = True
-
-        if process is not None and process.poll() is None:
-            process.terminate()
 
     def _record_service_stopped(
             *,
@@ -559,12 +665,12 @@ def run_service(
     ) -> None:
         """记录预测服务主动停止事件."""
         logger.info(
-            "Datamind 服务已停止",
+            "运行时服务已停止",
             service_name=configured_service_name,
             environment=environment,
             host=resolved_host,
             port=resolved_port,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
             pid=service_process.pid,
             return_code=return_code,
             stop_reason=stop_reason,
@@ -577,12 +683,12 @@ def run_service(
     ) -> None:
         """记录预测服务进程自行退出事件."""
         logger.warning(
-            "Datamind 服务进程已退出",
+            "运行时服务进程已退出",
             service_name=configured_service_name,
             environment=environment,
             host=resolved_host,
             port=resolved_port,
-            service_instance_id=service_instance_id,
+            service_id=service_id,
             pid=service_process.pid,
             return_code=return_code,
         )
@@ -590,34 +696,28 @@ def run_service(
     async def _stop_process(
             service_process: subprocess.Popen,
     ) -> int | None:
-        """停止预测服务子进程.
-
-        参数：
-            service_process: 预测服务子进程
-
-        返回：
-            子进程退出码
-        """
-        if service_process.poll() is None:
-            service_process.terminate()
-
+        """停止预测服务子进程."""
         return await asyncio.to_thread(
-            service_process.wait
+            _stop_service_process,
+            service_process,
+            ready_dir=ready_dir,
+            expected_workers=expected_workers,
         )
 
     async def runner():
+        """管理预测服务生命周期."""
         nonlocal stop_requested
 
         previous_sigint_handler: Callable | int | None
 
         try:
             previous_sigint_handler = signal.getsignal(
-                signal.SIGINT
+                signal.SIGINT,
             )
 
             signal.signal(
                 signal.SIGINT,
-                _request_stop
+                _request_stop,
             )
 
         except ValueError:
@@ -638,11 +738,13 @@ def run_service(
             service_process = process
 
             while True:
-                return_code = await asyncio.to_thread(
-                    service_process.wait
+                return_code = await _wait_for_process_exit(
+                    service_process,
+                    lambda: stop_requested,
                 )
 
-                if stop_requested:
+                if return_code is None or stop_requested:
+                    return_code = await _stop_process(service_process)
                     _record_service_stopped(
                         service_process=service_process,
                         return_code=return_code,
@@ -653,12 +755,12 @@ def run_service(
 
                 if return_code != 0:
                     logger.error(
-                        "Datamind 服务异常退出",
+                        "运行时服务异常退出",
                         service_name=configured_service_name,
                         environment=environment,
                         host=resolved_host,
                         port=resolved_port,
-                        service_instance_id=service_instance_id,
+                        service_id=service_id,
                         pid=service_process.pid,
                         return_code=return_code,
                     )
@@ -680,7 +782,7 @@ def run_service(
 
             if process is not None:
                 return_code = await _stop_process(
-                    process
+                    process,
                 )
 
                 stop_reason = (
@@ -697,14 +799,14 @@ def run_service(
 
         finally:
             _cleanup_ready_dir(
-                ready_dir
+                ready_dir,
             )
 
             if previous_sigint_handler is not None:
                 try:
                     signal.signal(
                         signal.SIGINT,
-                        previous_sigint_handler
+                        previous_sigint_handler,
                     )
 
                 except ValueError:

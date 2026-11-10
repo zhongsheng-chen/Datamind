@@ -3,19 +3,41 @@
 验证响应结果、异常和流式响应的日志记录及请求上下文恢复。
 
 核心功能：
-  - test_access_log_records_response: 验证状态码和请求标识
-  - test_access_log_records_unhandled_exception: 验证异常日志
-  - test_streaming_response_logged_once_after_body: 验证流式响应只记录一次
-  - test_non_http_scope_passes_through: 验证非 HTTP 调用透传
+  - test_access_log_records_response:
+    验证状态码和请求标识
+  - test_access_log_records_unhandled_exception:
+    验证异常日志
+  - test_streaming_response_logged_once_after_body:
+    验证流式响应只记录一次
+  - test_non_http_scope_passes_through:
+    验证非 HTTP 调用透传
+  - test_health_check_log_level:
+    验证仅将成功完成的健康检查访问日志降为 DEBUG
+  - test_http_completion_distinguishes_business_failure:
+    验证访问日志区分 HTTP 请求成功与批次预测成功，且不包含响应明细
 """
 
+import logging
 from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+)
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-from starlette.responses import JSONResponse, StreamingResponse
-from starlette.types import Receive, Scope, Send
+from httpx import (
+    ASGITransport,
+    AsyncClient,
+)
+from starlette.responses import (
+    JSONResponse,
+    StreamingResponse,
+)
+from starlette.types import (
+    Receive,
+    Scope,
+    Send,
+)
 
 from datamind.context import get_context
 from datamind.runtime.server import access
@@ -35,7 +57,11 @@ async def test_access_log_records_response(
     before = get_context().copy()
     trace_id = "1" * 32
 
-    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+    async def app(
+            scope: Scope,
+            receive: Receive,
+            send: Send,
+    ) -> None:
         assert get_context()["request_id"] == "req_test"
         assert get_context()["trace_id"] == trace_id
         assert get_context()["ip"] == (
@@ -48,7 +74,11 @@ async def test_access_log_records_response(
 
     middleware = access.AccessLogMiddleware(app)
 
-    async def request_app(scope: Scope, receive: Receive, send: Send) -> None:
+    async def request_app(
+            scope: Scope,
+            receive: Receive,
+            send: Send,
+    ) -> None:
         scope["client"] = client_address
         await middleware(scope, receive, send)
 
@@ -62,17 +92,53 @@ async def test_access_log_records_response(
         )
 
     assert response.status_code == status_code
-    logger.info.assert_called_once()
-    fields = logger.info.call_args.kwargs
+    logger.log.assert_called_once()
+    assert logger.log.call_args.args == (logging.INFO, "HTTP 请求完成")
+    fields = logger.log.call_args.kwargs
+
     assert fields["method"] == "POST"
     assert fields["path"] == "/predict"
     assert fields["status_code"] == status_code
+    assert "success" not in fields
+    assert "business_success" not in fields
+    assert fields["trace_id"] == trace_id
     assert fields["request_id"] == "req_prediction"
     assert fields["user"] == "admin"
     assert fields["response_completed"] is True
     assert fields["duration_ms"] >= 0
-    assert "secret" not in str(logger.info.call_args)
+    assert "secret" not in str(logger.log.call_args)
     assert get_context() == before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/health", "/ready"])
+@pytest.mark.parametrize("status_code", [200, 204, 400, 503])
+async def test_health_check_log_level(
+        monkeypatch: pytest.MonkeyPatch,
+        path: str,
+        status_code: int,
+) -> None:
+    """测试仅将成功完成的健康检查访问日志降为 DEBUG."""
+    logger = MagicMock()
+    monkeypatch.setattr(access, "logger", logger)
+
+    async def app(
+            scope: Scope,
+            receive: Receive,
+            send: Send,
+    ) -> None:
+        await JSONResponse({}, status_code=status_code)(scope, receive, send)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=access.AccessLogMiddleware(app)),
+        base_url="http://test",
+    ) as client:
+        await client.post(path)
+
+    level = logging.DEBUG if status_code < 300 else logging.INFO
+    logger.log.assert_called_once()
+    assert logger.log.call_args.args == (level, "HTTP 请求完成")
+    assert logger.log.call_args.kwargs["status_code"] == status_code
 
 
 @pytest.mark.asyncio
@@ -98,8 +164,8 @@ async def test_access_log_records_unhandled_exception(
         with pytest.raises(RuntimeError, match="failed"):
             await client.get("/predict")
 
-    assert logger.info.call_args.kwargs["status_code"] == 500
-    assert logger.info.call_args.kwargs["response_completed"] is False
+    assert logger.log.call_args.kwargs["status_code"] == 500
+    assert logger.log.call_args.kwargs["response_completed"] is False
     assert get_context() == before
 
 
@@ -113,10 +179,14 @@ async def test_streaming_response_logged_once_after_body(
 
     async def chunks() -> AsyncIterator[bytes]:
         yield b"first"
-        logger.info.assert_not_called()
+        logger.log.assert_not_called()
         yield b"second"
 
-    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+    async def app(
+            scope: Scope,
+            receive: Receive,
+            send: Send,
+    ) -> None:
         await StreamingResponse(chunks())(scope, receive, send)
 
     async with AsyncClient(
@@ -126,8 +196,8 @@ async def test_streaming_response_logged_once_after_body(
         response = await client.get("/stream")
 
     assert response.content == b"firstsecond"
-    logger.info.assert_called_once()
-    assert logger.info.call_args.kwargs["response_completed"] is True
+    logger.log.assert_called_once()
+    assert logger.log.call_args.kwargs["response_completed"] is True
 
 
 @pytest.mark.asyncio
@@ -150,4 +220,40 @@ async def test_non_http_scope_passes_through(
         AsyncMock(),
         AsyncMock(),
     )
-    logger.info.assert_not_called()
+    logger.log.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_http_completion_distinguishes_business_failure(
+        monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试访问日志区分 HTTP 请求成功与批次预测成功，且不包含响应明细."""
+    logger = MagicMock()
+    monkeypatch.setattr(access, "logger", logger)
+
+    async def app(
+            scope: Scope,
+            receive: Receive,
+            send: Send,
+    ) -> None:
+        scope[access.RESULT_SCOPE_KEY] = {
+            "success": True,
+            "batch_id": "bat_test",
+            "batch_status": "partially_succeeded",
+        }
+        await JSONResponse({"features": "private"})(scope, receive, send)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=access.AccessLogMiddleware(app)),
+        base_url="http://test",
+    ) as client:
+        await client.post("/predict/batch/status")
+
+    logger.log.assert_called_once()
+    fields = logger.log.call_args.kwargs
+
+    assert fields["status_code"] == 200
+    assert fields["success"] is True
+    assert fields["batch_id"] == "bat_test"
+    assert fields["batch_status"] == "partially_succeeded"
+    assert "private" not in str(fields)

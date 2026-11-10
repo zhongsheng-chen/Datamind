@@ -49,9 +49,7 @@ def creation_context(monkeypatch):
     )
 
     metadata = MagicMock()
-    metadata.get_model = AsyncMock(
-        return_value=SimpleNamespace(model_id="mdl_test")
-    )
+    metadata.get_model = AsyncMock(return_value=SimpleNamespace(model_id="mdl_test"))
     experiments = MagicMock()
     experiments.create_experiment.side_effect = lambda **values: SimpleNamespace(
         **values,
@@ -255,6 +253,7 @@ async def test_create_experiment_without_groups(creation_context):
     """测试未传入初始分组时兼容原有创建流程."""
     payload = create_payload()
     payload.pop("groups")
+
     result = await ExperimentLifecycleService().create_experiment(**payload)
 
     assert result["status"] == "draft"

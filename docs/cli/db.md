@@ -32,9 +32,9 @@ datamind db upgrade [OPTIONS]
 datamind db downgrade [OPTIONS]
 ```
 
-| 参数            | 类型   | 必需 | 默认值  | 说明         |
-|-----------------|--------|------|---------|--------------|
-| `--revision/-r` | 字符串 | 是   | `—`     | 降级目标版本 |
-| `--yes/-y`      | 布尔   | 否   | `false` | 跳过降级确认 |
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `--revision/-r` | 字符串 | 是 | `—` | 降级目标版本 |
+| `--yes/-y` | 布尔 | 否 | `false` | 跳过降级确认 |
 
 权限：无需资源权限 · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/db.py)

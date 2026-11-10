@@ -319,7 +319,6 @@ def test_delete_object_is_idempotent_for_missing_file(
     backend.delete_object(key)
 
 
-
 def test_object_exists_returns_expected_values(
     tmp_path: Path,
 ) -> None:

@@ -26,6 +26,7 @@ from datamind.config.storage import StorageConfig
 from datamind.storage import Storage, get_storage
 from datamind.storage.admin import StorageAdmin
 
+
 @pytest.fixture(autouse=True)
 def clear_storage_cache() -> Iterator[None]:
     """测试前后清理全局存储缓存."""
@@ -90,9 +91,7 @@ def test_load_by_key_delegates_storage_key() -> None:
     )
 
     assert data == b"model data"
-    storage_admin.load_by_key.assert_called_once_with(
-        key
-    )
+    storage_admin.load_by_key.assert_called_once_with(key)
 
 
 def test_delete_by_key_delegates_strict_mode() -> None:

@@ -204,6 +204,20 @@ class RuntimeRouter:
             now=current_time,
         )
 
+        logger.debug(
+            "主路由解析完成",
+            model_id=primary.model_id,
+            deployment_id=primary.deployment_id,
+            version_id=primary.version_id,
+            environment=primary.environment,
+            route_source=primary.source,
+            strategy=primary.strategy,
+            experiment_id=primary.experiment_id,
+            variant_id=primary.variant_id,
+            assignment_id=primary.assignment_id,
+            routing_id=primary.routing_id,
+        )
+
         if not include_shadows:
             return RoutingPlan(
                 primary=primary
@@ -244,11 +258,9 @@ class RuntimeRouter:
 
         current_time = to_utc(now or datetime.now(timezone.utc))
 
-        logger.info(
-            "开始解析运行时路由",
+        logger.debug(
+            "开始解析主路由",
             model_id=model_id,
-            subject_key=subject_key,
-            subject_type=subject_type,
             environment=environment,
             deployment_id=deployment_id,
         )
@@ -333,7 +345,7 @@ class RuntimeRouter:
 
         if deployment.model_id != model_id:
             raise RuntimeRouteError(
-                "部署所属模型与请求模型不一致: "
+                "部署绑定的模型与请求模型不一致: "
                 f"model_id={model_id}, deployment_model_id={deployment.model_id}"
             )
 
@@ -423,7 +435,7 @@ class RuntimeRouter:
 
         if deployment.model_id != model_id:
             logger.warning(
-                "实验命中的部署所属模型与请求模型不一致，跳过实验路由",
+                "实验命中的部署绑定的模型与请求模型不一致，跳过实验路由",
                 model_id=model_id,
                 deployment_model_id=deployment.model_id,
                 deployment_id=deployment.deployment_id,

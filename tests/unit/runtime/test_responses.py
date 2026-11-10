@@ -60,31 +60,34 @@ def test_build_prediction_response_selects_public_fields() -> None:
     assert json.dumps(prediction) == original
 
 
-@pytest.mark.parametrize(("prediction", "expected"), [
-    (
-        {
-            "task_type": "classification",
-            "prediction": 0,
-            "label": "benign",
-            "probability": 0.2,
-            "threshold": 0.5,
-            "model_id": "mdl",
-        },
-        {
-            "success": True,
-            "task_type": "classification",
-            "probability": 0.2,
-            "prediction": 0,
-            "label": "benign",
-            "threshold": 0.5,
-            "request_id": "req",
-        },
-    ),
-    (
-        {"success": False, "error": "failed", "error_type": "ValueError", "worker_id": "worker"},
-        {"success": False, "error": "failed", "error_type": "ValueError", "request_id": "req"},
-    ),
-])
+@pytest.mark.parametrize(
+    ("prediction", "expected"),
+    [
+        (
+            {
+                "task_type": "classification",
+                "prediction": 0,
+                "label": "benign",
+                "probability": 0.2,
+                "threshold": 0.5,
+                "model_id": "mdl",
+            },
+            {
+                "success": True,
+                "task_type": "classification",
+                "probability": 0.2,
+                "prediction": 0,
+                "label": "benign",
+                "threshold": 0.5,
+                "request_id": "req",
+            },
+        ),
+        (
+            {"success": False, "error": "failed", "error_type": "ValueError", "worker_id": "worker"},
+            {"success": False, "error": "failed", "error_type": "ValueError", "request_id": "req"},
+        ),
+    ],
+)
 def test_build_prediction_response_handles_classification_and_errors(
         prediction: dict[str, Any],
         expected: dict[str, Any],
@@ -96,11 +99,14 @@ def test_build_prediction_response_handles_classification_and_errors(
     assert list(response) == list(expected)
 
 
-@pytest.mark.parametrize("prediction", [
-    {},
-    {"score": 0, "probability": 0, "score_intercept": 0, "features": {}},
-    {"score": None, "features": None},
-])
+@pytest.mark.parametrize(
+    "prediction",
+    [
+        {},
+        {"score": 0, "probability": 0, "score_intercept": 0, "features": {}},
+        {"score": None, "features": None},
+    ],
+)
 def test_build_prediction_response_preserves_present_values(
         prediction: dict[str, Any],
 ) -> None:

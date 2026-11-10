@@ -147,7 +147,7 @@ def test_add_context_ignores_service_environment(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试通用处理器不从服务环境变量补充日志字段."""
-    monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "service-test")
+    monkeypatch.setenv("DATAMIND_SERVICE_ID", "service-test")
     result = add_context()(None, "info", {"event": "运行时协调器启动成功"})
 
     assert result == {"event": "运行时协调器启动成功"}
@@ -157,14 +157,14 @@ def test_add_context_preserves_explicit_service_identity(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试显式记录的子进程标识不会被当前进程覆盖."""
-    monkeypatch.setenv("DATAMIND_SERVICE_INSTANCE_ID", "parent-service")
+    monkeypatch.setenv("DATAMIND_SERVICE_ID", "parent-service")
     result = add_context()(
         None,
         "info",
-        {"service_instance_id": "child-service", "pid": 12345},
+        {"service_id": "child-service", "pid": 12345},
     )
 
-    assert result["service_instance_id"] == "child-service"
+    assert result["service_id"] == "child-service"
     assert result["pid"] == 12345
 
 

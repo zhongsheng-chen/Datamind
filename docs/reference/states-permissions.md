@@ -4,19 +4,19 @@
 
 ## 资源生命周期
 
-| 资源                  | 允许的转换                                                                                                                                                                                       |
-|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 模型（`Model`）       | `active` → `inactive` / `deprecated`；`inactive` → `active` / `deprecated` / `archived`；`deprecated` → `archived`                                                                               |
-| 版本（`Version`）     | `active` → `inactive` / `deprecated`；`inactive` → `active` / `deprecated` / `archived`；`deprecated` → `archived`                                                                               |
-| 部署（`Deployment`）  | `inactive` ↔ `active`                                                                                                                                                                            |
-| 实验（`Experiment`）  | `draft` → `running` / `archived`；`running` → `paused` / `stopped` / `completed` / `archived`；`paused` → `running` / `stopped` / `completed` / `archived`；`stopped` / `completed` → `archived` |
-| 实验分组（`Variant`） | `active` ↔ `inactive`；`active` / `inactive` → `archived`                                                                                                                                        |
+| 资源 | 允许的转换 |
+| --- | --- |
+| 模型（`Model`） | `active` → `inactive` / `deprecated`；`inactive` → `active` / `deprecated` / `archived`；`deprecated` → `archived` |
+| 版本（`Version`） | `active` → `inactive` / `deprecated`；`inactive` → `active` / `deprecated` / `archived`；`deprecated` → `archived` |
+| 部署（`Deployment`） | `inactive` ↔ `active` |
+| 实验（`Experiment`） | `draft` → `running` / `archived`；`running` → `paused` / `stopped` / `completed` / `archived`；`paused` → `running` / `stopped` / `completed` / `archived`；`stopped` / `completed` → `archived` |
+| 实验分组（`Variant`） | `active` ↔ `inactive`；`active` / `inactive` → `archived` |
 
 资源归档后，生命周期结束，不再支持上表中的状态转换。执行操作还需满足关联资源的约束：
 
 - 版本存在有效部署时，不能停用或删除。
 - 删除部署前，需先停用，并等待运行实例完成卸载。
-- 实验分组只能绑定同一模型在同一环境中的可用部署，且部署的发布类型不能为 `shadow`。
+- 实验分组只能绑定与实验使用同一模型、处于同一环境的可用部署，且部署的发布类型不能为 `shadow`。
 
 具体操作步骤见[模型管理](../models/index.md)、[部署管理](../deployment/index.md)和[实验分析](../experiments/analysis.md)。
 
@@ -24,12 +24,12 @@
 
 ## 运行与执行状态
 
-| 对象                      | 状态                                                                                                     |
-|---------------------------|----------------------------------------------------------------------------------------------------------|
-| 运行实例（`Runtime`）     | `starting`、`running`、`stopping`、`stopped`、`failed`                                                   |
-| 运行控制目标（`Control`） | `loaded`、`unloaded`                                                                                     |
-| 执行记录（`Execution`）   | `queued`、`running`、`success`、`failed`、`timeout`、`cancelled`                                         |
-| 批次（`Batch`）           | `queued`、`running`、`retrying`、`cancelling`、`succeeded`、`partially_succeeded`、`failed`、`cancelled` |
+| 对象 | 状态 |
+| --- | --- |
+| 运行实例（`Runtime`） | `starting`、`running`、`stopping`、`stopped`、`failed` |
+| 运行控制目标（`Control`） | `loaded`、`unloaded` |
+| 执行记录（`Execution`） | `queued`、`running`、`success`、`failed`、`timeout`、`cancelled` |
+| 批次（`Batch`） | `queued`、`running`、`retrying`、`cancelling`、`succeeded`、`partially_succeeded`、`failed`、`cancelled` |
 
 运行控制通过 `Control.desired_status` 指定各 Worker 的加载目标，实际执行进度由运行实例状态反映。目标设为 `loaded` 或 `unloaded` 后，Worker 仍需完成相应的加载或卸载操作；重新加载则通过递增 `generation` 触发。
 
@@ -37,30 +37,44 @@
 
 ## 发布与决策枚举
 
-| 枚举                             | 取值                                                      |
-|----------------------------------|-----------------------------------------------------------|
-| 发布类型（`RolloutType`）        | `full`、`canary`、`shadow`                                |
-| 部署角色（`DeploymentRole`）     | `champion`、`challenger`、`shadow`                        |
-| 分配策略（`AssignmentStrategy`） | `hash`、`manual`                                          |
-| 决策策略（`DecisionStrategy`）   | `experiment`、`routing`、`deployment`、`shadow`、`manual` |
-| 决策结果（`DecisionResult`）     | `approve`、`reject`                                       |
-| 执行类型（`ExecutionType`）      | `primary`、`shadow`                                       |
+| 枚举 | 取值 |
+| --- | --- |
+| 发布类型（`RolloutType`） | `full`、`canary`、`shadow` |
+| 部署角色（`DeploymentRole`） | `champion`、`challenger`、`shadow` |
+| 分配策略（`AssignmentStrategy`） | `hash`、`manual` |
+| 决策策略（`DecisionStrategy`） | `experiment`、`routing`、`deployment`、`shadow`、`manual` |
+| 决策结果（`DecisionResult`） | `approve`、`reject` |
+| 执行类型（`ExecutionType`） | `primary`、`shadow` |
 
 部署角色用于标识部署在发布中的作用，具体流量分配由[路由配置](../routing/index.md)决定。主、副及影子路由的配置方式见[流量分配](../routing/index.md)。
 
 ## 权限全集
 
-| 权限                                                         | 用途                                             |
-|--------------------------------------------------------------|--------------------------------------------------|
-| `model.read` / `model.write` / `model.delete`                | 查询；注册、激活、停用、恢复；删除与永久删除     |
-| `deployment.read` / `deployment.write` / `deployment.delete` | 查询；创建、启停；删除与恢复                     |
-| `routing.read` / `routing.write` / `routing.delete`          | 查询；创建、更新、启停；删除与恢复               |
+| 权限 | 用途 |
+| --- | --- |
+| `model.read` / `model.write` / `model.delete` | 查询；注册、激活、停用、恢复；删除与永久删除 |
+| `deployment.read` / `deployment.write` / `deployment.delete` | 查询；创建、启停；删除与恢复 |
+| `routing.read` / `routing.write` / `routing.delete` | 查询；创建、更新、启停；删除与恢复 |
 | `experiment.read` / `experiment.write` / `experiment.delete` | 查询和分析；实验与分组配置、生命周期；删除与恢复 |
-| `identity.read` / `identity.manage`                          | 查询用户角色；账户和授权管理                     |
-| `runtime.read` / `runtime.manage`                            | 查询实际运行；重新加载启用中的部署               |
-| `prediction.invoke`                                          | 在线、批量预测以及批次查询、取消、重试           |
-| `request.read`                                               | 查看请求、决策和执行记录                         |
-| `audit.read`                                                 | 查看审计记录                                     |
-| `data.export`                                                | 导出数据                                         |
+| `identity.read` / `identity.manage` | 查询用户角色；账户和授权管理 |
+| `runtime.read` / `runtime.manage` | 查询实际运行；重新加载启用中的部署 |
+| `prediction.invoke` | 在线、批量预测以及批次查询、取消、重试 |
+| `request.read` | 查看请求、决策和执行记录 |
+| `audit.read` | 查看审计记录 |
+| `data.export` | 导出数据 |
 
 角色可授予上表中的具体权限，也可使用命名空间通配符（如 `model.*`）或全局通配符 `*`。内置 `administrator` 角色通过 `*` 获得全部权限。授权时仅接受已定义的权限及其命名空间。
+
+## 内置角色
+
+系统初始化时创建五个内置角色。除管理员使用全局通配符外，其余角色使用以下固定权限：
+
+| 角色 | 名称 | 权限 |
+| --- | --- | --- |
+| `administrator` | 管理员 | `*` |
+| `editor` | 编辑者 | `model.read`、`model.write`、`deployment.read`、`deployment.write`、`experiment.read`、`experiment.write`、`routing.read`、`routing.write`、`runtime.read`、`runtime.manage`、`prediction.invoke` |
+| `viewer` | 查看者 | `model.read`、`deployment.read`、`experiment.read`、`routing.read`、`runtime.read` |
+| `invoker` | 调用者 | `prediction.invoke` |
+| `auditor` | 审计员 | `audit.read`、`request.read`、`identity.read` |
+
+内置角色由系统维护，不支持修改、停用或删除。创建自定义角色时，不能使用内置角色名称。用户可同时拥有多个角色，并获得这些角色授予的全部权限。例如，在 `viewer` 基础上授予 `auditor`，即可同时查看业务资源、请求记录、审计记录和身份信息。

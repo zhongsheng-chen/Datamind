@@ -11,12 +11,24 @@
     验证拒绝损坏的凭据文件
   - test_credential_store_clears_credentials:
     验证删除本地登录凭据
+  - test_credential_store_retries_transient_windows_replace_error:
+    验证 Windows 短暂占用解除后可更新凭据
+  - test_credential_store_preserves_tokens_when_replace_fails:
+    验证持续写入失败保留旧凭据并清理临时文件
+  - test_credential_store_supports_portable_paths:
+    验证普通路径及含空格和中文路径的凭据生命周期
+  - test_posix_replace_preserves_open_reader:
+    验证 POSIX 打开的旧凭据不阻碍原子更新
 """
 
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
+
+import datamind.cli.credentials as credentials_module
 
 from datamind.auth.schemas import TokenResponse
 from datamind.cli.credentials import (
@@ -121,3 +133,145 @@ def test_credential_store_clears_credentials(
     assert store.clear() is True
     assert store.clear() is False
     assert store.load() is None
+
+
+@pytest.mark.parametrize("winerror", [5, 32, 33])
+def test_credential_store_retries_transient_windows_replace_error(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        winerror: int,
+) -> None:
+    """测试 Windows 短暂占用解除后原子更新凭据."""
+    path = tmp_path / "credentials.json"
+    store = CredentialStore(path)
+    store.save(create_tokens())
+    original = path.read_bytes()
+    replace = credentials_module.os.replace
+    sleep = credentials_module.time.sleep
+    attempts = []
+    delays = []
+
+    def temporarily_blocked(source: Path, target: Path) -> None:
+        attempts.append(source)
+        assert target.read_bytes() == original
+
+        if len(attempts) < 3:
+            error = PermissionError("credential file temporarily occupied")
+            error.winerror = winerror
+            raise error
+
+        replace(source, target)
+
+    def record_sleep(delay: float) -> None:
+        delays.append(delay)
+        sleep(delay)
+
+    monkeypatch.setattr(credentials_module.os, "replace", temporarily_blocked)
+    monkeypatch.setattr(credentials_module.time, "sleep", record_sleep)
+    updated = TokenResponse(
+        access_token="updated-access",
+        refresh_token="updated-refresh",
+        expires_in=1800,
+    )
+
+    saved = store.save(updated)
+    loaded = store.load()
+
+    assert loaded is not None
+    assert saved == loaded
+    assert loaded.access_token == "updated-access"
+    assert 3 <= len(attempts) <= 6
+    assert len(delays) == len(attempts) - 1
+    assert delays[:2] == [0.05, 0.1]
+    assert not list(tmp_path.glob(".credentials.json.*.tmp"))
+
+
+@pytest.mark.parametrize("winerror, expected_attempts", [(5, 6), (None, 1)])
+def test_credential_store_preserves_tokens_when_replace_fails(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        winerror: int | None,
+        expected_attempts: int,
+) -> None:
+    """测试持续写入失败保留旧凭据并清理临时文件."""
+    path = tmp_path / "credentials.json"
+    store = CredentialStore(path)
+    store.save(create_tokens())
+    original = path.read_bytes()
+    attempts = []
+    delays = []
+
+    def denied(source: Path, _target: Path) -> None:
+        attempts.append(source)
+        error = PermissionError("credential file access denied")
+
+        if winerror is not None:
+            error.winerror = winerror
+
+        raise error
+
+    monkeypatch.setattr(credentials_module.os, "replace", denied)
+    monkeypatch.setattr(credentials_module.time, "sleep", delays.append)
+
+    with pytest.raises(CredentialError, match="凭据保存失败"):
+        store.save(create_tokens())
+
+    assert path.read_bytes() == original
+    assert len(attempts) == expected_attempts
+    assert sum(delays) <= 1.55
+    assert not list(tmp_path.glob(".credentials.json.*.tmp"))
+
+
+@pytest.mark.parametrize(
+    "directory, filename",
+    [("session", "credentials.json"), ("登录 会话", "凭据 文件.json")],
+)
+def test_credential_store_supports_portable_paths(
+        tmp_path: Path,
+        directory: str,
+        filename: str,
+) -> None:
+    """测试普通及含空格和中文路径的跨平台凭据生命周期."""
+    path = tmp_path / directory / filename
+    store = CredentialStore(path)
+    original = store.save(create_tokens())
+
+    assert store.load() == original
+
+    updated = TokenResponse(
+        access_token="updated-access",
+        refresh_token="updated-refresh",
+        expires_in=1800,
+    )
+    saved = store.save(updated)
+
+    assert store.load() == saved
+    assert not list(path.parent.glob(".*.tmp"))
+
+    if os.name == "posix":
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+
+    assert store.clear()
+    assert store.load() is None
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX 原子替换语义")
+def test_posix_replace_preserves_open_reader(
+        tmp_path: Path,
+) -> None:
+    """测试 POSIX 打开的旧凭据不阻碍原子更新."""
+    path = tmp_path / "credentials.json"
+    store = CredentialStore(path)
+    store.save(create_tokens())
+    updated = TokenResponse(
+        access_token="updated-access",
+        refresh_token="updated-refresh",
+        expires_in=1800,
+    )
+
+    with path.open(encoding="utf-8") as reader:
+        saved = store.save(updated)
+
+        assert store.load() == saved
+        assert json.load(reader)["access_token"] == "access-token"

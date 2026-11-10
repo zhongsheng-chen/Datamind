@@ -11,11 +11,18 @@
     验证未完成全部分片时仅更新批次进度
   - test_last_chunk_finalizes_partial_success_once:
     验证最后一个分片写入部分成功终态
+  - test_batch_terminal_log_counts_duration_and_no_duplicate:
+    验证批次汇总日志包含计数和耗时，重复完成通知不重复记录结果
+  - test_batch_task_exception_logs_error_with_business_counts:
+    验证任务级异常与逐条业务失败分别记录，并保留批次和持久化计数
 """
 
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+)
 
 import pytest
 
@@ -40,12 +47,16 @@ class FakeUnitOfWork:
         return None
 
 
-def create_batch(**overrides: Any) -> SimpleNamespace:
+def create_batch(
+        **overrides: Any,
+) -> SimpleNamespace:
     """创建可由请求 Schema 还原的批次记录."""
     values = {
         "batch_id": "bat_test",
         "task_id": "tsk_test",
         "attempt_count": 1,
+        "started_at": None,
+        "created_at": None,
         "status": "running",
         "total_count": 2,
         "completed_count": 0,
@@ -66,7 +77,9 @@ def create_batch(**overrides: Any) -> SimpleNamespace:
     return SimpleNamespace(**values)
 
 
-def create_worker(service: MagicMock) -> worker_module.RuntimeTaskWorker:
+def create_worker(
+        service: MagicMock,
+) -> worker_module.RuntimeTaskWorker:
     """跳过线程启动并注入受控运行时服务."""
     worker = object.__new__(worker_module.RuntimeTaskWorker)
     worker._service = service
@@ -79,7 +92,7 @@ def replace_worker_dependency(
         replacement: object,
 ) -> None:
     """替换执行器模块依赖并在测试结束后自动恢复."""
-    monkeypatch.setattr(worker_module, name, replacement)
+    monkeypatch.setitem(vars(worker_module), name, replacement)
 
 
 @pytest.mark.asyncio
@@ -105,6 +118,9 @@ async def test_prepare_batch_creates_records_before_dispatch(
         lambda _s: attempt_repository,
     )
 
+    task_logger = MagicMock()
+    monkeypatch.setattr(worker_module, "logger", task_logger)
+
     count = await create_worker(service)._prepare_batch(
         batch_id="bat_test",
         task_id="tsk_test",
@@ -112,6 +128,10 @@ async def test_prepare_batch_creates_records_before_dispatch(
     )
 
     assert count == 2
+    task_logger.info.assert_called_once()
+    assert task_logger.info.call_args.args == ("批量预测任务开始执行",)
+    assert task_logger.info.call_args.kwargs["status"] == "running"
+    assert "batch_status" not in task_logger.info.call_args.kwargs
     attempt_repository.mark_started.assert_awaited_once_with(
         batch_id="bat_test",
         task_id="tsk_test",
@@ -244,3 +264,135 @@ async def test_last_chunk_finalizes_partial_success_once(
         status="partially_succeeded",
         error=None,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "succeeded,failed,status",
+    [
+        (2, 0, "succeeded"),
+        (1, 1, "partially_succeeded"),
+        (0, 2, "failed"),
+    ],
+)
+async def test_batch_terminal_log_counts_duration_and_no_duplicate(
+        monkeypatch,
+        succeeded,
+        failed,
+        status,
+):
+    """测试批次汇总日志包含计数和耗时，重复完成通知不重复记录结果."""
+    from datetime import (
+        datetime,
+        timedelta,
+        timezone,
+    )
+    from structlog.testing import capture_logs
+
+    batch = create_batch(started_at=datetime.now(timezone.utc) - timedelta(seconds=1))
+    repository = MagicMock()
+    repository.get_batch = AsyncMock(return_value=batch)
+
+    for name in ["mark_succeeded", "mark_partially_succeeded", "mark_failed"]:
+        setattr(repository, name, AsyncMock())
+
+    attempts = MagicMock(mark_finished=AsyncMock())
+    worker = create_worker(MagicMock())
+    worker._build_batch_result = AsyncMock(return_value=({}, succeeded, failed))
+    replace_worker_dependency(
+        monkeypatch,
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    replace_worker_dependency(
+        monkeypatch,
+        "BatchRepository",
+        lambda _s: repository,
+    )
+    replace_worker_dependency(
+        monkeypatch,
+        "AttemptRepository",
+        lambda _s: attempts,
+    )
+
+    with capture_logs() as logs:
+        await worker._finalize_batch_if_complete("bat_test")
+        batch.status = status
+        await worker._finalize_batch_if_complete("bat_test")
+
+    terminal = [log for log in logs if log["event"] == "批量预测任务执行完成"]
+
+    assert len(terminal) == 1
+    assert terminal[0]["log_level"] == "info"
+    assert terminal[0]["batch_id"] == "bat_test"
+    assert terminal[0]["total_count"] == 2
+    assert terminal[0]["succeeded_count"] == succeeded
+    assert terminal[0]["failed_count"] == failed
+    assert terminal[0]["status"] == status
+    assert "batch_status" not in terminal[0]
+    assert terminal[0]["duration_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_batch_task_exception_logs_error_with_business_counts(
+        monkeypatch,
+):
+    """测试任务级异常与逐条业务失败分别记录，并保留批次和持久化计数."""
+    from datetime import (
+        datetime,
+        timezone,
+    )
+    from structlog.testing import capture_logs
+
+    batch = create_batch(
+        status="partially_succeeded",
+        succeeded_count=1,
+        failed_count=1,
+        started_at=datetime.now(timezone.utc),
+    )
+    repository = MagicMock()
+    repository.get_batch = AsyncMock(return_value=batch)
+    repository.mark_partially_succeeded = AsyncMock()
+    attempts = MagicMock(mark_finished=AsyncMock())
+    shards = MagicMock(mark_open_shards_failed=AsyncMock())
+    replace_worker_dependency(
+        monkeypatch,
+        "UnitOfWork",
+        FakeUnitOfWork,
+    )
+    replace_worker_dependency(
+        monkeypatch,
+        "BatchRepository",
+        lambda _s: repository,
+    )
+    replace_worker_dependency(
+        monkeypatch,
+        "AttemptRepository",
+        lambda _s: attempts,
+    )
+    replace_worker_dependency(
+        monkeypatch,
+        "ShardRepository",
+        lambda _s: shards,
+    )
+    monkeypatch.setattr(
+        worker_module.RuntimeTaskWorker,
+        "_build_batch_result",
+        AsyncMock(return_value=({}, 1, 1)),
+    )
+
+    with capture_logs() as logs:
+        await worker_module.RuntimeTaskWorker._mark_batch_failed(
+            batch_id="bat_test",
+            error="broker unavailable",
+        )
+
+    result = next(log for log in logs if log["event"] == "批量预测任务执行失败")
+
+    assert result["log_level"] == "error"
+    assert result["batch_id"] == "bat_test"
+    assert result["error"] == "broker unavailable"
+    assert result["total_count"] == 2
+    assert result["succeeded_count"] == 1
+    assert result["failed_count"] == 1
+    assert result["duration_ms"] >= 0

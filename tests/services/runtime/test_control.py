@@ -18,13 +18,13 @@
   - test_validate_control_environment_rejects_mismatch:
     验证环境一致性
   - test_runtime_serialization_preserves_applied_generation:
-    测试运行实例序列化保留控制代次及其可空语义
+    验证运行实例序列化保留控制代次及其可空语义
   - test_get_status_preserves_worker_applied_generations:
-    测试状态响应保留每个 Worker 实际应用的控制代次
+    验证状态响应保留每个 Worker 实际应用的控制代次
   - test_get_status_rejects_missing_deployment:
-    测试查询不存在的部署状态时报错
+    验证查询不存在的部署状态时报错
   - test_list_services_supports_empty_filters:
-    测试不传筛选条件时查询全部运行服务
+    验证不传筛选条件时查询全部运行服务
 """
 
 from datetime import datetime, timezone
@@ -126,17 +126,11 @@ def configure_service(
 ) -> tuple[MagicMock, MagicMock, MagicMock]:
     """配置运行控制服务仓储替身."""
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        return_value=deployment
-    )
+    deployment_repo.get_deployment = AsyncMock(return_value=deployment)
     control_repo = MagicMock()
-    control_repo.get_deployment_control = AsyncMock(
-        return_value=control
-    )
+    control_repo.get_deployment_control = AsyncMock(return_value=control)
     runtime_repo = MagicMock()
-    runtime_repo.list_runtimes = AsyncMock(
-        return_value=runtimes or []
-    )
+    runtime_repo.list_runtimes = AsyncMock(return_value=runtimes or [])
 
     monkeypatch.setitem(
         vars(control_module),
@@ -396,9 +390,7 @@ async def test_list_services_supports_empty_filters(
     _, control_repo, _ = configure_service(
         monkeypatch
     )
-    control_repo.list_controls = AsyncMock(
-        return_value=[]
-    )
+    control_repo.list_controls = AsyncMock(return_value=[])
 
     result = await RuntimeControlService().list_services()
 

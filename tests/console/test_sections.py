@@ -2,33 +2,33 @@
 
 核心功能：
   - test_management_options_return_selectable_catalogs:
-    测试管理表单返回模型类型、权限和有效角色选项
+    验证管理表单返回模型类型、权限和有效角色选项
   - test_overview_uses_authenticated_permissions:
-    测试控制台概览按当前用户权限生成
+    验证控制台概览按当前用户权限生成
   - test_overview_uses_requested_trend_range:
-    测试概览传递 API 调用趋势时间范围
+    验证概览传递 API 调用趋势时间范围
   - test_model_versions_uses_server_pagination:
-    测试模型版本接口使用当前用户权限和分页参数
+    验证模型版本接口使用当前用户权限和分页参数
   - test_experiment_variants_use_server_pagination:
-    测试实验分组接口使用当前用户权限和分页参数
+    验证实验分组接口使用当前用户权限和分页参数
   - test_section_uses_server_pagination:
-    测试控制台页面接口使用当前用户权限和分页参数
+    验证控制台页面接口使用当前用户权限和分页参数
   - test_runtime_section_uses_current_instances:
-    测试运行实例接口只查询当前实例
+    验证运行实例接口只查询当前实例
   - test_overview_reports_unavailable_database:
-    测试概览在数据库异常时返回服务不可用
+    验证概览在数据库异常时返回服务不可用
   - test_model_versions_enforces_permission:
-    测试模型版本接口拒绝无查看权限用户
+    验证模型版本接口拒绝无查看权限用户
   - test_experiment_variants_enforce_permission:
-    测试实验分组接口拒绝无实验查看权限用户
+    验证实验分组接口拒绝无实验查看权限用户
   - test_model_versions_maps_service_errors:
-    测试模型版本接口转换参数和数据库异常
+    验证模型版本接口转换参数和数据库异常
   - test_section_validates_access:
-    测试分页接口校验页面存在性和查看权限
+    验证分页接口校验页面存在性和查看权限
   - test_section_rejects_identity_reader_for_users:
-    测试身份只读用户不能访问控制台用户列表
+    验证身份只读用户不能访问控制台用户列表
   - test_section_maps_service_errors:
-    测试分页接口转换参数和数据库异常
+    验证分页接口转换参数和数据库异常
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -38,6 +38,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.auth.schemas import AuthenticatedUser
+from datamind.constants.identity import BUILTIN_ROLE_DESCRIPTIONS
 from tests.console._app_support import app_module, create_user
 
 
@@ -54,15 +55,17 @@ async def test_management_options_return_selectable_catalogs(
             ]
         }
     )
+    role_options = [
+        {"name": name, "description": description, "is_builtin": True}
+        for name, description in BUILTIN_ROLE_DESCRIPTIONS.items()
+    ]
+    role_options.append({
+        "name": "model-reader",
+        "description": "模型只读角色",
+        "is_builtin": False,
+    })
     identity_service = MagicMock()
-    identity_service.list_roles = AsyncMock(
-        return_value=[
-            {
-                "name": "developer",
-                "description": "开发人员",
-            }
-        ]
-    )
+    identity_service.list_roles = AsyncMock(return_value=role_options)
     monkeypatch.setitem(
         vars(app_module),
         "_authenticate",
@@ -104,12 +107,7 @@ async def test_management_options_return_selectable_catalogs(
     assert routing_rules["schema"]["examples"] == [routing_rules["example"]]
     assert payload["permissions"][0] == "*"
     assert "model.read" in payload["permissions"]
-    assert payload["roles"] == [
-        {
-            "name": "developer",
-            "description": "开发人员",
-        }
-    ]
+    assert payload["roles"] == role_options
     identity_service.list_roles.assert_awaited_once_with(
         status=app_module.RoleStatus.ACTIVE,
         limit=1000,

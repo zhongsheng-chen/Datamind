@@ -63,6 +63,4 @@ def test_load_catboost_loads_temporary_model_file(
         "suffix": ".cbm",
     }
     model_factory.assert_called_once_with()
-    model.load_model.assert_called_once_with(
-        "temporary-model.cbm"
-    )
+    model.load_model.assert_called_once_with("temporary-model.cbm")

@@ -40,6 +40,4 @@ def test_load_xgboost_loads_booster_bytes(
 
     assert result is booster
     booster_factory.assert_called_once_with()
-    booster.load_model.assert_called_once_with(
-        bytearray(b"model data")
-    )
+    booster.load_model.assert_called_once_with(bytearray(b"model data"))

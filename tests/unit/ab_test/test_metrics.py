@@ -4,21 +4,21 @@
 
 核心功能：
   - test_request_and_subject_counts_are_separate:
-    测试重复主体分别计入请求数，但主体与分配去重
+    验证重复主体分别计入请求数，但主体与分配去重
   - test_unsuccessful_executions_do_not_contribute_predictions:
-    测试终态失败计入成功率分母，预测分布只使用成功执行
+    验证终态失败计入成功率分母，预测分布只使用成功执行
   - test_shadow_and_unrelated_executions_are_excluded:
-    测试影子与不关联实验决策的执行不污染指标
+    验证影子与不关联实验决策的执行不污染指标
   - test_invalid_numbers_are_excluded:
-    测试无效数值不计入均值或样本数
+    验证无效数值不计入均值或样本数
   - test_no_executions_do_not_produce_comparisons:
-    测试只有决策时仍可统计流量，无执行时不生成数值比较
+    验证只有决策时仍可统计流量，无执行时不生成数值比较
   - test_comparisons_preserve_zero_baseline:
-    测试零基准允许绝对差异，相对差异返回 None
+    验证零基准允许绝对差异，相对差异返回 None
   - test_filters_other_experiments_and_handles_missing_subject:
-    测试其他实验不计入当前流量，缺失主体不构造伪主体
+    验证其他实验不计入当前流量，缺失主体不构造伪主体
   - test_invalid_identifiers_are_rejected:
-    测试非法实验或基准分组拒绝分析
+    验证非法实验或基准分组拒绝分析
 """
 
 from types import SimpleNamespace

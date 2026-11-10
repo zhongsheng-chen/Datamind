@@ -12,7 +12,7 @@
   - test_request_column_comments:
     验证字段注释
   - test_request_allows_unresolved_model:
-    测试请求可在模型解析前持久化
+    验证请求可在模型解析前持久化
 """
 
 from sqlalchemy import (

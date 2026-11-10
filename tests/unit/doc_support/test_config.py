@@ -4,13 +4,13 @@
 
 核心功能：
   - test_documented_attributes_reads_multiline_environment_descriptions:
-    测试属性和环境变量说明的读取及默认值描述去重
+    验证属性和环境变量说明的读取及默认值描述去重
   - test_config_description_source_priority:
-    测试字段说明的来源优先级及源码文档字符串回退
+    验证字段说明的来源优先级及源码文档字符串回退
   - test_new_undocumented_config_field_fails_generation:
-    测试配置字段缺少说明时生成失败
+    验证配置字段缺少说明时生成失败
   - test_config_validators_extracts_static_messages:
-    校验消息保留静态文本，忽略动态插值并清理当前值说明
+    验证校验消息保留静态文本、忽略动态插值并清理当前值说明
 """
 
 from collections.abc import Callable
@@ -99,6 +99,7 @@ def test_new_undocumented_config_field_fails_generation(
         "doc_support.config.inspect.getmodule",
         lambda cls: SimpleNamespace(__doc__=None),
     )
+
     with pytest.raises(ValueError, match=r"UndocumentedConfig\.value"):
         config_description(
             UndocumentedConfig, "value", UndocumentedConfig.model_fields["value"]
@@ -106,9 +107,10 @@ def test_new_undocumented_config_field_fails_generation(
 
 
 def test_config_validators_extracts_static_messages(
-    tmp_path: Path, load_source: Callable[[Path], ModuleType]
+    tmp_path: Path,
+    load_source: Callable[[Path], ModuleType],
 ) -> None:
-    """校验消息保留静态文本，忽略动态插值并清理当前值说明."""
+    """测试校验消息保留静态文本、忽略动态插值并清理当前值说明."""
     source = tmp_path / "settings.py"
     source.write_text(
         """class Settings:

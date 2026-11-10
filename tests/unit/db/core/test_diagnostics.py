@@ -126,9 +126,7 @@ def test_get_queue_pool_returns_queue_pool(
     engine = create_engine_with_pool(
         pool
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
 
     monkeypatch.setitem(
         vars(diagnostics_module),
@@ -152,9 +150,7 @@ def test_get_queue_pool_rejects_unsupported_pool(
     engine = create_engine_with_pool(
         pool
     )
-    get_engine = MagicMock(
-        return_value=engine
-    )
+    get_engine = MagicMock(return_value=engine)
 
     monkeypatch.setitem(
         vars(diagnostics_module),
@@ -178,9 +174,7 @@ def test_get_db_url_diagnostics(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """测试数据库 URL 解析且不泄露密码."""
-    get_db_url = MagicMock(
-        return_value=DATABASE_URL
-    )
+    get_db_url = MagicMock(return_value=DATABASE_URL)
 
     monkeypatch.setitem(
         vars(diagnostics_module),
@@ -252,12 +246,8 @@ def test_get_db_pool_diagnostics(
         pool_timeout=30,
         pool_recycle=1800,
     )
-    get_database_config = MagicMock(
-        return_value=database_config
-    )
-    get_queue_pool = MagicMock(
-        return_value=pool
-    )
+    get_database_config = MagicMock(return_value=database_config)
+    get_queue_pool = MagicMock(return_value=pool)
 
     monkeypatch.setitem(
         vars(diagnostics_module),
@@ -306,16 +296,12 @@ def test_get_db_pool_diagnostics_preserves_negative_overflow(
     monkeypatch.setitem(
         vars(diagnostics_module),
         "get_database_config",
-        MagicMock(
-            return_value=database_config
-        ),
+        MagicMock(return_value=database_config),
     )
     monkeypatch.setattr(
         diagnostics_module,
         "_get_queue_pool",
-        MagicMock(
-            return_value=pool
-        ),
+        MagicMock(return_value=pool),
     )
 
     result = (
@@ -346,12 +332,8 @@ def test_get_db_diagnostics(
         "checked_out": 3,
         "overflow": 2,
     }
-    get_db_url_diagnostics = MagicMock(
-        return_value=url_diagnostics
-    )
-    get_db_pool_diagnostics = MagicMock(
-        return_value=pool_diagnostics
-    )
+    get_db_url_diagnostics = MagicMock(return_value=url_diagnostics)
+    get_db_pool_diagnostics = MagicMock(return_value=pool_diagnostics)
 
     monkeypatch.setattr(
         diagnostics_module,
@@ -395,9 +377,7 @@ def test_log_db_diagnostics(
         "checked_out": 3,
         "overflow": 2,
     }
-    get_db_diagnostics = MagicMock(
-        return_value=diagnostics
-    )
+    get_db_diagnostics = MagicMock(return_value=diagnostics)
     logger = MagicMock()
     logger_info = MagicMock()
     logger.info = logger_info

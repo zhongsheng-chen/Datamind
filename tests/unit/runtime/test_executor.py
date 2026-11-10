@@ -49,9 +49,7 @@ async def test_execute_loads_service_and_returns_prediction() -> None:
     service.predict.return_value = {
         "score": 720.0,
     }
-    service_loader = AsyncMock(
-        return_value=service
-    )
+    service_loader = AsyncMock(return_value=service)
     executor = PredictionExecutor(
         service_loader=service_loader,
     )
@@ -62,9 +60,7 @@ async def test_execute_loads_service_and_returns_prediction() -> None:
         features={"age": 35},
     )
 
-    service_loader.assert_awaited_once_with(
-        "dep_test"
-    )
+    service_loader.assert_awaited_once_with("dep_test")
     service.predict.assert_called_once_with({
         "age": 35,
     })
@@ -89,9 +85,7 @@ async def test_execute_applies_plan_timeout() -> None:
 
     service.predict.side_effect = predict
     executor = PredictionExecutor(
-        service_loader=AsyncMock(
-            return_value=service
-        ),
+        service_loader=AsyncMock(return_value=service),
     )
 
     with pytest.raises(TimeoutError):

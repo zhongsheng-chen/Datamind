@@ -1,6 +1,6 @@
 """查看用户命令.
 
-提供 LOCAL 用户详情查询功能。
+提供本地用户详情查询功能。
 
 核心功能：
   - show_user: 查看用户
@@ -124,6 +124,28 @@ def show_user(
         console.print(
             f"{'EMAIL':<16} : "
             f"{result['email'] or '-'}"
+        )
+        console.print(
+            f"{'EMPLOYEE NUMBER':<16} : "
+            f"{result.get('employee_number') or '-'}"
+        )
+        console.print(
+            f"{'ORGANIZATION':<16} : "
+            f"{result.get('organization_name') or '-'}"
+        )
+
+        department_path = result.get(
+            "department_path",
+            [],
+        )
+
+        path = " / ".join(
+            item["name"]
+            for item in department_path
+        )
+
+        console.print(
+            f"{'DEPARTMENT':<16} : {path or '-'}"
         )
         console.print(
             f"{'STATUS':<16} : "

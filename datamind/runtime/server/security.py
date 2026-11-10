@@ -40,7 +40,11 @@ from datamind.config.providers import (
 from datamind.constants import Environment
 from datamind.context.scope import context_scope
 from datamind.db.core import UnitOfWork
-from datamind.runtime.server.access import REQUEST_ID_SCOPE_KEY, USER_SCOPE_KEY
+from datamind.runtime.server.access import (
+    REQUEST_ID_SCOPE_KEY,
+    TRACE_ID_SCOPE_KEY,
+    USER_SCOPE_KEY,
+)
 from datamind.runtime.server.errors import (
     ServiceAuthenticationError,
     ServiceAuthenticationUnavailableError,
@@ -97,9 +101,9 @@ class RuntimeSecurity:
                 user=identity.username,
                 ip=ip,
                 hostname=None,
-                trace_id=self._scope_value(
-                    request.scope,
-                    "trace_id",
+                trace_id=(
+                    self._scope_value(request.scope, TRACE_ID_SCOPE_KEY)
+                    or self._scope_value(request.scope, "trace_id")
                 ),
                 request_id=request_id,
                 source="http",

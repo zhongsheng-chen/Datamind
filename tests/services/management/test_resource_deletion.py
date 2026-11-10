@@ -18,19 +18,19 @@
   - test_delete_variant_requires_draft_experiment:
     验证仅允许删除草稿实验的分组
   - test_delete_deployment_marks_safe_deployment_deleted:
-    测试删除已停用且已卸载的部署
+    验证删除已停用且已卸载的部署
   - test_delete_deployment_rejects_active_deployment:
-    测试拒绝删除启用状态的部署
+    验证拒绝删除启用状态的部署
   - test_delete_deployment_rejects_loaded_control:
-    测试加载期望状态阻止删除部署
+    验证加载期望状态阻止删除部署
   - test_delete_deployment_rejects_live_running_runtime:
-    测试仍有近期心跳的运行实例时拒绝删除部署
+    验证仍有近期心跳的运行实例时拒绝删除部署
   - test_delete_deployment_finalizes_stale_runtime_after_unload:
-    测试卸载请求后的失联实例不会永久阻塞部署删除
+    验证卸载请求后的失联实例不会永久阻塞部署删除
   - test_delete_experiment_cascades_same_deletion_batch:
-    测试删除实验时同批删除分组
+    验证删除实验时同批删除分组
   - test_delete_experiment_rejects_running_experiment:
-    测试运行中实验不能删除
+    验证运行中实验不能删除
 """
 
 from datetime import datetime, timedelta, timezone
@@ -77,26 +77,16 @@ def install_deployment_repositories(
 ) -> MagicMock:
     """安装部署删除服务仓储替身."""
     deployment_repo = MagicMock()
-    deployment_repo.get_deployment = AsyncMock(
-        return_value=deployment
-    )
+    deployment_repo.get_deployment = AsyncMock(return_value=deployment)
     control_repo = MagicMock()
-    control_repo.get_deployment_control = AsyncMock(
-        return_value=control
-    )
+    control_repo.get_deployment_control = AsyncMock(return_value=control)
     runtime_repo = MagicMock()
-    runtime_repo.list_runtimes = AsyncMock(
-        return_value=runtimes or []
-    )
+    runtime_repo.list_runtimes = AsyncMock(return_value=runtimes or [])
     deployment_repo.runtime_repo = runtime_repo
     routing_repo = MagicMock()
-    routing_repo.list_enabled_routings = AsyncMock(
-        return_value=routings or []
-    )
+    routing_repo.list_enabled_routings = AsyncMock(return_value=routings or [])
     variant_repo = MagicMock()
-    variant_repo.list_variants = AsyncMock(
-        return_value=variants or []
-    )
+    variant_repo.list_variants = AsyncMock(return_value=variants or [])
     experiment_repo = MagicMock()
     experiment_repo.get_experiment = AsyncMock()
     module_namespace = vars(
@@ -320,9 +310,7 @@ def install_routing_repository(
 ) -> MagicMock:
     """安装路由服务仓储替身."""
     repository = MagicMock()
-    repository.get_routing = AsyncMock(
-        return_value=routing
-    )
+    repository.get_routing = AsyncMock(return_value=routing)
     repository.list_routings = AsyncMock(return_value=[])
     module_namespace = vars(
         routing_module
@@ -404,9 +392,7 @@ def install_experiment_repositories(
 ) -> tuple[MagicMock, MagicMock]:
     """安装实验服务仓储替身."""
     experiment_repo = MagicMock()
-    experiment_repo.get_experiment = AsyncMock(
-        return_value=experiment
-    )
+    experiment_repo.get_experiment = AsyncMock(return_value=experiment)
     variant_repo = MagicMock()
     variant_repo.get_variant = AsyncMock(
         return_value=(
@@ -415,9 +401,7 @@ def install_experiment_repositories(
             else None
         )
     )
-    variant_repo.list_variants = AsyncMock(
-        return_value=variants
-    )
+    variant_repo.list_variants = AsyncMock(return_value=variants)
     module_namespace = vars(
         experiment_module
     )
@@ -497,6 +481,7 @@ async def test_delete_experiment_cascades_same_deletion_batch(
     )
 
     assert result["deletion_id"] == "del_test"
+
     variant_call = variant_repo.mark_deleted.call_args.kwargs
     experiment_call = experiment_repo.mark_deleted.call_args.kwargs
     assert variant_call["deletion_id"] == "del_test"

@@ -45,7 +45,7 @@
   - test_invalid_feature_importance_is_rejected:
     验证拒绝非有限特征重要性
   - test_native_model_predicts_probability:
-    测试原生 CatBoost 模型可以直接执行概率预测
+    验证原生 CatBoost 模型可以直接执行概率预测
 """
 
 from typing import Any

@@ -122,10 +122,15 @@ def test_user_indexes() -> None:
         "uk_users_user_id",
         "uk_users_username",
         "uk_users_email",
+        "uk_users_employee_number",
     }
     assert indexes["uk_users_user_id"].unique is True
     assert indexes["uk_users_username"].unique is True
     assert indexes["uk_users_email"].unique is True
+    assert indexes["uk_users_employee_number"].unique is True
+    assert str(
+        indexes["uk_users_employee_number"].dialect_options["postgresql"]["where"]
+    ) == "employee_number IS NOT NULL"
 
 
 def test_user_check_constraints() -> None:

@@ -39,6 +39,10 @@ import asyncio
 import os
 import time
 from dataclasses import dataclass
+from datetime import (
+    datetime,
+    timezone,
+)
 
 import structlog
 from sqlalchemy.exc import SQLAlchemyError
@@ -65,6 +69,8 @@ logger = structlog.get_logger(__name__)
 DEFAULT_INTERVAL_SECONDS = 2.0
 
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 30.0
+
+_HEARTBEAT_FAILURE_LOG_INTERVAL_SECONDS = 60.0
 
 DEFAULT_OPERATOR = "system"
 
@@ -146,7 +152,7 @@ class ReconcileResult:
             return
 
         raise ValueError(
-            f"未知协调动作: {action}"
+            f"未知协调动作: {action}",
         )
 
     def to_dict(
@@ -166,12 +172,8 @@ class ReconcileResult:
 class RuntimeReconciler:
     """运行时状态协调器.
 
-    每个 Worker 创建一个独立协调器实例。
-
-    协调器定期读取当前 environment
-    对应的 controls 记录，
-    并驱动当前 Worker 的 RuntimeManager
-    达到期望运行状态。
+    每个 Worker 使用独立实例，定期读取当前环境的运行控制状态。
+    根据期望状态协调模型加载、重载与卸载。
     """
 
     def __init__(
@@ -180,13 +182,13 @@ class RuntimeReconciler:
             manager: RuntimeManager,
             environment: str,
             interval_seconds: float = (
-                    DEFAULT_INTERVAL_SECONDS
+                DEFAULT_INTERVAL_SECONDS
             ),
             heartbeat_interval_seconds: float = (
-                    DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+                DEFAULT_HEARTBEAT_INTERVAL_SECONDS
             ),
             operator: str = DEFAULT_OPERATOR,
-            service_instance_id: str | None = None,
+            service_id: str | None = None,
     ):
         """初始化运行时状态协调器.
 
@@ -206,7 +208,7 @@ class RuntimeReconciler:
             operator:
                 系统操作人，默认值为 system
 
-            service_instance_id:
+            service_id:
                 所属服务实例 ID（可选）
 
         异常：
@@ -214,43 +216,44 @@ class RuntimeReconciler:
         """
         if not environment:
             raise ValueError(
-                "environment 不能为空"
+                "environment 不能为空",
             )
 
         if interval_seconds <= 0:
             raise ValueError(
-                "interval_seconds 必须大于 0"
+                "interval_seconds 必须大于 0",
             )
 
         if heartbeat_interval_seconds <= 0:
             raise ValueError(
                 "heartbeat_interval_seconds "
-                "必须大于 0"
+                "必须大于 0",
             )
 
         if not operator:
             raise ValueError(
-                "operator 不能为空"
+                "operator 不能为空",
             )
 
         self.manager = manager
+        self.service_id = service_id
         self._logger = logger.bind(
             worker_id=manager.worker_id,
             pid=os.getpid(),
         )
-        if service_instance_id is not None:
+        if service_id is not None:
             self._logger = self._logger.bind(
-                service_instance_id=service_instance_id,
+                service_id=service_id,
             )
 
         self.environment = environment
 
         self.interval_seconds = float(
-            interval_seconds
+            interval_seconds,
         )
 
         self.heartbeat_interval_seconds = float(
-            heartbeat_interval_seconds
+            heartbeat_interval_seconds,
         )
 
         self.operator = operator
@@ -267,6 +270,14 @@ class RuntimeReconciler:
         self._reconcile_lock = asyncio.Lock()
 
         self._last_heartbeat_at = 0.0
+        self._cleanup_not_before = time.monotonic() + 3 * self.heartbeat_interval_seconds
+        self._cycle_failure_started_at: float | None = None
+        self._cycle_failure_count = 0
+        self._cycle_failure_log_at = 0.0
+        self._heartbeat_failure_started_at: float | None = None
+        self._heartbeat_failure_count = 0
+        self._last_heartbeat_failure_log_at = 0.0
+        self._last_heartbeat_error: tuple[type[BaseException], str] | None = None
 
     @property
     def worker_id(
@@ -281,8 +292,8 @@ class RuntimeReconciler:
     ) -> bool:
         """判断协调器是否正在运行."""
         return (
-                self._task is not None
-                and not self._task.done()
+            self._task is not None
+            and not self._task.done()
         )
 
     async def start(
@@ -306,7 +317,7 @@ class RuntimeReconciler:
         )
 
         self._logger.debug(
-            "运行时协调器启动成功",
+            "协调器启动成功",
             worker_id=self.worker_id,
             environment=self.environment,
             interval_seconds=(
@@ -343,7 +354,7 @@ class RuntimeReconciler:
             self._task = None
 
         self._logger.info(
-            "运行时协调器已停止",
+            "协调器已停止",
             worker_id=self.worker_id,
             environment=self.environment,
         )
@@ -372,14 +383,21 @@ class RuntimeReconciler:
 
             for control in controls:
                 try:
-                    action = (
-                        await self._reconcile_control(
-                            control
+                    with structlog.contextvars.bound_contextvars(
+                            generation=control.generation,
+                            environment=self.environment,
+                            **(
+                                {"service_id": self.service_id}
+                                if self.service_id
+                                else {}
+                            ),
+                    ):
+                        action = await self._reconcile_control(
+                            control,
                         )
-                    )
 
                     result.record(
-                        action
+                        action,
                     )
 
                 except asyncio.CancelledError:
@@ -398,7 +416,7 @@ class RuntimeReconciler:
                     result.failed += 1
 
                     self._logger.exception(
-                        "运行时状态协调失败",
+                        "状态协调失败",
                         worker_id=self.worker_id,
                         environment=self.environment,
                         deployment_id=(
@@ -417,7 +435,7 @@ class RuntimeReconciler:
                     )
 
             await self._heartbeat_if_due(
-                controls
+                controls,
             )
 
             if (
@@ -432,7 +450,7 @@ class RuntimeReconciler:
                     else self._logger.debug
                 )
                 log_result(
-                    "运行时状态协调完成",
+                    "状态协调完成",
                     worker_id=self.worker_id,
                     environment=self.environment,
                     **result.to_dict(),
@@ -453,7 +471,7 @@ class RuntimeReconciler:
             generation，不存在时返回 None
         """
         return self._applied_generations.get(
-            deployment_id
+            deployment_id,
         )
 
     def get_applied_generations(
@@ -465,7 +483,7 @@ class RuntimeReconciler:
             deployment_id 到 generation 的映射副本
         """
         return dict(
-            self._applied_generations
+            self._applied_generations,
         )
 
     async def _run_loop(
@@ -473,8 +491,20 @@ class RuntimeReconciler:
     ) -> None:
         """运行后台协调循环."""
         while not self._stop_event.is_set():
+            delay = self.interval_seconds
             try:
                 await self.reconcile_once()
+                if self._cycle_failure_started_at is not None:
+                    now = time.monotonic()
+                    self._cleanup_not_before = now + 3 * self.heartbeat_interval_seconds
+                    self._logger.info(
+                        "状态协调已恢复",
+                        failure_count=self._cycle_failure_count,
+                        duration_seconds=round(now - self._cycle_failure_started_at, 3),
+                        environment=self.environment,
+                    )
+                    self._cycle_failure_started_at = None
+                    self._cycle_failure_count = 0
 
             except asyncio.CancelledError:
                 raise
@@ -485,17 +515,57 @@ class RuntimeReconciler:
                     RuntimeError,
                     ValueError,
             ) as exc:
-                self._logger.exception(
-                    "运行时状态协调周期执行失败",
-                    worker_id=self.worker_id,
-                    environment=self.environment,
-                    error=str(exc),
+                now = time.monotonic()
+                first_failure = (
+                    self._cycle_failure_started_at is None
+                )
+
+                if first_failure:
+                    self._cycle_failure_started_at = now
+
+                self._cycle_failure_count += 1
+                self._cleanup_not_before = (
+                    now
+                    + 3 * self.heartbeat_interval_seconds
+                )
+
+                if (
+                        first_failure
+                        or now - self._cycle_failure_log_at >= 60
+                ):
+                    log = (
+                        self._logger.exception
+                        if first_failure
+                        else self._logger.error
+                    )
+
+                    log(
+                        (
+                            "状态协调周期执行失败"
+                            if first_failure
+                            else "状态协调持续失败"
+                        ),
+                        worker_id=self.worker_id,
+                        environment=self.environment,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                        failure_count=self._cycle_failure_count,
+                    )
+                    self._cycle_failure_log_at = now
+
+                delay = max(
+                    self.interval_seconds,
+                    min(
+                        30.0,
+                        self.interval_seconds
+                        * 2 ** min(self._cycle_failure_count, 10),
+                    ),
                 )
 
             try:
                 await asyncio.wait_for(
                     self._stop_event.wait(),
-                    timeout=self.interval_seconds,
+                    timeout=delay,
                 )
 
             except asyncio.TimeoutError:
@@ -511,30 +581,30 @@ class RuntimeReconciler:
         """
         async with UnitOfWork() as uow:
             repo = ControlRepository(
-                uow.session
+                uow.session,
             )
 
             controls = await repo.list_controls(
                 environment=Environment(
-                    self.environment
+                    self.environment,
                 ),
             )
 
             snapshots = [
                 ControlSnapshot(
                     deployment_id=str(
-                        control.deployment_id
+                        control.deployment_id,
                     ),
                     environment=str(
-                        control.environment
+                        control.environment,
                     ),
                     desired_status=(
                         self._parse_status(
-                            control.desired_status
+                            control.desired_status,
                         )
                     ),
                     generation=int(
-                        control.generation
+                        control.generation,
                     ),
                     updated_by=(
                         str(control.updated_by)
@@ -571,7 +641,7 @@ class RuntimeReconciler:
                 "运行控制环境与当前协调器环境不一致: "
                 f"deployment_id={control.deployment_id}, "
                 f"control_environment={control.environment}, "
-                f"reconciler_environment={self.environment}"
+                f"reconciler_environment={self.environment}",
             )
 
         deployment_id = control.deployment_id
@@ -583,8 +653,8 @@ class RuntimeReconciler:
         )
 
         operator = (
-                control.updated_by
-                or self.operator
+            control.updated_by
+            or self.operator
         )
 
         local_loaded = (
@@ -594,7 +664,7 @@ class RuntimeReconciler:
 
         applied_generation = (
             self._applied_generations.get(
-                deployment_id
+                deployment_id,
             )
         )
 
@@ -618,7 +688,7 @@ class RuntimeReconciler:
                 ] = generation
 
                 self._logger.debug(
-                    "Worker 加载部署模型",
+                    "模型加载协调完成",
                     worker_id=self.worker_id,
                     environment=self.environment,
                     deployment_id=deployment_id,
@@ -662,8 +732,8 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                self._logger.info(
-                    "Worker 重新加载部署模型",
+                self._logger.debug(
+                    "模型重载协调完成",
                     worker_id=self.worker_id,
                     environment=self.environment,
                     deployment_id=deployment_id,
@@ -696,8 +766,8 @@ class RuntimeReconciler:
                     deployment_id
                 ] = generation
 
-                self._logger.info(
-                    "Worker 卸载部署模型",
+                self._logger.debug(
+                    "模型卸载协调完成",
                     worker_id=self.worker_id,
                     environment=self.environment,
                     deployment_id=deployment_id,
@@ -719,7 +789,7 @@ class RuntimeReconciler:
 
         raise ValueError(
             "不支持的运行控制状态: "
-            f"{desired_status}"
+            f"{desired_status}",
         )
 
     async def _record_applied_generation(
@@ -731,7 +801,7 @@ class RuntimeReconciler:
         """持久化当前 Worker 已应用的控制版本号."""
         async with UnitOfWork() as uow:
             await RuntimeRepository(
-                uow.session
+                uow.session,
             ).set_applied_generation(
                 deployment_id=deployment_id,
                 worker_id=self.worker_id,
@@ -751,8 +821,8 @@ class RuntimeReconciler:
         now = time.monotonic()
 
         elapsed = (
-                now
-                - self._last_heartbeat_at
+            now
+            - self._last_heartbeat_at
         )
 
         if (
@@ -763,46 +833,146 @@ class RuntimeReconciler:
 
         try:
             await self._heartbeat_loaded_runtimes(
-                controls
+                controls,
             )
-            await self._mark_stale_runtimes_failed()
+
+            if (
+                    self._heartbeat_failure_started_at is not None
+                    or self._cycle_failure_started_at is not None
+            ):
+                self._cleanup_not_before = (
+                    now
+                    + 3 * self.heartbeat_interval_seconds
+                )
+
+            if now >= self._cleanup_not_before:
+                await self._mark_stale_runtimes_failed()
 
             self._last_heartbeat_at = now
+
+            if (
+                    self._heartbeat_failure_started_at is not None
+            ):
+                self._logger.info(
+                    "心跳更新已恢复",
+                    environment=self.environment,
+                    failure_count=self._heartbeat_failure_count,
+                    duration_seconds=round(
+                        time.monotonic()
+                        - self._heartbeat_failure_started_at,
+                        3,
+                    ),
+                )
+
+                self._heartbeat_failure_started_at = None
+                self._heartbeat_failure_count = 0
+                self._last_heartbeat_failure_log_at = 0.0
+                self._last_heartbeat_error = None
 
         except asyncio.CancelledError:
             raise
 
         except (
+                OSError,
                 SQLAlchemyError,
                 RuntimeError,
         ) as exc:
-            self._logger.exception(
-                "运行时心跳更新失败",
-                worker_id=self.worker_id,
-                environment=self.environment,
-                error=str(exc),
+            self._record_heartbeat_failure(
+                exc,
             )
+
+    def _record_heartbeat_failure(
+            self,
+            error: Exception,
+    ) -> None:
+        """记录心跳更新失败."""
+        now = time.monotonic()
+
+        self._cleanup_not_before = (
+            now
+            + 3 * self.heartbeat_interval_seconds
+        )
+        signature = (
+            type(error),
+            str(error),
+        )
+
+        if self._heartbeat_failure_started_at is None:
+            self._heartbeat_failure_started_at = now
+
+        self._heartbeat_failure_count += 1
+
+        fields = {
+            "environment": self.environment,
+            "error": str(error),
+            "error_type": type(error).__name__,
+            "failure_count": self._heartbeat_failure_count,
+            "duration_seconds": round(
+                now - self._heartbeat_failure_started_at,
+                3,
+            ),
+        }
+
+        if signature != self._last_heartbeat_error:
+            # 首次失败或错误变化时保留异常堆栈。
+            self._logger.exception(
+                "心跳更新失败",
+                **fields,
+            )
+
+        elif (
+                now - self._last_heartbeat_failure_log_at
+                >= _HEARTBEAT_FAILURE_LOG_INTERVAL_SECONDS
+        ):
+            # 同类持续故障每分钟汇总一次。
+            self._logger.error(
+                "心跳更新持续失败",
+                **fields,
+            )
+
+        else:
+            return
+
+        self._last_heartbeat_error = signature
+        self._last_heartbeat_failure_log_at = now
 
     async def _mark_stale_runtimes_failed(
             self,
     ) -> None:
         """将当前环境中已失联的其他 Worker 实例收敛为失败."""
+        checked_at = datetime.now(
+            timezone.utc,
+        )
+        presence = RuntimePresence.current(
+            current_time=checked_at,
+        )
+        stale_details: list[dict] = []
+
         async with UnitOfWork() as uow:
             runtime_ids = await RuntimeRepository(
-                uow.session
+                uow.session,
             ).mark_stale_runtimes_failed(
                 environment=self.environment,
-                stale_before=RuntimePresence.current().stale_at,
+                stale_before=presence.stale_at,
+                stale_details=stale_details,
                 exclude_worker_id=self.worker_id,
             )
 
         if runtime_ids:
-            self._logger.warning(
+            self._logger.try_unbind("worker_id").warning(
                 "失联运行实例已标记为失败",
-                worker_id=self.worker_id,
+                observer_worker_id=self.worker_id,
                 environment=self.environment,
-                runtime_ids=runtime_ids,
+                checked_at=checked_at.isoformat(),
+                stale_before=presence.stale_at.isoformat(),
+                timeout_seconds=(checked_at - presence.stale_at).total_seconds(),
+                runtime_ids=runtime_ids[:10],
+                stale_runtimes=stale_details,
                 count=len(runtime_ids),
+                omitted_count=max(
+                    0,
+                    len(runtime_ids) - 10,
+                ),
             )
 
     async def _heartbeat_loaded_runtimes(
@@ -829,11 +999,9 @@ class RuntimeReconciler:
         if not deployment_ids:
             return
 
-        heartbeat_count = 0
-
         async with UnitOfWork() as uow:
             repo = RuntimeRepository(
-                uow.session
+                uow.session,
             )
 
             for deployment_id in deployment_ids:
@@ -851,17 +1019,8 @@ class RuntimeReconciler:
                     continue
 
                 repo.heartbeat(
-                    runtime
+                    runtime,
                 )
-
-                heartbeat_count += 1
-
-        self._logger.debug(
-            "运行时心跳更新完成",
-            worker_id=self.worker_id,
-            environment=self.environment,
-            heartbeat_count=heartbeat_count,
-        )
 
     @staticmethod
     def _parse_status(
@@ -886,5 +1045,5 @@ class RuntimeReconciler:
             return value
 
         return RuntimeControlStatus(
-            value
+            value,
         )

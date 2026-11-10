@@ -1,5 +1,7 @@
 "use strict";
 
+import { permissionOptions } from "../permissions.js";
+
 import {
   appendDetailField as appendRequestDetail,
   createDetailBadge,
@@ -52,6 +54,9 @@ export function createAccessDetailController({
         ["用户名", record.username],
         ["显示名称", record.display_name],
         ["邮箱", record.email],
+        ["工号", record.employee_number],
+        ["所属机构", record.organization_name],
+        ["部门路径", (record.department_path || []).map(item => item.name).join(" / ")],
         ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["角色", roles.length > 0 ? roles.join(", ") : null],
         ["最近登录", formatTime(record.last_login_at)],
@@ -85,13 +90,34 @@ export function createAccessDetailController({
         ["角色名称", record.name],
         ["状态", formatStatusValue(record.status, createStatusBadge)],
         ["描述", record.description],
-        ["权限", Array.isArray(record.permissions)
-          ? record.permissions.join(", ")
-          : null],
         ["创建时间", formatTime(record.created_at)],
         ["更新时间", formatTime(record.updated_at)],
       ], dialog, "info", appendRequestDetail),
     );
+    const groups = new Map();
+    for (const option of permissionOptions(Array.isArray(record.permissions) ? record.permissions : [])) {
+      if (!groups.has(option.group)) groups.set(option.group, []);
+      groups.get(option.group).push(option.value);
+    }
+    const fields = [...groups].map(([resource, permissions]) => {
+      const values = document.createElement("div");
+      values.className = "role-detail-permissions";
+      for (const permission of permissions) {
+        if (values.childNodes.length) values.append(document.createTextNode(", "));
+        const identifier = document.createElement("code");
+        identifier.textContent = permission;
+        values.append(identifier);
+      }
+      return [resource, values];
+    });
+    const permissionsSection = createDetailSection("权限", fields, dialog, "rules", appendRequestDetail);
+    if (!fields.length) {
+      const empty = document.createElement("p");
+      empty.className = "role-detail-permissions-empty";
+      empty.textContent = "暂无权限";
+      permissionsSection.append(empty);
+    }
+    body.append(permissionsSection);
     mountDetailDrawer(dialog, { section: "roles", id: record.role_id });
   }
 

@@ -226,9 +226,9 @@ def update_variant(
 
                     if deployment.model_id != experiment.model_id:
                         raise InvalidExperimentConfigError(
-                            "部署模型与实验模型不一致\n"
-                            f"实验模型 ID: {experiment.model_id}\n"
-                            f"部署模型 ID: {deployment.model_id}"
+                            "部署绑定的模型与实验绑定的模型不一致\n"
+                            f"实验绑定的模型 ID: {experiment.model_id}\n"
+                            f"部署绑定的模型 ID: {deployment.model_id}"
                         )
 
                     if deployment.environment != experiment.environment:
