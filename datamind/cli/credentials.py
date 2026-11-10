@@ -21,6 +21,7 @@
 import json
 import os
 import stat
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -30,6 +31,16 @@ from datamind.cli.errors import CredentialError
 
 
 _CREDENTIALS_VERSION = 1
+
+_WINDOWS_REPLACE_RETRY_ERRORS = frozenset(
+    {
+        5,   # ERROR_ACCESS_DENIED
+        32,  # ERROR_SHARING_VIOLATION
+        33,  # ERROR_LOCK_VIOLATION
+    }
+)
+
+_REPLACE_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8)
 
 
 @dataclass(
@@ -222,9 +233,8 @@ class CredentialStore:
             self._protect_file(
                 temporary_path
             )
-            os.replace(
-                temporary_path,
-                self.path,
+            self._replace_credentials(
+                temporary_path
             )
             self._protect_file(
                 self.path
@@ -240,6 +250,32 @@ class CredentialStore:
                 temporary_path.unlink()
 
         return credentials
+
+    def _replace_credentials(
+            self,
+            temporary_path: Path,
+    ) -> None:
+        """原子替换凭据文件，并有限重试 Windows 访问冲突."""
+        for delay in _REPLACE_RETRY_DELAYS:
+            try:
+                os.replace(
+                    temporary_path,
+                    self.path,
+                )
+                return
+            except OSError as exc:
+                if (
+                        getattr(exc, "winerror", None)
+                        not in _WINDOWS_REPLACE_RETRY_ERRORS
+                ):
+                    raise
+
+                time.sleep(delay)
+
+        os.replace(
+            temporary_path,
+            self.path,
+        )
 
     def clear(
             self,
