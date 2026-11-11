@@ -137,7 +137,9 @@ class CLIContext:
         返回：
             CLIContext 实例
         """
-        logging_config = self.settings.logging
+        logging_config = self.settings.logging.model_copy(
+            update={"enable_console": False}
+        )
         setup_logging(
             logging_config
         )

@@ -100,10 +100,17 @@ def create_console_handler(
         控制台日志 handler
     """
     stream = sys.stdout
+    original_stream = sys.__stdout__
     celery_log = sys.modules.get("celery.utils.log")
-    if celery_log is not None and isinstance(stream, celery_log.LoggingProxy) and sys.__stdout__ is not None:
-        # 避免 Celery LoggingProxy 将已格式化日志重发为 WARNING。
-        stream = sys.__stdout__
+
+    if (
+            celery_log is not None
+            and original_stream is not None
+            and isinstance(stream, celery_log.LoggingProxy)
+    ):
+        # 使用原始输出流，避免 Celery LoggingProxy 将已格式化的日志再次记录。
+        stream = original_stream
+
     handler = logging.StreamHandler(stream)
     handler.setFormatter(
         formatter

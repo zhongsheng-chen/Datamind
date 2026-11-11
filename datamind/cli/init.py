@@ -13,6 +13,7 @@ import asyncio
 
 import structlog
 import typer
+from asyncpg import PostgresError
 from sqlalchemy.exc import SQLAlchemyError
 
 from datamind.cli.output import CLIConsole
@@ -83,18 +84,12 @@ def initialize() -> None:
                 runner()
             )
     except AlreadyInitializedError:
-        logger.debug(
-            "Datamind 已完成初始化，无需重复执行",
-            status="skipped",
-            **log_context,
-        )
         console.info(
             "Datamind 已完成初始化，无需重复执行。"
         )
     except (
         InitializationError,
         ValueError,
-        OSError,
     ) as exc:
         logger.error(
             "Datamind 初始化失败",
@@ -108,16 +103,67 @@ def initialize() -> None:
         raise typer.Exit(
             code=1
         ) from None
-    except SQLAlchemyError:
+    except (
+        SQLAlchemyError,
+        PostgresError,
+        OSError,
+    ) as exc:
+        original: BaseException = exc
+        seen: set[int] = set()
+        sqlstate = None
+
+        while id(original) not in seen:
+            seen.add(id(original))
+            state = getattr(original, "sqlstate", None)
+
+            if isinstance(state, str):
+                sqlstate = state
+
+            nested = (
+                getattr(original, "orig", None)
+                or original.__cause__
+            )
+
+            if not isinstance(nested, BaseException):
+                break
+
+            original = nested
+
+        if (
+                sqlstate is not None
+                and sqlstate.startswith("28")
+        ):
+            message = "数据库认证失败，请检查数据库用户名、密码及访问权限。"
+        elif (
+                isinstance(exc, OSError)
+                or isinstance(original, OSError)
+                or (
+                    sqlstate is not None
+                    and sqlstate.startswith("08")
+                )
+        ):
+            message = "数据库连接失败，请检查数据库服务及连接地址。"
+        elif sqlstate == "3D000":
+            message = "数据库不存在，请检查数据库名称并先创建数据库。"
+        elif sqlstate in {"42P01", "42703", "3F000"}:
+            message = "数据库结构不完整，请先执行 datamind db upgrade。"
+        else:
+            message = "数据库操作失败，请检查连接配置及迁移状态。"
+
         logger.error(
             "Datamind 初始化失败：数据库操作失败",
             status="failed",
-            error_type="SQLAlchemyError",
+            error_type=type(exc).__name__,
+            database_error_type=type(original).__name__,
+            **(
+                {"sqlstate": sqlstate}
+                if sqlstate is not None
+                else {}
+            ),
             **log_context,
         )
         console.error(
-            "初始化失败：数据库操作失败，"
-            "请检查连接配置及迁移状态。"
+            f"初始化失败：{message}"
         )
         raise typer.Exit(
             code=1

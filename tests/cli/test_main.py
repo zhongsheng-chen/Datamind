@@ -183,7 +183,9 @@ def test_main_initializes_configured_logging(
         setup_logging,
     )
 
-    main_module.main()
+    main_module.main(
+        ctx=MagicMock(invoked_subcommand="service"),
+    )
 
     setup_logging.assert_called_once_with(logging_config)
 

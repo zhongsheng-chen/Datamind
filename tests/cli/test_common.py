@@ -6,7 +6,7 @@
   - test_cli_command_scope_uses_standard_context:
     验证 CLI 命令使用标准追踪上下文
   - test_cli_context_uses_configured_logging:
-    验证 CLI 上下文使用原始日志配置
+    验证 CLI 上下文关闭控制台日志并沿用文件配置
   - test_cli_context_requires_auth_in_production:
     验证生产环境不能关闭认证
   - test_cli_context_uses_authenticated_identity:
@@ -123,7 +123,7 @@ def test_cli_command_scope_uses_standard_context() -> None:
 async def test_cli_context_uses_configured_logging(
         monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """测试 CLI 上下文使用原始日志配置."""
+    """测试 CLI 上下文关闭控制台日志并沿用文件配置."""
     settings = create_settings(
         auth_enabled=False,
         environment=Environment.DEVELOPMENT,
@@ -142,6 +142,9 @@ async def test_cli_context_uses_configured_logging(
     ):
         pass
 
+    logging_config.model_copy.assert_called_once_with(
+        update={"enable_console": False}
+    )
     setup_logging.assert_called_once_with(logging_config)
 
 

@@ -159,7 +159,15 @@ datamind runtime show <deployment_id>
 
 确认目标实例状态为 `running`，并发送预测请求验证模型可用。服务健康检查不能代替模型运行状态和预测结果验证。
 
-## 日志中的操作结果
+## 停止服务
+
+在启动预测服务、管理控制台或任务 Worker 的终端中按 `Ctrl+C`，停止对应进程。容器服务的停止方式请参阅[Docker 部署](docker.md#停止服务)。
+
+## 日志与诊断
+
+预测服务、管理控制台和任务 Worker 的日志级别、格式和输出位置可通过环境变量设置。参阅[环境变量](../reference/environment-variables.md)。
+
+### 预测请求与批量任务日志
 
 HTTP 完成日志的 `success` 来自当前接口操作的响应结果，不由 HTTP 状态码推断：
 
@@ -170,52 +178,17 @@ HTTP 完成日志的 `success` 来自当前接口操作的响应结果，不由 
 
 批量任务自身日志使用 `status`，并保留 `total_count`、`succeeded_count` 和 `failed_count`；
 HTTP 日志附带批次状态时使用 `batch_status`，HTTP 状态码始终使用 `status_code`。
-通过 `batch_id` 关联提交、查询和 Worker 执行，通过 `request_id` 定位一次 HTTP 调用。
+通过 `batch_id` 关联提交、查询和 Worker 执行，通过 `request_id` 定位指定 HTTP 请求的相关日志。
 
-以下是省略时间戳和部分关联字段的文本日志示例：
+### 第三方诊断日志
 
-```text
-INFO     | 运行时服务已就绪 | workers=4
-INFO     | 模型加载成功 | worker_id=w1, deployment_id=dep1, version_id=ver1, generation=2, duration_ms=45.6
-DEBUG    | 主路由解析完成 | deployment_id=dep1, version_id=ver1, route_source=experiment, strategy=hash
-INFO     | 批量预测任务开始执行 | batch_id=bat1, status=running, total_count=24
-INFO     | 批量预测任务执行完成 | batch_id=bat1, status=partially_succeeded, total_count=24, succeeded_count=23, failed_count=1
-INFO     | HTTP 请求完成 | path=/predict/batch/status, status_code=200, success=True, batch_id=bat1, batch_status=partially_succeeded
+排查启动问题时，可添加 `--verbose`，查看第三方组件的启动日志：
+
+```bash
+datamind service run --verbose
+datamind console run --verbose
 ```
 
-## 第三方诊断日志
+第三方日志保留原始消息、级别和 logger 名称。原始记录包含异常堆栈时，输出也会保留。多进程日志交错时，可用 `pid` 或 `worker_id` 辨认来源。
 
-运行时、管理控制台和批量/影子 Worker 在各自进程初始化日志组件。
-CVXPY 的原始 logger 为 `__cvxpy__`，其默认 stderr handler 不向 root 传播；
-应用直接接入该 logger，兼容 CVXPY 延迟导入时添加的默认 handler，避免同一记录重复输出。
-Python warnings 使用标准 `logging.captureWarnings(True)` 接入 `py.warnings`。
-既有 warnings 过滤规则、warnings-as-errors 和异常传播保持不变，不额外采样或跨 Worker 去重。
-
-接入后的文本第一行包含原始消息第一行、原始级别和 logger、真实 `pid`，以及可用的 `worker_id`、`service_id`。
-后续消息行、已有异常堆栈和 stack_info 保留顺序，不重复加前缀。
-JSON 沿用现有 `event` 字段保存完整多行消息，换行进行 JSON 转义，异常与堆栈分别保存在 `exception`、`stack` 中。
-消息格式化参数在消费时处理；同步和异步输出均保留完整 LogRecord 诊断内容。
-结构化敏感字段沿用既有脱敏机制，不将原始消息翻译或替换成摘要，不解析版本号等内容重建消息。
-
-```text
-2026-10-30T16:40:39+08:00 | WARNING | Encountered unexpected exception importing solver HIGHS: | logger=__cvxpy__, pid=187, worker_id=host-187
-ImportError('/usr/local/lib/python3.12/site-packages/highspy/_core.so: undefined symbol: _ZN5Highs13releaseMemoryEv')
-```
-
-接入只使用已有 handler/formatter，不接管 root logger 或其他依赖的输出策略。
-日志输出目标仍由配置控制；没有可用 handler 时不接管第三方输出。
-Celery 重定向 stdout 时，日志 handler 使用原始输出流，避免将已经格式化的 INFO/DEBUG 重发为 WARNING；
-不替换全局 stdout/stderr。原生库直接写入 stdout/stderr 的内容继续原样输出，初始化前的诊断不会重放。
-不同进程同时写入终端时，多行内容仍可能交错；格式统一不等于跨进程日志聚合。
-
-上述接入不修复 HIGHS 动态库或 scikit-learn 模型持久化的版本兼容性。
-CVXPY 自身只记录异常摘要时，不会凭空生成它未提供的调用栈。
-
-## 停止服务
-
-交互式前台启动运行时或管理控制台时，就绪后仅提示一次“按 Ctrl+C 停止服务”。
-提示只写入终端，不写入结构化日志文件。常规容器运行、重定向输出等非交互式场景不显示提示；
-`--verbose` 保留第三方启动日志，但不重复输出停止提示。
-
-在前台终端按 `Ctrl+C` 停止服务。`docker logs -f` 中按 `Ctrl+C` 只结束日志跟踪，不会停止容器。
-容器及基础设施的停止方式，请参阅[Docker 部署](docker.md#停止服务)。
+日志输出位置由配置决定，可写入终端或日志文件。对于原生库直接写入标准输出或标准错误的消息，以及日志初始化前产生的诊断，请查看启动终端或对应的输出采集记录。
