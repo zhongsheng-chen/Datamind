@@ -23,8 +23,6 @@ from datetime import (
     timezone,
 )
 
-import structlog
-
 from datamind.audit.enums import (
     AuditSource,
     AuditStatus,
@@ -56,7 +54,6 @@ from datamind.utils import generate_random_id
 
 SYSTEM_ID = "datamind"
 SYSTEM_ACTOR = SYSTEM_BOOTSTRAP_ACTOR
-logger = structlog.get_logger(__name__)
 
 
 @dataclass(
@@ -252,20 +249,6 @@ class InitializationService:
                 },
                 occurred_at=initialized_at,
             )
-
-        logger.debug(
-            "Datamind 初始化完成",
-            action="system.initialize",
-            target_type="system",
-            target_id=SYSTEM_ID,
-            source=AuditSource.CLI,
-            user=SYSTEM_ACTOR,
-            request_id=request_id,
-            trace_id=trace_id,
-            ip=ip,
-            hostname=hostname,
-            status="success",
-        )
 
         return InitializationResult(
             system_id=SYSTEM_ID,

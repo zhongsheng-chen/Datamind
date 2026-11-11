@@ -29,3 +29,8 @@ def isolate_cli_entry_logging(
         "setup_logging",
         lambda _config: None,
     )
+    monkeypatch.setitem(
+        vars(main_module),
+        "setup_cli_logging",
+        lambda **_kwargs: None,
+    )

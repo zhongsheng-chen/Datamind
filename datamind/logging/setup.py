@@ -143,6 +143,8 @@ def setup_logging(
 
     参数：
         config: 日志配置对象
+        worker_id: 第三方日志的 Worker 标识
+        service_id: 第三方日志的服务标识
     """
     global _LOG_LISTENER
     global _LOG_HANDLERS

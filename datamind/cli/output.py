@@ -40,7 +40,7 @@ class CLIConsole(
             message: str,
     ) -> None:
         """输出警告信息."""
-        self.print(
+        self._error_console.print(
             message,
             style="yellow",
         )

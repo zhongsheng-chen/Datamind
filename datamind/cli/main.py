@@ -37,6 +37,7 @@ from datamind.cli.db import app as db_app
 from datamind.cli.deployment import app as deployment_app
 from datamind.cli.experiment import app as experiment_app
 from datamind.cli.init import initialize
+from datamind.cli.logging import setup_cli_logging
 from datamind.cli.model import app as model_app
 from datamind.cli.route import app as route_app
 from datamind.cli.role import app as role_app
@@ -80,6 +81,7 @@ app = typer.Typer(
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     _version_option: bool = typer.Option(
         False,
         "--version",
@@ -89,7 +91,10 @@ def main(
     ),
 ) -> None:
     """Datamind CLI 主入口."""
-    setup_logging(get_logging_config())
+    if ctx.invoked_subcommand in {"service", "console", "worker"}:
+        setup_logging(get_logging_config())
+    else:
+        setup_cli_logging()
 
 
 # 注册顶层命令和子命令组
