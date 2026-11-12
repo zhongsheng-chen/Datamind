@@ -30,6 +30,7 @@ tests/
 .tox
 build/
 dist/
+site/
 *.egg-info/
 node_modules/
 .npm-cache/

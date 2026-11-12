@@ -1,0 +1,11 @@
+<article id="doc-cover">
+  <div class="cover-heading">
+    <h1>{{ pdf_project_name }} <span class="cover-version">{{ cover_subtitle }}</span></h1>
+    <p class="cover-label">文档</p>
+    <p class="cover-description">{{ pdf_description }}</p>
+  </div>
+  <div class="cover-footer">
+    {{ now.year }}年{{ now.month }}月
+  </div>
+</article>
+{% include 'information.html.j2' %}

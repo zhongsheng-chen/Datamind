@@ -70,6 +70,18 @@ python -m scripts.generate_docs_reference
 
 检查生成差异，并将来源文件和生成页面一起提交。生成失败时，根据错误提示补充说明或修正示例后重试。
 
+## PDF 导出
+
+PDF 导出使用 `mkdocs-pdf.yml`，沿用网站的导航和内容。首次构建前，请按 [WeasyPrint 安装说明](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation)准备系统依赖。
+
+在项目根目录运行：
+
+```bash
+python -m mkdocs build --strict -f mkdocs-pdf.yml
+```
+
+文件生成于 `site/pdf/datamind.pdf`。修改 PDF 排版后，检查封面、目录、图表和代码块。
+
 ## 验证与发布
 
 预览修改的页面并验证命令示例后，在项目根目录检查参考文档是否与源码一致：
@@ -84,4 +96,4 @@ python -m scripts.generate_docs_reference --check
 python -m mkdocs build --strict
 ```
 
-构建通过后，将文档和来源文件一起提交。ReadTheDocs 使用 `.readthedocs.yaml` 构建发布，完成后检查线上页面。
+验证通过后，将文档和来源文件一起提交。Read the Docs 根据 `.readthedocs.yaml` 自动构建并发布文档。发布后，检查在线文档和 PDF 下载是否正常。

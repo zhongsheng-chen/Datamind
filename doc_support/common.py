@@ -7,6 +7,11 @@
   - render_template: 填充 Markdown 模板
   - table_rows: 生成 Markdown 表格数据行
   - schema_type: 解析 JSON Schema 类型
+
+使用示例：
+  from doc_support.common import table_rows
+
+  rows = table_rows([("--format", "text / json")])
 """
 
 from __future__ import annotations

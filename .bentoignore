@@ -11,6 +11,7 @@ npm-cache/
 node_modules/
 build/
 dist/
+site/
 *.egg-info/
 
 .coverage

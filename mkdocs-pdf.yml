@@ -1,0 +1,13 @@
+INHERIT: mkdocs.yml
+
+theme:
+  font: false
+
+hooks:
+  - doc_support/pdf.py
+
+plugins:
+  - to-pdf:
+      custom_template_path: doc_support/pdf_templates
+      toc_title: 目录
+      output_path: pdf/datamind.pdf

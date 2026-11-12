@@ -6,6 +6,11 @@
   - api_field_description: 读取请求字段说明
   - api_field_rows: 提取请求字段表格数据
   - api_pages: 生成请求模型参考页
+
+使用示例：
+  from doc_support.api import api_pages
+
+  pages = api_pages()
 """
 
 from __future__ import annotations

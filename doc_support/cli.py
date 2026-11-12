@@ -9,6 +9,11 @@
   - render_cli_description: 格式化命令说明和注意事项
   - parse_cli_help: 分离命令帮助中的用途和输出说明
   - cli_pages: 生成命令参考页和索引页
+
+使用示例：
+  from doc_support.cli import cli_pages
+
+  pages = cli_pages()
 """
 
 from __future__ import annotations

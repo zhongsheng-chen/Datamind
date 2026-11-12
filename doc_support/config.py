@@ -7,6 +7,11 @@
   - config_description: 读取配置字段说明
   - config_validators: 提取配置校验消息
   - config_pages: 生成环境变量参考页
+
+使用示例：
+  from doc_support.config import config_pages
+
+  pages = config_pages()
 """
 
 from __future__ import annotations

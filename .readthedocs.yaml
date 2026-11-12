@@ -1,9 +1,28 @@
 version: 2
 
+formats:
+  - pdf
+
 build:
   os: ubuntu-24.04
   tools:
     python: "3.12"
+  apt_packages:
+    - fonts-noto-cjk
+    - libpango-1.0-0
+    - libpangoft2-1.0-0
+    - libharfbuzz-subset0
+  jobs:
+    build:
+      pdf:
+        - >-
+          python -m mkdocs build --strict
+          --config-file mkdocs-pdf.yml
+          --site-dir "$READTHEDOCS_OUTPUT/pdf-site"
+        - mkdir -p "$READTHEDOCS_OUTPUT/pdf"
+        - >-
+          cp "$READTHEDOCS_OUTPUT/pdf-site/pdf/datamind.pdf"
+          "$READTHEDOCS_OUTPUT/pdf/datamind.pdf"
 
 mkdocs:
   configuration: mkdocs.yml

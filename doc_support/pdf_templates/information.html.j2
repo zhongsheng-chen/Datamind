@@ -1,0 +1,28 @@
+<article id="doc-information">
+  <h1>文档信息</h1>
+  <table>
+    <tbody>
+      <tr>
+        <th scope="row">文档名称</th>
+        <td>{{ cover_title }}</td>
+      </tr>
+      <tr>
+        <th scope="row">适用版本</th>
+        <td>{{ cover_subtitle }}</td>
+      </tr>
+      <tr>
+        <th scope="row">构建日期</th>
+        <td>{{ now.strftime('%Y-%m-%d') }}</td>
+      </tr>
+      <tr>
+        <th scope="row">在线文档</th>
+        <td><a href="{{ pdf_documentation_url }}">{{ pdf_documentation_url }}</a></td>
+      </tr>
+      <tr>
+        <th scope="row">源码仓库</th>
+        <td><a href="{{ repo_url }}">{{ repo_url }}</a></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="information-note">最新内容请参阅在线文档。</p>
+</article>
