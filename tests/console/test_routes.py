@@ -56,6 +56,7 @@ def test_create_routes_registers_expected_endpoints() -> None:
 
     assert http_routes["/health"] == {"GET", "HEAD"}
     assert http_routes["/ready"] == {"GET", "HEAD"}
+    assert http_routes["/api/info"] == {"GET", "HEAD"}
     assert http_routes["/api/models"] == {"POST"}
     assert http_routes[
         "/api/models/{model_id:str}/detail"

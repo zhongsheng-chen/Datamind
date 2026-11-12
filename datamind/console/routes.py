@@ -35,6 +35,7 @@ class ConsoleHandlers:
 
     health: RouteHandler
     ready: RouteHandler
+    info: RouteHandler
     page: RouteHandler
     login: RouteHandler
     refresh: RouteHandler
@@ -102,6 +103,7 @@ def create_routes(
         *directory_routes,
         Route("/health", handlers.health, methods=["GET"]),
         Route("/ready", handlers.ready, methods=["GET"]),
+        Route("/api/info", handlers.info, methods=["GET"]),
         Route("/", handlers.page, methods=["GET"]),
         Route("/api/login", handlers.login, methods=["POST"]),
         Route("/api/refresh", handlers.refresh, methods=["POST"]),

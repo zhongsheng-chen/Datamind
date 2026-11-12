@@ -1,5 +1,6 @@
 "use strict";
 
+import { bindAboutDialog, loadApplicationInfo } from "./application.js";
 import { createDashboardController } from "./dashboard.js";
 import { createResourceListController } from "./resources.js";
 import { createNavigationController } from "./navigation.js";
@@ -1963,6 +1964,8 @@ document.addEventListener("visibilitychange", () => {
 });
 
 (async function boot() {
+  bindAboutDialog();
+  void loadApplicationInfo(request);
   try {
     state.user = await request("session");
     await loadOverview();
