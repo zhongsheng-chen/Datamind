@@ -21,6 +21,10 @@ from collections.abc import (
 )
 from contextlib import asynccontextmanager
 from datetime import datetime
+from importlib.metadata import (
+    PackageNotFoundError,
+    version as package_version,
+)
 from pathlib import Path
 from typing import (
     Any,
@@ -235,6 +239,19 @@ async def _ready(
         "status": "ready",
         "database_ready": True,
     })
+
+
+async def _info(_request: Request) -> JSONResponse:
+    """返回当前安装的应用版本，供登录页和控制台展示."""
+    try:
+        app_version = package_version("pydatamind")
+    except PackageNotFoundError:
+        app_version = None
+
+    return JSONResponse(
+        {"version": app_version},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 async def _page(
@@ -3068,6 +3085,7 @@ console_app = Starlette(
         ConsoleHandlers(
             health=_health,
             ready=_ready,
+            info=_info,
             page=_page,
             login=_login,
             refresh=_refresh,

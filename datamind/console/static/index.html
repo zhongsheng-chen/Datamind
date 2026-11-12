@@ -59,9 +59,9 @@
         <button id="login-button" class="primary-button" type="submit">登录</button>
         <div class="login-meta">
           <p class="security-note">登录信息仅用于当前会话验证，不会保存在浏览器脚本中。</p>
-          <p class="login-credit">Powered by <span>Zhongsheng Chen</span></p>
         </div>
       </form>
+      <footer class="login-credit">Powered by <a href="https://github.com/zhongsheng-chen" target="_blank" rel="noopener noreferrer">Zhongsheng Chen</a></footer>
     </main>
   </div>
 
@@ -94,6 +94,7 @@
         </div>
         <div class="topbar-actions">
           <span id="service-environment" class="service-environment topbar-environment" role="status">-</span>
+          <button id="about-button" class="about-button" type="button" aria-haspopup="dialog" aria-controls="about-dialog">关于</button>
           <div class="account">
             <button
               id="account-menu-button"
@@ -220,5 +221,30 @@
   </div>
 
   <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="about-dialog" class="about-dialog" aria-labelledby="about-title">
+    <div class="about-heading">
+      <div class="about-product">
+        <span class="brand-mark" aria-hidden="true">DM</span>
+        <div>
+          <h2 id="about-title">Datamind</h2>
+          <p>开放式模型服务管理平台</p>
+        </div>
+      </div>
+      <form method="dialog">
+        <button class="dialog-close-button" type="submit" aria-label="关闭关于窗口" autofocus>关闭</button>
+      </form>
+    </div>
+    <dl class="about-details">
+      <div>
+        <dt>版本</dt>
+        <dd data-app-version aria-live="polite">读取中</dd>
+      </div>
+    </dl>
+    <nav class="about-links" aria-label="产品链接">
+      <a href="https://datamind.readthedocs.io/" target="_blank" rel="noopener noreferrer">使用文档 <span aria-hidden="true">↗</span></a>
+      <a href="https://github.com/zhongsheng-chen/Datamind/releases" data-release-notes target="_blank" rel="noopener noreferrer">版本说明 <span aria-hidden="true">↗</span></a>
+      <a href="https://github.com/zhongsheng-chen/Datamind" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
+  </dialog>
 </body>
 </html>

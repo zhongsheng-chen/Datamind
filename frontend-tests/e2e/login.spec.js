@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("用户可以提交登录表单并看到接口错误", async ({ page }) => {
+  await page.route("**/api/info", (route) =>
+    route.fulfill({ status: 503, json: { error: "版本信息暂不可用" } }),
+  );
   await page.route("**/api/session", async (route) => {
     await route.fulfill({ status: 401, json: { error: "尚未登录" } });
   });
@@ -10,6 +13,7 @@ test("用户可以提交登录表单并看到接口错误", async ({ page }) => 
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "登录控制台" })).toBeVisible();
+  await expect(page.locator("#login-view .login-credit")).toHaveText("Powered by Zhongsheng Chen");
   await page.locator("#username").fill("operator");
   await page.locator("#password").fill("wrong-password");
   await page.getByRole("button", { name: "登录" }).click();
@@ -18,7 +22,10 @@ test("用户可以提交登录表单并看到接口错误", async ({ page }) => 
   await expect(page.getByRole("button", { name: "登录" })).toBeEnabled();
 });
 
-test("只读用户看不到未授权的管理操作", async ({ page }) => {
+test("只读用户可以查看版本且看不到未授权的管理操作", async ({ page }) => {
+  await page.route("**/api/info", (route) =>
+    route.fulfill({ json: { version: "0.1.2" } }),
+  );
   const user = {
     user_id: "usr_reader",
     username: "reader",
@@ -69,6 +76,20 @@ test("只读用户看不到未授权的管理操作", async ({ page }) => {
 
   await page.goto("/");
   await expect(page.locator("#dashboard-view")).toBeVisible();
+  const aboutButton = page.getByRole("button", { name: "关于", exact: true });
+  const aboutDialog = page.getByRole("dialog", { name: "Datamind", exact: true });
+  await aboutButton.click();
+  await expect(aboutDialog).toBeVisible();
+  await expect(aboutDialog.locator("[data-app-version]")).toHaveText("v0.1.2");
+  await expect(aboutDialog.getByRole("link", { name: "版本说明" })).toHaveAttribute(
+    "href", "https://github.com/zhongsheng-chen/Datamind/releases/tag/v0.1.2",
+  );
+  await page.keyboard.press("Escape");
+  await expect(aboutDialog).toBeHidden();
+  await expect(aboutButton).toBeFocused();
+  await aboutButton.click();
+  await aboutDialog.getByRole("button", { name: "关闭关于窗口" }).click();
+  await expect(aboutDialog).toBeHidden();
   await page.getByRole("button", { name: /模型/ }).click();
   await expect(page.locator("#create-button")).toBeHidden();
 
