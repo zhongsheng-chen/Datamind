@@ -83,11 +83,11 @@ datamind deployment set-default <deployment_id>
 ```bash
 datamind route create <deployment_id> \
   --name scorecard-demo-main \
-  --traffic-ratio 1 \
+  --traffic-ratio 1.0 \
   --enabled
 ```
 
-本例将流量比例设为 `1`，让该部署接收全部主预测流量。`--enabled` 用于立即启用路由；省略时，路由创建后保持停用状态。
+本例将流量比例设为 100%，让该部署接收全部主预测流量。`--enabled` 用于立即启用路由；省略时，路由创建后保持停用状态。
 
 ## 步骤 5：启动服务
 

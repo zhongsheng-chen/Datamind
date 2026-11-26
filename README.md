@@ -162,7 +162,7 @@ Datamind 当前支持分类与评分两类任务，并兼容多种主流 Python 
 | **LightGBM** | ✓ | — |
 | **CatBoost** | ✓ | — |
 
-- **分类任务**：支持 `sklearn.linear_model.LogisticRegression`、`sklearn.tree.DecisionTreeClassifier` 和 `sklearn.ensemble.RandomForestClassifier`，并兼容 `XGBoost`、`LightGBM` 与 `CatBoost`，返回分类标签与预测概率。
+- **分类任务**：支持 `sklearn.linear_model.LogisticRegression`、`sklearn.tree.DecisionTreeClassifier` 和 `sklearn.ensemble.RandomForestClassifier`，并兼容 XGBoost、LightGBM 与 CatBoost，返回分类标签与预测概率。
 - **评分任务**：支持以 `sklearn.linear_model.LogisticRegression` 为估计器的 `optbinning.Scorecard`，返回违约概率、总评分与特征分。
 
 
@@ -170,7 +170,7 @@ Datamind 当前支持分类与评分两类任务，并兼容多种主流 Python 
 
 ## 示例
 
-示例位于源码仓库的 `examples/` 目录，请克隆仓库后在项目根目录运行。 相关依赖包括 `scikit-learn`、`optbinning` 和 `CatBoost`。若已安装对应 extra 或 `pydatamind[full]`，可跳过依赖安装。
+示例位于源码仓库的 `examples/` 目录，请克隆仓库后在项目根目录运行。 相关依赖包括 scikit-learn、optbinning 和 CatBoost。若已安装对应 extra 或 `pydatamind[full]`，可跳过依赖安装。
 
 ```bash
 python -m pip install -e ".[sklearn,catboost]"

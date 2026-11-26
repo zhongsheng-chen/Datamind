@@ -67,7 +67,7 @@ datamind model show scorecard-demo --version 1.1.0
 
 ```bash
 python examples/scorecard/train.py \
-  --random-seed 17 \
+  --random-seed 44 \
   --n-jobs 1 \
   --output examples/scorecard/artifacts/scorecard_demo_v2_revised.pkl
 ```

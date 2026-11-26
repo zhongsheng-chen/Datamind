@@ -50,7 +50,7 @@ datamind runtime list
 ```bash
 datamind route create <deployment_id> \
   --name scorecard-demo-shadow \
-  --traffic-ratio 1 \
+  --traffic-ratio 1.0 \
   --enabled
 ```
 

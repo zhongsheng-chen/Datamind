@@ -16,13 +16,13 @@ datamind model register <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 模型名称 |
-| `--version` | 字符串 | 是 | `—` | 模型版本 |
+| `<name>` | 字符串 | 是 | — | 模型名称 |
+| `--version` | 字符串 | 是 | — | 模型版本 |
 | `--display-name` | 字符串 | 否 | `null` | 模型显示名称 |
-| `--model-path` | 字符串 | 是 | `—` | 模型文件路径 |
-| `--framework` | 字符串 | 是 | `—` | 模型框架 |
-| `--model-type` | 字符串 | 是 | `—` | 模型类型 |
-| `--task-type` | 字符串 | 是 | `—` | 任务类型 |
+| `--model-path` | 字符串 | 是 | — | 模型文件路径 |
+| `--framework` | 字符串 | 是 | — | 模型框架 |
+| `--model-type` | 字符串 | 是 | — | 模型类型 |
+| `--task-type` | 字符串 | 是 | — | 任务类型 |
 | `--description` | 字符串 | 否 | `null` | 模型描述 |
 | `--version-description` | 字符串 | 否 | `null` | 模型版本描述 |
 | `--force` | 布尔 | 否 | `false` | 强制重新注册已有版本 |

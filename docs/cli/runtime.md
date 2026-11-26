@@ -35,7 +35,7 @@ datamind runtime show <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`runtime.read` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/runtime/show.py)

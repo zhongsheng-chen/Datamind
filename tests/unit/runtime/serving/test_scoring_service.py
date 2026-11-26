@@ -130,6 +130,14 @@ class ScorecardStub:
                 dtype="numerical",
                 splits=np.array([30, 40]),
                 special_codes=None,
+                cat_unknown=None,
+                transform=MagicMock(
+                    side_effect=lambda column, **_kwargs: np.where(
+                        column.isna(),
+                        4,
+                        np.digitize(column.to_numpy(dtype=float), [30, 40]),
+                    )
+                ),
             ),
             transform=MagicMock(
                 side_effect=lambda X, **_kwargs: pd.DataFrame(
@@ -522,16 +530,15 @@ def test_real_scorecard_returns_features(fitted_scorecard: Scorecard) -> None:
     assert predictions[5]["features"]["age"]["bin"] == "Refused"
 
 
-@pytest.mark.parametrize("cat_unknown", [None, 0.0, 0.25])
+@pytest.mark.parametrize("cat_unknown", [None, 0, 0.0, 0.25])
 def test_unknown_category_uses_woe_fallback(
     fitted_scorecard: Scorecard,
-    cat_unknown: float | None,
+    cat_unknown: int | float | None,
 ) -> None:
     """测试未知类别按 WoE 回退评分，不读取最后一个分箱."""
     model = deepcopy(fitted_scorecard)
-    model.binning_process_.get_binned_variable("employment_type").set_params(
-        cat_unknown=cat_unknown
-    )
+    variable = model.binning_process_.get_binned_variable("employment_type")
+    variable.set_params(cat_unknown=cat_unknown)
     service = create_real_service(model)
     result = service.predict({"age": 35, "employment_type": "freelance", "unused": 1})
     item = result["features"]["employment_type"]
@@ -554,6 +561,13 @@ def test_unknown_category_uses_woe_fallback(
         sum(item["points"] for item in result["features"].values())
         + result["score_intercept"],
     )
+    batch = service.predict_batch([
+        {"age": 35, "employment_type": "freelance", "unused": 1},
+    ])
+    assert batch["predictions"][0]["features"] == result["features"]
+    assert batch["predictions"][0]["score"] == result["score"]
+    assert batch["predictions"][0]["probability"] == result["probability"]
+    assert variable.cat_unknown is cat_unknown
 
 
 @pytest.mark.parametrize("metric", ["indices", "event_rate", "bins"])

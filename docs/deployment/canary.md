@@ -121,8 +121,8 @@ datamind route list --name scorecard-demo-canary-challenger
 候选版本验证通过后，将候选路由的流量比例提高到 100%：
 
 ```bash
-datamind route update <champion_routing_id> --traffic-ratio 0
-datamind route update <challenger_routing_id> --traffic-ratio 1
+datamind route update <champion_routing_id> --traffic-ratio 0.0
+datamind route update <challenger_routing_id> --traffic-ratio 1.0
 ```
 
 此时，全部普通路由流量由候选部署处理，但默认部署仍为主部署。
@@ -143,7 +143,7 @@ datamind route update <challenger_routing_id> --traffic-ratio 1
 
 ```bash
 datamind route disable <challenger_routing_id>
-datamind route update <champion_routing_id> --traffic-ratio 1
+datamind route update <champion_routing_id> --traffic-ratio 1.0
 ```
 
 验证请求已恢复使用主版本后，再停用候选部署。

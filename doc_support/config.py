@@ -127,7 +127,7 @@ def config_field_rows(cls: type[BaseSettings]) -> list[tuple[str, ...]]:
             (
                 code(cls.model_config["env_prefix"] + field.upper()),
                 code(schema_type(schema["properties"][field], schema)),
-                code(default),
+                default if info.is_required() else code(default),
                 config_description(cls, field, info),
             )
         )

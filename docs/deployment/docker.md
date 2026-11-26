@@ -110,9 +110,7 @@ DATAMIND_IMAGE_REPOSITORY=docker.io/zhongshengchen/datamind
 DATAMIND_IMAGE_TAG=<tag>
 ```
 
-将 `<tag>` 替换为具体版本标签，例如 `0.1.0` 或 `0.1.0-sklearn`。生产环境建议使用明确的版本标签，避免使用 `latest`。
-
-镜像可以从仓库拉取，也可离线导入。按照[准备镜像](upgrade.md#准备镜像)中的对应方式操作，并验证镜像配置。
+将 `<tag>` 替换为具体版本标签，例如 `0.1.0` 或 `0.1.0-sklearn`。生产环境建议使用明确的版本标签，避免使用 `latest`。 镜像可以从仓库拉取，也可离线导入。按照[准备镜像](upgrade.md#准备镜像)中的对应方式操作，并验证镜像配置。
 
 ## 数据库迁移与系统初始化
 

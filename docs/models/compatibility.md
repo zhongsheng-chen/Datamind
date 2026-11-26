@@ -67,7 +67,7 @@
 | XGBoost | `>=2.0` |
 | LightGBM | `>=4.0` |
 | CatBoost | `>=1.2` |
-| optbinning | `>=1.0,<2.0` |
+| optbinning | `>=1.1.0,<2.0.0` |
 
 上述版本要求用于安装依赖，模型能否正常运行仍需验证。具体要求以 `pyproject.toml` 为准。
 

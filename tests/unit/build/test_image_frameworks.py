@@ -72,7 +72,7 @@ def test_scorecard_dependency_uses_supported_version_range() -> None:
     )
 
     assert requirement.marker is None
-    assert str(requirement.specifier) == "<2.0.0,>=1.0.0"
+    assert str(requirement.specifier) == "<2.0.0,>=1.1.0"
 
 
 def test_dockerfile_uses_framework_extra_without_dependency_matrix() -> None:

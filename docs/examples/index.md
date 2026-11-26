@@ -1,9 +1,9 @@
 # 模型训练示例
 
-本页介绍如何使用 `examples/` 中的脚本训练并保存评分卡和分类模型。
+本页介绍如何使用 `examples/` 中的脚本训练并保存评分卡和分类模型。训练完成后，可参照[评分与分类](../guides/scoring-and-classification.md)中的示例调用模型并查看预测结果。
 
-- **[评分卡示例](#评分卡示例)**：训练评分卡模型，获取信用评分和违约概率，并为版本比较准备候选模型。
-- **[分类示例](#分类示例)**：训练分类模型，按照[评分与分类](../guides/scoring-and-classification.md#使用分类模型)完成部署与预测，获取预测类别及其概率。
+- **[评分卡示例](#评分卡示例)**：训练并保存评分卡模型，获取信用评分和违约概率。
+- **[分类示例](#分类示例)**：训练并保存分类模型，获取预测类别和正类概率。
 
 ## 准备
 
@@ -38,7 +38,7 @@ python examples/scorecard/train.py --random-seed 43 --n-jobs 1 --output examples
 | `scorecard_demo_v1.pkl` | `1.0.0` | 主版本 |
 | `scorecard_demo_v2.pkl` | `1.1.0` | 候选版本 |
 
-完成模型注册后，按照[快速上手](../getting-started/quickstart.md)激活并部署主版本，验证评分结果。若已训练并注册候选版本，可通过[金丝雀发布](../deployment/canary.md)或 [A/B 测试](../experiments/index.md)比较两个版本。
+完成模型注册后，按照[快速上手](../getting-started/quickstart.md)激活并部署主版本，验证评分结果。如需逐步上线候选版本或比较不同版本的表现，可继续参阅[金丝雀发布](../deployment/canary.md)和 [A/B 测试](../experiments/index.md)。
 
 ## 分类示例
 
@@ -59,8 +59,6 @@ python examples/classification/catboost/train.py --output examples/classificatio
 ```
 
 训练完成后，模型文件将保存到 `examples/classification/catboost/artifacts/` 目录下。通过[管理控制台](../guides/console.md#模型管理)将模型注册为 `classification-demo` 的 `1.0.0` 版本。
-
-完成模型注册后，按照[评分与分类](../guides/scoring-and-classification.md#使用分类模型)激活并部署模型，验证分类结果。
 
 ### 更多分类示例
 

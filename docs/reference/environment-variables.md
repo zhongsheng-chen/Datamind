@@ -18,7 +18,7 @@
 
 | 环境变量 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `DATAMIND_ENVIRONMENT` | `development/testing/staging/production` | `必需` | 应用运行环境，供资源管理、流量分配和认证策略使用，必填。 |
+| `DATAMIND_ENVIRONMENT` | `development/testing/staging/production` | 必需 | 应用运行环境，供资源管理、流量分配和认证策略使用，必填。 |
 | `DATAMIND_TIMEZONE` | `string` | `Asia/Shanghai` | 应用默认时区，用于日志、命令行时间显示和未带时区的时间输入解析。 |
 
 校验规则：

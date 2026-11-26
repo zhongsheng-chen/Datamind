@@ -19,7 +19,7 @@ datamind experiment create [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `--model-id` | 字符串 | 是 | `—` | 模型 ID |
+| `--model-id` | 字符串 | 是 | — | 模型 ID |
 | `--name` | 字符串 | 否 | `null` | 实验名称 |
 | `--traffic-ratio` | 数值 | 否 | `1.0` | 实验流量比例；hash 策略取值范围为 (0, 1]，manual 策略不参与分配 |
 | `--bucket-key` | 字符串 | 否 | `"customer_id"` | 分桶主体字段，例如 customer_id / order_id / application_id。不能为空 |
@@ -46,7 +46,7 @@ datamind experiment update <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--name` | 字符串 | 否 | `null` | 实验名称。不能为空 |
 | `--strategy` | 字符串 | 否 | `null` | 实验分配策略，可选值：hash / manual |
 | `--traffic-ratio` | 数值 | 否 | `null` | 实验流量比例；hash 策略取值范围为 (0, 1]，manual 策略取值范围为 [0, 1] |
@@ -96,7 +96,7 @@ datamind experiment show <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--include-deleted` | 布尔 | 否 | `false` | 包含已删除实验及分组 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -114,7 +114,7 @@ datamind experiment start <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 使用限制：
@@ -137,7 +137,7 @@ datamind experiment pause <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/pause.py)
@@ -154,7 +154,7 @@ datamind experiment stop <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/stop.py)
@@ -171,7 +171,7 @@ datamind experiment complete <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/complete.py)
@@ -188,7 +188,7 @@ datamind experiment archive <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/archive.py)
@@ -205,7 +205,7 @@ datamind experiment analyze <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--baseline-variant-id` | 字符串 | 否 | `null` | 基准分组 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -223,7 +223,7 @@ datamind experiment delete <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--reason` | 字符串 | 否 | `null` | 删除原因 |
 | `--yes` | 布尔 | 否 | `false` | 跳过确认 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -242,7 +242,7 @@ datamind experiment restore <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.delete` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/restore.py)

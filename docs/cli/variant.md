@@ -16,10 +16,10 @@ datamind experiment variant add <experiment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<experiment_id>` | 字符串 | 是 | `—` | 实验 ID |
-| `--name` | 字符串 | 是 | `—` | 实验分组名称，例如 control / treatment。不能为空 |
-| `--deployment-id` | 字符串 | 是 | `—` | 部署 ID。不能为空 |
-| `--weight` | 数值 | 是 | `—` | 实验分组权重，范围 (0, 1] |
+| `<experiment_id>` | 字符串 | 是 | — | 实验 ID |
+| `--name` | 字符串 | 是 | — | 实验分组名称，例如 control / treatment。不能为空 |
+| `--deployment-id` | 字符串 | 是 | — | 部署 ID。不能为空 |
+| `--weight` | 数值 | 是 | — | 实验分组权重，范围 (0, 1] |
 | `--control` | 布尔 | 否 | `false` | 是否为对照组 |
 | `--description` | 字符串 | 否 | `null` | 分组描述 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -42,7 +42,7 @@ datamind experiment variant update <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--name` | 字符串 | 否 | `null` | 实验分组名称，例如 control / treatment。不能为空 |
 | `--deployment-id` | 字符串 | 否 | `null` | 部署 ID。不能为空 |
 | `--weight` | 数值 | 否 | `null` | 实验分组权重，范围 (0, 1] |
@@ -98,7 +98,7 @@ datamind experiment variant show <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--include-deleted` | 布尔 | 否 | `false` | 包含已删除实验分组 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -116,7 +116,7 @@ datamind experiment variant activate <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/variant/activate.py)
@@ -133,7 +133,7 @@ datamind experiment variant deactivate <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/variant/deactivate.py)
@@ -150,7 +150,7 @@ datamind experiment variant archive <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/variant/archive.py)
@@ -167,7 +167,7 @@ datamind experiment variant delete <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--reason` | 字符串 | 否 | `null` | 删除原因 |
 | `--yes` | 布尔 | 否 | `false` | 跳过确认 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -186,7 +186,7 @@ datamind experiment variant restore <variant_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<variant_id>` | 字符串 | 是 | `—` | 实验分组 ID |
+| `<variant_id>` | 字符串 | 是 | — | 实验分组 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`experiment.delete` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/experiment/variant/restore.py)

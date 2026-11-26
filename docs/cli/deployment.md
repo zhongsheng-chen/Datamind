@@ -52,7 +52,7 @@ datamind deployment enable <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`deployment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/deployment/enable.py)
@@ -71,7 +71,7 @@ datamind deployment set-default <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`deployment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/deployment/default.py)
@@ -90,7 +90,7 @@ datamind deployment unset-default <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`deployment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/deployment/default.py)
@@ -109,7 +109,7 @@ datamind deployment disable <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`deployment.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/deployment/disable.py)
@@ -126,7 +126,7 @@ datamind deployment delete <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--reason` | 字符串 | 否 | `null` | 删除原因 |
 | `--yes` | 布尔 | 否 | `false` | 跳过确认 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -145,7 +145,7 @@ datamind deployment restore <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`deployment.delete` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/deployment/restore.py)
@@ -188,7 +188,7 @@ datamind deployment show <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
 | `--include-deleted` | 布尔 | 否 | `false` | 包含已删除部署 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
