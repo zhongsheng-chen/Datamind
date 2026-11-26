@@ -23,6 +23,7 @@
   })
 """
 
+import copy
 import math
 from typing import Any
 
@@ -485,7 +486,7 @@ class ScoringService(BaseRuntimeService):
     ) -> np.ndarray:
         """获取特征分箱索引.
 
-        根据已拟合规则匹配普通箱、特殊箱和缺失箱。
+        使用已拟合的单变量分箱接口匹配普通箱、特殊箱和缺失箱。
 
         参数：
             name: 特征名称
@@ -494,46 +495,18 @@ class ScoringService(BaseRuntimeService):
         返回：
             与输入顺序一致的分箱索引，未知类别对应 -1
         """
-        # TODO: 待 OptBinning 修复 WoE 与分箱索引冲突后，评估是否移除独立分箱匹配。
         variable = self.model.binning_process_.get_binned_variable(name)
-        splits = variable.splits
-        n_regular = len(splits) + (variable.dtype == "numerical")
-        special_codes = variable.special_codes
-        groups = (
-            list(special_codes.values())
-            if isinstance(special_codes, dict)
-            else [special_codes]
+
+        if variable.cat_unknown is not None:
+            variable = copy.copy(variable)
+            variable.set_params(cat_unknown=None)
+
+        return variable.transform(
+            column,
+            metric="indices",
+            metric_special="empirical",
+            metric_missing="empirical",
         )
-        indices = np.full(
-            len(column),
-            -1,
-            dtype=int,
-        )
-
-        for index, group in enumerate(groups):
-            if group is not None:
-                codes = (
-                    group
-                    if isinstance(group, (list, np.ndarray))
-                    else [group]
-                )
-                indices[column.isin(codes).to_numpy()] = n_regular + index
-
-        missing = column.isna().to_numpy()
-        indices[missing] = n_regular + len(groups)
-        clean = (indices == -1) & ~missing
-
-        if variable.dtype == "numerical":
-            indices[clean] = np.searchsorted(
-                splits,
-                column[clean].to_numpy(dtype=float),
-                side="right",
-            )
-        else:
-            for index, categories in enumerate(splits):
-                indices[clean & column.isin(categories).to_numpy()] = index
-
-        return indices
 
     def _convert_woe_points(
             self,

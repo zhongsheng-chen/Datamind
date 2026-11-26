@@ -64,7 +64,7 @@ release = [
 sklearn = [
     "joblib>=1.3.0",
     "scikit-learn>=1.6.0",
-    "optbinning>=1.0.0,<2.0.0",
+    "optbinning>=1.1.0,<2.0.0",
 ]
 
 xgboost = [
@@ -82,7 +82,7 @@ catboost = [
 full = [
     "joblib>=1.3.0",
     "scikit-learn>=1.6.0",
-    "optbinning>=1.0.0,<2.0.0",
+    "optbinning>=1.1.0,<2.0.0",
     "xgboost>=2.0.0",
     "lightgbm>=4.0.0",
     "catboost>=1.2.0",
