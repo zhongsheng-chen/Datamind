@@ -21,9 +21,9 @@ datamind route create <deployment_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<deployment_id>` | 字符串 | 是 | `—` | 部署 ID |
-| `--name` | 字符串 | 是 | `—` | 路由名称。不能为空。不能超过 128 个字符 |
-| `--traffic-ratio` | 数值 | 是 | `—` | 路由流量比例，范围 0~1 |
+| `<deployment_id>` | 字符串 | 是 | — | 部署 ID |
+| `--name` | 字符串 | 是 | — | 路由名称。不能为空。不能超过 128 个字符 |
+| `--traffic-ratio` | 数值 | 是 | — | 路由流量比例，范围 0~1 |
 | `--rules-file` | 字符串 | 否 | `null` | 路由规则文件(JSON)。必须是 JSON 对象 |
 | `--description` | 字符串 | 否 | `null` | 路由描述 |
 | `--effective-from` | 字符串 | 否 | `null` | 生效时间。默认不设置 |
@@ -70,7 +70,7 @@ datamind route show <routing_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<routing_id>` | 字符串 | 是 | `—` | 路由 ID |
+| `<routing_id>` | 字符串 | 是 | — | 路由 ID |
 | `--include-deleted` | 布尔 | 否 | `false` | 包含已删除路由 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -88,7 +88,7 @@ datamind route enable <routing_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<routing_id>` | 字符串 | 是 | `—` | 路由 ID |
+| `<routing_id>` | 字符串 | 是 | — | 路由 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`routing.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/route/enable.py)
@@ -105,7 +105,7 @@ datamind route disable <routing_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<routing_id>` | 字符串 | 是 | `—` | 路由 ID |
+| `<routing_id>` | 字符串 | 是 | — | 路由 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`routing.write` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/route/disable.py)
@@ -127,7 +127,7 @@ datamind route update <routing_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<routing_id>` | 字符串 | 是 | `—` | 路由 ID |
+| `<routing_id>` | 字符串 | 是 | — | 路由 ID |
 | `--name` | 字符串 | 否 | `null` | 路由名称。不能为空。不能超过 128 个字符 |
 | `--traffic-ratio` | 数值 | 否 | `null` | 路由流量比例，范围 0~1 |
 | `--rules-file` | 字符串 | 否 | `null` | 路由规则文件(JSON)。必须是 JSON 对象 |
@@ -154,7 +154,7 @@ datamind route delete <routing_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<routing_id>` | 字符串 | 是 | `—` | 路由 ID |
+| `<routing_id>` | 字符串 | 是 | — | 路由 ID |
 | `--reason` | 字符串 | 否 | `null` | 删除原因 |
 | `--yes` | 布尔 | 否 | `false` | 跳过确认 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -173,7 +173,7 @@ datamind route restore <routing_id> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<routing_id>` | 字符串 | 是 | `—` | 路由 ID |
+| `<routing_id>` | 字符串 | 是 | — | 路由 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`routing.delete` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/route/restore.py)

@@ -97,7 +97,7 @@ def api_field_rows(
                 code(field),
                 code(schema_type(prop, schema)),
                 "是" if info.is_required() else "否",
-                code(default),
+                default if info.is_required() else code(default),
                 ", ".join(dict.fromkeys(constraints)) or "—",
                 api_field_description(cls, field, info),
             )

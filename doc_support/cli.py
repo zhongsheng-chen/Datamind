@@ -233,7 +233,7 @@ def cli_parameter_rows(
                 code(opts),
                 kind,
                 "是" if param.required else "否",
-                code(default),
+                default if param.required else code(default),
                 getattr(param, "help", "") or "",
             )
         )

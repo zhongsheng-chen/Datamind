@@ -38,7 +38,7 @@ datamind deployment list
 ```bash
 datamind route create <deployment_id> \
   --name scorecard-demo-main \
-  --traffic-ratio 1 \
+  --traffic-ratio 1.0 \
   --enabled
 ```
 

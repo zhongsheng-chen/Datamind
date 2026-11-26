@@ -22,7 +22,7 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| `deployment_id` | `string` | 是 | `—` | minLength=1 | 要重新加载的部署 ID。 |
+| `deployment_id` | `string` | 是 | — | minLength=1 | 要重新加载的部署 ID。 |
 
 使用说明：
 
@@ -51,7 +51,7 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| `deployment_id` | `string` | 是 | `—` | minLength=1 | 要查询运行状态的部署 ID。 |
+| `deployment_id` | `string` | 是 | — | minLength=1 | 要查询运行状态的部署 ID。 |
 
 使用说明：
 
@@ -80,8 +80,8 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| `model_name` | `string` | 是 | `—` | maxLength=100, minLength=1 | 已注册的模型名称。 |
-| `features` | `object` | 是 | `—` | minProperties=1 | 本次预测的输入特征。 |
+| `model_name` | `string` | 是 | — | maxLength=100, minLength=1 | 已注册的模型名称。 |
+| `features` | `object` | 是 | — | minProperties=1 | 本次预测的输入特征。 |
 | `deployment_id` | `string \| null` | 否 | `null` | — | 显式指定的部署 ID；省略时由路由选择部署。 |
 | `subject_key` | `string \| null` | 否 | `null` | — | 用于实验分组和路由匹配的稳定业务主体标识。 |
 | `subject_type` | `string \| null` | 否 | `null` | — | 用于路由条件匹配的业务主体类型，例如 customer。 |
@@ -119,7 +119,7 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| `features` | `object` | 是 | `—` | minProperties=1 | 该实例的输入特征。 |
+| `features` | `object` | 是 | — | minProperties=1 | 该实例的输入特征。 |
 | `subject_key` | `string \| null` | 否 | `null` | — | 该实例用于实验分组和路由匹配的稳定业务主体标识。 |
 | `subject_type` | `string \| null` | 否 | `null` | — | 该实例用于路由条件匹配的业务主体类型，例如 customer。 |
 
@@ -159,8 +159,8 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| `model_name` | `string` | 是 | `—` | maxLength=100, minLength=1 | 已注册的模型名称。 |
-| `instances` | `array[PredictionInstance]` | 是 | `—` | minItems=1 | 需要预测的实例列表。 |
+| `model_name` | `string` | 是 | — | maxLength=100, minLength=1 | 已注册的模型名称。 |
+| `instances` | `array[PredictionInstance]` | 是 | — | minItems=1 | 需要预测的实例列表。 |
 | `deployment_id` | `string \| null` | 否 | `null` | — | 批次内所有实例共用的部署 ID；省略时逐条路由。 |
 
 使用说明：
@@ -207,7 +207,7 @@
 
 | 字段 | 类型 | 必需 | 默认值 | 约束 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| `batch_id` | `string` | 是 | `—` | maxLength=64, minLength=1 | 批量预测提交返回的批次 ID。 |
+| `batch_id` | `string` | 是 | — | maxLength=64, minLength=1 | 批量预测提交返回的批次 ID。 |
 
 使用说明：
 

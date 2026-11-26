@@ -18,7 +18,7 @@ datamind user create <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 | `--display-name` | 字符串 | 否 | `null` | 用户显示名称 |
 | `--email` | 字符串 | 否 | `null` | 用户邮箱 |
 | `--employee-number` | 字符串 | 否 | `null` | 工号 |
@@ -63,7 +63,7 @@ datamind user show <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 | `--include-deleted` | 布尔 | 否 | `false` | 允许查看已删除用户 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -83,7 +83,7 @@ datamind user update <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 | `--employee-number` | 字符串 | 否 | `null` | 工号，空字符串表示清空 |
 | `--organization` | 字符串 | 否 | `null` | 所属机构名称 |
 | `--organization-id` | 字符串 | 否 | `null` | 所属机构 ID，空字符串表示清空 |
@@ -105,7 +105,7 @@ datamind user enable <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/enable.py)
 
@@ -121,7 +121,7 @@ datamind user disable <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/disable.py)
 
@@ -137,7 +137,7 @@ datamind user reset-password <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/user/reset.py)
 
@@ -153,7 +153,7 @@ datamind user delete <username> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
 | `--reason` | 字符串 | 否 | `null` | 删除原因 |
 | `--yes` | 布尔 | 否 | `false` | 跳过确认 |
 
@@ -187,7 +187,7 @@ datamind organization create <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 机构名称 |
+| `<name>` | 字符串 | 是 | — | 机构名称 |
 | `--code` | 字符串 | 否 | `null` | 机构业务编码（可选） |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -205,9 +205,9 @@ datamind organization update <organization> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<organization>` | 字符串 | 是 | `—` | 机构名称或 ID |
+| `<organization>` | 字符串 | 是 | — | 机构名称或 ID |
 | `--code` | 字符串 | 否 | `null` | 机构编码 |
-| `--name` | 字符串 | 是 | `—` | 机构名称 |
+| `--name` | 字符串 | 是 | — | 机构名称 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/organization.py)
@@ -227,7 +227,7 @@ datamind organization delete <organization> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<organization>` | 字符串 | 是 | `—` | 机构名称或 ID |
+| `<organization>` | 字符串 | 是 | — | 机构名称或 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/organization.py)
@@ -248,7 +248,7 @@ datamind organization enable <organization> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<organization>` | 字符串 | 是 | `—` | 机构名称或 ID |
+| `<organization>` | 字符串 | 是 | — | 机构名称或 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/organization.py)
@@ -269,7 +269,7 @@ datamind organization disable <organization> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<organization>` | 字符串 | 是 | `—` | 机构名称或 ID |
+| `<organization>` | 字符串 | 是 | — | 机构名称或 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/organization.py)
@@ -307,7 +307,7 @@ datamind department create <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 部门名称 |
+| `<name>` | 字符串 | 是 | — | 部门名称 |
 | `--code` | 字符串 | 否 | `null` | 部门业务编码（可选） |
 | `--organization` | 字符串 | 否 | `null` | 所属机构名称 |
 | `--organization-id` | 字符串 | 否 | `null` | 所属机构 ID |
@@ -332,11 +332,11 @@ datamind department update <department> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<department>` | 字符串 | 是 | `—` | 部门名称、完整路径或 ID |
+| `<department>` | 字符串 | 是 | — | 部门名称、完整路径或 ID |
 | `--organization` | 字符串 | 否 | `null` | 所属机构名称 |
 | `--organization-id` | 字符串 | 否 | `null` | 所属机构 ID |
 | `--code` | 字符串 | 否 | `null` | 部门编码 |
-| `--name` | 字符串 | 是 | `—` | 部门名称 |
+| `--name` | 字符串 | 是 | — | 部门名称 |
 | `--parent` | 字符串 | 否 | `null` | 同一机构内的上级部门名称 |
 | `--parent-id` | 字符串 | 否 | `null` | 同一机构内的上级部门 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -359,7 +359,7 @@ datamind department delete <department> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<department>` | 字符串 | 是 | `—` | 部门名称、完整路径或 ID |
+| `<department>` | 字符串 | 是 | — | 部门名称、完整路径或 ID |
 | `--organization` | 字符串 | 否 | `null` | 所属机构名称 |
 | `--organization-id` | 字符串 | 否 | `null` | 所属机构 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -382,7 +382,7 @@ datamind department enable <department> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<department>` | 字符串 | 是 | `—` | 部门名称、完整路径或 ID |
+| `<department>` | 字符串 | 是 | — | 部门名称、完整路径或 ID |
 | `--organization` | 字符串 | 否 | `null` | 所属机构名称 |
 | `--organization-id` | 字符串 | 否 | `null` | 所属机构 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -405,7 +405,7 @@ datamind department disable <department> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<department>` | 字符串 | 是 | `—` | 部门名称、完整路径或 ID |
+| `<department>` | 字符串 | 是 | — | 部门名称、完整路径或 ID |
 | `--organization` | 字符串 | 否 | `null` | 所属机构名称 |
 | `--organization-id` | 字符串 | 否 | `null` | 所属机构 ID |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
@@ -424,7 +424,7 @@ datamind role create <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<name>` | 字符串 | 是 | — | 角色名称 |
 | `--permission` | 字符串（可重复） | 否 | `null` | 权限标识，可重复指定 |
 | `--all-permissions` | 布尔 | 否 | `false` | 授予全部权限 |
 | `--description` | 字符串 | 否 | `null` | 角色说明 |
@@ -468,7 +468,7 @@ datamind role show <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<name>` | 字符串 | 是 | — | 角色名称 |
 | `--include-deleted` | 布尔 | 否 | `false` | 允许查看已删除角色 |
 | `--format` | 字符串 | 否 | `"text"` | 输出格式：text / json |
 
@@ -486,7 +486,7 @@ datamind role enable <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<name>` | 字符串 | 是 | — | 角色名称 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/enable.py)
 
@@ -502,7 +502,7 @@ datamind role disable <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<name>` | 字符串 | 是 | — | 角色名称 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/disable.py)
 
@@ -518,8 +518,8 @@ datamind role grant <username> <role_name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `<role_name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
+| `<role_name>` | 字符串 | 是 | — | 角色名称 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/grant.py)
 
@@ -535,8 +535,8 @@ datamind role revoke <username> <role_name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<username>` | 字符串 | 是 | `—` | 登录用户名 |
-| `<role_name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<username>` | 字符串 | 是 | — | 登录用户名 |
+| `<role_name>` | 字符串 | 是 | — | 角色名称 |
 
 权限：`identity.manage` · [源码](https://github.com/zhongsheng-chen/Datamind/blob/main/datamind/cli/role/revoke.py)
 
@@ -552,7 +552,7 @@ datamind role delete <name> [OPTIONS]
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `<name>` | 字符串 | 是 | `—` | 角色名称 |
+| `<name>` | 字符串 | 是 | — | 角色名称 |
 | `--reason` | 字符串 | 否 | `null` | 删除原因 |
 | `--yes` | 布尔 | 否 | `false` | 跳过确认 |
 
